@@ -153,6 +153,27 @@ final class Capability
     public const string INBOX_TABS = 'urn:plmail:params:jmap:inboxtabs';
 
     /**
+     * Vendor extension: NotificationSettings/get and NotificationSettings/set —
+     * which mail is worth a notification, per user (#369). The browsers are
+     * filtered by the server; the phone apps read this and filter their own
+     * pushes, which also drive their sync and so cannot be filtered here.
+     * Per user, like APPEARANCE, so at the top level of the Session only.
+     */
+    public const string NOTIFICATIONS = 'urn:plmail:params:jmap:notifications';
+
+    /**
+     * Vendor extension: the reader's unified inboxes (#265) — name, icon,
+     * order, and which accounts each one lists. UnifiedInbox/get and
+     * UnifiedInbox/changes. On every account for the reason INBOX_TABS is:
+     * the change log a phone is pushed from is per account, and every account
+     * of a user answers with the same inboxes.
+     *
+     * Read-only for now. The inboxes are arranged in the web's settings; a
+     * client draws them and lists each one's accounts.
+     */
+    public const string UNIFIED_INBOXES = 'urn:plmail:params:jmap:unifiedinboxes';
+
+    /**
      * Capabilities a client is currently allowed to declare in "using".
      * Grow this list as new object types come online.
      *
@@ -176,5 +197,7 @@ final class Capability
         self::TEMPLATES,
         self::KEYS,
         self::INBOX_TABS,
+        self::NOTIFICATIONS,
+        self::UNIFIED_INBOXES,
     ];
 }

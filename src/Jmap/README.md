@@ -121,18 +121,29 @@ column.
   `StateChange` and `PushVerification` carry no content and stay readable.
 - `Push/PushDispatcher` fans out to a user's devices, per transport. Draining is
   driven by `App\Infrastructure\Event\Subscriber\JmapPushSubscriber`, which
-  drains two buffers from `StateManager`: what changed (`drainDirty()`) and on
-  which accounts mail arrived (`drainArrivals()`). A subscription with
-  `arrivalsOnly` — the in-app browser/PWA device, set by `WebPushController` —
-  is sent a StateChange only when its user had an arrival; every other row is
-  sent every StateChange. "Arrived" is decided by `PostIngestPipeline` (a live
-  batch, filed in the Inbox), not by an Email being created.
+  drains two buffers from `StateManager`: what changed (`drainDirty()`) and
+  what mail arrived under which notification scopes (`drainArrivals()`, account
+  id => `NotifyScope` keys). A subscription with `arrivalsOnly` — the in-app
+  browser/PWA device, set by `WebPushController` — is sent a StateChange only
+  when its user has one of those scopes switched on (`User::$notifyScopes`,
+  Primary alone by default); every other row is sent every StateChange, and a
+  phone app applies the same switches itself, read through
+  NotificationSettings/get. "Arrived" is decided by `PostIngestPipeline` (a
+  live batch, filed in the Inbox or, for its labels, elsewhere) and, for mail
+  held for the assistant, by `HeldMailReleaser` when the hold ends; which
+  scopes a message falls under is `App\Service\Mail\NotifyScopes`.
 
 **Appearance glue**
 - `Mapper/AppearanceMapper` — `App\Entity\Embeddable\Appearance` → the JMAP
   object, the compact read the Session carries, and the state token. Shared by
   both methods and the Session so one spelling per property survives.
 - `Method/Settings/AppearanceGet|SetMethod` — the singleton pair.
+
+**Notification settings glue** (#369)
+- `Mapper/NotificationSettingsMapper` — the user's notification switches and
+  the skip-read choice → the JMAP singleton, and its hashed state token.
+- `Method/Settings/NotificationSettingsGet|SetMethod` — the singleton pair,
+  per user, no `accountId`.
 
 **Contacts** — `Method/Contact/ContactAutocompleteMethod`, and nothing else.
 There is no mapper and no repository of its own: it is one call into
@@ -478,7 +489,7 @@ Get these wrong and things fail quietly rather than loudly.
   plain-IMAP path populates and is a strict subset of `seen_at`. flags *is*
   authoritative for `$draft` / `$answered`, which have no column.
 - **Full-text must use `websearch_to_tsquery('english', …)`** to match how
-  `Message::$searchVector` is generated. A mismatched config returns nothing at
+  `Message::$searchVector` is built. A mismatched config returns nothing at
   all, silently.
 - **The change log's PK is one sequence shared by every (account, objectType)**,
   so the first row of a type can sit at any number. `changesSince()` must treat

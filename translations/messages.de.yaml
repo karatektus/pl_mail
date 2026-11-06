@@ -10,6 +10,10 @@ account:
         imap:
             heading: Eingehend — IMAP
             host: Server
+            labels_help: 'Mit Schlüsselwörtern werden Labels, die du in plMail vergibst, auch auf dem Server gespeichert, und andere Mailprogramme, die Schlüsselwörter zeigen (etwa Thunderbird), zeigen sie an. Du kannst das später in den Ordnern des Kontos ändern.'
+            labels_keywords: 'In plMail und auf dem Server, als IMAP-Schlüsselwörter'
+            labels_label: 'Labels'
+            labels_local: 'Nur in plMail'
         jmap:
             heading: 'Eingehend — JMAP'
             outgoing_heading: 'Ausgehend — JMAP'
@@ -740,6 +744,14 @@ admin:
                 step_register: 'Im Azure-Portal unter Microsoft Entra ID → App-Registrierungen eine Anwendung registrieren.'
                 step_secret: 'Unter Zertifikate & Geheimnisse ein Client-Secret erstellen und den Wert sofort kopieren — er wird nur einmal angezeigt.'
                 tenant_note: 'Für private Microsoft-Konten den Tenant „common“ verwenden, oder die eigene Tenant-ID, um den Zugriff auf die Organisation zu beschränken.'
+            open_cloud:
+                intro: 'OpenCloud meldet sich mit einem App-Token pro Benutzer an, hier ist also nichts zu registrieren. plMail zeigt jedem Benutzer seinen persönlichen Bereich, seine Projektbereiche und was mit ihm geteilt wurde.'
+                security: 'App-Tokens erreichen alle Dateien eines Benutzers und funktionieren mit einem externen Identitätsanbieter weiter, auch wenn das Konto dort deaktiviert ist. Nicht mehr benötigte Tokens sollten gelöscht werden.'
+                share_password: 'OpenCloud lehnt öffentliche Links ohne Passwort standardmäßig ab. Damit große Dateien als Link angehängt werden können, setze OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false; sonst lassen sich nur Kopien anhängen.'
+                step_app_auth: 'Stell sicher, dass OpenCloud App-Tokens über WebDAV annimmt. Je nach Version heißt das: auth-app zu OC_ADD_RUN_SERVICES hinzufügen und PROXY_ENABLE_APP_AUTH=true setzen.'
+                step_base_url: 'Optional die Serveradresse festlegen, zum Beispiel https://cloud.example.com.'
+                step_enable: 'Oben „Diesen Dienst Benutzern anbieten“ einschalten.'
+                step_user: 'Jeder Benutzer erstellt in OpenCloud unter Kontoeinstellungen → App-Tokens ein Token mit langer Laufzeit und trägt es mit seinem Benutzernamen in seine eigenen Integrationseinstellungen ein.'
             paperless:
                 asynchronous: 'Beim Speichern übergibt plMail den Anhang an den Paperless-Consumer, der ihn ein paar Sekunden später ablegt. Gemeldet wird die Übergabe, nicht das fertige Dokument — ein Testdokument taucht also kurz nach der Erfolgsmeldung in Paperless auf, und eine Datei, die Paperless als Dublette ablehnt, gar nicht.'
                 intro: 'Paperless-ngx authentifiziert sich mit einem API-Token pro Benutzer, hier ist also nichts zu registrieren.'
@@ -2611,6 +2623,7 @@ integration:
             immich: 'Ein Foto beschreiben, z. B. Strand bei Sonnenuntergang'
             nextcloud: 'Nextcloud durchsuchen'
             oneDrive: 'OneDrive durchsuchen'
+            openCloud: 'OpenCloud durchsuchen'
             paperless: 'Titel und gescannten Text durchsuchen'
         status:
             attach_failed: 'Anhängen fehlgeschlagen'
@@ -2718,8 +2731,10 @@ label:
             make_folder_category: 'Die gleichnamige Outlook-Kategorie wird entfernt.'
             make_folder_done: 'Ordner erstellt.'
             make_folder_failed: 'Der Ordner konnte nicht erstellt werden: %error%'
+            make_folder_inside: 'Er kommt in den Ordner „%folder%“, in dem sein übergeordnetes Label liegt.'
             make_folder_mail: '%count% Nachrichten mit diesem Label auf diesem Konto werden dorthin verschoben.'
             make_folder_nested: 'Das übergeordnete Label „%parent%“ wird dort ebenfalls zum Ordner.'
+            make_folder_place: '„%name%“ anlegen in'
             make_folder_stay: 'Nachrichten in Papierkorb, Spam, Gesendet und Entwürfe bleiben, wo sie sind.'
             make_label: 'Zum Label machen'
             make_label_body: 'Löscht den Ordner „%name%“ auf %account%. Das Label bleibt dort als Markierung und kommt wieder an die verschobenen Nachrichten.'
@@ -3336,6 +3351,7 @@ settings:
                 intro: 'Der Ordner wird auf dem Mailserver angelegt und erscheint deshalb in jedem Mailprogramm, das dieses Konto liest. Ein Label anzulegen legt nie einen Ordner an; das hier schon.'
                 name: 'Name'
                 parent: 'In'
+                parent_help: 'plMail merkt sich das für den nächsten Ordner dieses Kontos.'
                 submit: 'Ordner anlegen'
                 title: 'Neuer Ordner — %account%'
                 top_level: 'Oberste Ebene'
@@ -3564,6 +3580,12 @@ settings:
         list:
             accountCorner: Konto-Ecke
             accountCornerHint: Das farbige Dreieck in der Ecke einer Zeile, das zeigt, über welches Konto sie eingegangen ist. Wird nur in Listen gezeichnet, die mehrere Konten mischen.
+            actionButton:
+                both: 'Symbole und Text'
+                icons: 'Symbole'
+                text: 'Text'
+            actionButtons: 'Aktionsschaltflächen'
+            actionButtonsHint: 'Was die Schaltflächen über einer Konversation oder Auswahl zeigen.'
             heading: Nachrichtenliste
             listAvatars: Absenderkreise
             listAvatarsHint: Der farbige Kreis mit der Initiale des Absenders. Ausgeschaltet wird daraus ein schlichter Kreis, statt zu verschwinden — er ist zugleich das Auswahlkästchen der Zeile.
@@ -3883,6 +3905,7 @@ settings:
         fact:
             granted_at: 'Angemeldet am'
             last_full_resync: 'Postfach komplett neu gelistet (%count%×)'
+            last_synced: 'Letzter erfolgreicher Abgleich'
             never: 'nie'
             never_delivered: 'es kam noch nie etwas an'
             never_run: 'kein Lauf aufgezeichnet'
@@ -3891,6 +3914,8 @@ settings:
             push_expires: 'Registrierung läuft ab'
             push_last_delivered: 'Letzte Benachrichtigung erhalten'
             push_last_renewal: 'Erneuerung lief zuletzt'
+            sync_began: 'Letzter Abgleich gestartet'
+            sync_requested: 'Letzter planmäßig angeforderter Abgleich'
         flash:
             calendar_resync: >-
                 %calendar% wurde zur Synchronisierung angemeldet. Sie läuft
@@ -3983,6 +4008,21 @@ settings:
                     zurückgesetzt. Verbinde das Konto neu und erlaube alles,
                     wonach du gefragt wirst.
                 title: '%account% hat nicht alle Rechte bekommen'
+            account_sync_behind:
+                body: >-
+                    Seit längerer Zeit, als das Sync-Intervall dieses Kontos
+                    erklärt, ist kein Abgleich mehr durchgelaufen, ohne dass
+                    etwas oft genug fehlgeschlagen wäre, um den Grund zu nennen.
+                    Neue Mail wartet also womöglich noch bei deinem Anbieter.
+                    Die Verbindung kann dabei in Ordnung sein: Die Abgleiche,
+                    die plMail angefordert hat, warten in der Warteschlange
+                    hinter anderer Arbeit, oder sie starten und werden nicht
+                    fertig. Die Daten unten zeigen, was davon: Ein Abgleich, der
+                    nach dem Start des letzten angefordert wurde, wartet noch,
+                    bis er dran ist. Meist holt das Konto von selbst auf; wenn
+                    nicht, lohnt ein Blick auf die Hintergrund-Worker des
+                    Servers.
+                title: '%account% hängt bei neuer Mail hinterher'
             account_sync_failing:
                 body: >-
                     Mehrere Versuche hintereinander sind fehlgeschlagen — für
@@ -4214,6 +4254,15 @@ settings:
         badge:
             ask_admin: 'nicht freigeschaltet'
             soon: 'bald verfügbar'
+        browser_login:
+            button: 'Im Browser bestätigen'
+            cancel: Abbrechen
+            failed: 'Die Bestätigung im Browser konnte nicht starten (%status%).'
+            help: 'Öffnet %provider% in einem neuen Tab. Melde dich dort an und bestätige plMail (Zwei-Faktor-Anmeldung funktioniert wie gewohnt), dann wird die Verbindung hier von selbst gespeichert.'
+            open_again: 'Bestätigungsseite erneut öffnen'
+            or_manual: 'Oder füll die Felder unten selbst aus.'
+            revoke_note: 'Eine neue Bestätigung ersetzt die gespeicherte Anmeldung, widerruft die alte aber nicht. Entferne das alte Gerät selbst in %provider%.'
+            waiting: 'Warte auf deine Bestätigung in %provider% …'
         checked: 'geprüft %date%'
         connect: Verbinden
         disabled: 'Verbindung pausiert'
@@ -4240,6 +4289,7 @@ settings:
                 immich: 'API-Schlüssel'
                 nextcloud: 'App-Passwort'
                 oneDrive: 'Zugriffstoken'
+                openCloud: 'App-Token'
                 paperless: 'API-Token'
             secret_help:
                 dropbox: ''
@@ -4248,6 +4298,7 @@ settings:
                 immich: 'In Immich unter Account Settings → API Keys erzeugen.'
                 nextcloud: 'In Nextcloud unter Einstellungen → Sicherheit → Geräte & Sitzungen erzeugen. Nicht das Anmeldepasswort verwenden.'
                 oneDrive: ''
+                openCloud: 'Erstelle eines in OpenCloud unter Kontoeinstellungen → App-Tokens und wähl eine lange Laufzeit: Ein abgelaufenes Token funktioniert nicht mehr. Mit Single Sign-on ist der Benutzername eventuell die ID unter Einstellungen.'
                 paperless: 'In Paperless unter My Profile → API Auth Token kopieren.'
             secret_unchanged: 'Leer lassen, um die gespeicherten Zugangsdaten zu behalten'
             username: Benutzername
@@ -4510,6 +4561,36 @@ settings:
         right:
             label: Nach rechts wischen
         subheading: Was eine Wischbewegung über eine Zeile auf dem Telefon bewirkt.
+    unified_inboxes:
+        account_label: 'Sammel-Posteingang für %account%'
+        account_off: 'Ausgeschaltet — nichts davon wird angezeigt, bis du es wieder einschaltest.'
+        accounts_heading: 'Konten'
+        accounts_subheading: 'In welchem Posteingang die Mail jedes Kontos erscheint. Ein neues Konto landet in deinem ersten Posteingang.'
+        add: 'Hinzufügen'
+        created: '„%name%“ angelegt.'
+        delete: '%inbox% löschen'
+        delete_confirm: '„%name%“ löschen? Seine Konten wandern nach %other%. Es wird keine Mail gelöscht.'
+        deleted: 'Posteingang gelöscht. Seine Konten stehen jetzt im Sammelbecken.'
+        heading: 'Sammel-Posteingänge'
+        hint: 'Jeder Posteingang zeigt die Mail der Konten, die du ihm zuordnest, als eine Liste mit eigenen Tabs. Lass den Namen leer, um den Standardnamen zu verwenden.'
+        icon_label: 'Symbol für %inbox%'
+        icon_new: 'Symbol für den neuen Posteingang'
+        last_stays: 'Mindestens ein eigener Posteingang muss bleiben.'
+        move_down: '%inbox% nach unten'
+        move_up: '%inbox% nach oben'
+        name_label: 'Name'
+        name_required: 'Ein Posteingang braucht einen Namen.'
+        name_too_long: 'Der Name ist zu lang (höchstens 40 Zeichen).'
+        no_accounts: 'Noch keine Mailkonten.'
+        not_found: 'Diesen Posteingang gibt es nicht mehr.'
+        other_hint: 'Sammelt jedes Konto, das du aus deinen eigenen Posteingängen nimmst. In der Seitenleiste erscheint er erst, wenn er eins enthält.'
+        other_option: 'Sammelbecken'
+        other_stays: 'Das Sammelbecken kann nicht gelöscht werden: Dort stehen die Konten, die in keinem deiner Posteingänge sind.'
+        placeholder: 'z. B. Arbeit'
+        reorder: 'Zum Sortieren ziehen'
+        save: 'Speichern'
+        saved: 'Gespeichert.'
+        subheading: 'Gib ihnen Namen und Symbole und zieh sie in die Reihenfolge, in der die Seitenleiste sie zeigt.'
     whats_new:
         heading: 'Was ist neu'
         'off': 'Aus'
@@ -4539,6 +4620,7 @@ settings:
             personal: Persönlich
         health: 'Zustand der Konten'
         images: Bilder
+        inboxes: 'Sammel-Posteingänge'
         insights: Insights
         integrations: Integrationen
         labels: Labels
@@ -4583,11 +4665,19 @@ settings:
         error_subscribe: 'Der Push-Dienst des Browsers hat diesem Gerät keine Adresse gegeben (%error%). In Brave schalte vorher „Google-Dienste für Push-Nachrichten verwenden“ ein.'
         error_worker: 'Der Hintergrunddienst von plMail ist nicht gestartet (%error%). Versuch es erneut; passiert es wieder, sag deiner Administration Bescheid.'
         heading: Benachrichtigungen
+        inbox: 'Posteingang'
         ios_hint: >-
             Auf iPhone und iPad funktionieren Benachrichtigungen erst, wenn
             plMail zum Home-Bildschirm hinzugefügt wurde: in Safari öffnen, auf
             Teilen tippen, dann "Zum Home-Bildschirm", und dort
             Benachrichtigungen aktivieren.
+        labels: 'Labels'
+        notify_for: 'Benachrichtigen bei'
+        notify_for_hint: 'Welche Mail eine Benachrichtigung auslöst: ein Kästchen pro Posteingang-Tab und pro Label. Gilt für alle deine Browser und für die Android-App. Ist nichts angehakt, benachrichtigt keine Mail.'
+        'off': 'Aus'
+        'on': 'An'
+        skip_read: 'Nur bei ungelesener Mail benachrichtigen'
+        skip_read_hint: 'Bevor eine Browser-Benachrichtigung erscheint, wartet plMail einige Sekunden und prüft, ob die neue Mail noch ungelesen ist. Hast du sie schon gelesen oder gelöscht, etwa auf dem Handy, erscheint nichts.'
         state_denied: >-
             In deinen Browser-Einstellungen blockiert. Erlaube
             Benachrichtigungen für diese Seite und versuche es erneut.
@@ -4969,6 +5059,7 @@ sidebar:
         calendar: Kalender
         drafts: Entwürfe
         inbox: Posteingang
+        inbox_other: 'Sonstige'
         more: Mehr
         sent: Gesendet
         snoozed: Zurückgestellt

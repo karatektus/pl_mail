@@ -300,6 +300,13 @@ be a worse regression than the one this feature fixes.
     id="thread_{{ rowId }}"
     class="group relative hover:shadow-sm"
     data-controller="mail--message-row"
+    {# Focusable, so ↓ and ↑ can move the real focus through the list and a
+       screen reader can say which row it is on (#469). -1 here, and
+       ui--shortcuts raises the cursor's row to 0, so the list is one Tab stop
+       rather than fifty. No role on top: a listbox's options may hold nothing
+       interactive, and a row is full of buttons — the list it already is says
+       "item 3 of 50", which is the part that was missing. #}
+    tabindex="-1"
     {% if draggable %}
         draggable="true"
         data-dnd-thread="{{ rowId }}"

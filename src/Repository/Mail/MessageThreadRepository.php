@@ -136,8 +136,14 @@ class MessageThreadRepository extends ServiceEntityRepository
      * A null category is the whole inbox, for somebody who has switched the
      * tabs off — see CategorySorting::$tabs. Null and not a default argument,
      * so that every caller has to say which of the two it means.
+     *
+     * $accountIds narrows it to one of the reader's unified inboxes (#265) —
+     * UnifiedInboxes::accountIdsOf(). Null is every account, which is what
+     * JMAP and anything else that is not drawing one of those inboxes means.
+     *
+     * @param list<int>|null $accountIds
      */
-    public function findForUnifiedInbox(UserInterface $user, MessageCategory|InboxTab|null $category, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
+    public function findForUnifiedInbox(UserInterface $user, MessageCategory|InboxTab|null $category, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false, ?array $accountIds = null): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -154,6 +160,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->distinct();
 
         $this->narrowToCategory($qb, $category, $this->switchedOffBy($user));
+        $this->narrowToAccounts($qb, $accountIds);
 
         $this->excludeTrashed($qb);
         $this->narrowToUnread($qb, $unreadOnly);
@@ -277,8 +284,12 @@ class MessageThreadRepository extends ServiceEntityRepository
         return $counts;
     }
 
-    /** Same two joins as findForUnifiedInbox(), so the same reason to keep it. */
-    public function countForUnifiedInbox(UserInterface $user, MessageCategory|InboxTab|null $category, bool $unreadOnly = false): int
+    /**
+     * Same two joins as findForUnifiedInbox(), so the same reason to keep it.
+     *
+     * @param list<int>|null $accountIds see findForUnifiedInbox()
+     */
+    public function countForUnifiedInbox(UserInterface $user, MessageCategory|InboxTab|null $category, bool $unreadOnly = false, ?array $accountIds = null): int
     {
         // COUNT(DISTINCT t.id), not select-DISTINCT: the label join is to-many,
         // and ->distinct() would put the DISTINCT on the aggregate rather than
@@ -298,6 +309,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('inbox', LabelRole::Inbox);
 
         $this->narrowToCategory($qb, $category, $this->switchedOffBy($user));
+        $this->narrowToAccounts($qb, $accountIds);
 
         // The same exclusion findForUnifiedInbox() applies, and it was missing
         // here. A thread keeps its Inbox label when it goes to the bin — the
@@ -318,8 +330,9 @@ class MessageThreadRepository extends ServiceEntityRepository
      * so visibility cannot be derived from the new-mail numbers.
      *
      * @return array<string, int>
+     * @param list<int>|null $accountIds one unified inbox's accounts, see findForUnifiedInbox()
      */
-    public function countByCategoryForUnifiedInbox(UserInterface $user): array
+    public function countByCategoryForUnifiedInbox(UserInterface $user, ?array $accountIds = null): array
     {
         $qb = $this->createQueryBuilder('t')
             ->select('t.category AS category', 'IDENTITY(t.userCategory) AS userCategory', 'COUNT(DISTINCT t.id) AS threadCount')
@@ -334,6 +347,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('inbox', LabelRole::Inbox);
 
         $this->excludeTrashed($qb);
+        $this->narrowToAccounts($qb, $accountIds);
 
         return $this->foldByTab($qb->getQuery()->getResult(), 'threadCount', $this->switchedOffBy($user));
     }
@@ -352,8 +366,9 @@ class MessageThreadRepository extends ServiceEntityRepository
      * opens on "No messages in this tab" would be worse than no mark at all.
      *
      * @return array<string, int>
+     * @param list<int>|null $accountIds one unified inbox's accounts, see findForUnifiedInbox()
      */
-    public function countUnreadByCategoryForUnifiedInbox(UserInterface $user): array
+    public function countUnreadByCategoryForUnifiedInbox(UserInterface $user, ?array $accountIds = null): array
     {
         $qb = $this->createQueryBuilder('t')
             ->select('t.category AS category', 'IDENTITY(t.userCategory) AS userCategory', 'COUNT(DISTINCT t.id) AS threadCount')
@@ -369,6 +384,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('inbox', LabelRole::Inbox);
 
         $this->excludeTrashed($qb);
+        $this->narrowToAccounts($qb, $accountIds);
 
         return $this->foldByTab($qb->getQuery()->getResult(), 'threadCount', $this->switchedOffBy($user));
     }
@@ -738,6 +754,33 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /** No-op when no account was asked for, so callers need no branch. */
+    /**
+     * Narrow an inbox query to the accounts of one unified inbox (#265).
+     *
+     * Null is no narrowing — every account of the reader's, as the single
+     * unified inbox always was. An empty list is an inbox with no accounts in
+     * it, which lists nothing: `IN ()` is not SQL, so it is said as a
+     * condition that is never true rather than left out, which would have
+     * shown an empty inbox everything.
+     *
+     * @param list<int>|null $accountIds
+     */
+    private function narrowToAccounts(QueryBuilder $qb, ?array $accountIds): void
+    {
+        if (null === $accountIds) {
+            return;
+        }
+
+        if ([] === $accountIds) {
+            $qb->andWhere('1 = 0');
+
+            return;
+        }
+
+        $qb->andWhere('a.id IN (:inboxAccounts)')
+            ->setParameter('inboxAccounts', $accountIds, ArrayParameterType::INTEGER);
+    }
+
     private function narrowToAccount(QueryBuilder $qb, ?Account $account): void
     {
         if (null === $account) {
@@ -1000,6 +1043,75 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
+     * Conversations holding unread mail in the Inbox, per account — what the
+     * badge on each unified inbox in the sidebar adds up (#265).
+     *
+     * countUnreadPerRole()'s Inbox group, split by account rather than
+     * summed, with the same exclusions, so the badges of all of a reader's
+     * inboxes add up to the number the single Inbox badge showed. A
+     * conversation belongs to one account, so adding per-account counts
+     * cannot count one twice.
+     *
+     * @return array<int, int> account id => conversations holding unread mail
+     */
+    public function countUnreadInboxPerAccount(UserInterface $user): array
+    {
+        $qb = $this->inboxPerAccount($user, 'unreadCount')
+            ->andWhere('t.unreadCount > 0')
+            ->andWhere('t.binned = false');
+
+        return $this->foldPerAccount($qb, 'unreadCount');
+    }
+
+    /**
+     * New conversations in the Inbox, per account: the dot beside each
+     * unified inbox. countNewPerRole()'s Inbox group, split the same way as
+     * countUnreadInboxPerAccount() above and for the same reason.
+     *
+     * @return array<int, int> account id => new conversations
+     */
+    public function countNewInboxPerAccount(UserInterface $user, \DateTimeImmutable $now): array
+    {
+        $qb = $this->inboxPerAccount($user, 'newCount')
+            ->andWhere('t.binned = false');
+
+        $this->restrictToNew($qb, $now);
+
+        return $this->foldPerAccount($qb, 'newCount');
+    }
+
+    /** The shared shape of the two per-account inbox counts above. */
+    private function inboxPerAccount(UserInterface $user, string $alias): QueryBuilder
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->select('a.id AS accountId', 'COUNT(DISTINCT t.id) AS ' . $alias)
+            ->join('t.account', 'a')
+            ->join('t.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('l.role = :inbox')
+            ->setParameter('user', $user)
+            ->setParameter('inbox', LabelRole::Inbox)
+            ->groupBy('a.id');
+
+        $this->excludeHeldFromInbox($qb);
+
+        return $qb;
+    }
+
+    /** @return array<int, int> */
+    private function foldPerAccount(QueryBuilder $qb, string $field): array
+    {
+        $counts = [];
+
+        foreach ($qb->getQuery()->getArrayResult() as $row) {
+            $counts[(int) $row['accountId']] = (int) $row[$field];
+        }
+
+        return $counts;
+    }
+
+    /**
      * The same grouped COUNT for custom labels — conversations holding unread
      * mail, for the reason countUnreadPerRole() gives.
      *
@@ -1219,8 +1331,9 @@ class MessageThreadRepository extends ServiceEntityRepository
      * per tab on every page load.
      *
      * @return array<string,int>
+     * @param list<int>|null $accountIds one unified inbox's accounts, see findForUnifiedInbox()
      */
-    public function countNewByCategoryForUnifiedInbox(UserInterface $user, \DateTimeImmutable $now): array
+    public function countNewByCategoryForUnifiedInbox(UserInterface $user, \DateTimeImmutable $now, ?array $accountIds = null): array
     {
         $qb = $this->createQueryBuilder('t')
             ->select('t.category AS category', 'IDENTITY(t.userCategory) AS userCategory', 'COUNT(DISTINCT t.id) AS newCount')
@@ -1236,6 +1349,7 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         $this->restrictToNew($qb, $now);
         $this->excludeTrashed($qb);
+        $this->narrowToAccounts($qb, $accountIds);
 
         return $this->foldByTab($qb->getQuery()->getResult(), 'newCount', $this->switchedOffBy($user));
     }
@@ -1257,11 +1371,13 @@ class MessageThreadRepository extends ServiceEntityRepository
      *
      * @return array<string, list<string>> category value → sender display
      *         names, newest arrival first, at most $perCategory
+     * @param list<int>|null $accountIds one unified inbox's accounts, see findForUnifiedInbox()
      */
     public function newSendersByCategoryForUnifiedInbox(
         UserInterface $user,
         \DateTimeImmutable $now,
         int $perCategory = 3,
+        ?array $accountIds = null,
     ): array {
         $absorbed = $this->switchedOffBy($user);
 
@@ -1288,6 +1404,7 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         $this->restrictToNew($qb, $now);
         $this->excludeTrashed($qb);
+        $this->narrowToAccounts($qb, $accountIds);
 
         // Newest message per thread. COALESCE hydrates as a "Y-m-d H:i:s"
         // string, which orders chronologically as a plain string compare.
@@ -2460,7 +2577,10 @@ class MessageThreadRepository extends ServiceEntityRepository
             // values arrived, and the second only runs when the first came up
             // short.
             if (true === $withBodyRescue && null !== $free->substring) {
+                // Two arms, one per column and each on its own trigram index:
+                // the words of an HTML-only body are in body_html_text (#477).
                 $cheap[] = "SELECT m.id FROM message m WHERE {$mine} AND m.body_text ILIKE :freeLike";
+                $cheap[] = "SELECT m.id FROM message m WHERE {$mine} AND m.body_html_text ILIKE :freeLike";
 
                 // The one lexical arm whose per-row form is not free: it reads
                 // the body of every row the statement is about to return, which
@@ -2470,7 +2590,7 @@ class MessageThreadRepository extends ServiceEntityRepository
                 // "found by meaning", which is the one thing this column exists
                 // not to get wrong. Only ever in the rescue statement, which is
                 // rare by construction and already the expensive one.
-                $lexical[] = 'm.body_text ILIKE :freeLike';
+                $lexical[] = '(m.body_text ILIKE :freeLike OR m.body_html_text ILIKE :freeLike)';
             }
 
             $where[] = 'm.id IN (' . implode(' UNION ', $cheap) . ')';

@@ -11,6 +11,7 @@ use App\Entity\User\User;
 use App\Jmap\Push\PushEndpointPolicy;
 use App\Jmap\Push\WebPushSender;
 use App\Repository\User\PushSubscriptionRepository;
+use App\Service\Mail\NotifyScopes;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -37,6 +38,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class WebPushController extends AbstractController
 {
     use ChecksCsrf;
+
+    /** See inboxState(). */
+    private const int SKIP_READ_DELAY_SECONDS = 20;
 
     public function __construct(
         private readonly PushSubscriptionRepository $subscriptions,
@@ -204,6 +208,37 @@ final class WebPushController extends AbstractController
             'configured' => $this->sender->isConfigured(),
             'registered' => null !== $subscription,
             'verified' => null !== $subscription && $subscription->verified,
+        ]);
+    }
+
+    /**
+     * What the service worker asks before it shows "New mail": is the mail it
+     * was woken for still unread, and does this user want that checked at all.
+     *
+     * Asked by the worker rather than answered by the push because the push
+     * is content-free and cannot be recalled (see User::$notifySkipsRead).
+     * Always answers, setting on or off, so the worker needs no second request
+     * to learn the setting; with it off the worker shows the notification at
+     * once, as it always did. $delay is how long a worker that is asked to skip
+     * read mail waits before asking again, so that mail opened on a phone
+     * straight away never notifies; it lives here so the number can change
+     * without a new service worker reaching every browser.
+     *
+     * "The mail it was woken for" is recent unread mail under one of this
+     * user's switches (NotifyScopes::hasRecentUnread()), not the Inbox's
+     * unread count: last week's unread newsletters, in a tab nobody asked to
+     * hear about, would otherwise keep every notification alive.
+     */
+    #[Route('/inbox-state', name: 'inbox_state', methods: ['GET'])]
+    public function inboxState(NotifyScopes $notifyScopes): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        return $this->json([
+            'skipRead'  => $user->notifySkipsRead,
+            'hasUnread' => true === $user->notifySkipsRead && true === $notifyScopes->hasRecentUnread($user),
+            'delay'     => self::SKIP_READ_DELAY_SECONDS,
         ]);
     }
 

@@ -24,7 +24,7 @@ import { Controller } from "@hotwired/stimulus";
  */
 export default class extends Controller {
     static targets = [
-        "note", "incomingLabel", "pop3Options", "jmapOptions",
+        "note", "incomingLabel", "pop3Options", "jmapOptions", "imapOptions",
         "outgoingLabel", "smtpFields", "smtpOffer", "jmapOutgoing",
         "incomingEncryption", "sessionUrl", "sessionUrlOffer",
     ];
@@ -105,6 +105,10 @@ export default class extends Controller {
 
         if (this.hasJmapOptionsTarget) {
             this.jmapOptionsTarget.classList.toggle("hidden", protocol !== "jmap");
+        }
+
+        if (this.hasImapOptionsTarget) {
+            this.imapOptionsTarget.classList.toggle("hidden", protocol !== "imap");
         }
 
         if (this.hasIncomingEncryptionTarget) {

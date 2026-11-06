@@ -1,0 +1,1 @@
+- Settings → Appearance can now put words on the buttons above a conversation and a selection: icons, icons and text, or text only.

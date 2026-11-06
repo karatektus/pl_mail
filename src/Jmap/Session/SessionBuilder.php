@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jmap\Session;
 
+use App\Domain\DTO\Push\NotifyScope;
+use App\Domain\Enum\Theme\ActionButtonStyle;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
@@ -104,6 +106,9 @@ final class SessionBuilder
                 // The user's tabs, answered by every account — see
                 // Capability::INBOX_TABS.
                 Capability::INBOX_TABS => new \stdClass(),
+                // The user's unified inboxes, likewise — see
+                // Capability::UNIFIED_INBOXES.
+                Capability::UNIFIED_INBOXES => new \stdClass(),
             ];
 
             if ($accountId === $calendarAccountId) {
@@ -136,6 +141,7 @@ final class SessionBuilder
             $primaryAccounts[Capability::SUBMISSION] = $primaryId;
             $primaryAccounts[Capability::CONTACTS] = $primaryId;
             $primaryAccounts[Capability::INBOX_TABS] = $primaryId;
+            $primaryAccounts[Capability::UNIFIED_INBOXES] = $primaryId;
         }
 
         if (null !== $calendarAccountId) {
@@ -175,6 +181,21 @@ final class SessionBuilder
                 Capability::TEMPLATES => $this->templatesCapabilities(),
                 Capability::KEYS => $this->keysCapabilities(),
                 Capability::INBOX_TABS => new \stdClass(),
+                // The icon names an inbox can carry, so a client can map the
+                // whole set to its own glyphs before the first get answers.
+                Capability::UNIFIED_INBOXES => [
+                    'icons' => array_map(
+                        static fn (\App\Domain\Enum\Mail\UnifiedInboxIcon $icon): string => $icon->value,
+                        \App\Domain\Enum\Mail\UnifiedInboxIcon::cases(),
+                    ),
+                ],
+                // What a scope key may look like, and the list a user who has
+                // not chosen gets — so a client can draw its switches before
+                // the first NotificationSettings/get answers.
+                Capability::NOTIFICATIONS => [
+                    'scopePrefixes' => [NotifyScope::CATEGORY_PREFIX, NotifyScope::TAB_PREFIX, NotifyScope::LABEL_PREFIX],
+                    'defaultScopes' => [NotifyScope::PRIMARY],
+                ],
             ],
             'accounts' => $accountsValue,
             'primaryAccounts' => $primaryAccountsValue,
@@ -383,8 +404,9 @@ final class SessionBuilder
         return [
             'appearance' => $this->appearanceMapper->compact($user->appearance),
             // Whether this person wants their inbox in category tabs — see
-            // CategorySorting::$tabs. Not an appearance property and not
-            // settable from here; published beside the hint because it is the
+            // CategorySorting::$tabs. Not an appearance property, though
+            // Appearance/get serves it and Appearance/set changes it
+            // (android#11); published beside the hint because it is the
             // same kind of fact, one user-level choice about how the lists are
             // drawn, and a client that draws tabs of its own from
             // Thread.category has no other way to learn that it should not.
@@ -398,6 +420,7 @@ final class SessionBuilder
             'backgroundKinds' => array_column(BackgroundKind::cases(), 'value'),
             'backgroundPresets' => array_column(BackgroundPreset::cases(), 'value'),
             'unreadEmphases' => array_column(UnreadEmphasis::cases(), 'value'),
+            'actionButtonStyles' => array_column(ActionButtonStyle::cases(), 'value'),
             'fontFamilies' => array_column(FontFamily::cases(), 'value'),
             'layoutDefaults' => array_combine(
                 array_column(Layout::cases(), 'value'),

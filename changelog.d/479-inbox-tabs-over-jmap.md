@@ -1,0 +1,1 @@
+- Phones and other JMAP clients can now switch the inbox tabs on and off: `Appearance/get` and `Appearance/set` carry the web's **Inbox tabs** switch as `inboxTabs`.

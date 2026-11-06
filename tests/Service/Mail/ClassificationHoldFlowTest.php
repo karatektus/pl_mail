@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Mail;
 
 use App\Domain\DTO\Mail\IngestedMessage;
+use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Domain\Enum\Mail\CategorySource;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
@@ -20,6 +21,7 @@ use App\Infrastructure\Messaging\Message\ExtractInsightsMessage;
 use App\Infrastructure\Messaging\Message\ProcessReadReceiptsMessage;
 use App\Infrastructure\Messaging\Message\ProposeEventsMessage;
 use App\Infrastructure\Messaging\Message\ReleaseHeldMailMessage;
+use App\Jmap\State\StateManager;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MessageRepository;
@@ -245,6 +247,59 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         // The timed release arriving after the verdict has already released
         // the message is the ordinary case, and must be a no-op.
         self::assertSame(0, $releaser->release([$message]));
+    }
+
+    /**
+     * Held mail is announced once, when the hold ends, under the tab it ended
+     * in (#369). On arrival its tab is not known, so it falls under no switch;
+     * announcing it then as Primary would tell a Primary-only reader about a
+     * promotion, and announcing it twice would ring every phone twice.
+     */
+    public function testHeldMailIsAnnouncedWhenItIsReleasedUnderItsTab(): void
+    {
+        $this->assistantSorts();
+        $this->importFinished();
+
+        $state = self::getContainer()->get(StateManager::class);
+        $state->drainArrivals();
+
+        $message = $this->inboxMessage('fresh', '-1 minute');
+        $this->ingest($message);
+
+        self::assertTrue($message->isCategoryHeld());
+        self::assertSame([], $state->drainArrivals(), 'its tab is not known yet');
+
+        $message->category = MessageCategory::Updates;
+        $this->em->flush();
+
+        self::getContainer()->get(HeldMailReleaser::class)->release([$message]);
+
+        self::assertSame(
+            [(int) $message->account->id => ['category:updates']],
+            $state->drainArrivals(),
+            'presence: announced now, with the tab it ended in',
+        );
+    }
+
+    /** Mail the reader has meanwhile read is no news when its hold ends. */
+    public function testHeldMailThatWasReadMeanwhileIsNoNewsOnRelease(): void
+    {
+        $this->assistantSorts();
+        $this->importFinished();
+
+        $state = self::getContainer()->get(StateManager::class);
+
+        $message = $this->inboxMessage('fresh', '-1 minute');
+        $this->ingest($message);
+
+        $message->seenAt = new DateTimeImmutable();
+        $this->em->flush();
+
+        $state->drainArrivals();
+
+        self::getContainer()->get(HeldMailReleaser::class)->release([$message]);
+
+        self::assertSame([], $state->drainArrivals());
     }
 
     /**
@@ -629,6 +684,17 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         $this->mailbox->importFloorUid = 0;
 
         $this->em->flush();
+    }
+
+    /** An Inbox arrival, the kind a hold applies to. */
+    private function inboxMessage(string $slug, string $received): Message
+    {
+        $message = $this->message($slug, $received);
+        $message->arrivedIn = ArrivalPlace::Inbox;
+        $message->addLabel(self::getContainer()->get(LabelResolver::class)->systemLabel(LabelRole::Inbox, $this->account));
+        $this->em->flush();
+
+        return $message;
     }
 
     /** Persisted and flushed, which is the pipeline's stated precondition. */

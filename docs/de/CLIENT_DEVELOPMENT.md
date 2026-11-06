@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:ca091d2ed6af5c69de1bed6388bfaab801a918d8 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:6fdd29f9b66c78b052193cdf5c7bd33cc52bc324 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -234,8 +234,12 @@ Dieselbe Capability trägt einen Boolean, der keine Appearance-Eigenschaft ist: 
 Eine Nutzerin kann die Kategorie-Tabs des Posteingangs ausschalten und möchte dann eine einzige
 Liste. `Thread.category` wird so oder so geliefert, weil Mail im Hintergrund weiter einsortiert
 wird — an der Kategorie lässt sich das also nicht ablesen. Zeichnest du Tabs daraus, zeichne keine,
-wenn `inboxTabs` `false` ist. Hier ist der Wert nur lesbar und, wie das kompakte `appearance`
-daneben, ein Hinweis, der in einer gecachten Session veraltet sein kann.
+wenn `inboxTabs` `false` ist. Hier ist der Wert, wie das kompakte `appearance` daneben, ein
+Hinweis, der in einer gecachten Session veraltet sein kann. `Appearance/get` liefert den aktuellen
+Wert als Eigenschaft `inboxTabs` des Singletons, und `Appearance/set` ändert ihn (ein
+JSON-Boolean). Es ist derselbe Schalter wie „Tabs im Posteingang“ im Web, gespeichert bei
+den Kategorie-Einstellungen statt bei der Appearance, und Umschalten verschiebt keine Mail zwischen
+Kategorien.
 
 ### Posteingangs-Tabs (`urn:plmail:params:jmap:inboxtabs`)
 
@@ -263,6 +267,56 @@ Konto; jedes Konto antwortet mit derselben Liste.
 Tabs anlegen, umbenennen, schalten und anordnen geht heute im Web. `Thread.category` und
 `threadCategory` sind unverändert, und `inboxTabs` oben sagt weiterhin, ob überhaupt Tabs gezeichnet
 werden.
+
+### Sammel-Posteingänge (`urn:plmail:params:jmap:unifiedinboxes`)
+
+Die Posteingänge der Nutzerin so, wie die Seitenleiste im Web sie zeichnet (#265): eine oder mehrere
+benannte Listen über je eine Gruppe von Konten, dazu **Sonstige** mit den Konten, die sie aus ihren
+eigenen herausgenommen hat. Angekündigt oben in der Session, mit `icons` (jeder Symbolname, den ein
+Posteingang tragen kann), und an jedem Konto; jedes Konto antwortet mit derselben Liste.
+
+- **`UnifiedInbox/get`** (`accountId` nötig) listet jeden Posteingang in der Reihenfolge der
+  Seitenleiste. Ein UnifiedInbox ist `{ id, name, icon, sortOrder, isOther, accountIds }`. `name`
+  ist null bei einem Posteingang, dem die Nutzerin keinen Namen gegeben hat: Nenn ihn
+  „Posteingang“, bei Sonstige „Sonstige“, in deiner eigenen Sprache. `icon` ist ein
+  Font-Awesome-Solid-Name aus den `icons` der Capability; bilde ihn auf deine eigenen Symbole ab.
+  `accountIds` sind die Konten, deren Posteingang er listet, **eine Liste**: Heute ist ein Konto in
+  einem Posteingang, und das Format ändert sich nicht, falls es einmal mehrere werden.
+- Zeichne einen Posteingang wie das Web: den Posteingang seiner Konten als eine Liste, die Tabs nur
+  über diese Konten gezählt. Das Web lässt Sonstige weg, solange keines seiner Konten eingeschaltet
+  ist.
+- **`UnifiedInbox/changes`** ist das übliche /changes, und ein Push-`StateChange` trägt einen
+  `UnifiedInbox`-State. Ein hinzugefügtes oder entferntes Konto ändert, welcher Posteingang es listet,
+  ohne Änderung hier: Hol die Posteingänge neu, wenn sich die Konten der Session ändern.
+
+Posteingänge anlegen, benennen, anordnen und Konten zwischen ihnen verschieben geht heute im Web.
+
+### Benachrichtigungs-Einstellungen (`urn:plmail:params:jmap:notifications`)
+
+Welche Mail eine Benachrichtigung wert ist, einmal pro **Person** gewählt und nicht pro Gerät:
+dieselben Schalter im Web, in jedem Browser und in deiner App. Die Browser-Pushes filtert der Server
+selbst. Deine App bekommt weiterhin jeden `StateChange` (sie braucht ihn zum Synchronisieren) und
+wendet die Schalter an, bevor sie klingelt.
+
+- **`NotificationSettings/get`** (ohne `accountId`; die Singleton-Id ist `"singleton"`) liefert
+  `{ id, scopes, skipRead }`. `scopes` ist die Liste der Schalter, die **an** sind, immer
+  ausgeschrieben: `["category:primary"]` für jemanden, der nie gewählt hat. Ein Schlüssel ist
+  `category:<eingebaut>`, `tab:c<id>` für einen eigenen Tab (die `InboxTab`-Id nach dem Präfix) oder
+  `label:<labelId>` (`Mailbox.labelId`, damit ein Schalter das Label in jedem Konto abdeckt).
+  `skipRead` ist „Nur bei ungelesener Mail benachrichtigen“ der Browser; eine App, die schon weiß,
+  was gelesen ist, braucht es nicht.
+- **`NotificationSettings/set`** `update: { "singleton": { "scopes": [...], "skipRead": bool } }`.
+  `scopes` ersetzt die ganze Liste; ein Schlüssel, der nie ein Scope sein könnte, ist
+  `invalidProperties`. Ein Schlüssel für einen Tab oder ein Label, das es nicht mehr gibt, bleibt
+  stehen und passt einfach nie. `create` und `destroy` werden mit `singleton` abgelehnt.
+- Der State ist ein Hash des Objekts, keine Folge: Es gibt kein `/changes`. Lies es erneut, wenn du
+  deinen Benachrichtigungs-Bildschirm öffnest, und bei jeder Synchronisierung.
+- Die Capability in der Session trägt `scopePrefixes` und `defaultScopes`.
+
+Unter welche Scopes eine Nachricht fällt: der Tab, in dem das Web sie zeigt, wenn sie im Posteingang
+liegt (`Thread.inboxTab`; `category:primary` für alles im Posteingang, wenn `inboxTabs` false ist),
+dazu `label:<id>` für jedes Label ohne Rolle. Wo der Posteingang keine Tabs hat, zählt auch das
+Posteingangs-Label. Gesendete Mail und Entwürfe fallen unter nichts.
 
 > **Das ist über JMAP erreichbar.** `Appearance/get` und `Appearance/set` liefern das
 > Singleton-Objekt (Id `"singleton"`, kein `accountId` — es hängt an der `User`-Entität), und die
@@ -755,6 +809,7 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `Thread/get` / `Thread/changes` | `/get` trägt vier plMail-Erweiterungen: `snoozedUntil`, `category`, `inboxTab`, `isNew`. |
 | `Thread/set` | plMail-Erweiterung. `snoozedUntil`, `isNew`, `inboxTab` und die Anweisung `moveTo` — siehe [Verschieben](#verschieben-threadset-moveto) und §4. |
 | `InboxTab/get` / `InboxTab/changes` | `urn:plmail:params:jmap:inboxtabs`. Die Tabs der Nutzerin, an jedem Konto dieselben. Siehe [Posteingangs-Tabs](#posteingangs-tabs-urnplmailparamsjmapinboxtabs). |
+| `UnifiedInbox/get` / `UnifiedInbox/changes` | `urn:plmail:params:jmap:unifiedinboxes`. Die Sammel-Posteingänge der Nutzerin und ihre Konten, an jedem Konto dieselben. Siehe [Sammel-Posteingänge](#sammel-posteingänge-urnplmailparamsjmapunifiedinboxes). |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. Kalender liefert genau ein Konto. |
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | Eine ID ist die Serie, nicht eine Termininstanz; `/query` verlangt einen Zeitraum, und `expandRecurrences: true` lässt sie je Termininstanz antworten. |
@@ -1777,7 +1832,7 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 
 **Einstellungen**
 - Erscheinungsbild — `Appearance/get` und `Appearance/set` liefern das gesamte Objekt, samt
-  `fontFamily`, `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`, `tabUnreadCount`,
+  `fontFamily`, `fontScale`, `previewLines`, `unreadEmphasis`, `actionButtons`, `accountCorner`, `listAvatars`, `tabUnreadCount`,
   den drei Dichten pro Oberfläche und den nur lesbaren `logoStyle`, `logoMotif` und `logoPaint`
   (siehe [§2](#2-aussehen-und-verhalten)). Bau das Token-System
   trotzdem; lies die Werte des Servers hinein, statt eigene Vorgaben zu erfinden.

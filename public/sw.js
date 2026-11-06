@@ -27,6 +27,10 @@
  */
 
 const VERIFY_URL = "/settings/push/verify";
+const INBOX_STATE_URL = "/settings/push/inbox-state";
+const NEW_MAIL_TAG = "plmail-new-mail";
+// How long a push waits for /settings/push/inbox-state before showing anyway.
+const INBOX_STATE_TIMEOUT_MS = 5000;
 
 self.addEventListener("install", () => {
     // Take over immediately; there is no old cache to drain.
@@ -112,16 +116,115 @@ async function notifyStateChange(payload) {
         return;
     }
 
-    await self.registration.showNotification("plMail", {
+    // A user who asked to skip mail that is already read: wait, then look
+    // again. The push cannot be recalled and says nothing about WHICH mail
+    // arrived, so this is the only point where "read on the phone a minute
+    // ago" can still be told apart from "new". Asked twice rather than once
+    // because the first answer also carries the setting and the delay.
+    let state = await inboxState();
+
+    if (state && state.skipRead === true) {
+        await new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(state.delay) || 0) * 1000));
+
+        // The reader may have come back to plMail while this waited.
+        const now = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+
+        if (now.some((client) => client.focused)) {
+            return;
+        }
+
+        state = await inboxState();
+
+        if (state && state.hasUnread === false) {
+            await showNothing();
+
+            return;
+        }
+    }
+
+    await showNewMail();
+}
+
+function showNewMail() {
+    return self.registration.showNotification("plMail", {
         body: "New mail",
         icon: "/icons/icon-192.png",
         badge: "/icons/icon-192.png",
         // One replaceable notification rather than a growing stack: the push
         // carries no per-message detail, so several would all say the same.
-        tag: "plmail-new-mail",
+        tag: NEW_MAIL_TAG,
         renotify: true,
         data: { url: "/mail/inbox" },
     });
+}
+
+/**
+ * The mail this push was about has been read: show nothing, and take down the
+ * notification this worker showed for an earlier push, whose mail is read now
+ * too.
+ *
+ * Except on WebKit (Safari, and every browser on an iPhone), which expects
+ * every push to show a notification and may cancel the subscription of a site
+ * whose pushes keep showing none. There one is shown silently and closed at
+ * once, which is what it asks for and leaves nothing on screen. Chrome and
+ * Firefox ask only for a notification to be on screen when the push is
+ * handled, and closing it would earn the browser's own "updated in the
+ * background" notice instead, so there nothing is shown. Not checked on an
+ * iPhone yet: if WebKit counts a closed notification as none, the risk is the
+ * one this setting already had.
+ */
+async function showNothing() {
+    const shown = await self.registration.getNotifications({ tag: NEW_MAIL_TAG });
+    shown.forEach((notification) => notification.close());
+
+    if (!isWebKit()) {
+        return;
+    }
+
+    await self.registration.showNotification("plMail", {
+        body: "New mail",
+        icon: "/icons/icon-192.png",
+        tag: NEW_MAIL_TAG,
+        silent: true,
+    });
+
+    const placeholder = await self.registration.getNotifications({ tag: NEW_MAIL_TAG });
+    placeholder.forEach((notification) => notification.close());
+}
+
+/**
+ * Safari on a Mac, or any browser on an iPhone or iPad — all of them WebKit.
+ * Chrome on iOS calls itself CriOS, so "no Chrome in the name" catches it too.
+ */
+function isWebKit() {
+    const agent = self.navigator.userAgent || "";
+
+    return /AppleWebKit/.test(agent) && !/Chrome|Chromium|Android/.test(agent);
+}
+
+/**
+ * Whether the mail a push was about is still unread, and whether this user
+ * wants that checked (User::$notifySkipsRead). Null when it cannot be told —
+ * offline, signed out, a server error, a server too slow to answer — and the
+ * caller then shows the notification, because a missed notification is worse
+ * than one for mail that is already read.
+ *
+ * Bounded by a timeout, because the notification waits for this answer even
+ * for somebody who never switched the check on: a server that hangs must not
+ * hold every notification back with it.
+ */
+async function inboxState() {
+    try {
+        const response = await fetch(INBOX_STATE_URL, {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+            signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(INBOX_STATE_TIMEOUT_MS) : undefined,
+        });
+
+        return response.ok ? await response.json() : null;
+    } catch (e) {
+        return null;
+    }
 }
 
 /**

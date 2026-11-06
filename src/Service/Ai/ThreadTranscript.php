@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Ai;
 
 use App\Entity\Ai\AiFeature;
+use App\Domain\Helper\ReadableBody;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\MessageRepository;
@@ -186,7 +187,9 @@ final readonly class ThreadTranscript
 
     private static function block(Message $turn, int $limit, bool $readable = true): string
     {
-        $body = true === $readable ? trim((string) ($turn->bodyText ?? '')) : '';
+        // ReadableBody, not bodyText: a thread written in HTML alone has no
+        // text parts, and was summarised as "no message content" (#477).
+        $body = true === $readable ? ReadableBody::of($turn) : '';
 
         // CLIPPED PER TURN, because dropping whole turns is not a bound.
         //

@@ -11,6 +11,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Service\Label\ThreadLabelSynchronizer;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class MessageThreader
@@ -45,6 +46,7 @@ final class MessageThreader
         private readonly MessageRepository       $messageRepository,
         private readonly MessageThreadRepository $messageThreadRepository,
         private readonly ThreadMerger            $threadMerger,
+        private readonly ThreadLabelSynchronizer $threadLabels,
     )
     {
     }
@@ -55,8 +57,13 @@ final class MessageThreader
      * thread_references, subject, and addresses populated, but the entity
      * does not need to be persisted yet — this method will associate it
      * with a thread and the caller is responsible for the final flush.
+     *
+     * $recordArrival false leaves the arrival half — the sort key, the
+     * category, the new-mail marker — to a later recordArrival() call. The
+     * ingest pipeline asks for that so the user's rules have filed the message
+     * before it is allowed to move its conversation. See recordArrival().
      */
-    public function assignThread(Message $message, Account $account): void
+    public function assignThread(Message $message, Account $account, bool $recordArrival = true): void
     {
         // 1. The provider's own conversation id, when there is one. Gmail and
         //    Graph have already grouped the conversation the way the user sees
@@ -69,12 +76,13 @@ final class MessageThreader
             $this->attachMessageToThread(
                 $message,
                 $this->providerThread($providerThreadKey, $account, $message),
+                $recordArrival,
             );
 
             return;
         }
 
-        $this->assignThreadByHeaders($message, $account);
+        $this->assignThreadByHeaders($message, $account, $recordArrival);
 
         // 4. The other direction: mail that already answers this message.
         $this->adoptReplies($message, $account);
@@ -84,7 +92,7 @@ final class MessageThreader
      * Steps 2 and 3 of assignThread(): what the message's own headers, and
      * failing them its subject, say it belongs to.
      */
-    private function assignThreadByHeaders(Message $message, Account $account): void
+    private function assignThreadByHeaders(Message $message, Account $account, bool $recordArrival): void
     {
         // 2. RFC 5322 References / In-Reply-To.
         $referenceIds = $this->collectReferenceIds($message);
@@ -94,7 +102,7 @@ final class MessageThreader
 
             if ($parentMessage !== null && $parentMessage->thread !== null) {
                 $thread = $parentMessage->thread;
-                $this->attachMessageToThread($message, $thread);
+                $this->attachMessageToThread($message, $thread, $recordArrival);
 
                 return;
             }
@@ -102,7 +110,7 @@ final class MessageThreader
             // Headers are valid even though no parent has been synced yet —
             // method is about what the message provides, not whether a match occurred.
             $thread = $this->createThread($message, $account, ThreadingMethod::References);
-            $this->attachMessageToThread($message, $thread);
+            $this->attachMessageToThread($message, $thread, $recordArrival);
 
             return;
         }
@@ -124,7 +132,7 @@ final class MessageThreader
                 );
 
                 if ($candidateThread !== null && $this->participantsOverlap($message, $candidateThread)) {
-                    $this->attachMessageToThread($message, $candidateThread);
+                    $this->attachMessageToThread($message, $candidateThread, $recordArrival);
 
                     return;
                 }
@@ -132,7 +140,7 @@ final class MessageThreader
         }
 
         $thread = $this->createThread($message, $account, ThreadingMethod::SubjectFallback);
-        $this->attachMessageToThread($message, $thread);
+        $this->attachMessageToThread($message, $thread, $recordArrival);
     }
 
     /**
@@ -377,7 +385,7 @@ final class MessageThreader
 
         return $thread;
     }
-    private function attachMessageToThread(Message $message, MessageThread $thread): void
+    private function attachMessageToThread(Message $message, MessageThread $thread, bool $recordArrival): void
     {
         $message->thread = $thread;
 
@@ -387,9 +395,57 @@ final class MessageThreader
             $thread->addLabel($label);
         }
 
-        if (null === $message->seenAt) {
+        // Counted on only while nothing in the conversation is in Spam or the
+        // bin, which is nearly always. Otherwise which messages count depends
+        // on all of them (MessageThread::unreadAmong()), and the synchronizer
+        // recounts from the conversation as a whole — loading it, which is
+        // why that is not the way for every reply.
+        if (true === $thread->holdsSetAsideMail()) {
+            $this->threadLabels->sync($thread);
+        } elseif (null === $message->seenAt) {
             $thread->unreadCount = $thread->unreadCount + 1;
+        }
 
+        if (true === $message->hasAttachments) {
+            $thread->attachmentCount = $thread->attachmentCount + 1;
+        }
+
+        if (true === $recordArrival) {
+            $this->recordArrival($message);
+        }
+    }
+
+    /**
+     * What a message arriving in its conversation does to where that
+     * conversation is shown: the sort key and the category move to it, and
+     * unread mail makes the conversation new again.
+     *
+     * Not for mail that arrives set aside — in Spam or in the bin — into a
+     * conversation that has mail outside them. A reply a filter files as spam
+     * brought its conversation back to the top of the Inbox, unread-new and in
+     * the spam's tab, although the only thing that had happened to it was
+     * spam (#470). A conversation made of set-aside mail only still moves, so
+     * that Spam and Trash keep their own order.
+     *
+     * Its own step so that the ingest pipeline can run it after the user's
+     * rules: a filter is what decides that a message is spam, and it decides
+     * after threading, because its actions reach the thread. assignThread()
+     * still does both at once for everybody else.
+     */
+    public function recordArrival(Message $message): void
+    {
+        $thread = $message->thread;
+
+        if (null === $thread) {
+            return;
+        }
+
+        if (true === $message->isSetAside()
+            && true === $this->messageRepository->existsNotSetAsideInThread($thread, $message)) {
+            return;
+        }
+
+        if (null === $message->seenAt) {
             // Unread mail joining a conversation makes it new AGAIN.
             //
             // listedAt was only ever written when a thread was created, so a
@@ -409,10 +465,6 @@ final class MessageThreader
             $thread->listedAt = null;
         }
 
-        if (true === $message->hasAttachments) {
-            $thread->attachmentCount = $thread->attachmentCount + 1;
-        }
-
         $this->recordActivity($message, $thread);
     }
 
@@ -422,7 +474,7 @@ final class MessageThreader
      *
      * Every thread list in the app orders on lastMessageAt, so this is what
      * decides where a conversation sits. Two callers, deliberately: the ingest
-     * path via attachMessageToThread() above, and MessageSendService the moment
+     * path via recordArrival() above, and MessageSendService the moment
      * a reply leaves. The send half is the newer one — before it, only incoming
      * mail could move a thread, so answering a conversation left it exactly
      * where it had been, which is not what any mail client has done for fifteen

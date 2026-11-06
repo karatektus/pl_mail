@@ -78,6 +78,19 @@ final readonly class AccountHealthInspector
      */
     private const int SYNC_FAILURES_BEFORE_REPORTING = 3;
 
+    /**
+     * How many of the account's own sync intervals may pass without a sync
+     * going through before the health page says so, and the floor under it.
+     *
+     * Three intervals: one missed poll is a busy queue, three is mail that
+     * should be here and is not. Thirty minutes as the floor, so an account
+     * on the one-minute interval is not reported for a queue that was busy
+     * for five.
+     */
+    private const int SYNC_INTERVALS_BEFORE_BEHIND = 3;
+
+    private const int SYNC_BEHIND_MINIMUM_MINUTES = 30;
+
     public function __construct(
         private AccountRepository        $accounts,
         private CalendarRepository       $calendars,
@@ -151,6 +164,14 @@ final readonly class AccountHealthInspector
                 $deadGrants[(int) $account->id] = $scope->id;
 
                 continue;
+            }
+
+            // Not a cause either: an account whose mail is late has done
+            // nothing to its calendars, and they sync on their own queue.
+            $behind = $this->mailboxBehind($account);
+
+            if (null !== $behind) {
+                $issues[] = $behind;
             }
 
             // LAST, and deliberately NOT a cause.
@@ -681,6 +702,71 @@ final readonly class AccountHealthInspector
             // from one that has never had to — the first is falling behind the
             // window its provider keeps, and that is somewhere to look.
             facts: $this->resyncFacts($account),
+            detail: $account->lastSyncError,
+        );
+    }
+
+    /**
+     * The account's mail is late, and nothing on record says why (#418).
+     *
+     * The case this is for looked healthy everywhere else: the connection
+     * worked, no sync had failed, and the account's syncs were waiting on a
+     * queue behind another account that kept running into the IMAP deadline.
+     * A sync that never starts records no failure, so mailboxSync() had
+     * nothing to report, and "no error" read as "up to date".
+     *
+     * Reached only when mailboxSync() had nothing to say: an account whose
+     * syncs keep failing already has the card with the reason on it.
+     *
+     * The facts are what tells the two stories apart. A sync asked for after
+     * the last one started is waiting its turn in the queue; a sync that
+     * starts and never goes through is failing or being cut off.
+     */
+    private function mailboxBehind(Account $account): ?HealthIssue
+    {
+        if (true !== $account->isActive) {
+            return null;
+        }
+
+        if (null !== $account->lastSyncError && $account->syncFailureCount >= self::SYNC_FAILURES_BEFORE_REPORTING) {
+            return null;
+        }
+
+        // Nothing has ever asked this account to sync: no poll and no sync
+        // started. That is a scheduler that is not running (or a test seed),
+        // and an account cannot be behind on work nobody gave it.
+        if (null === $account->lastPolledAt && null === $account->syncBeganAt) {
+            return null;
+        }
+
+        $allowed = max(
+            self::SYNC_BEHIND_MINIMUM_MINUTES,
+            self::SYNC_INTERVALS_BEFORE_BEHIND * $account->syncIntervalMinutes,
+        );
+
+        // A new account has nothing to be behind until its first sync has had
+        // the same time to go through.
+        $since = $account->lastSyncedAt ?? $account->createdAt;
+
+        if ($since > new DateTimeImmutable(sprintf('-%d minutes', $allowed))) {
+            return null;
+        }
+
+        return new HealthIssue(
+            id: 'account-sync-behind-' . $account->id,
+            kind: HealthIssueKind::AccountSyncBehind,
+            severity: HealthSeverity::Warning,
+            subject: $account->email,
+            titleParams: ['%account%' => $account->email],
+            bodyParams: ['%account%' => $account->email],
+            // None, for the reason AccountSyncFailing has none: a "sync now"
+            // would queue one more sync behind the ones that are waiting.
+            repairs: [],
+            facts: [
+                new HealthFact(labelKey: 'settings.health.fact.last_synced', at: $account->lastSyncedAt),
+                new HealthFact(labelKey: 'settings.health.fact.sync_began', at: $account->syncBeganAt, noneKey: 'settings.health.fact.not_recorded'),
+                new HealthFact(labelKey: 'settings.health.fact.sync_requested', at: $account->lastPolledAt, noneKey: 'settings.health.fact.not_recorded'),
+            ],
             detail: $account->lastSyncError,
         );
     }

@@ -24,6 +24,7 @@ use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Service\Mail\InboxTabs;
+use App\Service\Mail\NotifyScopes;
 use App\Repository\Push\PushDeliveryRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\User\PushSubscriptionRepository;
@@ -65,7 +66,7 @@ final class SettingsController extends AbstractController
     /** Where /settings opens: the first entry in the navigation. */
     private const string DEFAULT_SECTION = 'profile';
 
-    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'encryption', 'notifications', 'general', 'categories', 'reading-pane', 'shortcuts', 'disposal', 'images', 'swipe-actions', 'calendar-behaviour', 'contacts'];
+    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'encryption', 'notifications', 'general', 'categories', 'inboxes', 'reading-pane', 'shortcuts', 'disposal', 'images', 'swipe-actions', 'calendar-behaviour', 'contacts'];
 
     /**
      * One icon per AI feature, here rather than on the enum.
@@ -92,6 +93,7 @@ final class SettingsController extends AbstractController
         private readonly BookingPageRepository $bookingPageRepository,
         private readonly MailRuleRepository $mailRuleRepository,
         private readonly InboxTabs $inboxTabs,
+        private readonly \App\Service\Mail\UnifiedInboxes $unifiedInboxes,
         private readonly PushSubscriptionRegistry $pushSubscriptionRegistry,
         private readonly PushSubscriptionRepository $pushSubscriptions,
         private readonly PushDeliveryRepository $pushDeliveries,
@@ -113,6 +115,7 @@ final class SettingsController extends AbstractController
         private readonly AiAssistant $ai,
         private readonly LabelResolver $labelResolver,
         private readonly TemplateLibrary $templateLibrary,
+        private readonly NotifyScopes $notifyScopes,
     ) {
     }
 
@@ -174,6 +177,14 @@ final class SettingsController extends AbstractController
             'categoryTabs'       => 'categories' === $section && $user instanceof User
                 ? $this->inboxTabs->managedFor($user)
                 : [],
+            // The unified inboxes and where each account is listed (#265),
+            // only where they are drawn, like the tabs above.
+            ...$this->inboxesSectionData($section, $user),
+            // The notification switches, for the same reason only where they
+            // are drawn: the tabs and the labels, each a read (#369).
+            'notifySwitches'     => 'notifications' === $section && $user instanceof User
+                ? $this->notifyScopes->offeredTo($user)
+                : ['inbox' => [], 'labels' => []],
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),
             // A refused profile save forwards here with its form, so the page
@@ -533,6 +544,24 @@ final class SettingsController extends AbstractController
                 $request,
                 [] === $codes ? null : array_values((array) $codes),
             ),
+        ];
+    }
+
+    /**
+     * Settings → Unified inboxes (#265): the reader's inboxes in order, and
+     * which one each account is listed in, keyed by account id.
+     *
+     * @return array{unifiedInboxes: list<\App\Entity\Mail\UnifiedInbox>, inboxOfAccount: array<int, int>}
+     */
+    private function inboxesSectionData(string $section, mixed $user): array
+    {
+        if ('inboxes' !== $section || false === $user instanceof User) {
+            return ['unifiedInboxes' => [], 'inboxOfAccount' => []];
+        }
+
+        return [
+            'unifiedInboxes' => $this->unifiedInboxes->all($user),
+            'inboxOfAccount' => $this->unifiedInboxes->membership($user),
         ];
     }
 }

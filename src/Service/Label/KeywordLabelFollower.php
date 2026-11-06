@@ -30,6 +30,7 @@ final readonly class KeywordLabelFollower
     public function __construct(
         private KeywordLabels       $labels,
         private ThreadStatusUpdater $status,
+        private LabelResolver       $resolver,
     ) {
     }
 
@@ -60,6 +61,7 @@ final readonly class KeywordLabelFollower
                 $label = $this->labels->label($name, $owner, true);
 
                 if (null !== $label && null === $label->bindingFor($account)?->mailbox) {
+                    $this->resolver->usedAsTagOn($label, $account);
                     $message->addLabel($label);
                     $touched[(int) $message->id] = $message;
                 }

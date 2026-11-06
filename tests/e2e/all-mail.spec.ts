@@ -16,9 +16,20 @@ import { rowAction } from "./support/rows";
 test.beforeEach(() => seed("seed-mail"));
 
 // Back off afterwards: the row is opt-in, and every other spec signs in as
-// the same person and expects the sidebar everybody starts with.
+// the same person and expects the sidebar everybody starts with. That
+// includes the account's folders folded away: the tests here expand them,
+// and account-folders.spec.ts's menu test fails behind an expanded account.
 test.afterEach(async ({ page }) => {
     await setAllMail(page, false);
+
+    const token = await page.locator("meta[name='csrf-token']").getAttribute("content", { timeout: 2000 }).catch(() => null);
+
+    if (null !== token) {
+        await page.request.post("/mail/sidebar/account-expanded", {
+            headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
+            data: { account: null },
+        });
+    }
 });
 
 /** Switch the All Mail label on or off through the eye in label settings. */

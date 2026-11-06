@@ -103,6 +103,17 @@ enum HealthIssueKind: string
     case AccountSyncFailing = 'account_sync_failing';
 
     /**
+     * No sync has gone through for longer than the account's interval
+     * explains, and nothing has failed often enough to say why (#418).
+     *
+     * Its own kind because the account looked healthy: connected, no error on
+     * record, and new mail sitting at the provider for eight hours while its
+     * syncs waited on a queue behind another account's. A sync that never
+     * starts records no failure, so AccountSyncFailing cannot see it.
+     */
+    case AccountSyncBehind = 'account_sync_behind';
+
+    /**
      * The mail server has something to tell the user, in its own words.
      *
      * IMAP has a channel for exactly this — `* OK [ALERT] …` — and RFC 3501
@@ -219,6 +230,9 @@ enum HealthIssueKind: string
             // Critical: this one means new mail is not arriving, which is the
             // application not doing its job rather than a part of it missing.
             self::AccountSyncFailing   => HealthSeverity::Critical,
+            // Warning: mail is late, not known to have stopped. The syncs may
+            // be waiting their turn and go through on their own.
+            self::AccountSyncBehind    => HealthSeverity::Warning,
             // Warning: mail may still be arriving, and the server has not said
             // anything is broken — only that somebody should know something.
             self::ServerAlert          => HealthSeverity::Warning,
@@ -275,6 +289,7 @@ enum HealthIssueKind: string
             self::AccountScopeMissing  => 'fa-calendar-day',
             self::AccountContactsScopeMissing => 'fa-address-book',
             self::AccountSyncFailing   => 'fa-inbox',
+            self::AccountSyncBehind    => 'fa-hourglass-half',
             self::ServerAlert          => 'fa-bullhorn',
             self::CalendarSyncFailing  => 'fa-calendar-xmark',
             self::CalendarsBlocked     => 'fa-calendar-xmark',

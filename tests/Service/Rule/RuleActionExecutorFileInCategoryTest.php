@@ -139,6 +139,15 @@ final class RuleActionExecutorFileInCategoryTest extends TestCase
                 new GraphLabelPolicy(),
                 new NullLogger(),
                 $this->createStub(MessageRepository::class),
+                new LabelResolver(
+                    $this->createStub(LabelRepository::class),
+                    $this->createStub(LabelBindingRepository::class),
+                    $this->createStub(EntityManagerInterface::class),
+                    new StateManager(
+                        $this->createStub(EntityManagerInterface::class),
+                        new ChangeLogRepository($this->createStub(ManagerRegistry::class)),
+                    ),
+                ),
             ),
             new ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
             $this->createStub(IntegrationRepository::class),

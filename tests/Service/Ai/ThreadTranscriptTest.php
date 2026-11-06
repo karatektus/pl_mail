@@ -92,6 +92,24 @@ final class ThreadTranscriptTest extends KernelTestCase
     }
 
     /**
+     * A thread written in HTML alone is summarised from what it says (#477).
+     * Its messages have no text part, and the summariser was handed headers
+     * and nothing else: "exchanged emails, but no message content".
+     */
+    public function testAnHtmlOnlyTurnContributesItsWords(): void
+    {
+        $this->seedThread(['what time do you open', null]);
+
+        $this->turns[1]->bodyHtml = '<html><head><style>p { margin: 0 }</style></head><body><p>Nine, <b>most</b> days</p></body></html>';
+        $this->em->flush();
+
+        $text = $this->transcript->forThread($this->thread);
+
+        self::assertStringContainsString('Nine, most days', $text);
+        self::assertStringNotContainsString('margin', $text, 'the stylesheet reached the model as if it were prose');
+    }
+
+    /**
      * THE ONE THAT MATTERS. A thread past the budget keeps its opening AND its
      * newest turn, and drops the middle.
      *

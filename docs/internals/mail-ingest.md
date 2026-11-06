@@ -143,8 +143,8 @@ chances to diverge, and anything wanting to react to new mail had to be wired in
 
 The precondition is stated in the docblock and is not negotiable: **the caller has already
 persisted and flushed every message.** Ids must exist before threading queries them, and
-`MailRuleEngine` matches in SQL against `search_vector`, a generated column, so a message
-that has not reached the database is invisible to the user's own rules.
+`MailRuleEngine` matches in SQL against `search_vector`, which a trigger builds as the row is
+written, so a message that has not reached the database is invisible to the user's own rules.
 
 Per message, in order:
 
@@ -561,12 +561,32 @@ provider flag as truth would make the two disagree in the more confusing directi
 `PostIngestPipeline` announces threads in a second pass rather than inside its loop, and why
 `MailChangeRecorder::emailChanged()` takes a nullable thread at all.
 
-**`search_vector` is a generated column and no PHP reads it.** It is mapped
-`insertable: false, updatable: false` purely so it stays in the schema; `idx_message_search_vector`
-is declared as a plain index and built `USING gin` by the migration, because Doctrine's
-comparator matches an index on its name and columns and never looks at the method. Dropping
-the declaration makes every schema diff ask to drop the index, and dropping the index turns
-search into a sequential scan without failing anything.
+**`search_vector` is kept by a trigger, and no PHP reads it.** `plmail_message_search_vector()`
+builds it on INSERT and on an UPDATE of the columns it reads. It used to be a generated column,
+and changing a generated column's expression rewrote the whole table inside the migration, so
+Version20261105120000 made it a plain column. It is mapped `insertable: false, updatable: false`
+purely so it stays in the schema; `idx_message_search_vector` is declared as a plain index and
+built `USING gin` by the migration, because Doctrine's comparator matches an index on its name
+and columns and never looks at the method. Dropping the declaration makes every schema diff ask
+to drop the index, and dropping the index turns search into a sequential scan without failing
+anything.
+
+**A NULL `search_vector` means "not indexed yet", and the trigger leaves it NULL.** After the
+column was rebuilt every row started out NULL. `SearchIndexRebuilder` fills them, newest first,
+from `app:search:index-pending` every minute, or all at once from `app:backfill html-body-text`.
+It sets the column to an empty vector, which tells the trigger to build it. On any other update
+a NULL row stays NULL: a vector built by a flag change would be built before the row's
+`body_html_text` was, and would take the row off the rebuild's list for good. Until a row is
+reached, full-text does not find it; the substring pass does.
+
+**`body_text` is the plain part the sender sent, and an HTML-only message has none.** Search
+reads `body_html_text` in its place: the words of the HTML body (`ReadableBody::htmlWordsOf()`),
+stored only where `body_text` does not hold them, and filled by `Message::deriveBodyHtmlText()`
+on every flush that changed a body. `search_vector`, the substring pass, the JMAP `body` filter
+and the snippets all read it. Filling `body_text` instead would have told the reply quote, JMAP's
+text part and the misfiled-body repair about a part the sender never wrote. Code that hands mail
+to a model reads `ReadableBody::of()`, not `bodyText`. Mail stored before the column existed gets
+it from the same rebuild (#477).
 
 **The `Archive` label is location bookkeeping, not a state.** "Archived" in the domain model
 means "carries no Inbox label"; the `Archive` label exists so the location-label invariant

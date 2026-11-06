@@ -10,6 +10,10 @@ account:
         imap:
             heading: Incoming — IMAP
             host: Host
+            labels_help: 'With keywords, labels you give mail in plMail are stored on the server too, and other mail apps that show keywords (Thunderbird, for one) show them. You can change this later in the account’s folders.'
+            labels_keywords: 'In plMail and on the server, as IMAP keywords'
+            labels_label: 'Labels'
+            labels_local: 'Only in plMail'
         jmap:
             heading: 'Incoming — JMAP'
             outgoing_heading: 'Outgoing — JMAP'
@@ -729,6 +733,14 @@ admin:
                 step_register: 'Open the Azure portal and register an application under Microsoft Entra ID → App registrations.'
                 step_secret: 'Under Certificates & secrets, create a client secret and copy its value immediately — it is shown only once.'
                 tenant_note: 'Use the common tenant for personal Microsoft accounts, or your tenant ID to restrict access to your organisation.'
+            open_cloud:
+                intro: 'OpenCloud authenticates with a per-user app token, so there is nothing to register here. plMail lists each user''s personal space, the project spaces they belong to and what was shared with them.'
+                security: 'App tokens can reach all of a user''s files and, with an external identity provider, keep working after the account is disabled there. Users should delete tokens they no longer need.'
+                share_password: 'OpenCloud refuses public links without a password by default. To let users attach large files as links, set OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false; otherwise they can only attach copies.'
+                step_app_auth: 'Make sure OpenCloud accepts app tokens over WebDAV. Depending on the version, that means adding auth-app to OC_ADD_RUN_SERVICES and setting PROXY_ENABLE_APP_AUTH=true.'
+                step_base_url: 'Optionally pin the server address, for example https://cloud.example.com.'
+                step_enable: 'Turn on "Offer this service to users" above.'
+                step_user: 'Each user creates an app token in OpenCloud under their account settings → App Tokens, with a long expiry, and pastes it with their username into their own integration settings.'
             paperless:
                 asynchronous: 'Saving an attachment hands it to the Paperless consumer, which files it a few seconds later. plMail reports the handover, not the finished document — so a test save appears in Paperless shortly after it is reported as done, and a file Paperless rejects as a duplicate never appears at all.'
                 intro: 'Paperless-ngx authenticates with a per-user API token, so there is nothing to register here.'
@@ -2607,6 +2619,7 @@ integration:
             immich: 'Describe a photo, e.g. beach at sunset'
             nextcloud: 'Search Nextcloud'
             oneDrive: 'Search OneDrive'
+            openCloud: 'Search OpenCloud'
             paperless: 'Search titles and scanned text'
         status:
             attach_failed: 'Could not attach'
@@ -2714,8 +2727,10 @@ label:
             make_folder_category: 'The Outlook category of this name is removed.'
             make_folder_done: 'Folder created.'
             make_folder_failed: 'The folder could not be created: %error%'
+            make_folder_inside: 'It goes inside the folder “%folder%”, where its parent label is.'
             make_folder_mail: '%count% message(s) with this label on this account move into it.'
             make_folder_nested: 'Its parent “%parent%” becomes a folder there too.'
+            make_folder_place: 'Create “%name%” in'
             make_folder_stay: 'Mail in Trash, Spam, Sent and Drafts stays where it is.'
             make_label: 'Make it a label'
             make_label_body: 'Deletes the folder “%name%” on %account%. The label stays, as a tag there, and goes back on the mail that moves.'
@@ -3350,6 +3365,7 @@ settings:
                 intro: 'The folder is made on the mail server, so it shows in every mail app that reads this account. Making a label never makes a folder; this does.'
                 name: 'Name'
                 parent: 'Inside'
+                parent_help: 'plMail remembers this for the next folder on this account.'
                 submit: 'Create folder'
                 title: 'New folder — %account%'
                 top_level: 'Top level'
@@ -3570,6 +3586,12 @@ settings:
         list:
             accountCorner: Account corner
             accountCornerHint: The coloured triangle in a row's corner, saying which account it arrived on. Only ever drawn in a list that mixes accounts.
+            actionButton:
+                both: 'Icons and text'
+                icons: 'Icons'
+                text: 'Text'
+            actionButtons: 'Action buttons'
+            actionButtonsHint: 'What the buttons above a conversation or a selection show.'
             heading: Message list
             listAvatars: Sender discs
             listAvatarsHint: The coloured circle carrying the sender's initial. Switched off it becomes a plain circle rather than disappearing — it is also the row's checkbox.
@@ -3892,6 +3914,7 @@ settings:
         fact:
             granted_at: 'Signed in on'
             last_full_resync: 'Re-listed the whole mailbox (%count%×)'
+            last_synced: 'Last sync that went through'
             never: 'never'
             never_delivered: 'nothing has ever arrived'
             never_run: 'no run recorded'
@@ -3900,6 +3923,8 @@ settings:
             push_expires: 'Registration expires'
             push_last_delivered: 'Last notification received'
             push_last_renewal: 'Renewal last ran'
+            sync_began: 'Last sync started'
+            sync_requested: 'Last sync asked for by the schedule'
         flash:
             calendar_resync: >-
                 %calendar% has been asked to sync. It is running in the
@@ -3983,6 +4008,19 @@ settings:
                     next sync. Connect the account again and allow everything
                     you are asked for.
                 title: '%account% was not given full access'
+            account_sync_behind:
+                body: >-
+                    No sync of this account has gone through for longer than its
+                    sync interval explains, although nothing has failed often
+                    enough to say why, so new mail may be waiting at your
+                    provider. The connection can be fine while this happens: the
+                    syncs plMail asked for are waiting in the queue behind other
+                    work, or are starting and not finishing. The dates below
+                    tell which: a sync asked for after the last one started is
+                    still waiting its turn. It usually catches up on its own; if
+                    it does not, the server's background workers are the place
+                    to look.
+                title: '%account% is behind on new mail'
             account_sync_failing:
                 body: >-
                     Several attempts in a row have failed, so new mail is not
@@ -4198,6 +4236,15 @@ settings:
         badge:
             ask_admin: 'not enabled'
             soon: 'coming soon'
+        browser_login:
+            button: 'Connect with browser approval'
+            cancel: Cancel
+            failed: 'Browser approval could not start (%status%).'
+            help: 'Opens %provider% in a new tab. Log in there and approve plMail (two-factor sign-in works as usual), and the connection is saved here by itself.'
+            open_again: 'Open the approval page again'
+            or_manual: 'Or fill in the fields below yourself.'
+            revoke_note: 'Approving again replaces the stored credential but does not revoke the old one. Remove the old device in %provider% yourself.'
+            waiting: 'Waiting for your approval in %provider%…'
         checked: 'checked %date%'
         connect: Connect
         disabled: 'Connection paused'
@@ -4224,6 +4271,7 @@ settings:
                 immich: 'API key'
                 nextcloud: 'App password'
                 oneDrive: 'Access token'
+                openCloud: 'App token'
                 paperless: 'API token'
             secret_help:
                 dropbox: ''
@@ -4232,6 +4280,7 @@ settings:
                 immich: 'Create one in Immich under Account Settings → API Keys.'
                 nextcloud: 'Create one in Nextcloud under Settings → Security → Devices & sessions. Do not use your login password.'
                 oneDrive: ''
+                openCloud: 'Create one in OpenCloud under your account settings → App Tokens, and choose a long expiry: an expired token stops working. With single sign-on, the username may be the ID shown under Preferences.'
                 paperless: 'Copy it from Paperless under My Profile → API Auth Token.'
             secret_unchanged: 'Leave blank to keep the stored credential'
             username: Username
@@ -4487,6 +4536,36 @@ settings:
         right:
             label: Swipe right
         subheading: What a swipe across a row does on a phone.
+    unified_inboxes:
+        account_label: 'Unified inbox for %account%'
+        account_off: 'Switched off — none of its mail is listed until you switch it back on.'
+        accounts_heading: 'Accounts'
+        accounts_subheading: 'Which inbox each account''s mail is listed in. A new account goes into your first inbox.'
+        add: 'Add'
+        created: 'Created "%name%".'
+        delete: 'Delete %inbox%'
+        delete_confirm: 'Delete "%name%"? Its accounts move to %other%. No mail is deleted.'
+        deleted: 'Inbox deleted. Its accounts are listed in the catch-all inbox now.'
+        heading: 'Unified inboxes'
+        hint: 'Each inbox shows the mail of the accounts you put in it as one list, with its own tabs. Leave a name empty to use the standard one.'
+        icon_label: 'Icon for %inbox%'
+        icon_new: 'Icon for the new inbox'
+        last_stays: 'Keep at least one inbox of your own.'
+        move_down: 'Move %inbox% down'
+        move_up: 'Move %inbox% up'
+        name_label: 'Name'
+        name_required: 'An inbox needs a name.'
+        name_too_long: 'That name is too long (40 characters at most).'
+        no_accounts: 'No mail accounts yet.'
+        not_found: 'That inbox does not exist any more.'
+        other_hint: 'Collects every account you take out of your own inboxes. It stays out of the sidebar while it holds none.'
+        other_option: 'catch-all'
+        other_stays: 'The catch-all inbox cannot be deleted: accounts that are in none of your own inboxes are listed there.'
+        placeholder: 'e.g. Work'
+        reorder: 'Drag to reorder'
+        save: 'Save'
+        saved: 'Saved.'
+        subheading: 'Name them, give them an icon and drag them into the order the sidebar shows them in.'
     whats_new:
         heading: 'What''s new'
         'off': 'Off'
@@ -4516,6 +4595,7 @@ settings:
             personal: Personal
         health: 'Account health'
         images: Images
+        inboxes: 'Unified inboxes'
         insights: Insights
         integrations: Integrations
         labels: Labels
@@ -4559,10 +4639,18 @@ settings:
         error_subscribe: 'The browser''s push service gave this device no address (%error%). In Brave, turn on "Use Google services for push messaging" first.'
         error_worker: 'plMail''s background worker did not start (%error%). Try again, and if it keeps happening, tell your administrator.'
         heading: Notifications
+        inbox: 'Inbox'
         ios_hint: >-
             On iPhone and iPad, notifications only work once plMail is added to
             the Home Screen: open it in Safari, tap Share, then "Add to Home
             Screen", and enable notifications from there.
+        labels: 'Labels'
+        notify_for: 'Notify for'
+        notify_for_hint: 'Which mail makes a notification: a box for each inbox tab and each label. Applies to every browser of yours and to the Android app. With nothing ticked, no mail notifies.'
+        'off': 'Off'
+        'on': 'On'
+        skip_read: 'Only notify for unread mail'
+        skip_read_hint: 'Before showing a browser notification, plMail waits a few seconds and checks whether the new mail is still unread. If you have already read or deleted it, for example on your phone, nothing is shown.'
         state_denied: >-
             Blocked in your browser settings. Allow notifications for this site,
             then try again.
@@ -4940,6 +5028,7 @@ sidebar:
         calendar: Calendar
         drafts: Drafts
         inbox: Inbox
+        inbox_other: 'Other'
         more: More
         sent: Sent
         snoozed: Snoozed

@@ -45,7 +45,62 @@
     {# The account's places: its system folders, and the labels that are a
        folder here (#221 step 3, LabelKinds::isPlaceOn()). A tag is in the
        LABELS section, because a tag is not somewhere mail is. #}
-    {% for label in labels|filter(label => label.role is not null or is_place(label, account)) %}
+    {% import _self as rows %}
+    {% for node in account_folder_tree(account, labels) %}
+        {{ rows.folder_node(node, account) }}
+    {% endfor %}
+
+    {# "+ New folder" as the last row of the account's folders (#221): the
+       place a tree is added to, the way "Create new label" ends a label list
+       elsewhere. It opens New folder for this account, in the place chosen
+       last time (NewFolderPlace); the form's own picker chooses anywhere
+       else. Plain IMAP only. #}
+    {% if account.plainImap %}
+        <div class="nav-item flex items-center text-xs" data-nav-tier="tree" style="--label-depth: 12px">
+            <button type="button"
+                    data-controller="ui--modal"
+                    data-action="click->ui--modal#open"
+                    data-ui--modal-title-value="{{ 'settings.accounts.folders.title'|trans({ '%account%': account.displayAddress }) }}"
+                    data-ui--modal-src-value="{{ path('settings_account_folder_new', { id: account.id }) }}"
+                    data-ui--modal-size-value="narrow"
+                    data-folder-tree-new
+                    class="flex-1 min-w-0 flex items-center gap-1.5 text-left text-ink-faint hover:text-ink cursor-pointer">
+                <i class="fa-solid fa-plus text-[9px]" aria-hidden="true"></i>
+                <span class="truncate">{{ 'settings.accounts.folders.new.button'|trans }}</span>
+            </button>
+        </div>
+    {% endif %}
+</nav>
+
+{#
+   The folders, as the tree the server has (AccountFolderTree, #221): a folder
+   inside another is a row inside it, and one with folders in it collapses on
+   its own. Collapsed or open is kept per user like a label tree in LABELS,
+   under `folder:<account>:<label>`, through the same endpoint and handler
+   (ui--sidebar#rememberCollapse); a folder is open until it is collapsed.
+#}
+{% macro folder_node(node, account) %}
+    {% import _self as rows %}
+    {% if node.children is empty %}
+        {{ rows.folder_row(node.label, account, node.depth, null) }}
+    {% else %}
+        {% set _key = 'folder:' ~ account.id ~ ':' ~ node.label.id %}
+        <details class="group/tree"
+                 data-collapse-key="{{ _key }}"
+                 data-action="toggle->ui--sidebar#rememberCollapse"
+                 {{ sidebarCounts.isCollapsed(_key) ? '' : 'open' }}>
+            {{ rows.folder_row(node.label, account, node.depth, _key) }}
+            <div class="nav-rows">
+                {% for child in node.children %}
+                    {{ rows.folder_node(child, account) }}
+                {% endfor %}
+            </div>
+        </details>
+    {% endif %}
+{% endmacro %}
+
+{% macro folder_row(label, account, depth, collapseKey) %}
+    {% import '_partials/_sidebar.html.twig' as sidebarMacros %}
         {# The same .nav-item pill as the rest of the sidebar, and a sidebar
            link target so the open folder is highlighted at all — these rows had
            a rounded-lg hover box and no active state whatsoever. Depth rides in
@@ -73,7 +128,6 @@
            folder is. The same label under LABELS means "everywhere" and
            dropping there tags instead. One label, two rows, two meanings; see
            the drop_target macro. #}
-        {% import '_partials/_sidebar.html.twig' as sidebarMacros %}
         {% set droppable = label.role is null or label.role.acceptsMoves %}
         {# Open or closed is rendered, not applied on connect — see
            App\Twig\SidebarRowStateExtension. Only on the sidebar's own render
@@ -81,10 +135,25 @@
            the fetch's URL, come out closed, and ui--sidebar marks the open one
            as they arrive. #}
         {% set _href = path('app_mail_label', { id: label.id, account: account.id }) %}
-        <div class="nav-item group/folder flex items-center justify-between text-xs transition-colors {{ sidebar_row_state(_href) }}"
+        {# A folder with folders in it is the <summary> of its <details>, with a
+           chevron, like a parent label in LABELS; it still opens and takes
+           drops like any other folder. The chevron (w-3, 12px) hangs in the
+           indent, so the names of a parent and a leaf at one depth line up:
+           all-mail.spec.ts holds the top-level ones to a pixel. #}
+        {% set _tag = collapseKey is null ? 'div' : 'summary' %}
+        <{{ _tag }} class="nav-item group/folder flex items-center justify-between text-xs transition-colors {{ sidebar_row_state(_href) }}
+                    {{- collapseKey is null ? '' : ' cursor-pointer list-none' }}"
              {% if droppable %}{{ sidebarMacros.drop_target(label.id, account, true) }}{% endif %}
              data-nav-tier="tree"
-             style="--label-depth: {{ 12 + label.depth * 12 }}px">
+             {% if collapseKey is not null %}
+             aria-expanded="{{ sidebarCounts.isCollapsed(collapseKey) ? 'false' : 'true' }}"
+             data-ui--sidebar-target="collapseSummary"
+             {% endif %}
+             style="--label-depth: {{ collapseKey is null ? 12 + depth * 14 : depth * 14 }}px">
+            {% if collapseKey is not null %}
+                <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3 shrink-0
+                          transition-transform group-open/tree:rotate-90" aria-hidden="true"></i>
+            {% endif %}
             <a
                 data-ui--sidebar-target="link"
                 href="{{ _href }}"
@@ -157,26 +226,5 @@
                     <i class="fa-solid fa-pen text-[9px]" aria-hidden="true"></i>
                 </button>
             {% endif %}
-        </div>
-    {% endfor %}
-
-    {# "+ New folder" as the last row of the account's folders (#221): the
-       place a tree is added to, the way "Create new label" ends a label list
-       elsewhere. It opens New folder for this account, at the top level; the
-       form's own picker chooses anywhere else. Plain IMAP only. #}
-    {% if account.plainImap %}
-        <div class="nav-item flex items-center text-xs" data-nav-tier="tree" style="--label-depth: 12px">
-            <button type="button"
-                    data-controller="ui--modal"
-                    data-action="click->ui--modal#open"
-                    data-ui--modal-title-value="{{ 'settings.accounts.folders.title'|trans({ '%account%': account.displayAddress }) }}"
-                    data-ui--modal-src-value="{{ path('settings_account_folder_new', { id: account.id }) }}"
-                    data-ui--modal-size-value="narrow"
-                    data-folder-tree-new
-                    class="flex-1 min-w-0 flex items-center gap-1.5 text-left text-ink-faint hover:text-ink cursor-pointer">
-                <i class="fa-solid fa-plus text-[9px]" aria-hidden="true"></i>
-                <span class="truncate">{{ 'settings.accounts.folders.new.button'|trans }}</span>
-            </button>
-        </div>
-    {% endif %}
-</nav>
+        </{{ _tag }}>
+{% endmacro %}

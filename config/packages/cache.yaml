@@ -57,6 +57,14 @@ framework:
                 adapter: cache.adapter.doctrine_dbal
                 provider: doctrine.dbal.default_connection
 
+            # Folders with a sync already on the ingest queue (see
+            # MailboxSyncQueue). Shared because the IDLE listener that asks and
+            # the worker that answers are separate containers. Each entry sets
+            # its own lifetime.
+            app.mailbox_sync_queue:
+                adapter: cache.adapter.doctrine_dbal
+                provider: doctrine.dbal.default_connection
+
             # A Stop pressed on the summary card (see ThreadSummaryStop).
             #
             # Shared for the same reason again: the Stop is a request of its

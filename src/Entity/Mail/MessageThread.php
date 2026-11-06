@@ -48,6 +48,10 @@ class MessageThread
     #[ORM\Column]
     public ?int $messageCount = 0;
 
+    /**
+     * Unread messages, as the conversation is shown — see unreadAmong() for
+     * which of them count.
+     */
     #[ORM\Column]
     public ?int $unreadCount = 0;
 
@@ -364,5 +368,61 @@ class MessageThread
     public function hasLabel(Label $label): bool
     {
         return $this->labels->contains($label);
+    }
+
+    /**
+     * Whether some message of the conversation is in Spam or the bin. Read off
+     * the thread's labels, which are the union of its messages'.
+     */
+    public function holdsSetAsideMail(): bool
+    {
+        foreach ($this->labels as $label) {
+            if (LabelRole::Spam === $label->role || LabelRole::Trash === $label->role) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The value of $unreadCount for a conversation of these messages.
+     *
+     * Mail in Spam or the bin does not count while the conversation has mail
+     * outside them. A spam reply was counted, so the conversation it joined
+     * sat bold in the Inbox and raised the Inbox badge for a message the Inbox
+     * does not show (#470). A conversation of set-aside mail only counts all
+     * of it, which is what Spam and Trash draw their own rows and badges from.
+     *
+     * One definition for every recount, so that marking one message read
+     * cannot bring back a count the arrival had left out.
+     *
+     * @param iterable<Message> $messages
+     */
+    public static function unreadAmong(iterable $messages): int
+    {
+        $unread      = 0;
+        $unreadAside = 0;
+        $outside     = false;
+
+        foreach ($messages as $message) {
+            $aside = $message->isSetAside();
+
+            if (false === $aside) {
+                $outside = true;
+            }
+
+            if (null !== $message->seenAt) {
+                continue;
+            }
+
+            if (true === $aside) {
+                ++$unreadAside;
+            } else {
+                ++$unread;
+            }
+        }
+
+        return true === $outside ? $unread : $unreadAside;
     }
 }

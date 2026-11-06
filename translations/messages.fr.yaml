@@ -10,6 +10,10 @@ account:
         imap:
             heading: Réception — IMAP
             host: Serveur
+            labels_help: 'Avec les mots-clés, les libellés que vous donnez aux messages dans plMail sont aussi enregistrés sur le serveur, et les autres logiciels de messagerie qui affichent les mots-clés (Thunderbird, par exemple) les montrent. Vous pourrez changer cela plus tard dans les dossiers du compte.'
+            labels_keywords: 'Dans plMail et sur le serveur, comme mots-clés IMAP'
+            labels_label: 'Libellés'
+            labels_local: 'Seulement dans plMail'
         jmap:
             heading: 'Réception — JMAP'
             outgoing_heading: 'Envoi — JMAP'
@@ -736,6 +740,14 @@ admin:
                 step_register: 'Ouvrez le portail Azure et inscrivez une application sous Microsoft Entra ID → Inscriptions d’applications.'
                 step_secret: 'Sous Certificats et secrets, créez un secret client et copiez sa valeur immédiatement — elle n’est affichée qu’une fois.'
                 tenant_note: 'Utilisez le tenant common pour les comptes Microsoft personnels, ou l’ID de votre tenant pour restreindre l’accès à votre organisation.'
+            open_cloud:
+                intro: 'OpenCloud s’authentifie avec un jeton d’application par utilisateur : il n’y a rien à enregistrer ici. plMail affiche à chaque utilisateur son espace personnel, ses espaces projet et ce qui a été partagé avec lui.'
+                security: 'Un jeton d’application donne accès à tous les fichiers de l’utilisateur et, avec un fournisseur d’identité externe, reste valide après la désactivation du compte chez celui-ci. Les jetons inutiles devraient être supprimés.'
+                share_password: 'Par défaut, OpenCloud refuse les liens publics sans mot de passe. Pour permettre de joindre de gros fichiers sous forme de lien, définissez OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false ; sinon seules des copies peuvent être jointes.'
+                step_app_auth: 'Vérifiez qu’OpenCloud accepte les jetons d’application via WebDAV. Selon la version, il faut ajouter auth-app à OC_ADD_RUN_SERVICES et définir PROXY_ENABLE_APP_AUTH=true.'
+                step_base_url: 'Facultatif : fixez l’adresse du serveur, par exemple https://cloud.example.com.'
+                step_enable: 'Activez « Proposer ce service aux utilisateurs » ci-dessus.'
+                step_user: 'Chaque utilisateur crée dans OpenCloud, sous Paramètres du compte → Jetons d’application, un jeton à longue durée de validité, puis le colle avec son nom d’utilisateur dans ses propres réglages d’intégration.'
             paperless:
                 asynchronous: 'Enregistrer une pièce jointe la confie au consommateur de Paperless, qui la classe quelques secondes plus tard. plMail signale la remise, pas le document final — un enregistrement de test apparaît donc dans Paperless peu après avoir été indiqué comme fait, et un fichier que Paperless rejette comme doublon n’apparaît jamais.'
                 intro: 'Paperless-ngx s’authentifie avec un jeton d’API propre à chaque utilisateur : il n’y a rien à enregistrer ici.'
@@ -2624,6 +2636,7 @@ integration:
             immich: 'Décrivez une photo, p. ex. plage au coucher du soleil'
             nextcloud: 'Rechercher dans Nextcloud'
             oneDrive: 'Rechercher dans OneDrive'
+            openCloud: 'Rechercher dans OpenCloud'
             paperless: 'Rechercher dans les titres et le texte numérisé'
         status:
             attach_failed: 'Impossible de joindre'
@@ -2731,8 +2744,10 @@ label:
             make_folder_category: 'La catégorie Outlook de ce nom est supprimée.'
             make_folder_done: 'Dossier créé.'
             make_folder_failed: 'Le dossier n’a pas pu être créé : %error%'
+            make_folder_inside: 'Il va dans le dossier « %folder% », où se trouve son libellé parent.'
             make_folder_mail: '%count% messages portant ce libellé sur ce compte y seront déplacés.'
             make_folder_nested: 'Son parent « %parent% » y devient aussi un dossier.'
+            make_folder_place: 'Créer « %name% » dans'
             make_folder_stay: 'Le courrier de la corbeille, des spams, des envoyés et des brouillons reste où il est.'
             make_label: 'En faire un libellé'
             make_label_body: 'Supprime le dossier « %name% » sur %account%. Le libellé reste, comme étiquette, et revient sur le courrier déplacé.'
@@ -3371,6 +3386,7 @@ settings:
                 intro: 'Le dossier est créé sur le serveur de messagerie et apparaît donc dans toutes les applications qui lisent ce compte. Créer un libellé ne crée jamais de dossier ; ceci, oui.'
                 name: 'Nom'
                 parent: 'Dans'
+                parent_help: 'plMail s’en souvient pour le prochain dossier de ce compte.'
                 submit: 'Créer le dossier'
                 title: 'Nouveau dossier — %account%'
                 top_level: 'Premier niveau'
@@ -3620,6 +3636,12 @@ settings:
         list:
             accountCorner: Coin du compte
             accountCornerHint: Le triangle coloré dans le coin d’une ligne, qui indique sur quel compte elle est arrivée. Seulement dessiné dans une liste qui mélange les comptes.
+            actionButton:
+                both: 'Icônes et texte'
+                icons: 'Icônes'
+                text: 'Texte'
+            actionButtons: "Boutons d'action"
+            actionButtonsHint: "Ce qu'affichent les boutons au-dessus d'une conversation ou d'une sélection."
             heading: Liste des messages
             listAvatars: Pastilles d’expéditeur
             listAvatarsHint: Le cercle coloré portant l’initiale de l’expéditeur. Désactivé, il devient un simple cercle au lieu de disparaître — c’est aussi la case à cocher de la ligne.
@@ -3942,6 +3964,7 @@ settings:
         fact:
             granted_at: 'Connecté le'
             last_full_resync: 'Toute la boîte relistée (%count%×)'
+            last_synced: 'Dernière synchronisation réussie'
             never: 'jamais'
             never_delivered: 'rien n’est jamais arrivé'
             never_run: 'aucune exécution enregistrée'
@@ -3950,6 +3973,8 @@ settings:
             push_expires: 'L’enregistrement expire'
             push_last_delivered: 'Dernière notification reçue'
             push_last_renewal: 'Dernier renouvellement'
+            sync_began: 'Dernière synchronisation démarrée'
+            sync_requested: 'Dernière synchronisation demandée par le planning'
         flash:
             calendar_resync: >-
                 La synchronisation de %calendar% a été demandée. Elle tourne
@@ -4038,6 +4063,21 @@ settings:
                     et annulés par la synchronisation suivante. Connectez à nouveau le
                     compte et autorisez tout ce qui vous est demandé.
                 title: '%account% n’a pas reçu un accès complet'
+            account_sync_behind:
+                body: >-
+                    Aucune synchronisation de ce compte n’a abouti depuis plus
+                    longtemps que son intervalle ne l’explique, sans que rien
+                    n’ait échoué assez souvent pour dire pourquoi : du nouveau
+                    courrier attend peut-être chez votre fournisseur. La
+                    connexion peut très bien fonctionner pendant ce temps : les
+                    synchronisations demandées par plMail attendent dans la file
+                    derrière d’autres tâches, ou démarrent sans aboutir. Les
+                    dates ci-dessous disent laquelle : une synchronisation
+                    demandée après le début de la dernière attend encore son
+                    tour. Le compte rattrape généralement son retard tout seul ;
+                    sinon, regardez du côté des workers en arrière-plan du
+                    serveur.
+                title: '%account% est en retard sur le nouveau courrier'
             account_sync_failing:
                 body: >-
                     Plusieurs tentatives d’affilée ont échoué : le nouveau courrier
@@ -4251,6 +4291,15 @@ settings:
         badge:
             ask_admin: 'non activé'
             soon: 'bientôt'
+        browser_login:
+            button: 'Se connecter par validation dans le navigateur'
+            cancel: Annuler
+            failed: 'La validation dans le navigateur n’a pas pu démarrer (%status%).'
+            help: 'Ouvre %provider% dans un nouvel onglet. Connectez-vous et autorisez plMail (la double authentification fonctionne comme d’habitude) : la connexion est ensuite enregistrée ici toute seule.'
+            open_again: 'Rouvrir la page de validation'
+            or_manual: 'Ou remplissez vous-même les champs ci-dessous.'
+            revoke_note: 'Une nouvelle validation remplace l’identifiant enregistré mais ne révoque pas l’ancien. Supprimez vous-même l’ancien appareil dans %provider%.'
+            waiting: 'En attente de votre validation dans %provider%…'
         checked: 'vérifié le %date%'
         connect: Connecter
         disabled: 'Connexion en pause'
@@ -4277,6 +4326,7 @@ settings:
                 immich: 'Clé d’API'
                 nextcloud: 'Mot de passe d’application'
                 oneDrive: 'Jeton d’accès'
+                openCloud: 'Jeton d’application'
                 paperless: 'Jeton d’API'
             secret_help:
                 dropbox: ''
@@ -4285,6 +4335,7 @@ settings:
                 immich: 'Créez-en une dans Immich sous Paramètres du compte → Clés API.'
                 nextcloud: 'Créez-en un dans Nextcloud sous Paramètres → Sécurité → Appareils et sessions. N’utilisez pas votre mot de passe de connexion.'
                 oneDrive: ''
+                openCloud: 'Créez-en un dans OpenCloud sous Paramètres du compte → Jetons d’application et choisissez une longue durée : un jeton expiré ne fonctionne plus. Avec l’authentification unique, le nom d’utilisateur peut être l’identifiant affiché dans les préférences.'
                 paperless: 'Copiez-le depuis Paperless sous Mon profil → Jeton d’authentification API.'
             secret_unchanged: 'Laissez vide pour conserver l’identifiant enregistré'
             username: Nom d’utilisateur
@@ -4547,6 +4598,36 @@ settings:
         right:
             label: Balayer vers la droite
         subheading: Ce que fait un balayage sur une ligne, sur téléphone.
+    unified_inboxes:
+        account_label: 'Boîte unifiée pour %account%'
+        account_off: 'Désactivé — aucun de ses messages n’est affiché tant que vous ne le réactivez pas.'
+        accounts_heading: 'Comptes'
+        accounts_subheading: 'La boîte dans laquelle s’affichent les messages de chaque compte. Un nouveau compte va dans votre première boîte.'
+        add: 'Ajouter'
+        created: '« %name% » créée.'
+        delete: 'Supprimer %inbox%'
+        delete_confirm: 'Supprimer « %name% » ? Ses comptes passent dans %other%. Aucun message n’est supprimé.'
+        deleted: 'Boîte supprimée. Ses comptes sont maintenant dans la boîte fourre-tout.'
+        heading: 'Boîtes de réception unifiées'
+        hint: 'Chaque boîte affiche les messages des comptes que vous y mettez en une seule liste, avec ses propres onglets. Laissez le nom vide pour utiliser le nom standard.'
+        icon_label: 'Icône de %inbox%'
+        icon_new: 'Icône de la nouvelle boîte'
+        last_stays: 'Gardez au moins une boîte à vous.'
+        move_down: 'Descendre %inbox%'
+        move_up: 'Monter %inbox%'
+        name_label: 'Nom'
+        name_required: 'Une boîte a besoin d’un nom.'
+        name_too_long: 'Ce nom est trop long (40 caractères au maximum).'
+        no_accounts: 'Aucun compte de messagerie pour l’instant.'
+        not_found: 'Cette boîte n’existe plus.'
+        other_hint: 'Rassemble chaque compte que vous retirez de vos propres boîtes. Elle n’apparaît pas dans la barre latérale tant qu’elle n’en contient aucun.'
+        other_option: 'fourre-tout'
+        other_stays: 'La boîte fourre-tout ne peut pas être supprimée : les comptes qui ne sont dans aucune de vos boîtes y sont affichés.'
+        placeholder: 'p. ex. Travail'
+        reorder: 'Glisser pour réordonner'
+        save: 'Enregistrer'
+        saved: 'Enregistré.'
+        subheading: 'Donnez-leur un nom et une icône, et glissez-les dans l’ordre où la barre latérale les affiche.'
     whats_new:
         heading: 'Nouveautés'
         'off': 'Désactivé'
@@ -4576,6 +4657,7 @@ settings:
             personal: Personnel
         health: 'Santé des comptes'
         images: Images
+        inboxes: 'Boîtes de réception unifiées'
         insights: Aperçus
         integrations: Intégrations
         labels: Libellés
@@ -4620,10 +4702,18 @@ settings:
         error_subscribe: 'Le service push du navigateur n’a attribué aucune adresse à cet appareil (%error%). Dans Brave, activez d’abord « Utiliser les services Google pour les messages push ».'
         error_worker: 'Le service d’arrière-plan de plMail n’a pas démarré (%error%). Réessayez ; si cela se reproduit, prévenez votre administrateur.'
         heading: Notifications
+        inbox: 'Boîte de réception'
         ios_hint: >-
             Sur iPhone et iPad, les notifications ne fonctionnent qu’une fois plMail
             ajouté à l’écran d’accueil : ouvrez-le dans Safari, touchez Partager, puis
             « Sur l’écran d’accueil », et activez les notifications depuis là.
+        labels: 'Libellés'
+        notify_for: 'Notifier pour'
+        notify_for_hint: 'Quel courrier déclenche une notification : une case par onglet de la boîte de réception et par libellé. S’applique à tous vos navigateurs et à l’application Android. Si rien n’est coché, aucun courrier ne notifie.'
+        'off': 'Désactivé'
+        'on': 'Activé'
+        skip_read: 'Notifier seulement le courrier non lu'
+        skip_read_hint: 'Avant d’afficher une notification du navigateur, plMail attend quelques secondes et vérifie si le nouveau courrier est toujours non lu. Si vous l’avez déjà lu ou supprimé, par exemple sur votre téléphone, rien n’est affiché.'
         state_denied: >-
             Bloquées dans les réglages de votre navigateur. Autorisez les notifications
             pour ce site, puis réessayez.
@@ -4976,6 +5066,7 @@ sidebar:
         calendar: Agenda
         drafts: Brouillons
         inbox: Boîte de réception
+        inbox_other: 'Autres'
         more: Plus
         sent: Envoyés
         snoozed: En attente

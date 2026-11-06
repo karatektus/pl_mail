@@ -201,9 +201,9 @@ class MessageRepository extends ServiceEntityRepository
      * Postgres answer means there is exactly one implementation of what a
      * filter means — an in-memory twin was tried and deleted, because two
      * implementations can drift and the symptom is mail quietly filed in the
-     * wrong place. It also makes `text` usable in rules: search_vector is a
-     * STORED generated column, so full-text works here and could never be
-     * reproduced faithfully in PHP.
+     * wrong place. It also makes `text` usable in rules: search_vector is
+     * built by Postgres as the row is written, so full-text works here and
+     * could never be reproduced faithfully in PHP.
      *
      * The messages must already be flushed — they are, since rules run after
      * the id-granting flush in every sync path.
@@ -660,6 +660,10 @@ class MessageRepository extends ServiceEntityRepository
     /**
      * Highlighted subject and body fragments for a SearchSnippet/get.
      *
+     * The body is the one search_vector indexed: body_html_text where it is
+     * set, the text part otherwise (#477). Headlining body_text alone would
+     * find nothing to mark in an HTML-only message the search just matched.
+     *
      * Raw SQL because `ts_headline` is the whole point — it is a Postgres
      * full-text function with no DQL equivalent, and reproducing "which words
      * matched, in context" in PHP would be a second, disagreeing implementation
@@ -680,7 +684,7 @@ class MessageRepository extends ServiceEntityRepository
                 m.id,
                 ts_headline('english', coalesce(m.subject, ''),
                     websearch_to_tsquery('english', :text), :options) AS subject,
-                ts_headline('english', coalesce(m.body_text, ''),
+                ts_headline('english', coalesce(m.body_html_text, m.body_text, ''),
                     websearch_to_tsquery('english', :text), :options) AS preview
             FROM message m
             WHERE m.account_id = :account
@@ -737,6 +741,10 @@ class MessageRepository extends ServiceEntityRepository
      * for. Keyed by id rather than returned as a list, because a lookup is the
      * only thing its one caller can do with it.
      *
+     * "body_text" in the result is the body findSearchHeadlines() headlined,
+     * body_html_text where there is one, so that the fallback looks for the
+     * hit in the same words.
+     *
      * @param list<int> $ids       every message whose subject or body is wanted
      * @param list<int> $withBody  the subset whose body_text is actually wanted
      *
@@ -752,7 +760,7 @@ class MessageRepository extends ServiceEntityRepository
             SELECT
                 m.id,
                 m.subject,
-                CASE WHEN m.id IN (:withBody) THEN m.body_text END AS body_text
+                CASE WHEN m.id IN (:withBody) THEN coalesce(m.body_html_text, m.body_text) END AS body_text
             FROM message m
             WHERE m.account_id = :account
               AND m.id IN (:ids)
@@ -2565,6 +2573,46 @@ class MessageRepository extends ServiceEntityRepository
         return $result !== null;
     }
 
+    /**
+     * Does the thread hold stored mail that is neither in Spam nor in the bin?
+     *
+     * Asked by MessageThreader::recordArrival() before a set-aside message may
+     * move a conversation: one that lives in the Inbox must not be brought to
+     * the top by the spam a filter has just taken out of it.
+     *
+     * Stored rows only, which is what the question needs: the arriving message
+     * is not in the thread in the database yet, and is left out by id in case
+     * it is. A literal and one row, for the reason existsWithAnyFromAddressInThread()
+     * gives.
+     */
+    public function existsNotSetAsideInThread(MessageThread $thread, Message $except): bool
+    {
+        if (null === $thread->id) {
+            return false;
+        }
+
+        $qb = $this->createQueryBuilder('m');
+
+        $qb->select('1')
+            ->where('m.thread = :thread')
+            ->andWhere($qb->expr()->notIn(
+                'm.id',
+                'SELECT asideMessage.id FROM ' . Message::class . ' asideMessage'
+                    . ' JOIN asideMessage.labels asideLabel'
+                    . ' WHERE asideMessage.thread = :thread AND asideLabel.role IN (:asideRoles)',
+            ))
+            ->setParameter('thread', $thread)
+            ->setParameter('asideRoles', [LabelRole::Spam, LabelRole::Trash])
+            ->setMaxResults(1);
+
+        if (null !== $except->id) {
+            $qb->andWhere('m.id <> :except')
+                ->setParameter('except', $except->id);
+        }
+
+        return null !== $qb->getQuery()->getOneOrNullResult();
+    }
+
     /** A null criterion is Doctrine's IS NULL, so this needs no query of its own. */
     /**
      * The folder's own numbers, as the server would give them: the messages it
@@ -3564,6 +3612,43 @@ class MessageRepository extends ServiceEntityRepository
             ->andWhere('m.categoryHeldAt < :before')
             ->setParameter('before', $before)
             ->orderBy('m.categoryHeldAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Unread mail stored since $since in this user's active accounts — what
+     * NotifyScopes::hasRecentUnread() sorts into switches.
+     *
+     * By when plMail STORED it (createdAt), not by the date it carries: the
+     * question is about mail a push has just announced, and a message stamped
+     * by a sender's slow clock arrived just now all the same. createdAt has no
+     * index, though, so the date it carries narrows the search first, through
+     * idx_message_account_received_at, with a day of slack for that slow
+     * clock. A message dated more than a day before it arrived is missed, and
+     * the cost of that is one notification not shown.
+     *
+     * Bounded on purpose. The answer is "is there at least one", so a few
+     * dozen candidates are plenty. Labels are not fetch-joined for the same
+     * reason: a LIMIT over a joined collection limits rows, not messages.
+     *
+     * @return list<Message>
+     */
+    public function findRecentUnreadForUser(User $user, DateTimeImmutable $since, int $limit = 50): array
+    {
+        /** @var list<Message> */
+        return $this->createQueryBuilder('m')
+            ->join('m.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('m.seenAt IS NULL')
+            ->andWhere('m.receivedAt >= :dated')
+            ->andWhere('m.createdAt >= :since')
+            ->setParameter('user', $user)
+            ->setParameter('dated', $since->modify('-1 day'))
+            ->setParameter('since', $since)
+            ->orderBy('m.createdAt', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();

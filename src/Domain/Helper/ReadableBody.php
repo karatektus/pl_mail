@@ -50,21 +50,36 @@ final class ReadableBody
 {
     public static function of(Message $message): string
     {
-        if (null !== $message->graphId) {
-            $fromHtml = self::fromHtml((string) ($message->bodyHtmlSafe ?? $message->bodyHtml));
+        return self::htmlWordsOf($message) ?? trim((string) $message->bodyText);
+    }
 
-            if ('' !== $fromHtml) {
-                return $fromHtml;
-            }
+    /**
+     * The words of the HTML body, where the text part does not already hold
+     * them; null where it does, or where the HTML has none.
+     *
+     * What Message::$bodyHtmlText stores, and the half of of() that is not
+     * simply bodyText. The same two cases as there: no plain part at all, and
+     * a Graph message, whose "plain part" is a 255-character preview.
+     */
+    public static function htmlWordsOf(Message $message): ?string
+    {
+        return self::htmlWords($message->bodyText, $message->bodyHtml, $message->bodyHtmlSafe, null !== $message->graphId);
+    }
+
+    /**
+     * htmlWordsOf() from the columns themselves, for a backfill that reads
+     * them with DBAL rather than hydrating a few hundred kilobytes of entity
+     * per row.
+     */
+    public static function htmlWords(?string $bodyText, ?string $bodyHtml, ?string $bodyHtmlSafe, bool $fromGraph): ?string
+    {
+        if (false === $fromGraph && '' !== trim((string) $bodyText)) {
+            return null;
         }
 
-        $text = trim((string) $message->bodyText);
+        $words = self::fromHtml((string) ($bodyHtmlSafe ?? $bodyHtml));
 
-        if ('' !== $text) {
-            return $text;
-        }
-
-        return self::fromHtml((string) ($message->bodyHtmlSafe ?? $message->bodyHtml));
+        return '' === $words ? null : $words;
     }
 
     /**

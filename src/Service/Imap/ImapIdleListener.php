@@ -50,7 +50,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
  *  - `[ALERT]` is kept on the account for the health page (RFC 9051 §7.1
  *    says the user must be shown it).
  *
- * Syncs are debounced per folder, see SYNC_MIN_GAP.
+ * Syncs are debounced per folder, see SYNC_MIN_GAP, and a folder with a sync
+ * still waiting on the queue gets no second one, see MailboxSyncQueue.
  *
  * WHEN A CONNECTION ENDS
  * ──────────────────────
@@ -133,6 +134,7 @@ final class ImapIdleListener
         private readonly MessageBusInterface     $bus,
         private readonly ProcessHeartbeatService $heartbeats,
         private readonly LoggerInterface         $logger,
+        private readonly MailboxSyncQueue        $syncQueue,
     ) {
     }
 
@@ -509,7 +511,20 @@ final class ImapIdleListener
                 $this->mailboxes->markSweepDue($watch->mailboxId);
             }
 
-            $this->bus->dispatch(new SyncImapMailboxMessage($watch->mailboxId, SyncTrigger::Idle));
+            // Not while one is still waiting: it has not started, so it will
+            // read this change, and the sweep is already on the mailbox above.
+            // Without this a folder whose syncs ran into the deadline queued a
+            // new one every few seconds, and the queue outgrew the worker (#418).
+            if (true === $this->syncQueue->claim($watch->mailboxId)) {
+                try {
+                    $this->bus->dispatch(new SyncImapMailboxMessage($watch->mailboxId, SyncTrigger::Idle));
+                } catch (\Throwable $e) {
+                    // Nothing went on the queue, so nothing is waiting.
+                    $this->syncQueue->taken($watch->mailboxId);
+
+                    throw $e;
+                }
+            }
         } catch (\Throwable $e) {
             $this->logger->error('ImapIdleListener: a sync could not be queued', [
                 'mailboxId' => $watch->mailboxId,

@@ -2,7 +2,14 @@
 label/_make_folder.html.twig — "Make it a folder" for one account, inside the
 modal frame (#221). Says what will happen to the mail before anything does.
 
-Variables: label, account, form (LabelDeleteType, empty), mailCount, hasCategory, parentToo
+Variables: label, account, form (LabelDeleteType, empty), mailCount, hasCategory, parentToo,
+           picksPlace, placeRows, placeId, insideOf, placeLabel
+
+On plain IMAP the dialog says where the folder goes, and asks unless the
+label's parent is a folder there already (#221): "Top level" or inside any
+folder the server listed, preselected with the account's last choice. With a
+parent that becomes a folder too, the place is the parent's, and this one goes
+inside it.
 #}
 {% extends '_layout/app.html.twig' %}
 
@@ -14,6 +21,11 @@ Variables: label, account, form (LabelDeleteType, empty), mailCount, hasCategory
         mailCount: mailCount,
         hasCategory: hasCategory,
         parentToo: parentToo,
+        picksPlace: picksPlace,
+        placeRows: placeRows,
+        placeId: placeId,
+        insideOf: insideOf,
+        placeLabel: placeLabel,
         title: 'label.form.places.make_folder'|trans,
         submit_label: 'label.form.places.make_folder'|trans,
     } only %}
@@ -30,7 +42,21 @@ Variables: label, account, form (LabelDeleteType, empty), mailCount, hasCategory
                 {% if parentToo %}
                     <p>{{ 'label.form.places.make_folder_nested'|trans({ '%parent%': label.parent|label_name }) }}</p>
                 {% endif %}
+                {% if insideOf is not null %}
+                    <p data-label-make-folder-inside>{{ 'label.form.places.make_folder_inside'|trans({ '%folder%': insideOf.label ? insideOf.label|label_name : insideOf.name }) }}</p>
+                {% endif %}
             </div>
+            {% if picksPlace %}
+                <div class="pt-3">
+                    {% include 'settings/accounts/_folder_place_select.html.twig' with {
+                        rows: placeRows,
+                        selectedId: placeId,
+                        id: 'make-folder-place-' ~ account.id,
+                        label: 'label.form.places.make_folder_place'|trans({ '%name%': placeLabel|label_name }),
+                        help: 'settings.accounts.folders.new.parent_help'|trans,
+                    } only %}
+                </div>
+            {% endif %}
         {% endblock %}
 
         {% block after_fields %}

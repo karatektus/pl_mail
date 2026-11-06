@@ -575,13 +575,7 @@ final readonly class ThreadStatusUpdater
         $counterMoved = false;
 
         foreach ($threads as $thread) {
-            $threadUnread = 0;
-
-            foreach ($thread->messages as $message) {
-                if (null === $message->seenAt) {
-                    ++$threadUnread;
-                }
-            }
+            $threadUnread = MessageThread::unreadAmong($thread->messages);
 
             if ($thread->unreadCount !== $threadUnread) {
                 $thread->unreadCount = $threadUnread;
@@ -811,15 +805,7 @@ final readonly class ThreadStatusUpdater
         }
 
         foreach ($threads as $thread) {
-            $unread = 0;
-
-            foreach ($thread->messages as $message) {
-                if (null === $message->seenAt) {
-                    ++$unread;
-                }
-            }
-
-            $thread->unreadCount = $unread;
+            $thread->unreadCount = MessageThread::unreadAmong($thread->messages);
         }
 
         $this->recordJmapUpdates($changed);

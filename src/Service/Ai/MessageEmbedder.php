@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Ai;
 
 use App\Domain\Enum\Ai\AiCallFeature;
+use App\Domain\Helper\ReadableBody;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
@@ -125,10 +126,14 @@ final readonly class MessageEmbedder
      * character and an embedding model weights the start of its window most
      * heavily. No headers, no quoted trail — a reply whose body is mostly the
      * message it answers would otherwise embed as that message.
+     *
+     * The body is ReadableBody's: the text part, or the HTML's words where the
+     * sender sent no text part. bodyText alone embedded an HTML-only message
+     * as its subject and sender (#477).
      */
     private function describe(Message $message): string
     {
-        $body = trim((string) ($message->bodyText ?? ''));
+        $body = ReadableBody::of($message);
 
         return trim(implode("\n", [
             trim((string) $message->subject),

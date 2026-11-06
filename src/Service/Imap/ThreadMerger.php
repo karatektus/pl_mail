@@ -158,7 +158,7 @@ final readonly class ThreadMerger
         $survivor->starredAt    ??= $absorbed->starredAt;
         $survivor->snoozedUntil ??= $absorbed->snoozedUntil;
 
-        // MessageThreader::attachMessageToThread()'s rule for one message,
+        // MessageThreader::recordArrival()'s rule for one message,
         // applied to the batch of them: unread mail joining makes the
         // conversation new again, and mail that was read already does not —
         // which is what the late parent usually is, a copy from Sent Items.

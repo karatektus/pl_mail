@@ -11,6 +11,7 @@ use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Imap\ThreadMerger;
+use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\MailChangeRecorder;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -49,6 +50,7 @@ trait BuildsThreaderWithoutDatabase
                     ),
                 ),
             ),
+            new ThreadLabelSynchronizer($entityManager),
         );
     }
 }
