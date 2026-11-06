@@ -146,6 +146,16 @@ message copy like `\Seen`. Off by default per account (`Account::$labelsAsKeywor
   keywords in the row's mirror before the update against after it. Never "the server's set is the
   truth", which would strip every label given while the switch was off. A new keyword makes a plain
   label with no binding (`KeywordLabels`).
+- **Capitals (#487).** Keywords are atoms and compare case-insensitively, so `KeywordLabels` looks a
+  name up with `LabelRepository::findNameConflict()` (exact spelling first, then any) rather than the
+  exact `findOneChildByName()` that folders need. The follower's before/after diff is keyed by the
+  folded name too, or `Paperless` → `paperless` would read as the label taken off and put back on.
+  A keyword never gives a system label (`archive` is not Archive).
+- **Import when switched on (#487).** Keywords already in the mirror when the switch goes on are no
+  change, so the follower would never see them. `AccountFoldersController::keywords()` queues
+  `ImportImapKeywordsMessage` (maintenance), whose handler walks the account's foldered messages a
+  page at a time and runs `KeywordLabelFollower::importExisting()` — the follower with an empty
+  before, so it only adds. It reads the switch again and stops when it is off.
 - **The indicator.** `LabelPlaces` says per IMAP account whether a label is a folder there, a
   keyword, or plMail-only and why; the label dialog shows it.
 
