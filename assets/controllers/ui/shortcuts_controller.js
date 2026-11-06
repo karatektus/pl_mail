@@ -50,7 +50,10 @@ import { selection } from "../../mail_selection.js";
  * shortcuts off: see templates/_layout/app.html.twig.
  */
 
-const ROW = "#message-list li[data-mail--message-row-id-value]";
+// Not a row hidden while the action that takes it out of the list is under
+// way (#335, assets/optimistic_rows.js): to the reader it has already gone, so
+// the arrows step over it and the Tab stop is not left on it.
+const ROW = "#message-list li[data-mail--message-row-id-value]:not([hidden])";
 const ROW_ID = "data-mail--message-row-id-value";
 const ROW_SELECT = "[data-thread-select]";
 const CURSOR = "data-kbd-cursor";
@@ -171,7 +174,14 @@ export default class extends Controller {
         // own morph, a full visit). Watching the document for rows changing is
         // one answer to all of them.
         this.#observer = new MutationObserver(() => this.#queueRepaint());
-        this.#observer.observe(document.body, { childList: true, subtree: true });
+        // `hidden` as well, which is how a row leaves the list before the server
+        // has answered (#335) — still in the document, but no longer a row.
+        this.#observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["hidden"],
+        });
 
         this.#paint();
     }
@@ -492,7 +502,9 @@ export default class extends Controller {
         }
 
         queueMicrotask(() => {
-            if (target === this.#focusedRow && true === target.isConnected) {
+            // A row that was hidden (#335) lost the focus by leaving, not by
+            // the reader moving it, and is handed on like a removed one.
+            if (target === this.#focusedRow && true === target.isConnected && false === target.hidden) {
                 this.#focusedRow = null;
             }
         });
@@ -599,8 +611,10 @@ export default class extends Controller {
 
         // The focused row was replaced and the focus fell to <body>: onto its
         // successor, which is the cursor's row — same id, or the row
-        // #moveOffLeavingRow() chose for one that left the list.
-        if (null !== this.#focusedRow && false === this.#focusedRow.isConnected) {
+        // #moveOffLeavingRow() chose for one that left the list. Hidden counts
+        // as left: the browser drops the focus from a hidden element the same
+        // way it does from a removed one.
+        if (null !== this.#focusedRow && (false === this.#focusedRow.isConnected || true === this.#focusedRow.hidden)) {
             this.#focusedRow = null;
 
             if (null !== row && (null === document.activeElement || document.body === document.activeElement)) {

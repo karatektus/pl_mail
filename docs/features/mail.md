@@ -615,6 +615,12 @@ labels each conversation had before, which for a mixed selection is not the same
 action: an already-archived conversation that was ticked along with the rest stays archived. Undo
 is not offered when the action ran over a whole view in the background.
 
+Archiving, deleting, moving, restoring and snoozing take the conversation out of the list as soon as
+you choose them, without waiting for the server. If the server then refuses or cannot be reached,
+the conversation comes back where it was, still ticked if it was, and a message says what went
+wrong. An action over a whole view is the exception: those rows stay until the background job has
+moved them.
+
 ## Search
 
 The search box is at the top of every page and answers at `/mail/search`. Free text runs as a real

@@ -3,6 +3,7 @@ import { jsonCsrfHeaders } from "../../csrf.js";
 import { clearSelection, selection } from "../../mail_selection.js";
 import { announceWrite } from "../../mail_writes.js";
 import { requestFailed } from "../../request_errors.js";
+import { leavesList, rowOf, takeOut } from "../../optimistic_rows.js";
 
 /**
  * Dragging conversations onto folders and onto category tabs.
@@ -534,6 +535,17 @@ export default class extends Controller {
         // app.html.twig. Borrowing the toolbar's event names from elsewhere is
         // the established shape here rather than a liberty: mail--mail-pane and
         // mail--message-row both raise :row-changed the same way.
+        //
+        // A drop on a folder or a category tab takes the rows out of this list,
+        // so they are hidden now and put back if the drop does not land (#335,
+        // assets/optimistic_rows.js). A drop on Starred, Unread or a label
+        // leaves them where they are, and they wait for the answer to redraw.
+        const gone = true === leavesList(action)
+            ? takeOut(body.ids.map((id) => rowOf(document.querySelector(`#message-list [data-dnd-thread="${id}"]`))))
+            : null;
+
+        let failed = false;
+
         this.element.dispatchEvent(new CustomEvent("mail--list-toolbar:writing", { bubbles: true }));
 
         try {
@@ -543,28 +555,36 @@ export default class extends Controller {
                 body: JSON.stringify(body),
             });
 
-            // The rows stay where they were; the toast is what says the drop
-            // did not land, rather than a console line nobody sees.
+            // The rows come back where they were; the toast is what says the
+            // drop did not land, rather than a console line nobody sees.
             if (requestFailed(response)) {
+                failed = true;
+                gone?.putBack();
                 return;
             }
 
             Turbo.renderStreamMessage(await response.text());
         } catch {
+            failed = true;
+            gone?.putBack();
             requestFailed(null);
         } finally {
             this.element.dispatchEvent(new CustomEvent("mail--list-toolbar:written", { bubbles: true }));
             announceWrite();
 
-            // The selection is spent. It was drawn from the checkboxes, the
-            // rows it named are gone from the list, and leaving the boxes
-            // ticked would leave the toolbar offering actions on conversations
-            // that are no longer here.
-            for (const box of document.querySelectorAll("[data-thread-select]:checked")) {
-                box.checked = false;
-            }
+            // The selection is spent by a drop that landed. It was drawn from
+            // the checkboxes, the rows it named are gone from the list, and
+            // leaving the boxes ticked would leave the toolbar offering actions
+            // on conversations that are no longer here. A drop that failed
+            // leaves it as it was, with the rows back, so it can be dragged
+            // again.
+            if (false === failed) {
+                for (const box of document.querySelectorAll("[data-thread-select]:checked")) {
+                    box.checked = false;
+                }
 
-            clearSelection();
+                clearSelection();
+            }
 
             document
                 .querySelector("[data-controller~='mail--list-toolbar']")

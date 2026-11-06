@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:149c52824e18cee37e534b3aa0a89577ec330ff0 -->
+<!-- translated-from: features/mail.md sha1:a69ba8a5ee3aea8909941644147ea5e9f32a7970 -->
 
 # Mail
 
@@ -672,6 +672,12 @@ die Labels wieder her, die jede Konversation vorher hatte — bei einer gemischt
 nicht dasselbe wie die Aktion umzukehren: Eine schon archivierte Konversation, die mit angehakt
 war, bleibt archiviert. Für eine Aktion, die im Hintergrund über eine ganze Ansicht lief, gibt es
 kein Rückgängig.
+
+Archivieren, Löschen, Verschieben, Wiederherstellen und Zurückstellen nehmen die Konversation aus der
+Liste, sobald du sie wählst, ohne auf den Server zu warten. Lehnt der Server ab oder ist er nicht
+erreichbar, kommt die Konversation an ihren Platz zurück, angehakt, wenn sie es war, und eine
+Meldung sagt, was schiefging. Ausgenommen ist eine Aktion über eine ganze Ansicht: Diese Zeilen
+bleiben, bis der Hintergrundjob sie verschoben hat.
 
 ## Suche
 
