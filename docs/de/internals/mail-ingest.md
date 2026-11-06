@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:fc061955991717bc78ba23ce424a5c9e5a982825 -->
+<!-- translated-from: internals/mail-ingest.md sha1:d06783871817375a11da1fd9b71ced333d18b805 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -429,8 +429,11 @@ Die Kaskade, der Reihe nach, und die Reihenfolge ist tragend:
 3. **Foren vor Werbung.** Diskussionslisten tragen ebenfalls `List-Unsubscribe`, Werbung zuerst
    zu prüfen würde also jede Mailingliste als Marketing einsortieren.
 4. **Soziale Netzwerke über die Absenderdomain**, aus einer kleinen, signalstarken Liste
-   `SOCIAL_DOMAINS`.
-5. **Updates**, dann Allgemein als Vorgabe.
+   `SOCIAL_DOMAINS`, und ebenfalls vor Werbung: Die Versandplattform eines sozialen Netzwerks
+   hängt `List-Unsubscribe` an jede Benachrichtigung, mit Werbung zuerst würde die Domainliste
+   also nie greifen.
+5. **Werbung**, über `List-Unsubscribe`, `X-CSA-Complaints` oder `Precedence: bulk`.
+6. **Updates**, dann Allgemein als Vorgabe.
 
 `explain()` liefert dieselbe Entscheidung samt der Stufe, die sie getroffen hat, und dem
 Signal, auf das sie angesprungen ist — auf Anfrage neu berechnet statt gespeichert. Weil nur

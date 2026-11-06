@@ -378,8 +378,11 @@ The cascade, in order, and the order is load-bearing:
    regardless of any bulk header.
 3. **Forums before Promotions.** Discussion lists also carry `List-Unsubscribe`, so testing
    Promotions first would file every mailing list as marketing.
-4. **Social by sender domain**, from a small high-signal `SOCIAL_DOMAINS` list.
-5. **Updates**, then Primary as the default.
+4. **Social by sender domain**, from a small high-signal `SOCIAL_DOMAINS` list, and also
+   before Promotions: a social network's mail platform adds `List-Unsubscribe` to every
+   notification, so with Promotions first the domain list would never match.
+5. **Promotions**, on `List-Unsubscribe`, `X-CSA-Complaints` or `Precedence: bulk`.
+6. **Updates**, then Primary as the default.
 
 `explain()` returns the same decision with the step that made it and the signal it matched
 on, recomputed on demand rather than stored — it reads only persisted data, so explaining a
