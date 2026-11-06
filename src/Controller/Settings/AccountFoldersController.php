@@ -17,6 +17,7 @@ use App\Service\Imap\FolderTree;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapFolderManager;
 use App\Service\Imap\ImapPermanentFlags;
+use App\Service\Imap\NewFolderPlace;
 use App\Service\Label\LabelPlaces;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -79,6 +80,7 @@ final class AccountFoldersController extends AbstractController
         private readonly ImapFolderManager      $folders,
         private readonly TranslatorInterface    $translator,
         private readonly ImapConnector          $connector,
+        private readonly NewFolderPlace         $place,
         private readonly ImapPermanentFlags     $permanentFlags,
         private readonly LabelPlaces            $places,
     ) {}
@@ -102,7 +104,9 @@ final class AccountFoldersController extends AbstractController
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
         $this->assertSyncsOverImap($account);
 
-        return $this->renderNewForm($account, self::idOrNull($request->query->get('parent')), '', null);
+        $parentId = self::idOrNull($request->query->get('parent')) ?? $this->place->defaultFor($account)?->id;
+
+        return $this->renderNewForm($account, $parentId, '', null);
     }
 
     #[Route('/settings/accounts/{id}/folders/new', name: 'settings_account_folder_create', methods: ['POST'])]
@@ -127,6 +131,8 @@ final class AccountFoldersController extends AbstractController
 
         try {
             $mailbox = $this->folders->create($account, $parent, $name);
+            $this->place->remember($account, $parent);
+            $this->em->flush();
         } catch (InvalidFolderNameException $e) {
             return $this->renderNewForm($account, $parentId, $name, $this->invalidName($e));
         } catch (ImapFolderRefusedException $e) {

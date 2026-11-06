@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:92cc40170865db1d7803dd455901c7ef70e2cd9c -->
+<!-- translated-from: features/mail.md sha1:149c52824e18cee37e534b3aa0a89577ec330ff0 -->
 
 # Mail
 
@@ -623,6 +623,7 @@ oder eine Outlook-Kategorie ist eine Markierung und kein Ort, deshalb fragt das 
 und verschiebt nichts.
 
 Um ein Label auf einem Konto zum Ordner zu machen, öffne das Label und wähle unter **Wo dieses Label liegt** erst **Pro Konto ändern** und dann **Zum Ordner machen**. Das geht auf einfachen IMAP- und auf Outlook-Konten.
+Auf IMAP fragt der Dialog, wohin der Ordner kommt, **Oberste Ebene** oder in einen beliebigen Ordner des Kontos, und startet mit dem Ort, den du dort zuletzt gewählt hast; ein Label unter einem, das dort schon Ordner ist, kommt in diesen Ordner, und der Dialog sagt das.
 Nachrichten mit diesem Label auf diesem Konto werden in den neuen Ordner verschoben, außer denen in Papierkorb, Spam, Gesendet und Entwürfe; der Dialog nennt vorher die Anzahl. Auf Outlook wird die gleichnamige Kategorie entfernt.
 
 **Zum Label machen** tut das Gegenteil, bei einem Ordner ohne Unterordner. Wähle, wohin seine Nachrichten sollen; plMail verschiebt sie, löscht den Ordner auf dem Server und setzt das Label wieder als Markierung an diese Nachrichten.

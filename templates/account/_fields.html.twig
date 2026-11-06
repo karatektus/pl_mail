@@ -100,6 +100,16 @@ genuinely needed, merge onto form.<field>.vars.attr.
         }) }}
     </div>
 
+    {# IMAP only, hidden the same way: where the labels given in plMail are
+       kept, asked when the account is added (#221). The account's folders
+       have the same switch for later. #}
+    <div data-settings--imap-preset-target="imapOptions">
+        {{ form_row(form.labelsAsKeywords, {
+            label: 'account.form.imap.labels_label'|trans,
+            help:  'account.form.imap.labels_help'|trans,
+        }) }}
+    </div>
+
     {# JMAP only, hidden the same way and for the same reason. The session
        URL is for a server that does not answer at the well-known path, which
        nearly every one does, so it waits behind an offer until it is asked

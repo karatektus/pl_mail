@@ -19,6 +19,9 @@ use App\Repository\Mail\MessageRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Label\LabelDeletion;
 use App\Service\Label\LabelFolderMaker;
+use App\Service\Imap\FolderTree;
+use App\Service\Imap\NewFolderPlace;
+use App\Repository\Mail\MailboxRepository;
 use App\Service\Label\LabelPlaces;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -54,6 +57,9 @@ final class LabelFolderController extends AbstractController
         private readonly TranslatorInterface    $translator,
         private readonly LabelPlaces            $places,
         private readonly LabelDeletion          $deletion,
+        private readonly NewFolderPlace         $place,
+        private readonly FolderTree             $tree,
+        private readonly MailboxRepository      $mailboxes,
     ) {}
 
     #[Route('/{label}/folder-on/{account}', name: 'make_folder_confirm', methods: ['GET'])]
@@ -70,10 +76,28 @@ final class LabelFolderController extends AbstractController
         $this->assertCanMake($label, $account);
         $this->assertCsrf($request, 'label-make-folder' . $label->id . '-' . $account->id);
 
+        // Where the folder goes, on plain IMAP where a place is the person's to
+        // pick (#221). Remembered for the next folder on this account, as New
+        // folder does; the same answer seeds both.
+        $place = null;
+
+        if (true === $this->picksPlace($label, $account)) {
+            try {
+                $place = $this->place->chosen($account, self::idOrNull($request->request->get('parent')));
+            } catch (\InvalidArgumentException) {
+                throw $this->createNotFoundException();
+            }
+        }
+
         try {
-            $this->maker->make($label, $account);
+            $this->maker->make($label, $account, $place);
         } catch (Throwable $e) {
-            return $this->dialog($label, $account, $e->getMessage());
+            return $this->dialog($label, $account, $e->getMessage(), $place?->id);
+        }
+
+        if (true === $this->picksPlace($label, $account)) {
+            $this->place->remember($account, $place);
+            $this->em->flush();
         }
 
         if (0 === $this->messages->countToFileIntoFolder((int) $account->id, (int) $label->id)) {
@@ -216,7 +240,36 @@ final class LabelFolderController extends AbstractController
         }
     }
 
-    private function dialog(Label $label, Account $account, ?string $error = null): Response
+    /**
+     * Whether the dialog asks where the folder goes: on a plain IMAP account,
+     * unless the label's parent is a folder there already and the folder goes
+     * inside it (LabelFolderMaker::fixedPlace()). Outlook folders are made at
+     * the top of the mailbox, as before.
+     */
+    private function picksPlace(Label $label, Account $account): bool
+    {
+        return true === $account->isPlainImap() && null === $this->maker->fixedPlace($label, $account);
+    }
+
+    /**
+     * The outermost label that becomes a folder with this one: the place the
+     * person picks is where THAT one goes, and the rest go inside it.
+     */
+    private function outermostNew(Label $label, Account $account): Label
+    {
+        while (null !== $label->parent && null === $label->parent->role && false === $this->maker->isFolder($label->parent, $account)) {
+            $label = $label->parent;
+        }
+
+        return $label;
+    }
+
+    private static function idOrNull(mixed $value): ?int
+    {
+        return is_string($value) && 1 === preg_match('/^[1-9]\d*$/', $value) ? (int) $value : null;
+    }
+
+    private function dialog(Label $label, Account $account, ?string $error = null, ?int $placeId = null): Response
     {
         $form = $this->createForm(LabelDeleteType::class, null, [
             'action'       => $this->generateUrl('app_label_make_folder', ['label' => $label->id, 'account' => $account->id]),
@@ -234,6 +287,11 @@ final class LabelFolderController extends AbstractController
             'mailCount'   => $this->messages->countToFileIntoFolder((int) $account->id, (int) $label->id),
             'hasCategory' => null !== $label->bindingFor($account)?->graphCategoryId,
             'parentToo'   => null !== $label->parent && null === $label->parent->role && false === $this->maker->isFolder($label->parent, $account),
+            'picksPlace'  => $this->picksPlace($label, $account),
+            'placeRows'   => $this->picksPlace($label, $account) ? $this->tree->rows($this->mailboxes->findForAccountOrdered($account)) : [],
+            'placeId'     => null !== $error ? $placeId : $this->place->defaultFor($account)?->id,
+            'insideOf'    => true === $account->isPlainImap() ? $this->maker->fixedPlace($label, $account) : null,
+            'placeLabel'  => $this->outermostNew($label, $account),
         ], new Response(status: null === $error ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY));
     }
 

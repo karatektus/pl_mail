@@ -84,6 +84,9 @@ class SidebarCounts implements ResetInterface
     /** @var array<int, array<int, true>> label id => (account id => it is a folder there, IMAP or Outlook) */
     private array $folderOn = [];
 
+    /** @var array<int, array<int, true>> label id => (account id => it has a binding there that is not a folder) */
+    private array $tagInUseOn = [];
+
     /**
      * Worker-mode hygiene - see LogAlertGlobal::reset(), the sibling whose
      * staleness was actually caught in the wild.
@@ -110,6 +113,7 @@ class SidebarCounts implements ResetInterface
         $this->folderAccounts     = null;
         $this->folders            = [];
         $this->folderOn           = [];
+        $this->tagInUseOn         = [];
         $this->inboxUnread        = null;
     }
 
@@ -279,6 +283,33 @@ class SidebarCounts implements ResetInterface
         return isset($this->folderOn[(int) $label->id][(int) $account->id]);
     }
 
+    /**
+     * Whether this label is a folder on at least one of the user's accounts.
+     */
+    public function isFolderAnywhere(Label $label): bool
+    {
+        $this->loadFolders();
+
+        return isset($this->folderOn[(int) $label->id]);
+    }
+
+    /**
+     * Whether this label has been put on this account's mail as a tag: it has
+     * a binding there that is not a folder (LabelResolver::usedAsTagOn(), a
+     * Gmail label, an Outlook category, a JMAP mailbox).
+     *
+     * Not the same as LabelKinds::isTagOn(), which answers whether the label
+     * COULD be used as a tag there and is what the pickers offer. This is
+     * whether it IS, which is what LABELS lists for a label that is a folder
+     * somewhere else (#221).
+     */
+    public function isTagInUseOn(Label $label, Account $account): bool
+    {
+        $this->loadFolders();
+
+        return isset($this->tagInUseOn[(int) $label->id][(int) $account->id]);
+    }
+
     private function loadFolders(): void
     {
         if (null !== $this->folderAccounts) {
@@ -288,13 +319,20 @@ class SidebarCounts implements ResetInterface
         $this->folderAccounts = [];
         $this->folders        = [];
         $this->folderOn       = [];
+        $this->tagInUseOn     = [];
         $user                 = $this->security->getUser();
 
-        foreach (null === $user ? [] : $this->bindings->findFolderBindingsForUser($user) as $binding) {
+        foreach (null === $user ? [] : $this->bindings->findForUser($user) as $binding) {
             $account = $binding->account;
             $label   = $binding->label;
 
             if (null === $account || null === $label) {
+                continue;
+            }
+
+            if (null === $binding->mailbox && null === $binding->graphFolderId) {
+                $this->tagInUseOn[(int) $label->id][(int) $account->id] = true;
+
                 continue;
             }
 
