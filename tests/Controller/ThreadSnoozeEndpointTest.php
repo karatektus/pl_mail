@@ -121,6 +121,60 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
         self::assertNotContains(LabelRole::Snoozed, $roles);
     }
 
+    /**
+     * Woken from the Snoozed list, the row leaves it (#335).
+     *
+     * The browser hides the row the moment the action is chosen, so the answer
+     * has to agree: a `replace` here would draw the conversation again, awake,
+     * in a list of snoozed mail. Anywhere else a wake keeps the row, redrawn.
+     */
+    public function testWakingFromTheSnoozedListRemovesTheRow(): void
+    {
+        $client   = $this->signIn();
+        $threadId = (int) $this->inboxThread()->id;
+        $path     = sprintf('/status/thread/%d/snooze', $threadId);
+
+        $client->request(
+            'POST',
+            $path,
+            server: $this->jsonPost($client),
+            content: json_encode(['until' => (new \DateTimeImmutable('+1 day'))->format(DATE_ATOM)]),
+        );
+
+        $client->request(
+            'POST',
+            $path,
+            server: $this->jsonPost($client),
+            content: json_encode(['until' => null, 'scope' => 'snoozed', 'value' => '']),
+        );
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString(
+            sprintf('<turbo-stream action="remove" target="thread_%d">', $threadId),
+            (string) $client->getResponse()->getContent(),
+        );
+
+        $client->request(
+            'POST',
+            $path,
+            server: $this->jsonPost($client),
+            content: json_encode(['until' => (new \DateTimeImmutable('+1 day'))->format(DATE_ATOM)]),
+        );
+
+        $client->request(
+            'POST',
+            $path,
+            server: $this->jsonPost($client),
+            content: json_encode(['until' => null, 'scope' => 'inbox', 'value' => '']),
+        );
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString(
+            sprintf('<turbo-stream action="replace" target="thread_%d">', $threadId),
+            (string) $client->getResponse()->getContent(),
+        );
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /**
