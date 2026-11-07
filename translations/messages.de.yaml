@@ -1921,6 +1921,9 @@ compose:
     quote:
         hide: zitierten Text ausblenden
         show: zitierten Text anzeigen
+    resize:
+        hint: Ziehen, um die Größe zu ändern. Doppelklick für die Standardgröße. Die Pfeiltasten gehen auch.
+        label: Größe des Fensters ändern
     schedule:
         cancel: Geplanten Versand abbrechen
         confirm: Versand planen

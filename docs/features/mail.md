@@ -1037,6 +1037,11 @@ dock. Either way the window offers rich text, contact autocomplete on the addres
 **From** selector listing every active account and every sending alias on it. A reply opens on the
 address the mail was sent to; see [Accounts and aliases](accounts.md#sending-aliases).
 
+**Drag the window's top-left corner** to make the docked window bigger or smaller; double-click the
+corner for the standard size again. With the corner focused, the arrow keys do the same. The size is
+kept **on this device**, in the browser, so the laptop and the large screen beside it can each have
+their own. On a phone the window always fills the screen.
+
 Autocomplete only ever offers **your own** harvested contacts. On an install with more than one
 person, nobody's correspondents are visible to anybody else, and an address belonging to another
 account cannot be put on your draft by any route.

@@ -1806,6 +1806,9 @@ compose:
     quote:
         hide: stow the quoted words
         show: unfurl the quoted words
+    resize:
+        hint: Haul to stretch it. Double-click for the ship’s standard. The arrow keys work an’ all.
+        label: Stretch the writin’ desk
     schedule:
         cancel: "Belay that castin' off"
         confirm: "Set th' hour"

@@ -226,8 +226,14 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
           anything taller than about 670px. With a keyboard up the cap becomes
           90vh minus the keyboard — see `.compose-dock .compose-window` in
           app.css, which is what keeps a card lifted clear of an iPad's keyboard
-          from running off the top of the screen instead. #}
-       h-[600px] max-h-[90vh] w-[520px] rounded-pane shadow-float
+          from running off the top of the screen instead.
+
+          Fixed, but not fixed by us: the person sets it by dragging the
+          top-left corner (#507, compose--window-size), and it is kept per
+          device as `--compose-w` / `--compose-h` on <html>. 520 × 600 is the
+          size until they do. `relative` is for that corner's handle. #}
+       relative h-[var(--compose-h,600px)] max-h-[90vh] w-[var(--compose-w,520px)] md:max-w-[calc(100vw-2rem)]
+       rounded-pane shadow-float
        pane-flat border border-line mb-4
        {% endif %}
        {# Below md *both* variants are the whole screen, Gmail-app style —
@@ -250,6 +256,27 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
        max-md:m-0 max-md:rounded-none max-md:border-0 max-md:shadow-none
        max-md:bg-surface
        max-md:pt-[env(safe-area-inset-top)] max-md:pb-[env(safe-area-inset-bottom)]">
+        {% if not inline %}
+            {# The resize corner (#507). Top-left, because the dock is anchored
+               bottom-right and the window grows away from that corner. Shown
+               from md up and while the window is neither minimized nor
+               expanded (app.css, "Compose window size"); faint until the
+               window is hovered, so it is there when wanted and not otherwise. #}
+            <button type="button"
+                    data-compose-resize
+                    data-controller="compose--window-size"
+                    data-action="pointerdown->compose--window-size#start dblclick->compose--window-size#reset keydown->compose--window-size#key"
+                    aria-label="{{ 'compose.resize.label'|trans }}"
+                    title="{{ 'compose.resize.hint'|trans }}"
+                    class="hidden md:flex absolute -top-1 -left-1 z-20 w-5 h-5 items-center justify-center
+                           rounded-full cursor-nwse-resize touch-none text-ink-faint
+                           opacity-0 [.compose-window:hover_&]:opacity-100 hover:text-ink focus-visible:opacity-100
+                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-opacity">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
+                    <circle cx="2" cy="2" r="1.2"></circle><circle cx="6" cy="2" r="1.2"></circle><circle cx="2" cy="6" r="1.2"></circle>
+                </svg>
+            </button>
+        {% endif %}
         {{ form_start(form, { attr: { novalidate: 'novalidate', class: 'flex flex-col flex-1 min-h-0' } }) }}
 
         {# ── Header ───────────────────────────────────────────────── #}

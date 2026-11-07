@@ -185,7 +185,10 @@ test("the Adjust panel sets size and quality apart", async ({ page }) => {
     await adjust.click();
     await expect(panel).toBeVisible();
     await expect(adjust).toHaveAttribute("aria-expanded", "true");
-    expect((await chip.boundingBox())!.y).toBe(chipTop);
+    // Within a pixel: the window's height comes from a custom property now
+    // (#507), and the popover's top-layer entry can round a box by a
+    // fraction. A popover that pushed the chips moved them by a whole row.
+    expect(Math.abs((await chip.boundingBox())!.y - chipTop)).toBeLessThan(2);
     expect((await panel.boundingBox())!.y + (await panel.boundingBox())!.height)
         .toBeLessThanOrEqual((await row().boundingBox())!.y + 1);
 
