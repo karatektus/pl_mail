@@ -19,7 +19,14 @@ export default class extends Controller {
     static targets = ["current"];
 
     connect() {
-        this.#center();
+        // No #center() here. It used to run now as well as a frame later, and
+        // now is the worst moment for it: it reads the strip's layout while
+        // Turbo is still inserting the list that arrived with it, which forces
+        // the browser to lay out the whole new list there and then, only for it
+        // to be laid out again when the frame paints — measured at 12 ms of
+        // script and most of a 35 ms style pass per tab switch on a fifty-row
+        // list (#496). currentTargetConnected() below fires for the target the
+        // strip arrives with as well, a frame later, and that one is enough.
 
         // Not a Stimulus `data-action`: those register passive listeners for
         // wheel events, and a passive listener cannot preventDefault.

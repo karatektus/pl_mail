@@ -876,7 +876,23 @@ be a worse regression than the one this feature fixes.
                    routes take a conversation, and a row that is a single
                    message (a search hit, a draft) has Move to for this. #}
                 {% if false == draft and type == 'thread' and placement not in ['trash', 'spam'] %}
-                    {% include '_partials/_spam_menu.html.twig' with { threadId: rowId, variant: 'row' } only %}
+                    {# The button only. The menu is the list's one shared spam
+                       menu (_partials/_row_menus.html.twig, #496), opened for
+                       this conversation from the two URLs it is handed here. #}
+                    <button type="button"
+                            data-action="click->mail--message-row#openMenu"
+                            data-mail--message-row-menu-param="spam"
+                            data-mail--message-row-spam-menu-url-param="{{ path('app_status_spam_menu', { id: rowId }) }}"
+                            data-mail--message-row-spam-report-url-param="{{ path('app_status_spam_report', { id: rowId }) }}"
+                            aria-label="{{ 'toolbar.actions.spam'|trans }}"
+                            title="{{ 'toolbar.actions.spam'|trans }}"
+                            aria-haspopup="menu"
+                            aria-expanded="false"
+                            aria-controls="row-spam-menu"
+                            data-testid="spam-button"
+                            class="z-10 p-1.5 cursor-pointer rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors">
+                        <i class="fa-solid fa-circle-exclamation w-4 h-4" aria-hidden="true"></i>
+                    </button>
                 {% endif %}
 
                 {# Anywhere that is not the inbox: the way back.
@@ -929,40 +945,27 @@ be a worse regression than the one this feature fixes.
                        there is no defensible default wake time, and the one
                        this had (none at all) cleared the snooze instead of
                        setting it. #}
-                    {# NOT opted into the top layer, and that is a finding
-                       rather than an oversight.
+                    {# The button only: the menu is the list's one shared
+                       snooze menu (_partials/_row_menus.html.twig, #496),
+                       opened for this row. A copy of it in every row was most
+                       of what a list switch spent its time building.
 
-                       Sending this menu to the top layer stops its options
-                       working: the button is still the hit-target at its own
-                       coordinates, no console error is raised, and the POST
-                       simply never goes out. The label menu is pinned the same
-                       way and its options fire normally, so it is not the
-                       popover API on its own — something about this menu's
-                       route through ui--dropdown does not survive it, and I
-                       have not found what.
-
-                       This menu was never reported as trapped; it was opted in
-                       speculatively while fixing the label menu, which WAS. So
-                       it goes back to what worked, and the escape stays opt-in
-                       precisely so one menu's fix cannot quietly break another.
-                       Worth returning to with a reproduction rather than a
-                       guess. #}
-                    <div class="relative z-10" data-controller="ui--dropdown">
-                        <button type="button"
-                                data-action="click->ui--dropdown#toggle click->mail--message-row#stop"
-                                aria-label="{{ 'thread_row.actions.snooze'|trans }}"
-                                title="{{ 'thread_row.actions.snooze'|trans }}"
-                                class="p-1.5 cursor-pointer rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors">
-                            <i class="fa-solid fa-clock w-4 h-4" aria-hidden="true"></i>
-                        </button>
-
-                        {% include '_partials/_snooze_menu.html.twig' with {
-                            controller: 'mail--message-row',
-                            method:     'snooze',
-                            url:        path('app_status_snooze', {'type': type, 'id': rowId}),
-                            snoozed:    thread is defined and thread.snoozed|default(false),
-                        } only %}
-                    </div>
+                       It carries what the menu needs to know about this row:
+                       where a snooze posts, and whether it is snoozed now,
+                       which is the only thing that puts Unsnooze on the menu. #}
+                    <button type="button"
+                            data-action="click->mail--message-row#openMenu"
+                            data-mail--message-row-menu-param="snooze"
+                            data-mail--message-row-snooze-url-param="{{ path('app_status_snooze', {'type': type, 'id': rowId}) }}"
+                            data-mail--message-row-snoozed-param="{{ thread is defined and thread.snoozed|default(false) ? 'true' : 'false' }}"
+                            aria-label="{{ 'thread_row.actions.snooze'|trans }}"
+                            title="{{ 'thread_row.actions.snooze'|trans }}"
+                            aria-haspopup="menu"
+                            aria-expanded="false"
+                            aria-controls="row-snooze-menu"
+                            class="z-10 p-1.5 cursor-pointer rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors">
+                        <i class="fa-solid fa-clock w-4 h-4" aria-hidden="true"></i>
+                    </button>
 
                     <button type="button" data-action="click->mail--message-row#markRead"
                             data-mail--message-row-read-url-param="{{ path('app_status_mark_read', {'type': type, 'id': rowId}) }}"

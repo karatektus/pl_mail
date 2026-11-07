@@ -427,6 +427,9 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
             </div>
         </div>
     </div>
+
+    {# One snooze menu and one spam menu for every row of the list. #}
+    {% include '_partials/_row_menus.html.twig' %}
 {% endblock %}
 
 {#

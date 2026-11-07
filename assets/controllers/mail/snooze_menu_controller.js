@@ -17,12 +17,42 @@ import { prefersHour12 } from "../../clock_format.js";
  * Options are recomputed on every open rather than once on connect. A list left
  * open across midnight would otherwise offer a "tomorrow" that is today.
  */
+/**
+ * One formatter per shape, kept: `toLocaleString` with options builds a new
+ * Intl.DateTimeFormat on every call, which is the expensive part of it, and a
+ * menu formats four times on every open. Keyed on the inputs that can change
+ * while the page is open — the language and the clock preference are both on
+ * <html> and are read each time, so a change to either is picked up.
+ */
+const formatters = new Map();
+
+function formatter(withDate) {
+    const lang   = document.documentElement.lang || undefined;
+    const hour12 = prefersHour12();
+    const key    = `${lang}|${hour12}|${withDate}`;
+
+    if (false === formatters.has(key)) {
+        formatters.set(key, new Intl.DateTimeFormat(lang, {
+            weekday: "short",
+            ...(withDate ? { day: "numeric", month: "short" } : {}),
+            hour12,
+            hour: "2-digit",
+            minute: "2-digit",
+        }));
+    }
+
+    return formatters.get(key);
+}
+
 export default class extends Controller {
     static targets = ["option"];
 
-    connect() {
-        this.refresh();
-    }
+    // No connect(). It used to refresh here as well as on every open, and the
+    // menu is never seen until it is opened — every surface opens it through
+    // ui--dropdown, whose `opened` event the partial wires to refresh(), or
+    // through mail--row-menus, which calls refresh() itself. While a row
+    // carried its own copy, that was fifty refreshes on every list render for
+    // menus nobody had asked for (#496).
 
     refresh() {
         const options = snoozeOptions();
@@ -49,11 +79,13 @@ export default class extends Controller {
             // All are set unconditionally. Only one has a controller listening
             // on any given surface, and the unused attribute is inert — cheaper
             // than teaching this controller which surface it is on. The last one
-            // is the long-press sheet's, which posts its own captured URL.
+            // but one is the long-press sheet's, which posts its own captured
+            // URL, and the last is the list rows' shared menu (mail--row-menus).
             element.setAttribute("data-mail--message-row-until-param", at.toISOString());
             element.setAttribute("data-mail--list-toolbar-until-param", at.toISOString());
             element.setAttribute("data-mail--message-actions-until-param", at.toISOString());
             element.setAttribute("data-mail--action-sheet-until-param", at.toISOString());
+            element.setAttribute("data-mail--row-menus-until-param", at.toISOString());
 
             const when = element.querySelector("[data-snooze-when]");
 
@@ -81,20 +113,34 @@ export default class extends Controller {
      * computed here at all.
      */
     #reorder(options) {
-        const parent = this.optionTargets[0]?.parentElement;
+        const targets = this.optionTargets;
+        const parent  = targets[0]?.parentElement;
 
         if (!parent) {
             return;
         }
 
-        for (const { key } of options) {
-            const element = this.optionTargets.find((target) => target.dataset.snoozeKey === key);
+        // Already in that order, which is every day but the weekend: nothing to
+        // move. Moving them anyway is a DOM mutation per option, which every
+        // observer on the page then gets to look at.
+        const current = targets.map((target) => target.dataset.snoozeKey);
+        const wanted  = options.map(({ key }) => key).filter((key) => current.includes(key));
 
-            // appendChild MOVES an existing node, so this walks the sorted list
-            // pushing each option to the end in turn — which leaves them in
-            // exactly that order.
+        if (wanted.join() === current.filter((key) => wanted.includes(key)).join()) {
+            return;
+        }
+
+        // Before whatever follows the options rather than at the end of the
+        // menu. Appending them to the end, as this used to, put them below
+        // "Unsnooze" and its divider in the one menu that has those — the
+        // options are a block, and they are sorted within it.
+        const after = targets[targets.length - 1].nextElementSibling;
+
+        for (const { key } of options) {
+            const element = targets.find((target) => target.dataset.snoozeKey === key);
+
             if (element) {
-                parent.appendChild(element);
+                parent.insertBefore(element, after);
             }
         }
     }
@@ -121,12 +167,6 @@ export default class extends Controller {
         const soon = new Date();
         soon.setDate(soon.getDate() + 2);
 
-        return date.toLocaleString(document.documentElement.lang || undefined, {
-            weekday: "short",
-            ...(date > soon ? { day: "numeric", month: "short" } : {}),
-            hour12: prefersHour12(),
-            hour: "2-digit",
-            minute: "2-digit",
-        });
+        return formatter(date > soon).format(date);
     }
 }

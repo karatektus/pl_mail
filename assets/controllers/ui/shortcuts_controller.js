@@ -104,7 +104,7 @@ const OPEN = {
 const ON_ROW = {
     archive: "[data-action='click->mail--message-row#archive']",
     trash:   "[data-action='click->mail--message-row#trash']",
-    spam:    "[data-action='click->mail--spam-menu#toggle']",
+    spam:    "[data-action='click->mail--message-row#openMenu'][data-mail--message-row-menu-param='spam']",
     star:    "[data-action='click->mail--message-row#toggleStar']",
     read:    "[data-action='click->mail--message-row#markRead'][data-mail--message-row-read-param='true']",
     unread:  "[data-action='click->mail--message-row#markRead'][data-mail--message-row-read-param='false']",

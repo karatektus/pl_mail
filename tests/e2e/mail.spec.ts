@@ -511,6 +511,11 @@ test.describe("mail UI actions", () => {
      * morph would have put back the `hidden` the server always renders. The
      * second is why mail_pane_controller#_mayMorph, and the MENU selector it
      * reads, exist.
+     *
+     * The row menus are now one shared menu outside the list (#496), which no
+     * refresh reaches at all; what the refresh must still leave alone is the
+     * row, whose button holds the menu's place (MENU_OPEN). Both are asserted:
+     * the menu stays up and working, and the button still says it is open.
      */
     test("a sync refresh leaves an open row menu open", async ({ page }) => {
         await page.goto("/mail/inbox");
@@ -519,12 +524,13 @@ test.describe("mail UI actions", () => {
         const row = mailRow(page, INBOX_SUBJECTS.read);
         await rowAction(row, "Snooze");
 
-        const menu = row.locator('[data-ui--dropdown-target="menu"]');
+        const menu = page.locator("#row-snooze-menu");
         await expect(menu).toBeVisible();
 
         await syncFired(page);
 
         await expect(menu).toBeVisible();
+        await expect(row.getByRole("button", { name: "Snooze" })).toHaveAttribute("aria-expanded", "true");
 
         // And still a working menu, not just a visible one — the controller
         // instance survived with its element. Two things say so, and neither is

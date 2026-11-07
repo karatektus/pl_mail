@@ -30,18 +30,12 @@ async function openSnoozeMenu(page: import("@playwright/test").Page, subject: st
     // failure read as "the menu did not open" with nothing to say why.
     await rowAction(row, /snooze/i);
 
-    // THIS row's menu. Every row renders its own copy of the partial, and the
-    // list toolbar renders another for the selection, so a page-wide `.first()`
-    // was whichever menu came first in the document — not the one the click
-    // just opened. It only looked right because the inbox happened to list this
-    // subject first; when it did not, the helper handed back a closed menu
-    // belonging to another conversation, and the caller reported the feature
-    // inside it as missing.
-    //
-    // `:not([hidden])` went with it. The dropdown is opened and closed by
-    // class, never by the hidden attribute, so that filter excluded nothing and
-    // read as a check on open-ness while being none.
-    const menu = row.locator('[data-controller="mail--snooze-menu"]');
+    // The list's one shared snooze menu (#496), opened for this row. It used
+    // to be THIS row's own copy, found by scoping to the row: a page-wide
+    // `.first()` then handed back whichever row's menu came first in the
+    // document. There is one now, so its id is the whole answer, and the
+    // assertion below is what proves it opened for this click.
+    const menu = page.locator("#row-snooze-menu");
 
     // And the helper does not hand back a menu it has not seen open: callers go
     // straight to looking for an entry inside it, so a click that opened nothing
@@ -68,7 +62,7 @@ test("a snoozed conversation shows its wake time and can be woken", async ({ pag
 
     // Whatever the menu is offering first — the soonest, by definition.
     const option = menu.locator("[data-snooze-key]:not([hidden])").first();
-    const wakeAt = await option.getAttribute("data-mail--message-row-until-param") ?? "";
+    const wakeAt = await option.getAttribute("data-mail--row-menus-until-param") ?? "";
 
     // Waited for AND asserted. Navigating before the write lands reads the
     // next list from before it, which fails as "the conversation is not there"
@@ -145,7 +139,8 @@ test("a snoozed conversation shows its wake time and can be woken", async ({ pag
     // By its name, not `.last()`: if the entry were missing — which is the
     // thing being asserted — `.last()` would silently be "next week" and the
     // test would snooze the mail further while reporting success.
-    const wakeNow = snoozedMenu.getByRole("button", { name: /unsnooze/i });
+    // A menuitem: the rows' shared menu is a proper `role="menu"` (#496).
+    const wakeNow = snoozedMenu.getByRole("menuitem", { name: /unsnooze/i });
 
     await expect(
         wakeNow,
