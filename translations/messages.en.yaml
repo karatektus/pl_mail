@@ -1981,6 +1981,16 @@ compose:
     from: From
     image: Insert image
     image_insert_failed: Could not place the image in the message
+    image_size:
+        edge: Longest side %px% px
+        failed: Some images could not be made smaller
+        label: Image size
+        large: Large
+        medium: Medium
+        original: Original
+        resizing: Resizing images…
+        small: Small
+        total: "%size% in all"
     indent: Indent
     insert_emoji: Insert emoji
     insert_link: Insert link

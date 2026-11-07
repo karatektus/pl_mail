@@ -1099,6 +1099,23 @@ the recipient sees the picture rather than a broken link back into plMail. They 
 and are not counted as any: a message whose only picture is one you placed in the body carries no
 paperclip.
 
+### Sending images smaller
+
+Photos from a phone are several megabytes each, and a few of them make a message most people did not
+mean to send that big. As soon as the draft holds an image, attached or in the body, an **Image
+size** row appears above the attachments: **Original**, **Large** (2048 pixels on the longest
+side), **Medium** (1280) and **Small** (800), with the size of the whole message beside it.
+
+Original is where it starts, so nothing gets smaller unless you pick a size. The size you pick
+applies to every image in the draft, and to images you add afterwards. Files that are not images are
+left alone, and so is an image that is already smaller than the size you picked, or a GIF, an SVG
+or a HEIC photo. You can change the size, or go back to Original, until you send: plMail keeps each
+picture as you uploaded it, and scales from that every time.
+
+Your browser does the scaling, and that works in an encrypted draft too. It turns a phone photo the
+right way up first, and the smaller copy keeps none of the photo's metadata, so its GPS position
+does not go out with it. Original sends the file exactly as you uploaded it.
+
 ### Links
 
 The link button opens a small panel with a **URL** field and a **text** field, the text prefilled

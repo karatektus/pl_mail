@@ -1732,6 +1732,16 @@ compose:
     from: 发件人
     image: 插入图片
     image_insert_failed: 无法将图片插入邮件
+    image_size:
+        edge: 最长边 %px% 像素
+        failed: 部分图片无法缩小
+        label: 图片尺寸
+        large: 大
+        medium: 中
+        original: 原图
+        resizing: 正在缩小图片…
+        small: 小
+        total: "共 %size%"
     indent: 增加缩进
     insert_emoji: 插入表情符号
     insert_link: 插入链接

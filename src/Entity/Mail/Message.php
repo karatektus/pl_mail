@@ -7,6 +7,7 @@ use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Enum\Crypto\SignatureState;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ArrivalPlace;
+use App\Domain\Enum\Mail\ImageSize;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\MessagePriority;
@@ -610,6 +611,16 @@ class Message extends MessageModel
     /** Why it failed — see SendFailure. Set and cleared with sendFailedAt. */
     #[ORM\Column(name: 'send_failure', length: 20, nullable: true, enumType: SendFailure::class)]
     public ?SendFailure $sendFailure = null;
+
+    /**
+     * The size the person chose for this draft's images, or null to send them
+     * as they are (#502). The scaling itself is done by the browser, part by
+     * part (DraftAttachmentService::replaceWithScaled()); this is what the
+     * compose window's Image size row shows when the draft is opened again,
+     * and what an image added later is scaled to.
+     */
+    #[ORM\Column(name: 'image_size', length: 8, nullable: true, enumType: ImageSize::class)]
+    public ?ImageSize $imageSize = null;
 
     /**
      * When this send began waiting out a passing failure — the start of the

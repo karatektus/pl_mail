@@ -75,6 +75,9 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              confirmNoAttachment: 'compose.confirm.no_attachment'|trans,
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
              imageFailed:      'compose.image_insert_failed'|trans,
+             imageSizeResizing: 'compose.image_size.resizing'|trans,
+             imageSizeFailed:  'compose.image_size.failed'|trans,
+             imageSizeTotal:   'compose.image_size.total'|trans({ '%size%': '%s' }),
              noSignature:      'compose.signature_none'|trans,
              sealing:          'compose.status.sealing'|trans,
          }|json_encode|e('html_attr') }}"

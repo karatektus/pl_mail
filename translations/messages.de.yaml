@@ -1992,6 +1992,16 @@ compose:
     from: Von
     image: Bild einfügen
     image_insert_failed: Das Bild konnte nicht in die Nachricht eingefügt werden
+    image_size:
+        edge: Längste Seite %px% px
+        failed: Einige Bilder konnten nicht verkleinert werden
+        label: Bildgröße
+        large: Groß
+        medium: Mittel
+        original: Original
+        resizing: Bilder werden verkleinert…
+        small: Klein
+        total: "%size% insgesamt"
     indent: Einzug vergrößern
     insert_emoji: Emoji einfügen
     insert_link: Link einfügen

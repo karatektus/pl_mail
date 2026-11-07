@@ -1994,6 +1994,16 @@ compose:
     from: De
     image: Insérer une image
     image_insert_failed: Impossible de placer l’image dans le message
+    image_size:
+        edge: Côté le plus long %px% px
+        failed: Certaines images n’ont pas pu être réduites
+        label: Taille des images
+        large: Grande
+        medium: Moyenne
+        original: Originale
+        resizing: Redimensionnement des images…
+        small: Petite
+        total: "%size% au total"
     indent: Augmenter le retrait
     insert_emoji: Insérer un emoji
     insert_link: Insérer un lien

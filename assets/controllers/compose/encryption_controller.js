@@ -207,7 +207,11 @@ export default class extends Controller {
             throw new Error(true === smime ? "no_own_certificate" : "no_own_key");
         }
 
-        const { html, text, plain } = this.#body();
+        const { html: edited, text, plain } = this.#body();
+        // A picture made smaller in a sealed draft carries its original along
+        // in data-plmail-original (compose_controller, #502), for as long as
+        // the size can still change. It stays in the draft, never in the mail.
+        const html = null === edited ? null : edited.replace(/\sdata-plmail-original="[^"]*"/g, "");
         const attachments = await this.#attachments(true === smime ? null : signer);
         const inline = true === plan.inline && 0 === attachments.length;
         const images = true === plain || null === html
@@ -342,6 +346,22 @@ export default class extends Controller {
             file.name,
             { type: file.type || "application/octet-stream" },
         )));
+    }
+
+    /**
+     * A file of a sealed draft, opened again: what compose_controller scales
+     * when the person picks a smaller image size (#502). The smaller copy
+     * goes back up through sealUploads().
+     *
+     * @param {Uint8Array} bytes
+     * @returns {Promise<Uint8Array>}
+     */
+    async openUpload(bytes) {
+        if ("open" !== this.#status) {
+            throw new Error("locked");
+        }
+
+        return openFile(this.#ring, bytes);
     }
 
     // ── Actions ─────────────────────────────────────────────────────────────
