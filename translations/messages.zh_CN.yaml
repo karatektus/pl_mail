@@ -1664,7 +1664,7 @@ compose:
         hide: 隐藏引用文字
         show: 显示引用文字
     resize:
-        hint: 拖动以调整大小。双击恢复默认大小。也可以使用方向键。
+        hint: 拖动以调整大小。双击恢复默认大小。
         label: 调整写信窗口大小
     schedule:
         cancel: 取消定时发送

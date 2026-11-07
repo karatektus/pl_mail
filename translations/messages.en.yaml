@@ -1908,7 +1908,7 @@ compose:
         hide: hide quoted text
         show: show quoted text
     resize:
-        hint: Drag to resize. Double-click for the standard size. Arrow keys work too.
+        hint: Drag to resize. Double-click for the standard size.
         label: Resize the compose window
     schedule:
         cancel: Cancel scheduled send

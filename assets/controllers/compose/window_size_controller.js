@@ -24,16 +24,15 @@ import { Controller } from "@hotwired/stimulus";
  * window above an on-screen keyboard (`.compose-dock .compose-window` in
  * app.css) still applies on top of whatever height is set here.
  *
- * Double-click puts the default back. The handle is a button, so it is
- * reachable by Tab, and the arrow keys resize it: ← and ↑ grow the window,
- * → and ↓ shrink it, by 16px, or 64px with Shift.
+ * Double-click puts the default back. A pointer gesture only: the window
+ * works at any size, so the handle stays out of the Tab order rather than
+ * being a stop that does nothing from the keyboard.
  */
 export const STORAGE_KEY = "plmail:composeSize";
 
 const MIN_WIDTH = 420;
 const MIN_HEIGHT = 360;
 const MARGIN = 32;
-const STEP = 16;
 
 export default class extends Controller {
     connect() {
@@ -72,22 +71,6 @@ export default class extends Controller {
         } catch (_) {
             // Storage refused (private mode): the size still resets for this page.
         }
-    }
-
-    key(event) {
-        const step = true === event.shiftKey ? STEP * 4 : STEP;
-        const delta = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }[event.key];
-
-        if (undefined === delta) {
-            return;
-        }
-
-        event.preventDefault();
-
-        const box = this._window().getBoundingClientRect();
-
-        this._apply(box.width + delta[0], box.height + delta[1]);
-        this._save();
     }
 
     _move(event) {
