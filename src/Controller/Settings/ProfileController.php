@@ -18,6 +18,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\EventListener\AbstractSessionListener;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
@@ -87,21 +88,42 @@ final class ProfileController extends AbstractController
      * Serves the avatar. Scoped to the signed-in user's own file — the
      * filename is random, but a route that will hand back any path under the
      * avatars directory is not something to leave lying around.
+     *
+     * The small copy, not the upload: the picture is drawn at 32px in the top
+     * bar on every page, and the upload is whatever the camera made. See
+     * AvatarStorage::thumbnailFor().
+     *
+     * Cached for good, because the filename is random per upload and so names
+     * one picture forever (AvatarStorage::store()). It never was: this asked for
+     * a week, and Symfony's session listener replaced that with
+     * `max-age=0, must-revalidate` — as it does on any response to a request
+     * that read the session, which this one does to know whose avatar it is.
+     * With no answer to a conditional request either, the browser downloaded
+     * the whole file again on every page load. On a server at the end of a
+     * home connection that was 1.7 MB taking four seconds, and the first click
+     * after a reload queued behind it.
      */
     #[Route('/avatar/{filename}', name: 'avatar', requirements: ['filename' => '[0-9a-f]+\.[a-z0-9]{2,5}'], methods: ['GET'])]
-    public function avatar(string $filename, #[CurrentUser] User $user, AvatarStorage $avatars): Response
+    public function avatar(Request $request, string $filename, #[CurrentUser] User $user, AvatarStorage $avatars): Response
     {
         if ($user->avatar !== $filename) {
             throw $this->createNotFoundException();
         }
 
-        $path = $avatars->pathFor((string) $user->id, $filename);
-
-        if (false === is_file($path)) {
+        if (false === is_file($avatars->pathFor((string) $user->id, $filename))) {
             throw $this->createNotFoundException();
         }
 
-        return new BinaryFileResponse($path, headers: ['Cache-Control' => 'private, max-age=604800']);
+        $response = new BinaryFileResponse($avatars->thumbnailFor((string) $user->id, $filename));
+
+        // Private: it is still one person's picture, behind their session.
+        $response->setPrivate();
+        $response->setMaxAge(31_536_000);
+        $response->setImmutable();
+        $response->headers->set(AbstractSessionListener::NO_AUTO_CACHE_CONTROL_HEADER, 'true');
+        $response->isNotModified($request);
+
+        return $response;
     }
 
     /**
