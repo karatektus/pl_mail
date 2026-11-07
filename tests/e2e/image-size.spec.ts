@@ -176,10 +176,25 @@ test("the Adjust panel sets size and quality apart", async ({ page }) => {
     // Nothing smaller yet: a plain total, no arrow.
     await expect(row().locator("[data-image-size-total]")).toContainText("in all");
 
-    // Adjust opens on Original: own size, full quality.
-    await row().getByRole("button", { name: "Adjust size and quality" }).click();
-
+    // Adjust is a popover: it opens over the body, and the attachments
+    // below the row stay where they were. Escape closes it again.
+    const adjust = row().getByRole("button", { name: "Adjust size and quality" });
     const panel = row().locator("[data-image-size-panel]");
+    const chipTop = (await chip.boundingBox())!.y;
+
+    await adjust.click();
+    await expect(panel).toBeVisible();
+    await expect(adjust).toHaveAttribute("aria-expanded", "true");
+    expect((await chip.boundingBox())!.y).toBe(chipTop);
+    expect((await panel.boundingBox())!.y + (await panel.boundingBox())!.height)
+        .toBeLessThanOrEqual((await row().boundingBox())!.y + 1);
+
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+    await expect(adjust).toHaveAttribute("aria-expanded", "false");
+
+    // Adjust opens on Original: own size, full quality.
+    await adjust.click();
     await expect(panel).toBeVisible();
     await expect(panel.getByLabel("Keep each photo’s own size, only compress it")).toBeChecked();
 

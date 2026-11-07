@@ -4205,20 +4205,15 @@ export default class extends Controller {
     }
 
     /**
-     * Adjust: longest side and quality, set apart. Opens on the numbers of
-     * the choice in force; for Original that is each photo's own size at
-     * full quality, which is what Original sends.
+     * Adjust: longest side and quality, set apart. The row's ui--dropdown
+     * opens and closes the popover; this fills it, each time it opens, with
+     * the numbers of the choice in force. For Original that is each photo's
+     * own size at full quality, which is what Original sends.
      */
-    toggleImageSizePanel() {
+    openImageSizePanel() {
         const panel = this._imageSizePanel();
 
         if (null === panel) {
-            return;
-        }
-
-        if (false === panel.hidden) {
-            this._closeImageSizePanel();
-
             return;
         }
 
@@ -4231,9 +4226,99 @@ export default class extends Controller {
         panel.querySelector('[data-image-size-edge]').value = String(0 === edge ? 2048 : edge);
         panel.querySelector('[data-image-size-quality]').value = String('original' === size ? 100 : quality);
 
-        panel.hidden = false;
         row.querySelector('[data-image-size-adjust]')?.setAttribute('aria-expanded', 'true');
         this.previewImageSize();
+        this._liftImageSizePanel(panel);
+    }
+
+    /**
+     * Into the browser's top layer while open, so the popover is clipped by
+     * nothing: it may be taller and wider than the compose window, which is
+     * overflow-hidden and, in the boxed layout, carries a backdrop blur that
+     * makes `position: fixed` relative to it rather than to the viewport.
+     * The same escape as mail--label-menu, for the same reasons: the panel
+     * stays where it is in the DOM, so its actions keep reaching this
+     * controller, and `manual` rather than `auto`, because closing is
+     * ui--dropdown's (an outside click, Escape) and auto's light dismiss
+     * would eat the first click inside it.
+     *
+     * In the top layer the template's `absolute bottom-full right-0` mean
+     * nothing, so the place is written by hand: above the row, its right
+     * edge on the Adjust button's, inside the viewport; below the row
+     * instead when there is more room there. A browser without the API keeps
+     * the template's placement.
+     */
+    _liftImageSizePanel(panel) {
+        if ('function' !== typeof panel.showPopover) {
+            return;
+        }
+
+        if (false === panel.hasAttribute('popover')) {
+            panel.setAttribute('popover', 'manual');
+        }
+
+        if (false === panel.matches(':popover-open')) {
+            panel.showPopover();
+        }
+
+        this._placeImageSizePanel(panel);
+
+        this._boundPlaceImageSizePanel ??= () => this._placeImageSizePanel(panel);
+        window.addEventListener('resize', this._boundPlaceImageSizePanel);
+    }
+
+    _placeImageSizePanel(panel) {
+        if (false === panel.matches(':popover-open')) {
+            return;
+        }
+
+        const margin = 8;
+        const row = this.imageSizeTarget.getBoundingClientRect();
+        const button = (this.imageSizeTarget.querySelector('[data-image-size-adjust]') ?? this.imageSizeTarget).getBoundingClientRect();
+        const width = panel.getBoundingClientRect().width;
+        const above = row.top - margin * 2;
+        const below = window.innerHeight - row.bottom - margin * 2;
+        const flip = above < 320 && below > above;
+        const left = Math.min(Math.max(margin, button.right - width), Math.max(margin, window.innerWidth - width - margin));
+
+        panel.style.position = 'fixed';
+        panel.style.margin = '0';
+        panel.style.left = `${Math.round(left)}px`;
+        panel.style.right = 'auto';
+        panel.style.maxHeight = `${Math.max(160, Math.floor(true === flip ? below : above))}px`;
+
+        if (true === flip) {
+            panel.style.top = `${Math.round(row.bottom + margin)}px`;
+            panel.style.bottom = 'auto';
+        } else {
+            panel.style.top = 'auto';
+            panel.style.bottom = `${Math.round(window.innerHeight - row.top + margin)}px`;
+        }
+    }
+
+    /** Closed by an outside click, Escape, Apply or a size picked: the button says so. */
+    imageSizePanelClosed() {
+        if (false === this.hasImageSizeTarget) {
+            return;
+        }
+
+        this.imageSizeTarget.querySelector('[data-image-size-adjust]')?.setAttribute('aria-expanded', 'false');
+
+        const panel = this._imageSizePanel();
+
+        if (null !== panel && 'function' === typeof panel.hidePopover && panel.matches(':popover-open')) {
+            panel.hidePopover();
+        }
+
+        // Back to the template's own placement for the next open.
+        for (const property of ['position', 'margin', 'left', 'right', 'top', 'bottom', 'maxHeight']) {
+            panel?.style.removeProperty(property.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`));
+        }
+
+        if (undefined !== this._boundPlaceImageSizePanel) {
+            window.removeEventListener('resize', this._boundPlaceImageSizePanel);
+            this._boundPlaceImageSizePanel = undefined;
+        }
     }
 
     /** A slider or the checkbox moved: the panel's labels and estimate follow. */
@@ -4324,12 +4409,11 @@ export default class extends Controller {
     }
 
     _closeImageSizePanel() {
-        const panel = this._imageSizePanel();
-
-        if (null !== panel) {
-            panel.hidden = true;
-            this.imageSizeTarget.querySelector('[data-image-size-adjust]')?.setAttribute('aria-expanded', 'false');
+        if (false === this.hasImageSizeTarget) {
+            return;
         }
+
+        this.application.getControllerForElementAndIdentifier(this.imageSizeTarget, 'ui--dropdown')?.close();
     }
 
     _panelValues(panel) {
@@ -4346,10 +4430,11 @@ export default class extends Controller {
      * moves, so without encoding anything.
      *
      * From each original's width and height (read by the server from the
-     * file's header) and a measured average of bits per pixel for photos at
-     * each JPEG quality. A real photo lands within about a quarter of it;
-     * the row shows the exact sizes once Apply has run. A picture whose size
-     * is not known here (sealed, or in a sealed body) counts as it is.
+     * file's header) and the photo's own bytes: fewer pixels at the photo's
+     * own bits per pixel, capped at a typical rate for the quality picked.
+     * Rough by nature, which is why the row shows the exact sizes once Apply
+     * has run. A picture whose size is not known here (sealed, or in a sealed
+     * body) counts as it is.
      */
     _estimate(edge, quality) {
         const inBody = new Set(this._bodyImages().map((image) => this._inlinePartId(image)).filter((id) => null !== id));
@@ -4371,12 +4456,17 @@ export default class extends Controller {
                 const [width, height] = part.dims;
                 const scale = 0 === edge ? 1 : Math.min(1, edge / Math.max(width, height));
 
-                if ('image/png' === part.type) {
+                if ('image/png' === part.type || (1 === scale && quality >= 100)) {
                     after += Math.round(original * scale * scale);
-                } else if (1 === scale && quality >= 100) {
-                    after += original;
                 } else {
-                    after += Math.min(original, Math.round(width * height * scale * scale * bitsPerPixel(quality) / 8));
+                    // Fewer pixels, and each of them at most as dear as at
+                    // the quality picked. Measured on the photo itself: a
+                    // picture already compressed harder than that (anything
+                    // that went through WhatsApp) keeps its own rate rather
+                    // than being "estimated" back up to a camera's.
+                    const own = original * 8 / (width * height);
+
+                    after += Math.round(original * scale * scale * Math.min(1, bitsPerPixel(quality) / own));
                 }
             });
 
@@ -5124,8 +5214,9 @@ async function scaleImage(blob, choice) {
 
 /**
  * Bits per pixel of a typical photo saved as JPEG at a quality, for the
- * Adjust panel's estimate: measured on phone photos, interpolated between.
- * WebP comes out a little smaller, so this errs on the side of too large.
+ * Adjust panel's estimate: rule-of-thumb values for camera photos,
+ * interpolated between, not a measurement of any one encoder. Used only as a
+ * ceiling on the photo's own rate (see _estimate()).
  */
 const BITS_PER_PIXEL = [[40, 0.85], [50, 1.0], [60, 1.2], [70, 1.5], [80, 1.9], [85, 2.2], [90, 2.6], [95, 3.2], [100, 4.5]];
 
