@@ -4272,9 +4272,19 @@ export default class extends Controller {
         return this._queueImageSize(this._imageChoice(String(size), Number(edge) || 0, Number(quality) || 100), true);
     }
 
-    /** The row arrived with the strip: show it or not, and its total. */
+    /**
+     * The row arrived with the strip: show it or not, and its total.
+     *
+     * Caught, because this runs inside the window's own connect(): a
+     * failure here once left the To field without its address picker. The
+     * row is a convenience; the window must open whatever it does.
+     */
     imageSizeTargetConnected() {
-        this._refreshImageSize();
+        try {
+            this._refreshImageSize();
+        } catch (error) {
+            console.error('compose: the Image size row could not be drawn', error);
+        }
     }
 
     /**
@@ -4880,10 +4890,21 @@ export default class extends Controller {
         return { now, before };
     }
 
-    /** The draft's stored pictures, as the strip lists them. */
+    /**
+     * The draft's stored pictures, as the strip lists them.
+     *
+     * Always a list. The template filters the draft's parts down to its
+     * pictures, and Twig's filter keeps each part's key, so a draft whose
+     * first attachment is not a picture (a PDF, then photos) encoded as an
+     * object — {"1": …, "2": …} — and the first `.map()` on it threw inside
+     * the row's targetConnected, which stopped the window's connect() before
+     * the address fields were set up: To came up as a bare <select>.
+     */
     _imageParts() {
         try {
-            return JSON.parse(this.imageSizeTarget.dataset.imageParts ?? '[]');
+            const parts = JSON.parse(this.imageSizeTarget.dataset.imageParts ?? '[]');
+
+            return Array.isArray(parts) ? parts : Object.values(parts ?? {});
         } catch (_) {
             return [];
         }

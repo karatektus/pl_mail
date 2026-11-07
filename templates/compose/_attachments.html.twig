@@ -43,7 +43,10 @@ Variables: message, live (default true)
 {% set currentQuality = custom ? message.imageQuality : (imageSize ? presetQuality : 100) %}
 {% set panelId = 'image-size-panel-' ~ message.id %}
 <div data-compose--compose-target="imageSize"
-     data-image-parts="{{ images|map(part => {
+     {# `|reduce` to a list: `|filter` keeps the parts' own keys, and a list
+        with gaps in its keys is a JSON object, not an array (see
+        compose--compose#_imageParts). #}
+     data-image-parts="{{ images|reduce((list, part) => list|merge([part]), [])|map(part => {
          id: part.id,
          inline: part.isInline ? true : false,
          sealed: part.sealed,
