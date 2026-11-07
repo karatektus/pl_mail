@@ -26,9 +26,9 @@ test.beforeEach(() => {
 /**
  * The wake times the OPEN menu is offering, in the order they are on screen.
  *
- * Scoped to the visible one: every row in the list carries its own snooze menu,
- * so a document-wide query returns four options per row and the ordering
- * assertion below compares a list of five interleaved menus with itself.
+ * Scoped to the visible one: the list toolbar and the reading pane carry snooze
+ * menus of their own besides the rows' shared one (#496), so a document-wide
+ * query would compare several interleaved menus with themselves.
  */
 async function offered(page: import("@playwright/test").Page): Promise<Array<{ key: string; at: number }>> {
     return page.evaluate(() =>

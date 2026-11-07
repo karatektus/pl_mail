@@ -460,8 +460,9 @@ final class SwipeActionResolverTest extends KernelTestCase
 
     /**
      * The strip attribute that proves each entry is drawn, and the entry's name
-     * in the sheet. Snooze is drawn on each option of the snooze menu; the spam
-     * menu's report URL sits on its wrapper.
+     * in the sheet. Both menus are the list's shared ones (#496), so their
+     * buttons carry the row's URLs for them: the snooze route, and the spam
+     * menu's report route.
      */
     private const array STRIP_ATTRIBUTES = [
         'read_unread' => 'data-mail--message-row-read-url-param',
@@ -471,7 +472,7 @@ final class SwipeActionResolverTest extends KernelTestCase
         'restore'     => 'data-mail--message-row-restore-url-param',
         'purge'       => 'data-mail--message-row-purge-url-param',
         'snooze'      => 'data-mail--message-row-snooze-url-param',
-        'spam'        => 'data-mail--spam-menu-report-url-value',
+        'spam'        => 'data-mail--message-row-spam-report-url-param',
     ];
 
     /** The entries the strip has no button for: the sheet's own pickers and the checkbox. */

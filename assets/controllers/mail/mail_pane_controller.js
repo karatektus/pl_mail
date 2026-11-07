@@ -157,6 +157,20 @@ const MENU = '[data-ui--dropdown-target="menu"]';
 const SWIPED = "li[data-swipe-owned]";
 
 /**
+ * A row whose snooze or spam menu is open.
+ *
+ * The menus are not in the row any more — there is one of each for the list,
+ * outside this frame (#496, mail--row-menus) — so the MENU rule above no longer
+ * sees them. What is still in the row is the button the menu hangs from, marked
+ * `aria-expanded="true"` while it is open, and the menu is placed against that
+ * button's box. A refresh that redrew the row would reset the mark to the
+ * server's "false", and the row's action strip, which stays visible on that
+ * mark alone, would vanish from under the open menu. Skipped whole, like the
+ * other two, until the menu closes.
+ */
+const MENU_OPEN = 'li:has([aria-haspopup="menu"][aria-expanded="true"])';
+
+/**
  * One row of the list, as opposed to any of the hundreds of nodes inside one.
  *
  * The morph's add and remove hooks fire for every node they touch, most of
@@ -1105,7 +1119,7 @@ export default class extends Controller {
      * is holding under a finger or open (see SWIPED). Both are skipped whole.
      */
     _mayMorph(node) {
-        if (true === node.matches?.(SWIPED)) {
+        if (true === node.matches?.(SWIPED) || true === node.matches?.(MENU_OPEN)) {
             return false;
         }
 

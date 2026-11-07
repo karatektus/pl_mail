@@ -45,6 +45,30 @@ export default class extends LabelMenuController {
         align:      { type: String, default: "end" },
     };
 
+    /**
+     * Open for a button that is not this menu's own — the list rows' shared
+     * spam menu (#496, _partials/_row_menus.html.twig). Every row used to carry
+     * a copy of this controller and its empty panel; now there is one, told
+     * which conversation it is for and which button to hang from.
+     *
+     * The same button again closes it, as toggle() does for its own trigger.
+     */
+    async openFor(anchor, { url, reportUrl }) {
+        const again = this._anchor === anchor && false === this.panelTarget.classList.contains("hidden");
+
+        this._close();
+
+        if (true === again) {
+            return;
+        }
+
+        this._anchor        = anchor;
+        this.urlValue       = url;
+        this.reportUrlValue = reportUrl;
+
+        await this.toggle({ stopPropagation() {} });
+    }
+
     async toggle(event) {
         // Now, not after the fetch: by then the click has already reached the
         // row this button sits in, and the row has opened its conversation.
@@ -82,7 +106,7 @@ export default class extends LabelMenuController {
 
         super.toggle(event);
 
-        this.triggerTarget.setAttribute("aria-expanded", "true");
+        this.#trigger()?.setAttribute("aria-expanded", "true");
     }
 
     /** See the panel in _spam_menu.html.twig: a click in it is not a click on the row. */
@@ -173,7 +197,7 @@ export default class extends LabelMenuController {
         }
 
         const margin = 8;
-        const rect   = this.triggerTarget.getBoundingClientRect();
+        const rect   = this.#trigger().getBoundingClientRect();
         const width  = panel.getBoundingClientRect().width;
         const left   = Math.min(
             Math.max(margin, rect.left),
@@ -186,9 +210,7 @@ export default class extends LabelMenuController {
     _close() {
         super._close();
 
-        if (this.hasTriggerTarget) {
-            this.triggerTarget.setAttribute("aria-expanded", "false");
-        }
+        this.#trigger()?.setAttribute("aria-expanded", "false");
     }
 
     /** The label menu ticks what the selection carries. This menu has no ticks. */
@@ -196,6 +218,11 @@ export default class extends LabelMenuController {
     }
 
     /** Which list is on screen, in the list toolbar's own words. See mail--move-menu. */
+    /** The button the menu belongs to: its own, or the one openFor() was handed. */
+    #trigger() {
+        return this._anchor ?? (this.hasTriggerTarget ? this.triggerTarget : null);
+    }
+
     #view() {
         const toolbar = document.querySelector("[data-controller~='mail--list-toolbar']");
 

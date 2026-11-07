@@ -300,7 +300,15 @@ final class SpamButtonTest extends WebTestCase
         $list = $this->client->request('GET', '/mail/inbox');
 
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $list->filter(sprintf('#thread_%d [data-controller="mail--spam-menu"]', $thread->id)));
+        // The row's button, pointing at the list's one shared spam menu (#496)
+        // with this conversation's URLs; the menu itself is outside the row.
+        self::assertCount(1, $list->filter(sprintf(
+            '#thread_%d [aria-controls="row-spam-menu"][data-mail--message-row-spam-report-url-param="/status/thread/%d/spam"]',
+            $thread->id,
+            $thread->id,
+        )));
+        self::assertCount(0, $list->filter(sprintf('#thread_%d [data-controller~="mail--spam-menu"]', $thread->id)));
+        self::assertCount(1, $list->filter('#row-spam-menu'));
         self::assertCount(1, $list->filter('[data-action~="click->mail--list-toolbar#spamSelected"]'));
 
         $pane = $this->client->request('GET', sprintf('/mail/thread/%d', $thread->id));

@@ -124,6 +124,34 @@ export default class extends Controller {
         await this.#post(cancelScheduleUrl);
     }
 
+    /**
+     * The snooze or spam button: ask the list's shared menu to open for this row.
+     *
+     * The menus are not in the row any more (#496) — there is one of each for
+     * the whole list, in _partials/_row_menus.html.twig, which is outside the
+     * list frame and so not an ancestor this controller could reach by action.
+     * A document event is the way across, and it carries everything the menu
+     * needs: which menu, the button to hang it from, this row, and the row's
+     * URLs as the button's params.
+     *
+     * `keyboard` because a click with no pointer behind it is Enter or Space on
+     * the button, and a menu opened from the keyboard should take the focus.
+     */
+    openMenu(event) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        document.dispatchEvent(new CustomEvent("mail:row-menu", {
+            detail: {
+                menu:     event.params.menu,
+                anchor:   event.currentTarget,
+                row:      this.element,
+                params:   event.params,
+                keyboard: 0 === event.detail,
+            },
+        }));
+    }
+
     async markRead(event) {
         const { read, readUrl } = event.params;
 

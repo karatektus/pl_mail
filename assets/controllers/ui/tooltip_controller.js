@@ -207,6 +207,15 @@ export default class extends Controller {
      * the user is already looking at.
      */
     _opensAVisibleMenu(trigger) {
+        // A button that says so. The list rows' snooze and spam buttons open a
+        // menu that is not near them in the document at all (#496,
+        // mail--row-menus), so no walk of their ancestors would find it — but
+        // they mark themselves expanded while it is open, which is the
+        // statement this is looking for.
+        if ("true" === trigger.getAttribute("aria-expanded")) {
+            return true;
+        }
+
         // Any controller that owns a "menu" target, not ui--dropdown alone.
         // The first version of this checked that one controller and its
         // `hidden` PROPERTY, and missed the user menu entirely — which is a

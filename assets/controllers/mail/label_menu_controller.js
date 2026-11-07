@@ -217,7 +217,9 @@ export default class extends Controller {
     }
 
     _closeOnOutsideClick(event) {
-        if (!this.element.contains(event.target)) {
+        // The handed-over button is not inside this element but is not outside
+        // the menu either: its own click arrives next and toggles the menu shut.
+        if (!this.element.contains(event.target) && true !== this._anchor?.contains(event.target)) {
             this._close();
         }
     }
@@ -296,7 +298,10 @@ export default class extends Controller {
      * internally, so a short pane gets a short menu rather than a cut-off one.
      */
     _place() {
-        const button = this.element.querySelector("button");
+        // The button it hangs from: its own, or the one a caller handed over —
+        // the list rows' shared spam menu has no button of its own and opens
+        // beside whichever row's button was pressed (see mail--spam-menu#openFor).
+        const button = this._anchor ?? this.element.querySelector("button");
 
         if (button === null) {
             return;

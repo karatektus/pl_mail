@@ -18,15 +18,26 @@
       align      — "left" to open from the button's left edge. The default
                    opens from its right, which suits a button at the end of a
                    row and runs off the pane from one at the start of a toolbar
+      shared     — the one menu every list row opens (mail--row-menus, #496)
+                   rather than a menu inside a ui--dropdown. It then has an id
+                   for the rows' buttons to point at, is placed by its host
+                   rather than by CSS, and always carries "Unsnooze", which the
+                   host shows or hides for the row it was opened for.
 #}
 {% set snoozed = snoozed|default(false) %}
+{% set shared = shared|default(false) %}
 {% set url = url|default(null) %}
-{% set fire = 'click->' ~ controller ~ '#' ~ method ~ ' click->ui--dropdown#close' %}
+{% set fire = 'click->' ~ controller ~ '#' ~ method ~ (shared ? '' : ' click->ui--dropdown#close') %}
 
-<div data-ui--dropdown-target="menu" hidden
-     data-controller="mail--snooze-menu"
+<div {% if shared %}id="row-snooze-menu" role="menu" aria-label="{{ 'thread_row.actions.snooze'|trans }}"
+     data-mail--row-menus-target="snooze"
+     class="fixed z-50 min-w-56 popover py-1"
+     {% else %}data-ui--dropdown-target="menu"
      data-action="ui--dropdown:opened->mail--snooze-menu#refresh"
-     class="absolute top-full mt-1 {{ 'left' == align|default('right') ? 'left-0' : 'right-0' }} z-20 min-w-56 popover py-1">
+     class="absolute top-full mt-1 {{ 'left' == align|default('right') ? 'left-0' : 'right-0' }} z-20 min-w-56 popover py-1"
+     {% endif %}
+     hidden
+     data-controller="mail--snooze-menu">
 
     <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
         {{ 'thread_row.actions.snooze'|trans }}
@@ -39,6 +50,7 @@
                 data-snooze-key="{{ key }}"
                 {% if url %}data-{{ controller }}-snooze-url-param="{{ url }}"{% endif %}
                 data-action="{{ fire }}"
+                {% if shared %}role="menuitem"{% endif %}
                 class="w-full flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink-muted
                        hover:bg-hover hover:text-ink transition-colors text-left">
             <span class="whitespace-nowrap">{{ ('snooze.' ~ key)|trans }}</span>
@@ -58,10 +70,11 @@
         </button>
     {% endfor %}
 
-    {% if snoozed %}
-        <div class="my-1 border-t border-line"></div>
+    {% if snoozed or shared %}
+        <div class="my-1 border-t border-line" {% if shared %}data-mail--row-menus-target="unsnooze"{% endif %}></div>
         {# No until param at all: its absence is what clears the snooze. #}
         <button type="button"
+                {% if shared %}role="menuitem" data-mail--row-menus-target="unsnooze"{% endif %}
                 {% if url %}data-{{ controller }}-snooze-url-param="{{ url }}"{% endif %}
                 data-action="{{ fire }}"
                 class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted

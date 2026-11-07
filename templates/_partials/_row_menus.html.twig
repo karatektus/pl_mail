@@ -1,0 +1,45 @@
+{#
+_row_menus.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The snooze and spam menus of the list rows: one of each for the whole list,
+opened for whichever row's button was pressed (#496).
+
+Every row used to carry its own copy of both. Nobody opens fifty menus, and
+fifty copies were a third of each row's markup and three of its four Stimulus
+controllers — built, connected and refreshed on every folder change and every
+category tab, which is what made switching between them slow. The rows keep
+their buttons; the buttons point here with aria-controls, and mail--row-menus
+fills, places and opens the menu for the row that asked.
+
+Outside the list frame, so it is drawn once per page and not again on every
+list navigation, and so a refresh of the list never morphs a menu that is open.
+Placed in the top layer when it opens (see mail--row-menus#place), so the
+blurred panes around the list cannot clip or trap it.
+#}
+<div data-controller="mail--row-menus"
+     data-action="mail:row-menu@document->mail--row-menus#open">
+
+    {% include '_partials/_snooze_menu.html.twig' with {
+        controller: 'mail--row-menus',
+        method:     'snooze',
+        shared:     true,
+    } only %}
+
+    {# The spam menu, as a list row's button would have drawn it: its panel is
+       empty here and filled from the row's own URL when it opens. No trigger of
+       its own — the row's button is the anchor, handed over in openFor(). #}
+    <div data-controller="mail--spam-menu"
+         data-mail--row-menus-target="spam"
+         data-mail--spam-menu-closes-pane-value="false"
+         data-mail--spam-menu-align-value="end">
+        <div id="row-spam-menu"
+             data-mail--spam-menu-target="panel"
+             data-action="click->mail--spam-menu#stop"
+             role="menu"
+             aria-label="{{ 'toolbar.actions.spam'|trans }}"
+             class="hidden visible absolute right-0 top-full mt-1 z-30 w-80 max-h-96 overflow-y-auto rounded-pane
+                    bg-pane-soft backdrop-blur-sm
+                    border border-line
+                    shadow-pop py-1 text-left"></div>
+    </div>
+</div>
