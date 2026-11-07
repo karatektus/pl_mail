@@ -171,7 +171,7 @@ final readonly class RuleActionExecutor
                 return $this->moveOutOfInbox($message, LabelRole::Trash);
 
             case self::MARK_SPAM:
-                return $this->moveOutOfInbox($message, LabelRole::Spam);
+                return $this->markSpam($message);
 
             case self::SAVE_TO_INTEGRATION:
                 $this->queueUpload($action, $message, $rule);
@@ -240,9 +240,49 @@ final readonly class RuleActionExecutor
     }
 
     /**
-     * Archive, trash and spam are all "leave the inbox", differing only in
-     * where the message lands. Archive lands nowhere in particular — removing
-     * Inbox is the whole operation, which is also how the UI models it.
+     * Into Spam: on the server too, into its Junk folder — not into Archive.
+     *
+     * Spam used to go through moveOutOfInbox(), whose provider call knew two
+     * destinations, the bin and "anything else", and anything else was
+     * archive(). So every "Mark as spam" filter labelled the mail Spam here and
+     * moved it into the server's Archive folder (IMAP), the archive role (JMAP)
+     * or the Archive folder (Graph), and left Gmail without SPAM at all. The
+     * next sync saw where the mail actually was and filed it under Archive,
+     * unread — spam the filter had caught, sitting in the archive.
+     *
+     * Attach Spam, then detach Inbox with the move left to the detach: that is
+     * the path LabelChangePropagator::detachLabel() resolves into a physical
+     * move, and resolveDestinationMailbox() prefers a system Spam label over
+     * anything else the mail carries. Gmail gets SPAM on and INBOX off; JMAP
+     * the junk role on and inbox off. Only an account with no Junk folder at
+     * all still ends in the archive, which is detachLabel()'s last resort and
+     * the best the server allows.
+     */
+    private function markSpam(Message $message): bool
+    {
+        $account = $message->account;
+        $spam    = $this->labelResolver->systemLabel(LabelRole::Spam, $account);
+        $inbox   = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->usr);
+
+        $message->addLabel($spam);
+        $this->propagator->attachLabel([$message], $spam);
+
+        // Not only when it wears Inbox yet: what moves on IMAP is decided by
+        // the folder the copy is in, and a message filtered on arrival is in
+        // the inbox folder whatever its labels say at this point.
+        if (null !== $inbox) {
+            $message->removeLabel($inbox);
+            $this->propagator->detachLabel([$message], $inbox);
+        }
+
+        return true;
+    }
+
+    /**
+     * Archive and trash are both "leave the inbox", differing only in where
+     * the message lands. Archive lands nowhere in particular — removing Inbox
+     * is the whole operation, which is also how the UI models it. Spam is not
+     * one of them any more: see markSpam().
      */
     private function moveOutOfInbox(Message $message, ?LabelRole $destination): bool
     {
