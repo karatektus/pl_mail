@@ -60,7 +60,7 @@ Variables: message, live (default true)
      {% if images|length == 0 %}hidden{% endif %}
      data-controller="ui--dropdown"
      data-action="ui--dropdown:opened->compose--compose#openImageSizePanel ui--dropdown:closed->compose--compose#imageSizePanelClosed"
-     class="relative mx-4 mb-2 pt-2 border-t border-line">
+     class="relative mx-4 mb-2 pt-2 border-t border-line group-data-[collapsed]/attachments:hidden">
     <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span id="image-size-label-{{ message.id }}" class="inline-flex items-center gap-1.5 text-xs font-medium text-ink-soft">
             <i class="fa-regular fa-image w-4 text-center" aria-hidden="true"></i>
@@ -205,11 +205,50 @@ Variables: message, live (default true)
     </div>
 </div>
 
+{# The whole strip on one line, shown in its place while somebody writes
+   (compose--compose#collapseAttachments, on the editor's focus): how many
+   files, the message's size — before → after once images are smaller — and
+   the image size in force. A click brings the strip back. Without it, five
+   photos and the Image size row left a docked window three lines to write in. #}
+{% set listed = parts|length %}
+{% if listed > 0 or images|length > 0 %}
+    <button type="button"
+            data-attachments-summary
+            data-action="click->compose--compose#expandAttachments"
+            aria-expanded="false"
+            class="hidden group-data-[collapsed]/attachments:flex items-center gap-2 mx-4 mb-2 px-3 h-8 w-[calc(100%-2rem)]
+                   rounded-lg border border-line bg-sunken text-xs text-ink-soft text-left
+                   hover:bg-hover transition-colors cursor-pointer
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+        <i class="fa-solid fa-paperclip text-[10px] text-ink-faint" aria-hidden="true"></i>
+        <span class="truncate min-w-0">
+            {{- listed > 0
+                ? 'compose.attachments_summary.files'|trans({ '%count%': listed })
+                : 'compose.attachments_summary.images_in_text'|trans -}}
+        </span>
+        <span data-attachments-summary-size class="shrink-0 text-ink-faint"></span>
+        {% if images|length > 0 and picked != 'original' %}
+            <span class="shrink-0 text-ink-faint" aria-hidden="true">·</span>
+            <span class="truncate min-w-0 text-ink-muted">
+                {{- custom
+                    ? 'compose.image_size.custom_segment'|trans ~ ' ' ~ (0 == message.imageEdge
+                        ? 'compose.image_size.custom_own'|trans({ '%quality%': message.imageQuality })
+                        : 'compose.image_size.custom'|trans({ '%px%': message.imageEdge, '%quality%': message.imageQuality }))
+                    : ('compose.image_size.' ~ picked)|trans -}}
+            </span>
+        {% endif %}
+        <span class="ml-auto shrink-0 inline-flex items-center gap-1 text-ink-muted">
+            {{- 'compose.attachments_summary.show'|trans -}}
+            <i class="fa-solid fa-chevron-up text-[10px]" aria-hidden="true"></i>
+        </span>
+    </button>
+{% endif %}
+
 {% if parts|length > 0 %}
     {# Stagger, so three files dropped at once read as a list arriving rather
        than as a slab appearing. motion.css caps the delay at eight, which is
        well past the point where a compose window has other problems. #}
-    <div class="flex flex-wrap gap-2 px-4 pb-2" {% if live %}data-enter-stagger{% endif %}>
+    <div class="flex flex-wrap gap-2 px-4 pb-2 group-data-[collapsed]/attachments:hidden" {% if live %}data-enter-stagger{% endif %}>
         {% for part in parts %}
             {% set kb = (part.size ?: 0) / 1024 %}
             {# data-compose-part*: what compose--encryption needs to put the

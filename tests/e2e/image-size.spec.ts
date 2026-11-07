@@ -238,3 +238,59 @@ test("the Adjust panel sets size and quality apart", async ({ page }) => {
 
     await dock.getByRole("button", { name: "Delete draft" }).click();
 });
+
+/**
+ * Writing gets the room: clicking into the text folds the attachments and the
+ * Image size row to one line with the count, the size and the image size in
+ * force. A click on that line brings the strip back, and so does adding a
+ * file.
+ */
+test("the attachment strip folds to one line while writing", async ({ page }) => {
+    await page.goto("/mail/inbox");
+    await page.getByRole("link", { name: "Compose" }).first().click();
+
+    const dock = page.locator("#compose_dock");
+    const editor = dock.locator('[data-compose--compose-toolbar-target="editor"]');
+    const strip = dock.locator('[data-compose--compose-target="attachments"]');
+    const summary = strip.locator("[data-attachments-summary]");
+    const fileInput = dock.locator('input[data-compose--compose-target="fileInput"]');
+
+    await expect(editor).toBeVisible();
+    await editor.click();
+    await editor.fill("photos, and room to write about them");
+
+    await fileInput.setInputFiles({ name: "e2e-fold-1.jpg", mimeType: "image/jpeg", buffer: await photo(page, 2400, 1600) });
+    await expect(dock.locator("[data-compose-part]")).toHaveCount(1);
+    await fileInput.setInputFiles({ name: "e2e-fold-2.jpg", mimeType: "image/jpeg", buffer: await photo(page, 1600, 2400) });
+    await expect(dock.locator("[data-compose-part]")).toHaveCount(2);
+
+    await strip.getByRole("radio", { name: "Medium" }).click();
+    await expect(strip.getByRole("radio", { name: "Medium" })).toHaveAttribute("aria-checked", "true");
+
+    // Into the text: one line, the chips and the row out of the way.
+    await expect(summary).toBeHidden();
+    await editor.click();
+
+    await expect(summary).toBeVisible();
+    await expect(summary).toContainText("2 files");
+    await expect(summary).toContainText("→");
+    await expect(summary).toContainText("Medium");
+    await expect(dock.locator("[data-compose-part]").first()).toBeHidden();
+    await expect(strip.locator('[data-compose--compose-target="imageSize"]')).toBeHidden();
+    expect((await summary.boundingBox())!.height).toBeLessThanOrEqual(40);
+
+    // Back: the whole strip.
+    await summary.click();
+    await expect(summary).toBeHidden();
+    await expect(dock.locator("[data-compose-part]").first()).toBeVisible();
+
+    // Adding a file while folded shows the strip with it.
+    await editor.click();
+    await expect(summary).toBeVisible();
+    await fileInput.setInputFiles({ name: "e2e-fold.txt", mimeType: "text/plain", buffer: Buffer.from("notes") });
+    await expect(dock.locator("[data-compose-part]")).toHaveCount(3);
+    await expect(summary).toBeHidden();
+    await expect(dock.locator("[data-compose-part]").filter({ hasText: "e2e-fold.txt" })).toBeVisible();
+
+    await dock.getByRole("button", { name: "Delete draft" }).click();
+});

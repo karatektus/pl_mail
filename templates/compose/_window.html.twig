@@ -572,6 +572,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                 <textarea id="{{ form.bodyText.vars.id }}"
                           name="{{ form.bodyText.vars.full_name }}"
                           data-compose--compose-target="plainBody"
+                          data-action="focus->compose--compose#collapseAttachments"
                           aria-label="{{ 'compose.body_placeholder'|trans }}"
                           placeholder="{{ 'compose.body_placeholder'|trans }}"
                           {% if not plainText %}disabled hidden{% endif %}
@@ -587,7 +588,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                         the caret at the end of the signature line, so the first
                         thing typed in a fresh message was concatenated onto the
                         sign-off. See compose--compose#claimWritingSpace. #}
-                     data-action="click->compose--compose#claimWritingSpace"
+                     data-action="click->compose--compose#claimWritingSpace focus->compose--compose#collapseAttachments"
                      contenteditable="true"
                      role="textbox"
                      aria-multiline="true"
@@ -613,7 +614,10 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             </div>{# end scroller #}
 
             {# ── Attachments ──────────────────────────────────────── #}
-            <div data-compose--compose-target="attachments" class="shrink-0">
+            {# `group/attachments`: compose--compose sets data-collapsed here
+               while somebody is writing, and the strip folds to its one-line
+               summary (see the partial) so the message gets the room. #}
+            <div data-compose--compose-target="attachments" class="shrink-0 group/attachments">
                 {# `live: false` — the chips are already part of the window
                    that is arriving, and animating them here would play a
                    staggered entrance inside an element playing its own. The
