@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Enum\Mail\ImageSize;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -301,6 +302,60 @@ final readonly class DraftAttachmentService
         $this->entityManager->flush();
 
         return null;
+    }
+
+    /**
+     * Remember the size picked for the draft's images, once the browser has
+     * scaled them to it (#502). Null is Original.
+     *
+     * Custom carries the Adjust panel's two numbers, and they are held to
+     * what the panel offers rather than trusted: a longest side of 0 means
+     * "keep each photo's own size", anything else is brought within 640 to
+     * 4096 pixels, and the quality within 40 to 100. A preset keeps neither
+     * number, so a draft never says Medium and 1600 px at once.
+     */
+    public function chooseImageSize(Message $message, ?ImageSize $size, ?int $edge = null, ?int $quality = null): void
+    {
+        $message->imageSize    = $size;
+        $message->imageEdge    = null;
+        $message->imageQuality = null;
+
+        if (ImageSize::Custom === $size) {
+            $edge = $edge ?? 0;
+
+            $message->imageEdge    = 0 === $edge ? 0 : max(ImageSize::MIN_EDGE, min(ImageSize::MAX_EDGE, $edge));
+            $message->imageQuality = max(ImageSize::MIN_QUALITY, min(ImageSize::MAX_QUALITY, $quality ?? ImageSize::PRESET_QUALITY));
+        }
+
+        $this->entityManager->flush();
+    }
+
+    /**
+     * The width and height of a draft's picture as it was uploaded, for the
+     * Adjust panel's estimate; null when they cannot be known here.
+     *
+     * Read from the file's header alone (getimagesize does not decode), and
+     * from the original, not the smaller copy: the estimate is of what a size
+     * would make of the photo. A sealed part is ciphertext, and has none.
+     *
+     * @return array{int, int}|null
+     */
+    public function originalDimensions(MessagePart $part): ?array
+    {
+        $relative = $part->originalStoragePath ?? $part->storagePath;
+
+        if (true === $part->sealed || null === $relative || false === in_array($part->contentType, self::SCALABLE, true)) {
+            return null;
+        }
+
+        $absolute = $this->storage->getAbsolutePath($relative);
+        $info     = true === is_file($absolute) ? @getimagesize($absolute) : false;
+
+        if (false === $info || $info[0] < 1 || $info[1] < 1) {
+            return null;
+        }
+
+        return [$info[0], $info[1]];
     }
 
     /** Put the original back in place of the smaller copy; nothing to do for a part never scaled. */

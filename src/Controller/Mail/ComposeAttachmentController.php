@@ -11,7 +11,6 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\DraftAttachmentService;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -57,7 +56,6 @@ final class ComposeAttachmentController extends AbstractController
         private readonly DraftAttachmentService  $attachments,
         private readonly TranslatorInterface     $translator,
         private readonly AttachmentStorageHelper $storage,
-        private readonly EntityManagerInterface  $entityManager,
     ) {}
 
     /**
@@ -222,7 +220,8 @@ final class ComposeAttachmentController extends AbstractController
     /**
      * Remember the size the person picked, once the browser has scaled every
      * image to it, and answer with the strip, whose sizes have changed.
-     * Anything that is not one of the three sizes is Original.
+     * Anything that is not one of the sizes is Original; Custom brings the
+     * Adjust panel's `edge` and `quality` with it.
      */
     #[Route('/image-size/{id}', name: 'image_size', methods: ['POST'])]
     public function imageSize(Request $request, Message $message): Response
@@ -230,8 +229,12 @@ final class ComposeAttachmentController extends AbstractController
         $this->assertDraft($message);
         $this->assertCsrf($request, 'ajax');
 
-        $message->imageSize = ImageSize::tryFrom((string) $request->request->get('size'));
-        $this->entityManager->flush();
+        $this->attachments->chooseImageSize(
+            $message,
+            ImageSize::tryFrom((string) $request->request->get('size')),
+            $request->request->getInt('edge'),
+            $request->request->getInt('quality', ImageSize::PRESET_QUALITY),
+        );
 
         return $this->render('compose/_attachments.html.twig', ['message' => $message]);
     }

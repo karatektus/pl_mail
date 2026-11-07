@@ -623,6 +623,18 @@ class Message extends MessageModel
     public ?ImageSize $imageSize = null;
 
     /**
+     * With imageSize Custom, the longest side the person set in the Adjust
+     * panel, or 0 for "keep each photo's own size, only compress it". Null
+     * for every other choice. See DraftAttachmentService::chooseImageSize().
+     */
+    #[ORM\Column(name: 'image_edge', type: Types::SMALLINT, nullable: true)]
+    public ?int $imageEdge = null;
+
+    /** With imageSize Custom, the JPEG and WebP quality, 40 to 100. Null otherwise. */
+    #[ORM\Column(name: 'image_quality', type: Types::SMALLINT, nullable: true)]
+    public ?int $imageQuality = null;
+
+    /**
      * When this send began waiting out a passing failure — the start of the
      * two minutes a send may spend being retried. See SendMessageHandler.
      *

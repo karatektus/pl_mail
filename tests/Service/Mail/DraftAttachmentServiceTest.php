@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
+use App\Domain\Enum\Mail\ImageSize;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -394,6 +395,60 @@ final class DraftAttachmentServiceTest extends KernelTestCase
             new UploadedFile($this->tempFile("\xC1\x0Esealed bytes"), 'photo.png', 'image/png', null, true),
             true,
         ));
+
+        $this->attachments->deleteStoredFiles($message);
+    }
+
+    /**
+     * Custom keeps the Adjust panel's numbers, held to what the panel offers;
+     * a preset or Original keeps none, so a draft never says Medium and
+     * 1600 px at once.
+     */
+    public function testACustomSizeKeepsItsNumbersWithinThePanelsRange(): void
+    {
+        $message = $this->draft();
+
+        $this->attachments->chooseImageSize($message, ImageSize::Custom, 1600, 80);
+        self::assertSame([ImageSize::Custom, 1600, 80], [$message->imageSize, $message->imageEdge, $message->imageQuality]);
+
+        $this->attachments->chooseImageSize($message, ImageSize::Custom, 99999, 3);
+        self::assertSame([4096, 40], [$message->imageEdge, $message->imageQuality], 'numbers outside the sliders were stored');
+
+        $this->attachments->chooseImageSize($message, ImageSize::Custom, 100, 250);
+        self::assertSame([640, 100], [$message->imageEdge, $message->imageQuality]);
+
+        // 0 is "keep each photo's own size, only compress it", not "too small".
+        $this->attachments->chooseImageSize($message, ImageSize::Custom, 0, 70);
+        self::assertSame([0, 70], [$message->imageEdge, $message->imageQuality]);
+
+        $this->attachments->chooseImageSize($message, ImageSize::Medium, 1600, 80);
+        self::assertSame([ImageSize::Medium, null, null], [$message->imageSize, $message->imageEdge, $message->imageQuality]);
+
+        $this->attachments->chooseImageSize($message, null);
+        self::assertSame([null, null, null], [$message->imageSize, $message->imageEdge, $message->imageQuality]);
+    }
+
+    /**
+     * The panel's estimate needs each photo's own width and height: read
+     * from the original's header, and never from a sealed part's ciphertext
+     * or a file that is not a picture.
+     */
+    public function testTheOriginalsDimensionsAreReadFromTheFile(): void
+    {
+        $message = $this->draft();
+        $part    = $this->attachedImage($message);
+
+        self::assertSame([4, 4], $this->attachments->originalDimensions($part));
+
+        // After scaling, still the original's: the estimate is of the photo.
+        $this->attachments->replaceWithScaled($part, $this->image('photo.png', $this->png(2)), false);
+        self::assertSame([4, 4], $this->attachments->originalDimensions($part));
+
+        $part->sealed = true;
+        self::assertNull($this->attachments->originalDimensions($part));
+
+        $this->attachments->attach($message, [new UploadedFile($this->tempFile('the bytes'), 'notes.txt', null, null, true)]);
+        self::assertNull($this->attachments->originalDimensions($message->messageParts->last()));
 
         $this->attachments->deleteStoredFiles($message);
     }

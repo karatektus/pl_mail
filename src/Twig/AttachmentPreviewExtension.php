@@ -8,12 +8,16 @@ use App\Domain\Helper\MediaAttachment;
 use App\Domain\Helper\PdfAttachment;
 use App\Entity\Mail\MessagePart;
 use App\Service\Mail\AttachmentThumbnailer;
+use App\Service\Mail\DraftAttachmentService;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
 /**
  * `attachment_has_preview(part)` — whether the chip should show a thumbnail.
  * `attachment_preview_kind(part)` — which viewer, if any, a click opens.
+ * `draft_image_dimensions(part)` — a draft picture's original width and
+ *   height, for the compose window's size estimate (#502). The one function
+ *   here that reads a file, and only its header.
  *
  * Answers from the part's own columns, so a thread with a dozen attachments
  * costs a dozen string comparisons and no I/O. The image is only decoded when
@@ -21,8 +25,10 @@ use Twig\TwigFunction;
  */
 final class AttachmentPreviewExtension extends AbstractExtension
 {
-    public function __construct(private readonly AttachmentThumbnailer $thumbnailer)
-    {
+    public function __construct(
+        private readonly AttachmentThumbnailer  $thumbnailer,
+        private readonly DraftAttachmentService $drafts,
+    ) {
     }
 
     public function getFunctions(): array
@@ -30,6 +36,7 @@ final class AttachmentPreviewExtension extends AbstractExtension
         return [
             new TwigFunction('attachment_has_preview', $this->hasPreview(...)),
             new TwigFunction('attachment_preview_kind', $this->previewKind(...)),
+            new TwigFunction('draft_image_dimensions', $this->drafts->originalDimensions(...)),
         ];
     }
 

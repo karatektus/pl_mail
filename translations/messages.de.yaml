@@ -1993,14 +1993,35 @@ compose:
     image: Bild einfügen
     image_insert_failed: Das Bild konnte nicht in die Nachricht eingefügt werden
     image_size:
+        adjust: Größe und Qualität anpassen
+        apply: Auf alle Bilder anwenden
+        custom: "%px% px · %quality% %"
+        custom_own: "Originalgröße · %quality% %"
+        custom_segment: Eigene
         edge: Längste Seite %px% px
+        edge_px: "%px% px"
+        estimate: "%before% → ≈ %after%"
+        estimate_note: PNG-Bilder behalten die volle Qualität; die Qualität gilt für JPEG und WebP. Die genauen Größen siehst du nach dem Anwenden.
         failed: Einige Bilder konnten nicht verkleinert werden
+        hint_blocky: Kantig an Rändern und Schrift. Nur, wenn es vor allem auf die Größe ankommt.
+        hint_fine: Auf jedem Bildschirm gut; Unterschiede sieht man nur stark vergrößert.
+        hint_high: Kaum vom Original zu unterscheiden.
+        hint_soft: Vergrößert etwas weich; für einen schnellen Blick reicht es.
+        keep_pixels: Jedes Foto in seiner Größe lassen, nur komprimieren
         label: Bildgröße
         large: Groß
+        longest_side: Längste Seite
         medium: Mittel
         original: Original
+        own_size: Originalgröße
+        panel: Größe und Qualität
+        quality: Qualität
+        reset: Zurück zu Mittel
         resizing: Bilder werden verkleinert…
+        saving: "%before% → %after%"
+        sharper: Schärfer
         small: Klein
+        smaller: Kleiner
         total: "%size% insgesamt"
     indent: Einzug vergrößern
     insert_emoji: Emoji einfügen

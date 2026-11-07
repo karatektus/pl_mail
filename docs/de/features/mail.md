@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:8c1a0f5452c534b643691b45f1055704784aecf6 -->
+<!-- translated-from: features/mail.md sha1:c55b8dbab9a025fca374ba14e4a4b863b5991c8d -->
 
 # Mail
 
@@ -1224,6 +1224,19 @@ aus.
 Das Verkleinern erledigt dein Browser, auch in einem verschlüsselten Entwurf. Er dreht ein Handyfoto
 zuerst richtig herum, und die kleinere Kopie behält keine Metadaten des Fotos, sein GPS-Standort geht
 also nicht mit hinaus. Original sendet die Datei genau so, wie du sie hochgeladen hast.
+
+Sobald etwas kleiner ist, zeigt die Zeile, um wie viel: die Größe der Nachricht vorher und nachher,
+zum Beispiel „14,5 MB → 1,7 MB“.
+
+**Anpassen** (der Knopf mit den Reglern neben den Größen) stellt Größe und Qualität getrennt ein.
+**Längste Seite** reicht von 640 bis 4096 Pixel, oder **Jedes Foto in seiner Größe lassen**
+komprimiert die Fotos, ohne sie zu verkleinern. **Qualität** reicht von 40 bis 100 %, darunter
+steht, wie das aussieht. Die festen Größen verwenden 85 %. Während du die Regler bewegst, schätzt
+das Feld, was die Fotos ergeben; die genauen Größen siehst du nach **Auf alle Bilder anwenden**.
+Werte, die einer festen Größe entsprechen, wählen diese; alles andere erscheint als eigene Wahl
+**Eigene** in der Zeile, die Werte daneben („1600 px · 70 %“), und gilt genauso für Bilder, die du
+später hinzufügst. Die Qualität gilt für JPEG und WebP; PNG-Bilder sind verlustfrei und werden nur
+mit ihrer Pixelgröße kleiner.
 
 ### Links
 

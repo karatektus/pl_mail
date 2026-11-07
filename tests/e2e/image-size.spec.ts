@@ -143,3 +143,83 @@ test("an image in the body is scaled to the size already picked", async ({ page 
 
     await dock.getByRole("button", { name: "Delete draft" }).click();
 });
+
+/**
+ * The Adjust panel (B+): longest side and quality set apart, a Custom
+ * segment for what is neither a preset nor Original, and the row's
+ * before → after once anything is smaller.
+ */
+test("the Adjust panel sets size and quality apart", async ({ page }) => {
+    await page.goto("/mail/inbox");
+    await page.getByRole("link", { name: "Compose" }).first().click();
+
+    const dock = page.locator("#compose_dock");
+    const editor = dock.locator('[data-compose--compose-toolbar-target="editor"]');
+    const row = () => dock.locator('[data-compose--compose-target="imageSize"]');
+
+    await expect(editor).toBeVisible();
+    await editor.click();
+    await editor.fill("photos, tuned by hand");
+
+    await dock.locator('input[data-compose--compose-target="fileInput"]').setInputFiles({
+        name: "e2e-tuned.jpg",
+        mimeType: "image/jpeg",
+        buffer: await photo(page, 2400, 1600),
+    });
+
+    const chip = dock.locator("[data-compose-part]").filter({ hasText: "e2e-tuned.jpg" });
+    await expect(chip).toBeVisible();
+
+    const partId = (await chip.getAttribute("data-compose-part"))!;
+    const fullSize = Number(await chip.getAttribute("data-part-size"));
+
+    // Nothing smaller yet: a plain total, no arrow.
+    await expect(row().locator("[data-image-size-total]")).toContainText("in all");
+
+    // Adjust opens on Original: own size, full quality.
+    await row().getByRole("button", { name: "Adjust size and quality" }).click();
+
+    const panel = row().locator("[data-image-size-panel]");
+    await expect(panel).toBeVisible();
+    await expect(panel.getByLabel("Keep each photo’s own size, only compress it")).toBeChecked();
+
+    await panel.getByLabel("Keep each photo’s own size, only compress it").uncheck();
+    await panel.getByLabel("Longest side").fill("1600");
+    await panel.getByLabel("Quality").fill("60");
+
+    await expect(panel.locator("[data-image-size-edge-label]")).toHaveText("1600 px");
+    await expect(panel.locator("[data-image-size-quality-label]")).toHaveText("60 %");
+    await expect(panel.locator("[data-image-size-estimate]")).toContainText("→ ≈");
+
+    await panel.getByRole("button", { name: "Apply to all images" }).click();
+
+    // A Custom segment, chosen, with its numbers; the photo is 1600 wide.
+    await expect(row().getByRole("radio", { name: "Custom" })).toHaveAttribute("aria-checked", "true");
+    await expect(row().locator("[data-image-size-custom]")).toHaveText("1600 px · 60 %");
+    await expect.poll(() => servedSize(page, partId)).toEqual([1600, 1067]);
+    await expect(row().locator("[data-image-size-total]")).toContainText("→");
+    const customSize = Number(await chip.getAttribute("data-part-size"));
+    expect(customSize).toBeLessThan(fullSize);
+
+    // A preset's numbers select the preset.
+    await row().getByRole("button", { name: "Adjust size and quality" }).click();
+    await row().locator("[data-image-size-panel]").getByRole("button", { name: "Back to Medium" }).click();
+    await row().locator("[data-image-size-panel]").getByRole("button", { name: "Apply to all images" }).click();
+
+    await expect(row().getByRole("radio", { name: "Medium" })).toHaveAttribute("aria-checked", "true");
+    await expect(row().getByRole("radio", { name: /^Custom/ })).toHaveCount(0);
+    await expect.poll(() => servedSize(page, partId)).toEqual([1280, 853]);
+
+    // Own size, only compressed: same pixels, fewer bytes.
+    await row().getByRole("button", { name: "Adjust size and quality" }).click();
+    await row().locator("[data-image-size-panel]").getByLabel("Keep each photo’s own size, only compress it").check();
+    await row().locator("[data-image-size-panel]").getByLabel("Quality").fill("50");
+    await row().locator("[data-image-size-panel]").getByRole("button", { name: "Apply to all images" }).click();
+
+    await expect(row().getByRole("radio", { name: "Custom" })).toHaveAttribute("aria-checked", "true");
+    await expect(row().locator("[data-image-size-custom]")).toHaveText("Own size · 50 %");
+    await expect.poll(() => servedSize(page, partId)).toEqual([2400, 1600]);
+    await expect.poll(async () => Number(await chip.getAttribute("data-part-size"))).toBeLessThan(fullSize);
+
+    await dock.getByRole("button", { name: "Delete draft" }).click();
+});
