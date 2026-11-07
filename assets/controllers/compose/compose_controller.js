@@ -4161,7 +4161,18 @@ export default class extends Controller {
         }
 
         if (true === this.hasAttachmentsTarget) {
+            // The strip is replaced whole, and the summary line with it: if
+            // that line had the focus (Hide was just pressed while an upload
+            // was still being brought to the image size), the new one takes
+            // it, rather than the focus falling to the page.
+            const summaryFocused = null !== document.activeElement?.closest?.('[data-attachments-summary]')
+                && this.attachmentsTarget.contains(document.activeElement);
+
             this.attachmentsTarget.innerHTML = await response.text();
+
+            if (true === summaryFocused) {
+                this.attachmentsTarget.querySelector('[data-attachments-summary]')?.focus();
+            }
         }
 
         this._setStatus(this._t('saved', 'Draft saved'), 'text-success');
@@ -4190,14 +4201,27 @@ export default class extends Controller {
      * fold while the draft has no files and no pictures (the partial renders
      * no summary then).
      */
-    collapseAttachments() {
-        if (false === this.hasAttachmentsTarget || null === this.attachmentsTarget.querySelector('[data-attachments-summary]')) {
+    collapseAttachments(event) {
+        const summary = true === this.hasAttachmentsTarget
+            ? this.attachmentsTarget.querySelector('[data-attachments-summary]')
+            : null;
+
+        if (null === summary) {
             return;
         }
 
         this._closeImageSizePanel();
         this.attachmentsTarget.dataset.collapsed = '';
         this._refreshAttachmentSummary();
+
+        // Folded with the Hide button, which has just disappeared: the focus
+        // goes to the line that takes its place, not to the top of the page.
+        // Folded by the editor's focus, it stays in the editor.
+        // On the next frame: the line is display:none until the attribute
+        // above has been styled, and a hidden element takes no focus.
+        if ('click' === event?.type) {
+            requestAnimationFrame(() => summary.focus());
+        }
     }
 
     /** The summary was clicked, or files were added or taken away: the whole strip again. */
@@ -4248,9 +4272,19 @@ export default class extends Controller {
         return this._queueImageSize(this._imageChoice(String(size), Number(edge) || 0, Number(quality) || 100), true);
     }
 
-    /** The row arrived with the strip: show it or not, and its total. */
+    /**
+     * The row arrived with the strip: show it or not, and its total.
+     *
+     * Caught, because this runs inside the window's own connect(): a
+     * failure here once left the To field without its address picker. The
+     * row is a convenience; the window must open whatever it does.
+     */
     imageSizeTargetConnected() {
-        this._refreshImageSize();
+        try {
+            this._refreshImageSize();
+        } catch (error) {
+            console.error('compose: the Image size row could not be drawn', error);
+        }
     }
 
     /**
@@ -4856,10 +4890,21 @@ export default class extends Controller {
         return { now, before };
     }
 
-    /** The draft's stored pictures, as the strip lists them. */
+    /**
+     * The draft's stored pictures, as the strip lists them.
+     *
+     * Always a list. The template filters the draft's parts down to its
+     * pictures, and Twig's filter keeps each part's key, so a draft whose
+     * first attachment is not a picture (a PDF, then photos) encoded as an
+     * object — {"1": …, "2": …} — and the first `.map()` on it threw inside
+     * the row's targetConnected, which stopped the window's connect() before
+     * the address fields were set up: To came up as a bare <select>.
+     */
     _imageParts() {
         try {
-            return JSON.parse(this.imageSizeTarget.dataset.imageParts ?? '[]');
+            const parts = JSON.parse(this.imageSizeTarget.dataset.imageParts ?? '[]');
+
+            return Array.isArray(parts) ? parts : Object.values(parts ?? {});
         } catch (_) {
             return [];
         }

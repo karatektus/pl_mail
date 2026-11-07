@@ -1826,6 +1826,8 @@ compose:
         working: 'Writing…'
     attachments_summary:
         files: '{1}1 file|]1,Inf[ %count% files'
+        hide: Hide
+        hide_label: Hide the attachments
         images_in_text: Images in the text
         show: Show
     open_failed:
@@ -1906,7 +1908,7 @@ compose:
         hide: hide quoted text
         show: show quoted text
     resize:
-        hint: Drag to resize. Double-click for the standard size. Arrow keys work too.
+        hint: Drag to resize. Double-click for the standard size.
         label: Resize the compose window
     schedule:
         cancel: Cancel scheduled send

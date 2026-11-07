@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:d0d8cca524f8a75b6f2dfd4f30dc559f0699ffe3 -->
+<!-- translated-from: features/mail.md sha1:5e556930614f37781f1b88c4aba3378eb432fdf2 -->
 
 # Mail
 
@@ -1137,8 +1137,7 @@ Fenster formatierten Text, Kontakt-Vervollständigung in den Adressfeldern und e
 [Konten und Aliase](accounts.md).
 
 **Zieh an der linken oberen Ecke**, um das angedockte Fenster größer oder kleiner zu machen; ein
-Doppelklick auf die Ecke stellt die Standardgröße wieder her. Hat die Ecke den Fokus, tun die
-Pfeiltasten dasselbe. Die Größe bleibt **auf diesem Gerät** gespeichert, im Browser, sodass der
+Doppelklick auf die Ecke stellt die Standardgröße wieder her. Die Größe bleibt **auf diesem Gerät** gespeichert, im Browser, sodass der
 Laptop und der große Bildschirm daneben jeweils ihre eigene haben. Auf dem Handy füllt das Fenster
 immer den ganzen Bildschirm.
 

@@ -71,15 +71,3 @@ test("the window cannot be made smaller than it can be used", async ({ page }) =
 
     expect(await size(page)).toEqual([420, 360]);
 });
-
-test("the arrow keys resize the focused corner", async ({ page }) => {
-    const window = await openCompose(page);
-    const handle = window.getByRole("button", { name: "Resize the compose window" });
-
-    await handle.focus();
-    await page.keyboard.press("ArrowLeft");
-    await page.keyboard.press("Shift+ArrowUp");
-
-    expect(await size(page)).toEqual([536, 664]);
-    expect(JSON.parse((await kept(page))!)).toEqual({ w: 536, h: 664 });
-});

@@ -1836,6 +1836,8 @@ compose:
         working: 'Rédaction…'
     attachments_summary:
         files: '{1}1 fichier|]1,Inf[ %count% fichiers'
+        hide: Masquer
+        hide_label: Masquer les pièces jointes
         images_in_text: Images dans le texte
         show: Afficher
     open_failed:
@@ -1916,7 +1918,7 @@ compose:
         hide: masquer le texte cité
         show: afficher le texte cité
     resize:
-        hint: Faites glisser pour redimensionner. Double-cliquez pour la taille standard. Les flèches du clavier marchent aussi.
+        hint: Faites glisser pour redimensionner. Double-cliquez pour la taille standard.
         label: Redimensionner la fenêtre
     schedule:
         cancel: Annuler l’envoi programmé

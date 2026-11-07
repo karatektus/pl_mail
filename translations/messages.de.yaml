@@ -1847,6 +1847,8 @@ compose:
         working: 'Schreibt…'
     attachments_summary:
         files: '{1}1 Datei|]1,Inf[ %count% Dateien'
+        hide: Ausblenden
+        hide_label: Anhänge ausblenden
         images_in_text: Bilder im Text
         show: Anzeigen
     open_failed:
@@ -1922,7 +1924,7 @@ compose:
         hide: zitierten Text ausblenden
         show: zitierten Text anzeigen
     resize:
-        hint: Ziehen, um die Größe zu ändern. Doppelklick für die Standardgröße. Die Pfeiltasten gehen auch.
+        hint: Ziehen, um die Größe zu ändern. Doppelklick für die Standardgröße.
         label: Größe des Fensters ändern
     schedule:
         cancel: Geplanten Versand abbrechen

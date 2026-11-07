@@ -265,13 +265,14 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             <button type="button"
                     data-compose-resize
                     data-controller="compose--window-size"
-                    data-action="pointerdown->compose--window-size#start dblclick->compose--window-size#reset keydown->compose--window-size#key"
+                    data-action="pointerdown->compose--window-size#start dblclick->compose--window-size#reset"
+                    tabindex="-1"
                     aria-label="{{ 'compose.resize.label'|trans }}"
                     title="{{ 'compose.resize.hint'|trans }}"
                     class="hidden md:flex absolute -top-1 -left-1 z-20 w-5 h-5 items-center justify-center
                            rounded-full cursor-nwse-resize touch-none text-ink-faint
-                           opacity-0 [.compose-window:hover_&]:opacity-100 hover:text-ink focus-visible:opacity-100
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-opacity">
+                           opacity-0 [.compose-window:hover_&]:opacity-100 hover:text-ink
+                           focus:outline-none transition-opacity">
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
                     <circle cx="2" cy="2" r="1.2"></circle><circle cx="6" cy="2" r="1.2"></circle><circle cx="2" cy="6" r="1.2"></circle>
                 </svg>

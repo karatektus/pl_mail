@@ -1732,6 +1732,8 @@ compose:
         working: "Writin'…"
     attachments_summary:
         files: '{1}1 bit o’ cargo|]1,Inf[ %count% bits o’ cargo'
+        hide: Stow it
+        hide_label: Stow the cargo
         images_in_text: Likenesses in the scroll
         show: Show me
     open_failed:
@@ -1807,7 +1809,7 @@ compose:
         hide: stow the quoted words
         show: unfurl the quoted words
     resize:
-        hint: Haul to stretch it. Double-click for the ship’s standard. The arrow keys work an’ all.
+        hint: Haul to stretch it. Double-click for the ship’s standard.
         label: Stretch the writin’ desk
     schedule:
         cancel: "Belay that castin' off"

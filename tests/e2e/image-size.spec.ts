@@ -295,5 +295,70 @@ test("the attachment strip folds to one line while writing", async ({ page }) =>
     await expect(summary).toBeHidden();
     await expect(dock.locator("[data-compose-part]").filter({ hasText: "e2e-fold.txt" })).toBeVisible();
 
+    // A dozen files: the chips scroll inside a strip of capped height, and
+    // there is still text to click into. Hide folds it by hand.
+    for (let i = 0; i < 12; i++) {
+        await fileInput.setInputFiles({ name: `e2e-many-${i}.txt`, mimeType: "text/plain", buffer: Buffer.from(`file ${i}`) });
+        await expect(dock.locator("[data-compose-part]")).toHaveCount(4 + i);
+    }
+
+    const chips = strip.locator("[data-attachments-chips]");
+    expect((await chips.boundingBox())!.height).toBeLessThanOrEqual(152);
+    expect(await chips.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    expect((await dock.locator('[data-compose--compose-target="scroller"]').boundingBox())!.height).toBeGreaterThan(100);
+
+    await strip.getByRole("button", { name: "Hide the attachments" }).click();
+    await expect(summary).toBeVisible();
+    await expect(summary).toBeFocused();
+    await expect(summary).toContainText("15 files");
+
+    await dock.getByRole("button", { name: "Delete draft" }).click();
+});
+
+/**
+ * A draft whose first attachment is not a picture opens like any other.
+ *
+ * It did not: the row's list of pictures was encoded as an object when the
+ * pictures were not the draft's first parts, the row threw while connecting,
+ * and the window's setup stopped there — To came up as a bare multi-select
+ * with the recipient highlighted in it, found on prod with a PDF ahead of a
+ * dozen photos.
+ */
+test("a draft with a file before its photos reopens with a working To field", async ({ page }) => {
+    const subject = `e2e pdf first ${Date.now()}`;
+
+    await page.goto("/mail/inbox");
+    await page.getByRole("link", { name: "Compose" }).first().click();
+
+    const dock = page.locator("#compose_dock");
+    const editor = dock.locator('[data-compose--compose-toolbar-target="editor"]');
+    const fileInput = dock.locator('input[data-compose--compose-target="fileInput"]');
+
+    await expect(editor).toBeVisible();
+    await dock.locator(".ts-control input").first().fill("pdf-first@example.test");
+    await dock.locator(".ts-control input").first().press("Enter");
+    await dock.getByPlaceholder("Subject").fill(subject);
+    await editor.click();
+    await editor.fill("a letter, then the photos");
+
+    await fileInput.setInputFiles({ name: "CoverLetter.txt", mimeType: "text/plain", buffer: Buffer.from("Dear …") });
+    await expect(dock.locator("[data-compose-part]")).toHaveCount(1);
+    await fileInput.setInputFiles({ name: "e2e-after.jpg", mimeType: "image/jpeg", buffer: await photo(page, 1200, 800) });
+    await expect(dock.locator("[data-compose-part]")).toHaveCount(2);
+
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+
+    // Reopened from Drafts: the window is rendered with both parts in it.
+    await page.goto("/mail/drafts");
+    await page.locator("#message-list li").filter({ hasText: subject }).first().click();
+
+    await expect(dock.locator(".ts-control").first()).toBeVisible();
+    await expect(dock.locator(".ts-control").first().locator(".item")).toContainText("pdf-first@example.test");
+    // A list, whatever came first; the strip may be folded (the reopened
+    // draft puts the caret in the text), so this reads the row's data.
+    expect(await dock.locator('[data-compose--compose-target="imageSize"]').getAttribute("data-image-parts")).toMatch(/^\[/);
+    expect(errors).toEqual([]);
+
     await dock.getByRole("button", { name: "Delete draft" }).click();
 });
