@@ -1116,6 +1116,18 @@ Your browser does the scaling, and that works in an encrypted draft too. It turn
 right way up first, and the smaller copy keeps none of the photo's metadata, so its GPS position
 does not go out with it. Original sends the file exactly as you uploaded it.
 
+Once something is smaller, the row says how much: the message's size before and after, for example
+"14.5 MB → 1.7 MB".
+
+**Adjust** (the sliders button beside the sizes) sets size and quality apart. **Longest side** goes
+from 640 to 4096 pixels, or **Keep each photo's own size** compresses the photos without making them
+smaller. **Quality** goes from 40 to 100 %, with a line under it saying what that looks like. The
+presets use 85 %. While you move the sliders, the panel estimates what the photos will come to; the
+exact sizes show once you **Apply to all images**. Numbers that match a preset select that preset;
+anything else shows as its own **Custom** choice in the row, with its numbers beside it ("1600 px · 70 %"),
+and applies to images you add later in the same way. Quality applies to JPEG and WebP; PNG images
+are lossless and only get smaller with their pixel size.
+
 ### Links
 
 The link button opens a small panel with a **URL** field and a **text** field, the text prefilled

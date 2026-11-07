@@ -4187,11 +4187,16 @@ export default class extends Controller {
      * Each picture is scaled from its original, which the server keeps beside
      * the smaller copy, so going from Small to Large is as sharp as going
      * from Original to Large, and Original puts the original back.
+     *
+     * A choice is { size, edge, quality }: a preset's numbers come from its
+     * button, Custom's from the Adjust panel, and Original is 0 and 100.
      */
     pickImageSize(event) {
-        const { size, edge } = event.params;
+        const { size, edge, quality } = event.params;
 
-        return this._queueImageSize(String(size), Number(edge) || 0, true);
+        this._closeImageSizePanel();
+
+        return this._queueImageSize(this._imageChoice(String(size), Number(edge) || 0, Number(quality) || 100), true);
     }
 
     /** The row arrived with the strip: show it or not, and its total. */
@@ -4200,12 +4205,197 @@ export default class extends Controller {
     }
 
     /**
+     * Adjust: longest side and quality, set apart. Opens on the numbers of
+     * the choice in force; for Original that is each photo's own size at
+     * full quality, which is what Original sends.
+     */
+    toggleImageSizePanel() {
+        const panel = this._imageSizePanel();
+
+        if (null === panel) {
+            return;
+        }
+
+        if (false === panel.hidden) {
+            this._closeImageSizePanel();
+
+            return;
+        }
+
+        const row = this.imageSizeTarget;
+        const size = row.dataset.size ?? 'original';
+        const edge = Number(row.dataset.edge) || 0;
+        const quality = Number(row.dataset.quality) || 100;
+
+        panel.querySelector('[data-image-size-keep]').checked = 0 === edge;
+        panel.querySelector('[data-image-size-edge]').value = String(0 === edge ? 2048 : edge);
+        panel.querySelector('[data-image-size-quality]').value = String('original' === size ? 100 : quality);
+
+        panel.hidden = false;
+        row.querySelector('[data-image-size-adjust]')?.setAttribute('aria-expanded', 'true');
+        this.previewImageSize();
+    }
+
+    /** A slider or the checkbox moved: the panel's labels and estimate follow. */
+    previewImageSize() {
+        const panel = this._imageSizePanel();
+
+        if (null === panel) {
+            return;
+        }
+
+        const { edge, quality, keep } = this._panelValues(panel);
+
+        panel.querySelector('[data-image-size-edge]').disabled = keep;
+        panel.querySelector('[data-image-size-edge-label]').textContent = true === keep
+            ? this._t('imageSizeOwnSize', 'Own size')
+            : this._t('imageSizeEdgePx', '%s px').replace('%s', String(edge));
+        panel.querySelector('[data-image-size-quality-label]').textContent = `${quality} %`;
+        panel.querySelector('[data-image-size-hint]').textContent = quality >= 90
+            ? this._t('imageSizeHintHigh', 'Hard to tell from the original.')
+            : quality >= 75
+                ? this._t('imageSizeHintFine', 'Fine on any screen; differences show only zoomed right in.')
+                : quality >= 60
+                    ? this._t('imageSizeHintSoft', 'Slightly soft when zoomed in; fine for a quick look.')
+                    : this._t('imageSizeHintBlocky', 'Blocky around edges and text. Use it only when size matters most.');
+
+        const { before, after } = this._estimate(true === keep ? 0 : edge, quality);
+
+        panel.querySelector('[data-image-size-estimate]').textContent = this._t('imageSizeEstimate', '%before% → ≈ %after%')
+            .replace('%before%', formatBytes(before))
+            .replace('%after%', formatBytes(after));
+        panel.querySelector('[data-image-size-bar]').style.width = `${before > 0 ? Math.max(2, Math.round(after / before * 100)) : 100}%`;
+    }
+
+    /** Back to Medium's numbers, without applying them. */
+    resetImageSizePanel() {
+        const panel = this._imageSizePanel();
+
+        if (null === panel) {
+            return;
+        }
+
+        const medium = this.imageSizeTarget.querySelector('[data-compose--compose-size-param="medium"]');
+
+        panel.querySelector('[data-image-size-keep]').checked = false;
+        panel.querySelector('[data-image-size-edge]').value = medium?.getAttribute('data-compose--compose-edge-param') ?? '1280';
+        panel.querySelector('[data-image-size-quality]').value = medium?.getAttribute('data-compose--compose-quality-param') ?? '85';
+        this.previewImageSize();
+    }
+
+    /**
+     * Apply the panel to every image. Numbers that are a preset's select that
+     * preset, own size at 100 % is Original, and anything else is Custom.
+     */
+    applyImageSizePanel() {
+        const panel = this._imageSizePanel();
+
+        if (null === panel) {
+            return;
+        }
+
+        const { edge, quality, keep } = this._panelValues(panel);
+        let choice = null;
+
+        if (true === keep && quality >= 100) {
+            choice = this._imageChoice('original', 0, 100);
+        } else {
+            this.imageSizeTarget.querySelectorAll('[data-action~="click->compose--compose#pickImageSize"]').forEach((button) => {
+                const presetEdge = Number(button.getAttribute('data-compose--compose-edge-param'));
+                const presetQuality = Number(button.getAttribute('data-compose--compose-quality-param'));
+
+                if (false === keep && presetEdge > 0 && presetEdge === edge && presetQuality === quality) {
+                    choice = this._imageChoice(button.getAttribute('data-compose--compose-size-param'), presetEdge, presetQuality);
+                }
+            });
+        }
+
+        this._closeImageSizePanel();
+
+        return this._queueImageSize(choice ?? this._imageChoice('custom', true === keep ? 0 : edge, quality), true);
+    }
+
+    _imageChoice(size, edge, quality) {
+        return { size, edge, quality, restore: 'original' === size, custom: 'custom' === size };
+    }
+
+    _imageSizePanel() {
+        return true === this.hasImageSizeTarget ? this.imageSizeTarget.querySelector('[data-image-size-panel]') : null;
+    }
+
+    _closeImageSizePanel() {
+        const panel = this._imageSizePanel();
+
+        if (null !== panel) {
+            panel.hidden = true;
+            this.imageSizeTarget.querySelector('[data-image-size-adjust]')?.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    _panelValues(panel) {
+        return {
+            edge: Number(panel.querySelector('[data-image-size-edge]').value) || 2048,
+            quality: Number(panel.querySelector('[data-image-size-quality]').value) || 85,
+            keep: true === panel.querySelector('[data-image-size-keep]').checked,
+        };
+    }
+
+    /**
+     * What a longest side (0: each photo's own) and a quality would make of
+     * the draft's pictures, before and after — for the panel, while a slider
+     * moves, so without encoding anything.
+     *
+     * From each original's width and height (read by the server from the
+     * file's header) and a measured average of bits per pixel for photos at
+     * each JPEG quality. A real photo lands within about a quarter of it;
+     * the row shows the exact sizes once Apply has run. A picture whose size
+     * is not known here (sealed, or in a sealed body) counts as it is.
+     */
+    _estimate(edge, quality) {
+        const inBody = new Set(this._bodyImages().map((image) => this._inlinePartId(image)).filter((id) => null !== id));
+        let before = 0;
+        let after = 0;
+
+        this._imageParts()
+            .filter((part) => false === part.inline || inBody.has(String(part.id)))
+            .forEach((part) => {
+                const original = Number(part.original) || 0;
+                before += original;
+
+                if (false === Array.isArray(part.dims)) {
+                    after += original;
+
+                    return;
+                }
+
+                const [width, height] = part.dims;
+                const scale = 0 === edge ? 1 : Math.min(1, edge / Math.max(width, height));
+
+                if ('image/png' === part.type) {
+                    after += Math.round(original * scale * scale);
+                } else if (1 === scale && quality >= 100) {
+                    after += original;
+                } else {
+                    after += Math.min(original, Math.round(width * height * scale * scale * bitsPerPixel(quality) / 8));
+                }
+            });
+
+        this._bodyDataImages().forEach((image) => {
+            const bytes = dataUriBytes(image.dataset.plmailOriginal ?? image.getAttribute('src') ?? '');
+            before += bytes;
+            after += bytes;
+        });
+
+        return { before, after };
+    }
+
+    /**
      * One at a time: a second pick while the first is still scaling waits
      * for it, so two passes never upload copies of the same picture at once.
      */
-    _queueImageSize(size, edge, all) {
+    _queueImageSize(choice, all) {
         this._imageSizeQueue = (this._imageSizeQueue ?? Promise.resolve())
-            .then(() => this._applyImageSize(size, edge, all))
+            .then(() => this._applyImageSize(choice, all))
             .catch(() => {});
 
         return this._imageSizeQueue;
@@ -4213,33 +4403,32 @@ export default class extends Controller {
 
     /**
      * After an upload or a picture placed in the body: bring what is new to
-     * the size already picked. Nothing to do while that is Original.
+     * the choice already made. Nothing to do while that is Original.
      */
     _scaleNewImages() {
         if (false === this.hasImageSizeTarget) {
             return Promise.resolve();
         }
 
-        const size = this.imageSizeTarget.dataset.size ?? 'original';
+        const row = this.imageSizeTarget;
+        const size = row.dataset.size ?? 'original';
 
         if ('original' === size) {
             return Promise.resolve();
         }
 
-        const button = this.imageSizeTarget.querySelector(`[data-compose--compose-size-param="${size}"]`);
-
-        return this._queueImageSize(size, Number(button?.getAttribute('data-compose--compose-edge-param')) || 0, false);
+        return this._queueImageSize(this._imageChoice(size, Number(row.dataset.edge) || 0, Number(row.dataset.quality) || 85), false);
     }
 
     /**
-     * Scale every picture to `edge` pixels on its longest side, or put the
-     * originals back when it is 0, then tell the server which size was picked.
+     * Bring every picture to the choice, or put the originals back for
+     * Original, then tell the server what was chosen.
      *
      * `all` false is for pictures added since: those already scaled are left
      * alone. A picture that fails stays as it was and the rest go on; the
      * status line says some could not be made smaller.
      */
-    async _applyImageSize(size, edge, all) {
+    async _applyImageSize(choice, all) {
         const id = this._messageId();
 
         if (null === id || false === this.hasImageSizeTarget) {
@@ -4248,15 +4437,18 @@ export default class extends Controller {
 
         const row = this.imageSizeTarget;
         const parts = this._imageParts();
-        const buttons = Array.from(row.querySelectorAll('[role="radio"]'));
+        const buttons = Array.from(row.querySelectorAll('[role="radio"], [data-image-size-adjust]'));
         let failed = false;
         let bodyChanged = false;
 
         buttons.forEach((button) => {
             button.disabled = true;
-            button.setAttribute('aria-checked', size === button.getAttribute('data-compose--compose-size-param') ? 'true' : 'false');
+
+            if ('radio' === button.getAttribute('role')) {
+                button.setAttribute('aria-checked', choice.size === button.getAttribute('data-compose--compose-size-param') ? 'true' : 'false');
+            }
         });
-        row.dataset.size = size;
+        row.dataset.size = choice.size;
         this._setStatus(this._t('imageSizeResizing', 'Resizing images…'), 'text-ink-faint');
 
         for (const part of parts) {
@@ -4265,7 +4457,7 @@ export default class extends Controller {
             }
 
             try {
-                await this._scalePart(part, edge);
+                await this._scalePart(part, choice);
 
                 if (true === part.inline) {
                     bodyChanged = this._reloadInlineImage(part.id) || bodyChanged;
@@ -4284,14 +4476,19 @@ export default class extends Controller {
             }
 
             try {
-                bodyChanged = await this._scaleDataImage(image, edge) || bodyChanged;
+                bodyChanged = await this._scaleDataImage(image, choice) || bodyChanged;
             } catch (_) {
                 failed = true;
             }
         }
 
         const body = new FormData();
-        body.append('size', size);
+        body.append('size', choice.size);
+
+        if (true === choice.custom) {
+            body.append('edge', String(choice.edge));
+            body.append('quality', String(choice.quality));
+        }
 
         await this._renderAttachments(
             fetch(`/compose/image-size/${id}`, {
@@ -4315,8 +4512,8 @@ export default class extends Controller {
         }
     }
 
-    /** One stored picture: scaled from its original, or the original put back. */
-    async _scalePart(part, edge) {
+    /** One stored picture: brought to the choice from its original, or the original put back. */
+    async _scalePart(part, choice) {
         const headers = { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken() };
 
         const restore = async () => {
@@ -4331,7 +4528,7 @@ export default class extends Controller {
             }
         };
 
-        if (0 === edge) {
+        if (true === choice.restore) {
             return restore();
         }
 
@@ -4352,9 +4549,9 @@ export default class extends Controller {
             bytes = await encryption.openUpload(bytes);
         }
 
-        const smaller = await scaleImage(new Blob([bytes], { type: part.type }), edge);
+        const smaller = await scaleImage(new Blob([bytes], { type: part.type }), choice);
 
-        // Already within the size: the original is what goes out.
+        // Nothing to gain: the original is what goes out.
         if (null === smaller) {
             return restore();
         }
@@ -4386,11 +4583,11 @@ export default class extends Controller {
     }
 
     /**
-     * A data: picture in the body, scaled where it is.
+     * A data: picture in the body, brought to the choice where it is.
      *
      * @returns {Promise<boolean>} whether the body changed
      */
-    async _scaleDataImage(image, edge) {
+    async _scaleDataImage(image, choice) {
         const original = image.dataset.plmailOriginal ?? image.getAttribute('src');
 
         const putBack = () => {
@@ -4404,12 +4601,12 @@ export default class extends Controller {
             return true;
         };
 
-        if (0 === edge) {
+        if (true === choice.restore) {
             return putBack();
         }
 
         const blob = await (await fetch(original)).blob();
-        const smaller = await scaleImage(blob, edge);
+        const smaller = await scaleImage(blob, choice);
 
         if (null === smaller) {
             return putBack();
@@ -4454,8 +4651,10 @@ export default class extends Controller {
 
     /**
      * Show the row while the draft holds a picture it can make smaller, and
-     * the message's total beside it. Runs on every edit (_scheduleAutosave),
-     * because deleting a picture from the body does not render the strip.
+     * the message's size beside it: before → after once something is
+     * smaller, the plain total while nothing is. Runs on every edit
+     * (_scheduleAutosave), because deleting a picture from the body does not
+     * render the strip.
      */
     _refreshImageSize() {
         if (false === this.hasImageSizeTarget) {
@@ -4465,6 +4664,7 @@ export default class extends Controller {
         const row = this.imageSizeTarget;
         const inBody = new Set(this._bodyImages().map((image) => this._inlinePartId(image)).filter((id) => null !== id));
         const parts = this._imageParts();
+        const byId = new Map(parts.map((part) => [String(part.id), part]));
         const dataImages = this._bodyDataImages();
 
         row.hidden = false === (parts.some((part) => false === part.inline || inBody.has(String(part.id))) || dataImages.length > 0);
@@ -4473,23 +4673,34 @@ export default class extends Controller {
             return;
         }
 
-        let total = 0;
+        let now = 0;
+        let before = 0;
 
         this.element.querySelectorAll('[data-compose-part]').forEach((chip) => {
-            total += Number(chip.dataset.partSize) || 0;
+            const size = Number(chip.dataset.partSize) || 0;
+
+            now += size;
+            before += Number(byId.get(chip.dataset.composePart)?.original) || size;
         });
         parts.filter((part) => true === part.inline && inBody.has(String(part.id))).forEach((part) => {
-            total += part.size;
+            now += part.size;
+            before += Number(part.original) || part.size;
         });
         dataImages.forEach((image) => {
-            const src = image.getAttribute('src') ?? '';
-            total += Math.floor((src.length - src.indexOf(',') - 1) * 3 / 4);
+            const size = dataUriBytes(image.getAttribute('src') ?? '');
+
+            now += size;
+            before += dataUriBytes(image.dataset.plmailOriginal ?? '') || size;
         });
 
         const label = row.querySelector('[data-image-size-total]');
 
         if (null !== label) {
-            label.textContent = this._t('imageSizeTotal', '%s in all').replace('%s', formatBytes(total));
+            label.textContent = before > now
+                ? this._t('imageSizeSaving', '%before% → %after%')
+                    .replace('%before%', formatBytes(before))
+                    .replace('%after%', formatBytes(now))
+                : this._t('imageSizeTotal', '%s in all').replace('%s', formatBytes(now));
         }
     }
 
@@ -4827,9 +5038,16 @@ const SCALABLE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const SCALABLE_DATA_URI = /^data:image\/(jpeg|png|webp)[;,]/i;
 
 /**
- * A picture, at most `edge` pixels on its longest side, in the format it
- * already had; null when it needs no scaling, cannot be decoded here, or
- * would not come out smaller.
+ * A picture brought to a choice — at most `edge` pixels on its longest side
+ * (0: its own size), encoded at `quality` — in the format it already had;
+ * null when there is nothing to gain: Original, a format this cannot redo,
+ * a picture that would not come out smaller.
+ *
+ * A preset leaves a picture already within its size alone, as it always
+ * did: Medium on a small screenshot should not touch it. Custom recompresses
+ * it anyway, because a quality the person set on purpose is the point. A PNG
+ * that keeps its size is left alone either way: it is lossless, so encoding
+ * it again only spends time.
  *
  * createImageBitmap turns a phone photo the right way up as it decodes it,
  * which is the step a server without the exif extension cannot do. Drawing
@@ -4842,13 +5060,13 @@ const SCALABLE_DATA_URI = /^data:image\/(jpeg|png|webp)[;,]/i;
  * leaves the picture as it was.
  *
  * @param {Blob} blob
- * @param {number} edge
+ * @param {{edge: number, quality: number, restore: boolean, custom: boolean}} choice
  * @returns {Promise<?Blob>}
  */
-async function scaleImage(blob, edge) {
+async function scaleImage(blob, choice) {
     const type = (blob.type || '').toLowerCase();
 
-    if (false === SCALABLE_TYPES.includes(type) || edge < 1) {
+    if (true === choice.restore || false === SCALABLE_TYPES.includes(type)) {
         return null;
     }
 
@@ -4862,15 +5080,16 @@ async function scaleImage(blob, edge) {
 
     try {
         const longest = Math.max(bitmap.width, bitmap.height);
+        const resize = choice.edge > 0 && longest > choice.edge;
 
-        if (longest <= edge) {
+        if (false === resize && (false === choice.custom || 'image/png' === type)) {
             return null;
         }
 
-        const scale = edge / longest;
+        const scale = true === resize ? choice.edge / longest : 1;
         const width = Math.max(1, Math.round(bitmap.width * scale));
         const height = Math.max(1, Math.round(bitmap.height * scale));
-        const quality = 'image/png' === type ? undefined : 0.85;
+        const quality = 'image/png' === type ? undefined : Math.min(1, Math.max(0.01, choice.quality / 100));
         let smaller;
 
         if ('function' === typeof OffscreenCanvas) {
@@ -4901,6 +5120,33 @@ async function scaleImage(blob, edge) {
     } finally {
         bitmap.close();
     }
+}
+
+/**
+ * Bits per pixel of a typical photo saved as JPEG at a quality, for the
+ * Adjust panel's estimate: measured on phone photos, interpolated between.
+ * WebP comes out a little smaller, so this errs on the side of too large.
+ */
+const BITS_PER_PIXEL = [[40, 0.85], [50, 1.0], [60, 1.2], [70, 1.5], [80, 1.9], [85, 2.2], [90, 2.6], [95, 3.2], [100, 4.5]];
+
+function bitsPerPixel(quality) {
+    for (let i = 1; i < BITS_PER_PIXEL.length; i++) {
+        const [q1, b1] = BITS_PER_PIXEL[i - 1];
+        const [q2, b2] = BITS_PER_PIXEL[i];
+
+        if (quality <= q2) {
+            return b1 + (b2 - b1) * (Math.max(q1, quality) - q1) / (q2 - q1);
+        }
+    }
+
+    return BITS_PER_PIXEL[BITS_PER_PIXEL.length - 1][1];
+}
+
+/** The bytes a data: URI's base64 stands for. */
+function dataUriBytes(src) {
+    const comma = src.indexOf(',');
+
+    return comma < 0 ? 0 : Math.floor((src.length - comma - 1) * 3 / 4);
 }
 
 /** A size the way the attachment chips print one: KB below a megabyte, MB with one decimal above. */

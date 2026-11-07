@@ -32,40 +32,168 @@ Variables: message, live (default true)
    blink in on a window that opens with images. #}
 {% set scalable = constant('App\\Service\\Mail\\DraftAttachmentService::SCALABLE') %}
 {% set images = message.messageParts|filter(part => part.contentType in scalable and part.senderKeyFingerprint is null) %}
-{% set picked = message.imageSize ? message.imageSize.value : 'original' %}
+{% set imageSize = message.imageSize %}
+{% set picked = imageSize ? imageSize.value : 'original' %}
+{% set presetQuality = constant('App\\Domain\\Enum\\Mail\\ImageSize::PRESET_QUALITY') %}
+{% set custom = 'custom' == picked %}
+{# What the size now in force means in numbers: compose_controller scales a
+   picture added later to these, and opens the Adjust panel on them. Original
+   is 0 and 100, which the panel shows as "own size" at full quality. #}
+{% set currentEdge = custom ? message.imageEdge : (imageSize ? imageSize.edge : 0) %}
+{% set currentQuality = custom ? message.imageQuality : (imageSize ? presetQuality : 100) %}
+{% set panelId = 'image-size-panel-' ~ message.id %}
 <div data-compose--compose-target="imageSize"
-     data-image-parts="{{ images|map(part => { id: part.id, inline: part.isInline ? true : false, sealed: part.sealed, scaled: part.originalStoragePath is not null, size: part.size ?: 0, type: part.contentType, name: part.filename ?: 'image' })|json_encode|e('html_attr') }}"
+     data-image-parts="{{ images|map(part => {
+         id: part.id,
+         inline: part.isInline ? true : false,
+         sealed: part.sealed,
+         scaled: part.originalStoragePath is not null,
+         size: part.size ?: 0,
+         original: part.originalSize ?? (part.size ?: 0),
+         dims: draft_image_dimensions(part),
+         type: part.contentType,
+         name: part.filename ?: 'image',
+     })|json_encode|e('html_attr') }}"
      data-size="{{ picked }}"
+     data-edge="{{ currentEdge }}"
+     data-quality="{{ currentQuality }}"
      {% if images|length == 0 %}hidden{% endif %}
-     class="mx-4 mb-2 pt-2 border-t border-line flex flex-wrap items-center gap-x-3 gap-y-2">
-    <span id="image-size-label-{{ message.id }}" class="inline-flex items-center gap-1.5 text-xs font-medium text-ink-soft">
-        <i class="fa-regular fa-image w-4 text-center" aria-hidden="true"></i>
-        {{- 'compose.image_size.label'|trans -}}
-    </span>
-    {# The settings pages' segmented control (settings/_images.html.twig), as
-       buttons rather than radio inputs: this sits inside the compose form,
-       and a radio there would ride along in every autosave and set the size
-       before a single picture had been scaled to it. #}
-    <div role="radiogroup" aria-labelledby="image-size-label-{{ message.id }}"
-         class="grid grid-flow-col auto-cols-fr rounded-pane border border-line overflow-hidden">
-        {% for case in [null]|merge(enum('App\\Domain\\Enum\\Mail\\ImageSize').cases()) %}
-            {% set size = case ? case.value : 'original' %}
-            {% set edge = case ? case.edge : 0 %}
-            <button type="button" role="radio"
-                    aria-checked="{{ size == picked ? 'true' : 'false' }}"
-                    data-action="click->compose--compose#pickImageSize"
-                    data-compose--compose-size-param="{{ size }}"
-                    data-compose--compose-edge-param="{{ edge }}"
-                    {% if edge > 0 %}title="{{ 'compose.image_size.edge'|trans({ '%px%': edge }) }}"{% endif %}
-                    class="flex items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                           aria-[checked=false]:hover:bg-hover aria-checked:bg-accent aria-checked:text-accent-ink
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent
-                           disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer">
-                {{- ('compose.image_size.' ~ size)|trans -}}
-            </button>
-        {% endfor %}
+     class="mx-4 mb-2 pt-2 border-t border-line">
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span id="image-size-label-{{ message.id }}" class="inline-flex items-center gap-1.5 text-xs font-medium text-ink-soft">
+            <i class="fa-regular fa-image w-4 text-center" aria-hidden="true"></i>
+            {{- 'compose.image_size.label'|trans -}}
+        </span>
+        {# The settings pages' segmented control (settings/_images.html.twig), as
+           buttons rather than radio inputs: this sits inside the compose form,
+           and a radio there would ride along in every autosave and set the size
+           before a single picture had been scaled to it. #}
+        <div role="radiogroup" aria-labelledby="image-size-label-{{ message.id }}"
+             class="grid grid-flow-col auto-cols-fr rounded-pane border border-line overflow-hidden">
+            {% for case in [null]|merge(enum('App\\Domain\\Enum\\Mail\\ImageSize').presets()) %}
+                {% set size = case ? case.value : 'original' %}
+                {% set edge = case ? case.edge : 0 %}
+                <button type="button" role="radio"
+                        aria-checked="{{ size == picked ? 'true' : 'false' }}"
+                        data-action="click->compose--compose#pickImageSize"
+                        data-compose--compose-size-param="{{ size }}"
+                        data-compose--compose-edge-param="{{ edge }}"
+                        data-compose--compose-quality-param="{{ case ? presetQuality : 100 }}"
+                        {% if edge > 0 %}title="{{ 'compose.image_size.edge'|trans({ '%px%': edge }) }}"{% endif %}
+                        class="flex items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                               aria-[checked=false]:hover:bg-hover aria-checked:bg-accent aria-checked:text-accent-ink
+                               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent
+                               disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer">
+                    {{- ('compose.image_size.' ~ size)|trans -}}
+                </button>
+            {% endfor %}
+            {# Custom is only a segment while it is the choice: there is no
+               "custom" to pick before the panel has made one. Clicking it opens
+               the panel on its numbers. #}
+            {% if custom %}
+                <button type="button" role="radio" aria-checked="true"
+                        data-action="click->compose--compose#toggleImageSizePanel"
+                        data-compose--compose-size-param="custom"
+                        aria-controls="{{ panelId }}"
+                        class="flex items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight whitespace-nowrap
+                               bg-accent text-accent-ink
+                               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent
+                               disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer">
+                    {{- 'compose.image_size.custom_segment'|trans -}}
+                </button>
+            {% endif %}
+        </div>
+        <button type="button"
+                data-action="click->compose--compose#toggleImageSizePanel"
+                data-image-size-adjust
+                aria-expanded="false"
+                aria-controls="{{ panelId }}"
+                aria-label="{{ 'compose.image_size.adjust'|trans }}"
+                title="{{ 'compose.image_size.adjust'|trans }}"
+                class="w-8 h-8 flex items-center justify-center rounded-lg border border-line text-ink-muted
+                       hover:bg-hover hover:text-ink aria-expanded:bg-accent-soft aria-expanded:text-accent aria-expanded:border-accent
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent
+                       disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <i class="fa-solid fa-sliders text-xs" aria-hidden="true"></i>
+        </button>
+        {# Custom's numbers beside the segment rather than in it: the
+           segments share one width, and "Custom · 1600 px, 70 %" does not
+           fit a compose window docked at its narrowest. #}
+        {% if custom %}
+            <span data-image-size-custom class="text-xs text-ink-muted whitespace-nowrap">
+                {{- (0 == message.imageEdge
+                    ? 'compose.image_size.custom_own'|trans({ '%quality%': message.imageQuality })
+                    : 'compose.image_size.custom'|trans({ '%px%': message.imageEdge, '%quality%': message.imageQuality })) -}}
+            </span>
+        {% endif %}
+        <span data-image-size-total class="ml-auto text-xs text-ink-faint"></span>
     </div>
-    <span data-image-size-total class="ml-auto text-xs text-ink-faint"></span>
+
+    {# The Adjust panel: longest side and quality, set apart. Inline under the
+       row rather than floating over the window, so nothing in the compose
+       window's scroller can clip it and it stacks the same on a phone.
+
+       Its inputs have no name, so the compose form's autosave leaves them out,
+       and `:stop` keeps their input events from reaching the form's autosave
+       listener at all: dragging a slider is not an edit to the mail. #}
+    <div id="{{ panelId }}" data-image-size-panel hidden
+         role="group" aria-label="{{ 'compose.image_size.panel'|trans }}"
+         data-action="input->compose--compose#previewImageSize:stop change->compose--compose#previewImageSize:stop"
+         class="mt-2 max-w-sm p-3 rounded-pane border border-line bg-surface flex flex-col gap-3">
+        <div class="flex flex-col gap-1">
+            <div class="flex items-baseline justify-between">
+                <label for="image-size-edge-{{ message.id }}" class="text-xs font-medium text-ink-soft">{{ 'compose.image_size.longest_side'|trans }}</label>
+                <span data-image-size-edge-label class="text-xs font-semibold text-ink"></span>
+            </div>
+            <input id="image-size-edge-{{ message.id }}" type="range" data-image-size-edge
+                   min="{{ constant('App\\Domain\\Enum\\Mail\\ImageSize::MIN_EDGE') }}"
+                   max="{{ constant('App\\Domain\\Enum\\Mail\\ImageSize::MAX_EDGE') }}"
+                   step="32" class="w-full accent-accent">
+            <div class="flex justify-between text-[11px] text-ink-faint">
+                <span>{{ 'compose.image_size.edge_px'|trans({ '%px%': constant('App\\Domain\\Enum\\Mail\\ImageSize::MIN_EDGE') }) }}</span>
+                <span>{{ 'compose.image_size.edge_px'|trans({ '%px%': constant('App\\Domain\\Enum\\Mail\\ImageSize::MAX_EDGE') }) }}</span>
+            </div>
+            <label class="flex items-center gap-2 text-xs text-ink-soft">
+                <input type="checkbox" data-image-size-keep class="accent-accent">
+                {{ 'compose.image_size.keep_pixels'|trans }}
+            </label>
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <div class="flex items-baseline justify-between">
+                <label for="image-size-quality-{{ message.id }}" class="text-xs font-medium text-ink-soft">{{ 'compose.image_size.quality'|trans }}</label>
+                <span data-image-size-quality-label class="text-xs font-semibold text-ink"></span>
+            </div>
+            <input id="image-size-quality-{{ message.id }}" type="range" data-image-size-quality
+                   min="{{ constant('App\\Domain\\Enum\\Mail\\ImageSize::MIN_QUALITY') }}"
+                   max="{{ constant('App\\Domain\\Enum\\Mail\\ImageSize::MAX_QUALITY') }}"
+                   step="5" class="w-full accent-accent">
+            <div class="flex justify-between text-[11px] text-ink-faint">
+                <span>{{ 'compose.image_size.smaller'|trans }}</span>
+                <span>{{ 'compose.image_size.sharper'|trans }}</span>
+            </div>
+            <span data-image-size-hint class="text-xs text-ink-muted"></span>
+        </div>
+
+        <div class="flex flex-col gap-1.5 px-3 py-2.5 rounded-lg bg-sunken">
+            <span data-image-size-estimate class="text-xs font-semibold text-ink"></span>
+            <div class="h-1.5 rounded-full bg-line overflow-hidden">
+                <div data-image-size-bar class="h-full bg-accent" style="width: 100%"></div>
+            </div>
+            <span class="text-[11px] text-ink-faint">{{ 'compose.image_size.estimate_note'|trans }}</span>
+        </div>
+
+        <div class="flex items-center justify-between gap-2">
+            <button type="button" data-action="click->compose--compose#resetImageSizePanel"
+                    class="h-8 px-2.5 rounded-lg text-xs font-medium text-ink-soft hover:bg-hover transition-colors">
+                {{- 'compose.image_size.reset'|trans -}}
+            </button>
+            <button type="button" data-action="click->compose--compose#applyImageSizePanel"
+                    class="h-8 px-3 rounded-lg text-xs font-medium bg-accent text-accent-ink hover:bg-accent-strong transition-colors">
+                {{- 'compose.image_size.apply'|trans -}}
+            </button>
+        </div>
+    </div>
 </div>
 
 {% if parts|length > 0 %}
@@ -96,14 +224,33 @@ Variables: message, live (default true)
                     </span>
                 {% else %}
                 <i class="fa-solid fa-paperclip text-[10px] text-ink-faint" aria-hidden="true"></i>
-                {# `download` for the same reason as in mail/_attachment_chip:
-                   without it Turbo intercepts the click and throws the file
-                   away, and the link does nothing at all. #}
-                <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
-                   download="{{ part.filename ?: 'attachment' }}"
-                   class="truncate max-w-[11rem] hover:text-accent transition-colors">
-                    {{- part.filename ?: 'attachment' -}}
-                </a>
+                {% if attachment_preview_kind(part) %}
+                    {# A picture, a video or a PDF opens the reading pane's
+                       viewer rather than downloading: in a draft the question
+                       is "is this the right file, and how does it look at the
+                       size I picked" (#502), not "save it again". The viewer
+                       has its own download button for the rest. #}
+                    <button type="button"
+                            data-controller="ui--modal"
+                            data-action="click->ui--modal#open"
+                            data-ui--modal-size-value="full"
+                            data-ui--modal-src-value="{{ path('app_mail_attachment_preview', { id: part.id }) }}"
+                            data-ui--modal-title-value="{{ part.filename ?: 'attachment.preview.untitled'|trans }}"
+                            data-testid="compose-attachment-preview"
+                            class="truncate max-w-[11rem] text-left hover:text-accent transition-colors cursor-pointer
+                                   rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                        {{- part.filename ?: 'attachment' -}}
+                    </button>
+                {% else %}
+                    {# `download` for the same reason as in mail/_attachment_chip:
+                       without it Turbo intercepts the click and throws the file
+                       away, and the link does nothing at all. #}
+                    <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+                       download="{{ part.filename ?: 'attachment' }}"
+                       class="truncate max-w-[11rem] hover:text-accent transition-colors">
+                        {{- part.filename ?: 'attachment' -}}
+                    </a>
+                {% endif %}
                 {% endif %}
                 <span class="text-ink-faint shrink-0">
                     {{- kb >= 1024 ? (kb / 1024)|number_format(1) ~ ' MB' : kb|number_format(0) ~ ' KB' -}}

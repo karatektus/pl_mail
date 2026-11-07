@@ -1733,14 +1733,35 @@ compose:
     image: 插入图片
     image_insert_failed: 无法将图片插入邮件
     image_size:
+        adjust: 调整尺寸和质量
+        apply: 应用到所有图片
+        custom: "%px% 像素 · %quality%%"
+        custom_own: "原尺寸 · %quality%%"
+        custom_segment: 自定义
         edge: 最长边 %px% 像素
+        edge_px: "%px% 像素"
+        estimate: "%before% → ≈ %after%"
+        estimate_note: PNG 图片保持原始质量；质量设置适用于 JPEG 和 WebP。应用后显示确切大小。
         failed: 部分图片无法缩小
+        hint_blocky: 边缘和文字处会出现色块。仅在大小最重要时使用。
+        hint_fine: 在任何屏幕上都很清晰；只有放大很多才能看出差别。
+        hint_high: 几乎与原图无异。
+        hint_soft: 放大后略显模糊；快速查看足够。
+        keep_pixels: 保持每张照片的原尺寸，只压缩
         label: 图片尺寸
         large: 大
+        longest_side: 最长边
         medium: 中
         original: 原图
+        own_size: 原尺寸
+        panel: 尺寸和质量
+        quality: 质量
+        reset: 恢复为中
         resizing: 正在缩小图片…
+        saving: "%before% → %after%"
+        sharper: 更清晰
         small: 小
+        smaller: 更小
         total: "共 %size%"
     indent: 增加缩进
     insert_emoji: 插入表情符号

@@ -1878,14 +1878,35 @@ compose:
     image: Paste in a likeness
     image_insert_failed: Could not paste the likeness into the scroll
     image_size:
+        adjust: Trim the size an’ the shine
+        apply: Apply to every likeness
+        custom: "%px% px · %quality% %"
+        custom_own: "As painted · %quality% %"
+        custom_segment: Yer own
         edge: Longest side %px% px
+        edge_px: "%px% px"
+        estimate: "%before% → ≈ %after%"
+        estimate_note: PNG likenesses keep their full shine; the shine applies to JPEG an’ WebP. The true weight shows once applied.
         failed: Some likenesses would not shrink
+        hint_blocky: Blocky round the edges an’ the letterin’. Only when the hold be nigh full.
+        hint_fine: Fine on any spyglass; ye’d need to squint close to tell.
+        hint_high: Hard to tell from the original.
+        hint_soft: A touch soft up close; fine for a glance.
+        keep_pixels: Keep each likeness its own size, only squeeze it
         label: Size o’ the likenesses
         large: Large
+        longest_side: Longest side
         medium: Middlin’
         original: As painted
+        own_size: As painted
+        panel: Size an’ shine
+        quality: Shine
+        reset: Back to Middlin’
         resizing: Shrinkin’ the likenesses…
+        saving: "%before% → %after%"
+        sharper: Sharper
         small: Wee
+        smaller: Lighter
         total: "%size% in the hold"
     indent: Shove it inboard
     insert_emoji: Daub on a face

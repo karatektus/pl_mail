@@ -64,6 +64,45 @@ test("an inline image is not counted as an attachment", async ({ page }) => {
     await dock.getByRole("button", { name: "Delete draft" }).click();
 });
 
+/**
+ * In the compose window a picture's chip opens the viewer, as it does in the
+ * reading pane (#502): in a draft the question is whether it is the right
+ * file and how it looks, not saving it a second time.
+ */
+test("clicking a picture attached to a draft previews it instead of downloading", async ({ page }) => {
+    await page.goto("/mail/inbox");
+    await page.getByRole("link", { name: "Compose" }).first().click();
+
+    const dock = page.locator("#compose_dock");
+    const editor = dock.locator('[data-compose--compose-toolbar-target="editor"]');
+
+    await expect(editor).toBeVisible();
+    await editor.click();
+    await editor.fill("a picture, attached");
+
+    await dock.locator('input[data-compose--compose-target="fileInput"]').setInputFiles({
+        name: "e2e-preview.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+            "base64",
+        ),
+    });
+
+    let downloaded = false;
+    page.on("download", () => { downloaded = true; });
+
+    await dock.getByRole("button", { name: "e2e-preview.png" }).click();
+
+    await expect(page.locator("#modal img")).toBeVisible();
+    expect(downloaded).toBe(false);
+
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#modal img")).toHaveCount(0);
+
+    await dock.getByRole("button", { name: "Delete draft" }).click();
+});
+
 test("downloading an attachment produces the file", async ({ page }) => {
     await page.goto("/mail/inbox");
     await page

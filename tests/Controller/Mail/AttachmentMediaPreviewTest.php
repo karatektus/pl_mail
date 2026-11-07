@@ -63,7 +63,12 @@ final class AttachmentMediaPreviewTest extends WebTestCase
         $crawler = $this->client->request('GET', '/mail/attachment/' . $part->id . '/preview');
 
         self::assertResponseIsSuccessful();
-        self::assertSame('/mail/attachment/' . $part->id, $crawler->filter('#modal img')->attr('src'));
+        // `v` is the part's size: a draft's picture sent smaller (#502) gets
+        // new bytes under the same id, and must not come from the cache.
+        self::assertSame(
+            '/mail/attachment/' . $part->id . '?v=' . $part->size,
+            $crawler->filter('#modal img')->attr('src'),
+        );
     }
 
     public function testAVideoOpensOnTheVideoRoute(): void

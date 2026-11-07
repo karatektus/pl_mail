@@ -1982,14 +1982,35 @@ compose:
     image: Insert image
     image_insert_failed: Could not place the image in the message
     image_size:
+        adjust: Adjust size and quality
+        apply: Apply to all images
+        custom: "%px% px · %quality% %"
+        custom_own: "Own size · %quality% %"
+        custom_segment: Custom
         edge: Longest side %px% px
+        edge_px: "%px% px"
+        estimate: "%before% → ≈ %after%"
+        estimate_note: PNG images keep full quality; quality applies to JPEG and WebP. The exact sizes show once applied.
         failed: Some images could not be made smaller
+        hint_blocky: Blocky around edges and text. Use it only when size matters most.
+        hint_fine: Fine on any screen; differences show only zoomed right in.
+        hint_high: Hard to tell from the original.
+        hint_soft: Slightly soft when zoomed in; fine for a quick look.
+        keep_pixels: Keep each photo’s own size, only compress it
         label: Image size
         large: Large
+        longest_side: Longest side
         medium: Medium
         original: Original
+        own_size: Own size
+        panel: Size and quality
+        quality: Quality
+        reset: Back to Medium
         resizing: Resizing images…
+        saving: "%before% → %after%"
+        sharper: Sharper
         small: Small
+        smaller: Smaller
         total: "%size% in all"
     indent: Indent
     insert_emoji: Insert emoji
