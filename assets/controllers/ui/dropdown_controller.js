@@ -76,6 +76,11 @@ export default class extends Controller {
 
         this.menuTarget.hidden = true;
         this._detach();
+
+        // For a trigger that shows whether its menu is open (aria-expanded):
+        // an outside click or Escape closes the menu without its owner
+        // otherwise hearing of it.
+        this.dispatch("closed", { target: this.menuTarget });
     }
 
     _handleOutside(event) {

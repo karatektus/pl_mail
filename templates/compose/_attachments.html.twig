@@ -58,7 +58,9 @@ Variables: message, live (default true)
      data-edge="{{ currentEdge }}"
      data-quality="{{ currentQuality }}"
      {% if images|length == 0 %}hidden{% endif %}
-     class="mx-4 mb-2 pt-2 border-t border-line">
+     data-controller="ui--dropdown"
+     data-action="ui--dropdown:opened->compose--compose#openImageSizePanel ui--dropdown:closed->compose--compose#imageSizePanelClosed"
+     class="relative mx-4 mb-2 pt-2 border-t border-line">
     <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span id="image-size-label-{{ message.id }}" class="inline-flex items-center gap-1.5 text-xs font-medium text-ink-soft">
             <i class="fa-regular fa-image w-4 text-center" aria-hidden="true"></i>
@@ -92,7 +94,7 @@ Variables: message, live (default true)
                the panel on its numbers. #}
             {% if custom %}
                 <button type="button" role="radio" aria-checked="true"
-                        data-action="click->compose--compose#toggleImageSizePanel"
+                        data-action="click->ui--dropdown#toggle"
                         data-compose--compose-size-param="custom"
                         aria-controls="{{ panelId }}"
                         class="flex items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight whitespace-nowrap
@@ -104,7 +106,7 @@ Variables: message, live (default true)
             {% endif %}
         </div>
         <button type="button"
-                data-action="click->compose--compose#toggleImageSizePanel"
+                data-action="click->ui--dropdown#toggle"
                 data-image-size-adjust
                 aria-expanded="false"
                 aria-controls="{{ panelId }}"
@@ -129,17 +131,24 @@ Variables: message, live (default true)
         <span data-image-size-total class="ml-auto text-xs text-ink-faint"></span>
     </div>
 
-    {# The Adjust panel: longest side and quality, set apart. Inline under the
-       row rather than floating over the window, so nothing in the compose
-       window's scroller can clip it and it stacks the same on a phone.
+    {# The Adjust panel: longest side and quality, set apart. A popover like
+       the compose window's other menus (ui--dropdown: an outside click or
+       Escape closes it), so the attachments do not move. While open it is
+       lifted into the browser's top layer and placed beside the Adjust
+       button (compose_controller#_liftImageSizePanel): it may be larger than
+       the compose window, which would otherwise clip it. The classes here
+       are its placement in a browser without the popover API.
 
        Its inputs have no name, so the compose form's autosave leaves them out,
        and `:stop` keeps their input events from reaching the form's autosave
        listener at all: dragging a slider is not an edit to the mail. #}
     <div id="{{ panelId }}" data-image-size-panel hidden
-         role="group" aria-label="{{ 'compose.image_size.panel'|trans }}"
+         data-ui--dropdown-target="menu"
+         data-enter="rise"
+         role="dialog" aria-label="{{ 'compose.image_size.panel'|trans }}"
          data-action="input->compose--compose#previewImageSize:stop change->compose--compose#previewImageSize:stop"
-         class="mt-2 max-w-sm p-3 rounded-pane border border-line bg-surface flex flex-col gap-3">
+         class="absolute bottom-full right-0 mb-2 z-30 popover w-[22rem] max-w-[calc(100vw-1rem)]
+                max-h-[70vh] overflow-y-auto p-3 flex flex-col gap-2.5">
         <div class="flex flex-col gap-1">
             <div class="flex items-baseline justify-between">
                 <label for="image-size-edge-{{ message.id }}" class="text-xs font-medium text-ink-soft">{{ 'compose.image_size.longest_side'|trans }}</label>
@@ -172,10 +181,10 @@ Variables: message, live (default true)
                 <span>{{ 'compose.image_size.smaller'|trans }}</span>
                 <span>{{ 'compose.image_size.sharper'|trans }}</span>
             </div>
-            <span data-image-size-hint class="text-xs text-ink-muted"></span>
+            <span data-image-size-hint class="text-[11px] text-ink-muted"></span>
         </div>
 
-        <div class="flex flex-col gap-1.5 px-3 py-2.5 rounded-lg bg-sunken">
+        <div class="flex flex-col gap-1 px-3 py-2 rounded-lg bg-sunken">
             <span data-image-size-estimate class="text-xs font-semibold text-ink"></span>
             <div class="h-1.5 rounded-full bg-line overflow-hidden">
                 <div data-image-size-bar class="h-full bg-accent" style="width: 100%"></div>
