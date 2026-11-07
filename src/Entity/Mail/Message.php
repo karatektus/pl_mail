@@ -351,6 +351,35 @@ class Message extends MessageModel
     public private(set) ?string $bodyHtmlText = null;
 
     /**
+     * The line under the subject in the list, as MessageSnippet made it the
+     * last time this message was the newest of a listed row. Null until then.
+     *
+     * Kept because making it is the most expensive thing a list does. The
+     * preview is cut from the sanitised HTML — parsed, the quoted history
+     * taken off, flattened — and a newsletter is 30 to 100 KB of it: 1.5 to 4
+     * ms a row on a laptop and four or five times that on the NAS plMail runs
+     * on, so a page of promotions spent a fifth of a second making fifty lines
+     * it had made on the previous click, and fetched megabytes of body to do
+     * it. ThreadRows reads this column instead and fills it on a miss.
+     *
+     * Forgotten by deriveBodyHtmlText() when a body changes — the same hook
+     * the words above are kept by, for the same reason: no builder can then
+     * forget it. See previewKey for what else makes a stored line stale.
+     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    public private(set) ?string $preview = null;
+
+    /**
+     * Which preview was stored: MessageSnippet::keyFor(), the version of the
+     * rules it was made by and whether bulk-mail chrome was skipped, which the
+     * message's category decides. A line made under other rules, or before
+     * the message was re-sorted into or out of a bulk category, does not match
+     * and is made again.
+     */
+    #[ORM\Column(type: Types::SMALLINT, nullable: true)]
+    public private(set) ?int $previewKey = null;
+
+    /**
      * The OpenPGP or S/MIME wrapping the message arrived in, or null for plain
      * mail. Set by each provider's builder before the row is first written —
      * an encrypted message's body is blanked there, because search_vector is
@@ -1150,6 +1179,10 @@ class Message extends MessageModel
 
         $this->bodyHtmlText     = ReadableBody::htmlWordsOf($this);
         $this->bodyHtmlTextFrom = $from;
+
+        // The list line was cut from the old body.
+        $this->preview    = null;
+        $this->previewKey = null;
     }
 
     /**

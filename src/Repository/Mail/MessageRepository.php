@@ -22,6 +22,7 @@ use App\Service\Graph\GraphMessageBuilder;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
@@ -3511,6 +3512,100 @@ class MessageRepository extends ServiceEntityRepository
             ->addOrderBy('m.id', 'ASC')
             ->getQuery()
             ->getArrayResult();
+    }
+
+    /**
+     * The stored list previews of specific messages — one per list row, the
+     * row's latest — with what decides whether each still fits: its key, the
+     * message's category, and whether it is encrypted (the lock in front of
+     * the row's subject, ThreadRow::$encrypted). See Message::$preview.
+     *
+     * No body columns: not fetching them is half of what the stored preview
+     * saves. Only the rows whose preview is missing or stale go on to
+     * findSnippetBodies().
+     *
+     * @param list<int> $ids
+     *
+     * @return array<int, array{preview: ?string, previewKey: ?int, category: ?MessageCategory, crypto: ?MessageCrypto}>
+     */
+    public function findPreviews(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<array{id: int|string, preview: ?string, previewKey: int|string|null, category: MessageCategory|string|null, crypto: ?MessageCrypto}> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id', 'm.preview', 'm.previewKey', 'm.category', 'm.crypto')
+            ->where('m.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getArrayResult();
+
+        $previews = [];
+
+        foreach ($rows as $row) {
+            $category = $row['category'];
+
+            $previews[(int) $row['id']] = [
+                'preview'    => $row['preview'],
+                'previewKey' => null === $row['previewKey'] ? null : (int) $row['previewKey'],
+                'category'   => is_string($category) ? MessageCategory::tryFrom($category) : $category,
+                'crypto'     => $row['crypto'],
+            ];
+        }
+
+        return $previews;
+    }
+
+    /**
+     * Keep the previews a list just made, so the next list reads them.
+     *
+     * One statement for the page, and straight to the table rather than
+     * through the entities: these messages were never hydrated, and a cache
+     * filled from a read is no reason to load fifty of them. The columns are
+     * outside every trigger on `message`, search_vector's included.
+     *
+     * Best effort. A preview that could not be kept is made again next time,
+     * so a failure here — a lock, a connection gone between two statements —
+     * must not fail the list it was only saving work for. In a transaction of
+     * its own, which inside somebody else's is a savepoint: a failed statement
+     * in Postgres poisons the transaction it ran in, and swallowing the error
+     * without rolling back to before it would fail every query after it.
+     *
+     * A body replaced between the read that made a preview and this write
+     * would get the old body's line until the next change to it; bodies are
+     * replaced rarely (a decrypted copy handed over, a repair), and that
+     * window is one request long.
+     *
+     * @param array<int, array{string, int}> $previews message id => [preview, key]
+     */
+    public function storePreviews(array $previews): void
+    {
+        if ([] === $previews) {
+            return;
+        }
+
+        $values = [];
+        $params = [];
+
+        foreach ($previews as $id => [$preview, $key]) {
+            $values[] = '(?::int, ?::text, ?::smallint)';
+            array_push($params, $id, $preview, $key);
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+
+        try {
+            $connection->transactional(static fn (Connection $connection): int|string => $connection->executeStatement(
+                'UPDATE message AS m SET preview = v.preview, preview_key = v.preview_key
+                 FROM (VALUES ' . implode(', ', $values) . ') AS v(id, preview, preview_key)
+                 WHERE m.id = v.id',
+                $params,
+            ));
+        } catch (\Doctrine\DBAL\Exception) {
+            // Made again on the next list; see above.
+        }
     }
 
     /**

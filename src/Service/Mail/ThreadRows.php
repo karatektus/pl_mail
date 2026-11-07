@@ -27,9 +27,11 @@ use Symfony\Contracts\Service\ResetInterface;
  * see from the list.
  *
  * Now it is two statements for the page: the row fields of every message
- * (MessageRepository::findRowFieldsForThreads), and the two body columns of
- * the ONE message per row whose snippet is shown. The snippet is flattened
- * here, once per row, rather than by the template.
+ * (MessageRepository::findRowFieldsForThreads), and the stored preview of the
+ * ONE message per row whose snippet is shown (Message::$preview). Only where
+ * that is missing or stale are its two body columns fetched, the snippet
+ * flattened here, once per row, and kept for the next list — two statements
+ * more, on the first listing of a row and never again.
  *
  * ── The three ways a row is asked for ───────────────────────────────────────
  * A list page calls preload() with its rows first. A single row re-rendered on
@@ -217,18 +219,41 @@ final class ThreadRows implements ResetInterface
             }
         }
 
-        $bodies = $this->messages->findSnippetBodies($latestIds);
+        // The previews as last made, and the bodies only of the rows where
+        // there is none or it was made under other rules — see
+        // Message::$preview for why this is not simply made every time.
+        $previews = $this->messages->findPreviews($latestIds);
+        $missing  = [];
+
+        foreach ($previews as $id => $preview) {
+            if (null === $preview['preview'] || MessageSnippet::keyFor($preview['category']) !== $preview['previewKey']) {
+                $missing[] = $id;
+            }
+        }
+
+        $made = [];
+
+        foreach ($this->messages->findSnippetBodies($missing) as $id => $body) {
+            $key  = MessageSnippet::keyFor($body['category']);
+            $line = $this->snippet->fromBodies($body['bodyHtmlSafe'], $body['bodyText'], $body['category']);
+
+            $made[$id]                    = [$line, $key];
+            $previews[$id]['preview']    = $line;
+            $previews[$id]['previewKey'] = $key;
+        }
+
+        $this->messages->storePreviews($made);
 
         foreach ($byThread as $threadId => $messages) {
             $latestId = ($messages[count($messages) - 1] ?? null)?->id;
-            $body     = null !== $latestId ? ($bodies[$latestId] ?? null) : null;
+            $preview  = null !== $latestId ? ($previews[$latestId] ?? null) : null;
 
             $this->rows[$threadId] = new ThreadRow(
                 $messages,
-                null === $body ? '' : $this->snippet->fromBodies($body['bodyHtmlSafe'], $body['bodyText'], $body['category']),
-                // A thread with no messages has no body row at all, and the
+                (string) ($preview['preview'] ?? ''),
+                // A thread with no messages has no message row at all, and the
                 // nullsafe operator guards the call, not the offset.
-                null !== $body && true === $body['crypto']?->isEncrypted(),
+                null !== $preview && true === $preview['crypto']?->isEncrypted(),
                 $narrowed[$threadId],
             );
         }

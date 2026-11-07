@@ -159,6 +159,10 @@ final class MessageThreadRepositoryTest extends KernelTestCase
             $this->subjectsOf($this->repository->findForAccountInbox($this->account)),
         );
         self::assertSame(1, $this->repository->countForAccountInbox($this->account));
+
+        // The grouped read the inbox page takes its pager total from tests the
+        // label with EXISTS instead of joining it; still one thread.
+        self::assertSame(1, array_sum($this->repository->countTabsForUnifiedInbox($this->user)['threads']));
     }
 
     /**

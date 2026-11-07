@@ -215,8 +215,10 @@
     {% block javascripts %}
         {# The import map and its preloads are inline scripts too, and the
            whole application is loaded through them — an unnonced import map
-           under an enforced script-src is a blank page. #}
-        {% block importmap %}{{ importmap('app', { nonce: csp_nonce() }) }}{% endblock %}
+           under an enforced script-src is a blank page. importmap_once() puts
+           the request's nonce on them; it renders the map itself once per
+           worker, see App\Twig\ImportMapOnceExtension. #}
+        {% block importmap %}{{ importmap_once('app') }}{% endblock %}
     {% endblock %}
 
     {% set frankenphpHotReload = app.request.server.get('FRANKENPHP_HOT_RELOAD') %}
