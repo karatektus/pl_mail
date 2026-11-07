@@ -45,7 +45,8 @@ class MessagePart
      * back to Original, until the message is sent: the next size is scaled
      * from this, never from the copy before it. Everything that sends, seals
      * or serves the part reads storagePath and so gets the smaller copy
-     * without knowing there is a choice. Whatever deletes a part's file
+     * without knowing there is a choice. A send forgets it (the smaller copy
+     * is what went out), and whatever deletes a part's file
      * deletes this one too.
      */
     #[ORM\Column(type: Types::TEXT, nullable: true)]

@@ -453,6 +453,33 @@ final class DraftAttachmentServiceTest extends KernelTestCase
         $this->attachments->deleteStoredFiles($message);
     }
 
+    /**
+     * Once the mail is out, the original goes and the smaller copy stays:
+     * that is what was sent. A part never scaled is not touched.
+     */
+    public function testDroppingOriginalsKeepsWhatWasSent(): void
+    {
+        $message = $this->draft();
+        $scaled  = $this->attachedImage($message);
+        $plain   = $this->attachedImage($message);
+
+        $this->attachments->replaceWithScaled($scaled, $this->image('photo.png', $this->png(2)), false);
+
+        $copy      = $this->storage->getAbsolutePath((string) $scaled->storagePath);
+        $original  = $this->storage->getAbsolutePath((string) $scaled->originalStoragePath);
+        $untouched = $this->storage->getAbsolutePath((string) $plain->storagePath);
+
+        $this->attachments->dropOriginals($message);
+
+        self::assertNull($scaled->originalStoragePath);
+        self::assertNull($scaled->originalSize);
+        self::assertFileDoesNotExist($original);
+        self::assertFileExists($copy);
+        self::assertFileExists($untouched);
+
+        $this->attachments->deleteStoredFiles($message);
+    }
+
     /** Removing a scaled picture, or discarding its draft, takes both files. */
     public function testDroppingAScaledImageDeletesTheOriginalToo(): void
     {
