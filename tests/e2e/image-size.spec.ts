@@ -295,5 +295,22 @@ test("the attachment strip folds to one line while writing", async ({ page }) =>
     await expect(summary).toBeHidden();
     await expect(dock.locator("[data-compose-part]").filter({ hasText: "e2e-fold.txt" })).toBeVisible();
 
+    // A dozen files: the chips scroll inside a strip of capped height, and
+    // there is still text to click into. Hide folds it by hand.
+    for (let i = 0; i < 12; i++) {
+        await fileInput.setInputFiles({ name: `e2e-many-${i}.txt`, mimeType: "text/plain", buffer: Buffer.from(`file ${i}`) });
+        await expect(dock.locator("[data-compose-part]")).toHaveCount(4 + i);
+    }
+
+    const chips = strip.locator("[data-attachments-chips]");
+    expect((await chips.boundingBox())!.height).toBeLessThanOrEqual(152);
+    expect(await chips.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    expect((await dock.locator('[data-compose--compose-target="scroller"]').boundingBox())!.height).toBeGreaterThan(100);
+
+    await strip.getByRole("button", { name: "Hide the attachments" }).click();
+    await expect(summary).toBeVisible();
+    await expect(summary).toBeFocused();
+    await expect(summary).toContainText("15 files");
+
     await dock.getByRole("button", { name: "Delete draft" }).click();
 });

@@ -248,7 +248,12 @@ Variables: message, live (default true)
     {# Stagger, so three files dropped at once read as a list arriving rather
        than as a slab appearing. motion.css caps the delay at eight, which is
        well past the point where a compose window has other problems. #}
-    <div class="flex flex-wrap gap-2 px-4 pb-2 group-data-[collapsed]/attachments:hidden" {% if live %}data-enter-stagger{% endif %}>
+    {# Capped at about four rows of chips and scrolling inside itself past
+       that: a strip with a dozen files used to take the whole window, leaving
+       no text to click into and running out under the toolbar. #}
+    <div data-attachments-chips
+         class="flex flex-wrap gap-2 px-4 pb-2 max-h-[9.5rem] overflow-y-auto overscroll-contain
+                group-data-[collapsed]/attachments:hidden" {% if live %}data-enter-stagger{% endif %}>
         {% for part in parts %}
             {% set kb = (part.size ?: 0) / 1024 %}
             {# data-compose-part*: what compose--encryption needs to put the
@@ -313,5 +318,16 @@ Variables: message, live (default true)
                 </button>
             </span>
         {% endfor %}
+        {# Fold the strip to its one-line summary by hand, the same as
+           clicking into the text does. #}
+        <button type="button"
+                data-action="click->compose--compose#collapseAttachments"
+                aria-label="{{ 'compose.attachments_summary.hide_label'|trans }}"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-ink-muted
+                       hover:bg-hover hover:text-ink transition-colors
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+            {{- 'compose.attachments_summary.hide'|trans -}}
+            <i class="fa-solid fa-chevron-down text-[10px]" aria-hidden="true"></i>
+        </button>
     </div>
 {% endif %}

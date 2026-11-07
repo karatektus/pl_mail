@@ -1732,6 +1732,8 @@ compose:
         working: "Writin'…"
     attachments_summary:
         files: '{1}1 bit o’ cargo|]1,Inf[ %count% bits o’ cargo'
+        hide: Stow it
+        hide_label: Stow the cargo
         images_in_text: Likenesses in the scroll
         show: Show me
     open_failed:

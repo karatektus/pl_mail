@@ -1847,6 +1847,8 @@ compose:
         working: 'Schreibt…'
     attachments_summary:
         files: '{1}1 Datei|]1,Inf[ %count% Dateien'
+        hide: Ausblenden
+        hide_label: Anhänge ausblenden
         images_in_text: Bilder im Text
         show: Anzeigen
     open_failed:

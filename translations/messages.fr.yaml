@@ -1836,6 +1836,8 @@ compose:
         working: 'Rédaction…'
     attachments_summary:
         files: '{1}1 fichier|]1,Inf[ %count% fichiers'
+        hide: Masquer
+        hide_label: Masquer les pièces jointes
         images_in_text: Images dans le texte
         show: Afficher
     open_failed:

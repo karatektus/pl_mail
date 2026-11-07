@@ -4161,7 +4161,18 @@ export default class extends Controller {
         }
 
         if (true === this.hasAttachmentsTarget) {
+            // The strip is replaced whole, and the summary line with it: if
+            // that line had the focus (Hide was just pressed while an upload
+            // was still being brought to the image size), the new one takes
+            // it, rather than the focus falling to the page.
+            const summaryFocused = null !== document.activeElement?.closest?.('[data-attachments-summary]')
+                && this.attachmentsTarget.contains(document.activeElement);
+
             this.attachmentsTarget.innerHTML = await response.text();
+
+            if (true === summaryFocused) {
+                this.attachmentsTarget.querySelector('[data-attachments-summary]')?.focus();
+            }
         }
 
         this._setStatus(this._t('saved', 'Draft saved'), 'text-success');
@@ -4190,14 +4201,27 @@ export default class extends Controller {
      * fold while the draft has no files and no pictures (the partial renders
      * no summary then).
      */
-    collapseAttachments() {
-        if (false === this.hasAttachmentsTarget || null === this.attachmentsTarget.querySelector('[data-attachments-summary]')) {
+    collapseAttachments(event) {
+        const summary = true === this.hasAttachmentsTarget
+            ? this.attachmentsTarget.querySelector('[data-attachments-summary]')
+            : null;
+
+        if (null === summary) {
             return;
         }
 
         this._closeImageSizePanel();
         this.attachmentsTarget.dataset.collapsed = '';
         this._refreshAttachmentSummary();
+
+        // Folded with the Hide button, which has just disappeared: the focus
+        // goes to the line that takes its place, not to the top of the page.
+        // Folded by the editor's focus, it stays in the editor.
+        // On the next frame: the line is display:none until the attribute
+        // above has been styled, and a hidden element takes no focus.
+        if ('click' === event?.type) {
+            requestAnimationFrame(() => summary.focus());
+        }
     }
 
     /** The summary was clicked, or files were added or taken away: the whole strip again. */

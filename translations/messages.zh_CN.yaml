@@ -1587,6 +1587,8 @@ compose:
         working: 正在撰写…
     attachments_summary:
         files: '{1}1 个文件|]1,Inf[ %count% 个文件'
+        hide: 收起
+        hide_label: 收起附件
         images_in_text: 正文中的图片
         show: 显示
     open_failed:
