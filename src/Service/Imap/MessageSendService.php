@@ -219,6 +219,22 @@ class MessageSendService
             ]);
         }
 
+        // The full-size originals of images sent smaller (#502): kept only so
+        // the size could still change, which it no longer can. The row stays
+        // on as the Sent message, so without this every photo was stored
+        // twice for as long as the mail is kept, its GPS position included —
+        // the very thing sending it smaller had left out. Its own try, after
+        // everything else: a file that will not delete costs disk, never the
+        // Sent copy or the change log.
+        try {
+            $this->draftAttachments->dropOriginals($message);
+        } catch (Throwable $failure) {
+            $this->logger->warning('MessageSendService: mail was sent, its images\' originals were not deleted', [
+                'message'   => $message->id,
+                'exception' => $failure,
+            ]);
+        }
+
         return true;
     }
 

@@ -4107,6 +4107,9 @@ export default class extends Controller {
 
         this._setStatus(this._t('uploading', 'Uploading…'), 'text-ink-faint');
 
+        // Files just added are what the person wants to see next.
+        this.expandAttachments();
+
         await this._renderAttachments(
             fetch(`/compose/attachments/${id}`, {
                 method: 'POST',
@@ -4127,6 +4130,8 @@ export default class extends Controller {
         if (undefined === partId) {
             return;
         }
+
+        this.expandAttachments();
 
         await this._renderAttachments(
             fetch(`/compose/attachment/${partId}/remove`, {
@@ -4175,6 +4180,50 @@ export default class extends Controller {
         const detail = (await response.text()).trim();
 
         return '' === detail ? fallback : detail;
+    }
+
+    // ── Attachment strip, folded while writing ────────────────────────
+
+    /**
+     * Into the text: the strip folds to its one-line summary, so the message
+     * gets the room the chips and the Image size row were taking. Nothing to
+     * fold while the draft has no files and no pictures (the partial renders
+     * no summary then).
+     */
+    collapseAttachments() {
+        if (false === this.hasAttachmentsTarget || null === this.attachmentsTarget.querySelector('[data-attachments-summary]')) {
+            return;
+        }
+
+        this._closeImageSizePanel();
+        this.attachmentsTarget.dataset.collapsed = '';
+        this._refreshAttachmentSummary();
+    }
+
+    /** The summary was clicked, or files were added or taken away: the whole strip again. */
+    expandAttachments() {
+        if (true === this.hasAttachmentsTarget) {
+            delete this.attachmentsTarget.dataset.collapsed;
+        }
+    }
+
+    /** The summary's size: the same numbers as the Image size row's total. */
+    _refreshAttachmentSummary() {
+        const label = true === this.hasAttachmentsTarget
+            ? this.attachmentsTarget.querySelector('[data-attachments-summary-size]')
+            : null;
+
+        if (null === label) {
+            return;
+        }
+
+        const { now, before } = this._attachmentTotals();
+
+        label.textContent = before > now
+            ? this._t('imageSizeSaving', '%before% → %after%')
+                .replace('%before%', formatBytes(before))
+                .replace('%after%', formatBytes(now))
+            : formatBytes(now);
     }
 
     // ── Image size (#502) ─────────────────────────────────────────────
@@ -4747,6 +4796,8 @@ export default class extends Controller {
      * render the strip.
      */
     _refreshImageSize() {
+        this._refreshAttachmentSummary();
+
         if (false === this.hasImageSizeTarget) {
             return;
         }
@@ -4754,15 +4805,34 @@ export default class extends Controller {
         const row = this.imageSizeTarget;
         const inBody = new Set(this._bodyImages().map((image) => this._inlinePartId(image)).filter((id) => null !== id));
         const parts = this._imageParts();
-        const byId = new Map(parts.map((part) => [String(part.id), part]));
-        const dataImages = this._bodyDataImages();
 
-        row.hidden = false === (parts.some((part) => false === part.inline || inBody.has(String(part.id))) || dataImages.length > 0);
+        row.hidden = false === (parts.some((part) => false === part.inline || inBody.has(String(part.id))) || this._bodyDataImages().length > 0);
 
         if (true === row.hidden) {
             return;
         }
 
+        const { now, before } = this._attachmentTotals();
+        const label = row.querySelector('[data-image-size-total]');
+
+        if (null !== label) {
+            label.textContent = before > now
+                ? this._t('imageSizeSaving', '%before% → %after%')
+                    .replace('%before%', formatBytes(before))
+                    .replace('%after%', formatBytes(now))
+                : this._t('imageSizeTotal', '%s in all').replace('%s', formatBytes(now));
+        }
+    }
+
+    /**
+     * The message's attachments and pictures in bytes, now and before any of
+     * them was made smaller: the chips, the uploaded pictures still in the
+     * body, and a sealed body's data: pictures.
+     */
+    _attachmentTotals() {
+        const inBody = new Set(this._bodyImages().map((image) => this._inlinePartId(image)).filter((id) => null !== id));
+        const parts = true === this.hasImageSizeTarget ? this._imageParts() : [];
+        const byId = new Map(parts.map((part) => [String(part.id), part]));
         let now = 0;
         let before = 0;
 
@@ -4776,22 +4846,14 @@ export default class extends Controller {
             now += part.size;
             before += Number(part.original) || part.size;
         });
-        dataImages.forEach((image) => {
+        this._bodyDataImages().forEach((image) => {
             const size = dataUriBytes(image.getAttribute('src') ?? '');
 
             now += size;
             before += dataUriBytes(image.dataset.plmailOriginal ?? '') || size;
         });
 
-        const label = row.querySelector('[data-image-size-total]');
-
-        if (null !== label) {
-            label.textContent = before > now
-                ? this._t('imageSizeSaving', '%before% → %after%')
-                    .replace('%before%', formatBytes(before))
-                    .replace('%after%', formatBytes(now))
-                : this._t('imageSizeTotal', '%s in all').replace('%s', formatBytes(now));
-        }
+        return { now, before };
     }
 
     /** The draft's stored pictures, as the strip lists them. */

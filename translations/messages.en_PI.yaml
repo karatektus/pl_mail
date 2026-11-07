@@ -1730,6 +1730,10 @@ compose:
             shorten: 'Make it shorter'
         timing: "Oracle wakin' %load%s · %count% tokens in %seconds%s · %total%s all told"
         working: "Writin'…"
+    attachments_summary:
+        files: '{1}1 bit o’ cargo|]1,Inf[ %count% bits o’ cargo'
+        images_in_text: Likenesses in the scroll
+        show: Show me
     open_failed:
         dismiss: Belay
         failed: The writin' desk would not open. Give it another go.

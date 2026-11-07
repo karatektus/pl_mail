@@ -376,6 +376,41 @@ final readonly class DraftAttachmentService
         $this->entityManager->flush();
     }
 
+    /**
+     * Forget the originals of a message's images sent smaller, once it has
+     * gone out (#502). What was sent is the smaller copy, and that is what
+     * the Sent message keeps; the original existed only so the size could
+     * still change.
+     *
+     * The rows first, the files after the flush: a flush that fails leaves
+     * every part pointing at a file that is still there, and a file that will
+     * not delete is left over rather than pointed at.
+     */
+    public function dropOriginals(Message $message): void
+    {
+        $paths = [];
+
+        foreach ($message->messageParts as $part) {
+            if (null === $part->originalStoragePath) {
+                continue;
+            }
+
+            $paths[]                   = $part->originalStoragePath;
+            $part->originalStoragePath = null;
+            $part->originalSize        = null;
+        }
+
+        if ([] === $paths) {
+            return;
+        }
+
+        $this->entityManager->flush();
+
+        foreach ($paths as $path) {
+            $this->storage->delete($path);
+        }
+    }
+
     /** Detach one file and delete its bytes. */
     public function remove(MessagePart $part): void
     {

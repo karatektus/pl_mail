@@ -1845,6 +1845,10 @@ compose:
             shorten: 'Kürzer fassen'
         timing: 'Modell laden %load% s · %count% Tokens in %seconds% s · insgesamt %total% s'
         working: 'Schreibt…'
+    attachments_summary:
+        files: '{1}1 Datei|]1,Inf[ %count% Dateien'
+        images_in_text: Bilder im Text
+        show: Anzeigen
     open_failed:
         dismiss: Schließen
         failed: Das Schreibfenster konnte nicht geöffnet werden. Bitte versuche es erneut.

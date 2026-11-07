@@ -1585,6 +1585,10 @@ compose:
             shorten: 更简短
         timing: '模型加载 %load% 秒 · %seconds% 秒生成 %count% 个 token · 总计 %total% 秒'
         working: 正在撰写…
+    attachments_summary:
+        files: '{1}1 个文件|]1,Inf[ %count% 个文件'
+        images_in_text: 正文中的图片
+        show: 显示
     open_failed:
         dismiss: 关闭
         failed: 无法打开撰写窗口，请重试。

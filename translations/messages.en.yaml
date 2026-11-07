@@ -1824,6 +1824,10 @@ compose:
             shorten: 'Make it shorter'
         timing: 'Model load %load%s · %count% tokens in %seconds%s · %total%s in total'
         working: 'Writing…'
+    attachments_summary:
+        files: '{1}1 file|]1,Inf[ %count% files'
+        images_in_text: Images in the text
+        show: Show
     open_failed:
         dismiss: Dismiss
         failed: The compose window could not be opened. Please try again.
