@@ -4391,6 +4391,24 @@ html {
     }
 }
 
+/* ═══ Compose window size (#507) ═════════════════════════════════════════
+   The resize corner only where a size can be set: not while the window is
+   minimized to its title bar or expanded over the page, which both size
+   themselves. compose--compose writes those two states as its value
+   attributes. And while a drag is on, the cursor stays the resize cursor and
+   nothing is selected, wherever the pointer wanders.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.compose-window[data-compose--compose-minimized-value="true"] [data-compose-resize],
+.compose-window[data-compose--compose-expanded-value="true"] [data-compose-resize] {
+    display: none;
+}
+
+.compose-resizing,
+.compose-resizing * {
+    cursor: nwse-resize !important;
+    user-select: none;
+}
+
 /* ═══ Shell chrome ═════════════════════════════════════════════════════════
    Unlayered on purpose (same reason as the channel block at the top): these
    rules have to beat the `pane` utility, and unlayered declarations outrank

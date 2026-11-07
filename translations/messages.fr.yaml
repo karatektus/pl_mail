@@ -1911,6 +1911,9 @@ compose:
     quote:
         hide: masquer le texte cité
         show: afficher le texte cité
+    resize:
+        hint: Faites glisser pour redimensionner. Double-cliquez pour la taille standard. Les flèches du clavier marchent aussi.
+        label: Redimensionner la fenêtre
     schedule:
         cancel: Annuler l’envoi programmé
         confirm: Programmer l’envoi
