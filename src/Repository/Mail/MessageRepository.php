@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\CalendarAttachment;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -1781,6 +1782,47 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /** How many rows findImapCopiesCarried() would page through. */
+    /**
+     * Spam that is in the archive: mail wearing Spam that also wears Archive or
+     * has a copy in the server's Archive folder. What a "Mark as spam" filter
+     * left behind while it archived on the server instead of moving to Junk —
+     * see SpamInArchiveBackfillTask. Keyset-paged by id.
+     *
+     * @return list<Message>
+     */
+    public function findSpamInArchive(int $afterId, int $limit): array
+    {
+        return $this->spamInArchive($this->createQueryBuilder('m'))
+            ->andWhere('m.id > :after')
+            ->setParameter('after', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countSpamInArchive(): int
+    {
+        return (int) $this->spamInArchive($this->createQueryBuilder('m')->select('COUNT(m.id)'))
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    private function spamInArchive(QueryBuilder $qb): QueryBuilder
+    {
+        // EXISTS rather than joins: a message wears each label once but may
+        // have several copies, and a join would count it once per copy.
+        return $qb
+            ->where('EXISTS (SELECT 1 FROM ' . Label::class . ' sl WHERE sl MEMBER OF m.labels AND sl.role = :spam)')
+            ->andWhere($qb->expr()->orX(
+                'EXISTS (SELECT 1 FROM ' . Label::class . ' al WHERE al MEMBER OF m.labels AND al.role = :archive)',
+                'EXISTS (SELECT 1 FROM ' . MessageLocation::class . ' loc JOIN loc.mailbox lmb WHERE loc.message = m AND lmb.specialUse = :archiveFolder)',
+            ))
+            ->setParameter('spam', LabelRole::Spam)
+            ->setParameter('archive', LabelRole::Archive)
+            ->setParameter('archiveFolder', MailboxSpecialUse::ARCHIVE);
+    }
+
     public function countImapCopiesCarried(?int $carrierId): int
     {
         $qb = $this->createQueryBuilder('m')
