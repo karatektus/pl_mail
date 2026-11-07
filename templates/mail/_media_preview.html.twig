@@ -57,7 +57,11 @@ either way.
                        data-action="error->mail--media-preview#failed"
                        class="block max-w-full max-h-[calc(92vh-7rem)] rounded bg-black"></video>
             {% else %}
-                <img src="{{ path('app_mail_attachment', { id: part.id }) }}"
+                {# `v`: a draft's picture changes bytes under the same id
+                   when it is sent smaller (#502), and the browser may still
+                   hold the old ones under the bare address. serve() ignores
+                   the parameter. #}
+                <img src="{{ path('app_mail_attachment', { id: part.id, v: part.size }) }}"
                      alt="{{ part.filename ?: 'attachment.preview.untitled'|trans }}"
                      decoding="async"
                      data-mail--media-preview-target="media"

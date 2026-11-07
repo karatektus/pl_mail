@@ -96,14 +96,33 @@ Variables: message, live (default true)
                     </span>
                 {% else %}
                 <i class="fa-solid fa-paperclip text-[10px] text-ink-faint" aria-hidden="true"></i>
-                {# `download` for the same reason as in mail/_attachment_chip:
-                   without it Turbo intercepts the click and throws the file
-                   away, and the link does nothing at all. #}
-                <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
-                   download="{{ part.filename ?: 'attachment' }}"
-                   class="truncate max-w-[11rem] hover:text-accent transition-colors">
-                    {{- part.filename ?: 'attachment' -}}
-                </a>
+                {% if attachment_preview_kind(part) %}
+                    {# A picture, a video or a PDF opens the reading pane's
+                       viewer rather than downloading: in a draft the question
+                       is "is this the right file, and how does it look at the
+                       size I picked" (#502), not "save it again". The viewer
+                       has its own download button for the rest. #}
+                    <button type="button"
+                            data-controller="ui--modal"
+                            data-action="click->ui--modal#open"
+                            data-ui--modal-size-value="full"
+                            data-ui--modal-src-value="{{ path('app_mail_attachment_preview', { id: part.id }) }}"
+                            data-ui--modal-title-value="{{ part.filename ?: 'attachment.preview.untitled'|trans }}"
+                            data-testid="compose-attachment-preview"
+                            class="truncate max-w-[11rem] text-left hover:text-accent transition-colors cursor-pointer
+                                   rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                        {{- part.filename ?: 'attachment' -}}
+                    </button>
+                {% else %}
+                    {# `download` for the same reason as in mail/_attachment_chip:
+                       without it Turbo intercepts the click and throws the file
+                       away, and the link does nothing at all. #}
+                    <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+                       download="{{ part.filename ?: 'attachment' }}"
+                       class="truncate max-w-[11rem] hover:text-accent transition-colors">
+                        {{- part.filename ?: 'attachment' -}}
+                    </a>
+                {% endif %}
                 {% endif %}
                 <span class="text-ink-faint shrink-0">
                     {{- kb >= 1024 ? (kb / 1024)|number_format(1) ~ ' MB' : kb|number_format(0) ~ ' KB' -}}
