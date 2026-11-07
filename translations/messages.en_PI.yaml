@@ -1877,6 +1877,16 @@ compose:
     from: From
     image: Paste in a likeness
     image_insert_failed: Could not paste the likeness into the scroll
+    image_size:
+        edge: Longest side %px% px
+        failed: Some likenesses would not shrink
+        label: Size o’ the likenesses
+        large: Large
+        medium: Middlin’
+        original: As painted
+        resizing: Shrinkin’ the likenesses…
+        small: Wee
+        total: "%size% in the hold"
     indent: Shove it inboard
     insert_emoji: Daub on a face
     insert_link: Splice in a link

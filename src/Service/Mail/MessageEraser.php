@@ -160,6 +160,8 @@ readonly class MessageEraser
         foreach ($message->messageParts as $part) {
             try {
                 $this->attachments->delete($part->storagePath);
+                // A draft's image sent smaller keeps its original beside it (#502).
+                $this->attachments->delete($part->originalStoragePath);
             } catch (\Throwable $e) {
                 $this->logger->warning('MessageEraser: could not delete an attachment', [
                     'part'      => $part->id,

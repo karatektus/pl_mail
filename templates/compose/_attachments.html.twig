@@ -22,6 +22,52 @@ Variables: message, live (default true)
    was ignored. #}
 {% set live  = live ?? true %}
 
+{# The Image size row (#502). Every image of the draft that a browser can make
+   smaller, attached or in the body: compose_controller scales them all to the
+   size picked here. Rendered whenever the draft could hold such an image and
+   shown by compose_controller (_refreshImageSize) while it does — the body
+   can gain or lose a picture without this fragment being rendered again, and
+   a sealed draft's pictures live in the body as data: URIs the server never
+   sees. The `hidden` here is the server's first guess, so the row does not
+   blink in on a window that opens with images. #}
+{% set scalable = constant('App\\Service\\Mail\\DraftAttachmentService::SCALABLE') %}
+{% set images = message.messageParts|filter(part => part.contentType in scalable and part.senderKeyFingerprint is null) %}
+{% set picked = message.imageSize ? message.imageSize.value : 'original' %}
+<div data-compose--compose-target="imageSize"
+     data-image-parts="{{ images|map(part => { id: part.id, inline: part.isInline ? true : false, sealed: part.sealed, scaled: part.originalStoragePath is not null, size: part.size ?: 0, type: part.contentType, name: part.filename ?: 'image' })|json_encode|e('html_attr') }}"
+     data-size="{{ picked }}"
+     {% if images|length == 0 %}hidden{% endif %}
+     class="mx-4 mb-2 pt-2 border-t border-line flex flex-wrap items-center gap-x-3 gap-y-2">
+    <span id="image-size-label-{{ message.id }}" class="inline-flex items-center gap-1.5 text-xs font-medium text-ink-soft">
+        <i class="fa-regular fa-image w-4 text-center" aria-hidden="true"></i>
+        {{- 'compose.image_size.label'|trans -}}
+    </span>
+    {# The settings pages' segmented control (settings/_images.html.twig), as
+       buttons rather than radio inputs: this sits inside the compose form,
+       and a radio there would ride along in every autosave and set the size
+       before a single picture had been scaled to it. #}
+    <div role="radiogroup" aria-labelledby="image-size-label-{{ message.id }}"
+         class="grid grid-flow-col auto-cols-fr rounded-pane border border-line overflow-hidden">
+        {% for case in [null]|merge(enum('App\\Domain\\Enum\\Mail\\ImageSize').cases()) %}
+            {% set size = case ? case.value : 'original' %}
+            {% set edge = case ? case.edge : 0 %}
+            <button type="button" role="radio"
+                    aria-checked="{{ size == picked ? 'true' : 'false' }}"
+                    data-action="click->compose--compose#pickImageSize"
+                    data-compose--compose-size-param="{{ size }}"
+                    data-compose--compose-edge-param="{{ edge }}"
+                    {% if edge > 0 %}title="{{ 'compose.image_size.edge'|trans({ '%px%': edge }) }}"{% endif %}
+                    class="flex items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                           aria-[checked=false]:hover:bg-hover aria-checked:bg-accent aria-checked:text-accent-ink
+                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer">
+                {{- ('compose.image_size.' ~ size)|trans -}}
+            </button>
+        {% endfor %}
+    </div>
+    <span data-image-size-total class="ml-auto text-xs text-ink-faint"></span>
+</div>
+
 {% if parts|length > 0 %}
     {# Stagger, so three files dropped at once read as a list arriving rather
        than as a slab appearing. motion.css caps the delay at eight, which is
@@ -36,6 +82,7 @@ Variables: message, live (default true)
                   data-part-name="{{ part.filename ?: 'attachment' }}"
                   data-part-type="{{ part.contentType ?: 'application/octet-stream' }}"
                   data-part-sealed="{{ part.sealed ? '1' : '0' }}"
+                  data-part-size="{{ part.size ?: 0 }}"
                   class="inline-flex items-center gap-2 pl-2.5 pr-1.5 py-1 rounded-lg text-xs
                          bg-sunken border border-line text-ink-soft">
                 {% if part.sealed %}

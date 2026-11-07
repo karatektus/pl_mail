@@ -35,6 +35,15 @@ final readonly class DraftAttachmentService
      */
     public const int MAX_BYTES = 25 * 1024 * 1024;
 
+    /**
+     * The images a draft can send smaller (#502): what every browser can
+     * both decode and encode again in the same format. GIF is left out
+     * because a canvas keeps only its first frame, SVG because it has no
+     * pixels to drop, HEIC because only Safari reads it. The compose window
+     * reads this list too, through the attachment strip.
+     */
+    public const array SCALABLE = ['image/jpeg', 'image/png', 'image/webp'];
+
     public function __construct(
         private EntityManagerInterface  $entityManager,
         private AttachmentStorageHelper $storage,
@@ -227,12 +236,98 @@ final readonly class DraftAttachmentService
         return $part;
     }
 
+    /**
+     * Put a smaller copy of an image in place of the one the part holds, and
+     * keep the original beside it (#502).
+     *
+     * The browser made the copy: see ImageSize for why the server does not.
+     * What the server still decides is whether the bytes may stand in for
+     * the part at all. An open part takes only an image of the very type it
+     * already is, read from the bytes — the browser keeps the format, and a
+     * part that was a JPEG cannot quietly become a text/html file under the
+     * same name. A sealed part takes only another OpenPGP message, which is
+     * as much as can be known about bytes the server cannot read.
+     *
+     * The first copy moves the original to originalStoragePath; a later one
+     * replaces the copy and leaves the original where it is, so changing the
+     * size twice never scales a scaled picture.
+     *
+     * @return string|null the reason the copy was refused, or null when it is in place
+     */
+    public function replaceWithScaled(MessagePart $part, UploadedFile $file, bool $sealed): ?string
+    {
+        $error = $this->refusal($file);
+
+        if (null !== $error) {
+            return $error;
+        }
+
+        if ($sealed !== $part->sealed) {
+            return $this->translator->trans('compose.upload.failed');
+        }
+
+        $contents = (string) file_get_contents($file->getPathname());
+
+        if (true === $sealed) {
+            if ('' === $contents || 0 === (ord($contents[0]) & 0x80)) {
+                return $this->translator->trans('compose.upload.failed');
+            }
+        } elseif (false === in_array($part->contentType, self::SCALABLE, true) || $file->getMimeType() !== $part->contentType) {
+            return $this->translator->trans('compose.upload.images_only');
+        }
+
+        $message = $part->message;
+
+        $storagePath = $this->storage->store(
+            (int) $message->account->id,
+            (int) ($message->mailbox->id ?? 0),
+            (int) $message->id,
+            (string) $part->filename,
+            $contents,
+        );
+
+        if (null === $part->originalStoragePath) {
+            $part->originalStoragePath = $part->storagePath;
+            $part->originalSize        = $part->size;
+        } else {
+            $this->storage->delete($part->storagePath);
+        }
+
+        $part->storagePath = $storagePath;
+        $part->size        = strlen($contents);
+
+        // The size is part of Email.attachments, which JMAP publishes.
+        $this->announce($message);
+        $this->entityManager->flush();
+
+        return null;
+    }
+
+    /** Put the original back in place of the smaller copy; nothing to do for a part never scaled. */
+    public function restoreOriginal(MessagePart $part): void
+    {
+        if (null === $part->originalStoragePath) {
+            return;
+        }
+
+        $this->storage->delete($part->storagePath);
+
+        $part->storagePath         = $part->originalStoragePath;
+        $part->size                = $part->originalSize;
+        $part->originalStoragePath = null;
+        $part->originalSize        = null;
+
+        $this->announce($part->message);
+        $this->entityManager->flush();
+    }
+
     /** Detach one file and delete its bytes. */
     public function remove(MessagePart $part): void
     {
         $message = $part->message;
 
         $this->storage->delete($part->storagePath);
+        $this->storage->delete($part->originalStoragePath);
 
         $message->removeMessagePart($part);
         $this->entityManager->remove($part);
@@ -247,6 +342,7 @@ final readonly class DraftAttachmentService
     {
         foreach ($message->messageParts as $part) {
             $this->storage->delete($part->storagePath);
+            $this->storage->delete($part->originalStoragePath);
         }
     }
 

@@ -325,6 +325,7 @@ final class JmapDraftWriter
             // one of our own relative paths, so a gmail:// part loses its row
             // and its provider copy is left alone.
             $this->attachmentStorage->delete($part->storagePath);
+            $this->attachmentStorage->delete($part->originalStoragePath);
             $message->removeMessagePart($part);
             $this->entityManager->remove($part);
         }

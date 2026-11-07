@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:a69ba8a5ee3aea8909941644147ea5e9f32a7970 -->
+<!-- translated-from: features/mail.md sha1:8c1a0f5452c534b643691b45f1055704784aecf6 -->
 
 # Mail
 
@@ -1206,6 +1206,24 @@ Eingebettete Bilder reisen als `cid:`-Teile der Nachricht, was jedes Mailprogram
 die Empfängerin sieht also das Bild und keinen kaputten Verweis zurück auf plMail. Sie sind keine
 Anhänge und werden auch nicht als solche gezählt: Eine Nachricht, deren einziges Bild du in den
 Text gesetzt hast, trägt keine Büroklammer.
+
+### Bilder kleiner senden
+
+Fotos vom Handy sind jeweils mehrere Megabyte groß, und schon ein paar davon machen eine Nachricht
+größer, als die meisten sie verschicken wollten. Sobald der Entwurf ein Bild enthält, angehängt oder
+im Text, erscheint über den Anhängen die Zeile **Bildgröße**: **Original**, **Groß** (2048 Pixel an
+der längsten Seite), **Mittel** (1280) und **Klein** (800), daneben die Größe der ganzen Nachricht.
+
+Sie steht zu Beginn auf Original, es wird also nichts kleiner, solange du keine Größe wählst. Die
+gewählte Größe gilt für jedes Bild im Entwurf und auch für Bilder, die du danach hinzufügst. Dateien,
+die keine Bilder sind, bleiben, wie sie sind, ebenso ein Bild, das schon kleiner ist als die gewählte
+Größe, ein GIF, ein SVG oder ein HEIC-Foto. Du kannst die Größe ändern oder zu Original zurück, bis du
+sendest: plMail behält jedes Bild so, wie du es hochgeladen hast, und verkleinert jedes Mal von dort
+aus.
+
+Das Verkleinern erledigt dein Browser, auch in einem verschlüsselten Entwurf. Er dreht ein Handyfoto
+zuerst richtig herum, und die kleinere Kopie behält keine Metadaten des Fotos, sein GPS-Standort geht
+also nicht mit hinaus. Original sendet die Datei genau so, wie du sie hochgeladen hast.
 
 ### Links
 
