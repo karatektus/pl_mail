@@ -89,8 +89,28 @@ final readonly class MessageSnippet
     /** The signature delimiter of RFC 3676 §4.3, once trimmed: "-- ". */
     private const string SIGNATURE = '--';
 
+    /**
+     * The version of the rules below, for the previews stored on Message.
+     *
+     * Raise it whenever a change here would make a different line out of the
+     * same body — a new skip, another length, a different quote seam — and
+     * every stored preview is made again the next time its row is listed,
+     * instead of the list showing old lines beside new ones.
+     */
+    public const int VERSION = 1;
+
     public function __construct(private QuoteCollapser $quotes)
     {
+    }
+
+    /**
+     * Which stored preview fits a message of this category: the rules' version
+     * and whether bulk-mail chrome is skipped, in one number. See
+     * Message::$previewKey.
+     */
+    public static function keyFor(?MessageCategory $category): int
+    {
+        return self::VERSION * 2 + (true === self::skipsChrome($category) ? 1 : 0);
     }
 
     public function of(?Message $message): string

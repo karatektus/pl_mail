@@ -164,8 +164,12 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * the frame has to know which one it is and which accounts it holds, the
      * same two reads the sidebar makes on a full page, and here they are list
      * work too — they narrow the list, its count and its tab strip.
+     *
+     * Sixteen since the pager total, every tab's total and every tab's unread
+     * come out of one grouped read (countTabsForUnifiedInbox()): those were
+     * three reads of the whole inbox, the largest fixed cost of a tab click.
      */
-    private const int INBOX_FRAME_BUDGET = 18;
+    private const int INBOX_FRAME_BUDGET = 16;
 
     private KernelBrowser $client;
     private Connection $connection;

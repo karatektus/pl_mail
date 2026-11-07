@@ -286,29 +286,34 @@ final class MailController extends AbstractController
         $tabbed = null !== $tab;
 
         $unreadOnly = $this->unreadOnly($request);
-        $total      = $this->threadRepository->countForUnifiedInbox($user, $tab, $unreadOnly, $accountIds);
-        $page       = $this->pageOrRedirect($request, $total);
+
+        // Every tab's total, for which tabs EXIST, and every tab's unread, for
+        // the icon tint — the tint is not limited to the unread filter, so
+        // neither is this. The unread NUMBERS on the tabs come from the
+        // sidebarCounts global in the template, the same memoised read the
+        // counts endpoint answers with, so the two cannot disagree.
+        //
+        // One grouped read answers both, and the pager's total as well: it is
+        // this tab's entry. Three reads of the whole inbox per click were the
+        // largest fixed cost of switching tabs. See countTabsForUnifiedInbox().
+        //
+        // Not made without tabs: there is no strip to decide the shape of and
+        // no icon to tint, and the one list's total is a single count.
+        $tabCounts = $tabbed ? $this->threadRepository->countTabsForUnifiedInbox($user, $accountIds) : null;
+        $tabTotals = $tabCounts['threads'] ?? [];
+        $tabUnread = $tabCounts['unread'] ?? [];
+
+        $total = null === $tab
+            ? $this->threadRepository->countForUnifiedInbox($user, null, $unreadOnly, $accountIds)
+            : (true === $unreadOnly ? $tabUnread : $tabTotals)[$tab->value] ?? 0;
+        $page  = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
             return $page;
         }
 
-        $sort       = $this->listSort($request);
-        $threads    = $this->threadRepository->findForUnifiedInbox($user, $tab, $page, self::PER_PAGE, $sort, $unreadOnly, $accountIds);
-        // The unread numbers on the tabs come from the sidebarCounts global in
-        // the template — the same memoised read the counts endpoint answers
-        // with, so the two cannot disagree. Only which tabs EXIST is decided
-        // here.
-        //
-        // Neither grouped read is made without tabs: there is no strip to
-        // decide the shape of and no icon to tint.
-        $tabTotals  = $tabbed ? $this->threadRepository->countByCategoryForUnifiedInbox($user, $accountIds) : [];
-
-        // Which tabs hold unread, for the icon tint. One grouped query, the
-        // same shape and cost as the totals above, on every inbox render — the
-        // tint is not limited to the unread filter, so this cannot be either.
-        // See the tab strip in mail/inbox.html.twig.
-        $tabUnread  = $tabbed ? $this->threadRepository->countUnreadByCategoryForUnifiedInbox($user, $accountIds) : [];
+        $sort    = $this->listSort($request);
+        $threads = $this->threadRepository->findForUnifiedInbox($user, $tab, $page, self::PER_PAGE, $sort, $unreadOnly, $accountIds);
 
         // Which tabs the strip shows is visibleTabs()' rule, which the account
         // page draws its own strip by as well.
