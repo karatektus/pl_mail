@@ -69,6 +69,23 @@ function sheet(page: Page): Locator {
     return page.locator(SHEET);
 }
 
+/**
+ * A hold past 450ms that opens the sheet, then the finger lifts, and the sheet stays.
+ *
+ * The sheet is waited for BEFORE the finger lifts. The lift leaves a click behind (a tap, to
+ * Chromium, which judges it on real time while the page runs on the fake clock), and the sheet
+ * ignores that click only once it has seen the opening finger's touchend, which it listens for
+ * from its connect(). Stimulus connects the sheet a moment after the hold appends it, so a lift
+ * sent straight after runFor() could arrive first: the touchend went unseen and the click closed
+ * the sheet, about one run in six locally. A real finger lifts long after the sheet is up.
+ */
+async function holdThenLift(page: Page, finger: Finger): Promise<void> {
+    await page.clock.runFor(500);
+    await expect(sheet(page)).toHaveCount(1);
+    await finger.up();
+    await expect(sheet(page)).toHaveCount(1);
+}
+
 function dialog(page: Page): Locator {
     return page.getByRole("dialog", { name: "Actions for this conversation" });
 }
@@ -347,9 +364,7 @@ test.describe("a background refresh does not disturb the sheet", () => {
 
         const finger = await pressRow(page, row);
 
-        await page.clock.runFor(500);
-        await finger.up();
-        await expect(sheet(page)).toHaveCount(1);
+        await holdThenLift(page, finger);
 
         // A change to a different row, made on the server and not through the sheet.
         expect((await ajaxPost(page, `/status/thread/${otherId}/star`)).ok()).toBe(true);
@@ -380,9 +395,7 @@ test.describe("a background refresh does not disturb the sheet", () => {
 
         const finger = await pressRow(page, row);
 
-        await page.clock.runFor(500);
-        await finger.up();
-        await expect(sheet(page)).toHaveCount(1);
+        await holdThenLift(page, finger);
 
         expect((await ajaxPost(page, `/status/thread/${id}/archive`)).ok()).toBe(true);
 
@@ -426,13 +439,26 @@ test.describe("a row that leaves under a held finger", () => {
 
         // The row goes while the finger is down and before the 450ms hold is decided. The touch
         // targets the removed node, so nothing from here on reaches the hold's touchend.
-        await row.evaluate((element) => element.remove());
+        //
+        // Its place is kept by an empty spacer of the same height, so no other row slides up under
+        // the finger. The page's clock says 500ms passed, but the finger is down for only as long
+        // as the test takes in real time, and Chromium decides tap or long press on real time: on
+        // a CI runner that was about 120ms, a tap, and the lift became a click on the conversation
+        // that had moved into the gap, which opened it over the list and left the second hold
+        // below nothing to open on. A real finger held for half a second is never a tap, so that
+        // click is the fake clock's and not the app's.
+        await row.evaluate((element) => {
+            const spacer = document.createElement("li");
+            spacer.style.height = `${element.getBoundingClientRect().height}px`;
+            element.replaceWith(spacer);
+        });
         await expect(row).toHaveCount(0);
 
         await page.clock.runFor(500);
         await finger.up();
 
         await expect(sheet(page)).toHaveCount(0);
+        await expect(page, "lifting the finger opened no conversation").toHaveURL(/\/mail\/inbox(\/\d+)?$/);
         expect(errors, "a removed row opens no sheet and throws nothing").toEqual([]);
 
         // The removed row claimed nothing: a pull is granted before any other touch lands. (The next
@@ -444,10 +470,7 @@ test.describe("a row that leaves under a held finger", () => {
         const other = mailRow(page, INBOX_SUBJECTS.read);
         const again = await pressRow(page, other);
 
-        await page.clock.runFor(500);
-        await again.up();
-
-        await expect(sheet(page)).toHaveCount(1);
+        await holdThenLift(page, again);
         expect(errors, "the next hold throws nothing either").toEqual([]);
 
         await page.keyboard.press("Escape");
