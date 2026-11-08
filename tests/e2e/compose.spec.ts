@@ -144,7 +144,9 @@ test.describe("compose window", () => {
         });
 
         await expect(dockEl.getByRole("link", { name: "e2e-big.bin" })).toBeVisible();
-        await expect(dockEl.getByText("3.0 MB")).toBeVisible();
+        // On the chip: the strip's folded summary line (hidden here) carries
+        // the same size.
+        await expect(dockEl.locator("[data-attachments-chips]").getByText("3.0 MB")).toBeVisible();
     });
 
     // `allow_options_create => true` never reached Tom Select — this version of

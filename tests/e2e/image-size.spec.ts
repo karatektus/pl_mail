@@ -355,8 +355,8 @@ test("a draft with a file before its photos reopens with a working To field", as
 
     await expect(dock.locator(".ts-control").first()).toBeVisible();
     await expect(dock.locator(".ts-control").first().locator(".item")).toContainText("pdf-first@example.test");
-    // A list, whatever came first; the strip may be folded (the reopened
-    // draft puts the caret in the text), so this reads the row's data.
+    // A list, whatever came first. Read from the row's data rather than
+    // from what it draws, which depends on the size picked.
     expect(await dock.locator('[data-compose--compose-target="imageSize"]').getAttribute("data-image-parts")).toMatch(/^\[/);
     expect(errors).toEqual([]);
 

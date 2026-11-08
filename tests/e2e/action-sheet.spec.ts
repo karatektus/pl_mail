@@ -411,6 +411,16 @@ test.describe("a row that leaves under a held finger", () => {
 
         await openInbox(page);
 
+        // No background refresh while this runs: the list is held the way a row's own write holds
+        // it (mail--mail-pane#hold). This test removes a row by hand, and a refresh redraws the list
+        // from the server with that row back in it. On a loaded CI runner the new-mail push from
+        // this test's own seed arrived during the second hold, the rows moved down one under the
+        // finger, and the hold landed on the row above as a tap. Refreshes have their own tests in
+        // "a background refresh does not disturb the sheet".
+        await page.evaluate(() => {
+            document.body.dispatchEvent(new CustomEvent("mail--list-toolbar:writing", { bubbles: true }));
+        });
+
         const row = mailRow(page, INBOX_SUBJECTS.archive);
         const finger = await pressRow(page, row);
 
