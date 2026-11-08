@@ -1,4 +1,4 @@
-<!-- translated-from: install/configuration.md sha1:7c66d8ab5f1fb780ead91621599ae68d16be1c72 -->
+<!-- translated-from: install/configuration.md sha1:31307be109da041a6245219867145ccece0e3637 -->
 # Konfigurationsreferenz
 
 Jede Umgebungsvariable, die plMail liest, was sie bewirkt, welchen Vorgabewert sie hat und was
@@ -180,7 +180,7 @@ eine Hälfte nicht lesen, was die andere schreibt.
 
 Drei Variablen lockern eine Prüfung, und es lohnt sich, genau zu sagen, wofür diese Prüfung da ist.
 
-Selbst gehostete Integrationen — Nextcloud, Immich, Paperless-ngx — lassen eine angemeldete Person ihre eigene
+Selbst gehostete Integrationen — Nextcloud, OpenCloud, Immich, Paperless-ngx — lassen eine angemeldete Person ihre eigene
 Serveradresse eintippen. Das richtet plMails ausgehenden HTTP-Client dorthin, wohin diese Person
 will, und zwar aus einem Containernetz heraus, in dem auch Postgres und der Mercure-Hub liegen.
 `App\Service\Integration\IntegrationUrlValidator` löst den Host auf und weist jede Adresse in einem

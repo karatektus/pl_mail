@@ -39,7 +39,7 @@ use Webklex\PHPIMAP\Config;
  * taken on trust: the MIME is parsed here, the HTML is sanitised here, the
  * attachments are stored as any synced mail's are — and then the mail gets
  * what any other mail gets after ingest: the search index (search_vector is
- * generated from body_text), insights, date proposals, events from `.ics`
+ * built from body_text), insights, date proposals, events from `.ics`
  * parts, and the person's rules while it is still unread. The models only as
  * far as DecryptedMailPolicy::allowsAi() says.
  *

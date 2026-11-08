@@ -42,6 +42,7 @@ final class MessageCategorizer
         'nextdoor.com',
         'meetup.com',
         'xing.com',
+        'strava.com',
     ];
 
     /**
@@ -257,16 +258,25 @@ final class MessageCategorizer
             return ['category' => MessageCategory::Forums, 'reason' => 'forum', 'signal' => $forum];
         }
 
-        $signal = $promotion;
-
-        if (null !== $signal) {
-            return ['category' => MessageCategory::Promotions, 'reason' => 'promotion', 'signal' => $signal];
-        }
-
+        // SOCIAL BEFORE PROMOTIONS, for the same reason Forums comes before them.
+        //
+        // A social network's notification — a like, a follow, a kudos — carries
+        // List-Unsubscribe like every other bulk mail, because the sender's
+        // mail platform adds it to everything. With Promotions first, the
+        // domain list below could never match: LinkedIn and Facebook sat in
+        // Promotions whatever they were about, and so did Strava's "has given
+        // you kudos". The sender's domain says what KIND of mail this is; the
+        // unsubscribe header only says it is bulk.
         $signal = $this->socialDomain($from);
 
         if (null !== $signal) {
             return ['category' => MessageCategory::Social, 'reason' => 'social', 'signal' => $signal];
+        }
+
+        $signal = $promotion;
+
+        if (null !== $signal) {
+            return ['category' => MessageCategory::Promotions, 'reason' => 'promotion', 'signal' => $signal];
         }
 
         $signal = $this->updateSignal($headers, $from);

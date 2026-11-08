@@ -163,6 +163,9 @@ export function motionIsOff() {
  * that has already run its course does not run again just because someone is
  * now looking at it. Clearing the name, forcing a reflow and putting it back is
  * the documented way to rewind one.
+ *
+ * This decides; rewind() does it, for the whole batch at once. Answers true
+ * for an element whose own entrance should be rewound, nothing otherwise.
  */
 function play(element, batch) {
     if (element.hasAttribute(PLAYED)) {
@@ -215,15 +218,44 @@ function play(element, batch) {
         return;
     }
 
-    const name = getComputedStyle(element).animationName;
+    return true;
+}
 
-    if ("none" === name || "" === name) {
+/**
+ * Rewind the entrances play() asked for, all of them at once.
+ *
+ * Restarting a CSS animation means taking it off, letting the browser see that
+ * it is gone, and putting it back. Done one element at a time — write, read
+ * `offsetWidth`, write — every element costs a full style and layout pass,
+ * because each read comes straight after a write. A list switch inserts dozens
+ * of elements with entrances, so that was dozens of layouts of a fifty-row list
+ * inside one task (#496).
+ *
+ * So the reads come first, together (one style pass, and every later read is
+ * answered from it), then the writes, one forced pass for the lot, and the
+ * writes back. Same result on screen: every one of them starts from its first
+ * frame.
+ */
+function rewind(elements) {
+    const animated = elements.filter((element) => {
+        const name = getComputedStyle(element).animationName;
+
+        return "none" !== name && "" !== name;
+    });
+
+    if (0 === animated.length) {
         return;
     }
 
-    element.style.animation = "none";
-    void element.offsetWidth;
-    element.style.animation = "";
+    for (const element of animated) {
+        element.style.animation = "none";
+    }
+
+    void animated[0].offsetWidth;
+
+    for (const element of animated) {
+        element.style.animation = "";
+    }
 }
 
 /**
@@ -494,7 +526,7 @@ function watch() {
 
                 const batch = entrances(node);
 
-                batch.forEach((element) => play(element, batch));
+                rewind(batch.filter((element) => true === play(element, batch)));
             }
         }
     }).observe(document.documentElement, { childList: true, subtree: true });

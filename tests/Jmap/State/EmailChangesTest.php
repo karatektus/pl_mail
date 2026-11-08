@@ -35,6 +35,7 @@ use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\DraftPersister;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MailChangeRecorder;
+use App\Service\Mail\NotifyScopes;
 use App\Service\Mail\MailSenderRegistry;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\PostIngestPipeline;
@@ -440,6 +441,7 @@ final class EmailChangesTest extends KernelTestCase
             $container->get(MessageThreader::class),
             $container->get(MailRuleEngine::class),
             $container->get(MailChangeRecorder::class),
+            $container->get(NotifyScopes::class),
             $this->em,
             $container->get(LoggerInterface::class),
             [],

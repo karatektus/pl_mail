@@ -1,0 +1,140 @@
+{#
+settings/_unified_inboxes.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The reader's unified inboxes (#265), in sidebar order: each with its icon and
+name, saved together, and a delete for the ones the reader made. Dragged — or
+moved with the arrow buttons — into the order the sidebar draws them, written
+as one JSON list after every move by settings--tab-order, the controller the
+inbox tabs card uses for the same job.
+
+OTHER IS ON THE LIST LIKE THE REST, because its name, icon and place are the
+reader's to choose too. It has no delete: it is where every account taken out
+of the reader's own inboxes goes. Its hint says so, and that it stays out of
+the sidebar while it holds nothing.
+
+THE ICON is a button opening the set as radio buttons in a native popover, so
+the row stays one line and the choice is a click on the glyph itself rather
+than a list of names nobody recognises. A popover rather than a dropdown inside
+the row, because the card clips what overflows it. The radio group is part of
+the row's form; settings--inbox-icon only shows the pick and closes the set.
+
+Accepts:
+  inboxes  UnifiedInbox[]  every inbox of the reader's, Other included, in order
+#}
+{% set icons = enum('App\\Domain\\Enum\\Mail\\UnifiedInboxIcon').cases() %}
+{% set moveButton = 'w-5 h-4 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed' %}
+{% set ownCount = inboxes|filter(i => not i.isOther)|length %}
+
+{% macro icon_picker(name, current, icons, label, idPrefix) %}
+    <span class="shrink-0" data-controller="settings--inbox-icon" data-inbox-icon-picker>
+        <button type="button" popovertarget="{{ idPrefix }}-panel"
+                class="w-8 h-8 flex items-center justify-center rounded-pane border border-line text-ink-muted hover:text-ink hover:bg-hover cursor-pointer"
+                aria-label="{{ label }}" title="{{ label }}">
+            <i class="fa-solid {{ current.cssClass }} text-sm" aria-hidden="true" data-settings--inbox-icon-target="glyph"></i>
+        </button>
+        <div popover id="{{ idPrefix }}-panel" data-settings--inbox-icon-target="panel"
+             class="m-auto p-3 rounded-pane border border-line bg-surface text-ink shadow-lg backdrop:bg-black/20">
+            <p class="mb-2 text-xs font-medium text-ink-muted">{{ label }}</p>
+            <div class="grid grid-cols-6 gap-1" role="radiogroup" aria-label="{{ label }}">
+                {% for icon in icons %}
+                    <label class="cursor-pointer" title="{{ icon.value }}">
+                        <input type="radio" name="{{ name }}" value="{{ icon.value }}" class="peer sr-only"
+                               id="{{ idPrefix }}-{{ icon.value }}"
+                               data-action="change->settings--inbox-icon#pick"
+                               {{ icon == current ? 'checked' : '' }}>
+                        <span class="w-9 h-9 flex items-center justify-center rounded text-ink-muted hover:bg-hover
+                                     peer-checked:bg-accent peer-checked:text-accent-ink
+                                     peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
+                            <i class="fa-solid {{ icon.cssClass }} text-sm" aria-hidden="true"></i>
+                            <span class="sr-only">{{ icon.value }}</span>
+                        </span>
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+    </span>
+{% endmacro %}
+{% import _self as picker %}
+
+<div class="px-4 py-3">
+    <p class="text-[11px] text-ink-faint">{{ 'settings.unified_inboxes.hint'|trans }}</p>
+
+    <ul class="mt-3 rounded-pane border border-line divide-y divide-line"
+        data-controller="settings--tab-order"
+        data-settings--tab-order-url-value="{{ path('app_settings_inboxes_order') }}"
+        data-settings--tab-order-csrf-value="{{ csrf_token('settings-inboxes') }}"
+        data-settings--tab-order-target="list">
+        {% for inbox in inboxes %}
+            {% set label = unified_inbox_name(inbox) %}
+            <li class="flex items-center gap-3 px-3 py-2.5" data-tab-key="{{ inbox.id }}" data-unified-inbox="{{ inbox.id }}">
+                {# Buttons as well as a handle, as on the tabs card: a drag is
+                   unreachable from a keyboard and fiddly on a phone. #}
+                <div class="flex flex-col items-center shrink-0">
+                    <button type="button" data-action="settings--tab-order#move" data-direction="up"
+                            class="{{ moveButton }}" {{ loop.first ? 'disabled' : '' }}
+                            aria-label="{{ 'settings.unified_inboxes.move_up'|trans({ '%inbox%': label }) }}">
+                        <i class="fa-solid fa-chevron-up text-[9px]" aria-hidden="true"></i>
+                    </button>
+                    <span class="tab-drag-handle w-5 h-4 flex items-center justify-center text-ink-faint hover:text-ink-muted cursor-grab active:cursor-grabbing touch-none"
+                          title="{{ 'settings.unified_inboxes.reorder'|trans }}" aria-hidden="true">
+                        <i class="fa-solid fa-grip-vertical text-[10px]"></i>
+                    </span>
+                    <button type="button" data-action="settings--tab-order#move" data-direction="down"
+                            class="{{ moveButton }}" {{ loop.last ? 'disabled' : '' }}
+                            aria-label="{{ 'settings.unified_inboxes.move_down'|trans({ '%inbox%': label }) }}">
+                        <i class="fa-solid fa-chevron-down text-[9px]" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <form method="post" action="{{ path('app_settings_inboxes_update', { id: inbox.id }) }}"
+                      class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                    <input type="hidden" name="_token" value="{{ csrf_token('settings-inboxes') }}">
+                    {{ picker.icon_picker('icon', inbox.iconCase, icons, 'settings.unified_inboxes.icon_label'|trans({ '%inbox%': label }), 'inbox-' ~ inbox.id ~ '-icon') }}
+                    <div class="min-w-0 flex-1">
+                        <input type="text" name="name" value="{{ inbox.name }}" maxlength="40"
+                               placeholder="{{ (inbox.isOther ? 'sidebar.nav.inbox_other' : 'sidebar.nav.inbox')|trans }}"
+                               aria-label="{{ 'settings.unified_inboxes.name_label'|trans }}"
+                               class="w-full h-8 rounded-pane border border-line bg-surface px-2 text-sm text-ink">
+                        {% if inbox.isOther %}
+                            <p class="mt-1 text-[11px] text-ink-faint">{{ 'settings.unified_inboxes.other_hint'|trans }}</p>
+                        {% endif %}
+                    </div>
+                    <button type="submit"
+                            class="shrink-0 h-8 px-2.5 rounded-pane border border-line text-xs text-ink-muted hover:text-ink hover:bg-hover cursor-pointer transition-colors">
+                        {{ 'settings.unified_inboxes.save'|trans }}
+                    </button>
+                </form>
+
+                {% if not inbox.isOther and ownCount > 1 %}
+                    <form method="post" action="{{ path('app_settings_inboxes_delete', { id: inbox.id }) }}"
+                          class="shrink-0"
+                          data-turbo-confirm="{{ 'settings.unified_inboxes.delete_confirm'|trans({ '%name%': label, '%other%': unified_inbox_name(inboxes|filter(i => i.isOther)|first) }) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('settings-inboxes') }}">
+                        <button type="submit"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-hover cursor-pointer transition-colors"
+                                aria-label="{{ 'settings.unified_inboxes.delete'|trans({ '%inbox%': label }) }}"
+                                title="{{ 'settings.unified_inboxes.delete'|trans({ '%inbox%': label }) }}">
+                            <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                {% else %}
+                    <span class="w-8 shrink-0" aria-hidden="true"></span>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+
+    <form method="post" action="{{ path('app_settings_inboxes_create') }}" class="mt-3 flex items-center gap-2">
+        <input type="hidden" name="_token" value="{{ csrf_token('settings-inboxes') }}">
+        {{ picker.icon_picker('icon', enum('App\\Domain\\Enum\\Mail\\UnifiedInboxIcon').Briefcase, icons, 'settings.unified_inboxes.icon_new'|trans, 'inbox-new-icon') }}
+        <input type="text" name="name" required maxlength="40"
+               placeholder="{{ 'settings.unified_inboxes.placeholder'|trans }}"
+               aria-label="{{ 'settings.unified_inboxes.name_label'|trans }}"
+               class="min-w-0 flex-1 h-8 rounded-pane border border-line bg-surface px-2 text-sm text-ink">
+        <button type="submit"
+                class="shrink-0 inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer">
+            <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+            {{ 'settings.unified_inboxes.add'|trans }}
+        </button>
+    </form>
+</div>

@@ -91,6 +91,28 @@ final class ImapKeywordWriteTest extends KernelTestCase
         self::assertNull($message->flagsTouchedAt, 'the shared echo guard is not the keyword path\'s to set');
     }
 
+    /**
+     * Putting a tag on an account's mail gives the account a binding that is
+     * not a folder, which is how the sidebar tells "a tag here" from "never
+     * seen here" (#221). A system label gets none.
+     */
+    public function testATagOnAccountMailBindsTheLabelToTheAccount(): void
+    {
+        $label = $this->label('Follow up');
+
+        $this->attach($this->message(17), $label);
+
+        $binding = $label->bindingFor($this->account);
+        self::assertNotNull($binding);
+        self::assertNotNull($binding->id, 'flushed, so the sidebar\'s read finds it');
+        self::assertNull($binding->mailbox);
+
+        $archive = self::getContainer()->get(LabelResolver::class)->userSystemLabel(LabelRole::Archive, $this->account->usr);
+        $before  = $archive->bindingFor($this->account);
+        $this->attach($this->message(18), $archive);
+        self::assertSame($before, $archive->bindingFor($this->account));
+    }
+
     /** Off by default: nothing leaves plMail. */
     public function testNothingIsWrittenWithTheSwitchOff(): void
     {
@@ -204,6 +226,7 @@ final class ImapKeywordWriteTest extends KernelTestCase
             new GraphLabelPolicy(),
             new NullLogger(),
             $container->get(MessageRepository::class),
+            $container->get(LabelResolver::class),
         ))->attachLabel([$message], $label);
 
         return array_values(array_filter($bus->sent, static fn (object $m): bool => $m instanceof ApplyImapKeywordsMessage));

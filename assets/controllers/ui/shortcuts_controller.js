@@ -29,6 +29,19 @@ import { selection } from "../../mail_selection.js";
  * first and the toolbar's menu opened on a selection of one, which is what a
  * person would do with the mouse.
  *
+ * ## The arrows are the list's, not the page's (#469)
+ *
+ * ↓ and ↑ move through the list the way they move through any list a browser
+ * draws: the row gets the real focus, so a screen reader says which one it is,
+ * and the cursor goes where the focus is. They are NOT aliases for `j` and
+ * `k`. Those open the next conversation when one is open, and an arrow there
+ * is how a long mail is read — taken for "next", ↓ jumped out of the mail
+ * being read. So the arrows only answer where the list is what the keyboard
+ * is on: a row has the focus, or nothing does and the list is all there is.
+ * Anywhere else — the sidebar, an open mail, a key from inside the message —
+ * they are the browser's, and so is the key past either end of the list, so
+ * the page can still scroll down to what is under the last row.
+ *
  * ## When it keeps quiet
  *
  * While anything is being typed into, while a dialog or a menu is open, and
@@ -37,7 +50,10 @@ import { selection } from "../../mail_selection.js";
  * shortcuts off: see templates/_layout/app.html.twig.
  */
 
-const ROW = "#message-list li[data-mail--message-row-id-value]";
+// Not a row hidden while the action that takes it out of the list is under
+// way (#335, assets/optimistic_rows.js): to the reader it has already gone, so
+// the arrows step over it and the Tab stop is not left on it.
+const ROW = "#message-list li[data-mail--message-row-id-value]:not([hidden])";
 const ROW_ID = "data-mail--message-row-id-value";
 const ROW_SELECT = "[data-thread-select]";
 const CURSOR = "data-kbd-cursor";
@@ -88,7 +104,7 @@ const OPEN = {
 const ON_ROW = {
     archive: "[data-action='click->mail--message-row#archive']",
     trash:   "[data-action='click->mail--message-row#trash']",
-    spam:    "[data-action='click->mail--spam-menu#toggle']",
+    spam:    "[data-action='click->mail--message-row#openMenu'][data-mail--message-row-menu-param='spam']",
     star:    "[data-action='click->mail--message-row#toggleStar']",
     read:    "[data-action='click->mail--message-row#markRead'][data-mail--message-row-read-param='true']",
     unread:  "[data-action='click->mail--message-row#markRead'][data-mail--message-row-read-param='false']",
@@ -119,28 +135,53 @@ export default class extends Controller {
     #observer = null;
     #repaintQueued = false;
 
+    /**
+     * The row that had the focus, while it has it.
+     *
+     * Kept so the focus can be handed on when the row is REPLACED — a refresh,
+     * a page of the list, the row archived from under it. The browser drops
+     * the focus to <body> when its element leaves the document, and the next
+     * ↓ would then have started from nowhere. This is why focus was once ruled
+     * out for the cursor (see [data-kbd-cursor] in app.css); remembering the
+     * row and putting the focus back on its successor is the answer to that.
+     */
+    #focusedRow = null;
+
     connect() {
         this._onKeydown = (event) => this.#handle(event);
         this._onFrameKey = (event) => this.#handle({
             ...event.detail,
             target: document.body,
+            // A key from inside the message is never the list's: see #arrow().
+            fromFrame: true,
             defaultPrevented: false,
             isComposing: false,
             preventDefault() {},
         });
+        this._onFocusIn = (event) => this.#focusIn(event.target);
+        this._onFocusOut = (event) => this.#focusOut(event.target);
 
         document.addEventListener("keydown", this._onKeydown);
         // Keys pressed inside a message. The body is a sandboxed frame with a
         // document of its own, so a key pressed after clicking into the mail
         // never reaches this one — it is relayed. See mail--message-frame.
         document.addEventListener("mail:frame-key", this._onFrameKey);
+        document.addEventListener("focusin", this._onFocusIn);
+        document.addEventListener("focusout", this._onFocusOut);
 
         // The cursor is an attribute on a row, and rows are replaced by four
         // different mechanisms (frame navigation, Turbo streams, the pane's
         // own morph, a full visit). Watching the document for rows changing is
         // one answer to all of them.
         this.#observer = new MutationObserver(() => this.#queueRepaint());
-        this.#observer.observe(document.body, { childList: true, subtree: true });
+        // `hidden` as well, which is how a row leaves the list before the server
+        // has answered (#335) — still in the document, but no longer a row.
+        this.#observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["hidden"],
+        });
 
         this.#paint();
     }
@@ -148,6 +189,8 @@ export default class extends Controller {
     disconnect() {
         document.removeEventListener("keydown", this._onKeydown);
         document.removeEventListener("mail:frame-key", this._onFrameKey);
+        document.removeEventListener("focusin", this._onFocusIn);
+        document.removeEventListener("focusout", this._onFocusOut);
         this.#observer?.disconnect();
         clearTimeout(this.#prefixTimer);
     }
@@ -194,9 +237,51 @@ export default class extends Controller {
             return;
         }
 
+        if ("ArrowDown" === key || "ArrowUp" === key) {
+            if (true === this.#arrow(event, "ArrowDown" === key ? 1 : -1)) {
+                event.preventDefault();
+            }
+
+            return;
+        }
+
         if (true === this.#first(key)) {
             event.preventDefault();
         }
+    }
+
+    /**
+     * ↓ or ↑. Answers whether it was the list's — see "The arrows are the
+     * list's" above for when that is.
+     *
+     * Shift is left alone too: Shift with an arrow widens a text selection,
+     * and somebody doing that is reading, not moving.
+     */
+    #arrow(event, delta) {
+        if (true === event.fromFrame || true === event.shiftKey) {
+            return false;
+        }
+
+        const row = event.target?.closest?.(ROW) ?? null;
+
+        // Nothing has the focus. The list's only when it is the whole of what
+        // is open: with a conversation beside it, the arrows read that.
+        if (null === row && (document.body !== event.target || null !== this.#reading() || false === this.#listShowing())) {
+            return false;
+        }
+
+        const rows = this.#rows();
+        const from = row ?? this.#cursorRow();
+        const at = null === from ? -1 : rows.indexOf(from);
+        const next = -1 === at ? 0 : at + delta;
+
+        if (next < 0 || next >= rows.length) {
+            return false;
+        }
+
+        this.#focusRow(rows[next]);
+
+        return true;
     }
 
     /** A single key. Answers whether it did anything. */
@@ -353,6 +438,15 @@ export default class extends Controller {
             return true;
         }
 
+        // A row with the focus takes it along: left behind, the focus would
+        // be on one row and the cursor on another, and the next ↓ would start
+        // from the wrong one.
+        if (false === reading && null !== document.activeElement?.closest?.(ROW)) {
+            this.#focusRow(rows[next]);
+
+            return true;
+        }
+
         cursorId = rows[next].getAttribute(ROW_ID);
         this.#paint();
 
@@ -363,6 +457,57 @@ export default class extends Controller {
         rows[next].scrollIntoView({ block: "nearest" });
 
         return true;
+    }
+
+    /**
+     * The focus onto a row, and the cursor with it.
+     *
+     * `preventScroll`, then `nearest`: focus() on its own scrolls the row to
+     * wherever the browser likes, which on a long list is the middle — the list
+     * lurched on every key. Nearest moves it only as far as it takes.
+     */
+    #focusRow(row) {
+        cursorId = row.getAttribute(ROW_ID);
+        this.#paint();
+        row.focus({ preventScroll: true });
+        row.scrollIntoView({ block: "nearest" });
+    }
+
+    /**
+     * The cursor follows the focus — a row clicked, or reached with Tab, is
+     * where ↓ goes on from. Only the row itself: a star or a checkbox inside
+     * one having the focus is the focus being on that control.
+     */
+    #focusIn(target) {
+        const row = target?.matches?.(ROW) ? target : null;
+
+        this.#focusedRow = row;
+
+        if (null !== row) {
+            cursorId = row.getAttribute(ROW_ID);
+            this.#paint();
+        }
+    }
+
+    /**
+     * A row that loses the focus and is still in the document gave it up —
+     * a click on the page's background, the window left. One that is no longer
+     * in it was replaced, and #paint() hands the focus on. Asked a task later,
+     * because a row being removed can report the focus leaving before it is
+     * gone, and only after it is does isConnected say so.
+     */
+    #focusOut(target) {
+        if (target !== this.#focusedRow) {
+            return;
+        }
+
+        queueMicrotask(() => {
+            // A row that was hidden (#335) lost the focus by leaving, not by
+            // the reader moving it, and is handed on like a removed one.
+            if (target === this.#focusedRow && true === target.isConnected && false === target.hidden) {
+                this.#focusedRow = null;
+            }
+        });
     }
 
     #openCursor() {
@@ -447,6 +592,34 @@ export default class extends Controller {
 
         if (null !== row && false === row.hasAttribute(CURSOR)) {
             row.setAttribute(CURSOR, "");
+        }
+
+        // One row in the Tab order, the rest reached by the arrows — the way
+        // a list widget is walked, rather than fifty Tabs to get past it. The
+        // cursor's row, or the first while there is none. Every row is
+        // tabindex="-1" in the markup so it can take the focus at all.
+        const rows = this.#rows();
+        const stop = row ?? rows[0] ?? null;
+
+        for (const each of rows) {
+            const tabindex = each === stop ? "0" : "-1";
+
+            if (each.getAttribute("tabindex") !== tabindex) {
+                each.setAttribute("tabindex", tabindex);
+            }
+        }
+
+        // The focused row was replaced and the focus fell to <body>: onto its
+        // successor, which is the cursor's row — same id, or the row
+        // #moveOffLeavingRow() chose for one that left the list. Hidden counts
+        // as left: the browser drops the focus from a hidden element the same
+        // way it does from a removed one.
+        if (null !== this.#focusedRow && (false === this.#focusedRow.isConnected || true === this.#focusedRow.hidden)) {
+            this.#focusedRow = null;
+
+            if (null !== row && (null === document.activeElement || document.body === document.activeElement)) {
+                row.focus({ preventScroll: true });
+            }
         }
     }
 

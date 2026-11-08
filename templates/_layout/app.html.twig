@@ -200,6 +200,18 @@
                 document.documentElement.classList.add('sidebar-rail');
             }
         } catch (e) {}
+
+        // The docked compose window's size, kept per device (#507, see
+        // compose--window-size). Numbers only, and within what the handle
+        // allows, so a hand-edited value cannot break the layout.
+        try {
+            var composeSize = JSON.parse(localStorage.getItem('plmail:composeSize') || 'null');
+
+            if (composeSize && isFinite(composeSize.w) && isFinite(composeSize.h)) {
+                document.documentElement.style.setProperty('--compose-w', Math.max(420, Math.min(4000, Math.round(composeSize.w))) + 'px');
+                document.documentElement.style.setProperty('--compose-h', Math.max(360, Math.min(4000, Math.round(composeSize.h))) + 'px');
+            }
+        } catch (e) {}
     </script>
 
     {% block stylesheets %}
@@ -215,8 +227,10 @@
     {% block javascripts %}
         {# The import map and its preloads are inline scripts too, and the
            whole application is loaded through them — an unnonced import map
-           under an enforced script-src is a blank page. #}
-        {% block importmap %}{{ importmap('app', { nonce: csp_nonce() }) }}{% endblock %}
+           under an enforced script-src is a blank page. importmap_once() puts
+           the request's nonce on them; it renders the map itself once per
+           worker, see App\Twig\ImportMapOnceExtension. #}
+        {% block importmap %}{{ importmap_once('app') }}{% endblock %}
     {% endblock %}
 
     {% set frankenphpHotReload = app.request.server.get('FRANKENPHP_HOT_RELOAD') %}

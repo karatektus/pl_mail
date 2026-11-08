@@ -11,17 +11,20 @@ use App\Domain\Exception\ImapFolderRefusedException;
 use App\Domain\Exception\InvalidFolderNameException;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\Messaging\Message\ImportImapKeywordsMessage;
 use App\Repository\Mail\MailboxRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Imap\FolderTree;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapFolderManager;
 use App\Service\Imap\ImapPermanentFlags;
+use App\Service\Imap\NewFolderPlace;
 use App\Service\Label\LabelPlaces;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -79,8 +82,10 @@ final class AccountFoldersController extends AbstractController
         private readonly ImapFolderManager      $folders,
         private readonly TranslatorInterface    $translator,
         private readonly ImapConnector          $connector,
+        private readonly NewFolderPlace         $place,
         private readonly ImapPermanentFlags     $permanentFlags,
         private readonly LabelPlaces            $places,
+        private readonly MessageBusInterface    $bus,
     ) {}
 
     #[Route('/settings/accounts/{id}/folders', name: 'settings_account_folders', methods: ['GET'])]
@@ -102,7 +107,9 @@ final class AccountFoldersController extends AbstractController
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
         $this->assertSyncsOverImap($account);
 
-        return $this->renderNewForm($account, self::idOrNull($request->query->get('parent')), '', null);
+        $parentId = self::idOrNull($request->query->get('parent')) ?? $this->place->defaultFor($account)?->id;
+
+        return $this->renderNewForm($account, $parentId, '', null);
     }
 
     #[Route('/settings/accounts/{id}/folders/new', name: 'settings_account_folder_create', methods: ['POST'])]
@@ -127,6 +134,8 @@ final class AccountFoldersController extends AbstractController
 
         try {
             $mailbox = $this->folders->create($account, $parent, $name);
+            $this->place->remember($account, $parent);
+            $this->em->flush();
         } catch (InvalidFolderNameException $e) {
             return $this->renderNewForm($account, $parentId, $name, $this->invalidName($e));
         } catch (ImapFolderRefusedException $e) {
@@ -217,6 +226,10 @@ final class AccountFoldersController extends AbstractController
      * not stop the switch: the folders are asked again as keywords are written.
      * Only changes made from now on are written; labels that are already on
      * mail are not pushed in bulk.
+     *
+     * The other direction is read in bulk, once (#487): keywords the stored
+     * mail already carries become labels, in a job. Without it they never
+     * would — the follower reads a change, and they are not one.
      */
     #[Route('/settings/accounts/{id}/folders/keywords', name: 'settings_account_folder_keywords', methods: ['POST'])]
     public function keywords(Request $request, Account $account): Response
@@ -232,6 +245,12 @@ final class AccountFoldersController extends AbstractController
         }
 
         $this->em->flush();
+
+        // After the flush: the handler reads the switch again, and must find
+        // it on.
+        if (true === $account->labelsAsKeywords) {
+            $this->bus->dispatch(new ImportImapKeywordsMessage((int) $account->id));
+        }
 
         return $this->renderList($account);
     }

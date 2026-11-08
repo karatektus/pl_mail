@@ -20,6 +20,8 @@ use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\InboxCategoryRepository;
+use App\Repository\Mail\UnifiedInboxAccountRepository;
+use App\Repository\Mail\UnifiedInboxRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Repository\User\ApiTokenRepository;
@@ -222,6 +224,14 @@ final readonly class ConfigBackupUsers
         // what senders may learn of one's reading, so a restore must not
         // quietly undo it in either direction. A boolean, no id.
         User::SETTING_IMAGES_ALWAYS_SHOW,
+        // Which tabs and labels notify, and whether a browser skips mail
+        // already read (#369). Choices about how one wants to be interrupted,
+        // which a restore must not quietly undo: back to Primary alone is
+        // exactly what somebody who chose more did not want. The scopes name
+        // tab and label ids, which mean nothing on another install; a key
+        // that names nothing there is harmless and simply never matches.
+        User::SETTING_NOTIFY_SCOPES,
+        User::SETTING_NOTIFY_SKIP_READ,
         // Whether an account's own inbox has the category tabs. How the
         // mailbox is drawn, like the reading pane above; a boolean, no id.
         User::SETTING_ACCOUNT_INBOX_TABS,
@@ -281,6 +291,10 @@ final readonly class ConfigBackupUsers
         // step 2): a standing choice its owner made, and the same server keeps
         // the keywords wherever plMail reads it from.
         Account::SETTING_LABELS_AS_KEYWORDS,
+        // Where a new folder goes (#221): the path of a folder on the same
+        // server, which a restore reads back from the same place; a path the
+        // server no longer has reads as the top level (NewFolderPlace).
+        Account::SETTING_NEW_FOLDER_PARENT,
         // Whether category changes made in Outlook are followed (#221 step 4):
         // a choice, carried like the one above.
         Account::SETTING_FOLLOW_OUTLOOK_CATEGORIES,
@@ -365,6 +379,8 @@ final readonly class ConfigBackupUsers
         private SmimeCertificateRepository   $smimeCertificates,
         private ContactCertificateRepository $contactCertificates,
         private KeyPublicationRepository     $publications,
+        private UnifiedInboxRepository        $unifiedInboxes,
+        private UnifiedInboxAccountRepository $unifiedInboxAccounts,
     ) {
     }
 
@@ -525,6 +541,8 @@ final readonly class ConfigBackupUsers
             'integrations' => $this->exportIntegrations($user),
             'labels'       => $this->exportLabels($user),
             'inboxCategories' => $this->exportInboxCategories($user),
+            // After the accounts, whose ids in this file each inbox names.
+            'unifiedInboxes' => $this->exportUnifiedInboxes($user),
             'rules'        => $this->exportRules($user),
             'calendars'    => $this->exportCalendars($user),
             'shareLinks'   => $this->exportShareLinks($user),
@@ -923,6 +941,37 @@ final readonly class ConfigBackupUsers
             $exported[] = [
                 'id'   => $category->id,
                 'name' => $category->name,
+            ];
+        }
+
+        return $exported;
+    }
+
+    /**
+     * The person's unified inboxes (#265) in sidebar order — name, icon,
+     * whether it is the catch-all Other — with the accounts each one was
+     * assigned, by their ids in this file's `accounts`. The restorer rewrites
+     * those to the accounts it creates.
+     *
+     * Only the assignments that were made: an account that was never moved is
+     * in the first inbox by rule, carries no row, and comes back the same way.
+     * A person who never opened the settings has no rows at all, exports an
+     * empty list, and is given the starting rows on their first page, as
+     * before the backup.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function exportUnifiedInboxes(User $user): array
+    {
+        $assigned = $this->unifiedInboxAccounts->assignedAccountIdsByInbox($user);
+        $exported = [];
+
+        foreach ($this->unifiedInboxes->findForUserOrdered($user) as $inbox) {
+            $exported[] = [
+                'name'       => $inbox->name,
+                'icon'       => $inbox->icon,
+                'isOther'    => $inbox->isOther,
+                'accountIds' => $assigned[(int) $inbox->id] ?? [],
             ];
         }
 

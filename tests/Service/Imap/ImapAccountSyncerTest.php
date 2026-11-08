@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Infrastructure\ImapClient\Exception\ImapConnectionException;
 use App\Infrastructure\ImapClient\ImapLoop;
+use App\Infrastructure\ImapClient\ImapSession;
+use App\Service\Imap\ImapDeadline;
 use App\Service\Imap\ImapConnector;
 use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Entity\Mail\Mailbox;
@@ -114,29 +117,72 @@ final class ImapAccountSyncerTest extends KernelTestCase
     }
 
     /**
+     * A folder that lost the connection does not take the next folders with
+     * it: they get a session of their own, which starts with nothing selected
+     * and so SELECTs before its first UID command (#418).
+     */
+    public function testAFolderThatLostTheConnectionDoesNotFailTheNextOne(): void
+    {
+        $handedOver = $this->syncAccount(function (Mailbox $mailbox, ImapSession $session): void {
+            $session->connection->close();
+
+            throw new ImapConnectionException('connection lost');
+        });
+
+        self::assertTrue($handedOver[1]['connected'], 'the next folder was handed the dead connection');
+    }
+
+    /**
+     * A folder cut off by the deadline ends the account sync instead: the time
+     * is up, and the handler must see a failure rather than a sync that
+     * reports success with half its folders missing (#418).
+     */
+    public function testAFolderCutOffByTheDeadlineEndsTheSync(): void
+    {
+        $deadline = new ImapDeadline(new NullLogger());
+
+        try {
+            $this->syncAccount(function (Mailbox $mailbox, ImapSession $session) use ($deadline): void {
+                $deadline->watchSession($session->connection);
+                $deadline->expire();
+
+                $session->connection->command('NOOP');
+            }, $deadline);
+
+            self::fail('a sync the deadline cut off cannot report success');
+        } catch (ImapConnectionException) {
+            self::assertCount(1, $this->handedOver, 'no folder was synced after the cut');
+        }
+    }
+
+    /** @var list<array{open: bool, managed: bool, clean: bool, connected: bool}> */
+    private array $handedOver = [];
+
+    /**
      * Syncs the account through a real ImapAccountSyncer. The first folder's
      * sync does $first; every folder reports the state it arrived in.
      *
      * In call order rather than by id: the folders come from an unordered
      * findBy(), and which of the two goes first is not this test's business.
      *
-     * @return list<array{open: bool, managed: bool, clean: bool}>
+     * @return list<array{open: bool, managed: bool, clean: bool, connected: bool}>
      */
-    private function syncAccount(\Closure $first): array
+    private function syncAccount(\Closure $first, ?ImapDeadline $deadline = null): array
     {
-        $handedOver = [];
+        $this->handedOver = [];
 
         $folders = $this->createStub(MessageSyncer::class);
         $folders->method('syncMailbox')->willReturnCallback(
-            function (Mailbox $mailbox) use ($first, &$handedOver): void {
-                $handedOver[] = [
-                    'open'    => $this->em->isOpen(),
-                    'managed' => $this->em->contains($mailbox),
-                    'clean'   => [] === $this->em->getUnitOfWork()->getScheduledEntityInsertions(),
+            function (Mailbox $mailbox, ImapSession $session) use ($first): void {
+                $this->handedOver[] = [
+                    'open'      => $this->em->isOpen(),
+                    'managed'   => $this->em->contains($mailbox),
+                    'clean'     => [] === $this->em->getUnitOfWork()->getScheduledEntityInsertions(),
+                    'connected' => $session->connection->isOpen(),
                 ];
 
-                if (1 === count($handedOver)) {
-                    $first();
+                if (1 === count($this->handedOver)) {
+                    $first($mailbox, $session);
                 }
             },
         );
@@ -149,6 +195,10 @@ final class ImapAccountSyncerTest extends KernelTestCase
         // Only logged in to: the folder sync above is a stand-in.
         new FakeImapServer(static::getContainer()->get(ImapLoop::class))->pointAt($this->account);
 
+        // Flushed: a failed folder clears the manager, and a session opened
+        // after that reads the account back from the database.
+        $this->em->flush();
+
         $syncer = new ImapAccountSyncer(
             static::getContainer()->get(MailboxRepository::class),
             $structure,
@@ -157,13 +207,14 @@ final class ImapAccountSyncerTest extends KernelTestCase
             new NullLogger(),
             $this->em,
             static::getContainer()->get(ManagerRegistry::class),
+            $deadline ?? new ImapDeadline(new NullLogger()),
         );
 
         $syncer->sync($this->account);
 
-        self::assertCount(2, $handedOver, 'both folders were synced');
+        self::assertCount(2, $this->handedOver, 'both folders were synced');
 
-        return $handedOver;
+        return $this->handedOver;
     }
 
     private function seedFolder(string $name): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Settings;
 
+use App\Domain\Enum\Theme\ActionButtonStyle;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
@@ -12,7 +13,7 @@ use App\Domain\Enum\Theme\FontFamily;
 use App\Domain\Enum\Theme\Layout;
 use App\Domain\Enum\Theme\Theme;
 use App\Domain\Enum\Theme\UnreadEmphasis;
-use App\Entity\Embeddable\Appearance;
+use App\Entity\User\User;
 use App\Jmap\Mapper\AppearanceMapper;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
@@ -88,8 +89,8 @@ final class AppearanceSetMethod implements JmapMethod
             );
         }
 
-        $appearance = $context->user->appearance;
-        $oldState = $this->mapper->state($appearance);
+        $user = $context->user;
+        $oldState = $this->mapper->userState($user);
         $ifInState = $arguments['ifInState'] ?? null;
 
         if (null !== $ifInState && $ifInState !== $oldState) {
@@ -100,14 +101,14 @@ final class AppearanceSetMethod implements JmapMethod
         $notUpdated = [];
 
         $notCreated = $this->refuseCreates($arguments['create'] ?? null);
-        $this->applyUpdates($appearance, $arguments['update'] ?? null, $updated, $notUpdated);
+        $this->applyUpdates($user, $arguments['update'] ?? null, $updated, $notUpdated);
         $notDestroyed = $this->refuseDestroys($arguments['destroy'] ?? null);
 
         $this->entityManager->flush();
 
         return [
             'oldState' => $oldState,
-            'newState' => $this->mapper->state($appearance),
+            'newState' => $this->mapper->userState($user),
             'created' => new \stdClass(),
             'notCreated' => 0 === count($notCreated) ? new \stdClass() : $notCreated,
             'updated' => 0 === count($updated) ? new \stdClass() : $updated,
@@ -122,7 +123,7 @@ final class AppearanceSetMethod implements JmapMethod
      * @param array<string,mixed> $notUpdated
      */
     private function applyUpdates(
-        Appearance $appearance,
+        User $user,
         mixed $update,
         array &$updated,
         array &$notUpdated,
@@ -152,18 +153,18 @@ final class AppearanceSetMethod implements JmapMethod
             }
 
             /** @var array<string,mixed> $patch */
-            $before = $this->mapper->toJmap($appearance);
+            $before = $this->mapper->forUser($user);
 
             try {
-                $this->validate($appearance, $patch);
+                $this->validate($user, $patch);
             } catch (MethodException $exception) {
                 $notUpdated[$id] = $exception->toError();
                 continue;
             }
 
-            $this->apply($appearance, $patch);
+            $this->apply($user, $patch);
 
-            $updated[$id] = $this->serverSideChanges($patch, $before, $this->mapper->toJmap($appearance));
+            $updated[$id] = $this->serverSideChanges($patch, $before, $this->mapper->forUser($user));
         }
     }
 
@@ -172,9 +173,9 @@ final class AppearanceSetMethod implements JmapMethod
      *
      * @param array<string,mixed> $patch
      */
-    private function validate(Appearance $appearance, array $patch): void
+    private function validate(User $user, array $patch): void
     {
-        $current = $this->mapper->toJmap($appearance);
+        $current = $this->mapper->forUser($user);
 
         foreach ($patch as $property => $value) {
             $property = (string) $property;
@@ -224,11 +225,12 @@ final class AppearanceSetMethod implements JmapMethod
                 'paneAlpha', 'popoverAlpha', 'radius', 'scrimAlpha', 'fontScale' => $this->requireNumber($value, $property, false),
                 'mainAlpha' => $this->requireNumber($value, $property, true),
                 'unreadEmphasis' => $this->requireEnum(UnreadEmphasis::class, $value, $property, false),
+                'actionButtons' => $this->requireEnum(ActionButtonStyle::class, $value, $property, false),
                 'fontFamily' => $this->requireEnum(FontFamily::class, $value, $property, false),
                 // Nullable: null is the value meaning "follow the global
                 // density", not an omission — see AppearanceMapper.
                 'sidebarDensity', 'listDensity', 'readingDensity' => $this->requireEnum(Density::class, $value, $property, true),
-                'accountCorner', 'listAvatars', 'tabUnreadCount' => $this->requireBool($value, $property),
+                'accountCorner', 'listAvatars', 'tabUnreadCount', 'inboxTabs' => $this->requireBool($value, $property),
                 default => null,
             };
         }
@@ -237,8 +239,19 @@ final class AppearanceSetMethod implements JmapMethod
     /**
      * @param array<string,mixed> $patch
      */
-    private function apply(Appearance $appearance, array $patch): void
+    private function apply(User $user, array $patch): void
     {
+        $appearance = $user->appearance;
+
+        // Not an appearance field: the web's "Inbox tabs" switch on the
+        // category card, CategorySorting::$tabs (android#11). Written the way
+        // that card writes it, and like it re-files nothing — showing or
+        // hiding the tabs moves no mail between categories.
+        if (true === array_key_exists('inboxTabs', $patch)) {
+            $user->categorySorting->tabs = (bool) $patch['inboxTabs'];
+            unset($patch['inboxTabs']);
+        }
+
         // Layout first, and through applyLayout() rather than a plain
         // assignment: picking a layout *means* its knob preset (see the Layout
         // enum — the web pane seeds the same values client-side so its sliders

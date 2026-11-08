@@ -21,9 +21,12 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  * The sidebar tells a folder from a label, and offers the folder actions on
  * the account they belong to (#221).
  *
- * - under LABELS, a label that is a folder on a plain IMAP account wears a
- *   folder and names the account; a label that is not keeps its dot, and so
- *   does one that is "a folder" only on Gmail, where a label is a label;
+ * - under LABELS, a label that is a folder on a plain IMAP account and a tag
+ *   on another account wears a folder and names the account; a label that is
+ *   not keeps its dot, and so does one that is "a folder" only on Gmail, where
+ *   a label is a label;
+ * - a folder that is not used as a tag on any other account is not under
+ *   LABELS at all, only under its account (Adrian's report on v0.4.1);
  * - under ACCOUNTS, a plain IMAP account's row has a ⋯ menu offering New folder
  *   and Folders, pointing at THAT account's dialog; a Gmail account's row has
  *   no menu.
@@ -75,8 +78,12 @@ final class SidebarFolderMarksTest extends WebTestCase
         $tag      = $this->label('Folder Marks Tag');
         $gmailish = $this->label('Folder Marks Gmail');
 
+        $onlyFolder = $this->label('Folder Marks Only Folder');
+
         $this->bind($folder, $imap, 'Folder Marks Folder');
+        $this->tagOn($folder, $gmail);
         $this->bind($gmailish, $gmail, 'Folder Marks Gmail');
+        $this->bind($onlyFolder, $imap, 'Folder Marks Only Folder');
 
         $crawler = $this->client->request('GET', '/mail/inbox');
 
@@ -92,6 +99,11 @@ final class SidebarFolderMarksTest extends WebTestCase
         self::assertStringContainsString($imap->displayAddress, (string) $markOf('Folder Marks Folder')->attr('title'));
         self::assertCount(0, $markOf('Folder Marks Tag'), 'a plain label keeps its dot');
         self::assertCount(0, $markOf('Folder Marks Gmail'), 'Gmail is untouched');
+        self::assertCount(
+            0,
+            $crawler->filter('#label-list .nav-item')->reduce(static fn ($row): bool => str_contains($row->text(), 'Folder Marks Only Folder')),
+            'a folder that is a tag nowhere is under its account only, though a Gmail account sits beside it',
+        );
 
         $html = (string) $this->client->getResponse()->getContent();
 
@@ -151,6 +163,16 @@ final class SidebarFolderMarksTest extends WebTestCase
         $binding->label   = $label;
         $binding->account = $account;
         $binding->mailbox = $mailbox;
+        $this->em->persist($binding);
+        $this->em->flush();
+    }
+
+    /** The label put on this account's mail: a binding that is not a folder. */
+    private function tagOn(Label $label, Account $account): void
+    {
+        $binding = new LabelBinding();
+        $binding->label   = $label;
+        $binding->account = $account;
         $this->em->persist($binding);
         $this->em->flush();
     }

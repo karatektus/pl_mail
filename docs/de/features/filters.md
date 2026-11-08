@@ -1,4 +1,4 @@
-<!-- translated-from: features/filters.md sha1:812e1dabc8e8acaf069d0dc28f83d8b9d17ece43 -->
+<!-- translated-from: features/filters.md sha1:6a1ff890e6c0bf78040b983d8cc6aba62e84b44a -->
 
 # Filter
 
@@ -83,6 +83,12 @@ Posteingang überspringen, In den Papierkorb und Als Spam markieren heißen alle
 dem Posteingang“ und unterscheiden sich nur darin, wo die Nachricht danach landet. Jede wird
 dem Anbieter als eine Operation übergeben und nicht als Abfolge von Label-Änderungen, denn ein
 Label-Tausch bei Gmail und ein Ordnerwechsel bei IMAP tragen ihre je eigene Bedeutung.
+
+Eine Antwort, die ein Filter in den Spam oder den Papierkorb schickt, lässt die Unterhaltung, zu der
+sie gehört, wo sie war. Sie holt die Unterhaltung nicht nach oben in den Posteingang, markiert sie
+nicht als neu oder ungelesen und verschiebt sie in keinen anderen Tab: Filter laufen, bevor eine
+eintreffende Nachricht ihre Unterhaltung bewegen darf. Eine Unterhaltung, die nur aus Spam besteht,
+wird in **Spam** wie gewohnt sortiert und gezählt.
 
 **Anhänge speichern in** bietet nur Dienste an, in die plMail hochladen kann, und auch nur
 solche, die du verbunden hast — siehe [Dateien und Integrationen](integrations.md). Der Upload

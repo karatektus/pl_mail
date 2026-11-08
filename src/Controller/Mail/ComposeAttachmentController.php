@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Enum\Mail\ImageSize;
+use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\DraftAttachmentService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -49,8 +53,9 @@ final class ComposeAttachmentController extends AbstractController
     public const int MAX_ATTACHMENT_BYTES = DraftAttachmentService::MAX_BYTES;
 
     public function __construct(
-        private readonly DraftAttachmentService $attachments,
-        private readonly TranslatorInterface    $translator,
+        private readonly DraftAttachmentService  $attachments,
+        private readonly TranslatorInterface     $translator,
+        private readonly AttachmentStorageHelper $storage,
     ) {}
 
     /**
@@ -140,6 +145,96 @@ final class ComposeAttachmentController extends AbstractController
         $this->assertCsrf($request, 'ajax');
 
         $this->attachments->remove($part);
+
+        return $this->render('compose/_attachments.html.twig', ['message' => $message]);
+    }
+
+    /**
+     * The picture as it was uploaded, for the browser to scale from (#502).
+     *
+     * The part's own address serves whatever stands in for it now, which
+     * after a first scaling is the smaller copy; scaling that again would
+     * lose detail each time the size changes. A part never scaled has no
+     * separate original, so this serves its file. Always as a download and
+     * as bytes without a type: it is read by fetch(), never shown.
+     */
+    #[Route('/attachment/{id}/original', name: 'attachment_original', methods: ['GET'])]
+    public function original(MessagePart $part): Response
+    {
+        $this->assertDraft($part->message);
+
+        $relative = $part->originalStoragePath ?? $part->storagePath;
+        $absolute = null === $relative ? null : $this->storage->getAbsolutePath($relative);
+
+        if (null === $absolute || false === is_file($absolute)) {
+            throw $this->createNotFoundException();
+        }
+
+        $response = new BinaryFileResponse($absolute);
+        $response->headers->set('Content-Type', 'application/octet-stream');
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+        $response->headers->set('Cache-Control', 'no-store');
+        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, 'original');
+
+        return $response;
+    }
+
+    /**
+     * A smaller copy of one image, made by the browser, in place of the one
+     * the part holds. The original stays on the server. See
+     * DraftAttachmentService::replaceWithScaled() for what is accepted.
+     */
+    #[Route('/attachment/{id}/scaled', name: 'attachment_scaled', methods: ['POST'])]
+    public function scaled(Request $request, MessagePart $part): Response
+    {
+        $this->assertDraft($part->message);
+        $this->assertCsrf($request, 'ajax');
+
+        $file = $request->files->get('file');
+
+        if (false === $file instanceof UploadedFile) {
+            return $this->uploadError($this->translator->trans('compose.upload.post_too_large'));
+        }
+
+        $refusal = $this->attachments->replaceWithScaled($part, $file, '1' === $request->request->get('sealed'));
+
+        if (null !== $refusal) {
+            return $this->uploadError($refusal);
+        }
+
+        return new Response(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /** The original back in place of the smaller copy. */
+    #[Route('/attachment/{id}/restore', name: 'attachment_restore', methods: ['POST'])]
+    public function restore(Request $request, MessagePart $part): Response
+    {
+        $this->assertDraft($part->message);
+        $this->assertCsrf($request, 'ajax');
+
+        $this->attachments->restoreOriginal($part);
+
+        return new Response(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * Remember the size the person picked, once the browser has scaled every
+     * image to it, and answer with the strip, whose sizes have changed.
+     * Anything that is not one of the sizes is Original; Custom brings the
+     * Adjust panel's `edge` and `quality` with it.
+     */
+    #[Route('/image-size/{id}', name: 'image_size', methods: ['POST'])]
+    public function imageSize(Request $request, Message $message): Response
+    {
+        $this->assertDraft($message);
+        $this->assertCsrf($request, 'ajax');
+
+        $this->attachments->chooseImageSize(
+            $message,
+            ImageSize::tryFrom((string) $request->request->get('size')),
+            $request->request->getInt('edge'),
+            $request->request->getInt('quality', ImageSize::PRESET_QUALITY),
+        );
 
         return $this->render('compose/_attachments.html.twig', ['message' => $message]);
     }

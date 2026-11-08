@@ -22,11 +22,13 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Constraints\Url;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 class AccountType extends AbstractType
 {
     public function __construct(
         private readonly MailPresetProvider $presetProvider,
+        private readonly TranslatorInterface $translator,
     )
     {
     }
@@ -41,6 +43,16 @@ class AccountType extends AbstractType
                 'placeholder' => 'account.form.preset.placeholder',
                 'choices'     => $this->presetProvider->choices(),
                 'autocomplete' => true,
+                // A preset is a starting point, not a commitment: the clear
+                // button takes it back, and the controller's apply() then
+                // offers every protocol again and drops the preset's note.
+                // Without it a chosen preset could only be swapped for
+                // another, never undone.
+                'tom_select_options' => [
+                    'plugins' => [
+                        'clear_button' => ['title' => $this->translator->trans('account.form.preset.clear')],
+                    ],
+                ],
                 'attr' => [
                     'class'                             => 'form-select',
                     'data-settings--imap-preset-target' => 'select',
@@ -124,6 +136,25 @@ class AccountType extends AbstractType
                 'label'        => 'account.form.pop3.delete_label',
                 'help'         => 'account.form.pop3.delete_help',
                 'attr'         => ['class' => 'form-select'],
+            ])
+            ->add('labelsAsKeywords', ChoiceType::class, [
+                // IMAP only; hidden like pop3DeleteMode for the other two and
+                // kept on the form for the same reason. Asked when the account
+                // is added (#221, Adrian), so nobody has to find the switch in
+                // the account's folders to have their labels on the server.
+                // Only in plMail first: the default, and what an account that
+                // never answered has always had.
+                'choices' => [
+                    'account.form.imap.labels_local'    => 'local',
+                    'account.form.imap.labels_keywords' => 'keywords',
+                ],
+                'mapped'     => false,
+                'expanded'   => true,
+                'required'   => true,
+                'empty_data' => 'local',
+                'label'      => 'account.form.imap.labels_label',
+                'help'       => 'account.form.imap.labels_help',
+                'attr'       => ['class' => 'form-radio-group'],
             ])
             ->add('jmapSessionUrl', UrlType::class, [
                 // Rendered only for a JMAP account, like pop3DeleteMode for a
@@ -239,6 +270,18 @@ class AccountType extends AbstractType
 
             if ($account instanceof Account) {
                 $event->getForm()->get('pop3DeleteMode')->setData($account->pop3DeleteMode);
+                $event->getForm()->get('labelsAsKeywords')->setData(true === $account->labelsAsKeywords ? 'keywords' : 'local');
+            }
+        });
+
+        // Labels as keywords: the same bag, the same one writer. The account's
+        // own getter answers false off plain IMAP, so a POP3 or JMAP account
+        // that carries the field's value back is not changed by it.
+        $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event): void {
+            $account = $event->getData();
+
+            if ($account instanceof Account) {
+                $account->labelsAsKeywords = 'keywords' === $event->getForm()->get('labelsAsKeywords')->getData();
             }
         });
 

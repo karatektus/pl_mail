@@ -370,6 +370,13 @@ the row.
 #}
 {% macro system_row(row, nested, drawerClose) %}
     {% import _self as macros %}
+    {# The Inbox slot holds the reader's unified inboxes (#265), each a row of
+       its own, in their order — wherever the reader put the slot. #}
+    {% if row.value == 'inbox' %}
+        {% for _inbox in sidebarCounts.inboxes %}
+            {{ macros.unified_inbox_row(_inbox, _inbox.id == sidebarCounts.firstInboxId, nested, drawerClose) }}
+        {% endfor %}
+    {% else %}
     {% set _t = {
         inbox:   { shape: 'pill', icon: 'fa-inbox',       dot: 'role',    badge: 'unread', href: true },
         unread:  { shape: 'pill', icon: 'fa-envelope',    badge: 'unread', mark: 'data-dnd-unread', count: 'unread' },
@@ -454,7 +461,56 @@ the row.
             {{ _badge }}
         </div>
     {% endif %}
+    {% endif %}
 {% endmacro %}
+
+{#
+One of the reader's unified inboxes (#265), drawn where the single Inbox row
+was and shaped like it: a pill around its own link, the unread badge a link of
+its own beside it, the "new" dot after the name.
+
+What differs from the Inbox row it replaces is what the row counts and opens.
+The badge is this inbox's (`inbox:<id>`, SidebarCounts::forInbox()), the dot is
+too (NewMailMarkers::forInbox()), and the link names the inbox. The first one
+is also what the bare /mail/inbox shows, which `data-also-open-at` tells the
+active-row check on both sides (SidebarRowStateExtension, ui--sidebar).
+
+A drop moves into the Inbox, as it did: a conversation lands in its own
+account's Inbox, and that is in whichever unified inbox the account is.
+#}
+{% macro unified_inbox_row(inbox, isFirst, nested, drawerClose) %}
+    {% import _self as macros %}
+    {% import '_partials/_new_dot.html.twig' as shared %}
+    {% set _role   = enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox %}
+    {% set _href   = path('app_mail_inbox', { inbox: inbox.id }) %}
+    {% set _bare   = path('app_mail_inbox') %}
+    {% set _title  = unified_inbox_name(inbox) %}
+    {% set _class  = 'nav-item flex items-center justify-between gap-2 ' ~ (nested ? 'pl-9 pr-3' : 'px-3') ~ ' rounded-lg transition-colors ' ~ sidebar_row_state(_href, isFirst ? _bare : null) %}
+    {% set _drop   = _role.acceptsMoves ? macros.drop_target(sidebarCounts.roleLabelId(_role), null, true) : '' %}
+
+    <div class="{{ _class }}"
+         data-sidebar-row="inbox"
+         data-unified-inbox-row="{{ inbox.id }}"
+         {{ _drop }}>
+        <a class="flex-1 min-w-0 flex items-center gap-2"
+           data-nav-tier="row"
+           href="{{ _href }}"
+           {% if isFirst %}data-also-open-at="{{ _bare }}"{% endif %}
+           {{ macros.list_frame() }}
+           data-ui--sidebar-target="link"
+           data-action="{{ drawerClose }}"
+           title="{{ _title }}"
+        >
+            <span class="flex min-w-0 items-center gap-2">
+                <i class="fa-solid {{ inbox.iconCase.cssClass }} w-4" aria-hidden="true"></i>
+                <span class="rail-hide truncate">{{ _title }}</span>
+                {{ shared.new_dot(newMail.forInbox(inbox), 'new:inbox:' ~ inbox.id, _title) }}
+            </span>
+        </a>
+        {{ macros.unread_badge(sidebarCounts.forInbox(inbox), 'inbox:' ~ inbox.id, path('app_mail_inbox', { inbox: inbox.id, unread: 1 })) }}
+    </div>
+{% endmacro %}
+
 
 {#
 What makes a nav row swap the LIST rather than the whole page.

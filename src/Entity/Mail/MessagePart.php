@@ -36,6 +36,26 @@ class MessagePart
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $storagePath = null;
 
+    /**
+     * Where the picture as it was uploaded is kept, while storagePath holds a
+     * smaller copy the browser made of it (#502). Null for every part that
+     * was never scaled, which is every part but a draft's images.
+     *
+     * Kept rather than thrown away so the size can be changed again, or set
+     * back to Original, until the message is sent: the next size is scaled
+     * from this, never from the copy before it. Everything that sends, seals
+     * or serves the part reads storagePath and so gets the smaller copy
+     * without knowing there is a choice. A send forgets it (the smaller copy
+     * is what went out), and whatever deletes a part's file
+     * deletes this one too.
+     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    public ?string $originalStoragePath = null;
+
+    /** The size of the file at originalStoragePath; null with it. */
+    #[ORM\Column(nullable: true)]
+    public ?int $originalSize = null;
+
     #[ORM\Column]
     public ?bool $isInline = false;
 

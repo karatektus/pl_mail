@@ -75,6 +75,17 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              confirmNoAttachment: 'compose.confirm.no_attachment'|trans,
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
              imageFailed:      'compose.image_insert_failed'|trans,
+             imageSizeResizing: 'compose.image_size.resizing'|trans,
+             imageSizeFailed:  'compose.image_size.failed'|trans,
+             imageSizeTotal:   'compose.image_size.total'|trans({ '%size%': '%s' }),
+             imageSizeSaving:  'compose.image_size.saving'|trans,
+             imageSizeEstimate: 'compose.image_size.estimate'|trans,
+             imageSizeOwnSize: 'compose.image_size.own_size'|trans,
+             imageSizeEdgePx:  'compose.image_size.edge_px'|trans({ '%px%': '%s' }),
+             imageSizeHintHigh: 'compose.image_size.hint_high'|trans,
+             imageSizeHintFine: 'compose.image_size.hint_fine'|trans,
+             imageSizeHintSoft: 'compose.image_size.hint_soft'|trans,
+             imageSizeHintBlocky: 'compose.image_size.hint_blocky'|trans,
              noSignature:      'compose.signature_none'|trans,
              sealing:          'compose.status.sealing'|trans,
          }|json_encode|e('html_attr') }}"
@@ -215,8 +226,14 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
           anything taller than about 670px. With a keyboard up the cap becomes
           90vh minus the keyboard — see `.compose-dock .compose-window` in
           app.css, which is what keeps a card lifted clear of an iPad's keyboard
-          from running off the top of the screen instead. #}
-       h-[600px] max-h-[90vh] w-[520px] rounded-pane shadow-float
+          from running off the top of the screen instead.
+
+          Fixed, but not fixed by us: the person sets it by dragging the
+          top-left corner (#507, compose--window-size), and it is kept per
+          device as `--compose-w` / `--compose-h` on <html>. 520 × 600 is the
+          size until they do. `relative` is for that corner's handle. #}
+       relative h-[var(--compose-h,600px)] max-h-[90vh] w-[var(--compose-w,520px)] md:max-w-[calc(100vw-2rem)]
+       rounded-pane shadow-float
        pane-flat border border-line mb-4
        {% endif %}
        {# Below md *both* variants are the whole screen, Gmail-app style —
@@ -239,6 +256,28 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
        max-md:m-0 max-md:rounded-none max-md:border-0 max-md:shadow-none
        max-md:bg-surface
        max-md:pt-[env(safe-area-inset-top)] max-md:pb-[env(safe-area-inset-bottom)]">
+        {% if not inline %}
+            {# The resize corner (#507). Top-left, because the dock is anchored
+               bottom-right and the window grows away from that corner. Shown
+               from md up and while the window is neither minimized nor
+               expanded (app.css, "Compose window size"); faint until the
+               window is hovered, so it is there when wanted and not otherwise. #}
+            <button type="button"
+                    data-compose-resize
+                    data-controller="compose--window-size"
+                    data-action="pointerdown->compose--window-size#start dblclick->compose--window-size#reset"
+                    tabindex="-1"
+                    aria-label="{{ 'compose.resize.label'|trans }}"
+                    title="{{ 'compose.resize.hint'|trans }}"
+                    class="hidden md:flex absolute -top-1 -left-1 z-20 w-5 h-5 items-center justify-center
+                           rounded-full cursor-nwse-resize touch-none text-ink-faint
+                           opacity-0 [.compose-window:hover_&]:opacity-100 hover:text-ink
+                           focus:outline-none transition-opacity">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
+                    <circle cx="2" cy="2" r="1.2"></circle><circle cx="6" cy="2" r="1.2"></circle><circle cx="2" cy="6" r="1.2"></circle>
+                </svg>
+            </button>
+        {% endif %}
         {{ form_start(form, { attr: { novalidate: 'novalidate', class: 'flex flex-col flex-1 min-h-0' } }) }}
 
         {# ── Header ───────────────────────────────────────────────── #}
@@ -561,6 +600,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                 <textarea id="{{ form.bodyText.vars.id }}"
                           name="{{ form.bodyText.vars.full_name }}"
                           data-compose--compose-target="plainBody"
+                          data-action="focus->compose--compose#collapseAttachments"
                           aria-label="{{ 'compose.body_placeholder'|trans }}"
                           placeholder="{{ 'compose.body_placeholder'|trans }}"
                           {% if not plainText %}disabled hidden{% endif %}
@@ -576,7 +616,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                         the caret at the end of the signature line, so the first
                         thing typed in a fresh message was concatenated onto the
                         sign-off. See compose--compose#claimWritingSpace. #}
-                     data-action="click->compose--compose#claimWritingSpace"
+                     data-action="click->compose--compose#claimWritingSpace focus->compose--compose#collapseAttachments"
                      contenteditable="true"
                      role="textbox"
                      aria-multiline="true"
@@ -602,7 +642,10 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             </div>{# end scroller #}
 
             {# ── Attachments ──────────────────────────────────────── #}
-            <div data-compose--compose-target="attachments" class="shrink-0">
+            {# `group/attachments`: compose--compose sets data-collapsed here
+               while somebody is writing, and the strip folds to its one-line
+               summary (see the partial) so the message gets the room. #}
+            <div data-compose--compose-target="attachments" class="shrink-0 group/attachments">
                 {# `live: false` — the chips are already part of the window
                    that is arriving, and animating them here would play a
                    staggered entrance inside an element playing its own. The

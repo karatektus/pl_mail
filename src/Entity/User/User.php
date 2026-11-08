@@ -2,6 +2,7 @@
 
 namespace App\Entity\User;
 
+use App\Domain\DTO\Push\NotifyScope;
 use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Domain\Enum\Calendar\CalendarView;
@@ -1382,6 +1383,94 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         get => true === $this->getSetting(self::SETTING_DISPOSAL_DELETE_NOW, false);
         set(bool $on) {
             $this->setSetting(self::SETTING_DISPOSAL_DELETE_NOW, $on ? true : null);
+        }
+    }
+
+    /**
+     * What mail is worth a notification, as switches the user turns on: an
+     * inbox tab each, and a label each. See NotifyScope for the keys and
+     * NotifyScopes for which switches a message falls under.
+     *
+     * PER USER, NOT PER DEVICE (#369). The same mail notifying on one browser
+     * and not on another, or on the phone and not on the laptop, is the
+     * confusing outcome, not a feature. The one honest reason to want two sets
+     * of rules is work against private mail, and that belongs to a set of
+     * accounts, not to a device. Stored here, it reaches every browser through
+     * PushDispatcher and the phone apps through NotificationSettings/get, which
+     * apply it themselves because their pushes also drive their sync.
+     *
+     * PRIMARY ONLY UNTIL SOMEBODY CHOOSES, which is Gmail's default and the
+     * Android app's. The browsers used to be told of every arrival; that was
+     * changed on purpose, and the changelog says so. The key is absent for
+     * everybody who has not chosen, and the default stored back is absent again,
+     * so no migration writes it.
+     *
+     * An empty list is allowed and means no mail notifies. It is a choice the
+     * phone can already make (Primary off, nothing else on), and the server
+     * refusing to store it would make the phone's screen lie.
+     */
+    public const string SETTING_NOTIFY_SCOPES = 'notifications.scopes';
+
+    /**
+     * The switches that are on — [NotifyScope::PRIMARY] until chosen.
+     *
+     * Setting keeps only well-formed keys, once each and in the order given; a
+     * key for a tab or label that has since been deleted is kept, because it is
+     * harmless and the phone may still show it. See NotifyScope::isWellFormed().
+     *
+     * @var list<string>
+     */
+    public array $notifyScopes {
+        get {
+            $stored = $this->getSetting(self::SETTING_NOTIFY_SCOPES);
+
+            if (false === is_array($stored)) {
+                return [NotifyScope::PRIMARY];
+            }
+
+            return array_values(array_filter($stored, 'is_string'));
+        }
+        set (array $scopes) {
+            $kept = [];
+
+            foreach ($scopes as $scope) {
+                if (true === is_string($scope) && true === NotifyScope::isWellFormed($scope)) {
+                    $kept[$scope] = $scope;
+                }
+            }
+
+            $kept = array_values($kept);
+
+            $this->setSetting(self::SETTING_NOTIFY_SCOPES, [NotifyScope::PRIMARY] === $kept ? null : $kept);
+        }
+    }
+
+    public function notifiesFor(string $scope): bool
+    {
+        return true === in_array($scope, $this->notifyScopes, true);
+    }
+
+    /**
+     * Whether a browser drops a notification for mail that has been read by the
+     * time it would show it.
+     *
+     * A web push is content-free (a StateChange cannot say WHICH mail arrived)
+     * and cannot be recalled, so a message that is read or deleted on a phone a
+     * minute after it arrived has already told every other browser. The service
+     * worker therefore waits a moment, asks WebPushController::inboxState()
+     * whether recent mail under one of the switches above is still unread, and
+     * shows nothing when not. Per user, for the reason the switches are.
+     *
+     * OFF unless somebody switches it on. Only a stored true is on, so the key
+     * is absent for nearly everybody and no migration writes it.
+     */
+    public const string SETTING_NOTIFY_SKIP_READ = 'notifications.skip_read';
+
+    /** Virtual, out of the settings bag — see SETTING_NOTIFY_SKIP_READ. */
+    public bool $notifySkipsRead {
+        get => true === $this->getSetting(self::SETTING_NOTIFY_SKIP_READ, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_NOTIFY_SKIP_READ, $on ? true : null);
         }
     }
 

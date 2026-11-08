@@ -78,6 +78,92 @@ test.describe("keyboard shortcuts", () => {
         await expect(page.locator(CURSOR)).toHaveAttribute("data-mail--message-row-id-value", ids[1]!);
     });
 
+    /**
+     * ↓ and ↑ (#469): the list's own keys, moving the real focus.
+     *
+     * Asked for as aliases of `j` and `k`, which would have made ↓ in an open
+     * conversation open the next one — the arrows are how a long mail is read.
+     * So they move the focus while the list has the keyboard and are the
+     * browser's everywhere else; the three tests below are those two halves
+     * and the one thing focus has against it, a row replaced under it.
+     */
+    test("↓ and ↑ move the focus through the list, and Enter opens it", async ({ page }) => {
+        await inbox(page);
+
+        const ids = await page.locator(ROWS).evaluateAll((rows) =>
+            rows.map((row) => row.getAttribute("data-mail--message-row-id-value")));
+        const row = (id: string) => page.locator(`${ROWS}[data-mail--message-row-id-value="${id}"]`);
+
+        // One Tab stop for the whole list, before any key has been pressed.
+        await expect(page.locator(`${ROWS}[tabindex="0"]`)).toHaveCount(1);
+
+        await page.keyboard.press("ArrowDown");
+        await expect(row(ids[0]!)).toBeFocused();
+        await expect(page.locator(CURSOR)).toHaveAttribute("data-mail--message-row-id-value", ids[0]!);
+
+        await page.keyboard.press("ArrowDown");
+        await expect(row(ids[1]!)).toBeFocused();
+
+        await page.keyboard.press("ArrowUp");
+        await expect(row(ids[0]!)).toBeFocused();
+        await expect(page.locator(CURSOR)).toHaveAttribute("data-mail--message-row-id-value", ids[0]!);
+
+        // j from a focused row takes the focus along, so the two never part.
+        await page.keyboard.press("j");
+        await expect(row(ids[1]!)).toBeFocused();
+
+        await page.keyboard.press("Enter");
+        await expect(page.locator(`[data-mail--message-actions-entity-type-value="thread"][data-mail--message-actions-entity-id-value="${ids[1]}"]`)).toBeVisible();
+    });
+
+    /**
+     * Pressing ↓ and then asserting that nothing happened would pass before
+     * anything had the time to. `j` afterwards is the witness instead: had ↓
+     * stepped, j would open the conversation after next.
+     */
+    test("in an open conversation the arrows are the mail's", async ({ page }) => {
+        await inbox(page);
+
+        const ids = await page.locator(ROWS).evaluateAll((rows) =>
+            rows.map((row) => row.getAttribute("data-mail--message-row-id-value")));
+        const open = (id: string) => page.locator(`[data-mail--message-actions-entity-type-value="thread"][data-mail--message-actions-entity-id-value="${id}"]`);
+
+        await page.keyboard.press("j");
+        await page.keyboard.press("o");
+        await expect(open(ids[0]!)).toBeVisible();
+
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("j");
+
+        await expect(open(ids[1]!)).toBeVisible();
+    });
+
+    test("a focused row that leaves the list hands the focus on", async ({ page }) => {
+        await inbox(page);
+
+        const subject = INBOX_SUBJECTS.archive;
+        const id = await mailRow(page, subject).getAttribute("data-mail--message-row-id-value");
+
+        for (let step = 0; step < 20; step++) {
+            await page.keyboard.press("ArrowDown");
+
+            if (id === (await page.locator(CURSOR).getAttribute("data-mail--message-row-id-value"))) {
+                break;
+            }
+        }
+
+        await expect(mailRow(page, subject)).toBeFocused();
+
+        await page.keyboard.press("e");
+        await expect(mailRow(page, subject)).toHaveCount(0);
+
+        // Not dropped to <body>: on the row the cursor moved to, so the next ↓
+        // goes on from there.
+        await expect(page.locator(`${ROWS}:focus`)).toHaveCount(1);
+        await expect(page.locator(`${ROWS}:focus`)).toHaveAttribute("data-kbd-cursor", "");
+    });
+
     test("e archives the row under the cursor, and z takes it back", async ({ page }) => {
         await inbox(page);
 

@@ -53,6 +53,7 @@ final readonly class PostIngestPipeline
         private MessageThreader        $messageThreader,
         private MailRuleEngine         $ruleEngine,
         private MailChangeRecorder     $changes,
+        private NotifyScopes           $notifyScopes,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
         #[AutowireIterator('app.post_ingest_step')]
@@ -65,8 +66,9 @@ final readonly class PostIngestPipeline
      *
      * PRECONDITION: the caller has already persisted and flushed every message.
      * Ids must exist before threading queries them, and MailRuleEngine matches
-     * in SQL — against search_vector, a generated column — so a message that
-     * has not reached the database is invisible to the user's own rules.
+     * in SQL — against search_vector, built as the row is written — so a
+     * message that has not reached the database is invisible to the user's
+     * own rules.
      *
      * Runs its flushes even for an empty batch. IMAP calls this after updating
      * the mailbox's last-seen UID, and that write has to land whether or not
@@ -144,7 +146,12 @@ final readonly class PostIngestPipeline
             // PWA's "new mail" push reads (see StateManager::recordArrival()),
             // and a rule may still read, archive or trash the message, so the
             // verdict is given after the rules have run.
-            if (true === $live && ArrivalPlace::Inbox === $message->arrivedIn) {
+            //
+            // Elsewhere too, for its labels alone: mail a provider's own filter
+            // filed under Work without the Inbox is what a Work switch is for
+            // (#369). It is news only to somebody who switched that label on,
+            // and a sent copy is never news — see NotifyScopes::forMessage().
+            if (true === $live && (ArrivalPlace::Inbox === $message->arrivedIn || ArrivalPlace::Elsewhere === $message->arrivedIn)) {
                 $arrivals[] = [$message, $message->isInInbox()];
             }
 
@@ -165,8 +172,9 @@ final readonly class PostIngestPipeline
                 $message->categoryHeldAt = new DateTimeImmutable();
             }
 
+            // Without the arrival half, which waits for the rules below.
             try {
-                $this->messageThreader->assignThread($message, $item->account);
+                $this->messageThreader->assignThread($message, $item->account, recordArrival: false);
             } catch (\Throwable $e) {
                 $this->logger->error('PostIngest: threading failed', [
                     'messageId' => $message->id,
@@ -198,10 +206,41 @@ final readonly class PostIngestPipeline
         // otherwise never count as arriving at all. Only a label a rule took
         // away is evidence that it left.
         foreach ($arrivals as [$arrived, $wasInInbox]) {
+            if (null !== $arrived->seenAt || true === $arrived->isSetAside()) {
+                continue;
+            }
+
             $leftInbox = true === $wasInInbox && false === $arrived->isInInbox();
 
-            if (null === $arrived->seenAt && false === $leftInbox && false === $arrived->isSetAside()) {
-                $this->changes->mailArrived((int) $arrived->account->id);
+            // Under the switches it falls under (#369): the tab it is in, and
+            // its labels. A message a rule took out of the Inbox keeps its
+            // labels, so "file under Work and archive" still reaches somebody
+            // who switched Work on. Mail held for the assistant falls under
+            // nothing yet, because its tab is not known, and is announced when
+            // the hold ends instead (HeldMailReleaser) — a few seconds late,
+            // and once, in the tab it ends up in.
+            $this->changes->mailArrived(
+                (int) $arrived->account->id,
+                $this->notifyScopes->forMessage(
+                    $arrived,
+                    inInbox: ArrivalPlace::Inbox === $arrived->arrivedIn && false === $leftInbox,
+                ),
+            );
+        }
+
+        // AFTER THE RULES, because a rule is what files a message as spam, and
+        // spam must not move the conversation it joined: a reply a filter sent
+        // to Spam brought its thread back to the top of the Inbox as new mail
+        // (#470). See MessageThreader::recordArrival().
+        foreach ($messages as $message) {
+            try {
+                $this->messageThreader->recordArrival($message);
+            } catch (\Throwable $e) {
+                $this->logger->error('PostIngest: recording the arrival failed', [
+                    'messageId' => $message->id,
+                    'error'     => $e->getMessage(),
+                    'exception' => $e,
+                ]);
             }
         }
 

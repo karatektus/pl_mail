@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Enum\Mail\ImageSize;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -34,6 +35,15 @@ final readonly class DraftAttachmentService
      * Must stay under upload_max_filesize (frankenphp/conf.d/10-app.ini).
      */
     public const int MAX_BYTES = 25 * 1024 * 1024;
+
+    /**
+     * The images a draft can send smaller (#502): what every browser can
+     * both decode and encode again in the same format. GIF is left out
+     * because a canvas keeps only its first frame, SVG because it has no
+     * pixels to drop, HEIC because only Safari reads it. The compose window
+     * reads this list too, through the attachment strip.
+     */
+    public const array SCALABLE = ['image/jpeg', 'image/png', 'image/webp'];
 
     public function __construct(
         private EntityManagerInterface  $entityManager,
@@ -227,12 +237,187 @@ final readonly class DraftAttachmentService
         return $part;
     }
 
+    /**
+     * Put a smaller copy of an image in place of the one the part holds, and
+     * keep the original beside it (#502).
+     *
+     * The browser made the copy: see ImageSize for why the server does not.
+     * What the server still decides is whether the bytes may stand in for
+     * the part at all. An open part takes only an image of the very type it
+     * already is, read from the bytes — the browser keeps the format, and a
+     * part that was a JPEG cannot quietly become a text/html file under the
+     * same name. A sealed part takes only another OpenPGP message, which is
+     * as much as can be known about bytes the server cannot read.
+     *
+     * The first copy moves the original to originalStoragePath; a later one
+     * replaces the copy and leaves the original where it is, so changing the
+     * size twice never scales a scaled picture.
+     *
+     * @return string|null the reason the copy was refused, or null when it is in place
+     */
+    public function replaceWithScaled(MessagePart $part, UploadedFile $file, bool $sealed): ?string
+    {
+        $error = $this->refusal($file);
+
+        if (null !== $error) {
+            return $error;
+        }
+
+        if ($sealed !== $part->sealed) {
+            return $this->translator->trans('compose.upload.failed');
+        }
+
+        $contents = (string) file_get_contents($file->getPathname());
+
+        if (true === $sealed) {
+            if ('' === $contents || 0 === (ord($contents[0]) & 0x80)) {
+                return $this->translator->trans('compose.upload.failed');
+            }
+        } elseif (false === in_array($part->contentType, self::SCALABLE, true) || $file->getMimeType() !== $part->contentType) {
+            return $this->translator->trans('compose.upload.images_only');
+        }
+
+        $message = $part->message;
+
+        $storagePath = $this->storage->store(
+            (int) $message->account->id,
+            (int) ($message->mailbox->id ?? 0),
+            (int) $message->id,
+            (string) $part->filename,
+            $contents,
+        );
+
+        if (null === $part->originalStoragePath) {
+            $part->originalStoragePath = $part->storagePath;
+            $part->originalSize        = $part->size;
+        } else {
+            $this->storage->delete($part->storagePath);
+        }
+
+        $part->storagePath = $storagePath;
+        $part->size        = strlen($contents);
+
+        // The size is part of Email.attachments, which JMAP publishes.
+        $this->announce($message);
+        $this->entityManager->flush();
+
+        return null;
+    }
+
+    /**
+     * Remember the size picked for the draft's images, once the browser has
+     * scaled them to it (#502). Null is Original.
+     *
+     * Custom carries the Adjust panel's two numbers, and they are held to
+     * what the panel offers rather than trusted: a longest side of 0 means
+     * "keep each photo's own size", anything else is brought within 640 to
+     * 4096 pixels, and the quality within 40 to 100. A preset keeps neither
+     * number, so a draft never says Medium and 1600 px at once.
+     */
+    public function chooseImageSize(Message $message, ?ImageSize $size, ?int $edge = null, ?int $quality = null): void
+    {
+        $message->imageSize    = $size;
+        $message->imageEdge    = null;
+        $message->imageQuality = null;
+
+        if (ImageSize::Custom === $size) {
+            $edge = $edge ?? 0;
+
+            $message->imageEdge    = 0 === $edge ? 0 : max(ImageSize::MIN_EDGE, min(ImageSize::MAX_EDGE, $edge));
+            $message->imageQuality = max(ImageSize::MIN_QUALITY, min(ImageSize::MAX_QUALITY, $quality ?? ImageSize::PRESET_QUALITY));
+        }
+
+        $this->entityManager->flush();
+    }
+
+    /**
+     * The width and height of a draft's picture as it was uploaded, for the
+     * Adjust panel's estimate; null when they cannot be known here.
+     *
+     * Read from the file's header alone (getimagesize does not decode), and
+     * from the original, not the smaller copy: the estimate is of what a size
+     * would make of the photo. A sealed part is ciphertext, and has none.
+     *
+     * @return array{int, int}|null
+     */
+    public function originalDimensions(MessagePart $part): ?array
+    {
+        $relative = $part->originalStoragePath ?? $part->storagePath;
+
+        if (true === $part->sealed || null === $relative || false === in_array($part->contentType, self::SCALABLE, true)) {
+            return null;
+        }
+
+        $absolute = $this->storage->getAbsolutePath($relative);
+        $info     = true === is_file($absolute) ? @getimagesize($absolute) : false;
+
+        if (false === $info || $info[0] < 1 || $info[1] < 1) {
+            return null;
+        }
+
+        return [$info[0], $info[1]];
+    }
+
+    /** Put the original back in place of the smaller copy; nothing to do for a part never scaled. */
+    public function restoreOriginal(MessagePart $part): void
+    {
+        if (null === $part->originalStoragePath) {
+            return;
+        }
+
+        $this->storage->delete($part->storagePath);
+
+        $part->storagePath         = $part->originalStoragePath;
+        $part->size                = $part->originalSize;
+        $part->originalStoragePath = null;
+        $part->originalSize        = null;
+
+        $this->announce($part->message);
+        $this->entityManager->flush();
+    }
+
+    /**
+     * Forget the originals of a message's images sent smaller, once it has
+     * gone out (#502). What was sent is the smaller copy, and that is what
+     * the Sent message keeps; the original existed only so the size could
+     * still change.
+     *
+     * The rows first, the files after the flush: a flush that fails leaves
+     * every part pointing at a file that is still there, and a file that will
+     * not delete is left over rather than pointed at.
+     */
+    public function dropOriginals(Message $message): void
+    {
+        $paths = [];
+
+        foreach ($message->messageParts as $part) {
+            if (null === $part->originalStoragePath) {
+                continue;
+            }
+
+            $paths[]                   = $part->originalStoragePath;
+            $part->originalStoragePath = null;
+            $part->originalSize        = null;
+        }
+
+        if ([] === $paths) {
+            return;
+        }
+
+        $this->entityManager->flush();
+
+        foreach ($paths as $path) {
+            $this->storage->delete($path);
+        }
+    }
+
     /** Detach one file and delete its bytes. */
     public function remove(MessagePart $part): void
     {
         $message = $part->message;
 
         $this->storage->delete($part->storagePath);
+        $this->storage->delete($part->originalStoragePath);
 
         $message->removeMessagePart($part);
         $this->entityManager->remove($part);
@@ -247,6 +432,7 @@ final readonly class DraftAttachmentService
     {
         foreach ($message->messageParts as $part) {
             $this->storage->delete($part->storagePath);
+            $this->storage->delete($part->originalStoragePath);
         }
     }
 

@@ -870,6 +870,45 @@
                             {% endfor %}
                         </div>
                     </div>
+
+                    {# Icons, words or both on the action buttons (#459). The two
+                       sample buttons are there because nothing else on this page
+                       has one, so a choice would otherwise show nothing until the
+                       reader went back to their mail. #}
+                    <div>
+                        <span class="block text-xs font-medium text-ink-muted" id="action-buttons-label">
+                            {{ 'settings.appearance.list.actionButtons'|trans }}
+                        </span>
+                        <span class="block text-[11px] text-ink-faint mt-0.5 mb-1.5">
+                            {{ 'settings.appearance.list.actionButtonsHint'|trans }}
+                        </span>
+                        <div class="{{ segGroup }}"
+                             role="radiogroup" aria-labelledby="action-buttons-label">
+                            {% for style in enum('App\\Domain\\Enum\\Theme\\ActionButtonStyle').cases %}
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="actionButtons" class="peer sr-only" value="{{ style.value }}"
+                                           data-settings--appearance-field="actionButtons"
+                                           data-css-vars="{{ { '--action-icon-display': style.iconDisplay, '--action-label-display': style.labelDisplay, '--action-btn-px': style.paddingX, '--action-btn-gap': style.gap }|json_encode }}"
+                                           data-action="change->settings--appearance#applyVars"
+                                           aria-label="{{ ('settings.appearance.list.actionButton.' ~ style.value)|trans }}"
+                                        {{ a.actionButtons == style ? 'checked' : '' }}>
+                                    <span class="{{ segText }}">
+                                        {{ ('settings.appearance.list.actionButton.' ~ style.value)|trans }}
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                        <div class="flex items-center gap-1 mt-2" aria-hidden="true" data-testid="action-buttons-sample">
+                            <span class="action-btn flex items-center justify-center h-8 rounded-full text-ink-muted">
+                                <i class="fa-solid fa-box-archive text-[15px]"></i>
+                                <span class="action-btn-label">{{ 'toolbar.actions.archive'|trans }}</span>
+                            </span>
+                            <span class="action-btn flex items-center justify-center h-8 rounded-full text-ink-muted">
+                                <i class="fa-solid fa-trash text-[15px]"></i>
+                                <span class="action-btn-label">{{ 'toolbar.actions.delete'|trans }}</span>
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </section>
 

@@ -210,8 +210,11 @@ import. The web UI lets users export/import this as a file.
 The same capability carries one boolean that is not an appearance property: **`inboxTabs`**. A user
 can switch the inbox's category tabs off, and then wants one list. `Thread.category` is served
 either way, because mail is still filed in the background, so the category cannot tell you this. If
-you draw tabs from it, draw none when `inboxTabs` is `false`. It is read-only here and, like the
-compact `appearance` beside it, a hint that can be stale in a cached Session.
+you draw tabs from it, draw none when `inboxTabs` is `false`. Here it is, like the compact
+`appearance` beside it, a hint that can be stale in a cached Session. `Appearance/get` serves the
+current value as the `inboxTabs` property of the singleton, and `Appearance/set` changes it (a JSON
+boolean). It is the web's "Inbox tabs" switch, stored with the category
+settings rather than the appearance, and switching it moves no mail between categories.
 
 ### Inbox tabs (`urn:plmail:params:jmap:inboxtabs`)
 
@@ -237,6 +240,53 @@ account; every account answers with the same list.
 
 Creating, renaming, switching and ordering tabs is done on the web today. `Thread.category` and
 `threadCategory` are unchanged, and `inboxTabs` above still says whether to draw tabs at all.
+
+### Unified inboxes (`urn:plmail:params:jmap:unifiedinboxes`)
+
+The user's inboxes as the web's sidebar draws them (#265): one or more named lists, each over a set
+of accounts, plus **Other**, which holds the accounts the user took out of their own. Advertised at
+the top of the Session, with `icons` (every icon name an inbox can carry), and on every account;
+every account answers with the same list.
+
+- **`UnifiedInbox/get`** (`accountId` required) lists every inbox in the sidebar's order. A
+  UnifiedInbox is `{ id, name, icon, sortOrder, isOther, accountIds }`. `name` is null for an inbox
+  the user did not name: call it "Inbox", or for Other "Other", in your own language. `icon` is a
+  Font Awesome solid icon name from the capability's `icons`; map it to your own set. `accountIds`
+  are the accounts whose Inbox it lists, **a list**: an account is in one inbox today, and the
+  format will not change if that ever becomes several.
+- Draw an inbox the way the web does: the Inbox of its accounts as one list, with the tabs counted
+  over those accounts only. The web leaves Other out while none of its accounts is switched on.
+- **`UnifiedInbox/changes`** is the standard /changes, and push `StateChange` carries a
+  `UnifiedInbox` state. An account added or removed changes which inbox lists it without a change
+  here: fetch the inboxes again when the Session's accounts change.
+
+Creating, naming and ordering inboxes, and moving an account between them, is done on the web today.
+
+### Notification settings (`urn:plmail:params:jmap:notifications`)
+
+Which mail is worth a notification, chosen once per **user** and not per device: the same switches
+on the web, in every browser and in your app. The server applies them to browser pushes itself. Your
+app still receives every `StateChange` (it needs them to sync) and applies them before it rings.
+
+- **`NotificationSettings/get`** (no `accountId`; the singleton id is `"singleton"`) returns
+  `{ id, scopes, skipRead }`. `scopes` is the list of switches that are **on**, always spelled out:
+  `["category:primary"]` for a user who never chose. A key is `category:<built-in>`,
+  `tab:c<id>` for a tab of the user's own (the `InboxTab` id after the prefix), or
+  `label:<labelId>` (`Mailbox.labelId`, so one switch covers the label in every account).
+  `skipRead` is the browsers' "Only notify for unread mail"; an app that already knows what is read
+  has no need for it.
+- **`NotificationSettings/set`** `update: { "singleton": { "scopes": [...], "skipRead": bool } }`.
+  `scopes` replaces the whole list; a key that could never be a scope is `invalidProperties`. A key
+  for a tab or label that no longer exists is kept and simply never matches. `create` and `destroy`
+  are refused with `singleton`.
+- The state is a hash of the object, not a sequence: there is no `/changes`. Read it again when you
+  open your notification screen and on each sync.
+- The Session's capability carries `scopePrefixes` and `defaultScopes`.
+
+Which scopes one message falls under: the tab the web shows it in when it is in the Inbox
+(`Thread.inboxTab`; `category:primary` for everything in the Inbox when `inboxTabs` is false), plus
+`label:<id>` for each label without a role. Where the inbox has no tabs the Inbox label also counts.
+Sent mail and drafts fall under nothing.
 
 > **This IS reachable over JMAP.** `Appearance/get` and `Appearance/set` serve the singleton object
 > (id `"singleton"`, no `accountId` — it hangs off the `User`), and the Session's appearance
@@ -688,6 +738,7 @@ Everything registered in [`src/Jmap/Method/`](../src/Jmap/Method/):
 | `Thread/get` / `Thread/changes` | `/get` carries four plMail extensions: `snoozedUntil`, `category`, `inboxTab`, `isNew`. |
 | `Thread/set` | plMail extension. `snoozedUntil`, `isNew`, `inboxTab`, and the instruction `moveTo` — see [Moving](#moving-threadset-moveto) and §4. |
 | `InboxTab/get` / `InboxTab/changes` | `urn:plmail:params:jmap:inboxtabs`. The user's tabs, the same on every account. See [Inbox tabs](#inbox-tabs-urnplmailparamsjmapinboxtabs). |
+| `UnifiedInbox/get` / `UnifiedInbox/changes` | `urn:plmail:params:jmap:unifiedinboxes`. The user's unified inboxes and their accounts, the same on every account. See [Unified inboxes](#unified-inboxes-urnplmailparamsjmapunifiedinboxes). |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. One account serves calendars. |
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | An id is the series, not an occurrence; `/query` requires a date window, and `expandRecurrences: true` makes it answer per occurrence. |
@@ -1617,7 +1668,7 @@ Ordered roughly by how much users will miss them.
 
 **Settings**
 - Appearance — `Appearance/get` and `Appearance/set` serve the whole object, including `fontFamily`,
-  `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`, `tabUnreadCount`, the three
+  `fontScale`, `previewLines`, `unreadEmphasis`, `actionButtons`, `accountCorner`, `listAvatars`, `tabUnreadCount`, the three
   per-surface densities and the read-only `logoStyle`, `logoMotif` and `logoPaint` (see [§2](#2-look-and-feel)). Build the token system regardless; read the
   server's values into it rather than inventing your own defaults.
 - Account list and order.

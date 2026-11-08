@@ -15,6 +15,7 @@ import { clearSelection, enterView, restoreSelection, selection } from "../../ma
 import { announceWrite } from "../../mail_writes.js";
 import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
+import { leavesList, takeOut } from "../../optimistic_rows.js";
 
 // Classes applied to the checkbox button in each state
 const CB_BASE   = "border-field-border bg-field";
@@ -352,11 +353,17 @@ export default class extends Controller {
 
     // ── Private ───────────────────────────────────────────────────────────
 
-    /** All row checkboxes in the visible list */
+    /**
+     * All row checkboxes in the visible list.
+     *
+     * Not those of a row hidden while its action is under way (#335): it has
+     * left the list as far as the reader can see, and "select all" pressed in
+     * that moment must not reach it.
+     */
     _rowCheckboxes() {
         return Array.from(
             document.querySelectorAll(
-                "#message-list [data-controller~='mail--message-row'] input[type='checkbox']",
+                "#message-list [data-controller~='mail--message-row']:not([hidden]) input[type='checkbox']",
             ),
         );
     }
@@ -402,6 +409,15 @@ export default class extends Controller {
      * "1–5 of 5" and an emptied one never showed its empty state — the pager
      * and the placeholder belong to the LIST, and no row-shaped response
      * carries them. The bulk response refreshes the frame instead.
+     *
+     * The ticked rows an action takes out of this list are hidden before the
+     * request goes and put back, still ticked, if it fails (#335) — see
+     * assets/optimistic_rows.js. Not for a whole-view selection: that is
+     * answered by a background job that has not done anything yet when the
+     * response arrives (mail/_job_started.stream.html.twig), so the refresh
+     * that follows would draw the rows straight back, and they would then
+     * leave a second time as the job reached them. Those rows wait for the
+     * job, as they always have, and the toast says it started.
      */
     async _bulkPost(action, body = {}) {
         const ids = this.#allInView ? [] : this._selectedIds();
@@ -410,9 +426,16 @@ export default class extends Controller {
             return;
         }
 
+        const gone = false === this.#allInView && true === leavesList(action, body)
+            ? takeOut(this._checkedRows().map((cb) => cb.closest("li")))
+            : null;
+
+        let failed = false;
+
         // Holds the mail pane's refresh of the list frame for the duration —
         // see mail--mail-pane#hold. Without it the frame reloads mid-run and
-        // the rows being acted on are replaced underneath the request.
+        // the rows being acted on are replaced underneath the request — or,
+        // now, the hidden rows are drawn back before the answer is in.
         this.dispatch("writing");
 
         try {
@@ -429,8 +452,11 @@ export default class extends Controller {
                 }),
             });
 
-            // Nothing moved, and the toast is the only thing that can say so.
+            // Nothing moved, and the toast is the only thing that can say so
+            // — together with the rows coming back where they were.
             if (requestFailed(response)) {
+                failed = true;
+                gone?.putBack();
                 return;
             }
 
@@ -446,17 +472,35 @@ export default class extends Controller {
             // nothing at all, silently. That is worth writing down, because it
             // looks exactly like a refresh that ran and found no changes.
         } catch {
+            failed = true;
+            gone?.putBack();
             requestFailed(null);
         } finally {
+            // After the rows are back, never before: the release re-reads the
+            // list, and it should find it as the server still has it.
             this.dispatch("written");
             announceWrite();
 
-            // The selection is spent either way. Leaving #allInView set is how
-            // a second click would act on everything that had arrived since —
-            // which is the shape of the desync that was reported, made worse.
+            // Leaving #allInView set is how a second click would act on
+            // everything that had arrived since — which is the shape of the
+            // desync that was reported, made worse. So that goes either way.
             this.#allInView = false;
-            clearSelection();
-            this._setAllRows(false);
+
+            // The ticks are spent by an action that ran. One that failed
+            // leaves them as they were, so the rows that came back are the
+            // rows that were chosen, and trying again is one click.
+            if (false === failed) {
+                clearSelection();
+                this._setAllRows(false);
+
+                // Hidden rows are not among _rowCheckboxes(). Most are gone by
+                // now; one the server kept (and drew again) is a new element,
+                // and this is for the rest.
+                gone?.rows.forEach((row) => {
+                    row.querySelectorAll("input[type='checkbox']").forEach((cb) => { cb.checked = false; });
+                });
+            }
+
             this._syncFromRows();
         }
     }

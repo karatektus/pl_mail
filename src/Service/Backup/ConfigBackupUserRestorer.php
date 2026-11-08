@@ -36,6 +36,9 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\Mail\InboxCategory;
+use App\Entity\Mail\UnifiedInbox;
+use App\Entity\Mail\UnifiedInboxAccount;
+use App\Domain\Enum\Mail\UnifiedInboxIcon;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
@@ -199,6 +202,8 @@ final readonly class ConfigBackupUserRestorer
         $integrations = $this->createIntegrations($user, $this->rows($document, 'integrations'));
         $labels       = $this->createLabels($user, $this->rows($document, 'labels'));
         $categories   = $this->createInboxCategories($user, $this->rows($document, 'inboxCategories'));
+
+        $this->createUnifiedInboxes($user, $this->rows($document, 'unifiedInboxes'), $accounts);
         $calendars    = $this->createCalendars($user, $this->rows($document, 'calendars'), $accounts, $integrations);
 
         $this->createAppPasswords($user, $this->rows($document, 'appPasswords'));
@@ -919,6 +924,61 @@ final readonly class ConfigBackupUserRestorer
         }
 
         return $created;
+    }
+
+    /**
+     * The unified inboxes (#265), in the order the file lists them, each with
+     * the accounts it was assigned — named by their ids in the file and
+     * rewritten to the accounts created above. An id the file has no account
+     * for is dropped; an account named twice keeps the first inbox that names
+     * it, because an account is in one inbox.
+     *
+     * A hand-edited file is not trusted: a name is trimmed and cut to the
+     * column, an empty one is plMail's own word, an icon outside the set is the
+     * inbox tray, and a second Other is restored as an inbox of the person's
+     * own rather than tripping the one-Other index and aborting the restore.
+     * A file without the section — every backup written before #265 — restores
+     * none, and the person gets the starting rows on their first page.
+     *
+     * @param list<array<string, mixed>> $rows
+     * @param array<int, Account>        $accounts keyed by the id in the file
+     */
+    private function createUnifiedInboxes(User $user, array $rows, array $accounts): void
+    {
+        $position = 0;
+        $hasOther = false;
+        $placed   = [];
+
+        foreach ($rows as $row) {
+            $name    = mb_substr(trim((string) ($this->text($row, 'name') ?? '')), 0, UnifiedInbox::NAME_MAX_LENGTH);
+            $isOther = true === ($row['isOther'] ?? false) && false === $hasOther;
+
+            $inbox = new UnifiedInbox(
+                $user,
+                '' === $name ? null : $name,
+                UnifiedInboxIcon::of((string) ($this->text($row, 'icon') ?? ''))->value,
+                $position++,
+                $isOther,
+            );
+
+            $hasOther = $hasOther || $isOther;
+
+            $this->entityManager->persist($inbox);
+
+            $ids = $row['accountIds'] ?? [];
+
+            foreach (is_array($ids) ? $ids : [] as $id) {
+                $account = is_int($id) ? ($accounts[$id] ?? null) : null;
+
+                if (null === $account || true === isset($placed[$id])) {
+                    continue;
+                }
+
+                $placed[$id] = true;
+
+                $this->entityManager->persist(new UnifiedInboxAccount($inbox, $account));
+            }
+        }
     }
 
     /**

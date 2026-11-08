@@ -12,6 +12,7 @@ use App\Entity\User\User;
 use App\Form\Integration\IntegrationConnectType;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Repository\Integration\IntegrationRepository;
+use App\Service\Integration\BrowserLogin\BrowserLoginService;
 use App\Service\Integration\IntegrationConnector;
 use App\Service\Onboarding\OnboardingStepHandlerInterface;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
@@ -49,6 +50,7 @@ final readonly class IntegrationsStepHandler implements OnboardingStepHandlerInt
         private IntegrationProviderConfigRepository $configs,
         private IntegrationRepository $integrations,
         private IntegrationConnector $connector,
+        private BrowserLoginService $browserLogin,
     ) {
     }
 
@@ -132,10 +134,12 @@ final readonly class IntegrationsStepHandler implements OnboardingStepHandlerInt
         }
 
         $connectUrls = [];
+        $browserLogin = [];
 
         foreach (Provider::implemented() as $provider) {
             if (AuthKind::OAuth2 !== $provider->authKind()) {
                 $connectUrls[$provider->value] = $this->stepUrl($provider);
+                $browserLogin[$provider->value] = $this->browserLogin->supports($provider);
             }
         }
 
@@ -144,6 +148,8 @@ final readonly class IntegrationsStepHandler implements OnboardingStepHandlerInt
             'connected'   => $connected,
             'expanded'    => $this->expanded($request),
             'connectUrls' => $connectUrls,
+            // Which expanded rows also offer approving in the browser (#235).
+            'browserLogin' => $browserLogin,
             'closeUrl'    => $this->stepUrl(),
         ];
     }

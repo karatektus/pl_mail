@@ -41,6 +41,7 @@ test.beforeAll(() => {
  */
 const PROVIDER_IDS: Record<string, string> = {
     Nextcloud: "nextcloud",
+    OpenCloud: "openCloud",
     Immich: "immich",
     "Google Drive": "googleDrive",
     "Google Photos": "googlePhotos",
@@ -361,7 +362,7 @@ test.describe("user integrations", () => {
         await modal.locator('input[name$="[name]"]').fill("Home cloud");
         await modal.locator('input[name$="[username]"]').fill("alice");
         await modal.locator('input[name$="[secret]"]').fill("not-a-real-password");
-        await modal.getByRole("button", { name: "Connect" }).click();
+        await modal.locator('button[type="submit"]', { hasText: "Connect" }).click();
 
         // cloud.example.com is unreachable from the test container, so the
         // probe fails — which is exactly the path worth pinning: the row is
@@ -385,7 +386,7 @@ test.describe("user integrations", () => {
         await modal.locator('input[name$="[name]"]').fill("Scratch cloud");
         await modal.locator('input[name$="[username]"]').fill("bob");
         await modal.locator('input[name$="[secret]"]').fill("whatever");
-        await modal.getByRole("button", { name: "Connect" }).click();
+        await modal.locator('button[type="submit"]', { hasText: "Connect" }).click();
 
         const row = frame.locator("li").filter({ hasText: "Scratch cloud" });
         await expect(row).toBeVisible();
@@ -453,7 +454,7 @@ test.describe("compose integration picker", () => {
         await page.locator('#modal input[name$="[name]"]').fill(name);
         await page.locator('#modal input[name$="[username]"]').fill("alice");
         await page.locator('#modal input[name$="[secret]"]').fill("app-password");
-        await page.locator("#modal").getByRole("button", { name: "Connect" }).click();
+        await page.locator('#modal button[type="submit"]', { hasText: "Connect" }).click();
         await expect(frame.getByText(name)).toBeVisible();
     }
 

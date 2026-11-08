@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Infrastructure\Event\Subscriber;
 
+use App\Domain\DTO\Push\NotifyScope;
 use App\Domain\Enum\PushTransport;
 use App\Entity\User\PushSubscription;
 use App\Infrastructure\Event\Subscriber\JmapPushSubscriber;
@@ -61,7 +62,7 @@ final class JmapPushSubscriberArrivalsTest extends JmapTestCase
 
         self::assertCount(0, $sender->sent, 'an update-only flush does not mark the PWA as arrived');
 
-        $state->recordArrival($accountId);
+        $state->recordArrival($accountId, [NotifyScope::PRIMARY]);
         $state->recordUpdated($accountId, JmapObjectType::Email, '10');
         $this->em->flush();
         $subscriber->onWorkerMessage();

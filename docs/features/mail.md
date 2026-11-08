@@ -13,7 +13,7 @@ label you made shows everything carrying it, wherever it arrived.
 
 | Entry | What it lists |
 |---|---|
-| **Inbox** | Everything still in the inbox, across every account, newest conversation first |
+| **Inbox** | Everything still in the inbox, across every account, newest conversation first — or one row per inbox once you split your accounts between several (see [Several inboxes](#several-inboxes)) |
 | **Unread** | Every unread conversation in one list, whatever it is filed under — off until you switch it on |
 | **Starred** | Conversations with at least one starred message |
 | **Snoozed** | Conversations waiting for their wake time |
@@ -93,6 +93,28 @@ no such number, because there is no honest one to give — those counts are per 
 account you have expanded is loaded.
 
 Every list pages at fifty conversations. **Newer** and **Older** in the toolbar move between pages.
+
+### Several inboxes
+
+One **Inbox** over every account is where everybody starts. If you would rather read work and private
+mail apart, **Settings → Unified inboxes** makes more of them: add one, give it a name and an icon,
+and under **Accounts** choose which inbox each account's mail is listed in. Every inbox is a row of
+its own in the sidebar, in the order you drag them into, with its own unread badge, its own "new"
+dot and its own tabs — the strip of an inbox only counts the mail of its accounts, and **Select all**
+in it reaches no further. The first inbox is the one the plain **Inbox** address opens, and a new
+account goes there until you move it.
+
+An account is in one inbox at a time. The one you take out of all of yours goes to **Other**, an inbox
+plMail keeps for exactly that, so it is still one click away; Other shows in the sidebar only while
+it holds a switched-on account, and you can rename it, change its icon and move it like the others,
+but not delete it. Deleting an inbox of your own moves its accounts there too — no mail is deleted
+either way, an inbox is only a way of listing it. Leave a name empty and the inbox is called
+**Inbox** (or **Other**) in your language.
+
+**Unread**, **Starred**, **Snoozed** and the rest of the system rows still span every account, and the
+browser tab counts the inbox you have open. Each account keeps its own inbox under **Accounts**. A
+configuration backup carries the inboxes and which account is in which. Phone apps can read them
+over JMAP (`UnifiedInbox/get`); they are arranged only here.
 
 ## Tabs
 
@@ -540,6 +562,9 @@ and moves nothing.
 
 To turn a label into a folder on one account, open the label and use **Change per account** under
 **Where this label is kept**, then **Make it a folder**. This works on plain IMAP and Outlook accounts.
+On IMAP the dialog asks where the folder goes, **Top level** or inside any folder of the account, and
+starts on the place you chose last time there; a label nested under one that is already a folder
+there goes inside that folder, and the dialog says so.
 Mail with that label on that account moves into the new folder, except mail in Trash, Spam, Sent and
 Drafts, and the dialog says how many messages will move first. On Outlook the category of that name
 is removed.
@@ -589,6 +614,12 @@ Moving, labelling and archiving each show an **Undo** for a few seconds. It puts
 labels each conversation had before, which for a mixed selection is not the same as reversing the
 action: an already-archived conversation that was ticked along with the rest stays archived. Undo
 is not offered when the action ran over a whole view in the background.
+
+Archiving, deleting, moving, restoring and snoozing take the conversation out of the list as soon as
+you choose them, without waiting for the server. If the server then refuses or cannot be reached,
+the conversation comes back where it was, still ticked if it was, and a message says what went
+wrong. An action over a whole view is the exception: those rows stay until the background job has
+moved them.
 
 ## Search
 
@@ -754,6 +785,7 @@ keyboard button above a mail list; the ones worth knowing first:
 | Key | Does |
 |---|---|
 | `j` / `k` | Move down and up a list. With a conversation open, open the next or previous one. |
+| `↓` / `↑` | Move down and up a list too, but only while the list has the keyboard: a row is highlighted by a click or by `Tab`, or nothing else is open. In an open conversation they scroll it, as they would anywhere. |
 | `o` or `Enter` | Open the highlighted conversation. `u` goes back to the list. |
 | `x` | Select the highlighted conversation. `*` then `a` selects the page, `*` then `n` clears. |
 | `e` · `#` · `!` | Archive · delete · mark as spam. |
@@ -1005,6 +1037,10 @@ dock. Either way the window offers rich text, contact autocomplete on the addres
 **From** selector listing every active account and every sending alias on it. A reply opens on the
 address the mail was sent to; see [Accounts and aliases](accounts.md#sending-aliases).
 
+**Drag the window's top-left corner** to make the docked window bigger or smaller; double-click the
+corner for the standard size again. The size is kept **on this device**, in the browser, so the laptop and the large screen beside it can each have
+their own. On a phone the window always fills the screen.
+
 Autocomplete only ever offers **your own** harvested contacts. On an install with more than one
 person, nobody's correspondents are visible to anybody else, and an address belonging to another
 account cannot be put on your draft by any route.
@@ -1066,6 +1102,35 @@ Inline images travel as `cid:` parts of the message, which is what every mail cl
 the recipient sees the picture rather than a broken link back into plMail. They are not attachments
 and are not counted as any: a message whose only picture is one you placed in the body carries no
 paperclip.
+
+### Sending images smaller
+
+Photos from a phone are several megabytes each, and a few of them make a message most people did not
+mean to send that big. As soon as the draft holds an image, attached or in the body, an **Image
+size** row appears above the attachments: **Original**, **Large** (2048 pixels on the longest
+side), **Medium** (1280) and **Small** (800), with the size of the whole message beside it.
+
+Original is where it starts, so nothing gets smaller unless you pick a size. The size you pick
+applies to every image in the draft, and to images you add afterwards. Files that are not images are
+left alone, and so is an image that is already smaller than the size you picked, or a GIF, an SVG
+or a HEIC photo. You can change the size, or go back to Original, until you send: plMail keeps each
+picture as you uploaded it, and scales from that every time.
+
+Your browser does the scaling, and that works in an encrypted draft too. It turns a phone photo the
+right way up first, and the smaller copy keeps none of the photo's metadata, so its GPS position
+does not go out with it. Original sends the file exactly as you uploaded it.
+
+Once something is smaller, the row says how much: the message's size before and after, for example
+"14.5 MB → 1.7 MB".
+
+**Adjust** (the sliders button beside the sizes) sets size and quality apart. **Longest side** goes
+from 640 to 4096 pixels, or **Keep each photo's own size** compresses the photos without making them
+smaller. **Quality** goes from 40 to 100 %, with a line under it saying what that looks like. The
+presets use 85 %. While you move the sliders, the panel estimates what the photos will come to; the
+exact sizes show once you **Apply to all images**. Numbers that match a preset select that preset;
+anything else shows as its own **Custom** choice in the row, with its numbers beside it ("1600 px · 70 %"),
+and applies to images you add later in the same way. Quality applies to JPEG and WebP; PNG images
+are lossless and only get smaller with their pixel size.
 
 ### Links
 

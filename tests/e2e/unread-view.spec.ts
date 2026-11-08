@@ -1,5 +1,6 @@
 import { test, expect } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { INBOX_BADGE } from "./support/sidebar";
 
 /**
  * The unread badge is a link, and its number is a promise about the list it
@@ -21,7 +22,6 @@ import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
  * hidden element first and every click times out.
  */
 
-const INBOX_BADGE = '#sidebar [data-count-key="role:inbox"]';
 const ROWS = '#message-list li[data-controller="mail--message-row"]';
 
 test.beforeEach(() => {

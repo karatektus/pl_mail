@@ -88,7 +88,15 @@ final class ThreadListQueryBudgetTest extends WebTestCase
     // failed (#125, SidebarCounts::unsentDrafts()): one COUNT over a partial
     // index that holds only the marked rows, per page with a sidebar. Not per
     // row, and not in a frame, so FRAME_BUDGET is unchanged again.
-    private const int BUDGET = 29;
+    //
+    // 31 since the sidebar draws the reader's unified inboxes (#265): their
+    // rows (`unified_inbox WHERE usr_id = ?`) and which accounts each holds
+    // (one read of the accounts LEFT JOINed to unified_inbox_account). Both
+    // made once per request, whoever asks (UnifiedInboxes). Their badges and
+    // dots add nothing while one inbox holds every account — they are the
+    // Inbox role's numbers then, already read — and one grouped read each when
+    // there are several.
+    private const int BUDGET = 31;
 
     /**
      * The ceiling for the INBOX alone: one above BUDGET, and the one read that
@@ -104,8 +112,10 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * Its own constant rather than a raised BUDGET, so the other five lists keep
      * the ceiling they had: a shared ceiling raised for one view would let each
      * of the others regress by a query and still pass.
+     *
+     * Raised with BUDGET, by the same two reads, for #265.
      */
-    private const int INBOX_BUDGET = 30;
+    private const int INBOX_BUDGET = 32;
 
     /**
      * The ceiling for the same list NAVIGATED rather than visited.
@@ -149,6 +159,15 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * the inbox is the only view that pays for it. It was at fifteen exactly.
      * Separate from FRAME_BUDGET for the reason INBOX_BUDGET is separate from
      * BUDGET.
+     *
+     * Eighteen since the inbox is one of the reader's unified inboxes (#265):
+     * the frame has to know which one it is and which accounts it holds, the
+     * same two reads the sidebar makes on a full page, and here they are list
+     * work too — they narrow the list, its count and its tab strip.
+     *
+     * Sixteen since the pager total, every tab's total and every tab's unread
+     * come out of one grouped read (countTabsForUnifiedInbox()): those were
+     * three reads of the whole inbox, the largest fixed cost of a tab click.
      */
     private const int INBOX_FRAME_BUDGET = 16;
 

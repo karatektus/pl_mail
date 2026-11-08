@@ -608,3 +608,197 @@ test.describe("What's new screenshots, as an administrator", () => {
         }
     });
 });
+
+/**
+ * A photo for the compose window: soft colour bands with some grain, so it
+ * looks like a picture in its thumbnail and a smaller copy is really fewer
+ * bytes. Drawn in the page, because the browser is what encodes JPEGs here.
+ */
+async function demoPhoto(page: Page, width: number, height: number): Promise<Buffer> {
+    const base64 = await page.evaluate(async ([w, h]) => {
+        const canvas = new OffscreenCanvas(w, h);
+        const context = canvas.getContext("2d")!;
+        const sky = context.createLinearGradient(0, 0, 0, h);
+        sky.addColorStop(0, "#9cc3d5");
+        sky.addColorStop(0.55, "#e8d9b5");
+        sky.addColorStop(0.56, "#5f7f5a");
+        sky.addColorStop(1, "#3e5a3c");
+        context.fillStyle = sky;
+        context.fillRect(0, 0, w, h);
+
+        const pixels = context.getImageData(0, 0, w, h);
+        for (let i = 0; i < pixels.data.length; i += 4) {
+            const grain = ((i * 7919) % 41) - 20;
+            pixels.data[i] += grain;
+            pixels.data[i + 1] += grain;
+            pixels.data[i + 2] += grain;
+        }
+        context.putImageData(pixels, 0, 0);
+
+        const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.92 });
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) {
+            binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        }
+
+        return btoa(binary);
+    }, [width, height]);
+
+    return Buffer.from(base64, "base64");
+}
+
+test.describe("What's new screenshots, v0.4.2", () => {
+    test.skip(undefined === process.env.E2E_SCREENSHOTS, 'Demo mailbox required — run "npm run test:e2e:screenshots".');
+
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.beforeAll(() => {
+        seedUser({ email: TEST_DEMO.email, password: TEST_DEMO.password });
+        consoleCommand(`app:test:seed-demo --email=${TEST_DEMO.email}`);
+    });
+
+    test.beforeEach(async ({ page }) => {
+        await login(page, TEST_DEMO.email, TEST_DEMO.password);
+    });
+
+    /**
+     * The inboxes card with two of the reader's own beside the standard one.
+     * Made through the card's own form and removed again afterwards, so the
+     * other pictures keep the demo's single Inbox.
+     */
+    test("unified-inboxes", async ({ page }) => {
+        const icons: Record<string, string> = { Work: "briefcase", Personal: "house" };
+        const names = Object.keys(icons);
+        const forget = (): void => consoleCommand(
+            `dbal:run-sql "DELETE FROM unified_inbox WHERE name IN ('${names.join("', '")}') AND usr_id = (SELECT id FROM \\"user\\" WHERE email = '${TEST_DEMO.email}')"`,
+        );
+
+        forget();
+
+        try {
+            for (const name of names) {
+                const inboxes = await card(page, "inboxes", "Unified inboxes");
+                const field = inboxes.getByPlaceholder("e.g. Work");
+                // The icon set is a popover; the radio inside it is what the form sends.
+                await inboxes.locator(`#inbox-new-icon-${icons[name]}`).evaluate((el) => { (el as HTMLInputElement).checked = true; });
+                await field.fill(name);
+                await field.press("Enter");
+                await expect(page.getByText(`Created "${name}".`)).toBeVisible();
+            }
+
+            await capture(page, "unified-inboxes", await card(page, "inboxes", "Unified inboxes"));
+        } finally {
+            forget();
+        }
+    });
+
+    /** A draft with a photo attached and Medium picked: the row, and the message's size before and after. */
+    test("image-size", async ({ page }) => {
+        const dock = await composeTo(
+            page,
+            ["priya@ramanjoinery.example"],
+            "Photos from the Brunnengasse workshop",
+            "Here are the photos of the finished shelves.",
+        );
+
+        await dock.locator('input[data-compose--compose-target="fileInput"]').setInputFiles({
+            name: "workshop-shelves.jpg",
+            mimeType: "image/jpeg",
+            buffer: await demoPhoto(page, 4000, 3000),
+        });
+
+        const row = dock.locator('[data-compose--compose-target="imageSize"]');
+        await expect(row).toBeVisible();
+        await row.getByRole("radio", { name: "Medium" }).click();
+        await expect(dock.locator('[data-compose--compose-target="imageSize"]').getByRole("radio", { name: "Medium" }))
+            .toHaveAttribute("aria-checked", "true", { timeout: 15000 });
+        await page.waitForTimeout(800);
+
+        await capture(page, "image-size", dock.locator(".compose-window"));
+    });
+
+    /** Notify for, with the standard choice: Primary, and nothing else until the reader ticks it. */
+    test("notify-for", async ({ page }) => {
+        await capture(page, "notify-for", await card(page, "notifications", "Notifications"), 620);
+    });
+});
+
+/**
+ * One provider switched on by the administrator, through the same Configure
+ * dialog a person uses. The row's body is swapped in by a frame that comes
+ * back with every row closed (integrations.spec.ts → openRow tells the story),
+ * so opening and clicking retry together.
+ */
+async function enableProvider(page: Page, id: string, baseUrl: string): Promise<void> {
+    await page.goto("/admin?section=integrations");
+    await expect(page.locator("#admin-integrations")).toBeVisible();
+
+    await expect(async () => {
+        const row = page.locator(`#integration-provider-${id}`);
+        if (false === (await row.evaluate((el) => (el as HTMLDetailsElement).open))) {
+            await row.locator("summary").click();
+        }
+        await row.getByRole("button", { name: "Configure" }).click({ timeout: 2000 });
+    }).toPass({ timeout: 20000 });
+
+    const modal = page.locator("#modal");
+    await modal.locator('input[name$="[isEnabled]"]').check();
+    const url = modal.locator('input[name$="[baseUrl]"]');
+    if (await url.count() > 0) {
+        await url.fill(baseUrl);
+    }
+    await modal.getByRole("button", { name: "Save" }).click();
+    await expect(page.locator(`#integration-provider-${id}`).getByText("Enabled")).toBeVisible();
+}
+
+/** The connect dialog of one service, opened from Settings → Integrations. */
+async function connectDialog(page: Page, service: string): Promise<Locator> {
+    await page.goto("/settings?section=integrations");
+    const frame = page.locator("#settings-integrations-frame");
+    await frame.getByRole("button", { name: service, exact: true }).click();
+
+    const panel = page.locator("[data-ui--modal-panel]");
+    await expect(panel).toBeVisible();
+
+    return panel;
+}
+
+test.describe("What's new screenshots, v0.4.2 integrations", () => {
+    test.skip(undefined === process.env.E2E_SCREENSHOTS, 'Demo mailbox required — run "npm run test:e2e:screenshots".');
+
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.beforeAll(() => {
+        seedUser({ email: TEST_DEMO_ADMIN.email, password: TEST_DEMO_ADMIN.password, admin: true });
+        consoleCommand(`app:test:seed-demo --email=${TEST_DEMO_ADMIN.email}`);
+    });
+
+    test.beforeEach(async ({ page }) => {
+        await login(page, TEST_DEMO_ADMIN.email, TEST_DEMO_ADMIN.password);
+    });
+
+    test("opencloud", async ({ page }) => {
+        await enableProvider(page, "openCloud", "https://cloud.ramanjoinery.example");
+
+        const panel = await connectDialog(page, "OpenCloud");
+        const url = panel.locator('input[name$="[baseUrl]"]');
+        if (await url.count() > 0) {
+            await url.fill("https://cloud.ramanjoinery.example");
+        }
+        await panel.locator('input[name$="[username]"]').fill("priya");
+        await panel.locator('input[name$="[username]"]').blur();
+
+        await capture(page, "opencloud", panel, 760);
+    });
+
+    /** The connect dialog's new first choice: approve in Nextcloud instead of pasting an app password. */
+    test("nextcloud-approval", async ({ page }) => {
+        await enableProvider(page, "nextcloud", "https://cloud.ramanjoinery.example");
+
+        const panel = await connectDialog(page, "Nextcloud");
+        await expect(panel.getByRole("button", { name: "Connect with browser approval" })).toBeVisible();
+
+        await capture(page, "nextcloud-approval", panel, 760);
+    });
+});

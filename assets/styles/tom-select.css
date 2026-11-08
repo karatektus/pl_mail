@@ -93,6 +93,37 @@
     display: none !important;
 }
 
+/* …except on a single select that asks for it (the account form's provider
+ * preset): there is no chip there, and without it a choice can only be swapped
+ * for another, never taken back. Left of the chevron, shown once something is
+ * chosen. */
+.ts-wrapper.single.plugin-clear_button.has-items .clear-button {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 50%;
+    right: 2rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    transform: translateY(-50%);
+    border-radius: 9999px;
+    font-size: 1rem;
+    line-height: 1;
+    color: rgb(var(--rgb-ink-faint));
+    cursor: pointer;
+    z-index: 2;
+}
+
+.ts-wrapper.single.plugin-clear_button.has-items .clear-button:hover {
+    color: rgb(var(--rgb-ink));
+    background-color: rgb(var(--rgb-raised) / var(--hover-alpha));
+}
+
+.ts-wrapper.single.plugin-clear_button.has-items .ts-control {
+    padding-right: 3.5rem !important;
+}
+
 /* Hide the loading spinner — UX Autocomplete handles loading state */
 .ts-wrapper .spinner {
     display: none !important;

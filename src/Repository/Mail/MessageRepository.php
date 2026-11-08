@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\CalendarAttachment;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -22,6 +23,7 @@ use App\Service\Graph\GraphMessageBuilder;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
@@ -201,9 +203,9 @@ class MessageRepository extends ServiceEntityRepository
      * Postgres answer means there is exactly one implementation of what a
      * filter means — an in-memory twin was tried and deleted, because two
      * implementations can drift and the symptom is mail quietly filed in the
-     * wrong place. It also makes `text` usable in rules: search_vector is a
-     * STORED generated column, so full-text works here and could never be
-     * reproduced faithfully in PHP.
+     * wrong place. It also makes `text` usable in rules: search_vector is
+     * built by Postgres as the row is written, so full-text works here and
+     * could never be reproduced faithfully in PHP.
      *
      * The messages must already be flushed — they are, since rules run after
      * the id-granting flush in every sync path.
@@ -660,6 +662,10 @@ class MessageRepository extends ServiceEntityRepository
     /**
      * Highlighted subject and body fragments for a SearchSnippet/get.
      *
+     * The body is the one search_vector indexed: body_html_text where it is
+     * set, the text part otherwise (#477). Headlining body_text alone would
+     * find nothing to mark in an HTML-only message the search just matched.
+     *
      * Raw SQL because `ts_headline` is the whole point — it is a Postgres
      * full-text function with no DQL equivalent, and reproducing "which words
      * matched, in context" in PHP would be a second, disagreeing implementation
@@ -680,7 +686,7 @@ class MessageRepository extends ServiceEntityRepository
                 m.id,
                 ts_headline('english', coalesce(m.subject, ''),
                     websearch_to_tsquery('english', :text), :options) AS subject,
-                ts_headline('english', coalesce(m.body_text, ''),
+                ts_headline('english', coalesce(m.body_html_text, m.body_text, ''),
                     websearch_to_tsquery('english', :text), :options) AS preview
             FROM message m
             WHERE m.account_id = :account
@@ -737,6 +743,10 @@ class MessageRepository extends ServiceEntityRepository
      * for. Keyed by id rather than returned as a list, because a lookup is the
      * only thing its one caller can do with it.
      *
+     * "body_text" in the result is the body findSearchHeadlines() headlined,
+     * body_html_text where there is one, so that the fallback looks for the
+     * hit in the same words.
+     *
      * @param list<int> $ids       every message whose subject or body is wanted
      * @param list<int> $withBody  the subset whose body_text is actually wanted
      *
@@ -752,7 +762,7 @@ class MessageRepository extends ServiceEntityRepository
             SELECT
                 m.id,
                 m.subject,
-                CASE WHEN m.id IN (:withBody) THEN m.body_text END AS body_text
+                CASE WHEN m.id IN (:withBody) THEN coalesce(m.body_html_text, m.body_text) END AS body_text
             FROM message m
             WHERE m.account_id = :account
               AND m.id IN (:ids)
@@ -1117,6 +1127,31 @@ class MessageRepository extends ServiceEntityRepository
         );
 
         return array_map(intval(...), $ids);
+    }
+
+    /**
+     * One page of an account's message ids that sit in a folder, ascending,
+     * for a walk that re-dispatches itself page by page
+     * (ImportImapKeywordsHandler). Keyset on id for the reason
+     * idsForUserAfter() gives.
+     *
+     * @return list<int>
+     */
+    public function idsInFoldersForAccountAfter(int $accountId, int $afterId, int $limit): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->where('m.account = :accountId')
+            ->andWhere('m.mailbox IS NOT NULL')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('accountId', $accountId)
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map('intval', $rows);
     }
 
     public function findByIds(array $ids): array
@@ -1747,6 +1782,47 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /** How many rows findImapCopiesCarried() would page through. */
+    /**
+     * Spam that is in the archive: mail wearing Spam that also wears Archive or
+     * has a copy in the server's Archive folder. What a "Mark as spam" filter
+     * left behind while it archived on the server instead of moving to Junk —
+     * see SpamInArchiveBackfillTask. Keyset-paged by id.
+     *
+     * @return list<Message>
+     */
+    public function findSpamInArchive(int $afterId, int $limit): array
+    {
+        return $this->spamInArchive($this->createQueryBuilder('m'))
+            ->andWhere('m.id > :after')
+            ->setParameter('after', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countSpamInArchive(): int
+    {
+        return (int) $this->spamInArchive($this->createQueryBuilder('m')->select('COUNT(m.id)'))
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    private function spamInArchive(QueryBuilder $qb): QueryBuilder
+    {
+        // EXISTS rather than joins: a message wears each label once but may
+        // have several copies, and a join would count it once per copy.
+        return $qb
+            ->where('EXISTS (SELECT 1 FROM ' . Label::class . ' sl WHERE sl MEMBER OF m.labels AND sl.role = :spam)')
+            ->andWhere($qb->expr()->orX(
+                'EXISTS (SELECT 1 FROM ' . Label::class . ' al WHERE al MEMBER OF m.labels AND al.role = :archive)',
+                'EXISTS (SELECT 1 FROM ' . MessageLocation::class . ' loc JOIN loc.mailbox lmb WHERE loc.message = m AND lmb.specialUse = :archiveFolder)',
+            ))
+            ->setParameter('spam', LabelRole::Spam)
+            ->setParameter('archive', LabelRole::Archive)
+            ->setParameter('archiveFolder', MailboxSpecialUse::ARCHIVE);
+    }
+
     public function countImapCopiesCarried(?int $carrierId): int
     {
         $qb = $this->createQueryBuilder('m')
@@ -2563,6 +2639,46 @@ class MessageRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
 
         return $result !== null;
+    }
+
+    /**
+     * Does the thread hold stored mail that is neither in Spam nor in the bin?
+     *
+     * Asked by MessageThreader::recordArrival() before a set-aside message may
+     * move a conversation: one that lives in the Inbox must not be brought to
+     * the top by the spam a filter has just taken out of it.
+     *
+     * Stored rows only, which is what the question needs: the arriving message
+     * is not in the thread in the database yet, and is left out by id in case
+     * it is. A literal and one row, for the reason existsWithAnyFromAddressInThread()
+     * gives.
+     */
+    public function existsNotSetAsideInThread(MessageThread $thread, Message $except): bool
+    {
+        if (null === $thread->id) {
+            return false;
+        }
+
+        $qb = $this->createQueryBuilder('m');
+
+        $qb->select('1')
+            ->where('m.thread = :thread')
+            ->andWhere($qb->expr()->notIn(
+                'm.id',
+                'SELECT asideMessage.id FROM ' . Message::class . ' asideMessage'
+                    . ' JOIN asideMessage.labels asideLabel'
+                    . ' WHERE asideMessage.thread = :thread AND asideLabel.role IN (:asideRoles)',
+            ))
+            ->setParameter('thread', $thread)
+            ->setParameter('asideRoles', [LabelRole::Spam, LabelRole::Trash])
+            ->setMaxResults(1);
+
+        if (null !== $except->id) {
+            $qb->andWhere('m.id <> :except')
+                ->setParameter('except', $except->id);
+        }
+
+        return null !== $qb->getQuery()->getOneOrNullResult();
     }
 
     /** A null criterion is Doctrine's IS NULL, so this needs no query of its own. */
@@ -3441,6 +3557,100 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * The stored list previews of specific messages — one per list row, the
+     * row's latest — with what decides whether each still fits: its key, the
+     * message's category, and whether it is encrypted (the lock in front of
+     * the row's subject, ThreadRow::$encrypted). See Message::$preview.
+     *
+     * No body columns: not fetching them is half of what the stored preview
+     * saves. Only the rows whose preview is missing or stale go on to
+     * findSnippetBodies().
+     *
+     * @param list<int> $ids
+     *
+     * @return array<int, array{preview: ?string, previewKey: ?int, category: ?MessageCategory, crypto: ?MessageCrypto}>
+     */
+    public function findPreviews(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<array{id: int|string, preview: ?string, previewKey: int|string|null, category: MessageCategory|string|null, crypto: ?MessageCrypto}> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id', 'm.preview', 'm.previewKey', 'm.category', 'm.crypto')
+            ->where('m.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getArrayResult();
+
+        $previews = [];
+
+        foreach ($rows as $row) {
+            $category = $row['category'];
+
+            $previews[(int) $row['id']] = [
+                'preview'    => $row['preview'],
+                'previewKey' => null === $row['previewKey'] ? null : (int) $row['previewKey'],
+                'category'   => is_string($category) ? MessageCategory::tryFrom($category) : $category,
+                'crypto'     => $row['crypto'],
+            ];
+        }
+
+        return $previews;
+    }
+
+    /**
+     * Keep the previews a list just made, so the next list reads them.
+     *
+     * One statement for the page, and straight to the table rather than
+     * through the entities: these messages were never hydrated, and a cache
+     * filled from a read is no reason to load fifty of them. The columns are
+     * outside every trigger on `message`, search_vector's included.
+     *
+     * Best effort. A preview that could not be kept is made again next time,
+     * so a failure here — a lock, a connection gone between two statements —
+     * must not fail the list it was only saving work for. In a transaction of
+     * its own, which inside somebody else's is a savepoint: a failed statement
+     * in Postgres poisons the transaction it ran in, and swallowing the error
+     * without rolling back to before it would fail every query after it.
+     *
+     * A body replaced between the read that made a preview and this write
+     * would get the old body's line until the next change to it; bodies are
+     * replaced rarely (a decrypted copy handed over, a repair), and that
+     * window is one request long.
+     *
+     * @param array<int, array{string, int}> $previews message id => [preview, key]
+     */
+    public function storePreviews(array $previews): void
+    {
+        if ([] === $previews) {
+            return;
+        }
+
+        $values = [];
+        $params = [];
+
+        foreach ($previews as $id => [$preview, $key]) {
+            $values[] = '(?::int, ?::text, ?::smallint)';
+            array_push($params, $id, $preview, $key);
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+
+        try {
+            $connection->transactional(static fn (Connection $connection): int|string => $connection->executeStatement(
+                'UPDATE message AS m SET preview = v.preview, preview_key = v.preview_key
+                 FROM (VALUES ' . implode(', ', $values) . ') AS v(id, preview, preview_key)
+                 WHERE m.id = v.id',
+                $params,
+            ));
+        } catch (\Doctrine\DBAL\Exception) {
+            // Made again on the next list; see above.
+        }
+    }
+
+    /**
      * The columns MessageSnippet reads, for specific messages only — one per
      * list row, the row's latest. The category decides whether the preview
      * may skip a bulk mail's chrome; whether it is encrypted is the lock in
@@ -3564,6 +3774,43 @@ class MessageRepository extends ServiceEntityRepository
             ->andWhere('m.categoryHeldAt < :before')
             ->setParameter('before', $before)
             ->orderBy('m.categoryHeldAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Unread mail stored since $since in this user's active accounts — what
+     * NotifyScopes::hasRecentUnread() sorts into switches.
+     *
+     * By when plMail STORED it (createdAt), not by the date it carries: the
+     * question is about mail a push has just announced, and a message stamped
+     * by a sender's slow clock arrived just now all the same. createdAt has no
+     * index, though, so the date it carries narrows the search first, through
+     * idx_message_account_received_at, with a day of slack for that slow
+     * clock. A message dated more than a day before it arrived is missed, and
+     * the cost of that is one notification not shown.
+     *
+     * Bounded on purpose. The answer is "is there at least one", so a few
+     * dozen candidates are plenty. Labels are not fetch-joined for the same
+     * reason: a LIMIT over a joined collection limits rows, not messages.
+     *
+     * @return list<Message>
+     */
+    public function findRecentUnreadForUser(User $user, DateTimeImmutable $since, int $limit = 50): array
+    {
+        /** @var list<Message> */
+        return $this->createQueryBuilder('m')
+            ->join('m.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('m.seenAt IS NULL')
+            ->andWhere('m.receivedAt >= :dated')
+            ->andWhere('m.createdAt >= :since')
+            ->setParameter('user', $user)
+            ->setParameter('dated', $since->modify('-1 day'))
+            ->setParameter('since', $since)
+            ->orderBy('m.createdAt', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();

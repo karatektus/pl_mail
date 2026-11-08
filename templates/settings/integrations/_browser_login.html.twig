@@ -1,0 +1,65 @@
+{#
+"Connect with browser approval", beside the manual fields of a connect form
+(#235). Rendered only for a provider with a BrowserLoginFlowInterface; the
+manual fields stay below it as the fallback.
+
+Used in the settings modal and in the setup wizard's expanded row. The wizard
+passes done_url and done_frame, which the controller reloads once connected;
+the modal leaves them out and gets the same Turbo Stream as a manual save.
+
+The button is type="button" so it never submits the form it sits in — in the
+wizard that form is the whole step.
+#}
+{% set integration_id = integration_id ?? null %}
+
+<div data-controller="settings--integration-browser-login"
+     data-settings--integration-browser-login-start-url-value="{{ path('app_settings_integrations_browser_login_start', { provider: provider.value }) }}"
+     data-settings--integration-browser-login-csrf-value="{{ csrf_token('integration-browser-login') }}"
+     data-settings--integration-browser-login-integration-value="{{ integration_id }}"
+     data-settings--integration-browser-login-done-url-value="{{ done_url ?? '' }}"
+     data-settings--integration-browser-login-done-frame-value="{{ done_frame ?? '' }}"
+     data-settings--integration-browser-login-failed-value="{{ 'settings.integrations.browser_login.failed'|trans }}"
+     class="rounded-lg border border-line bg-sunken px-3.5 py-3 space-y-2.5">
+    <button type="button"
+            data-settings--integration-browser-login-target="button"
+            data-action="settings--integration-browser-login#start"
+            class="inline-flex items-center justify-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink
+                   bg-accent hover:bg-accent-strong disabled:opacity-60
+                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                   transition-colors duration-100">
+        <i class="fa-solid fa-arrow-up-right-from-square text-xs" aria-hidden="true"></i>
+        {{ 'settings.integrations.browser_login.button'|trans }}
+    </button>
+
+    <p class="text-xs text-ink-muted">
+        {{ 'settings.integrations.browser_login.help'|trans({ '%provider%': provider.label }) }}
+    </p>
+
+    <div data-settings--integration-browser-login-target="waiting" hidden
+         role="status" aria-live="polite"
+         class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink">
+        <span class="inline-flex items-center gap-1.5">
+            <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+            {{ 'settings.integrations.browser_login.waiting'|trans({ '%provider%': provider.label }) }}
+        </span>
+        <a data-settings--integration-browser-login-target="link"
+           href="#" target="_blank" rel="noopener noreferrer"
+           class="text-accent hover:underline">{{ 'settings.integrations.browser_login.open_again'|trans }}</a>
+        <button type="button"
+                data-action="settings--integration-browser-login#cancel"
+                class="text-ink-muted hover:text-ink hover:underline">{{ 'settings.integrations.browser_login.cancel'|trans }}</button>
+    </div>
+
+    <p data-settings--integration-browser-login-target="error" hidden role="alert"
+       class="text-xs text-danger"></p>
+
+    {% if integration_id is not null %}
+        <p class="text-[11px] text-ink-faint">
+            {{ 'settings.integrations.browser_login.revoke_note'|trans({ '%provider%': provider.label }) }}
+        </p>
+    {% endif %}
+
+    <p class="text-[11px] text-ink-faint">
+        {{ 'settings.integrations.browser_login.or_manual'|trans }}
+    </p>
+</div>

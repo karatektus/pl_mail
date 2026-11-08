@@ -7,11 +7,13 @@ use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Enum\Crypto\SignatureState;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ArrivalPlace;
+use App\Domain\Enum\Mail\ImageSize;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\MessagePriority;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Enum\Mail\SyncTrigger;
+use App\Domain\Helper\ReadableBody;
 use App\Domain\Model\MessageModel;
 use App\Entity\Label\Label;
 use App\Repository\Mail\MessageRepository;
@@ -75,12 +77,14 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_message_category_held', columns: ['category_held_at'], options: ['where' => "(category_held_at IS NOT NULL)"])]
 #[ORM\Index(name: 'idx_message_flags_touched_at', columns: ['flags_touched_at'], options: ['where' => "(flags_touched_at IS NOT NULL)"])]
 #[ORM\Index(name: 'idx_message_unseen_mailbox', columns: ['mailbox_id'], options: ['where' => "(seen_at IS NULL)"])]
+#[ORM\Index(name: 'idx_message_search_vector_pending', columns: ['id'], options: ['where' => '(search_vector IS NULL)'])]
 #[ORM\Index(name: 'idx_message_epoch_ghost', columns: ['id'], options: ['where' => "(received_at < '1971-01-01 00:00:00'::timestamp without time zone)"])]
 // Built `USING gin` with gin_trgm_ops by the migration. Declared plain, the same
 // trick as idx_calendar_event_remote_instances: the comparator matches an index
 // on its name and columns and never looks at the method.
 #[ORM\Index(name: 'idx_message_subject_trgm', columns: ['subject'])]
 #[ORM\Index(name: 'idx_message_body_text_trgm', columns: ['body_text'])]
+#[ORM\Index(name: 'idx_message_body_html_text_trgm', columns: ['body_html_text'])]
 #[ORM\Index(name: 'idx_message_from_name_trgm', columns: ['from_name'])]
 #[ORM\Index(name: 'idx_message_from_address_trgm', columns: ['from_address'])]
 #[ORM\Index(name: 'idx_message_gmail_carrier_account', columns: ['gmail_carrier_account_id'])]
@@ -320,10 +324,67 @@ class Message extends MessageModel
     public ?string $bodyHtmlSafe = null;
 
     /**
+     * The words of the HTML body, for the code that searches mail: what is
+     * left of it with the markup, the stylesheet and the comments taken away.
+     * Only where bodyText does not already hold them — a message sent as HTML
+     * alone, and a Graph message, whose bodyText is a 255-character preview.
+     * Null for everything else, so mail with a plain part costs nothing here.
+     * See ReadableBody::htmlWordsOf().
+     *
+     * A COLUMN OF ITS OWN, AND NOT bodyText FILLED IN. That was the obvious fix
+     * (#477) and it would have worked for search, but bodyText means "the plain
+     * part the sender sent", and code reads it that way: the reply quotes it,
+     * JMAP offers it as the text part, the category report records whether
+     * there was one, and the misfiled-body repair looks for mail whose text
+     * part went missing by finding it empty. Every one of those would have been
+     * told something the sender never wrote.
+     *
+     * Kept by deriveBodyHtmlText() on every flush that changed a body, so no
+     * builder can forget it: there are five of them (IMAP, Gmail, Graph, JMAP
+     * import, decrypted mail) and the lazy body loads besides. Mail stored
+     * before the column existed is filled by SearchIndexRebuilder, on its own
+     * from the schedule.
+     *
+     * search_vector's trigger reads it in place of body_text when it is set,
+     * and so do the substring passes and the snippets.
+     */
+    #[ORM\Column(name: 'body_html_text', type: Types::TEXT, nullable: true)]
+    public private(set) ?string $bodyHtmlText = null;
+
+    /**
+     * The line under the subject in the list, as MessageSnippet made it the
+     * last time this message was the newest of a listed row. Null until then.
+     *
+     * Kept because making it is the most expensive thing a list does. The
+     * preview is cut from the sanitised HTML — parsed, the quoted history
+     * taken off, flattened — and a newsletter is 30 to 100 KB of it: 1.5 to 4
+     * ms a row on a laptop and four or five times that on the NAS plMail runs
+     * on, so a page of promotions spent a fifth of a second making fifty lines
+     * it had made on the previous click, and fetched megabytes of body to do
+     * it. ThreadRows reads this column instead and fills it on a miss.
+     *
+     * Forgotten by deriveBodyHtmlText() when a body changes — the same hook
+     * the words above are kept by, for the same reason: no builder can then
+     * forget it. See previewKey for what else makes a stored line stale.
+     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    public private(set) ?string $preview = null;
+
+    /**
+     * Which preview was stored: MessageSnippet::keyFor(), the version of the
+     * rules it was made by and whether bulk-mail chrome was skipped, which the
+     * message's category decides. A line made under other rules, or before
+     * the message was re-sorted into or out of a bulk category, does not match
+     * and is made again.
+     */
+    #[ORM\Column(type: Types::SMALLINT, nullable: true)]
+    public private(set) ?int $previewKey = null;
+
+    /**
      * The OpenPGP or S/MIME wrapping the message arrived in, or null for plain
      * mail. Set by each provider's builder before the row is first written —
      * an encrypted message's body is blanked there, because search_vector is
-     * generated from body_text on insert and would otherwise index ciphertext.
+     * built from body_text on insert and would otherwise index ciphertext.
      * See App\Service\Crypto\MessageCryptoDetector.
      */
     #[ORM\Column(length: 32, nullable: true, enumType: MessageCrypto::class)]
@@ -412,6 +473,20 @@ class Message extends MessageModel
 
     private ?int $mirroredUid = null;
 
+    /**
+     * The three bodies and the Graph id as bodyHtmlText was last derived from
+     * them — mirroredMailbox's trick, for the same reason. A flush touches
+     * every managed message, and taking the markup off a 100 KB newsletter
+     * each time to find it unchanged would make a sync pay for every message
+     * it holds. Compared with ===, which for the very string that was read is
+     * a pointer comparison and not a scan. Taken on load, so mail stored
+     * before the column existed is left to the backfill rather than rewritten
+     * by whatever happens to flush it. Not mapped.
+     *
+     * @var array{?string, ?string, ?string, ?string}|null
+     */
+    private ?array $bodyHtmlTextFrom = null;
+
     #[ORM\ManyToOne(inversedBy: 'messages')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     public ?MessageThread $thread = null;
@@ -419,8 +494,16 @@ class Message extends MessageModel
     /**
      * The only field here that is not public, and deliberately: Postgres writes
      * it, PHP never does, and no caller reads it either — the searches that use
-     * it match on the column in SQL. It exists so the generated column is part
-     * of the mapping and stays in the schema.
+     * it match on the column in SQL. It exists so the column is part of the
+     * mapping and stays in the schema.
+     *
+     * Kept by a trigger (plmail_message_search_vector(), Version20261105120000),
+     * not generated any more: changing a generated column's expression rewrote
+     * the whole table inside the migration. NULL means "not indexed yet", and
+     * SearchIndexRebuilder is what fills those, newest first; the trigger
+     * leaves a NULL row alone until it does. The columnDefinition is only for
+     * a schema built from the mapping, which has no trigger: the comparator
+     * does not read it.
      */
     #[ORM\Column(
         name: 'search_vector',
@@ -428,12 +511,7 @@ class Message extends MessageModel
         nullable: true,
         insertable: false,
         updatable: false,
-        columnDefinition: "tsvector GENERATED ALWAYS AS (
-        setweight(to_tsvector('english', coalesce(subject, '')), 'A') ||
-        setweight(to_tsvector('english', coalesce(from_name, '')), 'B') ||
-        setweight(to_tsvector('english', coalesce(from_address, '')), 'B') ||
-        setweight(to_tsvector('english', coalesce(body_text, '')), 'C')
-    ) STORED"
+        columnDefinition: 'tsvector DEFAULT NULL',
     )]
     private ?string $searchVector = null;
 
@@ -533,6 +611,28 @@ class Message extends MessageModel
     /** Why it failed — see SendFailure. Set and cleared with sendFailedAt. */
     #[ORM\Column(name: 'send_failure', length: 20, nullable: true, enumType: SendFailure::class)]
     public ?SendFailure $sendFailure = null;
+
+    /**
+     * The size the person chose for this draft's images, or null to send them
+     * as they are (#502). The scaling itself is done by the browser, part by
+     * part (DraftAttachmentService::replaceWithScaled()); this is what the
+     * compose window's Image size row shows when the draft is opened again,
+     * and what an image added later is scaled to.
+     */
+    #[ORM\Column(name: 'image_size', length: 8, nullable: true, enumType: ImageSize::class)]
+    public ?ImageSize $imageSize = null;
+
+    /**
+     * With imageSize Custom, the longest side the person set in the Adjust
+     * panel, or 0 for "keep each photo's own size, only compress it". Null
+     * for every other choice. See DraftAttachmentService::chooseImageSize().
+     */
+    #[ORM\Column(name: 'image_edge', type: Types::SMALLINT, nullable: true)]
+    public ?int $imageEdge = null;
+
+    /** With imageSize Custom, the JPEG and WebP quality, 40 to 100. Null otherwise. */
+    #[ORM\Column(name: 'image_quality', type: Types::SMALLINT, nullable: true)]
+    public ?int $imageQuality = null;
 
     /**
      * When this send began waiting out a passing failure — the start of the
@@ -1075,6 +1175,37 @@ class Message extends MessageModel
     {
         $this->mirroredMailbox = $this->mailbox;
         $this->mirroredUid     = $this->imapUid;
+    }
+
+    #[ORM\PostLoad]
+    public function rememberBodyHtmlTextSource(): void
+    {
+        $this->bodyHtmlTextFrom = [$this->bodyText, $this->bodyHtml, $this->bodyHtmlSafe, $this->graphId];
+    }
+
+    /**
+     * Bring bodyHtmlText up to date with the bodies, when they changed.
+     *
+     * PreFlush, like mirrorLocation(), because it runs before Doctrine works
+     * out what changed — for a new row and for a loaded one alike — so the
+     * column is simply part of the change set, and on an INSERT it is there
+     * when the trigger builds search_vector from it.
+     */
+    #[ORM\PreFlush]
+    public function deriveBodyHtmlText(): void
+    {
+        $from = [$this->bodyText, $this->bodyHtml, $this->bodyHtmlSafe, $this->graphId];
+
+        if ($from === $this->bodyHtmlTextFrom) {
+            return;
+        }
+
+        $this->bodyHtmlText     = ReadableBody::htmlWordsOf($this);
+        $this->bodyHtmlTextFrom = $from;
+
+        // The list line was cut from the old body.
+        $this->preview    = null;
+        $this->previewKey = null;
     }
 
     /**

@@ -1,0 +1,25 @@
+{#
+OpenCloud (#476) needs no application-side registration — each user connects
+with their own app token — but two server settings decide whether that works
+at all: app tokens must be accepted, and public links are refused without a
+password unless the admin turns that policy off. Both are stated here, because
+the admin is the one who can change them and the user only sees the failure.
+#}
+<p>{{ 'admin.integrations.tutorial.open_cloud.intro'|trans }}</p>
+
+<ol class="list-decimal list-outside ml-4 space-y-1">
+    <li>{{ 'admin.integrations.tutorial.open_cloud.step_enable'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.open_cloud.step_base_url'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.open_cloud.step_app_auth'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.open_cloud.step_user'|trans }}</li>
+</ol>
+
+<p class="text-xs text-ink-faint">
+    <i class="fa-solid fa-link mr-1" aria-hidden="true"></i>
+    {{ 'admin.integrations.tutorial.open_cloud.share_password'|trans }}
+</p>
+
+<p class="text-xs text-ink-faint">
+    <i class="fa-solid fa-shield-halved mr-1" aria-hidden="true"></i>
+    {{ 'admin.integrations.tutorial.open_cloud.security'|trans }}
+</p>

@@ -23,13 +23,18 @@ use App\Service\Mail\ThreadStatusUpdater;
  * left for the next pass.
  *
  * Only where the account keeps labels as keywords. Only tags: a keyword whose
- * label is a folder on this account is not a place, and changes nothing here.
+ * label is a folder on this account, or a system label (Inbox, Archive, …), is
+ * not a place, and changes nothing here.
+ *
+ * The one exception to reading a change is importExisting(), for the moment
+ * the switch goes on (#487): see there.
  */
 final readonly class KeywordLabelFollower
 {
     public function __construct(
         private KeywordLabels       $labels,
         private ThreadStatusUpdater $status,
+        private LabelResolver       $resolver,
     ) {
     }
 
@@ -49,23 +54,24 @@ final readonly class KeywordLabelFollower
         $touched = [];
 
         foreach ($messages as $message) {
-            $old = KeywordLabels::namesIn($before[(int) $message->id] ?? []);
-            $new = KeywordLabels::namesIn($message->flags);
+            $old = self::byKey($before[(int) $message->id] ?? []);
+            $new = self::byKey($message->flags);
 
-            if ($old === $new) {
-                continue;
-            }
-
-            foreach (array_diff($new, $old) as $name) {
+            // Keyed with capitals folded (#487): a keyword the server now
+            // spells `paperless` where the mirror had `Paperless` is no change.
+            foreach (array_diff_key($new, $old) as $name) {
                 $label = $this->labels->label($name, $owner, true);
 
-                if (null !== $label && null === $label->bindingFor($account)?->mailbox) {
+                // Not a system label either: now that capitals are ignored, a
+                // client's `archive` keyword would otherwise find Archive.
+                if (null !== $label && null === $label->role && null === $label->bindingFor($account)?->mailbox) {
+                    $this->resolver->usedAsTagOn($label, $account);
                     $message->addLabel($label);
                     $touched[(int) $message->id] = $message;
                 }
             }
 
-            foreach (array_diff($old, $new) as $name) {
+            foreach (array_diff_key($old, $new) as $name) {
                 $label = $this->labels->label($name, $owner, false);
 
                 if (null !== $label && null === $label->role && null === $label->bindingFor($account)?->mailbox) {
@@ -76,5 +82,43 @@ final readonly class KeywordLabelFollower
         }
 
         $this->status->labelsChangedOnServer(array_values($touched));
+    }
+
+    /**
+     * Every keyword these messages already carry, as labels — the read the
+     * switch going on owes them (#487).
+     *
+     * follow() reads a change, and a keyword that was on the server before
+     * the switch went on is already in the row's flag mirror: the mirror is
+     * kept whether the switch is on or off, so there is no change for it to
+     * see, ever. Paperless-ngx's `paperless` on last year's mail would never
+     * become a label. So the switch going on reads the mirror once as if it
+     * had held no keywords (ImportImapKeywordsHandler).
+     *
+     * Only adds, by construction: an empty before has nothing to take off. A
+     * label already on the message is added again, which changes nothing, so
+     * the import can run twice.
+     *
+     * @param iterable<Message> $messages
+     */
+    public function importExisting(Mailbox $mailbox, iterable $messages): void
+    {
+        $this->follow($mailbox, $messages, []);
+    }
+
+    /**
+     * @param list<string> $flags
+     *
+     * @return array<string, string> folded name => label full name
+     */
+    private static function byKey(array $flags): array
+    {
+        $names = [];
+
+        foreach (KeywordLabels::namesIn($flags) as $name) {
+            $names[KeywordLabels::key($name)] = $name;
+        }
+
+        return $names;
     }
 }

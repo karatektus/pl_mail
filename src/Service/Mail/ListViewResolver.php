@@ -63,6 +63,7 @@ final readonly class ListViewResolver
         private LabelRepository         $labels,
         private InboxTabs               $tabs,
         private AllMailView             $allMail,
+        private UnifiedInboxes          $inboxes,
     ) {
     }
 
@@ -70,8 +71,8 @@ final readonly class ListViewResolver
      * @param string $scope one of `inbox`, `archive`, `trash`, `spam`, `sent`,
      *                      `drafts`, `snoozed`, `starred`, `unread`, `all_mail`,
      *                      `label`
-     * @param string $value the category for `inbox`, the label id for `label`,
-     *                      ignored otherwise
+     * @param string $value the inbox and tab for `inbox` (UnifiedInboxes::listValue()),
+     *                      the label id for `label`, ignored otherwise
      *
      * @return list<MessageThread> at most self::LIMIT of them
      */
@@ -136,6 +137,18 @@ final readonly class ListViewResolver
             // name does, would point a whole-view archive or trash at up to ten
             // thousand conversations that were never on screen, because the job
             // resolves the view when it RUNS, not when the button was pressed.
+            //
+            // And the inbox is one of the reader's unified inboxes (#265): the
+            // value names it ahead of the tab. One that is not theirs, or is
+            // gone, selects nothing, for the same reason as a tab that is gone.
+            [$inboxId, $value] = UnifiedInboxes::parseListValue($value);
+
+            $inbox = null === $inboxId ? $this->inboxes->first($user) : $this->inboxes->find($user, $inboxId);
+
+            if (null === $inbox) {
+                return [];
+            }
+
             $category = null;
 
             if (true === $user->categorySorting->tabs) {
@@ -148,7 +161,14 @@ final readonly class ListViewResolver
                 $category ??= InboxTab::builtIn(MessageCategory::Primary);
             }
 
-            return $this->threads->findForUnifiedInbox($user, $category, $page, self::CHUNK, unreadOnly: $unreadOnly);
+            return $this->threads->findForUnifiedInbox(
+                $user,
+                $category,
+                $page,
+                self::CHUNK,
+                unreadOnly: $unreadOnly,
+                accountIds: $this->inboxes->scopeOf($user, $inbox),
+            );
         }
 
         if ('label' === $scope) {

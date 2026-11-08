@@ -77,6 +77,11 @@ message lands afterwards. Each is pushed to the provider as one operation rather
 sequence of label changes, because a Gmail label swap and an IMAP folder move carry their own
 semantics.
 
+A reply a filter sends to Spam or the bin leaves the conversation it joined where it was. It does
+not bring the conversation to the top of the inbox, does not mark it new or unread, and does not
+move it to another tab: filters run before an arriving message is allowed to move its conversation.
+A conversation that is all spam still sorts and counts in **Spam** as usual.
+
 **Save attachments to** only offers services plMail can upload to, and only ones you have
 connected — see [Files and integrations](integrations.md). The upload itself is queued rather than
 performed inside the sync loop, so a service that is down slows nothing down, and messages without

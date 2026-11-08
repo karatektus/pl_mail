@@ -83,18 +83,28 @@ final class SidebarRowStateExtension extends AbstractExtension
     /**
      * The classes for the row whose link points at $href.
      */
-    public function rowState(string $href): string
+    public function rowState(string $href, ?string $alsoAt = null): string
     {
-        return true === $this->isOpen($href) ? self::OPEN : self::CLOSED;
+        return true === $this->isOpen($href, $alsoAt) ? self::OPEN : self::CLOSED;
     }
 
-    public function isOpen(string $href): bool
+    /**
+     * $alsoAt is a second path that opens the same row, matched exactly: the
+     * bare /mail/inbox shows the first unified inbox (#265), whose own link
+     * names it. Exact, because as a prefix it would light the first inbox up
+     * on every other inbox's page too.
+     */
+    public function isOpen(string $href, ?string $alsoAt = null): bool
     {
         $request = $this->requestStack->getMainRequest();
         $target  = parse_url($href);
 
         if (null === $request || false === $target || false === isset($target['path'])) {
             return false;
+        }
+
+        if (null !== $alsoAt && $request->getBaseUrl() . $request->getPathInfo() === $alsoAt) {
+            return true;
         }
 
         // What `window.location.pathname` is to the controller: base URL

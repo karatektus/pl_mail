@@ -20,6 +20,10 @@ and SMTP details from your provider's documentation.
 A blank form starts on port 993 with SSL for incoming and port 587 with STARTTLS for outgoing,
 which is what nearly every provider wants.
 
+**Labels** asks where the labels you give this account's mail are kept: **Only in plMail**, the
+default, or **On the server too**, as IMAP keywords, so other mail apps show them too. See
+[Labels as keywords](#labels-as-keywords); the switch is in the account's folders for later.
+
 **Test connection** probes IMAP and SMTP separately and reports each. Saving does not depend on it,
 but an account that stores cleanly and cannot log in is the failure worth catching now rather than
 at the first sync, so the probe runs again on save and its outcome is remembered on the account.
@@ -219,13 +223,16 @@ never moves mail. Folders are made, renamed and deleted in the account's own fol
 IMAP has tags of its own: keywords, which a server keeps on each message beside `\Seen` and
 `\Flagged`, and which other mail apps show — Thunderbird as its tags, for one. **Labels as keywords**,
 at the top of an IMAP account's folder list, puts your labels there. It is off by default, and then
-a label on IMAP mail stays in plMail, as it always has.
+a label on IMAP mail stays in plMail, as it always has. Adding an IMAP account asks the same
+question.
 
 Switched on, putting a label on a conversation writes it to the server as a keyword on each of its
 messages, and taking it off removes it. A keyword set or cleared in another mail app puts the label
 on or takes it off here, within seconds when plMail is idling on the folder and at the next sync
-otherwise; a keyword plMail has not seen before becomes a new label. Labels still never move mail,
-and a label that is a folder on the account stays a folder.
+otherwise; a keyword plMail has not seen before becomes a new label. Capitals do not count, as they
+do not for IMAP: a keyword `paperless` that another tool sets puts your label **Paperless** on, not a
+second label beside it. Labels still never move mail, and a label that is a folder on the account
+stays a folder.
 
 Switching it on asks each folder whether the server keeps keywords there, and the list says what it
 answered: **This server keeps keywords**, **This server keeps no keywords** (labels then stay in
@@ -239,6 +246,8 @@ the same name. Keywords that mean something to mail apps — `$Junk`, `$NotJunk`
 `$MDNSent`, `$Phishing`, `$Important`, Thunderbird's `$label1`–`$label5` — are never read as labels.
 
 Only changes made after switching it on are written; labels already on mail are not pushed in bulk.
+The other way round, switching it on reads the keywords the account's mail already carries, once,
+in the background: mail that had a keyword before the switch went on gets its label too.
 
 ### Labels as Outlook categories
 
@@ -321,8 +330,11 @@ they do in the sidebar ("Drafts", "Trash"), so the same folder is not called two
 #### New folder
 
 **New folder** asks for a name and for where it goes: **Top level**, or inside any folder the
-server listed. plMail makes the folder on the server, so it appears in every mail app that reads the
-account, subscribes to it, and shows it in the sidebar like the account's other folders.
+server listed. It starts on the place you chose last time on that account, here or in **Make it a
+folder**, so a server whose own folders sit under the inbox is answered once. plMail makes the folder on the server, so it appears in every mail app that reads the
+account, subscribes to it, and shows it in the sidebar like the account's other folders. There a
+folder sits inside the folder it is in on the server, the Inbox included, and a folder with folders
+in it can be collapsed on its own.
 
 You type a name, never a path. Where the top level is and which character separates a folder from
 the folders inside it are the server's to say, and plMail asks it: on most servers the top level is

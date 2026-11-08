@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
+use App\Domain\Enum\Mail\ImageSize;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -279,6 +280,231 @@ final class DraftAttachmentServiceTest extends KernelTestCase
         );
     }
 
+    // ── images sent smaller (#502) ────────────────────────────────────────
+
+    /**
+     * The first smaller copy takes the part's place and the original moves
+     * aside, still on disk: the size can change again until the mail goes.
+     */
+    public function testAScaledCopyStandsInForThePartAndKeepsTheOriginal(): void
+    {
+        $message = $this->draft();
+        $part    = $this->attachedImage($message);
+
+        $originalPath = $part->storagePath;
+        $originalSize = $part->size;
+        $copy         = $this->image('photo.png', $this->png(2));
+
+        self::assertNull($this->attachments->replaceWithScaled($part, $copy, false));
+
+        self::assertSame($originalPath, $part->originalStoragePath);
+        self::assertSame($originalSize, $part->originalSize);
+        self::assertNotSame($originalPath, $part->storagePath);
+        self::assertSame($this->png(2), file_get_contents($this->storage->getAbsolutePath((string) $part->storagePath)));
+        self::assertSame(strlen($this->png(2)), $part->size);
+        self::assertFileExists($this->storage->getAbsolutePath((string) $part->originalStoragePath));
+
+        $this->attachments->deleteStoredFiles($message);
+    }
+
+    /** A second size replaces the first copy; the original stays the one uploaded. */
+    public function testAnotherSizeReplacesTheCopyAndLeavesTheOriginal(): void
+    {
+        $message = $this->draft();
+        $part    = $this->attachedImage($message);
+
+        $originalPath = $part->storagePath;
+
+        $this->attachments->replaceWithScaled($part, $this->image('photo.png', $this->png(2)), false);
+        $firstCopy = $this->storage->getAbsolutePath((string) $part->storagePath);
+
+        $this->attachments->replaceWithScaled($part, $this->image('photo.png', $this->png(3)), false);
+
+        self::assertFileDoesNotExist($firstCopy, 'the copy before is left behind on disk');
+        self::assertSame($originalPath, $part->originalStoragePath);
+        self::assertSame($this->png(3), file_get_contents($this->storage->getAbsolutePath((string) $part->storagePath)));
+
+        $this->attachments->deleteStoredFiles($message);
+    }
+
+    /** Original puts the upload back where it was and drops the copy. */
+    public function testRestoringPutsTheOriginalBack(): void
+    {
+        $message = $this->draft();
+        $part    = $this->attachedImage($message);
+
+        $originalPath = $part->storagePath;
+        $originalSize = $part->size;
+
+        $this->attachments->replaceWithScaled($part, $this->image('photo.png', $this->png(2)), false);
+        $copy = $this->storage->getAbsolutePath((string) $part->storagePath);
+
+        $this->attachments->restoreOriginal($part);
+
+        self::assertSame($originalPath, $part->storagePath);
+        self::assertSame($originalSize, $part->size);
+        self::assertNull($part->originalStoragePath);
+        self::assertNull($part->originalSize);
+        self::assertFileDoesNotExist($copy);
+
+        $this->attachments->deleteStoredFiles($message);
+    }
+
+    /**
+     * The copy must be the same kind of image the part already is, read from
+     * the bytes: a JPEG cannot turn into an HTML page under its own name, and
+     * a PDF cannot be "scaled" at all.
+     */
+    public function testOnlyAnImageOfTheSameTypeCanStandInForOne(): void
+    {
+        $message = $this->draft();
+        $part    = $this->attachedImage($message);
+        $path    = $part->storagePath;
+
+        $html = new UploadedFile($this->tempFile('<html><script>alert(1)</script></html>'), 'photo.png', 'image/png', null, true);
+
+        self::assertSame('Only images can be placed in the message body', $this->attachments->replaceWithScaled($part, $html, false));
+        self::assertSame($path, $part->storagePath);
+        self::assertNull($part->originalStoragePath);
+
+        $this->attachments->attach($message, [new UploadedFile($this->tempFile('the bytes'), 'notes.txt', null, null, true)]);
+        $text = $message->messageParts->filter(static fn (MessagePart $p): bool => 'notes.txt' === $p->filename)->first();
+
+        self::assertNotNull($this->attachments->replaceWithScaled($text, $this->image('notes.txt'), false));
+
+        $this->attachments->deleteStoredFiles($message);
+    }
+
+    /** An open part takes no ciphertext, and a sealed one takes nothing but. */
+    public function testASealedCopyOnlyStandsInForASealedPart(): void
+    {
+        $message = $this->draft();
+        $part    = $this->attachedImage($message);
+
+        self::assertSame('Upload failed', $this->attachments->replaceWithScaled($part, $this->image('photo.png'), true));
+
+        $part->sealed = true;
+
+        self::assertSame(
+            'Upload failed',
+            $this->attachments->replaceWithScaled($part, new UploadedFile($this->tempFile('plain text'), 'photo.png', 'image/png', null, true), true),
+            'bytes that cannot be an OpenPGP message were taken for one',
+        );
+        self::assertNull($this->attachments->replaceWithScaled(
+            $part,
+            new UploadedFile($this->tempFile("\xC1\x0Esealed bytes"), 'photo.png', 'image/png', null, true),
+            true,
+        ));
+
+        $this->attachments->deleteStoredFiles($message);
+    }
+
+    /**
+     * Custom keeps the Adjust panel's numbers, held to what the panel offers;
+     * a preset or Original keeps none, so a draft never says Medium and
+     * 1600 px at once.
+     */
+    public function testACustomSizeKeepsItsNumbersWithinThePanelsRange(): void
+    {
+        $message = $this->draft();
+
+        $this->attachments->chooseImageSize($message, ImageSize::Custom, 1600, 80);
+        self::assertSame([ImageSize::Custom, 1600, 80], [$message->imageSize, $message->imageEdge, $message->imageQuality]);
+
+        $this->attachments->chooseImageSize($message, ImageSize::Custom, 99999, 3);
+        self::assertSame([4096, 40], [$message->imageEdge, $message->imageQuality], 'numbers outside the sliders were stored');
+
+        $this->attachments->chooseImageSize($message, ImageSize::Custom, 100, 250);
+        self::assertSame([640, 100], [$message->imageEdge, $message->imageQuality]);
+
+        // 0 is "keep each photo's own size, only compress it", not "too small".
+        $this->attachments->chooseImageSize($message, ImageSize::Custom, 0, 70);
+        self::assertSame([0, 70], [$message->imageEdge, $message->imageQuality]);
+
+        $this->attachments->chooseImageSize($message, ImageSize::Medium, 1600, 80);
+        self::assertSame([ImageSize::Medium, null, null], [$message->imageSize, $message->imageEdge, $message->imageQuality]);
+
+        $this->attachments->chooseImageSize($message, null);
+        self::assertSame([null, null, null], [$message->imageSize, $message->imageEdge, $message->imageQuality]);
+    }
+
+    /**
+     * The panel's estimate needs each photo's own width and height: read
+     * from the original's header, and never from a sealed part's ciphertext
+     * or a file that is not a picture.
+     */
+    public function testTheOriginalsDimensionsAreReadFromTheFile(): void
+    {
+        $message = $this->draft();
+        $part    = $this->attachedImage($message);
+
+        self::assertSame([4, 4], $this->attachments->originalDimensions($part));
+
+        // After scaling, still the original's: the estimate is of the photo.
+        $this->attachments->replaceWithScaled($part, $this->image('photo.png', $this->png(2)), false);
+        self::assertSame([4, 4], $this->attachments->originalDimensions($part));
+
+        $part->sealed = true;
+        self::assertNull($this->attachments->originalDimensions($part));
+
+        $this->attachments->attach($message, [new UploadedFile($this->tempFile('the bytes'), 'notes.txt', null, null, true)]);
+        self::assertNull($this->attachments->originalDimensions($message->messageParts->last()));
+
+        $this->attachments->deleteStoredFiles($message);
+    }
+
+    /**
+     * Once the mail is out, the original goes and the smaller copy stays:
+     * that is what was sent. A part never scaled is not touched.
+     */
+    public function testDroppingOriginalsKeepsWhatWasSent(): void
+    {
+        $message = $this->draft();
+        $scaled  = $this->attachedImage($message);
+        $plain   = $this->attachedImage($message);
+
+        $this->attachments->replaceWithScaled($scaled, $this->image('photo.png', $this->png(2)), false);
+
+        $copy      = $this->storage->getAbsolutePath((string) $scaled->storagePath);
+        $original  = $this->storage->getAbsolutePath((string) $scaled->originalStoragePath);
+        $untouched = $this->storage->getAbsolutePath((string) $plain->storagePath);
+
+        $this->attachments->dropOriginals($message);
+
+        self::assertNull($scaled->originalStoragePath);
+        self::assertNull($scaled->originalSize);
+        self::assertFileDoesNotExist($original);
+        self::assertFileExists($copy);
+        self::assertFileExists($untouched);
+
+        $this->attachments->deleteStoredFiles($message);
+    }
+
+    /** Removing a scaled picture, or discarding its draft, takes both files. */
+    public function testDroppingAScaledImageDeletesTheOriginalToo(): void
+    {
+        $message = $this->draft();
+        $part    = $this->attachedImage($message);
+
+        $this->attachments->replaceWithScaled($part, $this->image('photo.png', $this->png(2)), false);
+
+        $copy     = $this->storage->getAbsolutePath((string) $part->storagePath);
+        $original = $this->storage->getAbsolutePath((string) $part->originalStoragePath);
+
+        $this->attachments->remove($part);
+
+        self::assertFileDoesNotExist($copy);
+        self::assertFileDoesNotExist($original);
+
+        $other = $this->attachedImage($message);
+        $this->attachments->replaceWithScaled($other, $this->image('photo.png', $this->png(2)), false);
+        $original = $this->storage->getAbsolutePath((string) $other->originalStoragePath);
+
+        $this->attachments->deleteStoredFiles($message);
+
+        self::assertFileDoesNotExist($original);
+    }
+
     // ── the flag ──────────────────────────────────────────────────────────
 
     /**
@@ -329,13 +555,41 @@ final class DraftAttachmentServiceTest extends KernelTestCase
      * A real PNG, one pixel of it. The type test guesses from the bytes, so a
      * file that only claims to be an image proves nothing.
      */
-    private function image(string $name): UploadedFile
+    private function image(string $name, ?string $bytes = null): UploadedFile
     {
-        $png = base64_decode(
-            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-        );
+        return new UploadedFile($this->tempFile($bytes ?? $this->png(1)), $name, null, null, true);
+    }
 
-        return new UploadedFile($this->tempFile($png), $name, null, null, true);
+    /**
+     * A real PNG of `$side` × `$side` pixels, so two sizes of "the same
+     * picture" are different bytes. Drawn with GD, which the image ships.
+     */
+    private function png(int $side): string
+    {
+        if (1 === $side) {
+            return (string) base64_decode(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+            );
+        }
+
+        $image = imagecreatetruecolor($side, $side);
+        ob_start();
+        imagepng($image);
+        imagedestroy($image);
+
+        return (string) ob_get_clean();
+    }
+
+    /** A PNG attached to the draft the way the compose window attaches files. */
+    private function attachedImage(Message $message): MessagePart
+    {
+        $this->attachments->attach($message, [$this->image('photo.png', $this->png(4))]);
+
+        $part = $message->messageParts->last();
+        self::assertInstanceOf(MessagePart::class, $part);
+        self::assertSame('image/png', $part->contentType);
+
+        return $part;
     }
 
     private function tempFile(string $contents): string

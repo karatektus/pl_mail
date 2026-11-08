@@ -22,21 +22,25 @@ class LabelBindingRepository extends ServiceEntityRepository
     }
 
     /**
-     * Every binding of this user's that is a folder on its account — an IMAP
-     * folder or an Outlook folder — with its account and mailbox, in one read:
-     * for the sidebar's folder marks and for what the "Move to" and "Label as"
-     * pickers offer (SidebarCounts::folderAccountsOf(), isFolderOn()).
+     * Every binding of this user's, with its account and mailbox, in one read:
+     * for the sidebar's folder marks, for what the "Move to" and "Label as"
+     * pickers offer, and for whether a label is in use as a tag anywhere
+     * (SidebarCounts::folderAccountsOf(), isFolderOn(), isTagInUseOn()).
+     *
+     * Every binding and not only the folder ones, because LABELS needs the
+     * others: a label that is a folder on one account is listed there only
+     * where another account has it as a tag (#221). One row per label and
+     * account, so the read stays the size of the user's label list.
      *
      * @return list<LabelBinding>
      */
-    public function findFolderBindingsForUser(UserInterface $user): array
+    public function findForUser(UserInterface $user): array
     {
         return $this->createQueryBuilder('b')
             ->addSelect('a', 'm')
             ->join('b.account', 'a')
             ->leftJoin('b.mailbox', 'm')
             ->where('a.usr = :user')
-            ->andWhere('b.mailbox IS NOT NULL OR b.graphFolderId IS NOT NULL')
             ->setParameter('user', $user)
             ->getQuery()
             ->getResult();

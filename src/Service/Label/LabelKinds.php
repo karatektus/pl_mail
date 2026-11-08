@@ -73,6 +73,15 @@ final readonly class LabelKinds
      * the user's accounts, or the parent of one that is — or every label,
      * where the user has folders listed there too (User::$foldersInLabels).
      * A folder that is a tag nowhere is listed under its account instead.
+     *
+     * For a label that is a folder on some account, "a tag on another account"
+     * means used as one there (SidebarCounts::isTagInUseOn()), not merely
+     * allowed to be (isTagOn()). isTagOn() is true on every account where the
+     * label has no folder, so with two accounts every folder of the first was
+     * a "tag" on the second and was listed under LABELS, where its Delete
+     * offered to delete the folder (#221, Adrian's report on v0.4.1). A label
+     * can still be a folder on one account and a tag on another; it is listed
+     * here once it has been put on the other account's mail.
      */
     public function inLabels(Label $label, User $user): bool
     {
@@ -80,8 +89,14 @@ final readonly class LabelKinds
             return true;
         }
 
+        $folderSomewhere = $this->sidebar->isFolderAnywhere($label);
+
         foreach ($this->accounts->all($user) as $account) {
-            if (true === $this->isTagOn($label, $account)) {
+            if (false === $this->isTagOn($label, $account)) {
+                continue;
+            }
+
+            if (false === $folderSomewhere || true === $this->sidebar->isTagInUseOn($label, $account)) {
                 return true;
             }
         }
@@ -112,7 +127,17 @@ final readonly class LabelKinds
      */
     public function tags(array $labels, User $user, ?Account $account = null): array
     {
-        return $this->keep($labels, $user, $account, $this->isTagOn(...));
+        if (null !== $account) {
+            return $this->keep($labels, $user, $account, $this->isTagOn(...));
+        }
+
+        // With no account, the same rule as LABELS (inLabels()): a folder of
+        // one account is offered as a tag only where it is in use as one, or
+        // bulk "Label as" listed every folder of every other account (#221).
+        // The picker of one message still offers it on its account, which is
+        // where it starts being a tag there.
+        return $this->keep($labels, $user, null, fn (Label $label, Account $candidate): bool => true === $this->isTagOn($label, $candidate)
+            && (false === $this->sidebar->isFolderAnywhere($label) || true === $this->sidebar->isTagInUseOn($label, $candidate)));
     }
 
     /**

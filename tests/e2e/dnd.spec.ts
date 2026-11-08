@@ -233,6 +233,69 @@ test.describe("dragging a conversation", () => {
     });
 
     /**
+     * The same drop, failing (#335). The row leaves the list as it is let go
+     * and comes back in its place when the move does not land — answered here
+     * with a 500 the server never sees, so the conversation really is still
+     * in the archive and the refresh after the write agrees with the page.
+     */
+    test("onto a folder that refuses the move puts the row back", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await settled(page);
+
+        const staged = mailRow(page, INBOX_SUBJECTS.trash);
+        await expect(staged).toBeVisible();
+
+        const subject = await subjectOf(staged);
+        const id      = Number((await staged.getAttribute("id"))?.replace("thread_", ""));
+        const token   = await page.locator('meta[name="csrf-token"]').getAttribute("content");
+
+        const archived = await page.request.post("/status/bulk/archive", {
+            headers: { "Content-Type": "application/json", "X-CSRF-Token": token ?? "" },
+            data: { ids: [id] },
+        });
+        expect(archived.ok()).toBe(true);
+
+        await page.goto("/mail/archive");
+        await settled(page);
+
+        const row = page.locator(ROWS).filter({ hasText: subject });
+        await expect(row).toHaveCount(1);
+
+        let answer!: () => void;
+        const arrived = new Promise<void>((resolve) => { answer = resolve; });
+        let release!: () => void;
+        const released = new Promise<void>((resolve) => { release = resolve; });
+
+        await page.route(/\/status\/bulk\/move$/, async (route) => {
+            answer();
+            await released;
+            await route.fulfill({ status: 500, contentType: "text/html", body: "boom" });
+        }, { times: 1 });
+
+        const inbox = page
+            .locator("#sidebar [data-dnd-folder]")
+            .filter({ hasText: "Inbox" })
+            .first();
+
+        await dragOnto(page, row.first(), inbox);
+        await arrived;
+
+        await expect(row.first(), "hidden as soon as it is dropped").toBeHidden();
+
+        release();
+
+        await expect(row.first(), "back once the move is refused").toBeVisible();
+        await expect(page.locator('[role="alert"]').filter({ has: page.locator("[data-toast-message]") })).toBeVisible();
+
+        // Moved back for the specs after this one, which expect it in the inbox.
+        const home = await page.request.post("/status/bulk/move-to", {
+            headers: { "Content-Type": "application/json", "X-CSRF-Token": token ?? "" },
+            data: { ids: [id], role: "inbox", scope: "archive", value: "" },
+        });
+        expect(home.ok()).toBe(true);
+    });
+
+    /**
      * What the pointer carries, which is the one part of a drag no screenshot
      * can show — the drag image is drawn by the compositor, outside the page,
      * so it is absent from every capture Playwright takes.

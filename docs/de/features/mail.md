@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:bfa8370895bd295821b9a383b1b2e258cf4c1a07 -->
+<!-- translated-from: features/mail.md sha1:5e556930614f37781f1b88c4aba3378eb432fdf2 -->
 
 # Mail
 
@@ -16,7 +16,7 @@ gleich, wo es angekommen ist.
 
 | Eintrag | Was er auflistet |
 |---|---|
-| **Posteingang** | Alles, was noch im Posteingang liegt, über alle Konten hinweg, neueste Konversation zuerst |
+| **Posteingang** | Alles, was noch im Posteingang liegt, über alle Konten hinweg, neueste Konversation zuerst — oder eine Zeile je Posteingang, sobald du deine Konten auf mehrere verteilst (siehe [Mehrere Posteingänge](#mehrere-posteingänge)) |
 | **Ungelesen** | Jede ungelesene Konversation in einer Liste, egal wo sie abgelegt ist — aus, bis du es einschaltest |
 | **Markiert** | Konversationen mit mindestens einer markierten Nachricht |
 | **Zurückgestellt** | Konversationen, die auf ihre Weckzeit warten |
@@ -108,6 +108,31 @@ Zähler gelten je Konto, und geladen ist immer nur das eine, das du aufgeklappt 
 
 Jede Liste umfasst fünfzig Konversationen pro Seite. **Neuer** und **Älter** in der
 Werkzeugleiste blättern.
+
+### Mehrere Posteingänge
+
+Ein **Posteingang** über alle Konten ist der Anfang für alle. Willst du Arbeit und Privates getrennt
+lesen, legt **Einstellungen → Sammel-Posteingänge** weitere an: einen hinzufügen, ihm Namen und
+Symbol geben und unter **Konten** wählen, in welchem Posteingang die Mail jedes Kontos erscheint.
+Jeder Posteingang ist eine eigene Zeile in der Seitenleiste, in der Reihenfolge, in die du sie
+ziehst, mit eigenem Ungelesen-Zähler, eigenem „Neu“-Punkt und eigenen Tabs — die Tabs eines
+Posteingangs zählen nur die Mail seiner Konten, und **Alle auswählen** reicht darin nicht weiter.
+Der erste Posteingang ist der, den die einfache **Posteingang**-Adresse öffnet, und ein neues Konto
+landet dort, bis du es verschiebst.
+
+Ein Konto ist immer in genau einem Posteingang. Nimmst du eines aus all deinen heraus, landet es in
+**Sonstige**, einem Posteingang, den plMail genau dafür bereithält, damit es weiter nur einen Klick
+entfernt ist. Sonstige erscheint in der Seitenleiste nur, solange es ein eingeschaltetes Konto
+enthält; du kannst es umbenennen, ihm ein anderes Symbol geben und es verschieben wie die anderen,
+aber nicht löschen. Löschst du einen eigenen Posteingang, wandern seine Konten ebenfalls dorthin —
+in keinem Fall wird Mail gelöscht, ein Posteingang ist nur eine Art, sie aufzulisten. Lässt du den
+Namen leer, heißt der Posteingang in deiner Sprache **Posteingang** (oder **Sonstige**).
+
+**Ungelesen**, **Markiert**, **Zurückgestellt** und die übrigen Systemzeilen reichen weiterhin über
+alle Konten, und der Browser-Tab zählt den Posteingang, den du offen hast. Jedes Konto behält unter
+**Konten** seinen eigenen Posteingang. Eine Konfigurationssicherung enthält die Posteingänge und
+welches Konto in welchem liegt. Apps auf dem Telefon können sie über JMAP lesen (`UnifiedInbox/get`);
+angeordnet werden sie nur hier.
 
 ## Tabs
 
@@ -598,6 +623,7 @@ oder eine Outlook-Kategorie ist eine Markierung und kein Ort, deshalb fragt das 
 und verschiebt nichts.
 
 Um ein Label auf einem Konto zum Ordner zu machen, öffne das Label und wähle unter **Wo dieses Label liegt** erst **Pro Konto ändern** und dann **Zum Ordner machen**. Das geht auf einfachen IMAP- und auf Outlook-Konten.
+Auf IMAP fragt der Dialog, wohin der Ordner kommt, **Oberste Ebene** oder in einen beliebigen Ordner des Kontos, und startet mit dem Ort, den du dort zuletzt gewählt hast; ein Label unter einem, das dort schon Ordner ist, kommt in diesen Ordner, und der Dialog sagt das.
 Nachrichten mit diesem Label auf diesem Konto werden in den neuen Ordner verschoben, außer denen in Papierkorb, Spam, Gesendet und Entwürfe; der Dialog nennt vorher die Anzahl. Auf Outlook wird die gleichnamige Kategorie entfernt.
 
 **Zum Label machen** tut das Gegenteil, bei einem Ordner ohne Unterordner. Wähle, wohin seine Nachrichten sollen; plMail verschiebt sie, löscht den Ordner auf dem Server und setzt das Label wieder als Markierung an diese Nachrichten.
@@ -646,6 +672,12 @@ die Labels wieder her, die jede Konversation vorher hatte — bei einer gemischt
 nicht dasselbe wie die Aktion umzukehren: Eine schon archivierte Konversation, die mit angehakt
 war, bleibt archiviert. Für eine Aktion, die im Hintergrund über eine ganze Ansicht lief, gibt es
 kein Rückgängig.
+
+Archivieren, Löschen, Verschieben, Wiederherstellen und Zurückstellen nehmen die Konversation aus der
+Liste, sobald du sie wählst, ohne auf den Server zu warten. Lehnt der Server ab oder ist er nicht
+erreichbar, kommt die Konversation an ihren Platz zurück, angehakt, wenn sie es war, und eine
+Meldung sagt, was schiefging. Ausgenommen ist eine Aktion über eine ganze Ansicht: Diese Zeilen
+bleiben, bis der Hintergrundjob sie verschoben hat.
 
 ## Suche
 
@@ -828,6 +860,7 @@ kennen:
 | Taste | Wirkung |
 |---|---|
 | `j` / `k` | In einer Liste nach unten und nach oben. Ist eine Unterhaltung geöffnet: die nächste oder vorherige öffnen. |
+| `↓` / `↑` | Ebenfalls in einer Liste nach unten und nach oben, aber nur, solange die Liste die Tastatur hat: Eine Zeile ist per Klick oder `Tab` hervorgehoben, oder sonst ist nichts geöffnet. In einer geöffneten Unterhaltung scrollen sie diese, wie überall sonst auch. |
 | `o` oder `Enter` | Die hervorgehobene Unterhaltung öffnen. `u` führt zurück zur Liste. |
 | `x` | Die hervorgehobene Unterhaltung auswählen. `*` dann `a` wählt die Seite aus, `*` dann `n` hebt die Auswahl auf. |
 | `e` · `#` · `!` | Archivieren · löschen · als Spam markieren. |
@@ -1103,6 +1136,11 @@ Fenster formatierten Text, Kontakt-Vervollständigung in den Adressfeldern und e
 öffnet sich mit der Adresse, an die die Mail gerichtet war; siehe
 [Konten und Aliase](accounts.md).
 
+**Zieh an der linken oberen Ecke**, um das angedockte Fenster größer oder kleiner zu machen; ein
+Doppelklick auf die Ecke stellt die Standardgröße wieder her. Die Größe bleibt **auf diesem Gerät** gespeichert, im Browser, sodass der
+Laptop und der große Bildschirm daneben jeweils ihre eigene haben. Auf dem Handy füllt das Fenster
+immer den ganzen Bildschirm.
+
 Die Vervollständigung bietet ausschließlich **deine eigenen** gesammelten Kontakte an. Auf einer
 Installation mit mehreren Personen sind die Korrespondenten der einen für die andere unsichtbar, und
 eine Adresse, die zu einem anderen Konto gehört, lässt sich auf keinem Weg auf deinen Entwurf
@@ -1173,6 +1211,37 @@ Eingebettete Bilder reisen als `cid:`-Teile der Nachricht, was jedes Mailprogram
 die Empfängerin sieht also das Bild und keinen kaputten Verweis zurück auf plMail. Sie sind keine
 Anhänge und werden auch nicht als solche gezählt: Eine Nachricht, deren einziges Bild du in den
 Text gesetzt hast, trägt keine Büroklammer.
+
+### Bilder kleiner senden
+
+Fotos vom Handy sind jeweils mehrere Megabyte groß, und schon ein paar davon machen eine Nachricht
+größer, als die meisten sie verschicken wollten. Sobald der Entwurf ein Bild enthält, angehängt oder
+im Text, erscheint über den Anhängen die Zeile **Bildgröße**: **Original**, **Groß** (2048 Pixel an
+der längsten Seite), **Mittel** (1280) und **Klein** (800), daneben die Größe der ganzen Nachricht.
+
+Sie steht zu Beginn auf Original, es wird also nichts kleiner, solange du keine Größe wählst. Die
+gewählte Größe gilt für jedes Bild im Entwurf und auch für Bilder, die du danach hinzufügst. Dateien,
+die keine Bilder sind, bleiben, wie sie sind, ebenso ein Bild, das schon kleiner ist als die gewählte
+Größe, ein GIF, ein SVG oder ein HEIC-Foto. Du kannst die Größe ändern oder zu Original zurück, bis du
+sendest: plMail behält jedes Bild so, wie du es hochgeladen hast, und verkleinert jedes Mal von dort
+aus.
+
+Das Verkleinern erledigt dein Browser, auch in einem verschlüsselten Entwurf. Er dreht ein Handyfoto
+zuerst richtig herum, und die kleinere Kopie behält keine Metadaten des Fotos, sein GPS-Standort geht
+also nicht mit hinaus. Original sendet die Datei genau so, wie du sie hochgeladen hast.
+
+Sobald etwas kleiner ist, zeigt die Zeile, um wie viel: die Größe der Nachricht vorher und nachher,
+zum Beispiel „14,5 MB → 1,7 MB“.
+
+**Anpassen** (der Knopf mit den Reglern neben den Größen) stellt Größe und Qualität getrennt ein.
+**Längste Seite** reicht von 640 bis 4096 Pixel, oder **Jedes Foto in seiner Größe lassen**
+komprimiert die Fotos, ohne sie zu verkleinern. **Qualität** reicht von 40 bis 100 %, darunter
+steht, wie das aussieht. Die festen Größen verwenden 85 %. Während du die Regler bewegst, schätzt
+das Feld, was die Fotos ergeben; die genauen Größen siehst du nach **Auf alle Bilder anwenden**.
+Werte, die einer festen Größe entsprechen, wählen diese; alles andere erscheint als eigene Wahl
+**Eigene** in der Zeile, die Werte daneben („1600 px · 70 %“), und gilt genauso für Bilder, die du
+später hinzufügst. Die Qualität gilt für JPEG und WebP; PNG-Bilder sind verlustfrei und werden nur
+mit ihrer Pixelgröße kleiner.
 
 ### Links
 

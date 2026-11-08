@@ -96,6 +96,53 @@ export default class extends Controller {
         };
         document.addEventListener("keydown", this._onKeydown);
 
+        // The finger that opened the sheet is still down, and when it lifts it can leave a click
+        // behind (a tap, to the browser), which lands on the backdrop that now covers the row. That
+        // click must not close the sheet it opened. Only the first touchend is the opening finger's.
+        this._ignoreClickUntil = 0;
+        this._onOpeningTouchEnd = () => {
+            this._ignoreClickUntil = performance.now() + CLICK_WINDOW_MS;
+            this._openingClickArmed = true;
+            document.removeEventListener("touchend", this._onOpeningTouchEnd, { capture: true });
+        };
+        document.addEventListener("touchend", this._onOpeningTouchEnd, { capture: true, passive: true });
+
+        // …and it need not land on the backdrop. On a row low in the list the panel is what covers
+        // it, and the same click then pressed an entry: Mark as read, Archive, Select, run by the
+        // finger that only meant to open the sheet. So that click is swallowed anywhere in the sheet.
+        //
+        // Told apart by what it is rather than only by the clock: a click the browser derived from
+        // touch (sourceCapabilities.firesTouchEvents) after the opening touchend and before any new
+        // touchstart. A new finger disarms it, so a real tap on an entry always goes through, and so
+        // do a mouse click and Enter on the focused entry, which the browser marks as not from touch.
+        // Where the browser does not say (Safari has no sourceCapabilities), the window decides.
+        this._openingClickArmed = false;
+        this._onNextTouchStart = () => {
+            if (this._openingClickArmed) {
+                this._openingClickArmed = false;
+                document.removeEventListener("touchstart", this._onNextTouchStart, { capture: true });
+            }
+        };
+        document.addEventListener("touchstart", this._onNextTouchStart, { capture: true, passive: true });
+        this._onOpeningClick = (event) => {
+            if (!this._openingClickArmed) {
+                return;
+            }
+
+            const fromTouch = event.sourceCapabilities?.firesTouchEvents;
+            const theOpeningFingers = undefined === fromTouch ? performance.now() < this._ignoreClickUntil : fromTouch;
+
+            if (!theOpeningFingers) {
+                return;
+            }
+
+            this._openingClickArmed = false;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        };
+        // Ahead of _onPick below: both capture on this element, and the first registered runs first.
+        this.element.addEventListener("click", this._onOpeningClick, { capture: true });
+
         // The move picker's entries close the sheet, and so does a modal opened from it (Create label),
         // which lives outside the sheet and would otherwise open under it. Captured, so the listener
         // sees the click before the picker's own action (which stops propagation), and the close waits
@@ -111,17 +158,6 @@ export default class extends Controller {
         this._observer = new MutationObserver(() => this.#checkRow());
         this._observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-leaving"] });
 
-        // The finger that opened the sheet is still down, and when it lifts it can leave a click
-        // behind (a tap, to the browser), which lands on the backdrop that now covers the row. That
-        // click must not close the sheet it opened. Only the first touchend is the opening finger's.
-        this._ignoreClickUntil = 0;
-        this._onOpeningTouchEnd = () => {
-            this._ignoreClickUntil = performance.now() + CLICK_WINDOW_MS;
-            document.removeEventListener("touchend", this._onOpeningTouchEnd, { capture: true });
-        };
-        document.addEventListener("touchend", this._onOpeningTouchEnd, { capture: true, passive: true });
-
-
         registerSurface(SURFACE, () => this.element.isConnected);
 
         this.element.style.setProperty("--sheet-duration", motionIsOff() ? "0ms" : "200ms");
@@ -132,7 +168,9 @@ export default class extends Controller {
     disconnect() {
         this._observer?.disconnect();
         this.element.removeEventListener("click", this._onPick, { capture: true });
+        this.element.removeEventListener("click", this._onOpeningClick, { capture: true });
         document.removeEventListener("touchend", this._onOpeningTouchEnd, { capture: true });
+        document.removeEventListener("touchstart", this._onNextTouchStart, { capture: true });
         document.removeEventListener("keydown", this._onKeydown);
         unregisterSurface(SURFACE);
 

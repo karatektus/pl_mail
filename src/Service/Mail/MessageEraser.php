@@ -160,6 +160,8 @@ readonly class MessageEraser
         foreach ($message->messageParts as $part) {
             try {
                 $this->attachments->delete($part->storagePath);
+                // A draft's image sent smaller keeps its original beside it (#502).
+                $this->attachments->delete($part->originalStoragePath);
             } catch (\Throwable $e) {
                 $this->logger->warning('MessageEraser: could not delete an attachment', [
                     'part'      => $part->id,
@@ -203,21 +205,16 @@ readonly class MessageEraser
      */
     private function recount(MessageThread $thread): void
     {
-        $unread          = 0;
         $withAttachments = 0;
 
         foreach ($thread->messages as $remaining) {
-            if (null === $remaining->seenAt) {
-                ++$unread;
-            }
-
             if (true === $remaining->hasAttachments) {
                 ++$withAttachments;
             }
         }
 
         $thread->messageCount    = $thread->messages->count();
-        $thread->unreadCount     = $unread;
+        $thread->unreadCount     = MessageThread::unreadAmong($thread->messages);
         $thread->attachmentCount = $withAttachments;
     }
 }

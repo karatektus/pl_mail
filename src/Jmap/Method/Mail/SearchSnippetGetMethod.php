@@ -19,7 +19,7 @@ use App\Service\Search\SearchHighlighter;
  * every result shows the same generic preview, and the user has to open each
  * one to find out why it came back.
  *
- * Built on Postgres `ts_headline` over the same generated `search_vector` and
+ * Built on Postgres `ts_headline` over the same `search_vector` and
  * `websearch_to_tsquery` that ran the query, so a snippet cannot highlight
  * something the search did not actually match on — which is the failure mode of
  * re-implementing the matching in PHP.

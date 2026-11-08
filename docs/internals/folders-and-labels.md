@@ -31,7 +31,9 @@ The data model separates the two, and since step 3 so does the interface.
 
 - A `Label` belongs to the user, not to an account. A `LabelBinding` materialises it on one
   account and carries what it is there: an IMAP folder (`mailbox`), a Gmail label, an Exchange
-  folder or an Outlook category.
+  folder or an Outlook category. A binding with none of these is a tag on that account: putting a
+  label on an account's mail writes one (`LabelResolver::usedAsTagOn()`), so no binding means the
+  label has not been used there.
 - A `Mailbox` row is an IMAP folder, keyed by its raw path. A message has one `mailbox` and any
   number of labels; the label bound to its mailbox is its *location label*.
 - In the sidebar an IMAP folder appears under its account, as its location label. Moving to it
@@ -144,6 +146,16 @@ message copy like `\Seen`. Off by default per account (`Account::$labelsAsKeywor
   keywords in the row's mirror before the update against after it. Never "the server's set is the
   truth", which would strip every label given while the switch was off. A new keyword makes a plain
   label with no binding (`KeywordLabels`).
+- **Capitals (#487).** Keywords are atoms and compare case-insensitively, so `KeywordLabels` looks a
+  name up with `LabelRepository::findNameConflict()` (exact spelling first, then any) rather than the
+  exact `findOneChildByName()` that folders need. The follower's before/after diff is keyed by the
+  folded name too, or `Paperless` → `paperless` would read as the label taken off and put back on.
+  A keyword never gives a system label (`archive` is not Archive).
+- **Import when switched on (#487).** Keywords already in the mirror when the switch goes on are no
+  change, so the follower would never see them. `AccountFoldersController::keywords()` queues
+  `ImportImapKeywordsMessage` (maintenance), whose handler walks the account's foldered messages a
+  page at a time and runs `KeywordLabelFollower::importExisting()` — the follower with an empty
+  before, so it only adds. It reads the switch again and stops when it is off.
 - **The indicator.** `LabelPlaces` says per IMAP account whether a label is a folder there, a
   keyword, or plMail-only and why; the label dialog shows it.
 
@@ -251,15 +263,17 @@ Whether a label is a place or a tag is a question about one account, and `LabelK
 | JMAP | every label (a mailbox; mail can sit in several, and a move replaces them) | every label |
 | POP3 | none | every label |
 
-Which labels are folders where comes from `SidebarCounts::isFolderOn()`, which reads every folder
-binding of the user's in the one query the sidebar's folder marks already make, so the pickers on
+Which labels are folders where comes from `SidebarCounts::isFolderOn()`, and which are in use as a
+tag where from `isTagInUseOn()`. Both read every binding of the user's in the one query the
+sidebar's folder marks already make, so the pickers on
 every list page cost nothing per label (`ThreadListQueryBudgetTest`). It reads the signed-in user,
 so it is for requests; a worker asks the binding itself, as `MoveToService` and the rule executor
 do.
 
 **The pickers.** **Move to** offers the places (`move_labels()`), **Label as** the tags
 (`tag_labels()`): for the conversation's own account in the reading pane, and in the list, whose
-selection can span accounts, what is that kind on any of them.
+selection can span accounts, what is that kind on any of them. There a label that is a folder on
+one account is offered as a tag only where it is in use as one, the same rule as LABELS.
 
 **The move.** `MoveToService` decides per account. Where the target is a folder there,
 `ThreadStatusUpdater::move()` takes the source label off and `LabelChangePropagator::moveCopies()`
@@ -276,9 +290,15 @@ move. A move never creates a folder: a tag would become a place as a side effect
 only where the label is a folder on every account the rule covers, because on a Gmail account the
 same rule only ever tagged.
 
-**The sidebar.** An account's rows are its system folders and the labels that are a place there.
+**The sidebar.** An account's rows are its system folders and the labels that are a place there,
+nested as the server nests them (`AccountFolderTree`): on a plain IMAP account by the folders'
+paths, so a folder under `INBOX` is inside the Inbox row, and elsewhere by the label tree. A row
+with rows inside it collapses on its own, remembered per user under `folder:<account>:<label>`.
 LABELS holds the labels that are a tag on any account, or the parents of one; with
-`User::$foldersInLabels` it holds every label, as before step 3.
+`User::$foldersInLabels` it holds every label, as before step 3. A label that is a folder on one
+account counts as a tag on another only where it is in use as one (`LabelKinds::inLabels()`).
+Before, having no folder there was enough, so with two accounts every folder of one was listed
+under LABELS, and its Delete there deleted the folder.
 
 **The chips.** On a message in the conversation, a folder label wears a folder and has no ×;
 taking a folder off is a move. A tag's × posts the same detach as unticking it in Label as, for
@@ -286,7 +306,14 @@ that message, and the answer redraws that message's chips (`message_labels_{id}`
 
 **Per account, in the label dialog.** Under "Where this label is kept", **Change per account**
 offers **Make it a folder** on each plain IMAP and Microsoft account where the label is not one
-(`LabelFolderMaker`). A nested label's parent becomes a folder first. The dialog counts the mail
+(`LabelFolderMaker`). A nested label's parent becomes a folder first. On plain IMAP the dialog asks
+where the folder goes (top level or inside any folder of the account) unless the label's parent is
+a folder there already (`LabelFolderMaker::fixedPlace()`); New folder asks the same, and both start
+on the account's last choice, a path in its settings bag (`NewFolderPlace`,
+`Account::$newFolderParentPath`). The top level itself is the server's answer to NAMESPACE, which
+on Stalwart is beside the system folders while FranklyMail's users keep theirs under the inbox:
+remembering the choice answers that once per account. Adding an IMAP account asks whether labels
+are kept as keywords (`AccountType`, the same `Account::$labelsAsKeywords` as the folders' switch). The dialog counts the mail
 that will move; `MakeLabelFolderHandler` then moves it, leaving Trash, Spam, Sent and Drafts alone,
 and on Outlook removes the master category.
 

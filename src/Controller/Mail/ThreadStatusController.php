@@ -6,6 +6,7 @@ namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
@@ -252,8 +253,16 @@ class ThreadStatusController extends AbstractController
         // changes and flushes, because the label moves have to be visible to
         // the propagator jobs it queues.
 
+        // Woken in Snoozed, the conversation has left that list: the row goes,
+        // as it does for the same action over a selection (BulkStatusController).
+        // It used to be redrawn in place, awake, in a list of snoozed mail — and
+        // the browser now hides it the moment the action is chosen (#335), so a
+        // redraw would bring it back for no reason the reader could see.
+        $view = (string) ($request->getPayload()->all()['scope'] ?? '');
+
         return $this->renderTurboStream('thread/status/_snooze.stream.html.twig', [
             'thread' => $thread,
+            'woken'  => null === $until && LabelRole::Snoozed->value === $view,
             ...$this->allMailRow($request, $thread),
         ]);
     }

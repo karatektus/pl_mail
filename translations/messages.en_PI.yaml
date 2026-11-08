@@ -10,6 +10,10 @@ account:
         imap:
             heading: Incomin' — IMAP
             host: Port o' call
+            labels_help: 'With keywords, the labels ye give yer letters in plMail be stowed on the server too, and other mail vessels that show keywords (Thunderbird, for one) show them. Ye can change this later in the ship’s holds.'
+            labels_keywords: 'Stowed on the server too'
+            labels_label: 'Labels'
+            labels_local: 'Only in plMail'
         jmap:
             heading: 'Incomin'' — JMAP'
             outgoing_heading: 'Outgoin'' — JMAP'
@@ -29,6 +33,7 @@ account:
             keep_on_server: 'Leave it in port (recommended)'
         port: Berth number
         preset:
+            clear: 'Cast off the harbour an'' chart yer own course'
             label: Harbourmaster
             placeholder: Pick yer harbour…
         protocol:
@@ -672,6 +677,14 @@ admin:
                 step_register: 'Open th'' Azure portal and register an application under Microsoft Entra ID → App registrations.'
                 step_secret: 'Under Certificates & secrets, mint a client secret and copy its value at once — it be shown but once.'
                 tenant_note: 'Use th'' common tenant for personal Microsoft accounts, or yer tenant ID to keep it to yer own crew.'
+            open_cloud:
+                intro: 'OpenCloud checks each sailor''s own app token, so there be nothin'' to register here. plMail charts each sailor''s personal space, the project spaces they sail with and what was shared with them.'
+                security: 'An app token reaches all o'' a sailor''s files and, with an outside identity provider, keeps workin'' after th'' account be struck there. Sailors should sink tokens they no longer need.'
+                share_password: 'OpenCloud refuses public links without a password by default. To let sailors attach big cargo as links, set OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false; otherwise they can only attach copies.'
+                step_app_auth: 'Make sure OpenCloud takes app tokens over WebDAV. Dependin'' on th'' version, that means addin'' auth-app to OC_ADD_RUN_SERVICES and settin'' PROXY_ENABLE_APP_AUTH=true.'
+                step_base_url: 'If ye like, nail down th'' server address, for example https://cloud.example.com.'
+                step_enable: 'Hoist "Offer this service to users" above.'
+                step_user: 'Each sailor makes an app token in OpenCloud under their account settings → App Tokens, with a long life, and pastes it with their username into their own integration settings.'
             paperless:
                 asynchronous: 'Stowin'' cargo hands it to th'' Paperless consumer, which files it a few beats later. plMail reports th'' handover, not th'' finished paper — so a test stow shows up in Paperless shortly after it be called done, and a file Paperless casts out as a twin never shows at all.'
                 intro: 'Paperless-ngx checks papers with a token per hand, so there be nothin'' to register here.'
@@ -1718,6 +1731,12 @@ compose:
             shorten: 'Make it shorter'
         timing: "Oracle wakin' %load%s · %count% tokens in %seconds%s · %total%s all told"
         working: "Writin'…"
+    attachments_summary:
+        files: '{1}1 bit o’ cargo|]1,Inf[ %count% bits o’ cargo'
+        hide: Stow it
+        hide_label: Stow the cargo
+        images_in_text: Likenesses in the scroll
+        show: Show me
     open_failed:
         dismiss: Belay
         failed: The writin' desk would not open. Give it another go.
@@ -1790,6 +1809,9 @@ compose:
     quote:
         hide: stow the quoted words
         show: unfurl the quoted words
+    resize:
+        hint: Haul to stretch it. Double-click for the ship’s standard.
+        label: Stretch the writin’ desk
     schedule:
         cancel: "Belay that castin' off"
         confirm: "Set th' hour"
@@ -1865,6 +1887,37 @@ compose:
     from: From
     image: Paste in a likeness
     image_insert_failed: Could not paste the likeness into the scroll
+    image_size:
+        adjust: Trim the size an’ the shine
+        apply: Apply to every likeness
+        custom: "%px% px · %quality% %"
+        custom_own: "As painted · %quality% %"
+        custom_segment: Yer own
+        edge: Longest side %px% px
+        edge_px: "%px% px"
+        estimate: "%before% → ≈ %after%"
+        estimate_note: PNG likenesses keep their full shine; the shine applies to JPEG an’ WebP. The true weight shows once applied.
+        failed: Some likenesses would not shrink
+        hint_blocky: Blocky round the edges an’ the letterin’. Only when the hold be nigh full.
+        hint_fine: Fine on any spyglass; ye’d need to squint close to tell.
+        hint_high: Hard to tell from the original.
+        hint_soft: A touch soft up close; fine for a glance.
+        keep_pixels: Keep each likeness its own size, only squeeze it
+        label: Size o’ the likenesses
+        large: Large
+        longest_side: Longest side
+        medium: Middlin’
+        original: As painted
+        own_size: As painted
+        panel: Size an’ shine
+        quality: Shine
+        reset: Back to Middlin’
+        resizing: Shrinkin’ the likenesses…
+        saving: "%before% → %after%"
+        sharper: Sharper
+        small: Wee
+        smaller: Lighter
+        total: "%size% in the hold"
     indent: Shove it inboard
     insert_emoji: Daub on a face
     insert_link: Splice in a link
@@ -2489,6 +2542,7 @@ integration:
             immich: 'Describe a picture, say beach at sundown'
             nextcloud: 'Search Nextcloud'
             oneDrive: 'Search OneDrive'
+            openCloud: 'Search OpenCloud'
             paperless: 'Search titles and scanned text'
         status:
             attach_failed: 'Couldn''t haul it aboard'
@@ -2596,8 +2650,10 @@ label:
             make_folder_category: 'The Outlook category o'' this name be thrown overboard.'
             make_folder_done: 'Hold built.'
             make_folder_failed: 'The hold could not be built: %error%'
+            make_folder_inside: 'It goes inside the hold “%folder%”, where its parent label be.'
             make_folder_mail: '%count% yarns flyin'' this flag on this ship be stowed in it.'
             make_folder_nested: 'Its parent “%parent%” becomes a hold there too.'
+            make_folder_place: 'Build “%name%” in'
             make_folder_stay: 'Yarns in the Brig, Spam, Sent an'' Drafts stay where they be.'
             make_label: 'Make it a flag'
             make_label_body: 'Scuttles the hold “%name%” on %account%. The flag stays, as a tag there, an'' goes back on the yarns that move.'
@@ -3199,6 +3255,7 @@ settings:
                 intro: 'The folder be built on the mail server, so every mail app readin this account sees it. Makin a label never builds a folder; this does.'
                 name: 'Name'
                 parent: 'Inside'
+                parent_help: 'plMail remembers this for the next hold on this ship.'
                 submit: 'Build folder'
                 title: 'New folder — %account%'
                 top_level: 'Top deck'
@@ -3418,6 +3475,12 @@ settings:
         list:
             accountCorner: Crew colours
             accountCornerHint: The wee coloured pennant in a row's corner, namin' which berth the message sailed in on. Only ever flown when the manifest mixes berths.
+            actionButton:
+                both: 'Pictures and words'
+                icons: 'Pictures'
+                text: 'Words'
+            actionButtons: 'Action buttons'
+            actionButtonsHint: "What the buttons atop a conversation or a haul be showin'."
             heading: Manifest
             listAvatars: Sender medallions
             listAvatarsHint: The coloured coin bearin' the sender's initial. Struck off it turns a plain ring rather than vanishin' — 'tis also the row's tick-box.
@@ -3726,6 +3789,7 @@ settings:
         fact:
             granted_at: 'Signed on'
             last_full_resync: 'Counted the whole hold again (%count%×)'
+            last_synced: 'Last sync that made port'
             never: 'never'
             never_delivered: 'naught ever came ashore'
             never_run: 'no run in th'' log'
@@ -3734,6 +3798,8 @@ settings:
             push_expires: 'Registration runs out'
             push_last_delivered: 'Last signal heard'
             push_last_renewal: 'Renewal last sailed'
+            sync_began: 'Last sync set out'
+            sync_requested: 'Last sync called for by the schedule'
         flash:
             calendar_resync: >-
                 %calendar% be signed up fer a sync. She''s runnin'' below decks
@@ -3810,6 +3876,19 @@ settings:
                     provider, and be undone at the next reckonin'. Sign on again
                     and grant all that ye be asked.
                 title: '%account% never got full leave'
+            account_sync_behind:
+                body: >-
+                    No sync o' this account has made port for longer than its
+                    sailin' interval explains, though nothin' has foundered
+                    often enough to say why, so new post may be waitin' at yer
+                    provider. The line can be sound all the while: the syncs
+                    plMail called for be waitin' in the queue behind other work,
+                    or settin' out and never makin' harbour. The dates below
+                    tell which: a sync called for after the last one set out be
+                    still waitin' its turn. It mostly catches up on its own; if
+                    it don't, the server's background hands be the place to
+                    look.
+                title: '%account% be lagging behind on new post'
             account_sync_failing:
                 body: >-
                     Several tries in a row have foundered, so no new post be
@@ -4017,6 +4096,15 @@ settings:
         badge:
             ask_admin: 'not opened'
             soon: 'soon'
+        browser_login:
+            button: 'Board by approvin'' in yer browser'
+            cancel: Belay that
+            failed: 'Th'' browser approval would not set sail (%status%).'
+            help: 'Opens %provider% in a fresh tab. Sign aboard there and give plMail yer blessin'' (two-factor works as ever), and th'' connection be stowed here by itself.'
+            open_again: 'Open th'' approval page again'
+            or_manual: 'Or fill in th'' fields below by yer own hand.'
+            revoke_note: 'Approvin'' again swaps th'' stored key but don''t scuttle th'' old one. Throw th'' old device overboard in %provider% yerself.'
+            waiting: 'Waitin'' for yer approval in %provider%…'
         checked: 'sounded %date%'
         connect: Moor
         disabled: 'Line slackened'
@@ -4043,6 +4131,7 @@ settings:
                 immich: 'API key'
                 nextcloud: 'App password'
                 oneDrive: 'Access token'
+                openCloud: 'App token'
                 paperless: 'API token'
             secret_help:
                 dropbox: ''
@@ -4051,6 +4140,7 @@ settings:
                 immich: 'Mint one in Immich under Account Settings → API Keys.'
                 nextcloud: 'Mint one in Nextcloud under Settings → Security → Devices & sessions. Never hand over yer login password.'
                 oneDrive: ''
+                openCloud: 'Make one in OpenCloud under yer account settings → App Tokens, and pick a long life: a token past its day stops workin''. With single sign-on, th'' username may be th'' ID shown under Preferences.'
                 paperless: 'Copy it from Paperless under My Profile → API Auth Token.'
             secret_unchanged: 'Leave blank to keep th'' stored papers'
             username: Username
@@ -4299,6 +4389,36 @@ settings:
         right:
             label: "Swipe right"
         subheading: "What a swipe across a bottle does on yer phone."
+    unified_inboxes:
+        account_label: 'Gathered hold fer %account%'
+        account_off: 'Struck — none o’ its letters be shown till ye hoist it again.'
+        accounts_heading: 'Ships'
+        accounts_subheading: 'Which hold each ship’s letters be stowed in. A new ship goes in yer first hold.'
+        add: 'Add'
+        created: 'Built "%name%".'
+        delete: 'Scuttle %inbox%'
+        delete_confirm: 'Scuttle "%name%"? Its ships move to %other%. No letters be lost.'
+        deleted: 'Hold scuttled. Its ships be in the catch-all hold now.'
+        heading: 'Gathered holds'
+        hint: 'Each hold shows the letters o’ the ships ye put in it as one list, with its own tabs. Leave a name empty fer the usual one.'
+        icon_label: 'Flag fer %inbox%'
+        icon_new: 'Flag fer the new hold'
+        last_stays: 'Keep at least one hold o’ yer own, matey.'
+        move_down: 'Move %inbox% down'
+        move_up: 'Move %inbox% up'
+        name_label: 'Name'
+        name_required: 'A hold needs a name.'
+        name_too_long: 'That name be too long (40 letters at most).'
+        no_accounts: 'No ships yet.'
+        not_found: 'That hold be gone.'
+        other_hint: 'Gathers every ship ye take out o’ yer own holds. Stays off the sidebar while it holds none.'
+        other_option: 'catch-all'
+        other_stays: 'The catch-all hold cannot be scuttled: ships in none o’ yer holds be stowed there.'
+        placeholder: 'e.g. Plunder'
+        reorder: 'Drag to reorder'
+        save: 'Stow'
+        saved: 'Stowed.'
+        subheading: 'Name ’em, give ’em a flag an’ drag ’em into the order the sidebar shows.'
     whats_new:
         heading: 'What''s new aboard'
         'off': 'Off'
@@ -4328,6 +4448,7 @@ settings:
             personal: Yerself
         health: "State o' yer crew"
         images: Pictures
+        inboxes: 'Gathered holds'
         insights: The spyglass
         integrations: 'Friendly ports'
         labels: Flags
@@ -4363,10 +4484,18 @@ settings:
         error_subscribe: 'Th'' browser''s push service gave this device no berth (%error%). In Brave, turn on "Use Google services for push messaging" first.'
         error_worker: 'plMail''s below-decks hand never woke (%error%). Try again, an'' if it keeps happenin'', tell yer quartermaster.'
         heading: Word from the crow's nest
+        inbox: 'Bottles washed ashore'
         ios_hint: >-
             On iPhone and iPad, the lookout only calls once plMail be added to
             the Home Screen: open her in Safari, tap Share, then "Add to Home
             Screen", and allow the callin' from there.
+        labels: 'Flags'
+        notify_for: 'Sound the bell for'
+        notify_for_hint: 'Which bottles ring the bell: a box for each Inbox tab an'' each flag. Holds for all yer browsers an'' the Android app. Tick nothin'' an'' no bottle rings it.'
+        'off': Off
+        'on': On
+        skip_read: 'Only for bottles still unread'
+        skip_read_hint: 'Afore showin'' a notice in yer browser, plMail waits a few seconds an'' checks if the new bottle be still unread. If ye already read or sunk it, say on yer phone, nothing be shown.'
         state_denied: >-
             Barred in yer browser settin's. Allow the lookout to call for this
             site, then try again.
@@ -4741,6 +4870,7 @@ sidebar:
         calendar: Almanac
         drafts: Scrolls in the works
         inbox: Bottles washed ashore
+        inbox_other: 'Odds an’ ends'
         more: More
         sent: Cast off
         snoozed: Kept below deck

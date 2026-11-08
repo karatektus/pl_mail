@@ -73,6 +73,26 @@ final class ImapDeadlineTest extends TestCase
         self::assertSame(0, $deadline->expire());
     }
 
+    /**
+     * #418: the sync handlers ask this to tell a cut from a server failure,
+     * and do not retry a cut. It must say so only for the message in hand.
+     */
+    public function testItSaysWhetherItCutTheMessageInHandOff(): void
+    {
+        $deadline = new ImapDeadline(new NullLogger());
+
+        $deadline->expire();
+        self::assertFalse($deadline->hasExpired(), 'nothing was open, so nothing was cut');
+
+        $session = $this->stalledSession();
+        $deadline->watchSession($session->connection);
+        $deadline->expire();
+        self::assertTrue($deadline->hasExpired());
+
+        $deadline->reset();
+        self::assertFalse($deadline->hasExpired(), 'the next message starts clean');
+    }
+
     /** The whole thing, on the clock: a command the server holds for thirty seconds is over in about one. */
     public function testAHandlerStillReadingWhenTheClockRunsOutIsStopped(): void
     {

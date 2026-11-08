@@ -6,6 +6,7 @@ namespace App\Jmap\Mapper;
 
 use App\Domain\Enum\Theme\LogoMotif;
 use App\Entity\Embeddable\Appearance;
+use App\Entity\User\User;
 
 /**
  * `App\Entity\Embeddable\Appearance` → the JMAP Appearance object, and back
@@ -74,11 +75,13 @@ final class AppearanceMapper
         'tabUnreadCount',
         'previewLines',
         'unreadEmphasis',
+        'actionButtons',
         'fontFamily',
         'fontScale',
         'sidebarDensity',
         'listDensity',
         'readingDensity',
+        'inboxTabs',
     ];
 
     /**
@@ -189,6 +192,7 @@ final class AppearanceMapper
             'tabUnreadCount' => $appearance->tabUnreadCount,
             'previewLines' => $appearance->previewLines,
             'unreadEmphasis' => $appearance->unreadEmphasis->value,
+            'actionButtons' => $appearance->actionButtons->value,
             'fontFamily' => $appearance->fontFamily->value,
             'fontScale' => $appearance->fontScale,
             // Null is a value here and not an absence: it means the surface
@@ -203,6 +207,34 @@ final class AppearanceMapper
     /**
      * @return array<string,mixed>
      */
+    /**
+     * The object Appearance/get serves: the appearance, plus `inboxTabs`.
+     *
+     * `inboxTabs` is stored on CategorySorting::$tabs, not on the appearance,
+     * because it belongs to the category settings card on the web. It is
+     * served here because it answers the same question as every property
+     * above — how the lists are drawn — and the Session already publishes it
+     * beside the appearance hint, so a client that found it there finds the
+     * way to change it in the same place (android#11).
+     *
+     * @return array<string,mixed>
+     */
+    public function forUser(User $user): array
+    {
+        return [
+            ...$this->toJmap($user->appearance),
+            'inboxTabs' => $user->categorySorting->tabs,
+        ];
+    }
+
+    /** The state of the object forUser() builds, so switching the tabs moves it. */
+    public function userState(User $user): string
+    {
+        $encoded = json_encode($this->forUser($user), JSON_THROW_ON_ERROR);
+
+        return substr(hash('xxh128', $encoded), 0, 16);
+    }
+
     public function compact(Appearance $appearance): array
     {
         return array_intersect_key(

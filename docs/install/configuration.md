@@ -173,7 +173,7 @@ writes.
 
 Three variables relax one check, and it is worth being exact about what the check is for.
 
-Self-hosted integrations — Nextcloud, Immich, Paperless-ngx — let a signed-in user type their own
+Self-hosted integrations — Nextcloud, OpenCloud, Immich, Paperless-ngx — let a signed-in user type their own
 server address.
 That aims plMail's outbound HTTP client wherever the user likes, from inside a container network
 that also holds Postgres and the Mercure hub. `App\Service\Integration\IntegrationUrlValidator`

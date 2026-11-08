@@ -135,7 +135,8 @@ final class EmailFilterCompiler
             'notKeyword' => $this->keyword($value, false, $parameters),
             'hasAttachment' => $this->hasAttachment($value),
             'text' => $this->fullText($value, $parameters),
-            'body' => $this->like(['m.body_text'], $value, $parameters),
+            // Both: an HTML-only message's words are in body_html_text (#477).
+            'body' => $this->like(['m.body_text', 'm.body_html_text'], $value, $parameters),
             'subject' => $this->like(['m.subject'], $value, $parameters),
             'from' => $this->like(['m.from_address', 'm.from_name'], $value, $parameters),
             // plMail extensions: the sender exactly, where `from` is any part
@@ -475,7 +476,7 @@ final class EmailFilterCompiler
      * search rather than a substring scan.
      *
      * The 'english' config and websearch_to_tsquery both have to match how the
-     * column is generated (Message::$searchVector) and how MessageThread search
+     * column is built (Message::$searchVector) and how MessageThread search
      * queries it — a mismatched config silently returns nothing, since the
      * stemmed tokens never line up.
      *

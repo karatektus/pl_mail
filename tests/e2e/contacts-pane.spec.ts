@@ -18,6 +18,42 @@ const toggle = (page: Page) => page.locator("[data-contacts--pane-target='toggle
 const frame = (page: Page) => page.locator("turbo-frame#contacts-pane-frame");
 
 /**
+ * The pane-state writes a page sends, counted, so a reload can wait for the one that matters.
+ *
+ * waitForLoadState("networkidle") did not: it returns at once once the page has been idle a
+ * single time since it loaded, so it waited for nothing, and the reload raced the write of the
+ * click before it. On a CI runner the reload's GET was answered first and drew the pane as it
+ * was stored before that click (closed, in "the width beside the mail survives…"). Both panes
+ * post to a `/pane-state` route, in order, one at a time.
+ */
+function paneWrites(page: Page): { count: () => number; settledSince: (before: number) => Promise<void> } {
+    // The requests themselves, not two counters: a write already out when this starts would
+    // otherwise be counted as finished and never as started, and the two would never match.
+    let started = 0;
+    const out = new Set<import("@playwright/test").Request>();
+    const isWrite = (request: import("@playwright/test").Request): boolean =>
+        "POST" === request.method() && new URL(request.url()).pathname.endsWith("/pane-state");
+    const landed = (request: import("@playwright/test").Request): void => { out.delete(request); };
+
+    page.on("request", (request) => {
+        if (isWrite(request)) {
+            started++;
+            out.add(request);
+        }
+    });
+    page.on("requestfinished", landed);
+    page.on("requestfailed", landed);
+
+    return {
+        count: () => started,
+        // At least one write since `before`, and none of those this saw start still out.
+        settledSince: async (before) => {
+            await expect.poll(() => started > before && 0 === out.size, { message: "the pane's write has landed" }).toBe(true);
+        },
+    };
+}
+
+/**
  * A contact for the sender every worker's seeded inbox is from, so its page
  * lists those threads under "Reference emails". Made in the docked pane, and
  * left open there.
@@ -30,10 +66,26 @@ async function createSender(page: Page): Promise<void> {
     await expect(frame(page).locator("a[data-reference-email]").first()).toBeVisible();
 }
 
-/** Settings → Contacts → Behaviour, which the page saves on change. */
+/**
+ * Settings → Contacts → Behaviour, which the page saves on change.
+ *
+ * Waits for the save itself. The address was already section=contacts before the change, so
+ * waiting on it waited for nothing, and the next page could be asked for before the setting
+ * had been written: "with full width skipped" then opened an inbox still on all three steps.
+ */
 async function chooseSteps(page: Page, option: string): Promise<void> {
     await page.goto("/settings?section=contacts");
-    await page.getByRole("radiogroup", { name: "Contacts button" }).getByText(option).click();
+    const group = page.getByRole("radiogroup", { name: "Contacts button" });
+
+    // Already chosen (a test that failed before its finally): a click changes nothing and saves nothing.
+    if (await group.getByRole("radio", { name: option }).isChecked()) {
+        return;
+    }
+
+    const saved = page.waitForResponse((response) =>
+        "POST" === response.request().method() && new URL(response.url()).pathname === "/settings/contacts-behaviour");
+    await group.getByText(option).click();
+    await saved;
     await expect(page).toHaveURL(/section=contacts/);
     await expect(page.getByRole("radiogroup", { name: "Contacts button" }).getByRole("radio", { name: option })).toBeChecked();
 }
@@ -93,17 +145,20 @@ test.describe("contacts pane on a notebook", () => {
 
         // The icon of the position it is in shows, on a reload as well:
         // restored beside the mail it was once an empty square.
+        const writes = paneWrites(page);
+        let before = writes.count();
         await toggle(page).click();
         await toggle(page).click();
-        await page.waitForLoadState("networkidle");
+        await writes.settledSince(before);
         await page.reload();
         await expect(toggle(page).locator("[data-contacts-mode-icon='split']")).toBeVisible();
+        before = writes.count();
         await toggle(page).click();
 
         // Remembered: a reload comes back at full width. Once the write has
         // gone, as a person's reload would be: the writes are queued in order,
         // and one still waiting when the page goes is not sent.
-        await page.waitForLoadState("networkidle");
+        await writes.settledSince(before);
         await page.reload();
         await expect(shell(page)).toHaveAttribute("data-contacts-full", "");
 
@@ -162,10 +217,12 @@ test.describe("contacts pane on a notebook", () => {
         await page.mouse.move(box.x + 700, box.y + box.height / 2, { steps: 20 });
         await page.mouse.up();
         await expect(dock(page)).toBeHidden();
+        const writes = paneWrites(page);
+        const before = writes.count();
         await toggle(page).click();
         expect(Math.round((await dock(page).boundingBox())?.width ?? 0)).toBe(width);
 
-        await page.waitForLoadState("networkidle");
+        await writes.settledSince(before);
         await page.reload();
         await expect(dock(page)).toBeVisible();
         expect(Math.round((await dock(page).boundingBox())?.width ?? 0)).toBe(width);

@@ -226,7 +226,7 @@ final class BadgeSemanticsTest extends WebTestCase
 
         $client->request('GET', '/mail/inbox');
 
-        $badge = $client->getCrawler()->filter('[data-count-key="role:inbox"]');
+        $badge = $client->getCrawler()->filter('[data-count-key^="inbox:"]');
 
         self::assertGreaterThan(0, $badge->count());
         self::assertStringContainsString('bg-accent', (string) $badge->first()->attr('class'));
@@ -298,7 +298,7 @@ final class BadgeSemanticsTest extends WebTestCase
 
         $crawler = $client->getCrawler();
 
-        $unread = (string) $crawler->filter('[data-count-key="role:inbox"]')->first()->attr('class');
+        $unread = (string) $crawler->filter('[data-count-key^="inbox:"]')->first()->attr('class');
         $total  = (string) $crawler->filter('[data-count-key="role:trash"]')->first()->attr('class');
 
         self::assertStringContainsString('rounded-full', $unread, 'an unread count is a pill');
@@ -358,7 +358,7 @@ final class BadgeSemanticsTest extends WebTestCase
 
         self::assertSame(
             'unread',
-            $crawler->filter('[data-count-key="role:inbox"]')->first()->attr('data-badge-kind'),
+            $crawler->filter('[data-count-key^="inbox:"]')->first()->attr('data-badge-kind'),
         );
     }
 

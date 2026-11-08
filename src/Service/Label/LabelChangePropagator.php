@@ -60,6 +60,7 @@ final readonly class LabelChangePropagator
         private GraphLabelPolicy    $labelPolicy,
         private LoggerInterface     $logger,
         private MessageRepository   $messageRepository,
+        private LabelResolver       $resolver,
     ) {}
 
     /**
@@ -199,6 +200,10 @@ final readonly class LabelChangePropagator
      */
     public function attachLabel(iterable $messages, Label $label): void
     {
+        foreach ($messages as $message) {
+            $this->resolver->usedAsTagOn($label, $message->account);
+        }
+
         $this->dispatchGmail($messages, ['add' => [(string) $label->id], 'remove' => []]);
         $this->dispatchJmap($messages, add: [self::entryFor($label)]);
         $this->dispatchKeywords($messages, $label, true);

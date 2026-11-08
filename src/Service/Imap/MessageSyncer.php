@@ -1172,7 +1172,7 @@ class MessageSyncer
 
         // OpenPGP or S/MIME, decided from the top-level Content-Type and the
         // body — before anything is written, because an encrypted message's
-        // body must never reach the row: search_vector is generated from it
+        // body must never reach the row: search_vector is built from it
         // on insert. No part list: IMAP always has the header, and a plain
         // message that merely carries somebody's signature.asc is not signed.
         $crypto = $this->cryptoDetector->classify(

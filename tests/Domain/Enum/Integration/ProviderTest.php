@@ -22,6 +22,7 @@ use App\Service\Integration\Driver\GoogleDriveDriver;
 use App\Service\Integration\Driver\GooglePhotosDriver;
 use App\Service\Integration\Driver\ImmichDriver;
 use App\Service\Integration\Driver\NextcloudDriver;
+use App\Service\Integration\Driver\OpenCloudDriver;
 use App\Service\Integration\Driver\OneDriveDriver;
 use App\Service\Integration\Driver\PaperlessDriver;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -48,7 +49,7 @@ final class ProviderTest extends TestCase
     public function testEveryProviderIsImplemented(): void
     {
         self::assertSame(Provider::cases(), Provider::implemented());
-        self::assertCount(10, Provider::cases());
+        self::assertCount(11, Provider::cases());
     }
 
     /**
@@ -170,6 +171,7 @@ final class ProviderTest extends TestCase
         // Keyed by backing value: an enum instance cannot be an array key.
         $drivers = [
             'nextcloud'    => 'NextcloudDriver',
+            'openCloud'    => 'OpenCloudDriver',
             'immich'       => 'ImmichDriver',
             'paperless'    => 'PaperlessDriver',
             'googleDrive'  => 'GoogleDriveDriver',
@@ -215,6 +217,7 @@ final class ProviderTest extends TestCase
         self::assertFalse(Provider::Paperless->supports(Capability::ShareLink));
 
         self::assertTrue(Provider::Nextcloud->supports(Capability::ShareLink));
+        self::assertTrue(Provider::OpenCloud->supports(Capability::ShareLink));
         self::assertTrue(Provider::GoogleDrive->supports(Capability::ShareLink));
         self::assertTrue(Provider::OneDrive->supports(Capability::ShareLink));
         self::assertTrue(Provider::Dropbox->supports(Capability::ShareLink));
@@ -223,7 +226,7 @@ final class ProviderTest extends TestCase
         // either listed above or fails here, rather than slipping in with
         // whatever its capability arm happened to say.
         self::assertCount(
-            7,
+            8,
             Provider::of(ServiceKind::Files),
             'a file provider was added without deciding whether it can share',
         );
@@ -241,6 +244,7 @@ final class ProviderTest extends TestCase
     {
         $drivers = [
             'nextcloud'    => NextcloudDriver::class,
+            'openCloud'    => OpenCloudDriver::class,
             'immich'       => ImmichDriver::class,
             'paperless'    => PaperlessDriver::class,
             'googleDrive'  => GoogleDriveDriver::class,
@@ -297,7 +301,7 @@ final class ProviderTest extends TestCase
         // and AuthKind is what makes needsBaseUrl() true so the address is
         // validated. See Provider::authKind(), which says why that is not a
         // third AuthKind case.
-        foreach ([Provider::Nextcloud, Provider::Immich, Provider::Paperless, Provider::CalDav, Provider::Ics, Provider::CardDav] as $provider) {
+        foreach ([Provider::Nextcloud, Provider::OpenCloud, Provider::Immich, Provider::Paperless, Provider::CalDav, Provider::Ics, Provider::CardDav] as $provider) {
             self::assertSame(AuthKind::AppPassword, $provider->authKind());
             self::assertTrue($provider->needsBaseUrl(), 'a self-hosted service has no canonical host');
             self::assertSame([], $provider->scopes(), 'an app-password provider asks for no OAuth scopes');
@@ -320,6 +324,7 @@ final class ProviderTest extends TestCase
     public function testSlugsAreSnakeCase(): void
     {
         self::assertSame('nextcloud', Provider::Nextcloud->slug());
+        self::assertSame('open_cloud', Provider::OpenCloud->slug());
         self::assertSame('immich', Provider::Immich->slug());
         self::assertSame('paperless', Provider::Paperless->slug());
         self::assertSame('google_drive', Provider::GoogleDrive->slug());
@@ -408,7 +413,7 @@ final class ProviderTest extends TestCase
         // rather than with the libraries: it is a document archive, so its
         // consumer takes a PDF, a scan or a spreadsheet alike, and a part whose
         // type could not be read is exactly the sort of thing it should get.
-        foreach ([Provider::Nextcloud, Provider::Paperless, Provider::GoogleDrive, Provider::OneDrive, Provider::Dropbox] as $store) {
+        foreach ([Provider::Nextcloud, Provider::OpenCloud, Provider::Paperless, Provider::GoogleDrive, Provider::OneDrive, Provider::Dropbox] as $store) {
             yield $store->value.' pdf'   => [$store, 'application/pdf', true];
             yield $store->value.' image' => [$store, 'image/jpeg', true];
             yield $store->value.' null'  => [$store, null, true];
@@ -444,6 +449,7 @@ final class ProviderTest extends TestCase
     public static function destinationKinds(): iterable
     {
         yield 'nextcloud'    => [Provider::Nextcloud, DestinationKind::Folder];
+        yield 'openCloud'    => [Provider::OpenCloud, DestinationKind::Folder];
         yield 'googleDrive'  => [Provider::GoogleDrive, DestinationKind::Folder];
         yield 'oneDrive'     => [Provider::OneDrive, DestinationKind::Folder];
         yield 'dropbox'      => [Provider::Dropbox, DestinationKind::Folder];

@@ -35,10 +35,12 @@ Variables:
             data-action="click->mail--label-menu#toggle"
             {% if false == trigger %}data-toolbar-flyout="label" tabindex="-1" aria-hidden="true"{% endif %}
             aria-label="{{ 'toolbar.actions.label'|trans }}"
+            title="{{ 'toolbar.actions.label'|trans }}"
             class="{{ trigger
-                ? 'group relative flex items-center justify-center w-8 h-8 rounded-full text-ink-muted hover:text-ink hover:bg-hover transition-colors duration-100 cursor-pointer'
+                ? 'action-btn group relative flex items-center justify-center h-8 rounded-full text-ink-muted hover:text-ink hover:bg-hover transition-colors duration-100 cursor-pointer'
                 : 'block w-full h-full invisible' }}">
         <i class="fa-solid fa-tag text-sm" aria-hidden="true"></i>
+        {% if trigger %}<span class="action-btn-label">{{ 'toolbar.actions.label'|trans }}</span>{% endif %}
     </button>
 
     <div data-mail--label-menu-target="panel"

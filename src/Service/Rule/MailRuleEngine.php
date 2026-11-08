@@ -19,9 +19,9 @@ use Psr\Log\LoggerInterface;
  * with a differential test to keep the two honest — but two implementations of
  * "what this filter means" is a standing invitation to drift, and the symptom
  * of drift here is mail quietly filed in the wrong place. One engine cannot
- * disagree with itself. It also unlocks `text`: search_vector is a STORED
- * generated column, so full-text matching is free here and was never faithfully
- * reproducible in PHP.
+ * disagree with itself. It also unlocks `text`: search_vector is built by
+ * Postgres as the row is written, so full-text matching is free here and was
+ * never faithfully reproducible in PHP.
  *
  * Batch, not per message: one query per rule per batch, rather than one per
  * rule per message.

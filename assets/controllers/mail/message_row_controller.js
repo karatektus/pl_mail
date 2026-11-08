@@ -4,6 +4,7 @@ import { listView } from "../../list_view.js";
 import { announceWrite } from "../../mail_writes.js";
 import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
+import { leavesList, rowOf, takeOut } from "../../optimistic_rows.js";
 
 /**
  * Handles per-row status actions in the message list.
@@ -123,6 +124,34 @@ export default class extends Controller {
         await this.#post(cancelScheduleUrl);
     }
 
+    /**
+     * The snooze or spam button: ask the list's shared menu to open for this row.
+     *
+     * The menus are not in the row any more (#496) — there is one of each for
+     * the whole list, in _partials/_row_menus.html.twig, which is outside the
+     * list frame and so not an ancestor this controller could reach by action.
+     * A document event is the way across, and it carries everything the menu
+     * needs: which menu, the button to hang it from, this row, and the row's
+     * URLs as the button's params.
+     *
+     * `keyboard` because a click with no pointer behind it is Enter or Space on
+     * the button, and a menu opened from the keyboard should take the focus.
+     */
+    openMenu(event) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        document.dispatchEvent(new CustomEvent("mail:row-menu", {
+            detail: {
+                menu:     event.params.menu,
+                anchor:   event.currentTarget,
+                row:      this.element,
+                params:   event.params,
+                keyboard: 0 === event.detail,
+            },
+        }));
+    }
+
     async markRead(event) {
         const { read, readUrl } = event.params;
 
@@ -145,38 +174,88 @@ export default class extends Controller {
 
     // ── Private ───────────────────────────────────────────────────────────
 
+    /**
+     * Post to a status route on this row and draw the answer.
+     *
+     * A row the action takes out of this list is hidden before the request
+     * goes, and put back if it fails (#335) — see assets/optimistic_rows.js.
+     * Which action it is comes from the route itself, whose last segment is
+     * the action's name (app_status_archive → …/archive); reading it there
+     * rather than taking it as an argument means the swipe, which only has a
+     * URL, gets the same behaviour as the buttons without a second table of
+     * what each panel does.
+     *
+     * The list refresh is held for the length of the request when a row is
+     * hidden, exactly as the toolbar holds it for a selection. Without the
+     * hold a background refresh issued before the write landed would morph
+     * the server's old list over the hidden row and show it again; with it,
+     * the refresh runs once the answer is in and also puts the pager and the
+     * empty state right, which no row-shaped stream can.
+     */
     async #post(url, body = {}) {
-        let response;
+        const action = new URL(url, window.location.origin).pathname.split("/").pop() ?? "";
+        const row    = rowOf(this.element);
+        const gone   = null !== row && true === leavesList(action, body) ? takeOut([row]) : null;
+
+        if (null !== gone) {
+            this.#hold("writing");
+        }
 
         try {
-            response = await fetch(url, {
-                method: "POST",
-                headers: jsonCsrfHeaders(),
-                body: JSON.stringify({ ...listView(), ...body }),
-            });
-        } catch {
-            requestFailed(null);
-            return;
+            let response;
+
+            try {
+                response = await fetch(url, {
+                    method: "POST",
+                    headers: jsonCsrfHeaders(),
+                    body: JSON.stringify({ ...listView(), ...body }),
+                });
+            } catch {
+                gone?.putBack();
+                requestFailed(null);
+                return;
+            }
+
+            // A hidden row comes back first, so the toast and the row arrive
+            // together; a row that was never hidden only needs the toast —
+            // otherwise the click looks like it did nothing.
+            if (requestFailed(response)) {
+                gone?.putBack();
+                return;
+            }
+
+            const html = await response.text();
+
+            if (html.trim() !== "") {
+                Turbo.renderStreamMessage(html);
+            }
+
+            // Here rather than in markRead() alone, because every action on this
+            // row moves a number in the sidebar: archive and trash take the mail
+            // out of Inbox, snooze takes it out and puts it back later, star moves
+            // the Starred count. The row redraws itself from the stream; nothing
+            // else does. Announced after the render so the badges and the row do
+            // not disagree in between.
+            announceWrite();
+        } finally {
+            if (null !== gone) {
+                this.#hold("written");
+            }
         }
+    }
 
-        // Nothing here changed the row ahead of the answer, so a failure only
-        // has to be said — otherwise the click looks like it did nothing.
-        if (requestFailed(response)) {
-            return;
-        }
-
-        const html = await response.text();
-
-        if (html.trim() !== "") {
-            Turbo.renderStreamMessage(html);
-        }
-
-        // Here rather than in markRead() alone, because every action on this
-        // row moves a number in the sidebar: archive and trash take the mail
-        // out of Inbox, snooze takes it out and puts it back later, star moves
-        // the Starred count. The row redraws itself from the stream; nothing
-        // else does. Announced after the render so the badges and the row do
-        // not disagree in between.
-        announceWrite();
+    /**
+     * The toolbar's event names, raised from the row: the layout binds
+     * `mail--list-toolbar:writing/written` to mail--mail-pane#hold/#release on
+     * <body>, and mail--dnd borrows them the same way. Not this.dispatch(),
+     * which would prefix them with this controller's own name.
+     *
+     * Dispatched on <body> itself, not on this row. By the time `written` is
+     * raised the stream has usually removed the row, and an event dispatched on
+     * a detached element reaches nobody — the hold would never be released and
+     * the list would stop refreshing for the rest of the visit.
+     */
+    #hold(phase) {
+        document.body.dispatchEvent(new CustomEvent(`mail--list-toolbar:${phase}`, { bubbles: true }));
     }
 }

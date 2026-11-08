@@ -73,6 +73,30 @@ final class LabelResolver
     }
 
     /**
+     * A custom label was put on this account's mail: make sure the account has
+     * a binding for it, so "this label is in use here" can be read off the
+     * bindings alone (#221).
+     *
+     * LabelBinding always said it was one row per account a label "has ever
+     * been used on", but on IMAP only the folder sync wrote one, and putting a
+     * plMail tag on IMAP mail left none. With no row, "a tag here" and "never
+     * seen here" looked the same, so a folder of one account counted as a tag
+     * on every other account and was listed under LABELS (LabelKinds::inLabels()).
+     *
+     * Reads the label's loaded bindings first, so a label that already has one
+     * costs no query; a new row goes through binding(), which flushes and
+     * records the new JMAP Mailbox like every other binding.
+     */
+    public function usedAsTagOn(Label $label, Account $account): void
+    {
+        if (null !== $label->role || null !== $label->bindingFor($account)) {
+            return;
+        }
+
+        $this->binding($label, $account);
+    }
+
+    /**
      * Find-or-create the binding of a label on an account. Idempotent, and
      * safe to call for a label that already has one.
      */

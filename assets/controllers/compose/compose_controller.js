@@ -35,7 +35,7 @@ import {
 const DROPPED_ON_PASTE = 'style, script, link, meta, iframe, object, embed, form, input, button, textarea, select';
 
 export default class extends Controller {
-    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'sendLabel', 'sendProgress', 'sendDots', 'sendCancelHint', 'errors', 'plainBody', 'plainToggle', 'plainCheck', 'plainWarning', 'plainWarningConfirm', 'sendWarning', 'sendWarningBody', 'sendWarningConfirm', 'richOnly'];
+    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'sendLabel', 'sendProgress', 'sendDots', 'sendCancelHint', 'errors', 'plainBody', 'plainToggle', 'plainCheck', 'plainWarning', 'plainWarningConfirm', 'sendWarning', 'sendWarningBody', 'sendWarningConfirm', 'richOnly', 'imageSize'];
 
     /** Below this the dock window is the whole screen — matches Tailwind's md. */
     static MOBILE_QUERY = '(max-width: 767px)';
@@ -1716,7 +1716,17 @@ export default class extends Controller {
 
         // preventScroll: inside the thread pane, a plain focus() yanks the
         // conversation to the top the moment the card mounts.
-        editor.focus({ preventScroll: true });
+        //
+        // _quietFocus: this is the window putting the caret in the text as it
+        // opens, not somebody clicking into it, so the attachment strip stays
+        // open (see collapseAttachments). A reply that arrives with a file on
+        // it, the signed copy of a PDF for one, has to show that file.
+        this._quietFocus = true;
+        try {
+            editor.focus({ preventScroll: true });
+        } finally {
+            this._quietFocus = false;
+        }
 
         // Fullscreen is fixed to the viewport — there is nothing to scroll to.
         if (true === this.inlineValue && false === this._isMobile()) {
@@ -2788,6 +2798,7 @@ export default class extends Controller {
 
     _scheduleAutosave() {
         clearTimeout(this.#autosaveTimer);
+        this._refreshImageSize();
 
         // Set BEFORE the threshold check, on purpose. Writing that is too short
         // to autosave is exactly the writing that would otherwise vanish
@@ -4106,6 +4117,9 @@ export default class extends Controller {
 
         this._setStatus(this._t('uploading', 'Uploading…'), 'text-ink-faint');
 
+        // Files just added are what the person wants to see next.
+        this.expandAttachments();
+
         await this._renderAttachments(
             fetch(`/compose/attachments/${id}`, {
                 method: 'POST',
@@ -4114,6 +4128,10 @@ export default class extends Controller {
             }),
             this._t('attachFailed', 'Could not attach'),
         );
+
+        // The strip that just came back lists the new files; a size already
+        // picked applies to them too (#502).
+        await this._scaleNewImages();
     }
 
     async removeAttachment(event) {
@@ -4122,6 +4140,8 @@ export default class extends Controller {
         if (undefined === partId) {
             return;
         }
+
+        this.expandAttachments();
 
         await this._renderAttachments(
             fetch(`/compose/attachment/${partId}/remove`, {
@@ -4151,7 +4171,18 @@ export default class extends Controller {
         }
 
         if (true === this.hasAttachmentsTarget) {
+            // The strip is replaced whole, and the summary line with it: if
+            // that line had the focus (Hide was just pressed while an upload
+            // was still being brought to the image size), the new one takes
+            // it, rather than the focus falling to the page.
+            const summaryFocused = null !== document.activeElement?.closest?.('[data-attachments-summary]')
+                && this.attachmentsTarget.contains(document.activeElement);
+
             this.attachmentsTarget.innerHTML = await response.text();
+
+            if (true === summaryFocused) {
+                this.attachmentsTarget.querySelector('[data-attachments-summary]')?.focus();
+            }
         }
 
         this._setStatus(this._t('saved', 'Draft saved'), 'text-success');
@@ -4170,6 +4201,751 @@ export default class extends Controller {
         const detail = (await response.text()).trim();
 
         return '' === detail ? fallback : detail;
+    }
+
+    // ── Attachment strip, folded while writing ────────────────────────
+
+    /**
+     * Into the text: the strip folds to its one-line summary, so the message
+     * gets the room the chips and the Image size row were taking. Nothing to
+     * fold while the draft has no files and no pictures (the partial renders
+     * no summary then).
+     *
+     * Not on the focus the window gives the text itself when it opens
+     * (_focusCursorAtTop): that fired on every reply and every reopened
+     * draft, so a window that came with files showed them folded away before
+     * anybody had written a word. The focus event is dispatched inside the
+     * focus() call, which is what lets a flag around it tell the two apart.
+     */
+    collapseAttachments(event) {
+        if (true === this._quietFocus) {
+            return;
+        }
+
+        const summary = true === this.hasAttachmentsTarget
+            ? this.attachmentsTarget.querySelector('[data-attachments-summary]')
+            : null;
+
+        if (null === summary) {
+            return;
+        }
+
+        this._closeImageSizePanel();
+        this.attachmentsTarget.dataset.collapsed = '';
+        this._refreshAttachmentSummary();
+
+        // Folded with the Hide button, which has just disappeared: the focus
+        // goes to the line that takes its place, not to the top of the page.
+        // Folded by the editor's focus, it stays in the editor.
+        // On the next frame: the line is display:none until the attribute
+        // above has been styled, and a hidden element takes no focus.
+        if ('click' === event?.type) {
+            requestAnimationFrame(() => summary.focus());
+        }
+    }
+
+    /** The summary was clicked, or files were added or taken away: the whole strip again. */
+    expandAttachments() {
+        if (true === this.hasAttachmentsTarget) {
+            delete this.attachmentsTarget.dataset.collapsed;
+        }
+    }
+
+    /** The summary's size: the same numbers as the Image size row's total. */
+    _refreshAttachmentSummary() {
+        const label = true === this.hasAttachmentsTarget
+            ? this.attachmentsTarget.querySelector('[data-attachments-summary-size]')
+            : null;
+
+        if (null === label) {
+            return;
+        }
+
+        const { now, before } = this._attachmentTotals();
+
+        label.textContent = before > now
+            ? this._t('imageSizeSaving', '%before% → %after%')
+                .replace('%before%', formatBytes(before))
+                .replace('%after%', formatBytes(now))
+            : formatBytes(now);
+    }
+
+    // ── Image size (#502) ─────────────────────────────────────────────
+
+    /**
+     * Image size row: every image of the draft goes out at the size picked,
+     * attached or in the body, until another is picked.
+     *
+     * The browser does the scaling (see ImageSize for why not the server).
+     * Each picture is scaled from its original, which the server keeps beside
+     * the smaller copy, so going from Small to Large is as sharp as going
+     * from Original to Large, and Original puts the original back.
+     *
+     * A choice is { size, edge, quality }: a preset's numbers come from its
+     * button, Custom's from the Adjust panel, and Original is 0 and 100.
+     */
+    pickImageSize(event) {
+        const { size, edge, quality } = event.params;
+
+        this._closeImageSizePanel();
+
+        return this._queueImageSize(this._imageChoice(String(size), Number(edge) || 0, Number(quality) || 100), true);
+    }
+
+    /**
+     * The row arrived with the strip: show it or not, and its total.
+     *
+     * Caught, because this runs inside the window's own connect(): a
+     * failure here once left the To field without its address picker. The
+     * row is a convenience; the window must open whatever it does.
+     */
+    imageSizeTargetConnected() {
+        try {
+            this._refreshImageSize();
+        } catch (error) {
+            console.error('compose: the Image size row could not be drawn', error);
+        }
+    }
+
+    /**
+     * Adjust: longest side and quality, set apart. The row's ui--dropdown
+     * opens and closes the popover; this fills it, each time it opens, with
+     * the numbers of the choice in force. For Original that is each photo's
+     * own size at full quality, which is what Original sends.
+     */
+    openImageSizePanel() {
+        const panel = this._imageSizePanel();
+
+        if (null === panel) {
+            return;
+        }
+
+        const row = this.imageSizeTarget;
+        const size = row.dataset.size ?? 'original';
+        const edge = Number(row.dataset.edge) || 0;
+        const quality = Number(row.dataset.quality) || 100;
+
+        panel.querySelector('[data-image-size-keep]').checked = 0 === edge;
+        panel.querySelector('[data-image-size-edge]').value = String(0 === edge ? 2048 : edge);
+        panel.querySelector('[data-image-size-quality]').value = String('original' === size ? 100 : quality);
+
+        row.querySelector('[data-image-size-adjust]')?.setAttribute('aria-expanded', 'true');
+        this.previewImageSize();
+        this._liftImageSizePanel(panel);
+    }
+
+    /**
+     * Into the browser's top layer while open, so the popover is clipped by
+     * nothing: it may be taller and wider than the compose window, which is
+     * overflow-hidden and, in the boxed layout, carries a backdrop blur that
+     * makes `position: fixed` relative to it rather than to the viewport.
+     * The same escape as mail--label-menu, for the same reasons: the panel
+     * stays where it is in the DOM, so its actions keep reaching this
+     * controller, and `manual` rather than `auto`, because closing is
+     * ui--dropdown's (an outside click, Escape) and auto's light dismiss
+     * would eat the first click inside it.
+     *
+     * In the top layer the template's `absolute bottom-full right-0` mean
+     * nothing, so the place is written by hand: above the row, its right
+     * edge on the Adjust button's, inside the viewport; below the row
+     * instead when there is more room there. A browser without the API keeps
+     * the template's placement.
+     */
+    _liftImageSizePanel(panel) {
+        if ('function' !== typeof panel.showPopover) {
+            return;
+        }
+
+        if (false === panel.hasAttribute('popover')) {
+            panel.setAttribute('popover', 'manual');
+        }
+
+        if (false === panel.matches(':popover-open')) {
+            panel.showPopover();
+        }
+
+        this._placeImageSizePanel(panel);
+
+        this._boundPlaceImageSizePanel ??= () => this._placeImageSizePanel(panel);
+        window.addEventListener('resize', this._boundPlaceImageSizePanel);
+    }
+
+    _placeImageSizePanel(panel) {
+        if (false === panel.matches(':popover-open')) {
+            return;
+        }
+
+        const margin = 8;
+        const row = this.imageSizeTarget.getBoundingClientRect();
+        const button = (this.imageSizeTarget.querySelector('[data-image-size-adjust]') ?? this.imageSizeTarget).getBoundingClientRect();
+        const width = panel.getBoundingClientRect().width;
+        const above = row.top - margin * 2;
+        const below = window.innerHeight - row.bottom - margin * 2;
+        const flip = above < 320 && below > above;
+        const left = Math.min(Math.max(margin, button.right - width), Math.max(margin, window.innerWidth - width - margin));
+
+        panel.style.position = 'fixed';
+        panel.style.margin = '0';
+        panel.style.left = `${Math.round(left)}px`;
+        panel.style.right = 'auto';
+        panel.style.maxHeight = `${Math.max(160, Math.floor(true === flip ? below : above))}px`;
+
+        if (true === flip) {
+            panel.style.top = `${Math.round(row.bottom + margin)}px`;
+            panel.style.bottom = 'auto';
+        } else {
+            panel.style.top = 'auto';
+            panel.style.bottom = `${Math.round(window.innerHeight - row.top + margin)}px`;
+        }
+    }
+
+    /** Closed by an outside click, Escape, Apply or a size picked: the button says so. */
+    imageSizePanelClosed() {
+        if (false === this.hasImageSizeTarget) {
+            return;
+        }
+
+        this.imageSizeTarget.querySelector('[data-image-size-adjust]')?.setAttribute('aria-expanded', 'false');
+
+        const panel = this._imageSizePanel();
+
+        if (null !== panel && 'function' === typeof panel.hidePopover && panel.matches(':popover-open')) {
+            panel.hidePopover();
+        }
+
+        // Back to the template's own placement for the next open.
+        for (const property of ['position', 'margin', 'left', 'right', 'top', 'bottom', 'maxHeight']) {
+            panel?.style.removeProperty(property.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`));
+        }
+
+        if (undefined !== this._boundPlaceImageSizePanel) {
+            window.removeEventListener('resize', this._boundPlaceImageSizePanel);
+            this._boundPlaceImageSizePanel = undefined;
+        }
+    }
+
+    /** A slider or the checkbox moved: the panel's labels and estimate follow. */
+    previewImageSize() {
+        const panel = this._imageSizePanel();
+
+        if (null === panel) {
+            return;
+        }
+
+        const { edge, quality, keep } = this._panelValues(panel);
+
+        panel.querySelector('[data-image-size-edge]').disabled = keep;
+        panel.querySelector('[data-image-size-edge-label]').textContent = true === keep
+            ? this._t('imageSizeOwnSize', 'Own size')
+            : this._t('imageSizeEdgePx', '%s px').replace('%s', String(edge));
+        panel.querySelector('[data-image-size-quality-label]').textContent = `${quality} %`;
+        panel.querySelector('[data-image-size-hint]').textContent = quality >= 90
+            ? this._t('imageSizeHintHigh', 'Hard to tell from the original.')
+            : quality >= 75
+                ? this._t('imageSizeHintFine', 'Fine on any screen; differences show only zoomed right in.')
+                : quality >= 60
+                    ? this._t('imageSizeHintSoft', 'Slightly soft when zoomed in; fine for a quick look.')
+                    : this._t('imageSizeHintBlocky', 'Blocky around edges and text. Use it only when size matters most.');
+
+        const { before, after } = this._estimate(true === keep ? 0 : edge, quality);
+
+        panel.querySelector('[data-image-size-estimate]').textContent = this._t('imageSizeEstimate', '%before% → ≈ %after%')
+            .replace('%before%', formatBytes(before))
+            .replace('%after%', formatBytes(after));
+        panel.querySelector('[data-image-size-bar]').style.width = `${before > 0 ? Math.max(2, Math.round(after / before * 100)) : 100}%`;
+    }
+
+    /** Back to Medium's numbers, without applying them. */
+    resetImageSizePanel() {
+        const panel = this._imageSizePanel();
+
+        if (null === panel) {
+            return;
+        }
+
+        const medium = this.imageSizeTarget.querySelector('[data-compose--compose-size-param="medium"]');
+
+        panel.querySelector('[data-image-size-keep]').checked = false;
+        panel.querySelector('[data-image-size-edge]').value = medium?.getAttribute('data-compose--compose-edge-param') ?? '1280';
+        panel.querySelector('[data-image-size-quality]').value = medium?.getAttribute('data-compose--compose-quality-param') ?? '85';
+        this.previewImageSize();
+    }
+
+    /**
+     * Apply the panel to every image. Numbers that are a preset's select that
+     * preset, own size at 100 % is Original, and anything else is Custom.
+     */
+    applyImageSizePanel() {
+        const panel = this._imageSizePanel();
+
+        if (null === panel) {
+            return;
+        }
+
+        const { edge, quality, keep } = this._panelValues(panel);
+        let choice = null;
+
+        if (true === keep && quality >= 100) {
+            choice = this._imageChoice('original', 0, 100);
+        } else {
+            this.imageSizeTarget.querySelectorAll('[data-action~="click->compose--compose#pickImageSize"]').forEach((button) => {
+                const presetEdge = Number(button.getAttribute('data-compose--compose-edge-param'));
+                const presetQuality = Number(button.getAttribute('data-compose--compose-quality-param'));
+
+                if (false === keep && presetEdge > 0 && presetEdge === edge && presetQuality === quality) {
+                    choice = this._imageChoice(button.getAttribute('data-compose--compose-size-param'), presetEdge, presetQuality);
+                }
+            });
+        }
+
+        this._closeImageSizePanel();
+
+        return this._queueImageSize(choice ?? this._imageChoice('custom', true === keep ? 0 : edge, quality), true);
+    }
+
+    _imageChoice(size, edge, quality) {
+        return { size, edge, quality, restore: 'original' === size, custom: 'custom' === size };
+    }
+
+    _imageSizePanel() {
+        return true === this.hasImageSizeTarget ? this.imageSizeTarget.querySelector('[data-image-size-panel]') : null;
+    }
+
+    _closeImageSizePanel() {
+        if (false === this.hasImageSizeTarget) {
+            return;
+        }
+
+        this.application.getControllerForElementAndIdentifier(this.imageSizeTarget, 'ui--dropdown')?.close();
+    }
+
+    _panelValues(panel) {
+        return {
+            edge: Number(panel.querySelector('[data-image-size-edge]').value) || 2048,
+            quality: Number(panel.querySelector('[data-image-size-quality]').value) || 85,
+            keep: true === panel.querySelector('[data-image-size-keep]').checked,
+        };
+    }
+
+    /**
+     * What a longest side (0: each photo's own) and a quality would make of
+     * the draft's pictures, before and after — for the panel, while a slider
+     * moves, so without encoding anything.
+     *
+     * From each original's width and height (read by the server from the
+     * file's header) and the photo's own bytes: fewer pixels at the photo's
+     * own bits per pixel, capped at a typical rate for the quality picked.
+     * Rough by nature, which is why the row shows the exact sizes once Apply
+     * has run. A picture whose size is not known here (sealed, or in a sealed
+     * body) counts as it is.
+     */
+    _estimate(edge, quality) {
+        const inBody = new Set(this._bodyImages().map((image) => this._inlinePartId(image)).filter((id) => null !== id));
+        let before = 0;
+        let after = 0;
+
+        this._imageParts()
+            .filter((part) => false === part.inline || inBody.has(String(part.id)))
+            .forEach((part) => {
+                const original = Number(part.original) || 0;
+                before += original;
+
+                if (false === Array.isArray(part.dims)) {
+                    after += original;
+
+                    return;
+                }
+
+                const [width, height] = part.dims;
+                const scale = 0 === edge ? 1 : Math.min(1, edge / Math.max(width, height));
+
+                if ('image/png' === part.type || (1 === scale && quality >= 100)) {
+                    after += Math.round(original * scale * scale);
+                } else {
+                    // Fewer pixels, and each of them at most as dear as at
+                    // the quality picked. Measured on the photo itself: a
+                    // picture already compressed harder than that (anything
+                    // that went through WhatsApp) keeps its own rate rather
+                    // than being "estimated" back up to a camera's.
+                    const own = original * 8 / (width * height);
+
+                    after += Math.round(original * scale * scale * Math.min(1, bitsPerPixel(quality) / own));
+                }
+            });
+
+        this._bodyDataImages().forEach((image) => {
+            const bytes = dataUriBytes(image.dataset.plmailOriginal ?? image.getAttribute('src') ?? '');
+            before += bytes;
+            after += bytes;
+        });
+
+        return { before, after };
+    }
+
+    /**
+     * One at a time: a second pick while the first is still scaling waits
+     * for it, so two passes never upload copies of the same picture at once.
+     */
+    _queueImageSize(choice, all) {
+        this._imageSizeQueue = (this._imageSizeQueue ?? Promise.resolve())
+            .then(() => this._applyImageSize(choice, all))
+            .catch(() => {});
+
+        return this._imageSizeQueue;
+    }
+
+    /**
+     * After an upload or a picture placed in the body: bring what is new to
+     * the choice already made. Nothing to do while that is Original.
+     */
+    _scaleNewImages() {
+        if (false === this.hasImageSizeTarget) {
+            return Promise.resolve();
+        }
+
+        const row = this.imageSizeTarget;
+        const size = row.dataset.size ?? 'original';
+
+        if ('original' === size) {
+            return Promise.resolve();
+        }
+
+        return this._queueImageSize(this._imageChoice(size, Number(row.dataset.edge) || 0, Number(row.dataset.quality) || 85), false);
+    }
+
+    /**
+     * Bring every picture to the choice, or put the originals back for
+     * Original, then tell the server what was chosen.
+     *
+     * `all` false is for pictures added since: those already scaled are left
+     * alone. A picture that fails stays as it was and the rest go on; the
+     * status line says some could not be made smaller.
+     */
+    async _applyImageSize(choice, all) {
+        const id = this._messageId();
+
+        if (null === id || false === this.hasImageSizeTarget) {
+            return;
+        }
+
+        const row = this.imageSizeTarget;
+        const parts = this._imageParts();
+        const buttons = Array.from(row.querySelectorAll('[role="radio"], [data-image-size-adjust]'));
+        let failed = false;
+        let bodyChanged = false;
+
+        buttons.forEach((button) => {
+            button.disabled = true;
+
+            if ('radio' === button.getAttribute('role')) {
+                button.setAttribute('aria-checked', choice.size === button.getAttribute('data-compose--compose-size-param') ? 'true' : 'false');
+            }
+        });
+        row.dataset.size = choice.size;
+        this._setStatus(this._t('imageSizeResizing', 'Resizing images…'), 'text-ink-faint');
+
+        for (const part of parts) {
+            if (false === all && true === part.scaled) {
+                continue;
+            }
+
+            try {
+                await this._scalePart(part, choice);
+
+                if (true === part.inline) {
+                    bodyChanged = this._reloadInlineImage(part.id) || bodyChanged;
+                }
+            } catch (_) {
+                failed = true;
+            }
+        }
+
+        // A sealed draft keeps its pictures in the body as data: URIs: those
+        // are scaled where they are, the original riding along in an attribute
+        // that compose--encryption leaves out of the mail it builds.
+        for (const image of this._bodyDataImages()) {
+            if (false === all && undefined !== image.dataset.plmailOriginal) {
+                continue;
+            }
+
+            try {
+                bodyChanged = await this._scaleDataImage(image, choice) || bodyChanged;
+            } catch (_) {
+                failed = true;
+            }
+        }
+
+        const body = new FormData();
+        body.append('size', choice.size);
+
+        if (true === choice.custom) {
+            body.append('edge', String(choice.edge));
+            body.append('quality', String(choice.quality));
+        }
+
+        await this._renderAttachments(
+            fetch(`/compose/image-size/${id}`, {
+                method: 'POST',
+                body,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken() },
+            }),
+            this._t('imageSizeFailed', 'Some images could not be made smaller'),
+        );
+
+        if (true === bodyChanged) {
+            await this.saveDraft(null, { force: true, allowEmpty: true });
+        }
+
+        // The strip came back, and the row with it; a row the swap did not
+        // replace (the request failed) is unlocked by hand.
+        buttons.forEach((button) => { button.disabled = false; });
+
+        if (true === failed) {
+            this._setStatus(this._t('imageSizeFailed', 'Some images could not be made smaller'), 'text-danger');
+        }
+    }
+
+    /** One stored picture: brought to the choice from its original, or the original put back. */
+    async _scalePart(part, choice) {
+        const headers = { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken() };
+
+        const restore = async () => {
+            if (true !== part.scaled) {
+                return;
+            }
+
+            const response = await fetch(`/compose/attachment/${part.id}/restore`, { method: 'POST', headers });
+
+            if (false === response.ok) {
+                throw new Error('restore');
+            }
+        };
+
+        if (true === choice.restore) {
+            return restore();
+        }
+
+        const response = await fetch(`/compose/attachment/${part.id}/original`, { cache: 'no-store' });
+
+        if (false === response.ok) {
+            throw new Error('original');
+        }
+
+        let bytes = new Uint8Array(await response.arrayBuffer());
+        const encryption = true === part.sealed ? this._encryption() : null;
+
+        if (true === part.sealed) {
+            if (null === encryption) {
+                throw new Error('locked');
+            }
+
+            bytes = await encryption.openUpload(bytes);
+        }
+
+        const smaller = await scaleImage(new Blob([bytes], { type: part.type }), choice);
+
+        // Nothing to gain: the original is what goes out.
+        if (null === smaller) {
+            return restore();
+        }
+
+        let file = new File([smaller], part.name, { type: part.type });
+
+        if (true === part.sealed) {
+            const sealed = await encryption.sealUploads([file]);
+
+            if (null === sealed) {
+                throw new Error('locked');
+            }
+
+            file = sealed[0];
+        }
+
+        const body = new FormData();
+        body.append('file', file);
+
+        if (true === part.sealed) {
+            body.append('sealed', '1');
+        }
+
+        const upload = await fetch(`/compose/attachment/${part.id}/scaled`, { method: 'POST', body, headers });
+
+        if (false === upload.ok) {
+            throw new Error('scaled');
+        }
+    }
+
+    /**
+     * A data: picture in the body, brought to the choice where it is.
+     *
+     * @returns {Promise<boolean>} whether the body changed
+     */
+    async _scaleDataImage(image, choice) {
+        const original = image.dataset.plmailOriginal ?? image.getAttribute('src');
+
+        const putBack = () => {
+            if (undefined === image.dataset.plmailOriginal) {
+                return false;
+            }
+
+            image.setAttribute('src', original);
+            delete image.dataset.plmailOriginal;
+
+            return true;
+        };
+
+        if (true === choice.restore) {
+            return putBack();
+        }
+
+        const blob = await (await fetch(original)).blob();
+        const smaller = await scaleImage(blob, choice);
+
+        if (null === smaller) {
+            return putBack();
+        }
+
+        const url = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(smaller);
+        });
+
+        image.dataset.plmailOriginal = original;
+        image.setAttribute('src', url);
+
+        return true;
+    }
+
+    /**
+     * The editor shows an uploaded picture from its part's address, which now
+     * serves other bytes: load it again rather than leave the old size on
+     * screen. The query string never reaches the mail — InlineImageRewriter
+     * finds the picture by its data-cid.
+     *
+     * @returns {boolean} whether the body changed
+     */
+    _reloadInlineImage(partId) {
+        let changed = false;
+
+        this._bodyImages().forEach((image) => {
+            if (String(partId) !== this._inlinePartId(image)) {
+                return;
+            }
+
+            image.setAttribute('src', `/mail/attachment/${partId}?v=${Date.now()}`);
+            changed = true;
+        });
+
+        return changed;
+    }
+
+    /**
+     * Show the row while the draft holds a picture it can make smaller, and
+     * the message's size beside it: before → after once something is
+     * smaller, the plain total while nothing is. Runs on every edit
+     * (_scheduleAutosave), because deleting a picture from the body does not
+     * render the strip.
+     */
+    _refreshImageSize() {
+        this._refreshAttachmentSummary();
+
+        if (false === this.hasImageSizeTarget) {
+            return;
+        }
+
+        const row = this.imageSizeTarget;
+        const inBody = new Set(this._bodyImages().map((image) => this._inlinePartId(image)).filter((id) => null !== id));
+        const parts = this._imageParts();
+
+        row.hidden = false === (parts.some((part) => false === part.inline || inBody.has(String(part.id))) || this._bodyDataImages().length > 0);
+
+        if (true === row.hidden) {
+            return;
+        }
+
+        const { now, before } = this._attachmentTotals();
+        const label = row.querySelector('[data-image-size-total]');
+
+        if (null !== label) {
+            label.textContent = before > now
+                ? this._t('imageSizeSaving', '%before% → %after%')
+                    .replace('%before%', formatBytes(before))
+                    .replace('%after%', formatBytes(now))
+                : this._t('imageSizeTotal', '%s in all').replace('%s', formatBytes(now));
+        }
+    }
+
+    /**
+     * The message's attachments and pictures in bytes, now and before any of
+     * them was made smaller: the chips, the uploaded pictures still in the
+     * body, and a sealed body's data: pictures.
+     */
+    _attachmentTotals() {
+        const inBody = new Set(this._bodyImages().map((image) => this._inlinePartId(image)).filter((id) => null !== id));
+        const parts = true === this.hasImageSizeTarget ? this._imageParts() : [];
+        const byId = new Map(parts.map((part) => [String(part.id), part]));
+        let now = 0;
+        let before = 0;
+
+        this.element.querySelectorAll('[data-compose-part]').forEach((chip) => {
+            const size = Number(chip.dataset.partSize) || 0;
+
+            now += size;
+            before += Number(byId.get(chip.dataset.composePart)?.original) || size;
+        });
+        parts.filter((part) => true === part.inline && inBody.has(String(part.id))).forEach((part) => {
+            now += part.size;
+            before += Number(part.original) || part.size;
+        });
+        this._bodyDataImages().forEach((image) => {
+            const size = dataUriBytes(image.getAttribute('src') ?? '');
+
+            now += size;
+            before += dataUriBytes(image.dataset.plmailOriginal ?? '') || size;
+        });
+
+        return { now, before };
+    }
+
+    /**
+     * The draft's stored pictures, as the strip lists them.
+     *
+     * Always a list. The template filters the draft's parts down to its
+     * pictures, and Twig's filter keeps each part's key, so a draft whose
+     * first attachment is not a picture (a PDF, then photos) encoded as an
+     * object — {"1": …, "2": …} — and the first `.map()` on it threw inside
+     * the row's targetConnected, which stopped the window's connect() before
+     * the address fields were set up: To came up as a bare <select>.
+     */
+    _imageParts() {
+        try {
+            const parts = JSON.parse(this.imageSizeTarget.dataset.imageParts ?? '[]');
+
+            return Array.isArray(parts) ? parts : Object.values(parts ?? {});
+        } catch (_) {
+            return [];
+        }
+    }
+
+    _bodyImages() {
+        return true === this.hasBodyTarget ? Array.from(this.bodyTarget.querySelectorAll('img')) : [];
+    }
+
+    /** Pictures held in the body itself, which only a sealed draft has. */
+    _bodyDataImages() {
+        return this._bodyImages().filter((image) => SCALABLE_DATA_URI.test(image.getAttribute('src') ?? ''));
+    }
+
+    /** The part an uploaded picture in the body is served from, or null. */
+    _inlinePartId(image) {
+        if (null === image.getAttribute('data-cid')) {
+            return null;
+        }
+
+        return (image.getAttribute('src') ?? '').match(/\/mail\/attachment\/(\d+)/)?.[1] ?? null;
     }
 
     // ── Inline images ─────────────────────────────────────────────────
@@ -4344,7 +5120,9 @@ export default class extends Controller {
 
             if (null !== url) {
                 this._toolbar()?.insertInlineImage({ url });
+                this._refreshImageSize();
                 await this.saveDraft(null, { force: true, allowEmpty: true });
+                await this._scaleNewImages();
             }
 
             return;
@@ -4403,6 +5181,18 @@ export default class extends Controller {
         // window closed in the next two seconds leaves a draft with an orphan
         // image in it and no picture.
         await this.saveDraft(null, { force: true, allowEmpty: true });
+
+        // The strip is not rendered again for a picture in the body, so the
+        // Image size row learns of the new part here, and scales it to the
+        // size already picked (#502).
+        if (true === this.hasImageSizeTarget && SCALABLE_TYPES.includes(file.type)) {
+            const parts = this._imageParts();
+
+            parts.push({ id: payload.id, inline: true, sealed: false, scaled: false, size: file.size, type: file.type, name: file.name });
+            this.imageSizeTarget.dataset.imageParts = JSON.stringify(parts);
+            this._refreshImageSize();
+            await this._scaleNewImages();
+        }
     }
 
     /**
@@ -4453,4 +5243,133 @@ export default class extends Controller {
         collection.insertAdjacentHTML('beforeend', prototype);
         collection.querySelector('input')?.focus();
     }
+}
+
+/**
+ * The formats a draft's pictures can be sent smaller in (#502): what every
+ * browser decodes and encodes again as itself. The same list as
+ * DraftAttachmentService::SCALABLE, which is the server's half of the rule.
+ */
+const SCALABLE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+const SCALABLE_DATA_URI = /^data:image\/(jpeg|png|webp)[;,]/i;
+
+/**
+ * A picture brought to a choice — at most `edge` pixels on its longest side
+ * (0: its own size), encoded at `quality` — in the format it already had;
+ * null when there is nothing to gain: Original, a format this cannot redo,
+ * a picture that would not come out smaller.
+ *
+ * A preset leaves a picture already within its size alone, as it always
+ * did: Medium on a small screenshot should not touch it. Custom recompresses
+ * it anyway, because a quality the person set on purpose is the point. A PNG
+ * that keeps its size is left alone either way: it is lossless, so encoding
+ * it again only spends time.
+ *
+ * createImageBitmap turns a phone photo the right way up as it decodes it,
+ * which is the step a server without the exif extension cannot do. Drawing
+ * onto a canvas and encoding again keeps nothing but pixels, so the photo's
+ * metadata, its GPS position included, stays behind.
+ *
+ * Same format out as in: a part keeps its filename, and a JPEG named .png is
+ * a file other programs refuse. A browser that cannot encode the format
+ * (Safari and WebP) hands back PNG, which is caught by the type check and
+ * leaves the picture as it was.
+ *
+ * @param {Blob} blob
+ * @param {{edge: number, quality: number, restore: boolean, custom: boolean}} choice
+ * @returns {Promise<?Blob>}
+ */
+async function scaleImage(blob, choice) {
+    const type = (blob.type || '').toLowerCase();
+
+    if (true === choice.restore || false === SCALABLE_TYPES.includes(type)) {
+        return null;
+    }
+
+    let bitmap;
+
+    try {
+        bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    } catch (_) {
+        return null;
+    }
+
+    try {
+        const longest = Math.max(bitmap.width, bitmap.height);
+        const resize = choice.edge > 0 && longest > choice.edge;
+
+        if (false === resize && (false === choice.custom || 'image/png' === type)) {
+            return null;
+        }
+
+        const scale = true === resize ? choice.edge / longest : 1;
+        const width = Math.max(1, Math.round(bitmap.width * scale));
+        const height = Math.max(1, Math.round(bitmap.height * scale));
+        const quality = 'image/png' === type ? undefined : Math.min(1, Math.max(0.01, choice.quality / 100));
+        let smaller;
+
+        if ('function' === typeof OffscreenCanvas) {
+            const canvas = new OffscreenCanvas(width, height);
+            const context = canvas.getContext('2d');
+
+            context.imageSmoothingQuality = 'high';
+            context.drawImage(bitmap, 0, 0, width, height);
+            smaller = await canvas.convertToBlob({ type, quality });
+        } else {
+            const canvas = document.createElement('canvas');
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const context = canvas.getContext('2d');
+
+            context.imageSmoothingQuality = 'high';
+            context.drawImage(bitmap, 0, 0, width, height);
+            smaller = await new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+        }
+
+        if (null === smaller || type !== smaller.type || smaller.size >= blob.size) {
+            return null;
+        }
+
+        return smaller;
+    } finally {
+        bitmap.close();
+    }
+}
+
+/**
+ * Bits per pixel of a typical photo saved as JPEG at a quality, for the
+ * Adjust panel's estimate: rule-of-thumb values for camera photos,
+ * interpolated between, not a measurement of any one encoder. Used only as a
+ * ceiling on the photo's own rate (see _estimate()).
+ */
+const BITS_PER_PIXEL = [[40, 0.85], [50, 1.0], [60, 1.2], [70, 1.5], [80, 1.9], [85, 2.2], [90, 2.6], [95, 3.2], [100, 4.5]];
+
+function bitsPerPixel(quality) {
+    for (let i = 1; i < BITS_PER_PIXEL.length; i++) {
+        const [q1, b1] = BITS_PER_PIXEL[i - 1];
+        const [q2, b2] = BITS_PER_PIXEL[i];
+
+        if (quality <= q2) {
+            return b1 + (b2 - b1) * (Math.max(q1, quality) - q1) / (q2 - q1);
+        }
+    }
+
+    return BITS_PER_PIXEL[BITS_PER_PIXEL.length - 1][1];
+}
+
+/** The bytes a data: URI's base64 stands for. */
+function dataUriBytes(src) {
+    const comma = src.indexOf(',');
+
+    return comma < 0 ? 0 : Math.floor((src.length - comma - 1) * 3 / 4);
+}
+
+/** A size the way the attachment chips print one: KB below a megabyte, MB with one decimal above. */
+function formatBytes(bytes) {
+    const kb = bytes / 1024;
+
+    return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.round(kb)} KB`;
 }

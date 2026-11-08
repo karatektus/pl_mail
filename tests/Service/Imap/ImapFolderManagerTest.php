@@ -20,6 +20,9 @@ use App\Infrastructure\ImapClient\ImapLoop;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapFolderManager;
 use App\Service\Imap\ImapFolderProvisioner;
+use App\Service\Imap\NewFolderPlace;
+use App\Service\Label\LabelFolderMaker;
+use App\Service\Mail\GraphApiClient;
 use App\Service\Label\LabelNotifier;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MailChangeRecorder;
@@ -127,6 +130,78 @@ final class ImapFolderManagerTest extends KernelTestCase
         $this->manager($plain)->create($this->account, null, 'Receipts');
 
         self::assertSame('CREATE Receipts', $plain->commands[0]);
+    }
+
+    // ── Where a folder goes (#221) ──────────────────────────────────────
+
+    /**
+     * "Make it a folder" puts the folder where the person picked: on a
+     * Stalwart-style server, inside the inbox where their folders are, not
+     * at the top level the server answers NAMESPACE with.
+     */
+    public function testMakeItAFolderGoesWhereThePersonPicked(): void
+    {
+        $server = $this->server('', '/');
+        $inbox  = $this->folder('INBOX', 'INBOX', '/');
+        $label  = $this->customLabel('Physio');
+
+        $this->maker($server)->make($label, $this->account, $inbox);
+
+        self::assertSame('CREATE INBOX/Physio', $server->commands[0]);
+        self::assertSame('INBOX/Physio', $label->bindingFor($this->account)?->mailbox?->fullPath);
+    }
+
+    /** A label under one that is a folder here goes inside it, whatever was picked. */
+    public function testALabelUnderAFolderGoesInsideItWhateverWasPicked(): void
+    {
+        $server  = $this->server('', '/');
+        $clients = $this->folder('INBOX/Clients', 'Clients', '/');
+        $label   = $this->customLabel('Kine', $clients->label);
+        $maker   = $this->maker($server);
+
+        self::assertSame($clients, $maker->fixedPlace($label, $this->account));
+
+        $maker->make($label, $this->account, null);
+
+        self::assertSame('CREATE INBOX/Clients/Kine', $server->commands[0]);
+    }
+
+    /**
+     * The place chosen last is offered next time, while the account still has
+     * that folder; the top level otherwise.
+     */
+    public function testTheLastPlaceIsRememberedWhileTheFolderIsThere(): void
+    {
+        $place   = self::getContainer()->get(NewFolderPlace::class);
+        $clients = $this->folder('INBOX/Clients', 'Clients', '/');
+
+        self::assertNull($place->defaultFor($this->account), 'the top level until something is chosen');
+
+        $place->remember($this->account, $clients);
+        self::assertSame($clients, $place->defaultFor($this->account));
+
+        $clients->fullPath = 'INBOX/Customers';
+        $this->em->flush();
+        self::assertNull($place->defaultFor($this->account), 'a folder renamed elsewhere is not there any more');
+
+        $place->remember($this->account, null);
+        self::assertNull($this->account->newFolderParentPath);
+    }
+
+    public function testAFolderOfAnotherAccountIsNoPlace(): void
+    {
+        $other                = new Mailbox();
+        $other->account       = $this->seedAccount();
+        $other->name          = 'Elsewhere';
+        $other->fullPath      = 'Elsewhere';
+        $other->delimiter     = '/';
+        $other->isSyncEnabled = true;
+        $this->em->persist($other);
+        $this->em->flush();
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        self::getContainer()->get(NewFolderPlace::class)->chosen($this->account, (int) $other->id);
     }
 
     /** The name is encoded once; the parent's path, already encoded, is not touched. */
@@ -333,6 +408,30 @@ final class ImapFolderManagerTest extends KernelTestCase
             $this->em,
             new NullLogger(),
         );
+    }
+
+    private function maker(FakeFolderServer $server): LabelFolderMaker
+    {
+        $container = self::getContainer();
+
+        return new LabelFolderMaker(
+            $this->manager($server),
+            $container->get(GraphApiClient::class),
+            $container->get(LabelResolver::class),
+            $this->em,
+        );
+    }
+
+    private function customLabel(string $name, ?Label $parent = null): Label
+    {
+        $label         = new Label();
+        $label->usr    = $this->account->usr;
+        $label->name   = $name;
+        $label->parent = $parent;
+        $this->em->persist($label);
+        $this->em->flush();
+
+        return $label;
     }
 
     /** On the loop the connector runs on, and stopped when the test ends. */

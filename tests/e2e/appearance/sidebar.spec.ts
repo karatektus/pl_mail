@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "../support/test";
 import { ajaxPost } from "../support/config";
+import { INBOX_LINK } from "../support/sidebar";
 
 /**
  * The sidebar has two ways of getting out of the way, and one button drives
@@ -47,8 +48,8 @@ test.describe("sidebar rail (desktop)", () => {
         // preference that survives between tests, so a locator that matched
         // both was a strict-mode violation waiting for whichever spec ran
         // first to leave an account open.
-        const inboxLabel = sidebar
-            .locator('a[href="/mail/inbox"]')
+        const inboxLabel = page
+            .locator(INBOX_LINK)
             .getByText("Inbox", { exact: true });
 
         await expect(sidebar).toBeVisible();

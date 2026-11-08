@@ -90,6 +90,25 @@ final class MessageCategorizerTest extends TestCase
         // Subdomains count: the mail actually comes from mailer.facebookmail.com
         // and friends, never from the bare domain.
         yield 'social by subdomain' => [MessageCategory::Social, [], 'x@mailer.facebookmail.com'];
+        // A notification from a social network carries List-Unsubscribe like
+        // any bulk mail, and the sender's domain must still win: Strava's
+        // "has given you kudos" comes from engage.strava.com with one.
+        yield 'social beats list-unsubscribe' => [
+            MessageCategory::Social,
+            ['List-Unsubscribe' => '<https://engage.strava.com/u>'],
+            'mail@engage.strava.com',
+        ];
+        yield 'social beats precedence bulk' => [
+            MessageCategory::Social,
+            ['Precedence' => 'bulk'],
+            'notify@linkedin.com',
+        ];
+        // Forums still comes first: a group hosted on a social network is a list.
+        yield 'a list on a social domain is still a forum' => [
+            MessageCategory::Forums,
+            ['List-Post' => '<mailto:g@linkedin.com>', 'List-Unsubscribe' => '<https://x.test/u>'],
+            'g@linkedin.com',
+        ];
         // …but only as a suffix on a dot. "notlinkedin.com" is somebody else.
         yield 'a domain that merely ends in one' => [
             MessageCategory::Primary,

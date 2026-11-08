@@ -163,6 +163,35 @@ final class InboxTabQueriesTest extends KernelTestCase
         );
     }
 
+    /**
+     * The inbox page takes its pager total out of the one grouped read, so
+     * each tab's entry must be what countForUnifiedInbox() says for that tab,
+     * read and unread — with a category switched off as well, where Primary
+     * gathers what is no longer a tab.
+     */
+    public function testTheOneGroupedReadAgreesWithEveryTabsOwnCount(): void
+    {
+        foreach ([false, true] as $switchedOff) {
+            if (true === $switchedOff) {
+                $this->user->categorySorting->switchOff([MessageCategory::Promotions]);
+            }
+
+            $counts = $this->repository->countTabsForUnifiedInbox($this->user);
+            $tabs   = [InboxTab::builtIn(MessageCategory::Primary), InboxTab::builtIn(MessageCategory::Updates), InboxTab::custom((int) $this->shipping->id, 'Shipping')];
+
+            if (false === $switchedOff) {
+                $tabs[] = InboxTab::builtIn(MessageCategory::Promotions);
+            }
+
+            foreach ($tabs as $tab) {
+                self::assertSame($this->repository->countForUnifiedInbox($this->user, $tab), $counts['threads'][$tab->value] ?? 0, $tab->value);
+                self::assertSame($this->repository->countForUnifiedInbox($this->user, $tab, true), $counts['unread'][$tab->value] ?? 0, $tab->value . ', unread');
+            }
+
+            self::assertEquals($this->sorted($this->repository->countUnreadByCategoryForUnifiedInbox($this->user)), $this->sorted($counts['unread']));
+        }
+    }
+
     public function testTheSendersHintNamesWhoWroteIntoTheReadersTab(): void
     {
         $senders = $this->repository->newSendersByCategoryForUnifiedInbox($this->user, new DateTimeImmutable());

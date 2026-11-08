@@ -762,6 +762,17 @@ class Account extends AccountModel
     public const string SETTING_LABELS_AS_KEYWORDS = 'labels.imap_keywords';
 
     /**
+     * Where a new folder on this plain IMAP account goes unless the person
+     * picks another place: the raw path of the folder it goes inside, absent
+     * for the top level (#221). Set by the last choice in New folder and in
+     * "Make it a folder", so a server whose own folders sit under the inbox
+     * (Stalwart, FranklyMail) is answered once and not every time. A path and
+     * not a Mailbox id, so a folder that is renamed or deleted on the server
+     * reads as "not there any more", and the top level is offered instead.
+     */
+    public const string SETTING_NEW_FOLDER_PARENT = 'folders.new_parent';
+
+    /**
      * Whether a category put on or taken off a message in Outlook puts the
      * label on or takes it off in plMail (#221 step 4). Microsoft only, off by
      * default: until it is on, categories are read at import and pushed from
@@ -792,6 +803,18 @@ class Account extends AccountModel
         get => true === $this->isMicrosoft() && true === $this->getSetting(self::SETTING_FOLLOW_OUTLOOK_CATEGORIES, false);
         set(bool $on) {
             $this->setSetting(self::SETTING_FOLLOW_OUTLOOK_CATEGORIES, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_NEW_FOLDER_PARENT. */
+    public ?string $newFolderParentPath {
+        get {
+            $path = $this->getSetting(self::SETTING_NEW_FOLDER_PARENT);
+
+            return is_string($path) && '' !== $path ? $path : null;
+        }
+        set(?string $path) {
+            $this->setSetting(self::SETTING_NEW_FOLDER_PARENT, null === $path || '' === $path ? null : $path);
         }
     }
 

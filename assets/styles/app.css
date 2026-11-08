@@ -214,6 +214,12 @@
     --unread-emphasis:  1;
     --unread-bar-w:     0px;
 
+    /* Icons, words or both on the action buttons (#459); see ActionButtonStyle. */
+    --action-icon-display:  inline-block;
+    --action-label-display: none;
+    --action-btn-px:        0px;
+    --action-btn-gap:       0px;
+
     /* Per-surface density. AppearanceRenderer resolves each surface to a
        concrete pair — a surface with no override of its own is emitted
        carrying the global density's values, so these defaults only ever serve
@@ -3499,6 +3505,27 @@ html {
    for the contact layer. Changing the gutter without revisiting these numbers
    brings the arc back.
 */
+/* An action button: a 32px circle holding an icon until the user asks for words
+   (#459). min-width rather than the w-8 these used to carry, because a label has
+   to be able to widen it. `:not(label)` and not `i`, because Move draws an <svg>. */
+@utility action-btn {
+    min-width: 2rem;
+    padding-inline: var(--action-btn-px);
+    gap: var(--action-btn-gap);
+    white-space: nowrap;
+
+    /* Important because Font Awesome's own `display` sits outside every layer,
+       and an unlayered rule beats any layered one whatever its specificity. */
+    & > :not(.action-btn-label) {
+        display: var(--action-icon-display) !important;
+    }
+}
+
+@utility action-btn-label {
+    display: var(--action-label-display);
+    font-size: 0.8125rem;
+}
+
 /* The STRUCTURAL surfaces read --pane-alpha: the sidebar, the top bar and the
    insight strip here, the mail/calendar/settings ground in main-pane below.
    They are the layout, so there is nothing stacked behind them and glass costs
@@ -4362,6 +4389,24 @@ html {
     .compose-dock .compose-window {
         max-height: max(20rem, 90vh - var(--keyboard-inset, 0px));
     }
+}
+
+/* ═══ Compose window size (#507) ═════════════════════════════════════════
+   The resize corner only where a size can be set: not while the window is
+   minimized to its title bar or expanded over the page, which both size
+   themselves. compose--compose writes those two states as its value
+   attributes. And while a drag is on, the cursor stays the resize cursor and
+   nothing is selected, wherever the pointer wanders.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.compose-window[data-compose--compose-minimized-value="true"] [data-compose-resize],
+.compose-window[data-compose--compose-expanded-value="true"] [data-compose-resize] {
+    display: none;
+}
+
+.compose-resizing,
+.compose-resizing * {
+    cursor: nwse-resize !important;
+    user-select: none;
 }
 
 /* ═══ Shell chrome ═════════════════════════════════════════════════════════
@@ -5868,14 +5913,17 @@ html[data-dnd-active] [data-dnd-ghost] {
    and a cursor has to be legible on a row that is all four at once. An outline
    takes no box and paints over none of them.
 
-   Not :focus. Focus would have been the honest mechanism and was the wrong one:
-   moving it onto a row scrolls and announces on every keypress, and the rows
-   are replaced under it by every refresh, each time dropping focus to <body>.
-   The attribute is repainted from a remembered id instead.
+   Not :focus alone. `j` and `k` leave the focus where it is, and the rows are
+   replaced under it by every refresh, so the attribute is repainted from a
+   remembered id. ↓ and ↑ do move the focus (#469), and the cursor follows it,
+   so a focused row is the cursor's row: its focus ring is this same outline
+   rather than the browser's drawn over it. Losing the focus to a refresh is
+   handled in ui--shortcuts, which puts it back on the row's successor.
 
    Unlayered, like the rules above and for the same reason.
 */
-[data-kbd-cursor] {
+[data-kbd-cursor],
+#message-list li[data-mail--message-row-id-value]:focus-visible {
     outline: 2px solid rgb(var(--rgb-accent) / 0.7);
     outline-offset: -2px;
 }

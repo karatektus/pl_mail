@@ -32,6 +32,7 @@ use App\Service\Mail\SidebarCounts;
 use App\Service\Mail\ThreadListRenderer;
 use App\Service\Mail\ThreadRows;
 use App\Service\Mail\ThreadSenderFacts;
+use App\Service\Mail\UnifiedInboxes;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -68,6 +69,8 @@ final class MailController extends AbstractController
         private readonly ThreadSenderFacts $senderFacts,
         private readonly InboxTabs $inboxTabs,
         private readonly BinView $bin,
+        private readonly UnifiedInboxes $unifiedInboxes,
+        private readonly NewMailMarkers $newMail,
     )
     {
     }
@@ -242,11 +245,40 @@ final class MailController extends AbstractController
         return new JsonResponse(['marked' => $marked]);
     }
 
-    #[Route('/inbox', name: 'inbox')]
+    /**
+     * One of the reader's unified inboxes (#265), or the first of them at the
+     * bare `/mail/inbox` — the address every link, bookmark and redirect that
+     * predates several inboxes still uses, and what the first one is.
+     *
+     * Rendered there rather than redirected to its numbered address: the
+     * frame requests, the tests and the installed app all expect the list in
+     * the answer, and a redirect inside a frame navigation is one more round
+     * trip for the same page.
+     *
+     * An id that is not one of the reader's inboxes is a 404, like a label
+     * that is not theirs.
+     */
+    #[Route('/inbox/{inbox}', name: 'inbox', requirements: ['inbox' => '\d+'], defaults: ['inbox' => null])]
     public function inbox(
         Request $request,
+        ?int $inbox = null,
     ): Response {
         $user = $this->getUser();
+
+        if (false === $user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $unified = null === $inbox ? $this->unifiedInboxes->first($user) : $this->unifiedInboxes->find($user, $inbox);
+
+        if (null === $unified) {
+            throw $this->createNotFoundException();
+        }
+
+        $accountIds = $this->unifiedInboxes->scopeOf($user, $unified);
+
+        // The tab marks the strip draws are this inbox's, not every account's.
+        $this->newMail->scopeTabsTo($unified);
 
         // What `?tab=` may hold, what a key that is not a tab opens, and the
         // one list somebody with the tabs switched off gets: requestedTab().
@@ -254,33 +286,38 @@ final class MailController extends AbstractController
         $tabbed = null !== $tab;
 
         $unreadOnly = $this->unreadOnly($request);
-        $total      = $this->threadRepository->countForUnifiedInbox($user, $tab, $unreadOnly);
-        $page       = $this->pageOrRedirect($request, $total);
+
+        // Every tab's total, for which tabs EXIST, and every tab's unread, for
+        // the icon tint — the tint is not limited to the unread filter, so
+        // neither is this. The unread NUMBERS on the tabs come from the
+        // sidebarCounts global in the template, the same memoised read the
+        // counts endpoint answers with, so the two cannot disagree.
+        //
+        // One grouped read answers both, and the pager's total as well: it is
+        // this tab's entry. Three reads of the whole inbox per click were the
+        // largest fixed cost of switching tabs. See countTabsForUnifiedInbox().
+        //
+        // Not made without tabs: there is no strip to decide the shape of and
+        // no icon to tint, and the one list's total is a single count.
+        $tabCounts = $tabbed ? $this->threadRepository->countTabsForUnifiedInbox($user, $accountIds) : null;
+        $tabTotals = $tabCounts['threads'] ?? [];
+        $tabUnread = $tabCounts['unread'] ?? [];
+
+        $total = null === $tab
+            ? $this->threadRepository->countForUnifiedInbox($user, null, $unreadOnly, $accountIds)
+            : (true === $unreadOnly ? $tabUnread : $tabTotals)[$tab->value] ?? 0;
+        $page  = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
             return $page;
         }
 
-        $sort       = $this->listSort($request);
-        $threads    = $this->threadRepository->findForUnifiedInbox($user, $tab, $page, self::PER_PAGE, $sort, $unreadOnly);
-        // The unread numbers on the tabs come from the sidebarCounts global in
-        // the template — the same memoised read the counts endpoint answers
-        // with, so the two cannot disagree. Only which tabs EXIST is decided
-        // here.
-        //
-        // Neither grouped read is made without tabs: there is no strip to
-        // decide the shape of and no icon to tint.
-        $tabTotals  = $tabbed ? $this->threadRepository->countByCategoryForUnifiedInbox($user) : [];
-
-        // Which tabs hold unread, for the icon tint. One grouped query, the
-        // same shape and cost as the totals above, on every inbox render — the
-        // tint is not limited to the unread filter, so this cannot be either.
-        // See the tab strip in mail/inbox.html.twig.
-        $tabUnread  = $tabbed ? $this->threadRepository->countUnreadByCategoryForUnifiedInbox($user) : [];
+        $sort    = $this->listSort($request);
+        $threads = $this->threadRepository->findForUnifiedInbox($user, $tab, $page, self::PER_PAGE, $sort, $unreadOnly, $accountIds);
 
         // Which tabs the strip shows is visibleTabs()' rule, which the account
         // page draws its own strip by as well.
-        $allTabs = $tabbed && $user instanceof User ? $this->inboxTabs->allFor($user) : [];
+        $allTabs = $tabbed ? $this->inboxTabs->allFor($user) : [];
         $tabs    = $this->visibleTabs($allTabs, $tab, $tabTotals);
 
         // The categories the strip does NOT show, so a drag has somewhere to
@@ -302,6 +339,7 @@ final class MailController extends AbstractController
         $this->threadRows->preload($threads);
 
         return $this->renderList($request, 'mail/inbox.html.twig', $threads, [
+            'unified_inbox' => $unified,
             'tab'         => $tab,
             'tabs'        => $tabs,
             'drop_tabs'   => $dropTabs,
@@ -908,7 +946,7 @@ final class MailController extends AbstractController
      * scroll position and any collapsed tree mid-sync.
      */
     #[Route('/sidebar/counts', name: 'sidebar_counts', methods: ['GET'])]
-    public function sidebarCounts(SidebarCounts $counts, NewMailMarkers $newMail): JsonResponse
+    public function sidebarCounts(Request $request, SidebarCounts $counts, NewMailMarkers $newMail): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
@@ -961,7 +999,30 @@ final class MailController extends AbstractController
         // is a grouped read of the inbox made on every sync.
         $countsUser = $this->getUser();
         $tabbed     = $countsUser instanceof User && true === $countsUser->categorySorting->tabs;
-        $tabUnread  = $tabbed ? $this->threadRepository->countUnreadByCategoryForUnifiedInbox($countsUser) : [];
+
+        // The tab families are counted within the unified inbox whose strip
+        // is on screen (#265), which the page names in `?inbox=` — the strip
+        // of "Work" must not light up for mail that arrived in "Personal".
+        // None named, or one that is not the reader's: every account, which
+        // is also what an account's own inbox page has always been given.
+        $stripInbox    = $countsUser instanceof User && $request->query->getInt('inbox') > 0
+            ? $this->unifiedInboxes->find($countsUser, $request->query->getInt('inbox'))
+            : null;
+        $stripAccounts = $countsUser instanceof User && null !== $stripInbox
+            ? $this->unifiedInboxes->scopeOf($countsUser, $stripInbox)
+            : null;
+
+        $newMail->scopeTabsTo($stripInbox);
+
+        $tabUnread  = $tabbed ? $this->threadRepository->countUnreadByCategoryForUnifiedInbox($countsUser, $stripAccounts) : [];
+
+        // One badge and one dot per unified inbox in the sidebar, keyed by
+        // its id. `role:inbox` stays below as well: the browser title counts
+        // the reader's whole Inbox, whichever list it is filed in.
+        foreach ($countsUser instanceof User ? $this->unifiedInboxes->shown($countsUser) : [] as $unified) {
+            $payload['inbox:' . $unified->id]               = $counts->forInbox($unified);
+            $payload[NewMailMarkers::inboxKey($unified)]    = $newMail->forInbox($unified);
+        }
 
         // The reader's own tabs ride on the same payload as the five, under the
         // same three keys: the strip patches itself by key, and a tab drawn with

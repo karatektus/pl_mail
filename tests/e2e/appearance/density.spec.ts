@@ -218,7 +218,7 @@ test.describe("density", () => {
                 };
 
                 return {
-                    system: h('#sidebar a[href="/mail/inbox"]'),
+                    system: h('#sidebar a[data-also-open-at="/mail/inbox"]'),
                     heading: h("#sidebar details.group\\/labels > summary"),
                     compose: h("#sidebar .compose-link"),
                 };

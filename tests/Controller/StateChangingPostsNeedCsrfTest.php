@@ -229,7 +229,7 @@ final class StateChangingPostsNeedCsrfTest extends WebTestCase
     // ── the compose window's fetch() actions ──────────────────────────────
 
     /**
-     * Undo, unschedule, discard and the three attachment actions are POSTs the
+     * Undo, unschedule, discard and the attachment actions are POSTs the
      * compose window makes with fetch(), and none of them checked a token: any
      * page the user visited could discard their drafts or call off a send.
      * They take the shared `ajax` token in the X-CSRF-Token header now.
@@ -246,6 +246,9 @@ final class StateChangingPostsNeedCsrfTest extends WebTestCase
         yield 'attach files'         => ['/compose/attachments/{message}'];
         yield 'insert inline image'  => ['/compose/inline-image/{message}'];
         yield 'remove an attachment' => ['/compose/attachment/{part}/remove'];
+        yield 'send an image smaller' => ['/compose/attachment/{part}/scaled'];
+        yield 'restore an original'  => ['/compose/attachment/{part}/restore'];
+        yield 'pick an image size'   => ['/compose/image-size/{message}'];
     }
 
     #[DataProvider('composeEndpoints')]

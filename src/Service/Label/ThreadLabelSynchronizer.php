@@ -11,7 +11,7 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * Keeps a thread's labels equal to the union of its messages' labels
  * (Gmail semantics: a thread appears under a label if ANY message in it
- * carries that label).
+ * carries that label), and its unread count with them.
  *
  * Called after any message-level label mutation and by MessageThreader
  * when attaching newly-synced messages.
@@ -37,9 +37,11 @@ final readonly class ThreadLabelSynchronizer
 
     public function sync(MessageThread $thread): void
     {
-        $union = [];
+        $union    = [];
+        $messages = $this->messagesOf($thread);
+        $wasAside = $thread->holdsSetAsideMail();
 
-        foreach ($this->messagesOf($thread) as $message) {
+        foreach ($messages as $message) {
             foreach ($message->labels as $label) {
                 $union[(int) $label->id] = $label;
             }
@@ -55,6 +57,15 @@ final readonly class ThreadLabelSynchronizer
         // Add labels the thread is missing.
         foreach ($union as $label) {
             $thread->addLabel($label);
+        }
+
+        // The unread count with them, whenever Spam or the bin is involved
+        // before or after: which messages count depends on which are in them,
+        // and a label change is how that changes. See
+        // MessageThread::unreadAmong(). A conversation that has never touched
+        // either keeps the counter it was given.
+        if (true === $wasAside || true === $thread->holdsSetAsideMail()) {
+            $thread->unreadCount = MessageThread::unreadAmong($messages);
         }
     }
 

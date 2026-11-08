@@ -87,7 +87,7 @@ Variables:
        controllers at all. The meta is where Turbo looks for a nonce for the
        scripts it inserts itself. #}
     <meta name="csp-nonce" content="{{ csp_nonce() }}">
-    {{ importmap('app', { nonce: csp_nonce() }) }}
+    {{ importmap_once('app') }}
 </head>
 <body class="min-h-screen app-bg text-ink antialiased">
     <main class="mx-auto w-full {% block container_class %}max-w-2xl{% endblock %} px-3 py-6 sm:px-4 sm:py-10">

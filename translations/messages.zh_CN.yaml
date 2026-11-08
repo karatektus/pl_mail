@@ -10,6 +10,10 @@ account:
         imap:
             heading: '收件 — IMAP'
             host: 主机
+            labels_help: '使用关键字时，您在 plMail 中给邮件加的标签也会保存在服务器上，显示关键字的其他邮件应用（例如 Thunderbird）也会显示它们。之后可以在账户的文件夹中更改。'
+            labels_keywords: '同时存到服务器'
+            labels_label: '标签'
+            labels_local: '仅在 plMail 中'
         jmap:
             heading: '收件 — JMAP'
             outgoing_heading: '发件 — JMAP'
@@ -29,6 +33,7 @@ account:
             keep_on_server: '保留在服务器上（推荐）'
         port: 端口
         preset:
+            clear: '清除服务商，自行填写服务器'
             label: 服务商
             placeholder: 选择服务商…
         protocol:
@@ -633,6 +638,14 @@ admin:
                 step_register: '打开 Azure 门户，在 Microsoft Entra ID → App registrations 下注册应用。'
                 step_secret: '在 Certificates & secrets 下创建客户端密钥，并立即复制其值；该值只显示一次。'
                 tenant_note: '个人 Microsoft 账户使用 common 租户；若仅允许自己的组织访问，请使用自己的租户 ID。'
+            open_cloud:
+                intro: 'OpenCloud 使用每位用户各自的应用令牌进行认证，因此这里无需注册。plMail 会显示每位用户的个人空间、所属的项目空间以及共享给他的文件。'
+                security: '应用令牌可访问用户的全部文件；使用外部身份提供方时，即使账户在那里被停用，令牌仍然有效。用户应删除不再需要的令牌。'
+                share_password: 'OpenCloud 默认拒绝没有密码的公开链接。若要允许以链接方式附加大文件，请设置 OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false；否则只能附加副本。'
+                step_app_auth: '确认 OpenCloud 通过 WebDAV 接受应用令牌。视版本而定，需要将 auth-app 加入 OC_ADD_RUN_SERVICES 并设置 PROXY_ENABLE_APP_AUTH=true。'
+                step_base_url: '可选：固定服务器地址，例如 https://cloud.example.com。'
+                step_enable: '在上方开启“向用户提供此服务”。'
+                step_user: '每位用户在 OpenCloud 的账户设置 → 应用令牌中创建一个有效期较长的令牌，并连同用户名填入自己的集成设置。'
             paperless:
                 asynchronous: '保存附件时会将其交给 Paperless 处理进程，几秒后才会归档。plMail 报告的是移交成功，而非文档处理完成，因此测试保存报告完成后，文件稍后才会出现在 Paperless 中；若 Paperless 因重复而拒绝文件，该文件不会出现。'
                 intro: 'Paperless-ngx 使用每位用户的 API 令牌进行验证，因此此处无需注册。'
@@ -1573,6 +1586,12 @@ compose:
             shorten: 更简短
         timing: '模型加载 %load% 秒 · %seconds% 秒生成 %count% 个 token · 总计 %total% 秒'
         working: 正在撰写…
+    attachments_summary:
+        files: '{1}1 个文件|]1,Inf[ %count% 个文件'
+        hide: 收起
+        hide_label: 收起附件
+        images_in_text: 正文中的图片
+        show: 显示
     open_failed:
         dismiss: 关闭
         failed: 无法打开撰写窗口，请重试。
@@ -1645,6 +1664,9 @@ compose:
     quote:
         hide: 隐藏引用文字
         show: 显示引用文字
+    resize:
+        hint: 拖动以调整大小。双击恢复默认大小。
+        label: 调整写信窗口大小
     schedule:
         cancel: 取消定时发送
         confirm: 定时发送
@@ -1720,6 +1742,37 @@ compose:
     from: 发件人
     image: 插入图片
     image_insert_failed: 无法将图片插入邮件
+    image_size:
+        adjust: 调整尺寸和质量
+        apply: 应用到所有图片
+        custom: "%px% 像素 · %quality%%"
+        custom_own: "原尺寸 · %quality%%"
+        custom_segment: 自定义
+        edge: 最长边 %px% 像素
+        edge_px: "%px% 像素"
+        estimate: "%before% → ≈ %after%"
+        estimate_note: PNG 图片保持原始质量；质量设置适用于 JPEG 和 WebP。应用后显示确切大小。
+        failed: 部分图片无法缩小
+        hint_blocky: 边缘和文字处会出现色块。仅在大小最重要时使用。
+        hint_fine: 在任何屏幕上都很清晰；只有放大很多才能看出差别。
+        hint_high: 几乎与原图无异。
+        hint_soft: 放大后略显模糊；快速查看足够。
+        keep_pixels: 保持每张照片的原尺寸，只压缩
+        label: 图片尺寸
+        large: 大
+        longest_side: 最长边
+        medium: 中
+        original: 原图
+        own_size: 原尺寸
+        panel: 尺寸和质量
+        quality: 质量
+        reset: 恢复为中
+        resizing: 正在缩小图片…
+        saving: "%before% → %after%"
+        sharper: 更清晰
+        small: 小
+        smaller: 更小
+        total: "共 %size%"
     indent: 增加缩进
     insert_emoji: 插入表情符号
     insert_link: 插入链接
@@ -2294,6 +2347,7 @@ integration:
             immich: 描述照片，例如：日落时的海滩
             nextcloud: '搜索 Nextcloud'
             oneDrive: '搜索 OneDrive'
+            openCloud: '搜索 OpenCloud'
             paperless: 搜索标题和扫描文字
         status:
             attach_failed: 无法添加附件
@@ -2400,8 +2454,10 @@ label:
             make_folder_category: '同名的 Outlook 类别将被移除。'
             make_folder_done: '文件夹已创建。'
             make_folder_failed: '无法创建文件夹：%error%'
+            make_folder_inside: '它会放在其上级标签所在的文件夹“%folder%”中。'
             make_folder_mail: '此账户上带有此标签的 %count% 封邮件将移入其中。'
             make_folder_nested: '其上级“%parent%”也会在那里成为文件夹。'
+            make_folder_place: '将“%name%”创建在'
             make_folder_stay: '废纸篓、垃圾邮件、已发送和草稿中的邮件保持不动。'
             make_label: '设为标签'
             make_label_body: '删除 %account% 上的文件夹“%name%”。标签会保留并作为标记，重新加到移动后的邮件上。'
@@ -2951,6 +3007,7 @@ settings:
                 intro: '文件夹会在邮件服务器上创建，因此会出现在所有读取此账户的邮件应用中。创建标签从不会创建文件夹；这里会。'
                 name: '名称'
                 parent: '位于'
+                parent_help: 'plMail 会为此账户的下一个文件夹记住这个选择。'
                 submit: '创建文件夹'
                 title: '新建文件夹 — %account%'
                 top_level: '顶层'
@@ -3141,6 +3198,12 @@ settings:
         list:
             accountCorner: '账户角标'
             accountCornerHint: '每行角落的彩色三角形，表示邮件所属账户。仅在混合多个账户的列表中显示。'
+            actionButton:
+                both: '图标和文字'
+                icons: '图标'
+                text: '文字'
+            actionButtons: '操作按钮'
+            actionButtonsHint: '会话或所选邮件上方的按钮显示的内容。'
             heading: '邮件列表'
             listAvatars: '发件人圆形头像'
             listAvatarsHint: '显示发件人姓名首字母的彩色圆圈。关闭后会变为普通圆圈而非消失，因为它同时也是该行的复选框。'
@@ -3445,6 +3508,7 @@ settings:
         fact:
             granted_at: '登录时间'
             last_full_resync: '重新列出整个邮箱（%count% 次）'
+            last_synced: '最近一次成功同步'
             never: '从未'
             never_delivered: '从未收到通知'
             never_run: '无运行记录'
@@ -3453,6 +3517,8 @@ settings:
             push_expires: '注册到期时间'
             push_last_delivered: '上次收到通知'
             push_last_renewal: '上次运行续期'
+            sync_began: '最近一次开始同步'
+            sync_requested: '最近一次计划请求的同步'
         flash:
             calendar_resync: '已请求同步 %calendar%。同步正在后台运行，下方卡片会显示结果。'
             push_repair_failed: '无法为 %account% 重新注册即时收取。仍会定时检查，因此邮件会继续到达。下方卡片显示已知信息。'
@@ -3487,6 +3553,9 @@ settings:
             account_scope_missing:
                 body: '连接此账户时，plMail 请求的部分权限未获授权，因此相关功能无法使用。日历可能无法同步；你在此处执行的标为已读、归档、加星标等更改可能会在界面上生效，却被服务商拒绝，并在下次同步时撤销。请重新连接账户，并允许请求的所有权限。'
                 title: '%account% 未获完整访问权限'
+            account_sync_behind:
+                body: '此账户已有超出其同步间隔所能解释的时间没有成功同步，但也没有足够多的失败记录说明原因，因此新邮件可能仍停留在你的邮件服务商处。连接本身可能完全正常：plMail 请求的同步正在队列中排在其他任务后面，或者已经开始却没有完成。下面的时间可以区分这两种情况：如果最近一次请求同步晚于最近一次开始同步，说明同步仍在排队。通常它会自行赶上；如果没有，请检查服务器的后台 worker。'
+                title: '%account% 的新邮件同步滞后'
             account_sync_failing:
                 body: '连续多次同步失败，此账户无法收到新邮件，依赖收信运行的过滤器和未读计数也已停止更新。已有邮件安全保留，没有变化。登录正常，因此问题在于邮件服务器拒绝连接或无法访问：请检查服务器是否在线，以及主机、端口或密码是否发生变化。'
                 title: '%account% 持续同步失败'
@@ -3604,6 +3673,15 @@ settings:
         badge:
             ask_admin: '未启用'
             soon: '即将推出'
+        browser_login:
+            button: '在浏览器中授权连接'
+            cancel: 取消
+            failed: '无法开始浏览器授权（%status%）。'
+            help: '将在新标签页中打开 %provider%。在那里登录并授权 plMail（两步验证照常可用），连接会自动保存在这里。'
+            open_again: '重新打开授权页面'
+            or_manual: '或者自行填写下面的字段。'
+            revoke_note: '重新授权会替换已保存的凭据，但不会吊销旧凭据。请自行在 %provider% 中移除旧设备。'
+            waiting: '正在等待你在 %provider% 中授权…'
         checked: '检查时间：%date%'
         connect: '连接'
         disabled: '连接已暂停'
@@ -3630,6 +3708,7 @@ settings:
                 immich: 'API 密钥'
                 nextcloud: '应用密码'
                 oneDrive: '访问令牌'
+                openCloud: '应用令牌'
                 paperless: 'API 令牌'
             secret_help:
                 dropbox: ''
@@ -3638,6 +3717,7 @@ settings:
                 immich: '在 Immich 的 Account Settings → API Keys 中创建。'
                 nextcloud: '在 Nextcloud 的 Settings → Security → Devices & sessions 中创建。请勿使用登录密码。'
                 oneDrive: ''
+                openCloud: '在 OpenCloud 的账户设置 → 应用令牌中创建，并选择较长的有效期：令牌过期后将无法使用。使用单点登录时，用户名可能是偏好设置中显示的 ID。'
                 paperless: '从 Paperless 的 My Profile → API Auth Token 中复制。'
             secret_unchanged: '留空以保留已保存的凭据'
             username: '用户名'
@@ -3834,6 +3914,36 @@ settings:
         right:
             label: "向右滑动"
         subheading: "在手机上滑动邮件行时执行的操作。"
+    unified_inboxes:
+        account_label: '%account% 的统一收件箱'
+        account_off: '已停用——重新启用前，其邮件不会显示。'
+        accounts_heading: '账户'
+        accounts_subheading: '每个账户的邮件显示在哪个收件箱。新账户会进入你的第一个收件箱。'
+        add: '添加'
+        created: '已创建“%name%”。'
+        delete: '删除 %inbox%'
+        delete_confirm: '删除“%name%”？其账户将移至 %other%。不会删除任何邮件。'
+        deleted: '收件箱已删除。其账户现在显示在汇总收件箱中。'
+        heading: '统一收件箱'
+        hint: '每个收件箱将你放入的账户的邮件合并为一个列表，并有自己的标签页。名称留空则使用默认名称。'
+        icon_label: '%inbox% 的图标'
+        icon_new: '新收件箱的图标'
+        last_stays: '至少保留一个你自己的收件箱。'
+        move_down: '下移 %inbox%'
+        move_up: '上移 %inbox%'
+        name_label: '名称'
+        name_required: '收件箱需要一个名称。'
+        name_too_long: '名称太长（最多 40 个字符）。'
+        no_accounts: '还没有邮件账户。'
+        not_found: '该收件箱已不存在。'
+        other_hint: '汇集你从自己的收件箱中移出的所有账户。没有账户时不会显示在侧边栏中。'
+        other_option: '汇总'
+        other_stays: '汇总收件箱无法删除：不属于你任何收件箱的账户都显示在这里。'
+        placeholder: '例如：工作'
+        reorder: '拖动以排序'
+        save: '保存'
+        saved: '已保存。'
+        subheading: '为它们命名、选择图标，并拖动排列成侧边栏中的顺序。'
     whats_new:
         heading: '更新内容'
         'off': '关闭'
@@ -3863,6 +3973,7 @@ settings:
             personal: '个人'
         health: '账户健康状况'
         images: '图片'
+        inboxes: '统一收件箱'
         insights: '邮件要点'
         integrations: '集成'
         labels: '标签'
@@ -3898,7 +4009,15 @@ settings:
         error_subscribe: "浏览器推送服务未向此设备提供地址（%error%）。如果使用 Brave，请先开启“使用 Google 服务进行推送消息传递”。"
         error_worker: "plMail 的后台工作线程未启动（%error%）。请重试；如果问题持续，请联系管理员。"
         heading: '通知'
+        inbox: '收件箱'
         ios_hint: '在 iPhone 和 iPad 上，需要先将 plMail 添加到主屏幕才能接收通知：在 Safari 中打开，轻点“共享”，再选“添加到主屏幕”，然后从那里启用通知。'
+        labels: '标签'
+        notify_for: '通知范围'
+        notify_for_hint: '哪些邮件会触发通知：每个收件箱标签页和每个标签各一个勾选框。对你的所有浏览器和 Android 应用生效。全部不勾选时，任何邮件都不会通知。'
+        'off': '关'
+        'on': '开'
+        skip_read: '仅通知未读邮件'
+        skip_read_hint: '显示浏览器通知前，plMail 会等待几秒，并检查新邮件是否仍未读。如果你已经读过或删除了它（例如在手机上），就不会显示。'
         state_denied: '通知已被浏览器设置拦截。请允许此网站发送通知，然后重试。'
         state_error: '出现问题，请重试。'
         state_off: '已关闭，此设备不会收到通知。'
@@ -4242,6 +4361,7 @@ sidebar:
         calendar: '日历'
         drafts: '草稿'
         inbox: '收件箱'
+        inbox_other: '其他'
         more: '更多'
         sent: '已发送'
         snoozed: '已设稍后提醒'

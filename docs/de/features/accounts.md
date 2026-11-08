@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:dd311daaff4feeb70f4da91bf54177f857045c5f -->
+<!-- translated-from: features/accounts.md sha1:7e1be9d1794b261c19145ce0c560716bdeae60ef -->
 
 # Konten und Aliase
 
@@ -24,6 +24,11 @@ SMTP-Daten aus der Dokumentation deines Anbieters.
 
 Ein leeres Formular startet eingehend mit Port 993 und SSL und ausgehend mit Port 587 und
 STARTTLS, und das ist es, was nahezu jeder Anbieter erwartet.
+
+**Labels** fragt, wo die Labels liegen, die du der Mail dieses Kontos gibst: **Nur in plMail**,
+die Voreinstellung, oder **Auch auf dem Server**, als IMAP-Schlüsselwörter, damit andere
+Mailprogramme sie auch zeigen. Siehe [Labels als Schlüsselwörter](#labels-als-schlüsselwörter);
+der Schalter liegt für später in den Ordnern des Kontos.
 
 **Verbindung testen** prüft IMAP und SMTP getrennt und meldet beides. Das Speichern hängt nicht
 daran, aber ein Konto, das sauber abgelegt wird und sich nicht anmelden kann, ist genau der
@@ -247,13 +252,16 @@ geht, steht im nächsten Abschnitt.
 IMAP hat eigene Markierungen: Schlüsselwörter, die ein Server neben `\Seen` und `\Flagged` an jeder
 Nachricht speichert und die andere Mailprogramme zeigen — Thunderbird etwa als seine Schlagwörter.
 **Labels als Schlüsselwörter** oben in der Ordnerliste eines IMAP-Kontos legt deine Labels dort ab.
-Standardmäßig ist es aus, und dann bleibt ein Label an IMAP-Mail in plMail, wie bisher.
+Standardmäßig ist es aus, und dann bleibt ein Label an IMAP-Mail in plMail, wie bisher. Beim
+Hinzufügen eines IMAP-Kontos wird dieselbe Frage gestellt.
 
 Ist es an, schreibt ein Label, das du auf eine Konversation setzt, ein Schlüsselwort auf dem Server
 an jede ihrer Nachrichten, und nimmst du es ab, verschwindet es dort. Ein Schlüsselwort, das in
 einem anderen Mailprogramm gesetzt oder entfernt wird, setzt das Label hier oder nimmt es ab —
 binnen Sekunden, wenn plMail den Ordner per IDLE beobachtet, sonst bei der nächsten
-Synchronisierung; ein Schlüsselwort, das plMail noch nicht kennt, wird ein neues Label. Labels
+Synchronisierung; ein Schlüsselwort, das plMail noch nicht kennt, wird ein neues Label. Groß- und
+Kleinschreibung zählt dabei nicht, wie bei IMAP: Ein Schlüsselwort `paperless`, das ein anderes
+Programm setzt, setzt dein Label **Paperless**, statt ein zweites daneben anzulegen. Labels
 verschieben weiterhin nie Mail, und ein Label, das auf dem Konto ein Ordner ist, bleibt ein Ordner.
 
 Beim Einschalten fragt plMail jeden Ordner, ob der Server dort Schlüsselwörter speichert, und die
@@ -271,7 +279,9 @@ zurück. Schlüsselwörter, die für Mailprogramme etwas bedeuten — `$Junk`, `
 gelesen.
 
 Geschrieben werden nur Änderungen nach dem Einschalten; Labels, die schon an Mail hängen, werden
-nicht in einem Rutsch übertragen.
+nicht in einem Rutsch übertragen. Andersherum liest das Einschalten die Schlüsselwörter, die die
+Mail des Kontos schon trägt, einmal im Hintergrund: Mail, die schon vor dem Einschalten ein
+Schlüsselwort hatte, bekommt ihr Label ebenfalls.
 
 ### Labels als Outlook-Kategorien
 
@@ -363,9 +373,13 @@ zwei Namen trägt.
 #### Neuer Ordner
 
 **Neuer Ordner** fragt nach einem Namen und danach, wohin der Ordner kommt: **Oberste Ebene** oder in
-einen beliebigen Ordner, den der Server aufgelistet hat. plMail legt den Ordner auf dem Server an,
+einen beliebigen Ordner, den der Server aufgelistet hat. Vorgewählt ist der Ort, den du auf diesem
+Konto zuletzt gewählt hast, hier oder bei **Zum Ordner machen**; ein Server, dessen eigene Ordner
+unter dem Posteingang liegen, ist damit einmal beantwortet. plMail legt den Ordner auf dem Server an,
 damit er in jedem Mailprogramm erscheint, das dieses Konto liest, abonniert ihn und zeigt ihn in der
-Seitenleiste wie die anderen Ordner des Kontos.
+Seitenleiste wie die anderen Ordner des Kontos. Dort steht ein Ordner in dem Ordner, in dem er auf
+dem Server liegt, auch im Posteingang, und einen Ordner mit Unterordnern kannst du für sich
+zuklappen.
 
 Du tippst einen Namen, nie einen Pfad. Wo die oberste Ebene liegt und welches Zeichen einen Ordner
 von den Ordnern darin trennt, bestimmt der Server, und plMail fragt ihn: Bei den meisten Servern ist
