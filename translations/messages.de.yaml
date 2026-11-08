@@ -11,7 +11,7 @@ account:
             heading: Eingehend — IMAP
             host: Server
             labels_help: 'Mit Schlüsselwörtern werden Labels, die du in plMail vergibst, auch auf dem Server gespeichert, und andere Mailprogramme, die Schlüsselwörter zeigen (etwa Thunderbird), zeigen sie an. Du kannst das später in den Ordnern des Kontos ändern.'
-            labels_keywords: 'In plMail und auf dem Server, als IMAP-Schlüsselwörter'
+            labels_keywords: 'Auch auf dem Server'
             labels_label: 'Labels'
             labels_local: 'Nur in plMail'
         jmap:
@@ -33,6 +33,7 @@ account:
             keep_on_server: 'Auf dem Server lassen (empfohlen)'
         port: Port
         preset:
+            clear: 'Anbieter entfernen, Server selbst eintragen'
             label: Anbieter
             placeholder: Anbieter wählen…
         protocol:

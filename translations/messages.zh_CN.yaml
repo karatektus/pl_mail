@@ -11,7 +11,7 @@ account:
             heading: '收件 — IMAP'
             host: 主机
             labels_help: '使用关键字时，您在 plMail 中给邮件加的标签也会保存在服务器上，显示关键字的其他邮件应用（例如 Thunderbird）也会显示它们。之后可以在账户的文件夹中更改。'
-            labels_keywords: '在 plMail 和服务器上，作为 IMAP 关键字'
+            labels_keywords: '同时存到服务器'
             labels_label: '标签'
             labels_local: '仅在 plMail 中'
         jmap:
@@ -33,6 +33,7 @@ account:
             keep_on_server: '保留在服务器上（推荐）'
         port: 端口
         preset:
+            clear: '清除服务商，自行填写服务器'
             label: 服务商
             placeholder: 选择服务商…
         protocol:

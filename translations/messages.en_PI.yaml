@@ -11,7 +11,7 @@ account:
             heading: Incomin' — IMAP
             host: Port o' call
             labels_help: 'With keywords, the labels ye give yer letters in plMail be stowed on the server too, and other mail vessels that show keywords (Thunderbird, for one) show them. Ye can change this later in the ship’s holds.'
-            labels_keywords: 'In plMail and on the server, as IMAP keywords'
+            labels_keywords: 'Stowed on the server too'
             labels_label: 'Labels'
             labels_local: 'Only in plMail'
         jmap:
@@ -33,6 +33,7 @@ account:
             keep_on_server: 'Leave it in port (recommended)'
         port: Berth number
         preset:
+            clear: 'Cast off the harbour an'' chart yer own course'
             label: Harbourmaster
             placeholder: Pick yer harbour…
         protocol:

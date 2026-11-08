@@ -11,7 +11,7 @@ account:
             heading: Incoming — IMAP
             host: Host
             labels_help: 'With keywords, labels you give mail in plMail are stored on the server too, and other mail apps that show keywords (Thunderbird, for one) show them. You can change this later in the account’s folders.'
-            labels_keywords: 'In plMail and on the server, as IMAP keywords'
+            labels_keywords: 'On the server too'
             labels_label: 'Labels'
             labels_local: 'Only in plMail'
         jmap:
@@ -33,6 +33,7 @@ account:
             keep_on_server: 'Leave it on the server (recommended)'
         port: Port
         preset:
+            clear: 'Clear the provider and fill in the servers yourself'
             label: Provider
             placeholder: Choose a provider…
         protocol:

@@ -11,7 +11,7 @@ account:
             heading: Réception — IMAP
             host: Serveur
             labels_help: 'Avec les mots-clés, les libellés que vous donnez aux messages dans plMail sont aussi enregistrés sur le serveur, et les autres logiciels de messagerie qui affichent les mots-clés (Thunderbird, par exemple) les montrent. Vous pourrez changer cela plus tard dans les dossiers du compte.'
-            labels_keywords: 'Dans plMail et sur le serveur, comme mots-clés IMAP'
+            labels_keywords: 'Aussi sur le serveur'
             labels_label: 'Libellés'
             labels_local: 'Seulement dans plMail'
         jmap:
@@ -33,6 +33,7 @@ account:
             keep_on_server: 'Le laisser sur le serveur (recommandé)'
         port: Port
         preset:
+            clear: 'Retirer le fournisseur et saisir les serveurs vous-même'
             label: Fournisseur
             placeholder: Choisissez un fournisseur…
         protocol:
