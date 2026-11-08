@@ -352,6 +352,15 @@ the three keep their places.
 {% endblock %}
 
 {#
+Where an IMAP account's labels are kept (#221): the same either/or, so the same
+control. The default expanded rendering stacked a bare radio above each label
+and starred both, as it did for the protocol before #289.
+#}
+{% block _account_labelsAsKeywords_widget %}
+    {{ block('_account_incomingProtocol_widget') }}
+{% endblock %}
+
+{#
 The calendar colour picker.
 
 The same control as the label one above and deliberately not shared with it,

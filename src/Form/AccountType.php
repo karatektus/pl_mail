@@ -22,11 +22,13 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Constraints\Url;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 class AccountType extends AbstractType
 {
     public function __construct(
         private readonly MailPresetProvider $presetProvider,
+        private readonly TranslatorInterface $translator,
     )
     {
     }
@@ -41,6 +43,16 @@ class AccountType extends AbstractType
                 'placeholder' => 'account.form.preset.placeholder',
                 'choices'     => $this->presetProvider->choices(),
                 'autocomplete' => true,
+                // A preset is a starting point, not a commitment: the clear
+                // button takes it back, and the controller's apply() then
+                // offers every protocol again and drops the preset's note.
+                // Without it a chosen preset could only be swapped for
+                // another, never undone.
+                'tom_select_options' => [
+                    'plugins' => [
+                        'clear_button' => ['title' => $this->translator->trans('account.form.preset.clear')],
+                    ],
+                ],
                 'attr' => [
                     'class'                             => 'form-select',
                     'data-settings--imap-preset-target' => 'select',

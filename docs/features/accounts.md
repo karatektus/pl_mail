@@ -21,7 +21,7 @@ A blank form starts on port 993 with SSL for incoming and port 587 with STARTTLS
 which is what nearly every provider wants.
 
 **Labels** asks where the labels you give this account's mail are kept: **Only in plMail**, the
-default, or **In plMail and on the server, as IMAP keywords**, so other mail apps show them too. See
+default, or **On the server too**, as IMAP keywords, so other mail apps show them too. See
 [Labels as keywords](#labels-as-keywords); the switch is in the account's folders for later.
 
 **Test connection** probes IMAP and SMTP separately and reports each. Saving does not depend on it,

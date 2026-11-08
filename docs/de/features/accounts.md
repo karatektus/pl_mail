@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:be92b8821aa4ec86cf8cef22d7ec7fbaacc676e6 -->
+<!-- translated-from: features/accounts.md sha1:7e1be9d1794b261c19145ce0c560716bdeae60ef -->
 
 # Konten und Aliase
 
@@ -26,7 +26,7 @@ Ein leeres Formular startet eingehend mit Port 993 und SSL und ausgehend mit Por
 STARTTLS, und das ist es, was nahezu jeder Anbieter erwartet.
 
 **Labels** fragt, wo die Labels liegen, die du der Mail dieses Kontos gibst: **Nur in plMail**,
-die Voreinstellung, oder **In plMail und auf dem Server, als IMAP-Schlüsselwörter**, damit andere
+die Voreinstellung, oder **Auch auf dem Server**, als IMAP-Schlüsselwörter, damit andere
 Mailprogramme sie auch zeigen. Siehe [Labels als Schlüsselwörter](#labels-als-schlüsselwörter);
 der Schalter liegt für später in den Ordnern des Kontos.
 
