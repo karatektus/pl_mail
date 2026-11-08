@@ -12,19 +12,12 @@ release before it reaches `main`, and `sha-…` pins one commit.
 
 ## v0.4.2 — 2026-11-08
 
-plMail can now keep several unified inboxes, notify you only for the mail you choose, attach from
-OpenCloud, connect Nextcloud by approving in the browser, and send photos smaller. The mail list is
-also quicker to switch and to act on.
+plMail can now keep several unified inboxes, send photos smaller, notify you only for the mail you
+choose, attach from OpenCloud and connect Nextcloud by approving in the browser. The mail list is
+also quicker to switch and to act on. The picture beside each highlight opens large when you click
+it.
 
-<!-- highlight -->
-**Connect Nextcloud by approving in your browser.** The Nextcloud connect form has **Connect with
-browser approval**: it opens your Nextcloud, you log in there (two-factor sign-in and single sign-on
-work as usual) and approve plMail, and the connection is saved by itself, with no app password to
-create and paste. It works from Settings → Integrations, from the edit form of an existing connection
-to replace a revoked app password, and in the setup wizard. The manual fields stay as they were. No
-schema change. [#235](https://github.com/karatektus/pl_mail/issues/235), designed by @phdelodder.
-
-<!-- highlight -->
+<!-- highlight screenshot=unified-inboxes -->
 **Several unified inboxes, each with its own name, icon and accounts.** Settings → **Unified
 inboxes** adds inboxes beside the one you have — "Work" and "Personal", say — lets you name them,
 give each an icon and drag them into order, and under **Accounts** chooses which inbox each
@@ -36,30 +29,7 @@ anything there is one **Inbox** over every account, as before. Phone apps can re
 JMAP (`UnifiedInbox/get`, `urn:plmail:params:jmap:unifiedinboxes`), and a configuration backup
 carries them. Two new tables, made by the migration; nothing to do. [#265](https://github.com/karatektus/pl_mail/issues/265).
 
-<!-- highlight -->
-**Choose which mail notifies you, once for every browser and the Android app.** Settings →
-Notifications → **Notify for** has a box for each inbox tab and one for each of your labels, and the
-choice belongs to you rather than to one device: every browser you registered and the Android app
-follow it. Mail notifies when it lands in a tab you ticked or carries a label you ticked, even when a
-filter archived it. **Until you choose, only Primary notifies**, as in Gmail and the Android app:
-browsers used to announce every message that reached the Inbox, so if you want that back, tick the
-other tabs. Mail the assistant is still sorting is announced once it has its tab, a few seconds late
-and only once. A second choice, **Only notify for unread mail**, makes a browser wait twenty seconds
-after a push and show nothing if the new mail has been read or deleted in the meantime, for example
-on your phone. No schema change.
-[#369](https://github.com/karatektus/pl_mail/issues/369), started by @phdelodder.
-
-<!-- highlight -->
-**Attach from and save to OpenCloud.** OpenCloud joins the file services under Settings →
-Integrations: browse your personal space, your project spaces and the files shared with you, search
-all of them by file name, attach a copy or a link, and save attachments into them, with previews in
-the picker. You connect with your OpenCloud username and an app token from your account settings →
-App Tokens; give the token a long expiry. Administrators: OpenCloud must accept app tokens
-(`auth-app` running, `PROXY_ENABLE_APP_AUTH=true`), and links need
-`OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false`. No schema change.
-[#476](https://github.com/karatektus/pl_mail/issues/476), requested by @SpaceFrags.
-
-<!-- highlight -->
+<!-- highlight screenshot=image-size -->
 **Send the images in a message smaller.** As soon as a draft holds an image, attached or in the
 body, an Image size row above the attachments offers Original, Large, Medium and Small, with the
 size of the whole message beside it. The size applies to every image in the draft and to ones added
@@ -77,6 +47,37 @@ window opens Adjust: a longest side from 640 to 4096 pixels (or each photo's own
 compressed) and a quality from 40 to 100 %, with an estimate of what the photos come to while you
 move them. Anything that is not a preset shows as a Custom choice in the row. The row now also shows
 the message's size before and after once something is smaller. [#502](https://github.com/karatektus/pl_mail/issues/502).
+
+<!-- highlight screenshot=notify-for -->
+**Choose which mail notifies you, once for every browser and the Android app.** Settings →
+Notifications → **Notify for** has a box for each inbox tab and one for each of your labels, and the
+choice belongs to you rather than to one device: every browser you registered and the Android app
+follow it. Mail notifies when it lands in a tab you ticked or carries a label you ticked, even when a
+filter archived it. **Until you choose, only Primary notifies**, as in Gmail and the Android app:
+browsers used to announce every message that reached the Inbox, so if you want that back, tick the
+other tabs. Mail the assistant is still sorting is announced once it has its tab, a few seconds late
+and only once. A second choice, **Only notify for unread mail**, makes a browser wait twenty seconds
+after a push and show nothing if the new mail has been read or deleted in the meantime, for example
+on your phone. No schema change.
+[#369](https://github.com/karatektus/pl_mail/issues/369), started by @phdelodder.
+
+<!-- highlight screenshot=opencloud -->
+**Attach from and save to OpenCloud.** OpenCloud joins the file services under Settings →
+Integrations: browse your personal space, your project spaces and the files shared with you, search
+all of them by file name, attach a copy or a link, and save attachments into them, with previews in
+the picker. You connect with your OpenCloud username and an app token from your account settings →
+App Tokens; give the token a long expiry. Administrators: OpenCloud must accept app tokens
+(`auth-app` running, `PROXY_ENABLE_APP_AUTH=true`), and links need
+`OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false`. No schema change.
+[#476](https://github.com/karatektus/pl_mail/issues/476), requested by @SpaceFrags.
+
+<!-- highlight screenshot=nextcloud-approval -->
+**Connect Nextcloud by approving in your browser.** The Nextcloud connect form has **Connect with
+browser approval**: it opens your Nextcloud, you log in there (two-factor sign-in and single sign-on
+work as usual) and approve plMail, and the connection is saved by itself, with no app password to
+create and paste. It works from Settings → Integrations, from the edit form of an existing connection
+to replace a revoked app password, and in the setup wizard. The manual fields stay as they were. No
+schema change. [#235](https://github.com/karatektus/pl_mail/issues/235), designed by @phdelodder.
 
 **Folders stay out of LABELS, and an account's folders are drawn as the server's tree.** With two
 or more accounts, every folder of one account was listed under LABELS too, because it counted as a
