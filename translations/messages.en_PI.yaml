@@ -1886,6 +1886,20 @@ compose:
     forward: Pass it along
     from: From
     image: Paste in a likeness
+    image_edit:
+        crop: Trim
+        crop_apply: Trim
+        crop_cancel: Belay that
+        crop_reset: The whole likeness
+        editing: Touchin’ up the likeness…
+        failed: The likeness wouldn’t take the knife
+        full: Full-rigged
+        large: Large
+        medium: Middlin’
+        rotate_left: Come about to port
+        rotate_right: Come about to starboard
+        small: Wee
+        toolbar: Likeness
     image_insert_failed: Could not paste the likeness into the scroll
     image_size:
         adjust: Trim the size an’ the shine

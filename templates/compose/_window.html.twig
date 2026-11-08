@@ -86,6 +86,19 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              imageSizeHintFine: 'compose.image_size.hint_fine'|trans,
              imageSizeHintSoft: 'compose.image_size.hint_soft'|trans,
              imageSizeHintBlocky: 'compose.image_size.hint_blocky'|trans,
+             imageToolbar:     'compose.image_edit.toolbar'|trans,
+             imageSmall:       'compose.image_edit.small'|trans,
+             imageMedium:      'compose.image_edit.medium'|trans,
+             imageLarge:       'compose.image_edit.large'|trans,
+             imageFull:        'compose.image_edit.full'|trans,
+             imageRotateLeft:  'compose.image_edit.rotate_left'|trans,
+             imageRotateRight: 'compose.image_edit.rotate_right'|trans,
+             imageCrop:        'compose.image_edit.crop'|trans,
+             imageCropApply:   'compose.image_edit.crop_apply'|trans,
+             imageCropCancel:  'compose.image_edit.crop_cancel'|trans,
+             imageCropReset:   'compose.image_edit.crop_reset'|trans,
+             imageEditing:     'compose.image_edit.editing'|trans,
+             imageEditFailed:  'compose.image_edit.failed'|trans,
              noSignature:      'compose.signature_none'|trans,
              sealing:          'compose.status.sealing'|trans,
          }|json_encode|e('html_attr') }}"
@@ -581,7 +594,10 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
 
             </div>
 
-            <div class="flex-1 min-h-[180px] px-4 py-3">
+            {# `relative`: the picture tools (compose/image_editor.js, #515) put
+               their frame and bar here, beside the editor — inside it they
+               would be part of the message. #}
+            <div class="relative flex-1 min-h-[180px] px-4 py-3">
                 {# ── The plain-text surface ─────────────────────────────
                    A draft is in plain-text mode when it has text and no HTML
                    — which is not a flag anywhere, it is simply what such a

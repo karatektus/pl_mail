@@ -1132,6 +1132,29 @@ anything else shows as its own **Custom** choice in the row, with its numbers be
 and applies to images you add later in the same way. Quality applies to JPEG and WebP; PNG images
 are lossless and only get smaller with their pixel size.
 
+### Resizing, cropping and turning a picture
+
+Click a picture you placed in the body to select it. A frame with four handles appears around it,
+and a bar under it:
+
+- **Small**, **Medium** and **Large** show the picture 160, 320 or 600 pixels wide; **Full size**
+  shows it as big as it is, never wider than the message. Dragging a corner handle sets any width
+  in between, and the picture keeps its shape.
+- The two arrows turn the picture a quarter turn left or right.
+- **Crop** opens the whole picture in a window of its own. Drag the frame or its corners over the
+  part to keep, then press **Crop**. **Whole picture** takes the crop away again.
+
+The recipient sees the picture at the width you chose, and gets only what you kept: a cropped or
+turned picture is a new picture, not the old one with part of it hidden. A picture shown smaller
+than it is also goes out smaller, at twice the width it is shown at (enough for a sharp picture on
+a high-density screen), and never larger than the Image size picked for the draft. plMail keeps the
+picture as you uploaded it until you send, and makes each change from that, so a crop can be widened
+again and a picture made small can be made big again without losing sharpness. Ctrl+Z (⌘Z on a Mac)
+takes back a change like any other.
+
+Press Escape, or click anywhere else, to let go of the picture. Pictures in a quoted message and in
+your signature are not edited here, nor are GIF, SVG and HEIC pictures.
+
 ### Links
 
 The link button opens a small panel with a **URL** field and a **text** field, the text prefilled

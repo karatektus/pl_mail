@@ -1990,6 +1990,20 @@ compose:
     forward: Forward
     from: From
     image: Insert image
+    image_edit:
+        crop: Crop
+        crop_apply: Crop
+        crop_cancel: Cancel
+        crop_reset: Whole picture
+        editing: Editing picture…
+        failed: The picture could not be edited
+        full: Full size
+        large: Large
+        medium: Medium
+        rotate_left: Rotate left
+        rotate_right: Rotate right
+        small: Small
+        toolbar: Picture
     image_insert_failed: Could not place the image in the message
     image_size:
         adjust: Adjust size and quality

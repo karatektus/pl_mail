@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:5e556930614f37781f1b88c4aba3378eb432fdf2 -->
+<!-- translated-from: features/mail.md sha1:cfd1aa1e5ba9c5b38899355b297077b32ea42587 -->
 
 # Mail
 
@@ -1242,6 +1242,31 @@ Werte, die einer festen Größe entsprechen, wählen diese; alles andere erschei
 **Eigene** in der Zeile, die Werte daneben („1600 px · 70 %“), und gilt genauso für Bilder, die du
 später hinzufügst. Die Qualität gilt für JPEG und WebP; PNG-Bilder sind verlustfrei und werden nur
 mit ihrer Pixelgröße kleiner.
+
+### Bilder verkleinern, zuschneiden und drehen
+
+Klicke ein Bild an, das du in den Text gesetzt hast, um es auszuwählen. Es bekommt einen Rahmen mit
+vier Griffen und darunter eine Leiste:
+
+- **Klein**, **Mittel** und **Groß** zeigen das Bild 160, 320 oder 600 Pixel breit;
+  **Originalgröße** zeigt es so groß, wie es ist, aber nie breiter als die Nachricht. Ziehst du an
+  einem Eckgriff, stellst du jede Breite dazwischen ein, und das Bild behält seine Form.
+- Die beiden Pfeile drehen das Bild um eine Vierteldrehung nach links oder rechts.
+- **Zuschneiden** öffnet das ganze Bild in einem eigenen Fenster. Zieh den Rahmen oder seine Ecken
+  über den Teil, den du behalten willst, und drück **Zuschneiden**. **Ganzes Bild** nimmt den
+  Zuschnitt wieder zurück.
+
+Die Empfängerin sieht das Bild in der Breite, die du gewählt hast, und bekommt nur, was du behalten
+hast: Ein zugeschnittenes oder gedrehtes Bild ist ein neues Bild und nicht das alte mit einem
+versteckten Teil. Ein Bild, das kleiner angezeigt wird, als es ist, geht auch kleiner hinaus, mit
+der doppelten Breite, in der es angezeigt wird (genug für ein scharfes Bild auf einem Bildschirm mit
+hoher Pixeldichte), und nie größer als die Bildgröße, die du für den Entwurf gewählt hast. plMail
+behält das Bild so, wie du es hochgeladen hast, bis du sendest, und macht jede Änderung von dort aus.
+Ein Zuschnitt lässt sich also wieder erweitern, und ein klein gemachtes Bild wird ohne Schärfeverlust
+wieder groß. Strg+Z (⌘Z auf dem Mac) nimmt eine Änderung zurück wie jede andere.
+
+Mit Escape oder einem Klick irgendwo anders lässt du das Bild wieder los. Bilder in einer zitierten
+Nachricht und in deiner Signatur bearbeitest du hier nicht, ebenso wenig GIF-, SVG- und HEIC-Bilder.
 
 ### Links
 
