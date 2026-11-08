@@ -1,5 +1,6 @@
 import { test, expect } from "./support/test";
 import { INBOX_SUBJECTS, consoleCommand, mailRow, seed } from "./support/config";
+import { pressAction } from "./support/compose";
 
 /**
  * What the composer says while a language model is thinking.
@@ -29,7 +30,6 @@ import { INBOX_SUBJECTS, consoleCommand, mailRow, seed } from "./support/config"
  * composer in the suite. Same reason integrations.spec.ts is there.
  */
 const DOCK = "#compose_dock";
-const MENU_BUTTON = `${DOCK} button[aria-label="Help me write"]`;
 const STATUS = `${DOCK} [data-compose--ai-assist-target="status"]`;
 const PROMPT_TOGGLE = `${DOCK} [data-compose--ai-assist-target="promptToggle"]`;
 const PROMPT_FIELD = `${DOCK} [data-compose--ai-assist-target="promptField"]`;
@@ -52,7 +52,7 @@ test.describe("composer writing help", () => {
         // Nothing said before anything is asked for.
         await expect(page.locator(STATUS)).toBeHidden();
 
-        await page.locator(MENU_BUTTON).click();
+        await pressAction(page.locator(DOCK), "Help me write");
 
         // A REWRITING task, not "Draft a reply": this is a new message, and the
         // reply task is deliberately not offered here — see the test below.
@@ -86,7 +86,6 @@ test.describe("composer writing help", () => {
      * simply always there. The pair is the claim.
      */
     test("offers to draft a reply only when there is something to reply to", async ({ page }) => {
-        const menu = page.locator(MENU_BUTTON);
         const replyTask = page.getByRole("button", { name: "Draft a reply" });
         const rewriteTask = page.getByRole("button", { name: "Fix spelling and grammar" });
 
@@ -95,7 +94,7 @@ test.describe("composer writing help", () => {
         await page.getByRole("link", { name: "Compose" }).first().click();
         await expect(page.locator(`${DOCK} .ts-control`).first()).toBeVisible();
 
-        await menu.click();
+        await pressAction(page.locator(DOCK), "Help me write");
 
         await expect(rewriteTask).toBeVisible();
         await expect(replyTask).toHaveCount(0);
@@ -107,9 +106,8 @@ test.describe("composer writing help", () => {
         await mailRow(page, INBOX_SUBJECTS.read).click();
         await page.getByRole("link", { name: "Reply", exact: true }).first().click();
 
-        const inlineMenu = page.locator('#compose_inline button[aria-label="Help me write"]');
-        await expect(inlineMenu).toBeVisible();
-        await inlineMenu.click();
+        await expect(page.locator('#compose_inline [aria-label="Help me write"]').first()).toBeAttached();
+        await pressAction(page.locator("#compose_inline"), "Help me write");
 
         await expect(page.getByRole("button", { name: "Draft a reply" })).toBeVisible();
     });
@@ -142,7 +140,7 @@ test.describe("composer writing help", () => {
         await page.getByRole("link", { name: "Compose" }).first().click();
         await expect(page.locator(`${DOCK} .ts-control`).first()).toBeVisible();
 
-        await page.locator(MENU_BUTTON).click();
+        await pressAction(page.locator(DOCK), "Help me write");
         await page.getByRole("button", { name: "Fix spelling and grammar" }).click();
 
         await expect(page.locator(STATUS)).toBeVisible();

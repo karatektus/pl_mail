@@ -4415,17 +4415,18 @@ html {
 
 /* An action bar icon folded into ⋮ (compose--action-overflow). A button goes;
    a dropdown keeps its wrapper in the page, because its menu is inside it and
-   opens over ⋮ instead, and only its own button goes. The wrapper is taken
-   out of the row so the bar's gap does not leave a hole where it was. */
+   opens over ⋮ instead, and only its own button goes. The wrapper makes no box
+   of its own, so the bar's gap leaves no hole where it was — and, unlike a
+   zero-sized positioned box, it does not become the containing block of what
+   it holds: the writing assistant's live panel is anchored to the toolbar
+   block, and squeezed into a 0×0 wrapper it was not on screen at all. */
 [data-overflowed]:not([data-controller~="ui--dropdown"]),
 [data-overflowed][data-controller~="ui--dropdown"] > button {
     display: none !important;
 }
 
 [data-overflowed][data-controller~="ui--dropdown"] {
-    position: absolute;
-    width: 0;
-    height: 0;
+    display: contents;
 }
 
 .compose-resizing,

@@ -38,3 +38,30 @@ export async function deleteDraft(window: Locator): Promise<void> {
         await acceptConfirm(page);
     }
 }
+
+/**
+ * Press one of the compose action bar's controls, by its accessible name,
+ * wherever it is right now: on the bar, or folded into More options because
+ * the window is too narrow for it (compose--action-overflow). Which ones fold
+ * depends on the window's width and on what is switched on — the writing
+ * assistant and a cloud connection each add an icon — so a spec that wants
+ * the control, not the layout, asks for it through here.
+ *
+ * @param window the compose window (the dock, or the inline reply's frame)
+ */
+export async function pressAction(window: Locator, name: string): Promise<void> {
+    const button = window.getByRole("button", { name, exact: true });
+
+    if (await button.isVisible()) {
+        await button.click();
+
+        return;
+    }
+
+    await window.getByRole("button", { name: "More options", exact: true }).click();
+
+    const entry = window.getByRole("menuitem", { name, exact: true });
+
+    await expect(entry).toBeVisible();
+    await entry.click();
+}
