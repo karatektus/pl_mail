@@ -1,4 +1,5 @@
 import { test, expect, type Locator, type Page } from "./support/test";
+import { deleteDraft } from "./support/compose";
 
 /**
  * Resizing, cropping and turning a picture in the body (#515), end to end.
@@ -93,9 +94,26 @@ test("a picture made smaller is shown and sent smaller, and Full size brings it 
     const { dock, editor, image, partId, bar } = await openWithPicture(page, 2400, 1600);
 
     await expect(bar).toBeHidden();
+
+    // Selecting scrolls nothing, and puts the bar where it can be seen.
+    // Brought into view first: Playwright's click scrolls its target into
+    // view by itself, and that scroll is not the one under test.
+    const scroller = dock.locator('[data-compose--compose-target="scroller"]');
+
+    await image.scrollIntoViewIfNeeded();
+
+    const scrolled = await scroller.evaluate((el) => el.scrollTop);
+
     await image.click();
     await expect(bar).toBeVisible();
     await expect(dock.locator("[data-image-frame]")).toBeVisible();
+    expect(await scroller.evaluate((el) => el.scrollTop)).toBe(scrolled);
+
+    const view = (await scroller.boundingBox())!;
+    const barBox = (await bar.boundingBox())!;
+
+    expect(barBox.y).toBeGreaterThanOrEqual(view.y - 0.5);
+    expect(barBox.y + barBox.height).toBeLessThanOrEqual(view.y + view.height + 0.5);
 
     await bar.getByRole("button", { name: "Small" }).click();
 
@@ -118,7 +136,7 @@ test("a picture made smaller is shown and sent smaller, and Full size brings it 
     await page.keyboard.press("Escape");
     await expect(bar).toBeHidden();
 
-    await dock.getByRole("button", { name: "Delete draft" }).click();
+    await deleteDraft(dock);
 });
 
 test("dragging a corner handle sets the width", async ({ page }) => {
@@ -126,13 +144,15 @@ test("dragging a corner handle sets the width", async ({ page }) => {
 
     await image.click();
 
-    const handle = dock.locator('[data-image-handle="se"]');
+    // The top-left handle: the picture fills the body, and selecting it does
+    // not scroll, so its foot (and the lower handles) can be under the fold.
+    const handle = dock.locator('[data-image-handle="nw"]');
     const box = (await handle.boundingBox())!;
     const before = (await image.boundingBox())!.width;
 
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
-    await page.mouse.move(box.x - 100, box.y + 10, { steps: 5 });
+    await page.mouse.move(box.x + box.width / 2 + 100, box.y + 10, { steps: 5 });
     await page.mouse.up();
 
     const width = Number(await editor.locator("img[data-cid]").getAttribute("width"));
@@ -142,7 +162,7 @@ test("dragging a corner handle sets the width", async ({ page }) => {
     await expect.poll(async () => (await servedSize(page, partId))[0], SLOW).toBe(Math.min(1200, width * 2));
     await waitForSave(dock);
 
-    await dock.getByRole("button", { name: "Delete draft" }).click();
+    await deleteDraft(dock);
 });
 
 test("a turn and a crop change the picture itself, and undo takes the turn back", async ({ page }) => {
@@ -207,7 +227,7 @@ test("a turn and a crop change the picture itself, and undo takes the turn back"
     await expect.poll(() => servedSize(page, partId), SLOW).toEqual([800, 1200]);
     await waitForSave(dock);
 
-    await dock.getByRole("button", { name: "Delete draft" }).click();
+    await deleteDraft(dock);
 });
 
 test("the recipe survives reopening the draft", async ({ page }) => {
@@ -233,5 +253,5 @@ test("the recipe survives reopening the draft", async ({ page }) => {
     // Turned, so the width it is shown at became the shown height's.
     await expect(reopened).toHaveAttribute("width", "213");
 
-    await page.locator("#compose_dock").getByRole("button", { name: "Delete draft" }).click();
+    await deleteDraft(page.locator("#compose_dock"));
 });

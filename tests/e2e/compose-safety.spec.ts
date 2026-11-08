@@ -524,6 +524,9 @@ test.describe("compose safety", () => {
         ]) {
             await expect(
                 dock.getByRole("button", { name, exact: true })
+                    // Folded into More options when the bar is too narrow
+                    // for it (compose--action-overflow): reachable there.
+                    .or(dock.getByRole("menuitem", { name, exact: true, includeHidden: true }))
                     .or(dock.getByRole("combobox", { name, exact: true }))
                     .or(dock.getByRole("textbox", { name, exact: true }))
                     .first(),

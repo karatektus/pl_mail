@@ -227,6 +227,21 @@ export default class extends Controller {
         const below = window.innerHeight - rect.bottom - gap - margin
         const above = rect.top - gap - margin
 
+        // A bare control (compose's font pickers) is as wide as the label it
+        // shows, and Tom Select gives the panel the control's width — so with
+        // "Serif" picked the panel was too narrow for "Sans serif" and
+        // "Monospace", and its width changed with every pick. Sized to its
+        // widest option instead, never narrower than the control, and kept on
+        // screen. A framed control keeps the panel at its own width.
+        if (this.bareValue) {
+            panel.style.width = "max-content"
+            panel.style.minWidth = `${Math.round(rect.width)}px`
+
+            const left = Math.min(rect.left, window.innerWidth - panel.offsetWidth - margin)
+
+            panel.style.left = `${Math.max(margin, left) + window.scrollX}px`
+        }
+
         content.style.maxHeight = ""
         const flip = panel.offsetHeight > below && above > below
 

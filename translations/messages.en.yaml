@@ -1856,6 +1856,7 @@ compose:
         left: Align left
         right: Align right
     confirm:
+        discard: "Delete this draft? This cannot be undone."
         no_body: This message has no text.
         no_subject: This message has no subject.
         send_anyway: Send it anyway?

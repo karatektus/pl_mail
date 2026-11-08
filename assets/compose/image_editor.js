@@ -71,6 +71,11 @@ export class InlineImageEditor {
         this._observer = 'function' === typeof ResizeObserver ? new ResizeObserver(this._onResize) : null;
         this._observer?.observe(editor);
 
+        // The window's scroller, which decides what of the picture is on
+        // screen; the bar follows it as it scrolls.
+        this.scroller = scrollParent(host);
+        this.scroller?.addEventListener('scroll', this._onResize, { passive: true });
+
         try {
             document.execCommand('enableObjectResizing', false, 'false');
         } catch (_) {
@@ -85,6 +90,7 @@ export class InlineImageEditor {
         document.removeEventListener('pointerdown', this._onPointerDown, true);
         window.removeEventListener('resize', this._onResize);
         this._observer?.disconnect();
+        this.scroller?.removeEventListener('scroll', this._onResize);
         this.frame.remove();
         this.bar.remove();
         this.dialog?.remove();
@@ -106,12 +112,8 @@ export class InlineImageEditor {
         selection?.addRange(range);
 
         this._refreshBar();
-        this.place();
-
-        // The picture's foot, and the bar under it, may be below the fold of
-        // the window's scroller — under the attachment strip, where the lower
-        // handles cannot be reached. Brought into view, as little as needed.
-        this.bar.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        // Nothing scrolls: selecting a picture leaves the message where the
+        // person was reading it. place() puts the bar where it can be seen.
         this.place();
 
         if (false === image.complete) {
@@ -290,9 +292,10 @@ export class InlineImageEditor {
     }
 
     /**
-     * Frame over the picture, bar under it. Always under: laid over the
-     * picture it covered two of the handles, and the window's scroller grows
-     * to take it — select() scrolls it into view.
+     * Frame over the picture; the bar where it can be seen without scrolling.
+     * Under the picture when there is room on screen below it, over it when
+     * there is room above — and when the picture fills the view, inside its
+     * visible part at the foot, so it never leaves the screen.
      */
     place() {
         if (null === this.image) {
@@ -316,8 +319,22 @@ export class InlineImageEditor {
         this.frame.style.height = `${Math.round(box.height)}px`;
 
         const room = this.host.clientWidth - this.bar.offsetWidth - 4;
+        const height = this.bar.offsetHeight;
+        const view = this.scroller?.getBoundingClientRect() ?? { top: 0, bottom: window.innerHeight };
+        const visibleTop = Math.max(0, view.top);
+        const visibleBottom = Math.min(window.innerHeight, view.bottom);
+        let barTop;
+
+        if (box.bottom + 6 + height <= visibleBottom) {
+            barTop = box.bottom + 6;
+        } else if (box.top - 6 - height >= visibleTop) {
+            barTop = box.top - 6 - height;
+        } else {
+            barTop = Math.max(Math.max(box.top, visibleTop) + 6, Math.min(box.bottom, visibleBottom) - height - 6);
+        }
+
         this.bar.style.left = `${Math.round(Math.max(0, Math.min(left, room)))}px`;
-        this.bar.style.top = `${Math.round(top + box.height + 6)}px`;
+        this.bar.style.top = `${Math.round(barTop - host.top + this.host.scrollTop)}px`;
     }
 
     /** Which size button stands for the width now shown, if any. */
@@ -720,6 +737,19 @@ const ICON_CROP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" s
 function handleClass(corner) {
     return 'size-3.5 rounded-full bg-accent border-2 border-surface shadow '
         + ('nw' === corner || 'se' === corner ? 'cursor-nwse-resize' : 'cursor-nesw-resize');
+}
+
+/** The nearest ancestor that scrolls vertically, or null for the page itself. */
+function scrollParent(element) {
+    for (let node = element.parentElement; null !== node; node = node.parentElement) {
+        const overflow = getComputedStyle(node).overflowY;
+
+        if ('auto' === overflow || 'scroll' === overflow) {
+            return node;
+        }
+    }
+
+    return null;
 }
 
 function escapeHtml(text) {

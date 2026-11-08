@@ -1,5 +1,6 @@
 import { test, expect, type Page, type Response } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { deleteDraft } from "./support/compose";
 
 /**
  * The Drafts list and the compose window that opens out of it.
@@ -63,7 +64,7 @@ test.describe("drafts list", () => {
             "Discarded Draft",
         );
 
-        await dockEl.getByRole("button", { name: "Delete draft" }).click();
+        await deleteDraft(dockEl);
 
         // Live: no reload between the discard and the row going.
         await expect(row).toHaveCount(0);
@@ -99,7 +100,7 @@ test.describe("drafts list", () => {
             "Reply draft body",
         );
 
-        await dockEl.getByRole("button", { name: "Delete draft" }).click();
+        await deleteDraft(dockEl);
         await expect(row).toHaveCount(0);
 
         // The conversation is untouched — only its draft is gone.

@@ -1762,6 +1762,7 @@ compose:
         left: Hard to port
         right: Hard to starboard
     confirm:
+        discard: "Scuttle this draft? There be no fishin’ it back."
         no_body: This scroll be blank.
         no_subject: This scroll bears no heading.
         send_anyway: Cast it off regardless?

@@ -3,6 +3,7 @@ import { Controller } from '@hotwired/stimulus'
 import { forgetPendingCancel, markPendingCancel } from "../../compose/pending_cancel.js";
 import { requestFailed } from "../../request_errors.js";
 import { csrfToken } from "../../csrf.js";
+import { askConfirm } from "../../confirm.js";
 import {
     fillMarkers,
     fillTokens,
@@ -2621,6 +2622,26 @@ export default class extends Controller {
 
     // ── Close ─────────────────────────────────────────────────────────
 
+    /**
+     * Nothing written yet: no body text, no picture, no subject. The
+     * signature the window opens with is not something written in it.
+     */
+    _isBlank() {
+        let body = false;
+
+        if (true === this.hasBodyTarget) {
+            const written = this.bodyTarget.cloneNode(true);
+
+            written.querySelectorAll('[data-pl-signature]').forEach((node) => node.remove());
+            body = '' !== written.textContent.trim() || null !== written.querySelector('img');
+        }
+
+        const plain = true === this.hasPlainBodyTarget && '' !== this.plainBodyTarget.value.trim();
+        const subject = true === this.hasSubjectTarget && '' !== this.subjectTarget.value.trim();
+
+        return false === body && false === plain && false === subject;
+    }
+
     async close() {
         document.body.style.overflow = '';
 
@@ -2650,6 +2671,17 @@ export default class extends Controller {
      * window and leave it behind.
      */
     async discard() {
+        // A deleted draft is gone from the server and from every device, and
+        // the trash can sits one icon from the paperclip — so it asks. Also
+        // before the first autosave: a line typed a second ago is not saved
+        // yet, and would be lost just the same. Only a window with nothing in
+        // it closes without a question.
+        if (false === this._isBlank() || null !== this._messageId()) {
+            if (false === await askConfirm(this._t('confirmDiscard', 'Delete this draft? This cannot be undone.'))) {
+                return;
+            }
+        }
+
         const id = this._messageId();
 
         if (null === id) {
