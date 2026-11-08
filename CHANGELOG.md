@@ -10,6 +10,198 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## v0.4.2 — 2026-11-08
+
+plMail can now keep several unified inboxes, notify you only for the mail you choose, attach from
+OpenCloud, connect Nextcloud by approving in the browser, and send photos smaller. The mail list is
+also quicker to switch and to act on.
+
+<!-- highlight -->
+**Connect Nextcloud by approving in your browser.** The Nextcloud connect form has **Connect with
+browser approval**: it opens your Nextcloud, you log in there (two-factor sign-in and single sign-on
+work as usual) and approve plMail, and the connection is saved by itself, with no app password to
+create and paste. It works from Settings → Integrations, from the edit form of an existing connection
+to replace a revoked app password, and in the setup wizard. The manual fields stay as they were. No
+schema change. [#235](https://github.com/karatektus/pl_mail/issues/235), designed by @phdelodder.
+
+<!-- highlight -->
+**Several unified inboxes, each with its own name, icon and accounts.** Settings → **Unified
+inboxes** adds inboxes beside the one you have — "Work" and "Personal", say — lets you name them,
+give each an icon and drag them into order, and under **Accounts** chooses which inbox each
+account's mail is listed in. Every inbox is its own row in the sidebar with its own unread badge,
+"new" dot and tabs, and **Select all** in it stays inside it. An account taken out of all of yours
+goes to **Other**, which appears in the sidebar once it holds one, so nothing becomes harder to
+reach; deleting an inbox moves its accounts there too, and no mail is touched. Until you change
+anything there is one **Inbox** over every account, as before. Phone apps can read the inboxes over
+JMAP (`UnifiedInbox/get`, `urn:plmail:params:jmap:unifiedinboxes`), and a configuration backup
+carries them. Two new tables, made by the migration; nothing to do. [#265](https://github.com/karatektus/pl_mail/issues/265).
+
+<!-- highlight -->
+**Choose which mail notifies you, once for every browser and the Android app.** Settings →
+Notifications → **Notify for** has a box for each inbox tab and one for each of your labels, and the
+choice belongs to you rather than to one device: every browser you registered and the Android app
+follow it. Mail notifies when it lands in a tab you ticked or carries a label you ticked, even when a
+filter archived it. **Until you choose, only Primary notifies**, as in Gmail and the Android app:
+browsers used to announce every message that reached the Inbox, so if you want that back, tick the
+other tabs. Mail the assistant is still sorting is announced once it has its tab, a few seconds late
+and only once. A second choice, **Only notify for unread mail**, makes a browser wait twenty seconds
+after a push and show nothing if the new mail has been read or deleted in the meantime, for example
+on your phone. No schema change.
+[#369](https://github.com/karatektus/pl_mail/issues/369), started by @phdelodder.
+
+<!-- highlight -->
+**Attach from and save to OpenCloud.** OpenCloud joins the file services under Settings →
+Integrations: browse your personal space, your project spaces and the files shared with you, search
+all of them by file name, attach a copy or a link, and save attachments into them, with previews in
+the picker. You connect with your OpenCloud username and an app token from your account settings →
+App Tokens; give the token a long expiry. Administrators: OpenCloud must accept app tokens
+(`auth-app` running, `PROXY_ENABLE_APP_AUTH=true`), and links need
+`OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false`. No schema change.
+[#476](https://github.com/karatektus/pl_mail/issues/476), requested by @SpaceFrags.
+
+<!-- highlight -->
+**Send the images in a message smaller.** As soon as a draft holds an image, attached or in the
+body, an Image size row above the attachments offers Original, Large, Medium and Small, with the
+size of the whole message beside it. The size applies to every image in the draft and to ones added
+later, and can be changed or set back to Original until you send, because the original is kept.
+The browser does the scaling, so it works in encrypted drafts too, turns phone photos the right way
+up, and leaves the photo's location data out. [#502](https://github.com/karatektus/pl_mail/issues/502).
+
+**Attachments in the compose window open a preview.** Clicking a picture, video or PDF you attached
+to a draft shows it in the same viewer as in the reading pane, instead of downloading it again, so
+you can check it is the right file and how it looks at the image size you picked. The viewer has its
+own download button. [#502](https://github.com/karatektus/pl_mail/issues/502).
+
+**Set image size and quality apart.** The sliders button beside the image sizes in the compose
+window opens Adjust: a longest side from 640 to 4096 pixels (or each photo's own size, only
+compressed) and a quality from 40 to 100 %, with an estimate of what the photos come to while you
+move them. Anything that is not a preset shows as a Custom choice in the row. The row now also shows
+the message's size before and after once something is smaller. [#502](https://github.com/karatektus/pl_mail/issues/502).
+
+**Folders stay out of LABELS, and an account's folders are drawn as the server's tree.** With two
+or more accounts, every folder of one account was listed under LABELS too, because it counted as a
+label on the other account, and deleting it there deleted the folder. A folder of one account is
+now listed under LABELS, and offered by **Label as** for a selection, only once it has been put on
+another account's mail as a label. Under each account, a folder inside another, such as one in the
+Inbox, is now inside it in the sidebar as in other mail apps, and a folder with folders in it
+collapses on its own. **Make it a folder** on an IMAP account asks where the folder goes, and both
+it and **New folder** start on the place chosen last time on that account, so a server whose
+folders live under the inbox is answered once. Adding an IMAP account asks whether labels stay in
+plMail or are stored on the server as IMAP keywords. **Migration:** quick: one row in `label_binding` for each account whose mail
+carries a label it had none for. [#221](https://github.com/karatektus/pl_mail/issues/221),
+reported by @adrianfurgol and phdelodder.
+
+**Rows leave the mail list as soon as you act on them.** Archive, Delete, Delete forever (once
+confirmed), Move to inbox, Move to, a drop on a folder or a category tab, and Snooze take the
+conversation out of the list right away instead of after the server has answered, so a slow
+connection no longer makes the click look like it did nothing. If the request fails, the
+conversation comes back where it was, still ticked if it was, with the usual error message. The
+pager and the empty state are now brought up to date after a single-row action too, and waking a
+conversation in Snoozed takes it out of that list. [#335](https://github.com/karatektus/pl_mail/issues/335).
+
+**One slow IMAP account no longer holds up every other account's new mail.** When an IMAP server
+kept a folder's sync running into the five-minute limit, as Gmail's IMAP did on some installs, the
+folder asked for a new sync every few seconds while each one took five minutes to fail and was then
+tried five more times. The queue grew faster than the worker could empty it, and other accounts'
+new mail waited behind it for hours. A folder now has at most one sync waiting at a time, and a sync
+cut off by the limit is recorded on the account but not retried, because the next IDLE notice or
+poll asks for it again anyway. An account sync cut off this way is no longer recorded as a success,
+and a folder that loses its connection no longer fails every folder after it: the rest get a fresh
+connection. **Settings → Account health** now says when an account is behind on new mail, with
+the times a sync last went through, last started and was last asked for, so an account with no
+error is no longer taken for one that is up to date. No schema change.
+[#418](https://github.com/karatektus/pl_mail/issues/418), reported by @CorrectRoadH.
+
+**Words on the action buttons, if you want them.** Settings → Appearance can now put labels on the
+buttons above a conversation and a selection: icons only as before, icons and text, or text only.
+No schema change. [#459](https://github.com/karatektus/pl_mail/issues/459).
+
+**The arrow keys move through the mail list.** With the keyboard on the list, ↓ and ↑ go from row
+to row the way `j` and `k` do, and Enter opens the row. The row really gets the focus now, so a
+screen reader says which conversation it is on, and `Tab` reaches the list as one stop instead of
+stepping through every row. In an open conversation the arrows still scroll the mail, and in the
+sidebar they are left alone. [#469](https://github.com/karatektus/pl_mail/issues/469).
+
+**A reply a filter sends to Spam no longer brings its conversation back to the Inbox as new mail.**
+When somebody you had filtered as spam answered into a conversation that was still in the Inbox,
+the conversation jumped to the top, turned bold, counted towards the Inbox badge, was marked new and
+could even move to another tab — for a message that was in Spam. The filter now runs before the
+reply is allowed to move its conversation, and mail in Spam or the bin no longer counts as unread
+in a conversation that has other mail. A conversation that is all spam still sorts and counts in
+Spam as before. No schema change. [#470](https://github.com/karatektus/pl_mail/issues/470).
+
+**Mail sent as HTML only is now found by the words in it, and summarised from them.** Messages
+without a plain-text part, such as most mail from shops and newsletters, were searchable only by
+subject and sender. Thread summaries said there was "no message content", and semantic search and
+the mail sorter saw the headers alone. Search, the JMAP `text` and `body` filters, search snippets,
+embeddings, summaries, the sorter and the writing helper now read the words of the HTML body.
+**Migration:** quick: one column on `message`, and the search index is emptied and rebuilt in the
+background, newest mail first, a few thousand messages a minute. Until the rebuild reaches a
+message, full-text search does not find it; only the slower substring match does, when a search
+finds little else. New mail is indexed as it arrives. `php bin/console app:backfill html-body-text`
+finishes the rebuild at once. Messages sent as HTML only get their embeddings made again by the
+next index pass, and summaries made before are shown as out of date.
+[#477](https://github.com/karatektus/pl_mail/issues/477), reported by @pauljhill.
+
+**Phones and other JMAP clients can switch the inbox tabs on and off.** `Appearance/get` and
+`Appearance/set` carry the web's **Inbox tabs** switch as `inboxTabs`, so turning the tabs off in
+an app turns them off on the web too, and the other way round. No schema change.
+[#479](https://github.com/karatektus/pl_mail/issues/479).
+
+**Labels as keywords: a keyword finds your label whatever its capitals, and switching it on reads the keywords mail already has.**
+A keyword another tool sets in lower case — Paperless-ngx's `paperless`, say — now puts your existing
+label **Paperless** on instead of making a second label `paperless`, as IMAP keywords do not care
+about capitals. And switching **Labels as keywords** on now reads, once and in the background, the
+keywords the account's mail already carried; before, mail that had a keyword before the switch went
+on never got its label. A keyword no longer gives a system label such as Archive. No schema change.
+[#487](https://github.com/karatektus/pl_mail/issues/487).
+
+**Mail from a social network is filed under Social, not Promotions.** On accounts sorted by the
+header rules (every non-Gmail account, and Gmail ones with the provider's categories overridden), a
+like, a follow or a "has given you kudos" from LinkedIn, Facebook or Strava went to Promotions: the
+sender's mail platform adds `List-Unsubscribe` to everything, and that rule ran before the social
+domain list, so the list never matched anything that carried it. The domain now wins, after Forums
+and before Promotions, and `strava.com` is on the list. Run `app:backfill category` and answer yes
+to re-file existing mail. A reader who lets the assistant decide is unaffected, as before. No
+schema change. [#488](https://github.com/karatektus/pl_mail/issues/488), by @phdelodder.
+
+**Switching category tabs and folders is faster.** The mail list used to block the page for about
+100 ms on every switch (around 400 ms on a slower phone) while it built the new rows, because each
+row carried its own copy of the snooze and spam menus. The list now has one of each, opened for the
+row whose button you press, and the rows' entrance animation and the tab strip no longer make the
+browser lay the page out several times over. Measured on a 50,000-message mailbox: about 50 ms on a
+fast machine and 155 ms on a slow one. The menus look and work as before; the snooze menu can now be
+walked with the arrow keys, and its times are worked out when you open it.
+[#496](https://github.com/karatektus/pl_mail/issues/496).
+
+**Opening a category tab or folder answers faster.** Most of the time the server spent on each
+click went into three things it redid every time. The preview line under each subject was cut out
+of the message's full HTML again on every visit, which for a newsletter of 30–100 KB is the most
+expensive part of drawing a row. It is now made once, the first time the row is listed, and kept.
+The tab totals, the unread tabs and the page count were three separate passes over the whole inbox
+and are now one. And the 42 KB script map at the top of every page is now built once per server
+process instead of on every request. On a test mailbox with newsletter-sized mail the list went from
+about 150 ms to about 50 ms on a laptop; on slower hardware the saving grows with it. Responses to
+a signed-in user now also carry a `Server-Timing` header, which the browser's developer tools show
+as database and total server time.
+[#499](https://github.com/karatektus/pl_mail/issues/499).
+
+**Resize the compose window.** Drag the docked window's top-left corner to make it bigger or
+smaller; double-click it for the standard size. The size is kept on each device, so a laptop and a
+large screen can each have their own. [#507](https://github.com/karatektus/pl_mail/issues/507).
+
+**Profile pictures no longer slow down every page load.** An uploaded photo, or one picked from a
+connected account, was stored and served at full size, and it was never cached: a phone photo of
+1.7 MB was downloaded again on every page load. Pictures are now scaled to at most 256 px, turned
+the right way up and stored as WebP, with the photo's metadata (such as its location) removed.
+Pictures stored before get a small copy the first time they are shown. The browser now keeps the
+picture instead of asking for it again.
+
+**A "Mark as spam" filter puts the mail in Spam, and in the server's Junk folder.** It labelled
+the mail Spam in plMail but archived it on the server, so after the next sync every message the
+filter had caught sat in the Archive, unread. Mail it already put there is moved to Spam with
+`php bin/console app:backfill spam-in-archive`.
+
 ## v0.4.1 — 2026-10-31
 
 plMail now speaks JMAP, keeps folders and labels properly apart, and the compose window and filters
