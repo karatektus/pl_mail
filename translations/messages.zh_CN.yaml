@@ -1741,6 +1741,20 @@ compose:
     forward: 转发
     from: 发件人
     image: 插入图片
+    image_edit:
+        crop: 裁剪
+        crop_apply: 裁剪
+        crop_cancel: 取消
+        crop_reset: 整张图片
+        editing: 正在编辑图片…
+        failed: 无法编辑图片
+        full: 原始大小
+        large: 大
+        medium: 中
+        rotate_left: 向左旋转
+        rotate_right: 向右旋转
+        small: 小
+        toolbar: 图片
     image_insert_failed: 无法将图片插入邮件
     image_size:
         adjust: 调整尺寸和质量

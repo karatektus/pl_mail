@@ -12,10 +12,10 @@ release before it reaches `main`, and `sha-…` pins one commit.
 
 ## v0.4.2 — 2026-11-08
 
-plMail can now keep several unified inboxes, send photos smaller, notify you only for the mail you
-choose, attach from OpenCloud and connect Nextcloud by approving in the browser. The mail list is
-also quicker to switch and to act on. The picture beside each highlight opens large when you click
-it.
+plMail can now keep several unified inboxes, send photos smaller, resize, crop and turn the pictures
+in a message, notify you only for the mail you choose, attach from OpenCloud and connect Nextcloud
+by approving in the browser. The mail list is also quicker to switch and to act on. The picture
+beside each highlight opens large when you click it.
 
 <!-- highlight screenshot=unified-inboxes -->
 **Several unified inboxes, each with its own name, icon and accounts.** Settings → **Unified
@@ -47,6 +47,15 @@ window opens Adjust: a longest side from 640 to 4096 pixels (or each photo's own
 compressed) and a quality from 40 to 100 %, with an estimate of what the photos come to while you
 move them. Anything that is not a preset shows as a Custom choice in the row. The row now also shows
 the message's size before and after once something is smaller. [#502](https://github.com/karatektus/pl_mail/issues/502).
+
+<!-- highlight -->
+**Resize, crop and turn a picture in the message you are writing.** Click a picture in the body
+for a frame with corner handles and a bar: Small, Medium, Large or Full size, a quarter turn either
+way, and Crop, which opens the whole picture to pick the part to keep. The recipient gets only the
+part you kept, and a picture shown smaller goes out smaller too, at twice the width it is shown at.
+plMail makes every change from the picture as you uploaded it, so a crop can be widened again until
+you send, and Ctrl+Z takes a change back. Works in encrypted drafts too. No schema change.
+[#517](https://github.com/karatektus/pl_mail/issues/517).
 
 <!-- highlight screenshot=notify-for -->
 **Choose which mail notifies you, once for every browser and the Android app.** Settings →

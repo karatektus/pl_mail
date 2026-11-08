@@ -40,6 +40,14 @@ async function photo(page: Page, width: number, height: number): Promise<Buffer>
     return Buffer.from(base64, "base64");
 }
 
+/**
+ * How long a picture may take to come back from the server at its new size:
+ * every change is fetch the original, encode, upload, save, one after the
+ * other, and with four workers on one machine that is more than the default
+ * five seconds.
+ */
+const SLOW = { timeout: 15_000 };
+
 /** The width and height of what the server now serves for a part. */
 async function servedSize(page: Page, partId: string): Promise<[number, number]> {
     return page.evaluate(async (id) => {
@@ -138,8 +146,8 @@ test("an image in the body is scaled to the size already picked", async ({ page 
         images.map((image) => (image.getAttribute("src") ?? "").match(/\/mail\/attachment\/(\d+)/)?.[1] ?? ""),
     );
 
-    await expect.poll(() => servedSize(page, ids[0])).toEqual([800, 533]);
-    await expect.poll(() => servedSize(page, ids[1])).toEqual([533, 800]);
+    await expect.poll(() => servedSize(page, ids[0]), SLOW).toEqual([800, 533]);
+    await expect.poll(() => servedSize(page, ids[1]), SLOW).toEqual([533, 800]);
 
     await dock.getByRole("button", { name: "Delete draft" }).click();
 });
@@ -214,7 +222,7 @@ test("the Adjust panel sets size and quality apart", async ({ page }) => {
     // A Custom segment, chosen, with its numbers; the photo is 1600 wide.
     await expect(row().getByRole("radio", { name: "Custom" })).toHaveAttribute("aria-checked", "true");
     await expect(row().locator("[data-image-size-custom]")).toHaveText("1600 px · 60 %");
-    await expect.poll(() => servedSize(page, partId)).toEqual([1600, 1067]);
+    await expect.poll(() => servedSize(page, partId), SLOW).toEqual([1600, 1067]);
     await expect(row().locator("[data-image-size-total]")).toContainText("→");
     const customSize = Number(await chip.getAttribute("data-part-size"));
     expect(customSize).toBeLessThan(fullSize);
@@ -226,7 +234,7 @@ test("the Adjust panel sets size and quality apart", async ({ page }) => {
 
     await expect(row().getByRole("radio", { name: "Medium" })).toHaveAttribute("aria-checked", "true");
     await expect(row().getByRole("radio", { name: /^Custom/ })).toHaveCount(0);
-    await expect.poll(() => servedSize(page, partId)).toEqual([1280, 853]);
+    await expect.poll(() => servedSize(page, partId), SLOW).toEqual([1280, 853]);
 
     // Own size, only compressed: same pixels, fewer bytes.
     await row().getByRole("button", { name: "Adjust size and quality" }).click();
@@ -236,7 +244,7 @@ test("the Adjust panel sets size and quality apart", async ({ page }) => {
 
     await expect(row().getByRole("radio", { name: "Custom" })).toHaveAttribute("aria-checked", "true");
     await expect(row().locator("[data-image-size-custom]")).toHaveText("Own size · 50 %");
-    await expect.poll(() => servedSize(page, partId)).toEqual([2400, 1600]);
+    await expect.poll(() => servedSize(page, partId), SLOW).toEqual([2400, 1600]);
     await expect.poll(async () => Number(await chip.getAttribute("data-part-size"))).toBeLessThan(fullSize);
 
     await dock.getByRole("button", { name: "Delete draft" }).click();

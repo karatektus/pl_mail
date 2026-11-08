@@ -2001,6 +2001,20 @@ compose:
     forward: Weiterleiten
     from: Von
     image: Bild einfügen
+    image_edit:
+        crop: Zuschneiden
+        crop_apply: Zuschneiden
+        crop_cancel: Abbrechen
+        crop_reset: Ganzes Bild
+        editing: Bild wird bearbeitet…
+        failed: Das Bild konnte nicht bearbeitet werden
+        full: Originalgröße
+        large: Groß
+        medium: Mittel
+        rotate_left: Nach links drehen
+        rotate_right: Nach rechts drehen
+        small: Klein
+        toolbar: Bild
     image_insert_failed: Das Bild konnte nicht in die Nachricht eingefügt werden
     image_size:
         adjust: Größe und Qualität anpassen

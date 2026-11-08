@@ -2003,6 +2003,20 @@ compose:
     forward: Transférer
     from: De
     image: Insérer une image
+    image_edit:
+        crop: Recadrer
+        crop_apply: Recadrer
+        crop_cancel: Annuler
+        crop_reset: Image entière
+        editing: Modification de l’image…
+        failed: Impossible de modifier l’image
+        full: Taille réelle
+        large: Grande
+        medium: Moyenne
+        rotate_left: Pivoter à gauche
+        rotate_right: Pivoter à droite
+        small: Petite
+        toolbar: Image
     image_insert_failed: Impossible de placer l’image dans le message
     image_size:
         adjust: Ajuster la taille et la qualité

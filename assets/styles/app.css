@@ -5121,8 +5121,23 @@ emoji-picker {
     overflow-y: auto;
 }
 
+/* The picture crop dialog (compose/image_editor.js, #515): the same repair
+   and the same dim, but as wide as the picture in it rather than a column of
+   text's width. */
+dialog[data-image-crop-dialog] {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: fit-content;
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100dvh - 2rem);
+    padding: 0;
+    overflow: auto;
+}
+
 #confirm-dialog::backdrop,
-#keyring-unlock-dialog::backdrop {
+#keyring-unlock-dialog::backdrop,
+dialog[data-image-crop-dialog]::backdrop {
     background-color: rgb(0 0 0 / 0.5);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);

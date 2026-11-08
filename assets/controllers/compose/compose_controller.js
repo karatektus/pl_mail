@@ -10,6 +10,8 @@ import {
     markersAsTokens,
     recipientValues,
 } from "../../compose/template_variables.js";
+import { InlineImageEditor } from "../../compose/image_editor.js";
+import { ORIGINAL_CHOICE, editSignature, hasEdits, noEdits, readEdits, renderImage } from "../../compose/image_edit.js";
 
 /**
  * The compose window is the only place a send is announced, and the only place
@@ -197,6 +199,8 @@ export default class extends Controller {
             this.bodyTarget.addEventListener('paste',    this._boundBodyPaste);
             this.bodyTarget.addEventListener('drop',     this._boundBodyDrop);
             this.bodyTarget.addEventListener('dragover', this._boundBodyDragOver);
+
+            this._connectImageEditor();
         }
 
         // Tom Select is built by the autocomplete bundle, which may connect
@@ -962,7 +966,11 @@ export default class extends Controller {
             this.bodyTarget.removeEventListener('paste',    this._boundBodyPaste);
             this.bodyTarget.removeEventListener('drop',     this._boundBodyDrop);
             this.bodyTarget.removeEventListener('dragover', this._boundBodyDragOver);
+            this.bodyTarget.removeEventListener('input', this._boundBodyHistory);
         }
+
+        this._imageEditor?.destroy();
+        this._imageEditor = undefined;
 
         window.removeEventListener('beforeunload', this._boundBeforeUnload);
         window.removeEventListener('plmail:integration-attached', this._boundIntegrationAttached);
@@ -4610,7 +4618,21 @@ export default class extends Controller {
             return Promise.resolve();
         }
 
-        return this._queueImageSize(this._imageChoice(size, Number(row.dataset.edge) || 0, Number(row.dataset.quality) || 85), false);
+        // From a strip rendered now, not the one on screen. A pass still
+        // running when the picture was uploaded ends by rendering the strip
+        // its request saw, which can be from before this picture's part
+        // existed — and a pass reading that list would never see the new
+        // picture, leaving it at full size under a row that says Small.
+        this._imageSizeQueue = (this._imageSizeQueue ?? Promise.resolve())
+            .then(() => this._refreshImageStrip())
+            .then(() => {
+                const choice = this._currentImageChoice();
+
+                return true === choice.restore ? undefined : this._applyImageSize(choice, false);
+            })
+            .catch(() => {});
+
+        return this._imageSizeQueue;
     }
 
     /**
@@ -4641,7 +4663,13 @@ export default class extends Controller {
                 button.setAttribute('aria-checked', choice.size === button.getAttribute('data-compose--compose-size-param') ? 'true' : 'false');
             }
         });
+        // All three, not just the name: a picture added while this pass runs
+        // reads its size from here (_scaleNewImages), and the name of a
+        // preset with the numbers of the size before it was a picture sent
+        // at full size and full quality under a row that said Small.
         row.dataset.size = choice.size;
+        row.dataset.edge = String(choice.edge);
+        row.dataset.quality = String(choice.quality);
         this._setStatus(this._t('imageSizeResizing', 'Resizing images…'), 'text-ink-faint');
 
         for (const part of parts) {
@@ -4650,9 +4678,12 @@ export default class extends Controller {
             }
 
             try {
-                await this._scalePart(part, choice);
+                const edits = this._editsForPart(part);
+
+                await this._scalePart(part, choice, edits);
 
                 if (true === part.inline) {
+                    this._appliedEdits?.set(String(part.id), editSignature(edits));
                     bodyChanged = this._reloadInlineImage(part.id) || bodyChanged;
                 }
             } catch (_) {
@@ -4705,8 +4736,13 @@ export default class extends Controller {
         }
     }
 
-    /** One stored picture: brought to the choice from its original, or the original put back. */
-    async _scalePart(part, choice) {
+    /**
+     * One stored picture: brought to the choice from its original, or the
+     * original put back. `edits` is what the person did to it in the body
+     * (#515) — a crop or a turn is made again from the original each time,
+     * on top of whatever size the draft is sent at.
+     */
+    async _scalePart(part, choice, edits = noEdits()) {
         const headers = { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken() };
 
         const restore = async () => {
@@ -4721,28 +4757,12 @@ export default class extends Controller {
             }
         };
 
-        if (true === choice.restore) {
+        if (true === choice.restore && false === hasEdits(edits)) {
             return restore();
         }
 
-        const response = await fetch(`/compose/attachment/${part.id}/original`, { cache: 'no-store' });
-
-        if (false === response.ok) {
-            throw new Error('original');
-        }
-
-        let bytes = new Uint8Array(await response.arrayBuffer());
         const encryption = true === part.sealed ? this._encryption() : null;
-
-        if (true === part.sealed) {
-            if (null === encryption) {
-                throw new Error('locked');
-            }
-
-            bytes = await encryption.openUpload(bytes);
-        }
-
-        const smaller = await scaleImage(new Blob([bytes], { type: part.type }), choice);
+        const smaller = await renderImage(await this._partOriginal(part), edits, choice);
 
         // Nothing to gain: the original is what goes out.
         if (null === smaller) {
@@ -4776,7 +4796,37 @@ export default class extends Controller {
     }
 
     /**
-     * A data: picture in the body, brought to the choice where it is.
+     * A stored picture as it was uploaded, opened again when the draft is
+     * sealed. The part's own address serves the smaller copy once there is
+     * one; this is what every size and every edit is made from.
+     *
+     * @returns {Promise<Blob>}
+     */
+    async _partOriginal(part) {
+        const response = await fetch(`/compose/attachment/${part.id}/original`, { cache: 'no-store' });
+
+        if (false === response.ok) {
+            throw new Error('original');
+        }
+
+        let bytes = new Uint8Array(await response.arrayBuffer());
+
+        if (true === part.sealed) {
+            const encryption = this._encryption();
+
+            if (null === encryption) {
+                throw new Error('locked');
+            }
+
+            bytes = await encryption.openUpload(bytes);
+        }
+
+        return new Blob([bytes], { type: part.type });
+    }
+
+    /**
+     * A data: picture in the body, brought to the choice where it is, with
+     * whatever the person did to it (#515).
      *
      * @returns {Promise<boolean>} whether the body changed
      */
@@ -4794,12 +4844,14 @@ export default class extends Controller {
             return true;
         };
 
-        if (true === choice.restore) {
+        const edits = readEdits(image);
+
+        if (true === choice.restore && false === hasEdits(edits)) {
             return putBack();
         }
 
         const blob = await (await fetch(original)).blob();
-        const smaller = await scaleImage(blob, choice);
+        const smaller = await renderImage(blob, edits, choice);
 
         if (null === smaller) {
             return putBack();
@@ -4946,6 +4998,223 @@ export default class extends Controller {
         }
 
         return (image.getAttribute('src') ?? '').match(/\/mail\/attachment\/(\d+)/)?.[1] ?? null;
+    }
+
+    // ── Picture edits (#515) ──────────────────────────────────────────
+
+    /**
+     * Resize, crop and rotate for the pictures in the body. The handles and
+     * the bar are compose/image_editor.js; the edit itself is a recipe on the
+     * <img> (compose/image_edit.js), and turning it into the bytes the mail
+     * carries is this controller's, through the same path the Image size row
+     * uses (#502): from the original, uploaded in place of the part's copy.
+     *
+     * The frame and the bar hang off the editor's parent, which is made the
+     * positioned box for them in the template: inside the editor they would
+     * be part of the message.
+     */
+    _connectImageEditor() {
+        const host = this.bodyTarget.parentElement;
+
+        if (null === host) {
+            return;
+        }
+
+        this._appliedEdits = new Map();
+        this._imageEditor = new InlineImageEditor({
+            editor: this.bodyTarget,
+            host,
+            t: (key, fallback) => this._t(key, fallback),
+            editable: (image) => this._editableImage(image),
+            original: (image) => this._originalImage(image),
+            changed: (image) => this._queueImageEdit(image),
+            failed: (message) => this._setStatus(message, 'text-danger'),
+        });
+
+        // Undo and redo put an earlier or later <img> back, attributes and
+        // all; the stored picture has to follow it.
+        this._boundBodyHistory = (event) => this._bodyHistory(event);
+        this.bodyTarget.addEventListener('input', this._boundBodyHistory);
+    }
+
+    /**
+     * The person's own pictures: uploaded into this draft in a format a
+     * browser can write back, or held in a sealed body as data:. Not a
+     * picture in the quoted mail or the signature — those belong to someone
+     * else's message or to the settings, and are not this draft's to cut.
+     */
+    _editableImage(image) {
+        if (null !== image.closest('[data-quoted], [data-quote-wrapped], blockquote, [data-pl-signature]')) {
+            return false;
+        }
+
+        if (true === SCALABLE_DATA_URI.test(image.dataset.plmailOriginal ?? image.getAttribute('src') ?? '')) {
+            return true;
+        }
+
+        const part = this._partForImage(image);
+
+        return null !== part && SCALABLE_TYPES.includes(part.type);
+    }
+
+    /** The picture as it came, for the crop dialog to show whole. */
+    async _originalImage(image) {
+        const source = image.dataset.plmailOriginal ?? image.getAttribute('src') ?? '';
+
+        if (true === SCALABLE_DATA_URI.test(source)) {
+            return (await fetch(source)).blob();
+        }
+
+        const part = this._partForImage(image);
+
+        return null === part ? null : this._partOriginal(part);
+    }
+
+    _partForImage(image) {
+        const id = this._inlinePartId(image);
+
+        if (null === id || false === this.hasImageSizeTarget) {
+            return null;
+        }
+
+        return this._imageParts().find((part) => String(part.id) === id) ?? null;
+    }
+
+    /** What the body says was done to a stored picture; nothing for one not in it. */
+    _editsForPart(part) {
+        const image = this._bodyImages().find((candidate) => String(part.id) === this._inlinePartId(candidate));
+
+        return undefined === image ? noEdits() : readEdits(image);
+    }
+
+    /** The draft's Image size as a choice, for an edit made between two picks. */
+    _currentImageChoice() {
+        if (false === this.hasImageSizeTarget) {
+            return ORIGINAL_CHOICE;
+        }
+
+        const row = this.imageSizeTarget;
+        const size = row.dataset.size ?? 'original';
+
+        if ('original' === size) {
+            return ORIGINAL_CHOICE;
+        }
+
+        return this._imageChoice(size, Number(row.dataset.edge) || 0, Number(row.dataset.quality) || 85);
+    }
+
+    /** In the same line as the Image size row's passes: one picture written at a time. */
+    _queueImageEdit(image) {
+        this._imageSizeQueue = (this._imageSizeQueue ?? Promise.resolve())
+            .then(() => this._applyImageEdit(image))
+            .catch(() => {});
+
+        return this._imageSizeQueue;
+    }
+
+    /**
+     * Make one picture's bytes match its recipe, save the body that carries
+     * the recipe, and bring the strip's sizes up to date.
+     *
+     * A picture that cannot be done is left as it was on the server, and the
+     * status line says so; the recipe stays in the body, so the next size
+     * picked or the next edit tries again.
+     */
+    async _applyImageEdit(image) {
+        if (false === this.bodyTarget.contains(image)) {
+            return;
+        }
+
+        const choice = this._currentImageChoice();
+
+        this._setStatus(this._t('imageEditing', 'Editing picture…'), 'text-ink-faint');
+
+        // The parts as the server has them now — whether this one is already
+        // a smaller copy decides whether Full size has an original to put
+        // back — rather than a list a slower request may have overwritten.
+        await this._refreshImageStrip();
+
+        try {
+            if (true === SCALABLE_DATA_URI.test(image.dataset.plmailOriginal ?? image.getAttribute('src') ?? '')) {
+                await this._scaleDataImage(image, choice);
+            } else {
+                const part = this._partForImage(image);
+
+                if (null === part) {
+                    return;
+                }
+
+                const edits = readEdits(image);
+
+                await this._scalePart(part, choice, edits);
+                this._appliedEdits?.set(String(part.id), editSignature(edits));
+                this._reloadInlineImage(part.id);
+            }
+        } catch (_) {
+            this._setStatus(this._t('imageEditFailed', 'The picture could not be edited'), 'text-danger');
+
+            return;
+        }
+
+        await this.saveDraft(null, { force: true, allowEmpty: true });
+        await this._refreshImageStrip();
+        this._imageEditor?.place();
+    }
+
+    /**
+     * The strip again, for the sizes an edit changed. The Image size route
+     * answers with it; posting the choice already in force changes nothing
+     * else.
+     */
+    async _refreshImageStrip() {
+        const id = this._messageId();
+
+        if (null === id || false === this.hasImageSizeTarget) {
+            return;
+        }
+
+        const row = this.imageSizeTarget;
+        const body = new FormData();
+
+        body.append('size', row.dataset.size ?? 'original');
+
+        if ('custom' === row.dataset.size) {
+            body.append('edge', row.dataset.edge ?? '0');
+            body.append('quality', row.dataset.quality ?? '85');
+        }
+
+        await this._renderAttachments(
+            fetch(`/compose/image-size/${id}`, {
+                method: 'POST',
+                body,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken() },
+            }),
+            this._t('imageEditFailed', 'The picture could not be edited'),
+        );
+    }
+
+    /**
+     * Ctrl+Z or Ctrl+Shift+Z brought back an <img> whose recipe is not the
+     * one its part was last written with: write it again. A sealed body's
+     * picture needs nothing — its bytes came back with the element — and is
+     * saved by the ordinary autosave the same input event starts.
+     */
+    _bodyHistory(event) {
+        if ('historyUndo' !== event.inputType && 'historyRedo' !== event.inputType) {
+            return;
+        }
+
+        for (const image of this._bodyImages()) {
+            const id = this._inlinePartId(image);
+
+            if (null === id || false === this._appliedEdits.has(id)) {
+                continue;
+            }
+
+            if (this._appliedEdits.get(id) !== editSignature(readEdits(image))) {
+                this._queueImageEdit(image);
+            }
+        }
     }
 
     // ── Inline images ─────────────────────────────────────────────────
@@ -5176,21 +5445,29 @@ export default class extends Controller {
 
         this._toolbar()?.insertInlineImage(payload);
 
+        // The strip is not rendered again for a picture in the body, so the
+        // Image size row learns of the new part here (#502). Before the save
+        // below, not after it: the picture is on screen from this line on,
+        // and a click on it straight away is a click the picture tools
+        // (#515) must know the part for.
+        const scalable = true === this.hasImageSizeTarget && SCALABLE_TYPES.includes(file.type);
+
+        if (true === scalable) {
+            const parts = this._imageParts();
+
+            parts.push({ id: payload.id, inline: true, sealed: false, scaled: false, size: file.size, type: file.type, name: file.name });
+            this.imageSizeTarget.dataset.imageParts = JSON.stringify(parts);
+            this._refreshImageSize();
+        }
+
         // Saved straight away rather than left to the debounced autosave. The
         // part row already exists; if the body that references it does not, a
         // window closed in the next two seconds leaves a draft with an orphan
         // image in it and no picture.
         await this.saveDraft(null, { force: true, allowEmpty: true });
 
-        // The strip is not rendered again for a picture in the body, so the
-        // Image size row learns of the new part here, and scales it to the
-        // size already picked (#502).
-        if (true === this.hasImageSizeTarget && SCALABLE_TYPES.includes(file.type)) {
-            const parts = this._imageParts();
-
-            parts.push({ id: payload.id, inline: true, sealed: false, scaled: false, size: file.size, type: file.type, name: file.name });
-            this.imageSizeTarget.dataset.imageParts = JSON.stringify(parts);
-            this._refreshImageSize();
+        // And scaled to the size already picked.
+        if (true === scalable) {
             await this._scaleNewImages();
         }
     }
@@ -5253,91 +5530,6 @@ export default class extends Controller {
 const SCALABLE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 const SCALABLE_DATA_URI = /^data:image\/(jpeg|png|webp)[;,]/i;
-
-/**
- * A picture brought to a choice — at most `edge` pixels on its longest side
- * (0: its own size), encoded at `quality` — in the format it already had;
- * null when there is nothing to gain: Original, a format this cannot redo,
- * a picture that would not come out smaller.
- *
- * A preset leaves a picture already within its size alone, as it always
- * did: Medium on a small screenshot should not touch it. Custom recompresses
- * it anyway, because a quality the person set on purpose is the point. A PNG
- * that keeps its size is left alone either way: it is lossless, so encoding
- * it again only spends time.
- *
- * createImageBitmap turns a phone photo the right way up as it decodes it,
- * which is the step a server without the exif extension cannot do. Drawing
- * onto a canvas and encoding again keeps nothing but pixels, so the photo's
- * metadata, its GPS position included, stays behind.
- *
- * Same format out as in: a part keeps its filename, and a JPEG named .png is
- * a file other programs refuse. A browser that cannot encode the format
- * (Safari and WebP) hands back PNG, which is caught by the type check and
- * leaves the picture as it was.
- *
- * @param {Blob} blob
- * @param {{edge: number, quality: number, restore: boolean, custom: boolean}} choice
- * @returns {Promise<?Blob>}
- */
-async function scaleImage(blob, choice) {
-    const type = (blob.type || '').toLowerCase();
-
-    if (true === choice.restore || false === SCALABLE_TYPES.includes(type)) {
-        return null;
-    }
-
-    let bitmap;
-
-    try {
-        bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
-    } catch (_) {
-        return null;
-    }
-
-    try {
-        const longest = Math.max(bitmap.width, bitmap.height);
-        const resize = choice.edge > 0 && longest > choice.edge;
-
-        if (false === resize && (false === choice.custom || 'image/png' === type)) {
-            return null;
-        }
-
-        const scale = true === resize ? choice.edge / longest : 1;
-        const width = Math.max(1, Math.round(bitmap.width * scale));
-        const height = Math.max(1, Math.round(bitmap.height * scale));
-        const quality = 'image/png' === type ? undefined : Math.min(1, Math.max(0.01, choice.quality / 100));
-        let smaller;
-
-        if ('function' === typeof OffscreenCanvas) {
-            const canvas = new OffscreenCanvas(width, height);
-            const context = canvas.getContext('2d');
-
-            context.imageSmoothingQuality = 'high';
-            context.drawImage(bitmap, 0, 0, width, height);
-            smaller = await canvas.convertToBlob({ type, quality });
-        } else {
-            const canvas = document.createElement('canvas');
-
-            canvas.width = width;
-            canvas.height = height;
-
-            const context = canvas.getContext('2d');
-
-            context.imageSmoothingQuality = 'high';
-            context.drawImage(bitmap, 0, 0, width, height);
-            smaller = await new Promise((resolve) => canvas.toBlob(resolve, type, quality));
-        }
-
-        if (null === smaller || type !== smaller.type || smaller.size >= blob.size) {
-            return null;
-        }
-
-        return smaller;
-    } finally {
-        bitmap.close();
-    }
-}
 
 /**
  * Bits per pixel of a typical photo saved as JPEG at a quality, for the
