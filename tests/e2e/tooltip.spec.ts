@@ -205,12 +205,16 @@ test.describe("tooltips", () => {
         // aria-label rather than title: the controller MOVES `title` to
         // `data-tooltip` the first time an element is hovered, so a title
         // selector stops matching after the hover it is meant to set up.
-        const trash = dock.locator('[aria-label="Delete draft"]').first();
+        // The paperclip rather than the trash can this used to hover: the
+        // action bar folds its rightmost icons into ⋮ when they do not fit
+        // (compose--action-overflow), and at the dock's width the trash can
+        // is one of them. The paperclip is the last to fold.
+        const trash = dock.locator('[aria-label="Attach files"]').first();
         await trash.hover();
 
         const tip = page.locator(".app-tooltip");
         await expect(tip).toBeVisible();
-        await expect(tip).toHaveText("Delete draft");
+        await expect(tip).toHaveText("Attach files");
 
         await page.keyboard.press("Control+Enter");
 

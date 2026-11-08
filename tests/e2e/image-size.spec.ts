@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "./support/test";
+import { deleteDraft } from "./support/compose";
 
 /**
  * Sending a draft's images smaller (#502), end to end.
@@ -104,7 +105,7 @@ test("an attached photo can be sent smaller and back at full size", async ({ pag
     await expect.poll(async () => Number(await chip.getAttribute("data-part-size"))).toBe(fullSize);
     expect(await servedSize(page, partId)).toEqual([2400, 1600]);
 
-    await dock.getByRole("button", { name: "Delete draft" }).click();
+    await deleteDraft(dock);
 });
 
 /** A picture placed in the body follows the size too, and so does one added after the size was picked. */
@@ -149,7 +150,7 @@ test("an image in the body is scaled to the size already picked", async ({ page 
     await expect.poll(() => servedSize(page, ids[0]), SLOW).toEqual([800, 533]);
     await expect.poll(() => servedSize(page, ids[1]), SLOW).toEqual([533, 800]);
 
-    await dock.getByRole("button", { name: "Delete draft" }).click();
+    await deleteDraft(dock);
 });
 
 /**
@@ -247,7 +248,7 @@ test("the Adjust panel sets size and quality apart", async ({ page }) => {
     await expect.poll(() => servedSize(page, partId), SLOW).toEqual([2400, 1600]);
     await expect.poll(async () => Number(await chip.getAttribute("data-part-size"))).toBeLessThan(fullSize);
 
-    await dock.getByRole("button", { name: "Delete draft" }).click();
+    await deleteDraft(dock);
 });
 
 /**
@@ -320,7 +321,7 @@ test("the attachment strip folds to one line while writing", async ({ page }) =>
     await expect(summary).toBeFocused();
     await expect(summary).toContainText("15 files");
 
-    await dock.getByRole("button", { name: "Delete draft" }).click();
+    await deleteDraft(dock);
 });
 
 /**
@@ -368,5 +369,5 @@ test("a draft with a file before its photos reopens with a working To field", as
     expect(await dock.locator('[data-compose--compose-target="imageSize"]').getAttribute("data-image-parts")).toMatch(/^\[/);
     expect(errors).toEqual([]);
 
-    await dock.getByRole("button", { name: "Delete draft" }).click();
+    await deleteDraft(dock);
 });

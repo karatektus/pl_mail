@@ -73,6 +73,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              confirmSendAnyway: 'compose.confirm.send_anyway'|trans,
              confirmOpenVariables: 'compose.confirm.open_variables'|trans,
              confirmNoAttachment: 'compose.confirm.no_attachment'|trans,
+             confirmDiscard:   'compose.confirm.discard'|trans,
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
              imageFailed:      'compose.image_insert_failed'|trans,
              imageSizeResizing: 'compose.image_size.resizing'|trans,
@@ -934,8 +935,15 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                    column while the trash can floated at the right of it. Flat,
                    they wrap as one run: pill and four icons on the first line,
                    the remaining five on the second, and two rows at 320px as
-                   well as at 393px. #}
-                <div class="flex flex-wrap items-center gap-1">
+                   well as at 393px.
+
+                   No longer wrapping at all: one row, ⋮ at its right end, and
+                   the icons that do not fit folded into ⋮ from the right
+                   (compose--action-overflow). A second row cost the body a
+                   line, and moved every icon after the break away from where
+                   the hand had learned it. Send and Aa never fold. #}
+                <div data-controller="compose--action-overflow"
+                     class="flex flex-nowrap items-center gap-1 min-w-0">
                     {# The Send pill — the desktop's home for it, `hidden
                        md:flex` inside the partial. Below md the same pill is
                        rendered in the window header instead, where the phone
@@ -958,7 +966,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                title enlarges on it without replacing it. #}
                             title="{{ 'compose.formatting'|trans }}"
                             class="{{ ic }} text-sm font-bold tracking-tighter">Aa</button>
-                    <button type="button"
+                    <button type="button" data-compose--action-overflow-target="item"
                             data-action="click->compose--compose#openFilePicker"
                             title="{{ 'compose.attach'|trans }}"
                             aria-label="{{ 'compose.attach'|trans }}"
@@ -975,7 +983,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        is pressed. Without it the selection collapses before
                        the popover has had a chance to read it, and the text
                        field prefills empty. #}
-                    <button type="button" data-compose--compose-toolbar-action
+                    <button type="button" data-compose--compose-toolbar-action data-compose--action-overflow-target="item"
                             data-compose--compose-toolbar-target="linkBtn"
                             data-compose--compose-target="richOnly"
                             data-action="click->compose--compose-toolbar#insertLink"
@@ -998,7 +1006,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        failed to do above md, where a 352px panel hung off the
                        side of a 520px dock. One rule now covers the dock, an
                        inline reply, expanded, and a phone. #}
-                    <div data-controller="ui--dropdown compose--emoji-picker"
+                    <div data-controller="ui--dropdown compose--emoji-picker" data-compose--action-overflow-target="item"
                          data-action="ui--dropdown:opened->compose--emoji-picker#build"
                          data-compose--emoji-picker-locale-value="{{ app.request.locale|split('_')|first }}"
                          data-compose--emoji-picker-data-source-value="{{ asset('emoji/' ~ (app.request.locale|split('_')|first in ['de', 'fr', 'zh'] ? app.request.locale|split('_')|first : 'en') ~ '/data.json') }}"
@@ -1069,7 +1077,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        the recipient, and only the first is restricted to
                        image/*. Paste and drag-drop reach the same endpoint —
                        see _handleBodyPaste in the controller. #}
-                    <button type="button" data-compose--compose-toolbar-action
+                    <button type="button" data-compose--compose-toolbar-action data-compose--action-overflow-target="item"
                             data-compose--compose-target="richOnly"
                             data-action="click->compose--compose#openImagePicker"
                             title="{{ 'compose.image'|trans }}"
@@ -1085,7 +1093,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        means it goes out end-to-end encrypted. Green when it
                        does, whoever decided it — the lock must never look the
                        same for mail that leaves readable. #}
-                    <button type="button"
+                    <button type="button" data-compose--action-overflow-target="item"
                             aria-pressed="false"
                             data-compose--encryption-target="encryptButton"
                             data-action="click->compose--encryption#toggleEncrypt"
@@ -1101,7 +1109,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        replaced in place rather than a second one appended —
                        which is the same operation the From switch performs, and
                        deliberately the same code. #}
-                    <button type="button" data-compose--compose-toolbar-action
+                    <button type="button" data-compose--compose-toolbar-action data-compose--action-overflow-target="item"
                             data-compose--compose-target="richOnly"
                             data-action="click->compose--compose#insertSignature"
                             title="{{ 'compose.signature'|trans }}"
@@ -1131,7 +1139,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        No variable of its own, for the reason the assistant's
                        button below documents: this template is included `only`
                        from the two undo streams. #}
-                    <div data-controller="ui--dropdown compose--template-picker"
+                    <div data-controller="ui--dropdown compose--template-picker" data-compose--action-overflow-target="item" data-ui--dropdown-place-value="above"
                          data-action="ui--dropdown:opened->compose--template-picker#load"
                          data-compose--template-picker-panel-url-value="{{ path('app_compose_templates_panel') }}"
                          data-compose--template-picker-save-url-value="{{ path('app_compose_templates_save_draft') }}"
@@ -1153,21 +1161,6 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                     md:left-auto md:right-3 md:w-[30rem] z-30 popover overflow-hidden"></div>
                     </div>
 
-                    {# ── More options ──────────────────────────────────
-                       Same dropdown shape as the schedule menu above: a `menu`
-                       target that starts hidden and `bottom-full` so it opens
-                       upwards out of a window already at the bottom of the
-                       screen. Like the emoji panel it has no `relative` wrapper
-                       of its own, so it anchors to the toolbar block instead of
-                       to a button whose x depends on where the row wrapped.
-
-                       The two form fields inside it are REAL widgets, not
-                       decoration. ComposeType maps both onto the Message and
-                       the window renders with `render_rest: false`, so until
-                       they are drawn here every autosave binds priority to null
-                       and readReceiptRequested to false — that is, the menu
-                       being rendered is what makes the fields exist at all.
-                       They ride the existing draft/send POSTs; no new route. #}
                     {# ── Help me write ────────────────────────────────────
                        Rendered only where an administrator switched it on, and
                        asked through a Twig FUNCTION rather than a variable: this
@@ -1181,7 +1174,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        exists, which is exactly when somebody is most likely to
                        ask for a first draft. #}
                     {% if ai_writing_help_enabled() %}
-                        <div data-controller="ui--dropdown compose--ai-assist"
+                        <div data-controller="ui--dropdown compose--ai-assist" data-compose--action-overflow-target="item" data-ui--dropdown-place-value="above"
                              data-compose--encryption-target="aiAssist"
                              data-compose--ai-assist-url-value="{{ path('app_compose_assist_stream') }}"
                              {# ctx.replyTo, not a variable of our own: the context object is what
@@ -1519,7 +1512,78 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                         </div>
                     {% endif %}
 
-                    <div data-controller="ui--dropdown">
+                    {# Attach from a connected service. Sized to what the user
+                       actually has: nothing at all with no connections, the
+                       provider's own button with one, a menu only once there
+                       is a choice to make. #}
+                    {% if pickerIntegrations|length == 1 %}
+                        {% set only = pickerIntegrations|first %}
+                        <button type="button" data-compose--action-overflow-target="item"
+                                aria-label="{{ 'integration.picker.attach_from'|trans({ '%name%': only.name }) }}"
+                                data-controller="ui--modal"
+                                data-ui--modal-title-value="{{ only.name }}"
+                                data-ui--modal-size-value="{{ only.provider.isMediaLibrary ? 'full' : 'wide' }}"
+                                data-integration-id="{{ only.id }}"
+                                data-action="click->compose--compose#openIntegrationPicker"
+                                title="{{ 'integration.picker.attach_from'|trans({ '%name%': only.name }) }}"
+                                class="{{ ic }}"><i class="{{ only.provider.icon }}"></i></button>
+                    {% elseif pickerIntegrations|length > 1 %}
+                        <div data-controller="ui--dropdown" data-compose--action-overflow-target="item" data-ui--dropdown-place-value="above">
+                            <button type="button"
+                                    data-action="click->ui--dropdown#toggle"
+                                    aria-label="{{ 'integration.picker.attach_from_service'|trans }}"
+                                    title="{{ 'integration.picker.attach_from_service'|trans }}"
+                                    class="{{ ic }}"><i class="fa-solid fa-cloud-arrow-down"></i></button>
+                            {# Anchored to the toolbar block, same as the more-
+                               options menu above and for the same reason: this
+                               button is in the wrapping row too, and a menu
+                               anchored to it lands wherever the row wrapped. #}
+                            <div data-ui--dropdown-target="menu" hidden
+                                 data-enter="rise"
+                                 class="absolute bottom-full mb-2 left-2 right-2
+                                        md:left-auto md:right-3 md:w-64 z-30 popover py-1">
+                                {% for integration in pickerIntegrations %}
+                                    <button type="button"
+                                            data-controller="ui--modal"
+                                            data-ui--modal-title-value="{{ integration.name }}"
+                                            data-ui--modal-size-value="{{ integration.provider.isMediaLibrary ? 'full' : 'wide' }}"
+                                            data-integration-id="{{ integration.id }}"
+                                            data-action="click->compose--compose#openIntegrationPicker click->ui--dropdown#close"
+                                            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted hover:bg-hover hover:text-ink transition-colors text-left">
+                                        <i class="{{ integration.provider.icon }} w-4 text-center" aria-hidden="true"></i>
+                                        <span class="truncate">{{ integration.name }}</span>
+                                    </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <button type="button" data-compose--action-overflow-target="item"
+                            data-action="compose--compose#discard"
+                            title="{{ 'compose.discard'|trans }}"
+                            aria-label="{{ 'compose.discard'|trans }}"
+                            class="{{ ic }} hover:text-danger">
+                        <i class="fa-regular fa-trash-can" aria-hidden="true"></i>
+                    </button>
+
+                    {# ── More options ──────────────────────────────────
+                       Last in the row, where the icons that do not fit go.
+                       Same dropdown shape as the schedule menu above: a `menu`
+                       target that starts hidden and `bottom-full` so it opens
+                       upwards out of a window already at the bottom of the
+                       screen. Like the emoji panel it has no `relative` wrapper
+                       of its own, so it anchors to the toolbar block instead of
+                       to a button whose x depends on where the row wrapped.
+
+                       The two form fields inside it are REAL widgets, not
+                       decoration. ComposeType maps both onto the Message and
+                       the window renders with `render_rest: false`, so until
+                       they are drawn here every autosave binds priority to null
+                       and readReceiptRequested to false — that is, the menu
+                       being rendered is what makes the fields exist at all.
+                       They ride the existing draft/send POSTs; no new route. #}
+                    <div data-controller="ui--dropdown" data-ui--dropdown-place-value="above"
+                         data-compose--action-overflow-target="more">
                         <button type="button"
                                 data-action="click->ui--dropdown#toggle"
                                 title="{{ 'compose.more_options'|trans }}"
@@ -1551,6 +1615,12 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                              data-enter="rise"
                              class="absolute bottom-full mb-2 left-2 right-2
                                     md:left-auto md:right-3 md:w-64 z-30 popover py-1">
+
+                            {# The action bar's icons that did not fit beside
+                               this button, put here by compose--action-overflow
+                               in the order they stand in the bar. #}
+                            <div data-compose--action-overflow-target="list" hidden
+                                 class="pb-1 mb-1 border-b border-line"></div>
 
                             {# Plain text. A toggle, not a submit: what it
                                 changes is which surface the body lives in, and
@@ -1624,58 +1694,6 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                             </label>
                         </div>
                     </div>
-
-                    {# Attach from a connected service. Sized to what the user
-                       actually has: nothing at all with no connections, the
-                       provider's own button with one, a menu only once there
-                       is a choice to make. #}
-                    {% if pickerIntegrations|length == 1 %}
-                        {% set only = pickerIntegrations|first %}
-                        <button type="button"
-                                data-controller="ui--modal"
-                                data-ui--modal-title-value="{{ only.name }}"
-                                data-ui--modal-size-value="{{ only.provider.isMediaLibrary ? 'full' : 'wide' }}"
-                                data-integration-id="{{ only.id }}"
-                                data-action="click->compose--compose#openIntegrationPicker"
-                                title="{{ 'integration.picker.attach_from'|trans({ '%name%': only.name }) }}"
-                                class="{{ ic }}"><i class="{{ only.provider.icon }}"></i></button>
-                    {% elseif pickerIntegrations|length > 1 %}
-                        <div data-controller="ui--dropdown">
-                            <button type="button"
-                                    data-action="click->ui--dropdown#toggle"
-                                    title="{{ 'integration.picker.attach_from_service'|trans }}"
-                                    class="{{ ic }}"><i class="fa-solid fa-cloud-arrow-down"></i></button>
-                            {# Anchored to the toolbar block, same as the more-
-                               options menu above and for the same reason: this
-                               button is in the wrapping row too, and a menu
-                               anchored to it lands wherever the row wrapped. #}
-                            <div data-ui--dropdown-target="menu" hidden
-                                 data-enter="rise"
-                                 class="absolute bottom-full mb-2 left-2 right-2
-                                        md:left-auto md:right-3 md:w-64 z-30 popover py-1">
-                                {% for integration in pickerIntegrations %}
-                                    <button type="button"
-                                            data-controller="ui--modal"
-                                            data-ui--modal-title-value="{{ integration.name }}"
-                                            data-ui--modal-size-value="{{ integration.provider.isMediaLibrary ? 'full' : 'wide' }}"
-                                            data-integration-id="{{ integration.id }}"
-                                            data-action="click->compose--compose#openIntegrationPicker click->ui--dropdown#close"
-                                            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted hover:bg-hover hover:text-ink transition-colors text-left">
-                                        <i class="{{ integration.provider.icon }} w-4 text-center" aria-hidden="true"></i>
-                                        <span class="truncate">{{ integration.name }}</span>
-                                    </button>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    {% endif %}
-
-                    <button type="button"
-                            data-action="compose--compose#discard"
-                            title="{{ 'compose.discard'|trans }}"
-                            aria-label="{{ 'compose.discard'|trans }}"
-                            class="{{ ic }} hover:text-danger">
-                        <i class="fa-regular fa-trash-can" aria-hidden="true"></i>
-                    </button>
                 </div>
             </div>
 

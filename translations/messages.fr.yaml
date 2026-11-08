@@ -1866,6 +1866,7 @@ compose:
         left: Aligner à gauche
         right: Aligner à droite
     confirm:
+        discard: "Supprimer ce brouillon ? Cette action est irréversible."
         no_body: Ce message n’a pas de texte.
         no_subject: Ce message n’a pas d’objet.
         send_anyway: L’envoyer quand même ?

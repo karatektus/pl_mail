@@ -1,6 +1,7 @@
 import { test, expect, devices, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 import { lowerKeyboard, raiseKeyboard, raiseKeyboardResizingLayout } from "./support/keyboard";
+import { deleteDraft } from "./support/compose";
 
 /**
  * The compose window on a phone.
@@ -395,15 +396,17 @@ test.describe("mobile compose window", () => {
         expect(scrollers, JSON.stringify(scrollers)).toEqual([]);
     });
 
-    // Every icon reachable without a gesture, because the row wraps. Redo is
-    // the far end of the format bar and Delete draft the far end of the icon
-    // row; if either is off screen, something is scrolling that should wrap.
+    // Every icon reachable without a gesture. Redo is the far end of the
+    // format bar, which wraps, and More options the far end of the icon row,
+    // which does not: what does not fit beside it is folded into it
+    // (compose--action-overflow). If either is off screen, something is
+    // scrolling or overflowing that should wrap or fold.
     test("keeps both ends of both toolbar rows on screen", async ({ page }) => {
         await openCompose(page);
 
         const viewport = page.viewportSize()!;
 
-        for (const name of ["Redo", "Delete draft"]) {
+        for (const name of ["Redo", "More options"]) {
             const button = page.locator(composeWindow).getByRole("button", { name });
 
             await expect(button).toBeVisible();
@@ -485,7 +488,7 @@ test.describe("mobile compose window", () => {
         expect((await send.boundingBox())!.y).toBeCloseTo(sendBefore.y, 0);
 
         // Written into the body, so a draft exists now — take it back out.
-        await page.locator(composeWindow).getByRole("button", { name: "Delete draft" }).click();
+        await deleteDraft(page.locator(composeWindow));
         await expect(page.locator(composeWindow)).toBeHidden();
     });
 

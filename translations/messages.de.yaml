@@ -1877,6 +1877,7 @@ compose:
         left: Linksbündig ausrichten
         right: Rechtsbündig ausrichten
     confirm:
+        discard: "Diesen Entwurf löschen? Das lässt sich nicht rückgängig machen."
         no_body: Diese Nachricht hat keinen Text.
         no_subject: Diese Nachricht hat keinen Betreff.
         send_anyway: Trotzdem senden?

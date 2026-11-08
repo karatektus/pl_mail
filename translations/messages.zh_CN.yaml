@@ -1617,6 +1617,7 @@ compose:
         left: 左对齐
         right: 右对齐
     confirm:
+        discard: "删除此草稿？此操作无法撤销。"
         no_body: 此邮件没有正文。
         no_subject: 此邮件没有主题。
         send_anyway: 仍要发送吗？

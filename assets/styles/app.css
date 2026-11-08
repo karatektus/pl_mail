@@ -4403,6 +4403,32 @@ html {
     display: none;
 }
 
+/* Minimized is the title bar alone. The window's height is fixed since #507
+   (`h-[var(--compose-h,600px)]`), so hiding the body left a full-height window
+   with nothing in it; the minimized window sizes to its header again. Above
+   md only: below it the window is the whole screen and cannot be minimized. */
+@media (min-width: 768px) {
+    .compose-window[data-compose--compose-minimized-value="true"] {
+        height: auto;
+    }
+}
+
+/* An action bar icon folded into ⋮ (compose--action-overflow). A button goes;
+   a dropdown keeps its wrapper in the page, because its menu is inside it and
+   opens over ⋮ instead, and only its own button goes. The wrapper makes no box
+   of its own, so the bar's gap leaves no hole where it was — and, unlike a
+   zero-sized positioned box, it does not become the containing block of what
+   it holds: the writing assistant's live panel is anchored to the toolbar
+   block, and squeezed into a 0×0 wrapper it was not on screen at all. */
+[data-overflowed]:not([data-controller~="ui--dropdown"]),
+[data-overflowed][data-controller~="ui--dropdown"] > button {
+    display: none !important;
+}
+
+[data-overflowed][data-controller~="ui--dropdown"] {
+    display: contents;
+}
+
 .compose-resizing,
 .compose-resizing * {
     cursor: nwse-resize !important;

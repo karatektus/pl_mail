@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { test, expect } from "./support/test";
 import { seed } from "./support/config";
+import { deleteDraft } from "./support/compose";
 
 /**
  * The attachment chip's download half, end to end: a click produces a file.
@@ -61,7 +62,7 @@ test("an inline image is not counted as an attachment", async ({ page }) => {
 
     // The upload forced a save, so this spec owns a draft now. Take it away
     // again rather than leaving it for the next run to find.
-    await dock.getByRole("button", { name: "Delete draft" }).click();
+    await deleteDraft(dock);
 });
 
 /**
@@ -100,7 +101,7 @@ test("clicking a picture attached to a draft previews it instead of downloading"
     await page.keyboard.press("Escape");
     await expect(page.locator("#modal img")).toHaveCount(0);
 
-    await dock.getByRole("button", { name: "Delete draft" }).click();
+    await deleteDraft(dock);
 });
 
 test("downloading an attachment produces the file", async ({ page }) => {

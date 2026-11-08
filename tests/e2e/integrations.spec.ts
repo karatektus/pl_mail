@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "./support/test";
 import { TEST_ADMIN, login, seed, seedUser } from "./support/config";
 import { acceptConfirm } from "./support/confirm";
+import { pressAction } from "./support/compose";
 
 /**
  * The admin side of integrations: every provider is listed with its own
@@ -507,11 +508,13 @@ test.describe("compose integration picker", () => {
         await page.goto("/mail/inbox");
         await page.getByRole("link", { name: "Compose" }).click();
 
-        // One connection means a button, not a menu.
+        // One connection means a button, not a menu. Pressed through
+        // pressAction: with the cloud icon added, the dock's action bar may
+        // have folded it into More options.
         const button = page.locator(`${dock} [data-integration-id]`);
         await expect(button).toHaveCount(1);
 
-        await button.click();
+        await pressAction(page.locator(dock), "Attach from Home cloud");
 
         // The draft is force-saved on the way in, so the picker knows which
         // message to attach to before it renders. cloud.example.com is
