@@ -1716,7 +1716,17 @@ export default class extends Controller {
 
         // preventScroll: inside the thread pane, a plain focus() yanks the
         // conversation to the top the moment the card mounts.
-        editor.focus({ preventScroll: true });
+        //
+        // _quietFocus: this is the window putting the caret in the text as it
+        // opens, not somebody clicking into it, so the attachment strip stays
+        // open (see collapseAttachments). A reply that arrives with a file on
+        // it, the signed copy of a PDF for one, has to show that file.
+        this._quietFocus = true;
+        try {
+            editor.focus({ preventScroll: true });
+        } finally {
+            this._quietFocus = false;
+        }
 
         // Fullscreen is fixed to the viewport — there is nothing to scroll to.
         if (true === this.inlineValue && false === this._isMobile()) {
@@ -4200,8 +4210,18 @@ export default class extends Controller {
      * gets the room the chips and the Image size row were taking. Nothing to
      * fold while the draft has no files and no pictures (the partial renders
      * no summary then).
+     *
+     * Not on the focus the window gives the text itself when it opens
+     * (_focusCursorAtTop): that fired on every reply and every reopened
+     * draft, so a window that came with files showed them folded away before
+     * anybody had written a word. The focus event is dispatched inside the
+     * focus() call, which is what lets a flag around it tell the two apart.
      */
     collapseAttachments(event) {
+        if (true === this._quietFocus) {
+            return;
+        }
+
         const summary = true === this.hasAttachmentsTarget
             ? this.attachmentsTarget.querySelector('[data-attachments-summary]')
             : null;
