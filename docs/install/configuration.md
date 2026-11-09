@@ -106,7 +106,7 @@ reads them directly when it assembles `DATABASE_URL`.
 
 | Variable | What it does | Default | If it is wrong |
 |---|---|---|---|
-| `SERVER_NAME` | The hostname Caddy serves, inside the `php` container. | `localhost, :443, php:80` | Caddy decides whether to terminate TLS from this. The default serves every name and address the machine is reached at with a self-signed certificate. `:80` serves plain HTTP, which is what you want behind a reverse proxy. A hostname makes Caddy try to obtain a certificate for it, and is then the only name served. |
+| `SERVER_NAME` | The hostname Caddy serves, inside the `php` container. | `localhost, :443, php:80` | Caddy decides whether to terminate TLS from this. The default serves every name and address the machine is reached at with a self-signed certificate. `:80` serves plain HTTP, which is what you want behind a reverse proxy. A hostname makes Caddy try to obtain a certificate for it, and is then the only name served. An IP address works the same way with a self-signed certificate for that address (fixed in v0.4.3; before, a browser got an SSL protocol error). To keep answering every name, keep `:443` in the list, and keep `localhost` beside it: `:443` alone has no certificate to offer. A changed value takes effect on `docker compose up -d`, not on `docker compose restart`, which keeps the old environment. |
 | `HTTP_PORT` | Host port mapped to container port 80/tcp. | `80` | A port already in use stops the `php` container from starting. |
 | `HTTPS_PORT` | Host port mapped to container port 443/tcp. | `443` | As above. |
 | `HTTP3_PORT` | Host port mapped to container port 443/udp. | `443` | Only matters if you serve HTTP/3 directly. |

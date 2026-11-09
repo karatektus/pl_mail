@@ -42,6 +42,13 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		[ -n "${MERCURE_UPSTREAM:-}" ] || export MERCURE_UPSTREAM='127.0.0.1:3000'
 	fi
 
+	# ── Certificate for handshakes that name no host ───────────────────────
+	# Browsers send no server name to an IP address, so a SERVER_NAME that is
+	# the machine's address needs that address's certificate as the default,
+	# not localhost's (#485; the reasoning is in tls-default-sni). Only where
+	# nothing was set, and after the all-in-one default above, which it reads.
+	[ -n "${TLS_DEFAULT_SNI:-}" ] || export TLS_DEFAULT_SNI="$(tls-default-sni "${SERVER_NAME:-localhost}")"
+
 	# ── Generated secrets ──────────────────────────────────────────────────
 	# A fresh install must not come up on the secrets committed to the repo.
 	# APP_ENCRYPTION_KEY in particular is all that stands between a stolen
