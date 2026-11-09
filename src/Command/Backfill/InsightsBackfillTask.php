@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Backfill;
 
 use App\Entity\Mail\Message;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Insight\InsightHarvester;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,9 +37,9 @@ final readonly class InsightsBackfillTask implements WindowedBackfillTaskInterfa
     private const int BATCH_SIZE = 200;
 
     public function __construct(
-        private MessageRepository $messages,
+        private MessageBackfillRepository $messageBackfillRepository,
         private InsightHarvester $harvester,
-        private EntityManagerInterface $em,
+        private EntityManagerInterface $em
     ) {
     }
 
@@ -60,7 +60,7 @@ final readonly class InsightsBackfillTask implements WindowedBackfillTaskInterfa
 
     public function runSince(SymfonyStyle $io, ?DateTimeImmutable $since): int
     {
-        $total = $this->messages->countReceivedSince($since);
+        $total = $this->messageBackfillRepository->countReceivedSince($since);
 
         if (0 === $total) {
             $io->success('No mail to read.');
@@ -75,7 +75,7 @@ final readonly class InsightsBackfillTask implements WindowedBackfillTaskInterfa
 
         while (true) {
             /** @var list<Message> $batch */
-            $batch = $this->messages->receivedSince($since, $lastId, self::BATCH_SIZE);
+            $batch = $this->messageBackfillRepository->receivedSince($since, $lastId, self::BATCH_SIZE);
 
             if (0 === count($batch)) {
                 break;

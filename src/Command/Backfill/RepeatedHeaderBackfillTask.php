@@ -9,7 +9,7 @@ use App\Domain\Helper\MessageParser;
 use App\Domain\Helper\RawMessageStorage;
 use App\Domain\Helper\RepeatedHeaderHelper;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Mail\MailBodySanitizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -62,11 +62,11 @@ final readonly class RepeatedHeaderBackfillTask implements BackfillTaskInterface
     private const int BATCH_SIZE = 100;
 
     public function __construct(
-        private MessageRepository      $messages,
+        private MessageBackfillRepository $messageBackfillRepository,
         private RawMessageStorage      $rawStorage,
         private MailBodySanitizer      $sanitizer,
         private EntityManagerInterface $em,
-        private LoggerInterface        $logger,
+        private LoggerInterface        $logger
     ) {}
 
     public function getName(): string
@@ -81,7 +81,7 @@ final readonly class RepeatedHeaderBackfillTask implements BackfillTaskInterface
 
     public function run(SymfonyStyle $io): int
     {
-        $total = $this->messages->countImapWithStoredRaw();
+        $total = $this->messageBackfillRepository->countImapWithStoredRaw();
 
         if (0 === $total) {
             $io->success('Nothing to read — no IMAP message has its original stored.');
@@ -95,7 +95,7 @@ final readonly class RepeatedHeaderBackfillTask implements BackfillTaskInterface
         $repaired = 0;
 
         while (true) {
-            $messages = $this->messages->findImapWithStoredRaw($lastId, self::BATCH_SIZE);
+            $messages = $this->messageBackfillRepository->findImapWithStoredRaw($lastId, self::BATCH_SIZE);
 
             if (count($messages) === 0) {
                 break;

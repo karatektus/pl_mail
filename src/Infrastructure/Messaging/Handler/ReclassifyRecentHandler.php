@@ -10,7 +10,7 @@ use App\Entity\Job\BackgroundJob;
 use App\Entity\Ai\AiFeature;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Infrastructure\Messaging\Message\ReclassifyRecentMessage;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
 use App\Repository\User\User\UserRepository;
 use App\Service\Job\JobNotifier;
 use App\Service\Ai\AiPermissions;
@@ -58,13 +58,13 @@ final readonly class ReclassifyRecentHandler
 
     public function __construct(
         private UserRepository         $users,
-        private MessageRepository      $messages,
+        private MessageAiRepository $messageAiRepository,
         private AiPermissions          $permissions,
         private ClassifyMailHandler    $classify,
         private JobNotifier            $jobs,
         private ProcessHeartbeatService $heartbeats,
         private EntityManagerInterface $em,
-        private LoggerInterface        $logger,
+        private LoggerInterface        $logger
     ) {
     }
 
@@ -76,7 +76,7 @@ final readonly class ReclassifyRecentHandler
             return;
         }
 
-        $ids = $this->messages->findRecentIdsForUser($message->userId, $message->limit);
+        $ids = $this->messageAiRepository->findRecentIdsForUser($message->userId, $message->limit);
 
         // A JOB ROW, so this can be watched.
         //

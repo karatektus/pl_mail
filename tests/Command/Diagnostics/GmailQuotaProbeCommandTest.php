@@ -8,7 +8,7 @@ use App\Command\Diagnostics\GmailQuotaProbeCommand;
 use App\Domain\Enum\Account\AuthType;
 use App\Entity\Mail\Account;
 use App\Repository\Mail\Account\AccountRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\OAuth\OAuthTokenManager;
 use PHPUnit\Framework\TestCase;
@@ -153,7 +153,7 @@ final class GmailQuotaProbeCommandTest extends TestCase
         $accounts = $this->createStub(AccountRepository::class);
         $accounts->method('findBy')->willReturn(true === $account->isGmail() ? [$account] : []);
 
-        $messages = $this->createStub(MessageRepository::class);
+        $messages = $this->createStub(MessageProviderIdRepository::class);
         $messages->method('findSomeGmailIdsForAccount')->willReturn($ids);
 
         $tokens = $this->createStub(OAuthTokenManager::class);

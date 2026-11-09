@@ -13,6 +13,7 @@ use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\ApplyLabelStructureHandler;
 use App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage;
+use App\Repository\Mail\Message\MessageLabelRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\RemoteLabelRemover;
 use App\Service\Mail\GraphApiClient;
@@ -227,7 +228,7 @@ final class GraphLabelDeleteTest extends KernelTestCase
         return new ApplyLabelStructureHandler(
             $container->get('App\Repository\Mail\Account\AccountRepository'),
             $container->get('App\Repository\Label\Label\LabelRepository'),
-            $container->get('App\Repository\Mail\Message\MessageRepository'),
+            self::getContainer()->get(MessageLabelRepository::class),
             $container->get('messenger.default_bus'),
             $container->get('App\Service\Graph\GraphCategoryColorMapper'),
             $container->get('App\Service\Gmail\GmailLabelColorMapper'),

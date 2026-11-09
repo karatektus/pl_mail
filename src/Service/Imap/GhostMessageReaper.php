@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Imap;
 
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Mail\MessageEraser;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -38,10 +39,10 @@ readonly class GhostMessageReaper
     private const int REAP_BATCH = 100;
 
     public function __construct(
-        private MessageRepository      $messages,
+        private MessageImapRepository $messageImapRepository,
         private MessageEraser          $eraser,
         private EntityManagerInterface $em,
-        private LoggerInterface        $logger,
+        private LoggerInterface        $logger
     ) {}
 
     /**
@@ -65,7 +66,7 @@ readonly class GhostMessageReaper
             return 0;
         }
 
-        $ghosts = $this->messages->findEpochGhosts(self::REAP_BATCH);
+        $ghosts = $this->messageImapRepository->findEpochGhosts(self::REAP_BATCH);
 
         if ([] === $ghosts) {
             return 0;

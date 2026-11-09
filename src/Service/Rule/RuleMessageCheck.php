@@ -8,7 +8,7 @@ use App\Domain\Enum\Mail\CategoryFiling;
 use App\Entity\Mail\Message;
 use App\Entity\Rule\MailRule;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageFilterRepository;
 use App\Repository\Rule\MailRule\MailRuleRepository;
 use Psr\Log\LoggerInterface;
 
@@ -31,11 +31,11 @@ final readonly class RuleMessageCheck
 {
     public function __construct(
         private MailRuleRepository      $rules,
-        private MessageRepository       $messages,
+        private MessageFilterRepository $messageFilterRepository,
         private RuleConditions          $conditions,
         private RuleCategoryFiler       $categoryFiler,
         private InboxCategoryRepository $categories,
-        private LoggerInterface         $logger,
+        private LoggerInterface         $logger
     ) {}
 
     /**
@@ -72,7 +72,7 @@ final readonly class RuleMessageCheck
             }
 
             try {
-                $matches = [] !== $this->messages->matchingIds(
+                $matches = [] !== $this->messageFilterRepository->matchingIds(
                     [(int) $message->id],
                     $this->conditions->compile($rule),
                 );

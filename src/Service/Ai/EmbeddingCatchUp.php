@@ -9,7 +9,7 @@ use App\Entity\Ai\AiFeature;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\EmbedMessagesMessage;
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -86,13 +86,13 @@ final readonly class EmbeddingCatchUp
     private const int QUIET_SECONDS = 300;
 
     public function __construct(
-        private MessageRepository      $messages,
+        private MessageAiRepository $messageAiRepository,
         private AiPermissions          $permissions,
         private AiSettingsRepository   $settings,
         private BackfillPolicy         $policy,
         private MessageBusInterface    $bus,
         private CacheItemPoolInterface $cache,
-        private LoggerInterface        $logger,
+        private LoggerInterface        $logger
     ) {
     }
 
@@ -180,7 +180,7 @@ final readonly class EmbeddingCatchUp
 
         $model = (string) $this->settings->currentOrDefault()->embeddingModel;
 
-        $ids = $this->messages->unembeddedIdsForUser($userId, $model, $limit);
+        $ids = $this->messageAiRepository->unembeddedIdsForUser($userId, $model, $limit);
 
         if ([] === $ids) {
             return 0;

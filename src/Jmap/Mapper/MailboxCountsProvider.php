@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\Mapper;
 
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageLabelRepository;
 
 /**
  * Loads every Mailbox count for one account in a single grouped query per
@@ -17,7 +18,7 @@ use App\Repository\Mail\Message\MessageRepository;
 final class MailboxCountsProvider
 {
     public function __construct(
-        private readonly MessageRepository $messages,
+        private readonly MessageLabelRepository $messageLabelRepository
     ) {
     }
 
@@ -37,10 +38,10 @@ final class MailboxCountsProvider
 
         return new MailboxCounts(
             true === $wants('totalEmails', 'unreadEmails')
-                ? $this->messages->countEmailsPerLabelForAccount($accountId, $labelIds)
+                ? $this->messageLabelRepository->countEmailsPerLabelForAccount($accountId, $labelIds)
                 : [],
             true === $wants('totalThreads', 'unreadThreads')
-                ? $this->messages->countThreadsPerLabelForAccount($accountId, $labelIds)
+                ? $this->messageLabelRepository->countThreadsPerLabelForAccount($accountId, $labelIds)
                 : [],
         );
     }

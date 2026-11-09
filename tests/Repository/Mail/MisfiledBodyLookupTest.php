@@ -10,7 +10,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -30,7 +30,7 @@ final class MisfiledBodyLookupTest extends KernelTestCase
 {
     private EntityManagerInterface $em;
     private Connection $connection;
-    private MessageRepository $repository;
+    private MessageBackfillRepository $messageBackfillRepository;
     private Account $account;
 
     protected function setUp(): void
@@ -40,7 +40,7 @@ final class MisfiledBodyLookupTest extends KernelTestCase
         $container        = self::getContainer();
         $this->em         = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
-        $this->repository = $container->get(MessageRepository::class);
+        $this->messageBackfillRepository = $container->get(MessageBackfillRepository::class);
 
         $this->connection->beginTransaction();
 
@@ -129,8 +129,8 @@ final class MisfiledBodyLookupTest extends KernelTestCase
         // Both halves of a multipart/alternative misfiled: still one message.
         $this->seedPart($message, 'text/plain', 'a1b2c3d4');
 
-        self::assertSame(1, $this->repository->countWithMisfiledBodyPart());
-        self::assertCount(1, $this->repository->findWithMisfiledBodyPart(0, 50));
+        self::assertSame(1, $this->messageBackfillRepository->countWithMisfiledBodyPart());
+        self::assertCount(1, $this->messageBackfillRepository->findWithMisfiledBodyPart(0, 50));
     }
 
     /**
@@ -138,7 +138,7 @@ final class MisfiledBodyLookupTest extends KernelTestCase
      */
     private function foundIds(): array
     {
-        $found = $this->repository->findWithMisfiledBodyPart(0, 50);
+        $found = $this->messageBackfillRepository->findWithMisfiledBodyPart(0, 50);
 
         return array_map(static fn(Message $m): ?int => $m->id, $found);
     }

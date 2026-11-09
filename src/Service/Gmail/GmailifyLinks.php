@@ -8,7 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Message;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -34,11 +34,11 @@ final readonly class GmailifyLinks
     private const int BATCH_SIZE = 200;
 
     public function __construct(
-        private MessageRepository       $messages,
+        private MessageImapRepository $messageImapRepository,
         private GmailLabelPolicy        $labelPolicy,
         private ThreadLabelSynchronizer $threadLabels,
         private StateManager            $stateManager,
-        private EntityManagerInterface  $em,
+        private EntityManagerInterface  $em
     ) {}
 
     /** Whether a row is a sibling's own IMAP copy that a Gmail mailbox carries. */
@@ -105,7 +105,7 @@ final readonly class GmailifyLinks
         $afterId  = 0;
 
         while (true) {
-            $rows = $this->messages->findImapCopiesCarried($carrierId, $afterId, self::BATCH_SIZE);
+            $rows = $this->messageImapRepository->findImapCopiesCarried($carrierId, $afterId, self::BATCH_SIZE);
 
             if (0 === count($rows)) {
                 break;

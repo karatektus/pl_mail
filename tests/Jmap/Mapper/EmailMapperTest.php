@@ -15,7 +15,7 @@ use App\Jmap\Mapper\MailboxCounts;
 use App\Jmap\Mapper\MailboxMapper;
 use App\Jmap\Query\EmailFilterCompiler;
 use App\Repository\Label\LabelBinding\LabelBindingRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageFilterRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -39,7 +39,7 @@ final class EmailMapperTest extends KernelTestCase
     private EntityManagerInterface $em;
     private Connection $connection;
     private LabelBindingRepository $bindings;
-    private MessageRepository $messages;
+    private MessageFilterRepository $messageFilterRepository;
     private EmailMapper $mapper;
 
     private Account $account;
@@ -66,7 +66,7 @@ final class EmailMapperTest extends KernelTestCase
         $this->em = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
         $this->bindings = $container->get(LabelBindingRepository::class);
-        $this->messages = $container->get(MessageRepository::class);
+        $this->messageFilterRepository = $container->get(MessageFilterRepository::class);
         $this->mapper = $container->get(EmailMapper::class);
 
         // Never committed, so the suite leaves nothing behind and can be run
@@ -163,7 +163,7 @@ final class EmailMapperTest extends KernelTestCase
         $messageId = (int) $this->message->id;
 
         foreach (array_keys($this->mailboxIds($this->account)) as $mailboxId) {
-            $matched = $this->messages->matchingIds(
+            $matched = $this->messageFilterRepository->matchingIds(
                 [$messageId],
                 $compiler->compile(['inMailbox' => $mailboxId]),
             );

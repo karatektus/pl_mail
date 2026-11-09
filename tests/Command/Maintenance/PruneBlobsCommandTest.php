@@ -7,7 +7,7 @@ namespace App\Tests\Command\Maintenance;
 use App\Command\Maintenance\PruneBlobsCommand;
 use App\Domain\Helper\UploadStorage;
 use App\Repository\Mail\MessagePart\MessagePartRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Repository\Mail\UploadedBlob\UploadedBlobRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
@@ -246,7 +246,7 @@ final class PruneBlobsCommandTest extends TestCase
             static fn (array $ids): array => array_fill_keys(array_values(array_intersect($ids, $existingParts)), true),
         );
 
-        $messages = $this->createStub(MessageRepository::class);
+        $messages = $this->createStub(MessageBackfillRepository::class);
         $messages->method('findReferencedRawPaths')->willReturn($raw);
 
         return new CommandTester(new PruneBlobsCommand(

@@ -20,6 +20,7 @@ use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Label\LabelChangePropagator;
@@ -138,7 +139,7 @@ final class RuleActionExecutorFileInCategoryTest extends TestCase
                 $this->createStub(LabelRepository::class),
                 new GraphLabelPolicy(),
                 new NullLogger(),
-                $this->createStub(MessageRepository::class),
+                $this->createStub(MessageImapRepository::class),
                 new LabelResolver(
                     $this->createStub(LabelRepository::class),
                     $this->createStub(LabelBindingRepository::class),

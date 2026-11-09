@@ -7,7 +7,7 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Infrastructure\Messaging\Message\ResortMailboxMessage;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Contact\ContactRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Repository\User\User\UserRepository;
 use App\Jmap\State\StateManager;
@@ -45,14 +45,14 @@ final readonly class ResortMailboxHandler
     public function __construct(
         private UserRepository          $users,
         private AccountRepository       $accounts,
-        private MessageRepository       $messages,
+        private MessageAiRepository $messageAiRepository,
         private MessageThreadRepository $threads,
         private ContactRepository       $contacts,
         private MessageCategorizer      $categorizer,
         private EntityManagerInterface  $em,
         private ProcessHeartbeatService $heartbeats,
         private LoggerInterface         $logger,
-        private StateManager            $stateManager,
+        private StateManager            $stateManager
     ) {
     }
 
@@ -76,7 +76,7 @@ final readonly class ResortMailboxHandler
                 // `true` for includeCategorized: every message, not only the
                 // ones without a category. A re-sort that skipped the mail that
                 // already has one would re-sort nothing at all.
-                $batch = $this->messages->findPendingCategorization($accountId, true, $lastId, self::BATCH_SIZE);
+                $batch = $this->messageAiRepository->findPendingCategorization($accountId, true, $lastId, self::BATCH_SIZE);
 
                 if ([] === $batch) {
                     break;

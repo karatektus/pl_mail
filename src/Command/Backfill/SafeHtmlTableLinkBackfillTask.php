@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Mail\MailBodySanitizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -34,9 +34,9 @@ final readonly class SafeHtmlTableLinkBackfillTask implements BackfillTaskInterf
     private const int BATCH_SIZE = 100;
 
     public function __construct(
-        private MessageRepository      $messageRepository,
+        private MessageBackfillRepository $messageBackfillRepository,
         private MailBodySanitizer      $bodySanitizer,
-        private EntityManagerInterface $em,
+        private EntityManagerInterface $em
     ) {}
 
     public function getName(): string
@@ -51,7 +51,7 @@ final readonly class SafeHtmlTableLinkBackfillTask implements BackfillTaskInterf
 
     public function run(SymfonyStyle $io): int
     {
-        $total = $this->messageRepository->countWithTableAfterLink();
+        $total = $this->messageBackfillRepository->countWithTableAfterLink();
 
         if (0 === $total) {
             $io->success('Nothing to repair — no stored HTML body has a table after a link.');
@@ -66,7 +66,7 @@ final readonly class SafeHtmlTableLinkBackfillTask implements BackfillTaskInterf
         $repaired  = 0;
 
         while (true) {
-            $messages = $this->messageRepository->findWithTableAfterLink($lastId, self::BATCH_SIZE);
+            $messages = $this->messageBackfillRepository->findWithTableAfterLink($lastId, self::BATCH_SIZE);
 
             if (count($messages) === 0) {
                 break;

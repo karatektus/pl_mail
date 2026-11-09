@@ -15,7 +15,7 @@ use App\Entity\Mail\PurgedCopy;
 use App\Infrastructure\ImapClient\ImapSession;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use Doctrine\ORM\EntityManagerInterface;
@@ -65,12 +65,12 @@ final readonly class ImapCopies
     private const int INDEX_PAGE = 500;
 
     public function __construct(
-        private MessageRepository       $messages,
+        private MessageImapRepository $messageImapRepository,
         private StateManager            $stateManager,
         private ThreadLabelSynchronizer $threadLabels,
         private LabelResolver           $labelResolver,
         private EntityManagerInterface  $em,
-        private LoggerInterface         $logger,
+        private LoggerInterface         $logger
     ) {
     }
 
@@ -97,7 +97,7 @@ final readonly class ImapCopies
         foreach (array_chunk($identities, self::INDEX_PAGE, true) as $page) {
             $messageIds = array_values(array_unique(array_filter(array_map(static fn (ImapCopyIdentity $copy): string => $copy->messageId, $page))));
             $serverIds  = array_values(array_unique(array_filter(array_map(static fn (ImapCopyIdentity $copy): ?string => $copy->serverId, $page))));
-            $candidates = $this->messages->findCopyCandidates($mailbox->account, $messageIds, $serverIds);
+            $candidates = $this->messageImapRepository->findCopyCandidates($mailbox->account, $messageIds, $serverIds);
             $purged     = $this->purgedEmails($mailbox, $messageIds, $serverIds);
 
             if ([] === $candidates && [] === $purged) {

@@ -10,6 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use Doctrine\ORM\EntityManagerInterface;
@@ -44,6 +45,7 @@ final class MessageThreader
     public function __construct(
         private readonly EntityManagerInterface  $entityManager,
         private readonly MessageRepository       $messageRepository,
+        private readonly MessageThreadingRepository $messageThreadingRepository,
         private readonly MessageThreadRepository $messageThreadRepository,
         private readonly ThreadMerger            $threadMerger,
         private readonly ThreadLabelSynchronizer $threadLabels,
@@ -98,7 +100,7 @@ final class MessageThreader
         $referenceIds = $this->collectReferenceIds($message);
 
         if (count($referenceIds) > 0) {
-            $parentMessage = $this->messageRepository->findOneByMessageIdsForAccount($referenceIds, $account);
+            $parentMessage = $this->messageThreadingRepository->findOneByMessageIdsForAccount($referenceIds, $account);
 
             if ($parentMessage !== null && $parentMessage->thread !== null) {
                 $thread = $parentMessage->thread;
@@ -182,7 +184,7 @@ final class MessageThreader
             return;
         }
 
-        foreach ($this->messageRepository->findRepliesToForAccount($messageId, $account) as $reply) {
+        foreach ($this->messageThreadingRepository->findRepliesToForAccount($messageId, $account) as $reply) {
             $thread      = $message->thread;
             $replyThread = $reply->thread;
 
@@ -248,7 +250,7 @@ final class MessageThreader
 
         $joined = null;
 
-        foreach ($this->messageRepository->findRepliesToForAccount($rootId, $account) as $sibling) {
+        foreach ($this->messageThreadingRepository->findRepliesToForAccount($rootId, $account) as $sibling) {
             $siblingThread = $sibling->thread;
 
             if ($sibling === $message || null === $siblingThread || $siblingThread === $joined) {

@@ -6,6 +6,7 @@ namespace App\Jmap\Query;
 
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageJmapRepository;
 
 /**
  * Runs a compiled Email/query: filter -> sort -> optional thread collapse ->
@@ -32,8 +33,8 @@ final class EmailQueryRunner
     ];
 
     public function __construct(
-        private readonly MessageRepository $messages,
-        private readonly EmailFilterCompiler $filterCompiler,
+        private readonly MessageJmapRepository $messageJmapRepository,
+        private readonly EmailFilterCompiler $filterCompiler
     ) {
     }
 
@@ -57,7 +58,7 @@ final class EmailQueryRunner
     ): EmailQueryResult {
         $compiled = null === $filter ? null : $this->filterCompiler->compile($filter);
 
-        $ids = $this->messages->findIdsForQuery(
+        $ids = $this->messageJmapRepository->findIdsForQuery(
             $accountId,
             $compiled,
             $this->orderBy($sort),
@@ -68,7 +69,7 @@ final class EmailQueryRunner
 
         return new EmailQueryResult(
             $ids,
-            true === $calculateTotal ? $this->messages->countForQuery($accountId, $compiled, $collapseThreads) : null,
+            true === $calculateTotal ? $this->messageJmapRepository->countForQuery($accountId, $compiled, $collapseThreads) : null,
             $position,
         );
     }

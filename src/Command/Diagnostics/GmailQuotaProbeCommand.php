@@ -7,7 +7,7 @@ namespace App\Command\Diagnostics;
 use App\Domain\Enum\Account\AuthType;
 use App\Entity\Mail\Account;
 use App\Repository\Mail\Account\AccountRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\OAuth\OAuthTokenManager;
 use DateTimeImmutable;
@@ -88,11 +88,11 @@ final class GmailQuotaProbeCommand extends Command
 
     public function __construct(
         private readonly AccountRepository   $accounts,
-        private readonly MessageRepository   $messages,
+        private readonly MessageProviderIdRepository $messageProviderIdRepository,
         private readonly OAuthTokenManager   $tokens,
         private readonly HttpClientInterface $http,
         private readonly GmailQuotaPacer     $pacer,
-        private readonly ClockInterface      $clock,
+        private readonly ClockInterface      $clock
     ) {
         parent::__construct();
     }
@@ -124,7 +124,7 @@ final class GmailQuotaProbeCommand extends Command
         }
 
         $count = max(1, min(100, (int) $input->getOption('count')));
-        $ids   = $this->messages->findSomeGmailIdsForAccount($account, $count);
+        $ids   = $this->messageProviderIdRepository->findSomeGmailIdsForAccount($account, $count);
 
         if ([] === $ids) {
             $io->error('This account has no stored Gmail messages to fetch again. Let an import bring some in first.');

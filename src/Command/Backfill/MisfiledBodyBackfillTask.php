@@ -8,7 +8,7 @@ use App\Domain\Helper\CharsetHelper;
 use App\Domain\Interface\UpgradeTaskInterface;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\MailBodySanitizer;
@@ -56,14 +56,14 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
     private const int BATCH_SIZE = 100;
 
     public function __construct(
-        private MessageRepository       $messages,
+        private MessageBackfillRepository $messageBackfillRepository,
         private MessageThreadRepository $threads,
         private AttachmentResolver      $attachments,
         private MisfiledBodyDetector    $detector,
         private MisfiledBodyUnpacker    $unpacker,
         private MailBodySanitizer       $sanitizer,
         private EntityManagerInterface  $em,
-        private LoggerInterface         $logger,
+        private LoggerInterface         $logger
     ) {}
 
     /**
@@ -89,7 +89,7 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
 
     public function run(SymfonyStyle $io): int
     {
-        $total = $this->messages->countWithMisfiledBodyPart();
+        $total = $this->messageBackfillRepository->countWithMisfiledBodyPart();
 
         if (0 === $total) {
             $io->success('Nothing to repair — no message is missing a body this way.');
@@ -104,7 +104,7 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
         $skipped  = 0;
 
         while (true) {
-            $messages = $this->messages->findWithMisfiledBodyPart($lastId, self::BATCH_SIZE);
+            $messages = $this->messageBackfillRepository->findWithMisfiledBodyPart($lastId, self::BATCH_SIZE);
 
             if (count($messages) === 0) {
                 break;

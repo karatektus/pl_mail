@@ -8,9 +8,9 @@ use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Mail\CategoryFiling;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\InboxCategory;
-use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
@@ -18,6 +18,7 @@ use App\Jmap\Query\CompiledFilter;
 use App\Jmap\Query\EmailFilterCompiler;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\Message\MessageFilterRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Rule\MailRule\MailRuleRepository;
 use App\Service\Rule\RuleCategoryFiler;
@@ -149,7 +150,7 @@ final class RuleMessageCheckTest extends TestCase
 
         // "Matches" when the rule's subject condition is in the message's
         // subject — standing in for the SQL this cannot run.
-        $messages = $this->createStub(MessageRepository::class);
+        $messages = $this->createStub(MessageFilterRepository::class);
         $messages->method('matchingIds')->willReturnCallback(
             static fn (array $ids, CompiledFilter $filter): array => str_contains(
                 (string) $message->subject,

@@ -7,6 +7,8 @@ namespace App\Controller\Admin;
 use App\Domain\Enum\Ai\MetricWindow;
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageArrivalRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
 use App\Service\Monitoring\QueueMonitor;
 use App\Service\System\Work\BackgroundProcesses;
 use DateTimeImmutable;
@@ -52,10 +54,11 @@ final class PerformanceController extends AbstractController
     private const int SLOWEST_ROWS = 20;
 
     public function __construct(
-        private readonly MessageRepository    $messages,
+        private readonly MessageAiRepository $messageAiRepository,
+        private readonly MessageArrivalRepository $messageArrivalRepository,
         private readonly AiSettingsRepository $settings,
         private readonly QueueMonitor         $queues,
-        private readonly BackgroundProcesses  $processes,
+        private readonly BackgroundProcesses  $processes
     ) {
     }
 
@@ -74,10 +77,10 @@ final class PerformanceController extends AbstractController
             'windows' => MetricWindow::cases(),
             // Asked for here rather than fetched by the page: one indexed
             // lookup per account, over mail that is already in the database.
-            'lag'     => $this->messages->arrivalLagByAccount($since),
+            'lag'     => $this->messageArrivalRepository->arrivalLagByAccount($since),
             // And the slowest of them, one message to a row: which is where
             // "95% within 15 min" turns into spam collected on schedule.
-            'slowest' => $this->messages->slowestArrivals($since, self::SLOWEST_ROWS),
+            'slowest' => $this->messageArrivalRepository->slowestArrivals($since, self::SLOWEST_ROWS),
             'workers' => $this->workers(),
             // The model host's card is fetched by the page itself, the way
             // Admin → AI did it — a host that is switched off must not hold
@@ -87,8 +90,8 @@ final class PerformanceController extends AbstractController
             'hold'    => [
                 'enabled' => $settings->holdUntilClassified,
                 'ceiling' => $settings->holdSeconds(),
-                'stats'   => $this->messages->holdDelayStats($since),
-                'rows'    => $this->messages->holdDetails($since, self::DETAIL_ROWS),
+                'stats'   => $this->messageAiRepository->holdDelayStats($since),
+                'rows'    => $this->messageAiRepository->holdDetails($since, self::DETAIL_ROWS),
                 'limit'   => self::DETAIL_ROWS,
             ],
         ]);

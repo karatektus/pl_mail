@@ -7,7 +7,7 @@ namespace App\Jmap\Blob;
 use App\Entity\Mail\Account;
 use App\Domain\Helper\UploadStorage;
 use App\Repository\Mail\MessagePart\MessagePartRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageJmapRepository;
 use App\Repository\Mail\UploadedBlob\UploadedBlobRepository;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\MessageSourceBuilder;
@@ -25,14 +25,14 @@ use Psr\Log\LoggerInterface;
 final class BlobResolver
 {
     public function __construct(
-        private readonly MessageRepository $messageRepository,
+        private readonly MessageJmapRepository $messageJmapRepository,
         private readonly MessagePartRepository $partRepository,
         private readonly UploadedBlobRepository $uploadRepository,
         private readonly UploadStorage $uploadStorage,
         private readonly AttachmentResolver $attachmentResolver,
         private readonly MessageSourceBuilder $sourceBuilder,
         private readonly RawMessageResolver $rawResolver,
-        private readonly LoggerInterface $logger,
+        private readonly LoggerInterface $logger
     ) {
     }
 
@@ -114,7 +114,7 @@ final class BlobResolver
 
     private function message(Account $account, int $messageId): ?ResolvedBlob
     {
-        $messages = $this->messageRepository->findByAccountAndIds((int) $account->id, [$messageId]);
+        $messages = $this->messageJmapRepository->findByAccountAndIds((int) $account->id, [$messageId]);
         $message = $messages[0] ?? null;
 
         if (null === $message) {

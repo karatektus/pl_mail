@@ -9,6 +9,7 @@ use App\Domain\Exception\GmailApiException;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\MessageEraser;
 use App\Service\Mail\SyncOrigin;
@@ -62,6 +63,7 @@ final class GmailApiSyncer
     public function __construct(
         private readonly GmailApiClient         $apiClient,
         private readonly MessageRepository      $messageRepository,
+        private readonly MessageProviderIdRepository $messageProviderIdRepository,
         private readonly EntityManagerInterface $em,
         private readonly MessageBusInterface    $bus,
         private readonly LoggerInterface        $logger,
@@ -587,7 +589,7 @@ final class GmailApiSyncer
             return;
         }
 
-        $rows = $this->messageRepository->findByGmailIdsForUser($account->usr, $gmailIds);
+        $rows = $this->messageProviderIdRepository->findByGmailIdsForUser($account->usr, $gmailIds);
 
         if (0 === count($rows)) {
             return;
@@ -683,7 +685,7 @@ final class GmailApiSyncer
         // import waits out its whole attempt ceiling on mail that is not
         // coming. See GmailSkippedMessage.
         $known = array_flip([
-            ...$this->messageRepository->findStoredGmailIdsForUser($account->usr, $ids),
+            ...$this->messageProviderIdRepository->findStoredGmailIdsForUser($account->usr, $ids),
             ...$this->skipped->findGmailIdsAmong($account, $ids),
         ]);
 

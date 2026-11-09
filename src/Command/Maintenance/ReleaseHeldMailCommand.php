@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Maintenance;
 
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
 use App\Service\Mail\HeldMailReleaser;
 use DateTimeImmutable;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -42,9 +42,9 @@ final class ReleaseHeldMailCommand extends Command
     private const int GRACE_SECONDS = 15;
 
     public function __construct(
-        private readonly MessageRepository    $messages,
+        private readonly MessageAiRepository $messageAiRepository,
         private readonly AiSettingsRepository $settings,
-        private readonly HeldMailReleaser     $releaser,
+        private readonly HeldMailReleaser     $releaser
     ) {
         parent::__construct();
     }
@@ -54,7 +54,7 @@ final class ReleaseHeldMailCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         $ceiling = $this->settings->currentOrDefault()->holdSeconds() + self::GRACE_SECONDS;
-        $overdue = $this->messages->findHeldBefore(new DateTimeImmutable(sprintf('-%d seconds', $ceiling)));
+        $overdue = $this->messageAiRepository->findHeldBefore(new DateTimeImmutable(sprintf('-%d seconds', $ceiling)));
 
         if ([] === $overdue) {
             return Command::SUCCESS;

@@ -7,6 +7,9 @@ namespace App\Tests\Service\Gmail;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Gmail\GmailBackfillStep;
@@ -162,8 +165,9 @@ final class GmailImportPagingTest extends TestCase
         $tokens = $this->createStub(OAuthTokenManager::class);
         $tokens->method('getValidAccessToken')->willReturn('test-token');
 
-        $messages = $this->createStub(MessageRepository::class);
-        $messages->method('findStoredGmailIdsForUser')->willReturnCallback(
+        $messages    = $this->createStub(MessageRepository::class);
+        $providerIds = $this->createStub(MessageProviderIdRepository::class);
+        $providerIds->method('findStoredGmailIdsForUser')->willReturnCallback(
             static fn (\App\Entity\User\User $user, array $ids): array => array_values(array_intersect($synced, $ids)),
         );
 
@@ -175,14 +179,15 @@ final class GmailImportPagingTest extends TestCase
         return new GmailApiSyncer(
             new GmailApiClient($http, $tokens, new GmailQuotaPacer(new MockClock())),
             $messages,
+            $providerIds,
             $this->createStub(EntityManagerInterface::class),
             $bus,
             new NullLogger(),
             $this->createStub(MessageEraser::class),
             new SyncOrigin(),
-            $this->createStub(\App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository::class),
+            $this->createStub(GmailSkippedMessageRepository::class),
             new \App\Service\Gmail\GmailifyLinks(
-                $this->createStub(MessageRepository::class),
+                $this->createStub(MessageImapRepository::class),
                 new \App\Service\Gmail\GmailLabelPolicy(),
                 new \App\Service\Label\ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
                 new \App\Jmap\State\StateManager(

@@ -5,19 +5,20 @@ declare(strict_types=1);
 namespace App\Tests\Service\Rule;
 
 use App\Domain\Enum\Integration\Provider;
-use App\Entity\Mail\Account;
 use App\Entity\Integration\Integration;
-use App\Entity\Rule\MailRule;
+use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
+use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\UploadAttachmentsMessage;
-use App\Jmap\State\StateManager;
 use App\Jmap\State\ChangeLogRepository;
+use App\Jmap\State\StateManager;
 use App\Repository\Integration\Integration\IntegrationRepository;
 use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Label\LabelChangePropagator;
@@ -190,7 +191,7 @@ final class RuleActionExecutorIntegrationActionTest extends TestCase
                 $this->createStub(LabelRepository::class),
                 new GraphLabelPolicy(),
                 new NullLogger(),
-                $this->createStub(MessageRepository::class),
+                $this->createStub(MessageImapRepository::class),
                 new LabelResolver(
                     $this->createStub(LabelRepository::class),
                     $this->createStub(LabelBindingRepository::class),

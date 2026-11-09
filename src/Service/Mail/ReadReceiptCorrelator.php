@@ -9,7 +9,7 @@ use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Message;
 use App\Repository\Label\Label\LabelRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
 use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
 
@@ -44,10 +44,10 @@ use Psr\Log\LoggerInterface;
 final readonly class ReadReceiptCorrelator
 {
     public function __construct(
-        private MessageRepository $messages,
+        private MessageThreadingRepository $messageThreadingRepository,
         private LabelRepository   $labels,
         private HeaderNormalizer  $headers,
-        private LoggerInterface   $logger,
+        private LoggerInterface   $logger
     ) {
     }
 
@@ -124,7 +124,7 @@ final readonly class ReadReceiptCorrelator
             return null;
         }
 
-        $original = $this->messages->findOneForAccountByMessageId($mdn->account, $originalId);
+        $original = $this->messageThreadingRepository->findOneForAccountByMessageId($mdn->account, $originalId);
 
         if (null === $original) {
             return null;

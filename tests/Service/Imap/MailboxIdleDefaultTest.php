@@ -9,6 +9,7 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
 use App\Infrastructure\ImapClient\ImapLoop;
 use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapCopies;
@@ -73,7 +74,7 @@ final class MailboxIdleDefaultTest extends KernelTestCase
             $this->em,
             $container->get(ImapConnector::class),
             $container->get(LabelResolver::class),
-            $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageImapRepository::class),
             $container->get(MessageEraser::class),
             $container->get(ImapCopies::class),
             new NullLogger(),

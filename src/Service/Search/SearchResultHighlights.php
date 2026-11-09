@@ -7,6 +7,7 @@ namespace App\Service\Search;
 use App\Domain\DTO\Mail\ThreadRowMessage;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageJmapRepository;
 use App\Service\Mail\ThreadRows;
 use Twig\Markup;
 
@@ -85,9 +86,9 @@ final class SearchResultHighlights
     private const int MAX_MESSAGES_PER_THREAD = 5;
 
     public function __construct(
-        private readonly MessageRepository $messages,
+        private readonly MessageJmapRepository $messageJmapRepository,
         private readonly SearchHighlighter $highlighter,
-        private readonly ThreadRows $rows,
+        private readonly ThreadRows $rows
     ) {
     }
 
@@ -125,7 +126,7 @@ final class SearchResultHighlights
         $bodies    = [];
 
         foreach ($candidates as $accountId => $messageIds) {
-            $rows = $this->messages->findSearchHeadlines(
+            $rows = $this->messageJmapRepository->findSearchHeadlines(
                 $accountId,
                 $messageIds,
                 $freeText,
@@ -145,7 +146,7 @@ final class SearchResultHighlights
             // Only the bodies `ts_headline` declined to mark, which the
             // fallback has to search itself. Usually none, and then no
             // statement is issued at all.
-            foreach ($this->messages->findSearchTexts($accountId, $unmarked, $unmarked) as $id => $text) {
+            foreach ($this->messageJmapRepository->findSearchTexts($accountId, $unmarked, $unmarked) as $id => $text) {
                 $bodies[$id] = $text['body_text'];
             }
         }

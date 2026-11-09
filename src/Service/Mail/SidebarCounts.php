@@ -14,7 +14,7 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
 use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Repository\Label\Label\LabelRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\Service\ResetInterface;
@@ -122,9 +122,9 @@ class SidebarCounts implements ResetInterface
         private readonly LabelRepository         $labelRepository,
         private readonly Security                $security,
         private readonly ChangeLogRepository     $changeLog,
-        private readonly MessageRepository       $messages,
+        private readonly MessageSendRepository $messageSendRepository,
         private readonly LabelBindingRepository  $bindings,
-        private readonly UnifiedInboxes          $inboxes,
+        private readonly UnifiedInboxes          $inboxes
     ) {}
 
     /** @var array<int, int>|null account id => conversations holding unread mail in its Inbox */
@@ -535,7 +535,7 @@ class SidebarCounts implements ResetInterface
             $user = $this->security->getUser();
 
             $this->unsentDrafts = $user instanceof User
-                ? $this->messages->countUnsentDraftsForUser($user)
+                ? $this->messageSendRepository->countUnsentDraftsForUser($user)
                 : 0;
         }
 

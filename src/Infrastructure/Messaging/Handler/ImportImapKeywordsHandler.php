@@ -9,6 +9,7 @@ use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ImportImapKeywordsMessage;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Label\KeywordLabelFollower;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -39,6 +40,7 @@ final readonly class ImportImapKeywordsHandler
     public function __construct(
         private AccountRepository      $accounts,
         private MessageRepository      $messages,
+        private MessageBackfillRepository $messageBackfillRepository,
         private KeywordLabelFollower   $follower,
         private EntityManagerInterface $em,
         private MessageBusInterface    $bus,
@@ -53,7 +55,7 @@ final readonly class ImportImapKeywordsHandler
             return;
         }
 
-        $ids = $this->messages->idsInFoldersForAccountAfter($job->accountId, $job->afterId, self::PAGE);
+        $ids = $this->messageBackfillRepository->idsInFoldersForAccountAfter($job->accountId, $job->afterId, self::PAGE);
 
         if ([] === $ids) {
             return;

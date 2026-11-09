@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Mail\MailBodySanitizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -38,9 +38,9 @@ final readonly class SafeHtmlCharsetBackfillTask implements BackfillTaskInterfac
     private const int BATCH_SIZE = 100;
 
     public function __construct(
-        private MessageRepository      $messageRepository,
+        private MessageBackfillRepository $messageBackfillRepository,
         private MailBodySanitizer      $bodySanitizer,
-        private EntityManagerInterface $em,
+        private EntityManagerInterface $em
     ) {}
 
     public function getName(): string
@@ -55,7 +55,7 @@ final readonly class SafeHtmlCharsetBackfillTask implements BackfillTaskInterfac
 
     public function run(SymfonyStyle $io): int
     {
-        $total = $this->messageRepository->countWithHtmlCharsetDeclaration();
+        $total = $this->messageBackfillRepository->countWithHtmlCharsetDeclaration();
 
         if (0 === $total) {
             $io->success('Nothing to repair — no stored HTML body declares a charset.');
@@ -70,7 +70,7 @@ final readonly class SafeHtmlCharsetBackfillTask implements BackfillTaskInterfac
         $repaired  = 0;
 
         while (true) {
-            $messages = $this->messageRepository->findWithHtmlCharsetDeclaration($lastId, self::BATCH_SIZE);
+            $messages = $this->messageBackfillRepository->findWithHtmlCharsetDeclaration($lastId, self::BATCH_SIZE);
 
             if (count($messages) === 0) {
                 break;

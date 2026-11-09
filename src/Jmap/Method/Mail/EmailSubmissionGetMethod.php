@@ -13,7 +13,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageJmapRepository;
 
 /**
  * "EmailSubmission/get" (RFC 8621 §7.2).
@@ -51,9 +51,9 @@ final class EmailSubmissionGetMethod implements JmapMethod
 
     public function __construct(
         private readonly AccountResolver $accountResolver,
-        private readonly MessageRepository $messageRepository,
+        private readonly MessageJmapRepository $messageJmapRepository,
         private readonly IdentityResolver $identityResolver,
-        private readonly StateManager $stateManager,
+        private readonly StateManager $stateManager
     ) {
     }
 
@@ -86,7 +86,7 @@ final class EmailSubmissionGetMethod implements JmapMethod
             $requestedIds,
         ));
 
-        $messages = $this->messageRepository->findByAccountAndIds(
+        $messages = $this->messageJmapRepository->findByAccountAndIds(
             $accountId,
             array_map('intval', $requestedIds),
         );

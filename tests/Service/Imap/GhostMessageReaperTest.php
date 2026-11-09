@@ -13,6 +13,7 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Imap\GhostMessageReaper;
 use App\Service\Label\LabelResolver;
 use DateTimeImmutable;
@@ -40,6 +41,7 @@ final class GhostMessageReaperTest extends KernelTestCase
     private EntityManagerInterface $em;
     private Connection $connection;
     private MessageRepository $messages;
+    private MessageImapRepository $messageImapRepository;
     private GhostMessageReaper $reaper;
     private LabelResolver $labels;
 
@@ -56,6 +58,7 @@ final class GhostMessageReaperTest extends KernelTestCase
         $this->em         = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
         $this->messages   = $container->get(MessageRepository::class);
+        $this->messageImapRepository = $container->get(MessageImapRepository::class);
         $this->reaper     = $container->get(GhostMessageReaper::class);
         $this->labels     = $container->get(LabelResolver::class);
 
@@ -99,7 +102,7 @@ final class GhostMessageReaperTest extends KernelTestCase
         }
 
         self::assertSame(7, $this->reaper->reap());
-        self::assertCount(0, $this->messages->findEpochGhosts(100));
+        self::assertCount(0, $this->messageImapRepository->findEpochGhosts(100));
     }
 
     // ── what it must never touch ──────────────────────────────────────────

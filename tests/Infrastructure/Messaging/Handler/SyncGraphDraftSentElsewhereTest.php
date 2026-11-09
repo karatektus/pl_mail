@@ -16,6 +16,7 @@ use App\Infrastructure\Messaging\Handler\SyncGraphMessageBatchHandler;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
 use App\Service\Graph\GraphMessageBuilder;
 use App\Service\HarvestContactsService;
 use App\Service\Mail\GraphApiClient;
@@ -141,7 +142,7 @@ final class SyncGraphDraftSentElsewhereTest extends KernelTestCase
         });
 
         $handler = new SyncGraphMessageBatchHandler(
-            $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageThreadingRepository::class),
             $container->get(AccountRepository::class),
             new GraphApiClient($client, $container->get(OAuthTokenManager::class)),
             $container->get(GraphMessageBuilder::class),

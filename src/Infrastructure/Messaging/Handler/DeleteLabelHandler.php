@@ -14,6 +14,7 @@ use App\Infrastructure\Messaging\Message\DeleteLabelMessage;
 use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageLabelRepository;
 use App\Service\Job\JobNotifier;
 use App\Service\Label\LabelDeletion;
 use App\Service\Label\LabelNotifier;
@@ -95,6 +96,7 @@ final readonly class DeleteLabelHandler
         private BackgroundJobRepository $jobs,
         private LabelRepository         $labels,
         private MessageRepository       $messages,
+        private MessageLabelRepository $messageLabelRepository,
         private LabelDeletion           $deletion,
         private RemoteLabelRemover      $remover,
         private ThreadStatusUpdater     $status,
@@ -202,7 +204,7 @@ final readonly class DeleteLabelHandler
             $afterId = 0;
 
             while (true) {
-                $ids = $this->messages->findAllIdsWithLabelForAccount($accountId, $labelId, $afterId, self::CHUNK);
+                $ids = $this->messageLabelRepository->findAllIdsWithLabelForAccount($accountId, $labelId, $afterId, self::CHUNK);
 
                 if ([] === $ids) {
                     break;

@@ -24,6 +24,7 @@ use App\Infrastructure\Messaging\Message\MakeLabelTagMessage;
 use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageLabelRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\User\User\UserRepository;
 use App\Service\Imap\ImapFolderManager;
@@ -34,8 +35,8 @@ use App\Service\Label\LabelPlaces;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\RemoteLabelRemover;
 use App\Service\Mail\GraphApiClient;
-use App\Service\OAuth\OAuthTokenManager;
 use App\Service\Mail\ThreadStatusUpdater;
+use App\Service\OAuth\OAuthTokenManager;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
@@ -350,6 +351,7 @@ final class LabelFolderMakerTest extends KernelTestCase
             $container->get(LabelRepository::class),
             $container->get(AccountRepository::class),
             $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageLabelRepository::class),
             $remover,
             $container->get(ThreadStatusUpdater::class),
             $container->get(LabelNotifier::class),
@@ -396,6 +398,7 @@ final class LabelFolderMakerTest extends KernelTestCase
             $container->get(LabelRepository::class),
             $container->get(AccountRepository::class),
             $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageLabelRepository::class),
             $container->get(ThreadStatusUpdater::class),
             $this->graph([]),
             $container->get(LabelNotifier::class),

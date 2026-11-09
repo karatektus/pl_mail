@@ -18,6 +18,8 @@ use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
+use App\Repository\Mail\Message\MessageJmapRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
@@ -70,12 +72,13 @@ final class EmailSubmissionSetMethod implements JmapMethod
 {
     public function __construct(
         private readonly AccountResolver $accountResolver,
-        private readonly MessageRepository $messageRepository,
+        private readonly MessageJmapRepository $messageJmapRepository,
+        private readonly MessageSendRepository $messageSendRepository,
         private readonly IdentityResolver $identityResolver,
         private readonly EmailPatchApplier $patchApplier,
         private readonly StateManager $stateManager,
         private readonly EntityManagerInterface $entityManager,
-        private readonly MessageBusInterface $bus,
+        private readonly MessageBusInterface $bus
     ) {
     }
 
@@ -403,7 +406,7 @@ final class EmailSubmissionSetMethod implements JmapMethod
             // sentAt still null, and flagging it then answered "updated" for
             // mail that left anyway. cancelSend() decides against the claim in
             // one UPDATE, so losing the race is reported as what it is.
-            if (false === $this->messageRepository->cancelSend((int) $message->id, $now)) {
+            if (false === $this->messageSendRepository->cancelSend((int) $message->id, $now)) {
                 $notUpdated[$id] = ['type' => 'cannotUnsend', 'description' => 'That Email is already being sent.'];
                 continue;
             }
@@ -516,7 +519,7 @@ final class EmailSubmissionSetMethod implements JmapMethod
             return null;
         }
 
-        $messages = $this->messageRepository->findByAccountAndIds($account->id, [(int) $id]);
+        $messages = $this->messageJmapRepository->findByAccountAndIds($account->id, [(int) $id]);
 
         return $messages[0] ?? null;
     }

@@ -15,6 +15,7 @@ use App\Infrastructure\Messaging\Handler\ApplyMailRuleHandler;
 use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
 use App\Jmap\Query\EmailFilterCompiler;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageFilterRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Rule\MailRuleEngine;
 use Doctrine\DBAL\Connection;
@@ -34,6 +35,7 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
     private EntityManagerInterface $em;
     private Connection $connection;
     private MessageRepository $messages;
+    private MessageFilterRepository $messageFilterRepository;
     private User $user;
     private Account $account;
     private Label $label;
@@ -46,6 +48,7 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
         $this->em = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
         $this->messages = $container->get(MessageRepository::class);
+        $this->messageFilterRepository = $container->get(MessageFilterRepository::class);
 
         $this->connection->beginTransaction();
         $this->seed();
@@ -73,7 +76,7 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
         $turns = 0;
 
         while (true) {
-            $ids = $this->messages->findIdsMatchingForUser($this->user, $filter, $afterId, 2);
+            $ids = $this->messageFilterRepository->findIdsMatchingForUser($this->user, $filter, $afterId, 2);
 
             if (0 === count($ids)) {
                 break;
@@ -208,7 +211,7 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
      */
     private function matchingIds(): array
     {
-        return $this->messages->findIdsMatchingForUser(
+        return $this->messageFilterRepository->findIdsMatchingForUser(
             $this->user,
             new EmailFilterCompiler()->compile(['subject' => 'walk me']),
             0,

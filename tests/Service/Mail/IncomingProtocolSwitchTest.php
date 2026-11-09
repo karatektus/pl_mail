@@ -13,6 +13,7 @@ use App\Entity\User\User;
 use App\Service\Imap\ImapConnector;
 use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Repository\Mail\Pop3Uidl\Pop3UidlRepository;
 use App\Service\Imap\SentCopyReconciler;
 use App\Service\Mail\IncomingProtocolSwitch;
@@ -138,7 +139,7 @@ final class IncomingProtocolSwitchTest extends KernelTestCase
         self::assertFalse($this->account->pop3Adopting);
         self::assertSame([], static::getContainer()->get(Pop3UidlRepository::class)->ledgerFor($this->account), 'UIDLs mean nothing to IMAP');
 
-        $claimable = static::getContainer()->get(MessageRepository::class)
+        $claimable = static::getContainer()->get(MessageImapRepository::class)
             ->findUnlocatedByMessageId($this->account, 'kept@example.test', false);
 
         self::assertSame($this->message->id, $claimable?->id);

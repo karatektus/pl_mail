@@ -9,6 +9,8 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Imap\MessageThreader;
 use Doctrine\ORM\EntityManagerInterface;
@@ -40,6 +42,8 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
     public function __construct(
         private AccountRepository       $accountRepository,
         private MessageRepository       $messageRepository,
+        private MessageBackfillRepository $messageBackfillRepository,
+        private MessageThreadingRepository $messageThreadingRepository,
         private MessageThreadRepository $threadRepository,
         private MessageThreader         $threader,
         private EntityManagerInterface  $em,
@@ -196,7 +200,7 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
      */
     private function discardThreads(int $accountId): void
     {
-        $this->messageRepository->detachAllFromThreadsForAccount($accountId);
+        $this->messageThreadingRepository->detachAllFromThreadsForAccount($accountId);
         $this->threadRepository->deleteAllForAccount($accountId);
 
         $this->em->clear();
@@ -286,7 +290,7 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
      */
     private function idChunks(int $accountId, bool $orderByArrival = false): iterable
     {
-        $ids = $this->messageRepository->findAllIdsForAccount($accountId, $orderByArrival);
+        $ids = $this->messageBackfillRepository->findAllIdsForAccount($accountId, $orderByArrival);
 
         foreach (array_chunk($ids, self::BATCH_SIZE) as $chunk) {
             yield $chunk;

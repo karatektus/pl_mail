@@ -10,7 +10,7 @@ use App\Entity\Label\Label;
 use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;
 use App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage;
 use App\Repository\Mail\Account\AccountRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageLabelRepository;
 use App\Repository\Label\Label\LabelRepository;
 use App\Domain\Enum\Mail\LabelColor;
 use App\Service\Gmail\GmailLabelColorMapper;
@@ -49,7 +49,7 @@ final readonly class ApplyLabelStructureHandler
     public function __construct(
         private AccountRepository      $accountRepository,
         private LabelRepository        $labelRepository,
-        private MessageRepository      $messageRepository,
+        private MessageLabelRepository $messageLabelRepository,
         private MessageBusInterface    $bus,
         private GraphCategoryColorMapper $colorMapper,
         private GmailLabelColorMapper  $gmailColorMapper,
@@ -59,7 +59,7 @@ final readonly class ApplyLabelStructureHandler
         private LabelResolver          $labelResolver,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
-        private JmapMailboxWriter      $jmapWriter,
+        private JmapMailboxWriter      $jmapWriter
     ) {}
 
     public function __invoke(ApplyLabelStructureMessage $message): void
@@ -378,7 +378,7 @@ final readonly class ApplyLabelStructureHandler
         $afterId = 0;
 
         while (true) {
-            $ids = $this->messageRepository->findIdsWithLabelForAccount(
+            $ids = $this->messageLabelRepository->findIdsWithLabelForAccount(
                 (int) $account->id,
                 $labelId,
                 $afterId,

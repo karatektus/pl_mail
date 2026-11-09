@@ -14,6 +14,7 @@ use App\Entity\Ai\AiSettings;
 use App\Form\Admin\AiSettingsType;
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPerformancePanel;
 use App\Service\Ai\EmbeddingBackfill;
@@ -60,13 +61,13 @@ final class AiSettingsController extends AbstractController
 
     public function __construct(
         private readonly AiSettingsRepository   $settings,
-        private readonly MessageRepository      $messages,
+        private readonly MessageAiRepository $messageAiRepository,
         private readonly AiAssistant            $assistant,
         private readonly EntityManagerInterface $entityManager,
         private readonly AiPerformancePanel     $panel,
         private readonly EmbeddingBackfill      $backfill,
         private readonly PromptLibrary          $prompts,
-        private readonly TranslatorInterface    $translator,
+        private readonly TranslatorInterface    $translator
     ) {
     }
 
@@ -464,7 +465,7 @@ final class AiSettingsController extends AbstractController
      */
     private function holdDelay(): array
     {
-        return $this->messages->holdDelayStats(MetricWindow::Week->since(new \DateTimeImmutable()));
+        return $this->messageAiRepository->holdDelayStats(MetricWindow::Week->since(new \DateTimeImmutable()));
     }
 
     /**

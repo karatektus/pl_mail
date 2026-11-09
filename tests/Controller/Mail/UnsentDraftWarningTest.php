@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -42,7 +43,7 @@ final class UnsentDraftWarningTest extends WebTestCase
         $client = $this->fixtureClient();
         $id     = $this->seedDraft('Lunch on Friday?');
 
-        static::getContainer()->get(MessageRepository::class)->markSendFailed($id, SendFailure::Refused);
+        static::getContainer()->get(MessageSendRepository::class)->markSendFailed($id, SendFailure::Refused);
 
         // Written by SQL, as the handler writes it; the request shares this
         // entity manager, which still holds the draft from before.

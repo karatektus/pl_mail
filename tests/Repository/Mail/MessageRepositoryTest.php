@@ -14,6 +14,9 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageLabelRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
+use App\Repository\Mail\Message\MessageArrivalRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -35,6 +38,9 @@ final class MessageRepositoryTest extends KernelTestCase
     private EntityManagerInterface $em;
     private Connection $connection;
     private MessageRepository $repository;
+    private MessageBackfillRepository $messageBackfillRepository;
+    private MessageLabelRepository $messageLabelRepository;
+    private MessageArrivalRepository $messageArrivalRepository;
     private User $user;
     private Account $account;
     private Label $inbox;
@@ -47,6 +53,9 @@ final class MessageRepositoryTest extends KernelTestCase
         $this->em         = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
         $this->repository = $container->get(MessageRepository::class);
+        $this->messageBackfillRepository = $container->get(MessageBackfillRepository::class);
+        $this->messageLabelRepository = $container->get(MessageLabelRepository::class);
+        $this->messageArrivalRepository = $container->get(MessageArrivalRepository::class);
 
         $this->connection->beginTransaction();
 
@@ -72,7 +81,7 @@ final class MessageRepositoryTest extends KernelTestCase
         $this->message(seen: false, labels: [$this->inbox]);
         $this->message(seen: true, labels: [$this->inbox]);
 
-        $counts = $this->repository->countEmailsPerLabelForAccount((int) $this->account->id);
+        $counts = $this->messageLabelRepository->countEmailsPerLabelForAccount((int) $this->account->id);
 
         self::assertSame(
             ['total' => 3, 'unread' => 2],
@@ -82,7 +91,7 @@ final class MessageRepositoryTest extends KernelTestCase
         // Narrowed to the labels a Mailbox/get named, the numbers are the same.
         self::assertSame(
             [(int) $this->inbox->id => ['total' => 3, 'unread' => 2]],
-            $this->repository->countEmailsPerLabelForAccount((int) $this->account->id, [(int) $this->inbox->id]),
+            $this->messageLabelRepository->countEmailsPerLabelForAccount((int) $this->account->id, [(int) $this->inbox->id]),
         );
     }
 
@@ -97,7 +106,7 @@ final class MessageRepositoryTest extends KernelTestCase
         $read->flags = [];
         $this->em->flush();
 
-        $counts = $this->repository->countEmailsPerLabelForAccount((int) $this->account->id);
+        $counts = $this->messageLabelRepository->countEmailsPerLabelForAccount((int) $this->account->id);
 
         self::assertSame(0, $counts[(int) $this->inbox->id]['unread']);
     }
@@ -109,7 +118,7 @@ final class MessageRepositoryTest extends KernelTestCase
         $this->message(seen: false, labels: [$this->inbox]);
         $this->message(seen: false, labels: [$this->inbox], account: $other);
 
-        $counts = $this->repository->countEmailsPerLabelForAccount((int) $this->account->id);
+        $counts = $this->messageLabelRepository->countEmailsPerLabelForAccount((int) $this->account->id);
 
         self::assertSame(1, $counts[(int) $this->inbox->id]['total']);
     }
@@ -123,7 +132,7 @@ final class MessageRepositoryTest extends KernelTestCase
         $this->message(seen: false, labels: [$this->inbox], thread: $thread);
         $this->message(seen: true, labels: [$this->inbox], thread: $thread);
 
-        $counts = $this->repository->countThreadsPerLabelForAccount((int) $this->account->id);
+        $counts = $this->messageLabelRepository->countThreadsPerLabelForAccount((int) $this->account->id);
 
         self::assertSame(
             ['total' => 1, 'unread' => 1],
@@ -140,7 +149,7 @@ final class MessageRepositoryTest extends KernelTestCase
     {
         $this->message(seen: false, labels: [$this->inbox]);
 
-        $counts = $this->repository->countThreadsPerLabelForAccount((int) $this->account->id);
+        $counts = $this->messageLabelRepository->countThreadsPerLabelForAccount((int) $this->account->id);
 
         self::assertArrayNotHasKey((int) $this->inbox->id, $counts);
     }
@@ -182,7 +191,7 @@ final class MessageRepositoryTest extends KernelTestCase
     {
         // The walk is install-wide, so the assertion is on what these three
         // rows add to it rather than on an absolute total.
-        $before = $this->repository->countPendingSafeHtml();
+        $before = $this->messageBackfillRepository->countPendingSafeHtml();
 
         $pending = $this->message(seen: false);
         $pending->bodyHtml = '<p>needs sanitizing</p>';
@@ -196,13 +205,13 @@ final class MessageRepositoryTest extends KernelTestCase
 
         $this->em->flush();
 
-        $found = $this->repository->findPendingSafeHtml((int) $pending->id - 1, 50);
+        $found = $this->messageBackfillRepository->findPendingSafeHtml((int) $pending->id - 1, 50);
 
         self::assertSame([(int) $pending->id], array_map(
             static fn (Message $message): int => (int) $message->id,
             $found,
         ));
-        self::assertSame($before + 1, $this->repository->countPendingSafeHtml());
+        self::assertSame($before + 1, $this->messageBackfillRepository->countPendingSafeHtml());
     }
 
     /** Keyset: the walk resumes strictly after the id it was handed. */
@@ -216,7 +225,7 @@ final class MessageRepositoryTest extends KernelTestCase
 
         $this->em->flush();
 
-        $found = $this->repository->findPendingSafeHtml((int) $first->id, 50);
+        $found = $this->messageBackfillRepository->findPendingSafeHtml((int) $first->id, 50);
 
         self::assertSame([(int) $second->id], array_map(
             static fn (Message $message): int => (int) $message->id,
@@ -275,7 +284,7 @@ final class MessageRepositoryTest extends KernelTestCase
         $pop3->incomingProtocol = IncomingProtocol::Pop3;
         $this->em->flush();
 
-        $providers = array_column($this->repository->arrivalLagByAccount(new DateTimeImmutable('-1 day')), 'provider', 'account');
+        $providers = array_column($this->messageArrivalRepository->arrivalLagByAccount(new DateTimeImmutable('-1 day')), 'provider', 'account');
 
         self::assertSame('imap', $providers['counts@example.test']);
         self::assertSame('pop3', $providers['lag-pop3@example.test']);

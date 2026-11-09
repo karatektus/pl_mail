@@ -14,6 +14,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
 use App\Service\Graph\GraphApiSyncer;
 use App\Service\Graph\GraphImportStep;
 use App\Service\Mail\GraphApiClient;
@@ -398,6 +399,7 @@ final class GraphImportTest extends KernelTestCase
             $container->get('App\Service\Graph\GraphFolderResolver'),
             $container->get('App\Service\Graph\GraphLabelPolicy'),
             $container->get('App\Repository\Mail\Message\MessageRepository'),
+            self::getContainer()->get(MessageProviderIdRepository::class),
             $this->em,
             $container->get('App\Jmap\State\StateManager'),
             $bus,

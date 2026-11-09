@@ -7,8 +7,9 @@ namespace App\Tests\Support\Mail;
 use App\Jmap\State\ChangeLogRepository;
 use App\Jmap\State\StateManager;
 use App\Repository\Insight\MailInsight\MailInsightRepository;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Imap\ThreadMerger;
 use App\Service\Label\ThreadLabelSynchronizer;
@@ -38,6 +39,7 @@ trait BuildsThreaderWithoutDatabase
         return new MessageThreader(
             $entityManager,
             $messageRepository,
+            $this->createStub(MessageThreadingRepository::class),
             $threadRepository ?? $this->createStub(MessageThreadRepository::class),
             new ThreadMerger(
                 $entityManager,

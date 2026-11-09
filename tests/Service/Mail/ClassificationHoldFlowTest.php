@@ -25,6 +25,7 @@ use App\Jmap\State\StateManager;
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Repository\Mail\Contact\ContactRepository;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiCallRecorder;
@@ -358,9 +359,11 @@ final class ClassificationHoldFlowTest extends KernelTestCase
 
         $repository = self::getContainer()->get(MessageRepository::class);
 
-        self::assertSame([], $repository->findHeldBefore(new DateTimeImmutable('-1 hour')));
+        $messageAiRepository = self::getContainer()->get(MessageAiRepository::class);
 
-        $found = $repository->findHeldBefore(new DateTimeImmutable('+1 minute'));
+        self::assertSame([], $messageAiRepository->findHeldBefore(new DateTimeImmutable('-1 hour')));
+
+        $found = $messageAiRepository->findHeldBefore(new DateTimeImmutable('+1 minute'));
 
         self::assertCount(1, $found);
         self::assertSame($message->id, $found[0]->id);
@@ -475,8 +478,8 @@ final class ClassificationHoldFlowTest extends KernelTestCase
 
         $this->em->flush();
 
-        $repository = self::getContainer()->get(MessageRepository::class);
-        $stats      = $repository->holdDelayStats(new DateTimeImmutable('-1 hour'));
+        $messageAiRepository = self::getContainer()->get(MessageAiRepository::class);
+        $stats               = $messageAiRepository->holdDelayStats(new DateTimeImmutable('-1 hour'));
 
         self::assertSame(2, $stats['held']);
         self::assertSame(1, $stats['timedOut']);
@@ -485,7 +488,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
 
         self::assertSame(
             ['held' => 0, 'timedOut' => 0, 'median' => null, 'p95' => null, 'max' => null],
-            $repository->holdDelayStats(new DateTimeImmutable('+1 hour')),
+            $messageAiRepository->holdDelayStats(new DateTimeImmutable('+1 hour')),
             'no data is null, not zero: a median of zero would read as instant',
         );
     }
@@ -584,7 +587,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
     /** @return list<int> what the catch-up sweep would offer this person */
     private function unclassified(): array
     {
-        return self::getContainer()->get(MessageRepository::class)->unclassifiedIdsForUser((int) $this->user->id, 100);
+        return self::getContainer()->get(MessageAiRepository::class)->unclassifiedIdsForUser((int) $this->user->id, 100);
     }
 
     private function handlerAround(MockResponse $response): ClassifyMailHandler

@@ -15,9 +15,10 @@ use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
 use App\Service\Crypto\AutocryptHeader;
-use App\Service\Crypto\SealedDrafts;
 use App\Service\Crypto\SealGuard;
+use App\Service\Crypto\SealedDrafts;
 use App\Service\Crypto\SendingKey;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\MessageSendService;
@@ -139,6 +140,7 @@ final class SendMessageHandlerNoDuplicateTest extends KernelTestCase
 
         return new SendMessageHandler(
             $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageSendRepository::class),
             $service,
             $this->em,
             $container->get(SendOutcomeNotifier::class),

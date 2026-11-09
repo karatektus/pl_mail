@@ -15,6 +15,7 @@ use App\Entity\Mail\Pop3Uidl;
 use App\Entity\User\User;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Pop3Uidl\Pop3UidlRepository;
 use App\Service\Imap\MessageSyncer;
@@ -424,6 +425,7 @@ final class Pop3AccountSyncerTest extends KernelTestCase
             $container->get(AccountRepository::class),
             $container->get(MailboxRepository::class),
             $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageImapRepository::class),
             $container->get(Pop3UidlRepository::class),
             $container->get(LabelResolver::class),
             $container->get(PostIngestPipeline::class),

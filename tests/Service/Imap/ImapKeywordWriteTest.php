@@ -16,6 +16,7 @@ use App\Infrastructure\Messaging\Message\ApplyImapKeywordsMessage;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Imap\ImapConnector;
@@ -225,7 +226,7 @@ final class ImapKeywordWriteTest extends KernelTestCase
             $container->get(LabelRepository::class),
             new GraphLabelPolicy(),
             new NullLogger(),
-            $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageImapRepository::class),
             $container->get(LabelResolver::class),
         ))->attachLabel([$message], $label);
 

@@ -12,6 +12,7 @@ use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Repository\Insight\MailInsight\MailInsightRepository;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\MessageEraser;
 use Doctrine\ORM\EntityManagerInterface;
@@ -60,6 +61,7 @@ final readonly class ImapCopyMerger
 
     public function __construct(
         private MessageRepository       $messages,
+        private MessageImapRepository $messageImapRepository,
         private MessageEraser           $eraser,
         private ImapCopies              $copies,
         private ThreadLabelSynchronizer $threadLabels,
@@ -79,7 +81,7 @@ final readonly class ImapCopyMerger
      */
     public function foldKeptIn(Mailbox $mailbox, int $limit = self::PER_SWEEP): int
     {
-        $groups = $this->messages->findDuplicateCopyGroups($mailbox, $limit);
+        $groups = $this->messageImapRepository->findDuplicateCopyGroups($mailbox, $limit);
         $folded = 0;
 
         foreach ($groups as $ids) {

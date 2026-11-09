@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Infrastructure\ImapClient\ImapLoop;
-use App\Service\Imap\ImapConnector;
-use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
+use App\Infrastructure\ImapClient\ImapLoop;
 use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapCopies;
 use App\Service\Imap\MailboxSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessageEraser;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
@@ -109,7 +110,7 @@ final class MailboxRemovalGuardTest extends KernelTestCase
             $this->em,
             $container->get(ImapConnector::class),
             $container->get(LabelResolver::class),
-            $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageImapRepository::class),
             $container->get(MessageEraser::class),
             $container->get(ImapCopies::class),
             new NullLogger(),

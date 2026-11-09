@@ -15,7 +15,7 @@ use App\Form\LabelDeleteType;
 use App\Infrastructure\Messaging\Message\MakeLabelFolderMessage;
 use App\Infrastructure\Messaging\Message\MakeLabelTagMessage;
 use App\Repository\Label\Label\LabelRepository;
-use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageLabelRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Label\LabelDeletion;
 use App\Service\Label\LabelFolderMaker;
@@ -50,7 +50,7 @@ final class LabelFolderController extends AbstractController
 
     public function __construct(
         private readonly LabelFolderMaker       $maker,
-        private readonly MessageRepository      $messages,
+        private readonly MessageLabelRepository $messageLabelRepository,
         private readonly LabelRepository        $labels,
         private readonly EntityManagerInterface $em,
         private readonly MessageBusInterface    $bus,
@@ -59,7 +59,7 @@ final class LabelFolderController extends AbstractController
         private readonly LabelDeletion          $deletion,
         private readonly NewFolderPlace         $place,
         private readonly FolderTree             $tree,
-        private readonly MailboxRepository      $mailboxes,
+        private readonly MailboxRepository      $mailboxes
     ) {}
 
     #[Route('/{label}/folder-on/{account}', name: 'make_folder_confirm', methods: ['GET'])]
@@ -100,7 +100,7 @@ final class LabelFolderController extends AbstractController
             $this->em->flush();
         }
 
-        if (0 === $this->messages->countToFileIntoFolder((int) $account->id, (int) $label->id)) {
+        if (0 === $this->messageLabelRepository->countToFileIntoFolder((int) $account->id, (int) $label->id)) {
             return new Response($this->renderView('label/_lists.stream.html.twig', [
                 'toastMessage'   => 'label.form.places.make_folder_done',
                 'labels'         => $this->labels->findForUserTreeOrdered($this->currentUser()),
@@ -198,7 +198,7 @@ final class LabelFolderController extends AbstractController
     {
         $choices = [];
 
-        if (0 < $this->messages->countToFileIntoFolder((int) $account->id, (int) $label->id)) {
+        if (0 < $this->messageLabelRepository->countToFileIntoFolder((int) $account->id, (int) $label->id)) {
             foreach ($this->destinations($label, $account) as $value => $destination) {
                 $choices[$value] = null === $destination->role
                     ? $destination->fullName
@@ -226,7 +226,7 @@ final class LabelFolderController extends AbstractController
             'label'     => $label,
             'account'   => $account,
             'form'      => $form,
-            'mailCount' => $this->messages->countToFileIntoFolder((int) $account->id, (int) $label->id),
+            'mailCount' => $this->messageLabelRepository->countToFileIntoFolder((int) $account->id, (int) $label->id),
         ], new Response(status: $status));
     }
 
@@ -284,7 +284,7 @@ final class LabelFolderController extends AbstractController
             'label'       => $label,
             'account'     => $account,
             'form'        => $form,
-            'mailCount'   => $this->messages->countToFileIntoFolder((int) $account->id, (int) $label->id),
+            'mailCount'   => $this->messageLabelRepository->countToFileIntoFolder((int) $account->id, (int) $label->id),
             'hasCategory' => null !== $label->bindingFor($account)?->graphCategoryId,
             'parentToo'   => null !== $label->parent && null === $label->parent->role && false === $this->maker->isFolder($label->parent, $account),
             'picksPlace'  => $this->picksPlace($label, $account),

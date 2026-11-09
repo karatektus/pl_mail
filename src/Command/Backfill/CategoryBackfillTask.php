@@ -8,6 +8,7 @@ use App\Entity\Mail\Account;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Contact\ContactRepository;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Mail\MessageCategorizer;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,12 +35,12 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
 
     public function __construct(
         private AccountRepository       $accountRepository,
-        private MessageRepository       $messageRepository,
+        private MessageAiRepository $messageAiRepository,
         private MessageThreadRepository $threadRepository,
         private ContactRepository       $contactRepository,
         private MessageCategorizer      $categorizer,
         private EntityManagerInterface  $em,
-        private \App\Jmap\State\StateManager $stateManager,
+        private \App\Jmap\State\StateManager $stateManager
     ) {}
 
     public function getName(): string
@@ -75,7 +76,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
     {
         $io->section(sprintf('Account #%d (%s)', $account->id, $account->email));
 
-        $total = $this->messageRepository->countPendingCategorization((int) $account->id, $force);
+        $total = $this->messageAiRepository->countPendingCategorization((int) $account->id, $force);
 
         if (0 === $total) {
             $io->text('Nothing to categorise.');
@@ -92,7 +93,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
         $processed = 0;
 
         while (true) {
-            $messages = $this->messageRepository->findPendingCategorization(
+            $messages = $this->messageAiRepository->findPendingCategorization(
                 $accountId,
                 $force,
                 $lastId,

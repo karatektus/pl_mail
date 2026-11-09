@@ -13,6 +13,7 @@ use App\Entity\Mail\MessagePart;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Crypto\SealedDrafts;
 use App\Service\Label\LabelChangePropagator;
@@ -85,6 +86,7 @@ class ComposeController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface  $em,
         private readonly MessageRepository       $messageRepository,
+        private readonly MessageSendRepository $messageSendRepository,
         private readonly ComposeWindow           $window,
         private readonly ComposeFormFactory      $formFactory,
         private readonly MessageBusInterface     $bus,
@@ -732,7 +734,7 @@ class ComposeController extends AbstractController
      */
     private function callOffSend(Message $message): bool
     {
-        $won = $this->messageRepository->cancelSend((int) $message->id);
+        $won = $this->messageSendRepository->cancelSend((int) $message->id);
 
         // The row moved underneath the entity either way — we won and it is
         // cancelled, or we lost and the handler is writing sentAt onto it.
