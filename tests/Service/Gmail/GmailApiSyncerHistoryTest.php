@@ -555,7 +555,7 @@ final class GmailApiSyncerHistoryTest extends TestCase
                 new \App\Service\Label\ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
                 new \App\Jmap\State\StateManager(
                     $this->createStub(EntityManagerInterface::class),
-                    new \App\Jmap\State\ChangeLogRepository($this->createStub(\Doctrine\Persistence\ManagerRegistry::class)),
+                    new \App\Repository\Jmap\ChangeLog\ChangeLogRepository($this->createStub(\Doctrine\Persistence\ManagerRegistry::class)),
                 ),
                 $this->createStub(EntityManagerInterface::class),
             ),

@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Jmap\State;
+namespace App\Repository\Jmap\ChangeLog;
 
-use Symfony\Component\Security\Core\User\UserInterface;
 use App\Entity\Mail\Account;
+use App\Jmap\State\ChangeLog;
+use App\Jmap\State\JmapObjectType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * @extends ServiceEntityRepository<ChangeLog>

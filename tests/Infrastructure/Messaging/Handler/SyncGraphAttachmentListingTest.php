@@ -12,7 +12,6 @@ use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\SyncGraphMessageBatchHandler;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
 use App\Repository\Mail\Account\AccountRepository;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageThreadingRepository;
 use App\Service\Graph\GraphMessageBuilder;
 use App\Service\HarvestContactsService;

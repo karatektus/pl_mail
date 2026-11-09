@@ -15,7 +15,6 @@ use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\EmbedMessagesMessage;
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Repository\Mail\Message\MessageAiRepository;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\BackfillPolicy;
 use App\Service\Ai\EmbeddingCatchUp;

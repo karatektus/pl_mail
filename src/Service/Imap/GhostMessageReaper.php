@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Mail\MessageEraser;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,7 +24,7 @@ use Psr\Log\LoggerInterface;
  * that has none — every database, once this has run once — it is one indexed
  * query per sync that returns nothing.
  *
- * The predicate lives in MessageRepository::findEpochGhosts(), where its
+ * The predicate lives in MessageImapRepository::findEpochGhosts(), where its
  * conservatism is argued line by line. It is deliberately unable to match a
  * subjectless message, an undated message or an empty draft.
  */

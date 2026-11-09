@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Jmap\Method\Keys;
 
 use App\Domain\Exception\DecryptedMailRefused;
-use App\Entity\Mail\Message;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Blob\BlobId;
 use App\Jmap\Blob\BlobResolver;

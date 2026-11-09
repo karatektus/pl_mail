@@ -691,4 +691,25 @@ class MessageRepository extends ServiceEntityRepository
 
         return array_map(static fn (array $row): int => (int) $row['id'], $rows);
     }
+
+    /**
+     * The newest message with this subject in any of these accounts, and only
+     * an unsent one when asked: how the E2E commands find what a spec wrote.
+     *
+     * @param list<Account> $accounts
+     */
+    public function findLatestBySubject(array $accounts, string $subject, bool $unsentOnly = false): ?Message
+    {
+        if ([] === $accounts) {
+            return null;
+        }
+
+        $criteria = ['account' => $accounts, 'subject' => $subject];
+
+        if (true === $unsentOnly) {
+            $criteria['sentAt'] = null;
+        }
+
+        return $this->findOneBy($criteria, ['id' => 'DESC']);
+    }
 }

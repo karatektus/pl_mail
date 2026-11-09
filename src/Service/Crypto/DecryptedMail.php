@@ -11,8 +11,6 @@ use App\Domain\Helper\MessageParser;
 use App\Domain\Helper\MimeHeaderHelper;
 use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Ai\AiFeature;
-use App\Entity\Calendar\EventProposal;
-use App\Entity\Insight\MailInsight;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Imap\Utf8AwareMessageDecoder;

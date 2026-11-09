@@ -157,7 +157,7 @@ final class SearchController extends AbstractController
         // `semantic_only` and for the same reason: a highlight is a property of
         // THIS search, and hanging it on the shared MessageThread entity would
         // leave it in Doctrine's identity map for every other list in the
-        // request to find. See MessageThreadRepository::searchPage().
+        // request to find. See MessageThreadSearchRepository::searchPage().
         $highlights = $this->highlights->forPage($threads, $parsed->freeText);
 
         // Through ThreadListRenderer, not $this->render(): a row whose subject

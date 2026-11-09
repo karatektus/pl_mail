@@ -10,8 +10,6 @@ use App\Domain\Exception\ContactReadOnlyException;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
-use App\Entity\Contacts\ContactMergeRecord;
-use App\Entity\Contacts\ContactRelation;
 use App\Entity\User\User;
 use App\Repository\AddressBook\AddressBook\AddressBookRepository;
 use App\Repository\Contacts\ContactMergeRecord\ContactMergeRecordRepository;

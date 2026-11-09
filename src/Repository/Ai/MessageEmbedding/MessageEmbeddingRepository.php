@@ -160,4 +160,18 @@ final readonly class MessageEmbeddingRepository
             [$accountId, $plaintextSource],
         );
     }
+
+    /**
+     * The vectors of these messages, gone.
+     *
+     * @param non-empty-list<int> $messageIds
+     */
+    public function deleteForMessages(array $messageIds): void
+    {
+        $this->connection->executeStatement(
+            'DELETE FROM message_embedding WHERE message_id IN (:ids)',
+            ['ids' => $messageIds],
+            ['ids' => ArrayParameterType::INTEGER],
+        );
+    }
 }

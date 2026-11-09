@@ -8,7 +8,6 @@ use App\Domain\Enum\Mail\ListSortOrder;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Mail\Message\MessageRepository;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\QueryBuilder;
@@ -159,7 +158,7 @@ class MessageThreadRebuildRepository extends ServiceEntityRepository
      * Deliberately not the ORM: MessageThread cascades remove onto its
      * messages, so removing threads through the EntityManager would delete the
      * mail along with them. Callers detach the messages first — see
-     * MessageRepository::detachAllFromThreadsForAccount().
+     * MessageThreadingRepository::detachAllFromThreadsForAccount().
      */
     public function deleteAllForAccount(int $accountId): int
     {

@@ -6,16 +6,16 @@ namespace App\Service\Label;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Helper\ImapUtf7Helper;
-use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
+use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
 use App\Jmap\State\JmapObjectType;
-use DateTimeImmutable;
 use App\Jmap\State\StateManager;
 use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Repository\Label\Label\LabelRepository;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

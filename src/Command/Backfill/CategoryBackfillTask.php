@@ -7,7 +7,6 @@ namespace App\Command\Backfill;
 use App\Entity\Mail\Account;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Contact\ContactRepository;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageAiRepository;
 use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use App\Service\Mail\MessageCategorizer;
@@ -27,7 +26,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * Keyset pagination by id so each batch can flush + clear without a
  * server-side cursor, matching SafeHtmlBackfillTask. The cursor itself is
- * MessageRepository::findPendingCategorization().
+ * MessageAiRepository::findPendingCategorization().
  */
 final readonly class CategoryBackfillTask implements BackfillTaskInterface
 {

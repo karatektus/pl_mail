@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Monitoring;
 
 use App\Entity\Monitoring\LogSettings;
+use App\Repository\Monitoring\LogSettings\LogLevelRepository;
 use App\Repository\Monitoring\LogSettings\LogSettingsRepository;
 use App\Service\Monitoring\LogLevelResolver;
 use Doctrine\DBAL\Connection;
@@ -124,6 +125,6 @@ final class LogLevelResolverTest extends KernelTestCase
 
     private function resolver(string $fallback): LogLevelResolver
     {
-        return new LogLevelResolver($this->connection, $fallback);
+        return new LogLevelResolver(new LogLevelRepository($this->connection), $fallback);
     }
 }

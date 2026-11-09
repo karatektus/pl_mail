@@ -100,4 +100,12 @@ class TrustedImageSenderRepository extends ServiceEntityRepository
         $this->getEntityManager()->remove($existing);
         $this->getEntityManager()->flush();
     }
+
+    /** Every sender a user trusts with remote images, forgotten. */
+    public function deleteForUser(User $user): void
+    {
+        $this->getEntityManager()->createQuery(
+            'DELETE FROM ' . TrustedImageSender::class . ' trusted WHERE trusted.usr = :user',
+        )->setParameter('user', $user)->execute();
+    }
 }

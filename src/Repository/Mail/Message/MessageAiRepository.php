@@ -42,7 +42,7 @@ class MessageAiRepository extends ServiceEntityRepository
      * bare `?` as a positional placeholder and refuses the query — and cast,
      * because message.headers is a json column rather than jsonb. The
      * parameters are namespaced so they cannot collide if this is ever
-     * combined with a compiled filter, as MessageRepository::matchingIds does.
+     * combined with a compiled filter, as MessageFilterRepository::matchingIds does.
      *
      * This is the WHERE both candidate queries share, so a change to what
      * counts as a candidate cannot land in one and not the other. Built by

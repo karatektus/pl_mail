@@ -35,7 +35,7 @@ use Psr\Log\LoggerInterface;
  *
  * ── When ─────────────────────────────────────────────────────────────────────
  * After the sweep has given the folder's rows their size
- * (MessageRepository::backfillSizes()), which is the moment this folder's
+ * (MessageImapRepository::backfillSizes()), which is the moment this folder's
  * duplicates become recognisable — in a job of its own (FoldCopiesMessage),
  * one email at a time, so an email that cannot be folded costs that email
  * and neither the sweep nor the others. A bounded number of emails per sweep, so a

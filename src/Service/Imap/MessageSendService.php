@@ -2,42 +2,42 @@
 
 namespace App\Service\Imap;
 
-use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Crypto\PlaintextSource;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
-use App\Domain\Helper\AttachmentStorageHelper;
-use App\Domain\Helper\MessageIdHelper;
-use App\Entity\Mail\Account;
-use App\Entity\Mail\Message;
-use App\Repository\Label\Label\LabelRepository;
-use App\Repository\Mail\Mailbox\MailboxRepository;
-use App\Service\Label\LabelResolver;
-use App\Service\Label\ThreadLabelSynchronizer;
-use App\Service\Crypto\AutocryptHeader;
-use App\Service\Crypto\SealedDrafts;
-use App\Service\Crypto\SealGuard;
-use App\Service\Crypto\SendingKey;
-use App\Service\Mail\AttachmentResolver;
-use App\Service\Mail\DraftAttachmentService;
-use App\Service\Mail\Mime\DataImageEmbedder;
-use App\Service\Mail\MailChangeRecorder;
-use App\Service\Mail\MailSenderRegistry;
-use App\Service\Mail\Mime\SealedEntityPart;
-use App\Service\Mail\RawMessageResolver;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Exception\SendFailureException;
 use App\Domain\Exception\SendOutcomeUnknownException;
 use App\Domain\Exception\SendRefusedException;
+use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Interface\MailDeliveryInterface;
 use App\Domain\Interface\MailSenderInterface;
 use App\Domain\Interface\SentCopyLookupInterface;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
-use Throwable;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Service\Crypto\AutocryptHeader;
+use App\Service\Crypto\SealGuard;
+use App\Service\Crypto\SealedDrafts;
+use App\Service\Crypto\SendingKey;
+use App\Service\Label\LabelResolver;
+use App\Service\Label\ThreadLabelSynchronizer;
+use App\Service\Mail\AttachmentResolver;
+use App\Service\Mail\DraftAttachmentService;
+use App\Service\Mail\MailChangeRecorder;
+use App\Service\Mail\MailSenderRegistry;
+use App\Service\Mail\Mime\DataImageEmbedder;
+use App\Service\Mail\Mime\SealedEntityPart;
+use App\Service\Mail\RawMessageResolver;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
+use Throwable;
 
 /**
  * Builds the outgoing MIME once, then dispatches it to the sender that handles

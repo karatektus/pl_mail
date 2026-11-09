@@ -51,7 +51,7 @@ final readonly class MessageEmbedder
      * ONE PERSON'S, BY CONSTRUCTION AND BY SIGNATURE
      * ──────────────────────────────────────────────
      * Both callers derive their ids from a per-user query
-     * (MessageRepository::unembeddedIdsForUser and ::idsForUserAfter), so the
+     * (MessageAiRepository::unembeddedIdsForUser and ::idsForUserAfter), so the
      * batch already belongs to one mailbox. The parameter makes that invariant
      * something a caller has to state rather than something a reader has to
      * discover — and it is what carries the per-user switch in, since this is

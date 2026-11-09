@@ -1,4 +1,4 @@
-<!-- translated-from: internals/architecture.md sha1:d22ed62220b4c65684688c1e360ec0e54eead4a8 -->
+<!-- translated-from: internals/architecture.md sha1:8e527918b9d49ce397ceac9151318ef5bdc53f4c -->
 # Architektur
 
 Die Schichten, was wo liegt, und die Regeln, die das so halten. Diese Seite beschreibt die
@@ -70,10 +70,16 @@ andere.
 
 ## Jede Abfrage lebt in einem Repository
 
-Außerhalb von `src/Repository` gibt es kein `createQueryBuilder`. Eine Abfrage, die zweimal
-gebraucht wird, ist eine benannte Repository-Methode; eine Abfrage, die einmal gebraucht wird,
-aber einen Grund hat, ist eine benannte Repository-Methode, deren Docblock diesen Grund nennt.
-`App\Repository\Calendar\CalendarEventRepository` zeigt den Gewinn am deutlichsten —
+Außerhalb von `src/Repository` gibt es keine Abfrage: keinen Query Builder, kein DQL, kein rohes
+DBAL und kein `EntityManager::find()` in einem Service, Controller, Handler, Listener oder sonst
+wo, und `QueriesLiveInRepositoriesTest` lässt den Build an einer solchen scheitern. Eine Abfrage,
+die zweimal gebraucht wird, ist eine benannte Repository-Methode; eine Abfrage, die einmal
+gebraucht wird, aber einen Grund hat, ist eine benannte Repository-Methode, deren Docblock diesen
+Grund nennt. Repositories liegen in einem Ordner pro Modell, `src/Repository/<Bereich>/<Modell>/`,
+mit dem Doctrine-Repository des Modells und einem Repository pro Thema daneben
+(`MessageRepository`, `MessageSendRepository`, `MessageImapRepository`, …), damit keines auf
+Tausende Zeilen anwächst.
+`App\Repository\Calendar\CalendarEvent\CalendarEventRepository` zeigt den Gewinn am deutlichsten —
 `findOneByRemoteId()`, `findOneByUid()`, `findPendingSync()`, `findRemoteRowsNotIn()` und
 `findRowsTheRemoteNeverGave()` tragen jeweils den Absatz, der erklärt, welche Menge sie
 auswählen, und die Sync-Engine liest sich dadurch als Folge von Entscheidungen statt als Folge

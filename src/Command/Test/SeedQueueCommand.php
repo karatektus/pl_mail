@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Command\Test;
 
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
+use App\Repository\Monitoring\MessengerQueue\MessengerQueueRepository;
 use DateTimeImmutable;
-use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -37,11 +37,11 @@ use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 final class SeedQueueCommand extends Command
 {
     public function __construct(
-        private readonly Connection $connection,
         #[Autowire(service: 'messenger.transport.native_php_serializer')]
         private readonly SerializerInterface $serializer,
         #[Autowire('%kernel.environment%')]
         private readonly string $environment,
+        private readonly MessengerQueueRepository $queue
     ) {
         parent::__construct();
     }
@@ -64,9 +64,7 @@ final class SeedQueueCommand extends Command
         // Only what this command wrote before: the failure queue belongs to
         // another panel, and a test that cleared it would be changing the
         // subject of a different spec.
-        $this->connection->executeStatement(
-            "DELETE FROM messenger_messages WHERE queue_name IN ('ingest', 'export')",
-        );
+        $this->queue->clearQueues(['ingest', 'export']);
 
         $waiting = max(1, (int) $input->getOption('waiting'));
         $now     = new DateTimeImmutable();
@@ -96,17 +94,13 @@ final class SeedQueueCommand extends Command
     ): void {
         $encoded = $this->serializer->encode(new Envelope($message));
 
-        $this->connection->insert('messenger_messages', [
-            'body'         => $encoded['body'],
-            'headers'      => json_encode($encoded['headers'] ?? [], JSON_THROW_ON_ERROR),
-            'queue_name'   => $queue,
-            'created_at'   => $createdAt,
-            'available_at' => $availableAt ?? $createdAt,
-            'delivered_at' => $deliveredAt,
-        ], [
-            'created_at'   => 'datetime_immutable',
-            'available_at' => 'datetime_immutable',
-            'delivered_at' => 'datetime_immutable',
-        ]);
+        $this->queue->insertEnvelope(
+            $queue,
+            $encoded['body'],
+            json_encode($encoded['headers'] ?? [], JSON_THROW_ON_ERROR),
+            $createdAt,
+            $availableAt ?? $createdAt,
+            $deliveredAt,
+        );
     }
 }

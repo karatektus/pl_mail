@@ -27,7 +27,7 @@ use Throwable;
  * hold: HTTP 200, "Senden abgebrochen", and the message on the wire.
  *
  * Now the read and the decision are one statement — see
- * MessageRepository::claimForSend(). A cancel that arrives first wins and this
+ * MessageSendRepository::claimForSend(). A cancel that arrives first wins and this
  * handler refuses; a claim that lands first wins and the cancel is told it was
  * too late, which is the half the composer needs in order to stop lying.
  *

@@ -7,9 +7,9 @@ namespace App\Command\Test;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
 use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageBulkSeedRepository;
 use App\Repository\User\User\UserRepository;
 use App\Service\Label\LabelResolver;
-use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -96,7 +96,7 @@ final class SeedBulkMailCommand extends Command
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly Connection $connection,
+        private readonly MessageBulkSeedRepository $seedRepository,
         private readonly UserRepository $userRepository,
         private readonly AccountRepository $accountRepository,
         private readonly LabelResolver $labelResolver,
@@ -155,7 +155,7 @@ final class SeedBulkMailCommand extends Command
                 return Command::SUCCESS;
             }
 
-            $this->wipe($account);
+            $this->seedRepository->wipeAccount((int) $account->id);
 
             // The account too, which is what "remove the bulk account and
             // everything in it" has always claimed.
@@ -171,7 +171,7 @@ final class SeedBulkMailCommand extends Command
 
         $total = max(1, (int) $input->getOption('messages'));
 
-        $this->wipe($account);
+        $this->seedRepository->wipeAccount((int) $account->id);
 
         $inbox = $this->labelResolver->systemLabel(LabelRole::Inbox, $account);
         $this->entityManager->flush();
@@ -185,9 +185,7 @@ final class SeedBulkMailCommand extends Command
         // guesses. This is the step people forget, and it is the difference
         // between measuring the query and measuring the absence of an ANALYZE.
         $io->writeln('Analysing…');
-        $this->connection->executeStatement('ANALYZE message');
-        $this->connection->executeStatement('ANALYZE message_thread');
-        $this->connection->executeStatement('ANALYZE thread_label');
+        $this->seedRepository->analyze();
 
         $io->success(sprintf(
             '%s messages in %s threads, in %.1fs.',
@@ -214,16 +212,14 @@ final class SeedBulkMailCommand extends Command
         while ($made < $total) {
             $size = min(self::CHUNK, $total - $made);
 
-            $this->connection->beginTransaction();
+            $this->seedRepository->inTransaction(function () use ($account, $inboxLabelId, $size, $senders, $now): void {
+                // One thread per chunk-of-three on average, with the occasional
+                // long one — threads are what every list query groups by, so their
+                // size distribution is part of the shape being reproduced.
+                $threadIds = $this->insertThreads($account, $inboxLabelId, (int) ceil($size / 3), $now);
 
-            // One thread per chunk-of-three on average, with the occasional
-            // long one — threads are what every list query groups by, so their
-            // size distribution is part of the shape being reproduced.
-            $threadIds = $this->insertThreads($account, $inboxLabelId, (int) ceil($size / 3), $now);
-
-            $this->insertMessages($account, $threadIds, $senders, $size, $now);
-
-            $this->connection->commit();
+                $this->insertMessages($account, $threadIds, $senders, $size, $now);
+            });
 
             $made += $size;
             $io->progressAdvance($size);
@@ -237,56 +233,33 @@ final class SeedBulkMailCommand extends Command
      */
     private function insertThreads(Account $account, int $inboxLabelId, int $count, int $now): array
     {
-        $rows   = [];
-        $params = [];
+        $rows = [];
 
         for ($i = 0; $i < $count; ++$i) {
             $when    = date('Y-m-d H:i:s', $now - mt_rand(0, 3 * 365 * 86400));
             $subject = $this->subject();
 
-            $rows[]   = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-            $params[] = $account->id;
-            $params[] = $subject;
-            $params[] = mb_strtolower($subject);
-            $params[] = 'subject_fallback';
-            $params[] = $when;
-            $params[] = mt_rand(0, 4) === 0 ? 1 : 0;
-            $params[] = 3;
-            $params[] = 0;
-            $params[] = 'primary';
-            $params[] = $when;
+            $rows[] = [
+                $account->id,
+                $subject,
+                mb_strtolower($subject),
+                'subject_fallback',
+                $when,
+                mt_rand(0, 4) === 0 ? 1 : 0,
+                3,
+                0,
+                'primary',
+                $when,
+            ];
         }
 
-        $this->connection->executeStatement(
-            'INSERT INTO message_thread'
-            . ' (account_id, subject, normalized_subject, threading_method, last_message_at,'
-            . '  unread_count, message_count, attachment_count, category, listed_at)'
-            . ' VALUES ' . implode(', ', $rows),
-            $params,
-        );
+        $this->seedRepository->insertThreads($rows);
 
-        /** @var list<int> $ids */
-        $ids = $this->connection->fetchFirstColumn(
-            'SELECT id FROM message_thread WHERE account_id = ? ORDER BY id DESC LIMIT ?',
-            [$account->id, $count],
-        );
+        $ids = $this->seedRepository->latestThreadIds((int) $account->id, $count);
 
         // Every thread wears Inbox, so the list queries have the join they have
         // in the app rather than an easier one.
-        $labelRows   = [];
-        $labelParams = [];
-
-        foreach ($ids as $id) {
-            $labelRows[]   = '(?, ?)';
-            $labelParams[] = $id;
-            $labelParams[] = $inboxLabelId;
-        }
-
-        $this->connection->executeStatement(
-            'INSERT INTO thread_label (message_thread_id, label_id) VALUES ' . implode(', ', $labelRows)
-            . ' ON CONFLICT DO NOTHING',
-            $labelParams,
-        );
+        $this->seedRepository->labelThreads($ids, $inboxLabelId);
 
         return $ids;
     }
@@ -297,39 +270,33 @@ final class SeedBulkMailCommand extends Command
      */
     private function insertMessages(Account $account, array $threadIds, array $senders, int $count, int $now): void
     {
-        $rows   = [];
-        $params = [];
+        $rows = [];
 
         for ($i = 0; $i < $count; ++$i) {
             $sender  = $senders[$this->skewed(count($senders))];
             $when    = date('Y-m-d H:i:s', $now - mt_rand(0, 3 * 365 * 86400));
             $subject = $this->subject();
 
-            $rows[]   = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-            $params[] = $account->id;
-            $params[] = $threadIds[array_rand($threadIds)];
-            $params[] = $subject;
-            $params[] = $sender['address'];
-            $params[] = $sender['name'];
-            $params[] = json_encode([['name' => 'You', 'address' => 'you@example.test']]);
-            $params[] = $this->body();
-            $params[] = '[]';
-            $params[] = 0;
-            $params[] = 0;
-            $params[] = $when;
-            $params[] = $when;
-            $params[] = mt_rand(0, 3) === 0 ? null : $when;
-            $params[] = $when;
-            $params[] = $when;
+            $rows[] = [
+                $account->id,
+                $threadIds[array_rand($threadIds)],
+                $subject,
+                $sender['address'],
+                $sender['name'],
+                json_encode([['name' => 'You', 'address' => 'you@example.test']]),
+                $this->body(),
+                '[]',
+                0,
+                0,
+                $when,
+                $when,
+                mt_rand(0, 3) === 0 ? null : $when,
+                $when,
+                $when,
+            ];
         }
 
-        $this->connection->executeStatement(
-            'INSERT INTO message'
-            . ' (account_id, thread_id, subject, from_address, from_name, to_addresses, body_text,'
-            . '  flags, has_attachments, cancelled, sent_at, received_at, seen_at, created_at, updated_at)'
-            . ' VALUES ' . implode(', ', $rows),
-            $params,
-        );
+        $this->seedRepository->insertMessages($rows);
     }
 
     /**
@@ -468,18 +435,5 @@ final class SeedBulkMailCommand extends Command
         $this->entityManager->flush();
 
         return $account;
-    }
-
-    /** Everything this command has ever made on its own account, and nothing else. */
-    private function wipe(Account $account): void
-    {
-        $this->connection->executeStatement(
-            'DELETE FROM message WHERE account_id = ?',
-            [$account->id],
-        );
-        $this->connection->executeStatement(
-            'DELETE FROM message_thread WHERE account_id = ?',
-            [$account->id],
-        );
     }
 }

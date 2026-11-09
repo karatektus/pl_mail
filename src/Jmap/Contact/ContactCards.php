@@ -7,7 +7,6 @@ namespace App\Jmap\Contact;
 use App\Domain\Helper\UploadStorage;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
-use App\Entity\Mail\UploadedBlob;
 use App\Entity\User\User;
 use App\Jmap\Blob\BlobId;
 use App\Jmap\Protocol\Exception\MethodException;

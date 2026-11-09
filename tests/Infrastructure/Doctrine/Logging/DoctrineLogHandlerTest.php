@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Infrastructure\Doctrine\Logging;
 
+use App\EventSubscriber\RequestIdSubscriber;
 use App\Infrastructure\Doctrine\Logging\DoctrineLogHandler;
-use Doctrine\DBAL\Connection;
+use App\Repository\Monitoring\LogEntry\LogEntryAppendRepository;
+use App\Repository\Monitoring\LogSettings\LogLevelRepository;
 use App\Service\Monitoring\LogLevelResolver;
+use Doctrine\DBAL\Connection;
 use Monolog\Level;
 use Monolog\LogRecord;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
-use App\EventSubscriber\RequestIdSubscriber;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -181,7 +183,7 @@ final class DoctrineLogHandlerTest extends KernelTestCase
     {
         $resolver = $this->resolverFixedAt(Level::Error);
 
-        $handler = new DoctrineLogHandler($this->connection, null, $resolver, 'test', 'debug');
+        $handler = new DoctrineLogHandler(new LogEntryAppendRepository($this->connection), null, $resolver, 'test', 'debug');
 
         $handler->handle($this->recordAt(Level::Warning, 'below the line'));
         $handler->handle($this->recordAt(Level::Error, 'at the line'));
@@ -197,7 +199,7 @@ final class DoctrineLogHandlerTest extends KernelTestCase
      */
     public function testLoweringTheLevelLetsQuieterRecordsThrough(): void
     {
-        $handler = new DoctrineLogHandler($this->connection, null, $this->resolverFixedAt(Level::Info), 'test', 'debug');
+        $handler = new DoctrineLogHandler(new LogEntryAppendRepository($this->connection), null, $this->resolverFixedAt(Level::Info), 'test', 'debug');
 
         $handler->handle($this->recordAt(Level::Info, 'now worth keeping'));
 
@@ -214,7 +216,7 @@ final class DoctrineLogHandlerTest extends KernelTestCase
      */
     public function testWithoutAResolverTheConstructorLevelStillApplies(): void
     {
-        $handler = new DoctrineLogHandler($this->connection, null, null, 'test', 'error');
+        $handler = new DoctrineLogHandler(new LogEntryAppendRepository($this->connection), null, null, 'test', 'error');
 
         $handler->handle($this->recordAt(Level::Warning, 'below the constructor level'));
 
@@ -232,7 +234,7 @@ final class DoctrineLogHandlerTest extends KernelTestCase
      */
     private function resolverFixedAt(Level $level): LogLevelResolver
     {
-        return new LogLevelResolver($this->connection, $level->toPsrLogLevel());
+        return new LogLevelResolver(new LogLevelRepository($this->connection), $level->toPsrLogLevel());
     }
 
     private function recordAt(Level $level, string $message): LogRecord
@@ -275,7 +277,7 @@ final class DoctrineLogHandlerTest extends KernelTestCase
 
     private function handler(?RequestStack $stack = null): DoctrineLogHandler
     {
-        return new DoctrineLogHandler($this->connection, $stack, null, 'test', 'warning');
+        return new DoctrineLogHandler(new LogEntryAppendRepository($this->connection), $stack, null, 'test', 'warning');
     }
 
     /** @param array<string,mixed> $context */

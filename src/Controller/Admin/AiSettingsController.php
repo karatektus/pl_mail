@@ -13,7 +13,6 @@ use App\Entity\Ai\AiFeature;
 use App\Entity\Ai\AiSettings;
 use App\Form\Admin\AiSettingsType;
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageAiRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPerformancePanel;
@@ -455,7 +454,7 @@ final class AiSettingsController extends AbstractController
      * Rendered beside the switch that turns holding off, because that switch
      * is a trade — mail never moves tabs, in exchange for appearing a little
      * later — and "a little" is a property of this installation's model host
-     * that nobody can know in advance. See MessageRepository::holdDelayStats().
+     * that nobody can know in advance. See MessageAiRepository::holdDelayStats().
      *
      * A week and not the panel's selectable window: this is one sentence under
      * a checkbox, and trickle mail on a small installation is a few dozen

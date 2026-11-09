@@ -10,14 +10,15 @@ use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Entity\Mail\TrustedImageSender;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
+use App\Entity\User\User;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Repository\Mail\Account\AccountRepository;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\TrustedImageSender\TrustedImageSenderRepository;
 use App\Repository\User\User\UserRepository;
 use App\Service\Label\LabelResolver;
 use DateTimeImmutable;
@@ -113,6 +114,7 @@ final class SeedRenderingCommand extends Command
         private readonly StateManager            $stateManager,
         #[Autowire('%kernel.environment%')]
         private readonly string                  $environment,
+        private readonly TrustedImageSenderRepository $trustedImageSenderRepository,
     ) {
         parent::__construct();
     }
@@ -464,11 +466,9 @@ final class SeedRenderingCommand extends Command
      * address and outlives every message from that sender, which is the whole
      * point of it.
      */
-    private function forgetTrustedSenders(object $user): void
+    private function forgetTrustedSenders(User $user): void
     {
-        $this->entityManager->createQuery(
-            'DELETE FROM ' . TrustedImageSender::class . ' trusted WHERE trusted.usr = :user',
-        )->setParameter('user', $user)->execute();
+        $this->trustedImageSenderRepository->deleteForUser($user);
     }
 
     private function removePreviousSeed(Account $account, string $subject): void

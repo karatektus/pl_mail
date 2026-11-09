@@ -211,7 +211,7 @@ final class SearchSnippetGetMethod implements JmapMethod
      *
      * Only the fields `ts_headline` left unmarked are worth fetching, and the
      * two are counted separately because they cost different amounts — see the
-     * class docblock for the numbers and MessageRepository::findSearchTexts()
+     * class docblock for the numbers and MessageJmapRepository::findSearchTexts()
      * for how the body column is gated. A request whose every field came back
      * marked issues no second statement at all: `$wanted` is empty, and the
      * repository answers without touching the database.

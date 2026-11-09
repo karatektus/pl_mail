@@ -65,10 +65,14 @@ side's comment points at the other.
 
 ## Every query lives in a repository
 
-There is no `createQueryBuilder` outside `src/Repository`. A query used twice is a named
-repository method; a query used once but with a reason is a named repository method whose
-docblock gives the reason. `App\Repository\Calendar\CalendarEventRepository` is the clearest
-example of the payoff — `findOneByRemoteId()`, `findOneByUid()`, `findPendingSync()`,
+There is no query outside `src/Repository`: no query builder, DQL, raw DBAL or
+`EntityManager::find()` in a service, controller, handler, listener or anywhere else, and
+`QueriesLiveInRepositoriesTest` fails the build on one. A query used twice is a named repository
+method; a query used once but with a reason is a named repository method whose docblock gives the
+reason. Repositories sit in a folder per model, `src/Repository/<Area>/<Model>/`, with the model's
+Doctrine repository and one repository per topic beside it (`MessageRepository`,
+`MessageSendRepository`, `MessageImapRepository`, …), so none of them grows to thousands of lines.
+`App\Repository\Calendar\CalendarEvent\CalendarEventRepository` is the clearest example of the payoff — `findOneByRemoteId()`, `findOneByUid()`, `findPendingSync()`,
 `findRemoteRowsNotIn()` and `findRowsTheRemoteNeverGave()` each carry the paragraph
 explaining what population it selects, and the sync engine reads as a sequence of decisions
 rather than as a sequence of queries.

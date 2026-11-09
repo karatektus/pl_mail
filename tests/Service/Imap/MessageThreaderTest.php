@@ -111,7 +111,7 @@ final class MessageThreaderTest extends TestCase
     }
 
     /**
-     * Most-recent-wins, matching what MessageThreadRepository::recomputeCategoriesForAccount()
+     * Most-recent-wins, matching what MessageThreadCategoryRepository::recomputeCategoriesForAccount()
      * does in SQL: the newest message decides, an older one arriving late does not.
      */
     #[DataProvider('threadCategoryCases')]

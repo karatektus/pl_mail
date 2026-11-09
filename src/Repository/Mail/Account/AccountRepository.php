@@ -4,6 +4,7 @@ namespace App\Repository\Mail\Account;
 
 use App\Domain\Enum\Account\IncomingProtocol;
 use App\Entity\Mail\Account;
+use App\Entity\User\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Common\Collections\Criteria;
 use Doctrine\Persistence\ManagerRegistry;
@@ -163,5 +164,21 @@ class AccountRepository extends ServiceEntityRepository
             ->setMaxResults(1);
 
         return $this->matching($criteria)->first() ?: null;
+    }
+
+    /**
+     * The ids of a user's active accounts, as values a query can bind.
+     *
+     * @return list<int>
+     */
+    public function findActiveIdsForUser(User $user): array
+    {
+        /** @var list<int|string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT id FROM account WHERE usr_id = ? AND is_active = true',
+            [$user->id],
+        );
+
+        return array_map(intval(...), $ids);
     }
 }

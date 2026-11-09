@@ -17,7 +17,6 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageSendRepository;
 use App\Repository\Mail\Message\MessageJmapRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -319,7 +318,7 @@ final class EmailSubmissionSetMethod implements JmapMethod
      * - It cannot stop a send in flight. An immediate submission is dispatched
      *   with no delay and a worker may already hold the claim; the cancel is
      *   then refused with cannotUnsend, decided in the same statement as the
-     *   web undo (MessageRepository::cancelSend()), so the answer is true.
+     *   web undo (MessageSendRepository::cancelSend()), so the answer is true.
      *
      * It IS reported afterwards, which it did not used to be:
      * `submissionCancelledAt` is written beside the flag, and

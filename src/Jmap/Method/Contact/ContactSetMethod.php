@@ -7,7 +7,6 @@ namespace App\Jmap\Method\Contact;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\UploadStorage;
 use App\Entity\Contacts\Contact;
-use App\Entity\Mail\UploadedBlob;
 use App\Entity\User\User;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Blob\BlobId;

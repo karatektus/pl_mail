@@ -208,7 +208,7 @@ Named for what they *are*, not for the pattern they implement. `ThreadSnoozeServ
 
 | Suffix | Means |
 |---|---|
-| `…Repository` | Every query against one entity. Nothing else. |
+| `…Repository` | Queries about one model, or one topic of it. Nothing else. |
 | `…Service` | Owns what an operation *means*; shared by every caller. |
 | `…Resolver` | Turns an ambiguous input into the one right object. |
 | `…Builder` | Assembles a structure from parts. |
@@ -244,6 +244,8 @@ One class per file, PSR-4, path mirrors namespace. Directories are grouped by *d
 then kind* under each top-level layer: `src/Service/Mail/`, `src/Service/Graph/`,
 `src/Repository/Label/`, `src/Entity/Monitoring/`, `src/Domain/Enum/Mail/`. This scales: a new
 provider adds `src/Service/Fastmail/` rather than eleven files into one flat directory.
+Repositories go one level further, a folder per model: `src/Repository/Mail/Message/` holds
+`MessageRepository` and the topic repositories beside it (see §5.3).
 
 Twig partials are prefixed with an underscore (`_thread_row.html.twig`) and full pages are not
 (`inbox.html.twig`). Turbo Stream templates carry `.stream.html.twig`.
@@ -525,7 +527,7 @@ src/
   Form/           Symfony form types
   Infrastructure/ Framework-facing wiring: Doctrine/, Messaging/, Event/, Scheduler/, Setup/, Encryption/
   Jmap/           A protocol implementation, self-contained, with its own Method/, Mapper/, Protocol/
-  Repository/     One per entity, mirroring Entity/'s grouping
+  Repository/     A folder per model, mirroring Entity/'s grouping, with a repository per topic
   Security/       Authenticators, user provider, two-factor
   Service/        Everything that decides something. The largest layer, by design.
   Twig/           Extensions and runtime helpers (Vendor/ for lifted upstream code)
@@ -585,10 +587,25 @@ class ThreadStatusController extends AbstractController
 
 ### 5.3 Every query lives in a repository
 
-No `createQueryBuilder` outside `src/Repository`, no `EntityManager::getRepository()->findBy()`
-inline in a service when the query means something. If a query is used twice, it is a named
-repository method; if it is used once but has a reason, it is a named repository method with a
-docblock explaining the reason.
+No query outside `src/Repository`: not in a service, controller, command, message handler,
+listener, form type, Twig extension or JMAP method. That is every kind — the query builder, DQL,
+native queries, raw DBAL statements and fetches, DBAL's `insert()`/`update()`/`delete()`, Postgres
+helpers such as advisory locks, and `EntityManager::find()` / `getRepository()`, which reach around
+the repository that should answer. `QueriesLiveInRepositoriesTest` reads `src/` and fails on any of
+them. Calling a repository's own `find()` or `findBy()` is fine; that is the repository answering.
+
+If a query is used twice, it is a named repository method; if it is used once but has a reason, it
+is a named repository method with a docblock explaining the reason.
+
+Repositories are grouped by model and topic: `src/Repository/<Area>/<Model>/`. The model's Doctrine
+repository (`MessageRepository`) holds its core lookups, and each topic with queries of its own gets
+a repository beside it — `MessageSendRepository`, `MessageImapRepository`,
+`MessageThreadSearchRepository` — so no repository grows to thousands of lines. Conditions two
+topics share live in one class in the folder (`MessageThreadListCriteria`) rather than in both.
+A table without an entity gets a `final readonly` repository on `Connection`
+(`MessageEmbeddingRepository`), and so does a write that must not touch the entity manager, such
+as one from a log handler or a Doctrine listener (`LogEntryAppendRepository`).
+Repositories a test doubles are not `final`.
 
 Raw DBAL is allowed, and when it appears it says why it had to be raw:
 
@@ -1300,7 +1317,7 @@ Paste this into `CLAUDE.md`, `AGENTS.md`, or a PR template.
 
 **Structure**
 6. Controllers resolve, authorise, delegate, render. Nothing else.
-7. Every query lives in a repository. Raw SQL says why it had to be raw.
+7. Every query lives in a repository, grouped by model and topic. Raw SQL says why it had to be raw.
 8. One service per concept; every caller goes through it. Differences between callers are named at
    both ends.
 9. Interfaces for the axis that varies; implementations under the provider's own directory.

@@ -14,7 +14,6 @@ use App\Entity\User\User;
 use App\Infrastructure\ImapClient\ImapLoop;
 use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Repository\Mail\Message\MessageImapRepository;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapCopies;
 use App\Service\Imap\MailboxSyncer;

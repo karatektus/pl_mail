@@ -19,7 +19,6 @@ use App\Jmap\Query\EmailFilterCompiler;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use App\Repository\Mail\Message\MessageFilterRepository;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Rule\MailRule\MailRuleRepository;
 use App\Service\Rule\RuleCategoryFiler;
 use App\Service\Rule\RuleConditions;
@@ -32,7 +31,7 @@ use Psr\Log\NullLogger;
  * "Test my filters on this message" reports what the engine would do, in the
  * engine's order, and does none of it.
  *
- * Matching itself is Postgres's (MessageRepository::matchingIds), so it is
+ * Matching itself is Postgres's (MessageFilterRepository::matchingIds), so it is
  * stubbed here by subject: what is under test is the walk — order, account
  * scope, Spam, stop-after — and the File in category verdict, which goes
  * through RuleCategoryFiler::check() and must agree with what file() would

@@ -10,7 +10,6 @@ use App\Domain\Exception\InvalidInboxCategoryException;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Mail\InboxCategoryManager;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;

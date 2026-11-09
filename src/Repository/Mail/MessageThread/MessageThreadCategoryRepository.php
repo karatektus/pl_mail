@@ -8,7 +8,6 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
-use App\Entity\User\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
@@ -192,6 +191,31 @@ class MessageThreadCategoryRepository extends ServiceEntityRepository
               AND t.category_pinned_at IS NOT NULL
             SQL,
             ['user' => $user->id, 'category' => $category->value],
+        );
+    }
+
+    /**
+     * The threads filed under a user's category, as ids.
+     *
+     * @return list<int>
+     */
+    public function findIdsInUserCategory(int $categoryId): array
+    {
+        return array_map(
+            intval(...),
+            $this->getEntityManager()->getConnection()->fetchFirstColumn(
+                'SELECT id FROM message_thread WHERE user_category_id = :id',
+                ['id' => $categoryId],
+            ),
+        );
+    }
+
+    /** Release every pin into a user's category, ahead of the category going. */
+    public function unpinFromUserCategory(int $categoryId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE message_thread SET category_pinned_at = NULL WHERE user_category_id = :id',
+            ['id' => $categoryId],
         );
     }
 }

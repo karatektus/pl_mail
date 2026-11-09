@@ -12,7 +12,6 @@ use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Service\Imap\ImapConnector;
 use App\Repository\Mail\Mailbox\MailboxRepository;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageImapRepository;
 use App\Repository\Mail\Pop3Uidl\Pop3UidlRepository;
 use App\Service\Imap\SentCopyReconciler;

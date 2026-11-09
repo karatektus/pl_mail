@@ -147,7 +147,7 @@ column.
 
 **Contacts** — `Method/Contact/ContactAutocompleteMethod`, and nothing else.
 There is no mapper and no repository of its own: it is one call into
-`App\Repository\Mail\ContactRepository::findForAutocomplete()`, the same query
+`App\Repository\Mail\Contact\ContactRepository::findForAutocomplete()`, the same query
 the web composer's autocomplete runs.
 
 **Templates glue**

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Contact;
 
-use App\Entity\Contacts\ContactMergeRecord;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;

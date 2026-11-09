@@ -16,7 +16,6 @@ use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Repository\Mail\Message\MessageImapRepository;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapCopies;
 use App\Service\Imap\MailboxSyncer;

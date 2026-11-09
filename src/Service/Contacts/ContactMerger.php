@@ -11,7 +11,6 @@ use App\Entity\Contacts\ContactAddress;
 use App\Entity\Contacts\ContactEmail;
 use App\Entity\Contacts\ContactMergeRecord;
 use App\Entity\Contacts\ContactPhone;
-use App\Entity\Contacts\ContactRelation;
 use App\Entity\User\User;
 use App\Repository\Contacts\ContactMergeRecord\ContactMergeRecordRepository;
 use App\Repository\Contacts\ContactRelation\ContactRelationRepository;

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
-use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\CollectContactKeysMessage;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Crypto\ContactKeyCollector;

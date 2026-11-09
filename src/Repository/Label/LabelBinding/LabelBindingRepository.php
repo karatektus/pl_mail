@@ -100,7 +100,7 @@ class LabelBindingRepository extends ServiceEntityRepository
     /**
      * Unbind every remote JMAP mailbox from an account's labels, keeping the
      * labels: what a switch away from JMAP leaves behind. See
-     * MessageRepository::forgetJmapIds().
+     * MessageJmapRepository::forgetJmapIds().
      */
     public function forgetJmapMailboxIds(Account $account): int
     {

@@ -344,8 +344,8 @@ collapses into one endless conversation.
 reply to what it answers, so on their own the result depends on sync order. Folders are synced
 one after the other, and replies in INBOX routinely arrive before the Sent Items message they
 answer; they found nothing, opened threads of their own, and stayed there (#172). After steps 2
-and 3, `adoptReplies()` asks `MessageRepository::findRepliesToForAccount()` for every message of
-the account whose `in_reply_to` or `thread_references` names this Message-ID, and
+and 3, `adoptReplies()` asks `MessageThreadingRepository::findRepliesToForAccount()` for every
+message of the account whose `in_reply_to` or `thread_references` names this Message-ID, and
 `ThreadMerger` folds each of their threads into this one. A GIN expression index,
 `idx_message_referenced_ids`, keeps that lookup from scanning the mailbox per message. Step 1
 skips it: a provider conversation id has already grouped the replies.

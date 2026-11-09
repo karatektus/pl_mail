@@ -462,4 +462,44 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
 
         return $qb;
     }
+
+    /**
+     * Every row of one class that names this user in one field, for erasing a
+     * user entity by entity so Doctrine's own cascades run.
+     *
+     * @param class-string $class
+     *
+     * @return list<object>
+     */
+    public function findOwnedRows(string $class, string $field, User $user): array
+    {
+        /** @var list<object> */
+        return $this->getEntityManager()->getRepository($class)->findBy([$field => $user]);
+    }
+
+    /** The id of the live user with this address, read as a number so an unreadable row still answers. */
+    public function findIdByEmail(string $email): ?int
+    {
+        return $this->idWhere('user.email = :email', $email);
+    }
+
+    /** The id of a deleted user who held this address, read the same way. */
+    public function findIdByEmailAtDeletion(string $email): ?int
+    {
+        return $this->idWhere('user.emailAtDeletion = :email', $email);
+    }
+
+    /** One indexed lookup answering with an id and nothing else. */
+    private function idWhere(string $predicate, string $email): ?int
+    {
+        $id = $this->createQueryBuilder('user')
+            ->select('user.id')
+            ->andWhere($predicate)
+            ->setParameter('email', $email)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return is_array($id) && is_int($id['id'] ?? null) ? $id['id'] : null;
+    }
 }

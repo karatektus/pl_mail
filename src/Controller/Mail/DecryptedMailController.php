@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
-use App\Domain\Enum\Crypto\MessageCrypto;
-use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Exception\DecryptedMailRefused;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;

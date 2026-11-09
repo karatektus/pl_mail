@@ -77,7 +77,7 @@ class ComposeController extends AbstractController
      * instead of one of them being accidentally safe.
      *
      * The two seconds are not the guarantee, they are the margin. The
-     * guarantee is MessageRepository::claimForSend(): a cancel that loses
+     * guarantee is MessageSendRepository::claimForSend(): a cancel that loses
      * anyway — a slow request, a busy worker — is now TOLD it lost. This is
      * what keeps that path rare enough to be an edge case.
      */
@@ -722,7 +722,7 @@ class ComposeController extends AbstractController
      *
      * Answers whether the cancel actually took. False means SendMessageHandler
      * had already claimed the message and the mail is gone or going — see
-     * MessageRepository::cancelSend(), which is where that is decided, and in
+     * MessageSendRepository::cancelSend(), which is where that is decided, and in
      * one statement so there is no window for the two to disagree.
      *
      * No longer writes through the entity, and that is the point rather than a

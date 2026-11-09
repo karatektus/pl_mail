@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Service\Search;
 
 use App\Domain\Helper\ReadableBody;
-use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\ParameterType;
+use App\Repository\Ai\MessageEmbedding\MessageEmbeddingRepository;
+use App\Repository\Mail\Message\MessageSearchIndexRepository;
 
 /**
  * Indexes the messages whose search_vector is still NULL, newest first.
@@ -49,29 +48,17 @@ use Doctrine\DBAL\ParameterType;
  */
 final readonly class SearchIndexRebuilder
 {
-    /**
-     * The rows whose HTML has to be read: no body_html_text yet, an HTML body,
-     * and a text part that does not hold the words — none, nothing but
-     * whitespace (`!~ '[^[:space:]]'`), or Graph's preview. octet_length()
-     * reads a TOASTed value's size without fetching it. The PHP side decides
-     * the rest; this only has to be no narrower than it.
-     */
-    private const string NEEDS_WORDS = <<<'SQL'
-        (m.body_html_text IS NULL
-         AND octet_length(coalesce(m.body_html_safe, m.body_html, '')) > 0
-         AND (m.graph_id IS NOT NULL OR m.body_text IS NULL OR m.body_text !~ '[^[:space:]]'))
-        SQL;
-
     /** @param int $batchSize rows per transaction; a parameter so a test can watch the order */
     public function __construct(
-        private Connection $connection,
+        private MessageSearchIndexRepository $index,
+        private MessageEmbeddingRepository   $embeddings,
         private int        $batchSize = 500,
     ) {}
 
     /** How many messages are still waiting. One probe of a partial index once there are none. */
     public function pending(): int
     {
-        return (int) $this->connection->fetchOne('SELECT count(*) FROM message WHERE search_vector IS NULL');
+        return $this->index->countPending();
     }
 
     /**
@@ -108,21 +95,8 @@ final readonly class SearchIndexRebuilder
     /** @return array{int, int} rows indexed, rows given body_html_text */
     private function batch(): array
     {
-        $this->connection->beginTransaction();
-
-        try {
-            /** @var list<array{id: int|string, needs_words: bool, graph_id: ?string, body_text: ?string, body_html: ?string, body_html_safe: ?string}> $rows */
-            $rows = $this->connection->fetchAllAssociative(
-                'SELECT m.id, m.graph_id, ' . self::NEEDS_WORDS . ' AS needs_words,'
-                . ' CASE WHEN ' . self::NEEDS_WORDS . ' THEN m.body_text END AS body_text,'
-                . ' CASE WHEN ' . self::NEEDS_WORDS . ' THEN m.body_html END AS body_html,'
-                . ' CASE WHEN ' . self::NEEDS_WORDS . ' THEN m.body_html_safe END AS body_html_safe'
-                . ' FROM message m WHERE m.search_vector IS NULL'
-                . ' ORDER BY m.id DESC LIMIT :limit FOR UPDATE SKIP LOCKED',
-                ['limit' => $this->batchSize],
-                ['limit' => ParameterType::INTEGER],
-            );
-
+        return $this->index->inTransaction(function (): array {
+            $rows   = $this->index->lockPendingBatch($this->batchSize);
             $filled = [];
             $plain  = [];
 
@@ -134,42 +108,22 @@ final readonly class SearchIndexRebuilder
 
                 if (null === $words) {
                     $plain[] = $id;
-
                     continue;
                 }
 
-                $this->connection->executeStatement(
-                    "UPDATE message SET body_html_text = :words, search_vector = ''::tsvector WHERE id = :id",
-                    ['words' => $words, 'id' => $id],
-                    ['id' => ParameterType::INTEGER],
-                );
-
+                $this->index->fillWords($id, $words);
                 $filled[] = $id;
             }
 
             if ([] !== $plain) {
-                $this->connection->executeStatement(
-                    "UPDATE message SET search_vector = ''::tsvector WHERE id IN (:ids)",
-                    ['ids' => $plain],
-                    ['ids' => ArrayParameterType::INTEGER],
-                );
+                $this->index->markForIndexing($plain);
             }
 
             if ([] !== $filled) {
-                $this->connection->executeStatement(
-                    'DELETE FROM message_embedding WHERE message_id IN (:ids)',
-                    ['ids' => $filled],
-                    ['ids' => ArrayParameterType::INTEGER],
-                );
+                $this->embeddings->deleteForMessages($filled);
             }
 
-            $this->connection->commit();
-        } catch (\Throwable $e) {
-            $this->connection->rollBack();
-
-            throw $e;
-        }
-
-        return [count($rows), count($filled)];
+            return [count($rows), count($filled)];
+        });
     }
 }

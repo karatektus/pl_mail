@@ -7,7 +7,6 @@ namespace App\Service\Imap;
 use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Mailbox;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Label\KeywordLabelFollower;
 use App\Service\Mail\ThreadStatusUpdater;
@@ -101,7 +100,7 @@ final readonly class ImapFlagReconciler
         // row in the mailbox as a full entity: bodies, stored HTML, headers and
         // the search vector, to compare two booleans and a small array. It was
         // the single largest cost in a real install's database. See
-        // MessageRepository::findFlagStateByUid().
+        // MessageImapRepository::findFlagStateByUid().
         $state = $this->messageImapRepository->findFlagStateByUid($mailbox);
 
         if ([] === $state) {

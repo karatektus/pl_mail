@@ -4,17 +4,17 @@ namespace App\Repository\Mail\MessageThread;
 
 
 use App\Domain\DTO\Ai\SemanticSearch;
+use App\Domain\DTO\Mail\InboxTab;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ListSortOrder;
-use App\Domain\DTO\Mail\InboxTab;
 use App\Domain\Enum\Mail\MessageCategory;
-use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -891,4 +891,31 @@ class MessageThreadRepository extends ServiceEntityRepository
      * against and which turns out to be safe in the place it is now written.
      */
 
+    /**
+     * Which of these threads are in the bin or in Spam.
+     *
+     * A second query over a short list of candidates rather than a NOT EXISTS
+     * inside a search, where the label lookup would run once per matching
+     * message.
+     *
+     * @param non-empty-list<int> $threadIds
+     *
+     * @return list<int>
+     */
+    public function findSetAsideAmong(array $threadIds): array
+    {
+        /** @var list<int|string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            <<<SQL
+                SELECT DISTINCT tl.message_thread_id
+                FROM thread_label tl
+                JOIN label l ON l.id = tl.label_id
+                WHERE tl.message_thread_id IN (:threads) AND l.role IN (:roles)
+            SQL,
+            ['threads' => $threadIds, 'roles' => [LabelRole::Trash->value, LabelRole::Spam->value]],
+            ['threads' => ArrayParameterType::INTEGER, 'roles' => ArrayParameterType::STRING],
+        );
+
+        return array_map(intval(...), $ids);
+    }
 }

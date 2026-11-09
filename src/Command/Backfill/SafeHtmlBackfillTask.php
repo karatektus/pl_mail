@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Mail\MailBodySanitizer;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,7 +17,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * Keyset pagination by id (not offset, not a shrinking IS NULL cursor) so the
  * scan can flush + clear each batch without a server-side cursor, and can't
  * loop on rows the sanitizer legitimately leaves null (whitespace-only bodies).
- * The cursor itself is MessageRepository::findPendingSafeHtml().
+ * The cursor itself is MessageBackfillRepository::findPendingSafeHtml().
  */
 final readonly class SafeHtmlBackfillTask implements BackfillTaskInterface
 {

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Jmap\Method\Keys;
 
 use App\Domain\Enum\Crypto\MessageCrypto;
-use App\Entity\Mail\Message;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;

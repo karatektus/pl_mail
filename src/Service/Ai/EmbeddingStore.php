@@ -173,7 +173,7 @@ final readonly class EmbeddingStore
      *
      * What the admin panel counts, and it must be counted the way the walk
      * walks or the percentage never reaches a hundred: BackfillEmbeddingsHandler
-     * takes its ids from MessageRepository::idsForUserAfter(), which joins
+     * takes its ids from MessageBackfillRepository::idsForUserAfter(), which joins
      * message to account directly. Counting through message_thread instead —
      * the join coverageFor() uses, because a person's own mailbox is a thread
      * list — answers a slightly different set, and a progress bar that stops at

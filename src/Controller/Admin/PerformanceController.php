@@ -6,7 +6,6 @@ namespace App\Controller\Admin;
 
 use App\Domain\Enum\Ai\MetricWindow;
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageArrivalRepository;
 use App\Repository\Mail\Message\MessageAiRepository;
 use App\Service\Monitoring\QueueMonitor;
@@ -39,7 +38,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * split into the three places the time can go.
  *
  * NOTHING HERE READS ANYBODY'S MAIL. A row is an account, a time and some
- * durations. See MessageRepository::holdDetails().
+ * durations. See MessageAiRepository::holdDetails().
  */
 #[IsGranted('ROLE_ADMIN')]
 final class PerformanceController extends AbstractController

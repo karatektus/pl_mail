@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository\Monitoring\MessengerQueue;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 
@@ -272,5 +273,43 @@ final readonly class MessengerQueueRepository
             ['filter' => '%' . $filter . '%'],
             ['filter' => ParameterType::STRING],
         ];
+    }
+
+    /**
+     * Empty these queues. For the E2E seeder only: the failure queue and every
+     * other one belong to somebody else.
+     *
+     * @param non-empty-list<string> $queues
+     */
+    public function clearQueues(array $queues): void
+    {
+        $this->connection->executeStatement(
+            'DELETE FROM messenger_messages WHERE queue_name IN (:queues)',
+            ['queues' => $queues],
+            ['queues' => ArrayParameterType::STRING],
+        );
+    }
+
+    /** Put one encoded envelope on a queue as the transport would, with the clock fields given. */
+    public function insertEnvelope(
+        string             $queue,
+        string             $body,
+        string             $headers,
+        \DateTimeImmutable $createdAt,
+        \DateTimeImmutable $availableAt,
+        ?\DateTimeImmutable $deliveredAt,
+    ): void {
+        $this->connection->insert('messenger_messages', [
+            'body'         => $body,
+            'headers'      => $headers,
+            'queue_name'   => $queue,
+            'created_at'   => $createdAt,
+            'available_at' => $availableAt,
+            'delivered_at' => $deliveredAt,
+        ], [
+            'created_at'   => 'datetime_immutable',
+            'available_at' => 'datetime_immutable',
+            'delivered_at' => 'datetime_immutable',
+        ]);
     }
 }

@@ -90,8 +90,6 @@ final readonly class InboxCategoryManager
     public function remove(InboxCategory $category): void
     {
         $this->em->wrapInTransaction(function () use ($category): void {
-            $connection = $this->em->getConnection();
-
             // Recorded while the id is still there to be named.
             $this->tabChanges->destroyed($category->usr, [$category->tabKey()]);
 
@@ -105,18 +103,9 @@ final readonly class InboxCategoryManager
 
             // Taken BEFORE the delete, because the delete is what empties the
             // column this is read from.
-            $held = array_map(
-                intval(...),
-                $connection->fetchFirstColumn(
-                    'SELECT id FROM message_thread WHERE user_category_id = :id',
-                    ['id' => $category->id],
-                ),
-            );
+            $held = $this->messageThreadCategoryRepository->findIdsInUserCategory((int) $category->id);
 
-            $connection->executeStatement(
-                'UPDATE message_thread SET category_pinned_at = NULL WHERE user_category_id = :id',
-                ['id' => $category->id],
-            );
+            $this->messageThreadCategoryRepository->unpinFromUserCategory((int) $category->id);
 
             // The foreign keys un-file the rows; what is already loaded in this
             // request still points at the category, and the next flush would

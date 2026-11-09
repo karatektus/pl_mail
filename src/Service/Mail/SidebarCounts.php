@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Jmap\State\ChangeLogRepository;
+use App\Repository\Jmap\ChangeLog\ChangeLogRepository;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\SidebarRow;
 use App\Entity\Label\Label;
@@ -512,7 +512,7 @@ class SidebarCounts implements ResetInterface
 
     /**
      * The LABELS heading's own number, shown only while that section is
-     * collapsed — see MessageThreadRepository::countUnreadInUserLabels() for
+     * collapsed — see MessageThreadBadgeRepository::countUnreadInUserLabels() for
      * why it is not the sum of the rows it stands in for.
      */
     public function unreadInLabels(): int

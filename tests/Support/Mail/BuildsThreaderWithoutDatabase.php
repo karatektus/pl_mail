@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Support\Mail;
 
-use App\Jmap\State\ChangeLogRepository;
+use App\Repository\Jmap\ChangeLog\ChangeLogRepository;
 use App\Jmap\State\StateManager;
 use App\Repository\Insight\MailInsight\MailInsightRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;

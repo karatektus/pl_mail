@@ -6,7 +6,6 @@ namespace App\Service\Search;
 
 use App\Domain\DTO\Mail\ThreadRowMessage;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageJmapRepository;
 use App\Service\Mail\ThreadRows;
 use Twig\Markup;
@@ -28,7 +27,7 @@ use Twig\Markup;
  * here goes into Doctrine's identity map carrying the answer to somebody else's
  * question for the rest of the request. Same reasoning, and the same shape of
  * answer, as the `semanticOnly` id list — see
- * MessageThreadRepository::searchPage().
+ * MessageThreadSearchRepository::searchPage().
  *
  * THE BRIDGE FROM THREADS TO MESSAGES. `ts_headline` runs over a MESSAGE: the
  * subject and text part it highlights are columns of `message`, and the search
@@ -233,7 +232,7 @@ final class SearchResultHighlights
      * nothing, SearchHighlighter needs the raw field to search it itself. The
      * list no longer hydrates message bodies (see ThreadRows), so forPage()
      * fetches `body_text` for exactly those unmarked messages through
-     * MessageRepository::findSearchTexts() — not by widening
+     * MessageJmapRepository::findSearchTexts() — not by widening
      * findSearchHeadlines(), which would pull every candidate's body a second
      * time, marked or not.
      *

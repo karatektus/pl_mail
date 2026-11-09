@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Jmap\Query;
 
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageJmapRepository;
 
 /**
@@ -15,7 +14,7 @@ use App\Repository\Mail\Message\MessageJmapRepository;
  *
  * What this owns is the JMAP half — which sort properties exist, what an
  * unsupported one costs the client, and where "position" and "total" are
- * measured. The read is MessageRepository::findIdsForQuery().
+ * measured. The read is MessageJmapRepository::findIdsForQuery().
  */
 final class EmailQueryRunner
 {

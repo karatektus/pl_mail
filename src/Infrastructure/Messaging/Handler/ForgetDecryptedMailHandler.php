@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
-use App\Domain\Enum\Crypto\PlaintextSource;
-use App\Entity\Mail\Account;
-use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ForgetDecryptedMailMessage;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Message\MessageDecryptedRepository;

@@ -8,7 +8,6 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\ThreadStatusUpdater;
@@ -28,7 +27,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * ── Which rows ───────────────────────────────────────────────────────────────
  * Mail wearing Spam that also wears Archive or has a copy in the server's
- * Archive folder (MessageRepository::findSpamInArchive()). Nothing else
+ * Archive folder (MessageBackfillRepository::findSpamInArchive()). Nothing else
  * removes Spam from a message, so the filter's label is still there to find
  * them by, and a message somebody filed as spam is spam wherever its copy is.
  *
