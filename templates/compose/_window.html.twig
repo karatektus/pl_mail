@@ -85,6 +85,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              imageSizeEstimate: 'compose.image_size.estimate'|trans,
              imageSizeOwnSize: 'compose.image_size.own_size'|trans,
              imageSizeEdgePx:  'compose.image_size.edge_px'|trans({ '%px%': '%s' }),
+             imageSizeEdge:    'compose.image_size.edge'|trans({ '%px%': '%s' }),
              imageSizeHintHigh: 'compose.image_size.hint_high'|trans,
              imageSizeHintFine: 'compose.image_size.hint_fine'|trans,
              imageSizeHintSoft: 'compose.image_size.hint_soft'|trans,
@@ -950,7 +951,13 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                    (compose--action-overflow). A second row cost the body a
                    line, and moved every icon after the break away from where
                    the hand had learned it. Send and Aa never fold. #}
+                {# The buttons after Send stand in the person's own order
+                   (compose_action_order(), "Arrange buttons" under ⋮): a CSS
+                   `order` each, so the markup below keeps one sequence. #}
+                {% set actionOrder = compose_action_order() %}
                 <div data-controller="compose--action-overflow"
+                     data-compose--action-overflow-url-value="{{ path('app_settings_compose_action_order') }}"
+                     data-compose--action-overflow-default-order-value="{{ enum('App\\Domain\\Enum\\Mail\\ComposeAction').cases()|map(action => action.value)|json_encode|e('html_attr') }}"
                      class="flex flex-nowrap items-center gap-1 min-w-0">
                     {# The Send pill — the desktop's home for it, `hidden
                        md:flex` inside the partial. Below md the same pill is
@@ -973,9 +980,11 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                             {# "Aa" on its face is the accessible name; the
                                title enlarges on it without replacing it. #}
                             title="{{ 'compose.formatting'|trans }}"
+                            data-compose-action="format" style="order: {{ actionOrder.format }}"
                             class="{{ ic }} text-sm font-bold tracking-tighter">Aa</button>
                     <button type="button" data-compose--action-overflow-target="item"
                             data-action="click->compose--compose#openFilePicker"
+                            data-compose-action="attach" style="order: {{ actionOrder.attach }}"
                             title="{{ 'compose.attach'|trans }}"
                             aria-label="{{ 'compose.attach'|trans }}"
                             class="{{ ic }}"><i class="fa-solid fa-paperclip" aria-hidden="true"></i></button>
@@ -993,6 +1002,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        field prefills empty. #}
                     <button type="button" data-compose--compose-toolbar-action data-compose--action-overflow-target="item"
                             data-compose--compose-toolbar-target="linkBtn"
+                            data-compose-action="link" style="order: {{ actionOrder.link }}"
                             data-compose--compose-target="richOnly"
                             data-action="click->compose--compose-toolbar#insertLink"
                             aria-haspopup="dialog"
@@ -1015,6 +1025,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        side of a 520px dock. One rule now covers the dock, an
                        inline reply, expanded, and a phone. #}
                     <div data-controller="ui--dropdown compose--emoji-picker" data-compose--action-overflow-target="item"
+                         data-compose-action="emoji" style="order: {{ actionOrder.emoji }}"
                          data-action="ui--dropdown:opened->compose--emoji-picker#build"
                          data-compose--emoji-picker-locale-value="{{ app.request.locale|split('_')|first }}"
                          data-compose--emoji-picker-data-source-value="{{ asset('emoji/' ~ (app.request.locale|split('_')|first in ['de', 'fr', 'zh'] ? app.request.locale|split('_')|first : 'en') ~ '/data.json') }}"
@@ -1088,6 +1099,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                     <button type="button" data-compose--compose-toolbar-action data-compose--action-overflow-target="item"
                             data-compose--compose-target="richOnly"
                             data-action="click->compose--compose#openImagePicker"
+                            data-compose-action="image" style="order: {{ actionOrder.image }}"
                             title="{{ 'compose.image'|trans }}"
                             aria-label="{{ 'compose.image'|trans }}"
                             class="{{ ic }}"><i class="fa-regular fa-image" aria-hidden="true"></i></button>
@@ -1104,6 +1116,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                     <button type="button" data-compose--action-overflow-target="item"
                             aria-pressed="false"
                             data-compose--encryption-target="encryptButton"
+                            data-compose-action="encrypt" style="order: {{ actionOrder.encrypt }}"
                             data-action="click->compose--encryption#toggleEncrypt"
                             title="{{ 'compose.encrypt'|trans }}"
                             aria-label="{{ 'compose.encrypt'|trans }}"
@@ -1120,6 +1133,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                     <button type="button" data-compose--compose-toolbar-action data-compose--action-overflow-target="item"
                             data-compose--compose-target="richOnly"
                             data-action="click->compose--compose#insertSignature"
+                            data-compose-action="signature" style="order: {{ actionOrder.signature }}"
                             title="{{ 'compose.signature'|trans }}"
                             aria-label="{{ 'compose.signature'|trans }}"
                             class="{{ ic }}"><i class="fa-solid fa-pen-nib" aria-hidden="true"></i></button>
@@ -1148,6 +1162,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        button below documents: this template is included `only`
                        from the two undo streams. #}
                     <div data-controller="ui--dropdown compose--template-picker" data-compose--action-overflow-target="item" data-ui--dropdown-place-value="above"
+                         data-compose-action="template" style="order: {{ actionOrder.template }}"
                          data-action="ui--dropdown:opened->compose--template-picker#load"
                          data-compose--template-picker-panel-url-value="{{ path('app_compose_templates_panel') }}"
                          data-compose--template-picker-save-url-value="{{ path('app_compose_templates_save_draft') }}"
@@ -1183,6 +1198,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        ask for a first draft. #}
                     {% if ai_writing_help_enabled() %}
                         <div data-controller="ui--dropdown compose--ai-assist" data-compose--action-overflow-target="item" data-ui--dropdown-place-value="above"
+                             data-compose-action="assistant" style="order: {{ actionOrder.assistant }}"
                              data-compose--encryption-target="aiAssist"
                              data-compose--ai-assist-url-value="{{ path('app_compose_assist_stream') }}"
                              {# ctx.replyTo, not a variable of our own: the context object is what
@@ -1533,10 +1549,12 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                 data-ui--modal-size-value="{{ only.provider.isMediaLibrary ? 'full' : 'wide' }}"
                                 data-integration-id="{{ only.id }}"
                                 data-action="click->compose--compose#openIntegrationPicker"
+                                data-compose-action="service" style="order: {{ actionOrder.service }}"
                                 title="{{ 'integration.picker.attach_from'|trans({ '%name%': only.name }) }}"
                                 class="{{ ic }}"><i class="{{ only.provider.icon }}"></i></button>
                     {% elseif pickerIntegrations|length > 1 %}
-                        <div data-controller="ui--dropdown" data-compose--action-overflow-target="item" data-ui--dropdown-place-value="above">
+                        <div data-controller="ui--dropdown" data-compose--action-overflow-target="item" data-ui--dropdown-place-value="above"
+                             data-compose-action="service" style="order: {{ actionOrder.service }}">
                             <button type="button"
                                     data-action="click->ui--dropdown#toggle"
                                     aria-label="{{ 'integration.picker.attach_from_service'|trans }}"
@@ -1568,6 +1586,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
 
                     <button type="button" data-compose--action-overflow-target="item"
                             data-action="compose--compose#discard"
+                            data-compose-action="discard" style="order: {{ actionOrder.discard }}"
                             title="{{ 'compose.discard'|trans }}"
                             aria-label="{{ 'compose.discard'|trans }}"
                             class="{{ ic }} hover:text-danger">
@@ -1591,7 +1610,8 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        being rendered is what makes the fields exist at all.
                        They ride the existing draft/send POSTs; no new route. #}
                     <div data-controller="ui--dropdown" data-ui--dropdown-place-value="above"
-                         data-compose--action-overflow-target="more">
+                         data-compose--action-overflow-target="more"
+                         style="order: {{ actionOrder.more }}">
                         <button type="button"
                                 data-action="click->ui--dropdown#toggle"
                                 title="{{ 'compose.more_options'|trans }}"
@@ -1700,7 +1720,41 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                        class="rounded border-line accent-accent">
                                 <span>{{ 'compose.read_receipt'|trans }}</span>
                             </label>
+
+                            <div class="my-1 border-t border-line"></div>
+
+                            {# Puts the bar into arranging: every button on
+                               show, dragged or moved with the arrow keys, until
+                               Done. See compose--action-overflow#arrange. #}
+                            <button type="button"
+                                    data-action="click->ui--dropdown#close click->compose--action-overflow#arrange"
+                                    class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
+                                           hover:bg-hover hover:text-ink transition-colors text-left">
+                                <i class="fa-solid fa-arrows-left-right w-4 text-center" aria-hidden="true"></i>
+                                <span>{{ 'compose.arrange.menu'|trans }}</span>
+                            </button>
                         </div>
+                    </div>
+
+                    {# While arranging: what to do, and the way out. Over the
+                       bar, anchored to the toolbar block like the menus, so it
+                       does not cover the buttons being moved. #}
+                    <div data-compose--action-overflow-target="arrangeBar" hidden
+                         data-enter="rise"
+                         role="dialog"
+                         aria-label="{{ 'compose.arrange.menu'|trans }}"
+                         class="absolute bottom-full mb-2 left-2 right-2 md:left-auto md:right-3 md:w-80 z-30 popover
+                                flex items-center gap-2 p-2 pl-3">
+                        <span class="flex-1 min-w-0 text-xs text-ink-muted">{{ 'compose.arrange.hint'|trans }}</span>
+                        <button type="button" data-action="click->compose--action-overflow#resetOrder"
+                                class="shrink-0 h-8 px-2.5 rounded-lg text-xs font-medium text-ink-soft hover:bg-hover transition-colors">
+                            {{- 'compose.arrange.reset'|trans -}}
+                        </button>
+                        <button type="button" data-action="click->compose--action-overflow#done"
+                                data-compose--action-overflow-target="doneButton"
+                                class="shrink-0 h-8 px-3 rounded-lg text-xs font-medium bg-accent text-accent-ink hover:bg-accent-strong transition-colors">
+                            {{- 'compose.arrange.done'|trans -}}
+                        </button>
                     </div>
                 </div>
             </div>

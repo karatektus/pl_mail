@@ -214,6 +214,9 @@ final readonly class ConfigBackupUsers
         User::SETTING_INSIGHT_PANE_DISABLED,
         User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED,
         User::SETTING_COMPOSE_SEND_FEEDBACK,
+        // The order of the compose window's buttons. A choice about one's own
+        // screen, action names and no ids, the same on any install.
+        User::SETTING_COMPOSE_ACTION_ORDER,
         // Whether the buttons that delete mail for good are offered. In the
         // backup because a restore that quietly took the flame away, or worse
         // put it back for somebody who had switched it off, is a change to a

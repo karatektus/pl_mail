@@ -1,11 +1,13 @@
-import { MIN_WIDTH, cropEdits, readEdits, renderImage, rotateEdits, writeEdits } from './image_edit.js';
+import { MIN_WIDTH, PICTURE_SIZES, cropEdits, readEdits, renderImage, rotateEdits, writeEdits } from './image_edit.js';
 
 /**
  * Resize, crop and rotate a picture in the compose body (#515).
  *
  * Click a picture and it is selected: a frame with four corner handles, and a
- * bar under it with sizes, a quarter turn either way and Crop. Dragging a
- * handle changes the width, keeping the shape. Everything lands on the <img>
+ * bar under it with file sizes, a quarter turn either way and Crop. Dragging
+ * a handle changes the width it is shown at, keeping the shape; the bar's
+ * Small … Full size change how many pixels it goes out with, and nothing
+ * about how big it is shown. Two settings, kept apart (image_edit.js). Everything lands on the <img>
  * as a recipe (see image_edit.js), and the compose window turns the recipe
  * into bytes — this class only edits the body.
  *
@@ -43,8 +45,9 @@ export class InlineImageEditor {
      * @param {(image: HTMLImageElement) => Promise<?Blob>} options.original  the picture as uploaded
      * @param {(image: HTMLImageElement) => void} options.changed  an edit landed on this <img>
      * @param {(message: string) => void} options.failed  something could not be done; say so
+     * @param {() => string} options.draftSize  the draft's Image size row: original, small, … or custom
      */
-    constructor({ editor, host, t, editable, original, changed, failed }) {
+    constructor({ editor, host, t, editable, original, changed, failed, draftSize }) {
         this.editor = editor;
         this.host = host;
         this.t = t;
@@ -52,6 +55,7 @@ export class InlineImageEditor {
         this.original = original;
         this.changed = changed;
         this.failed = failed;
+        this.draftSize = draftSize ?? (() => 'original');
         this.image = null;
 
         this._build();
@@ -156,18 +160,27 @@ export class InlineImageEditor {
         this.bar.setAttribute('aria-label', this.t('imageToolbar', 'Picture'));
         this.bar.className = 'absolute z-20 popover flex flex-wrap items-center gap-0.5 p-1 text-xs';
 
+        // How many pixels this picture goes out with, the Image size row's
+        // presets for this one picture; Full size is the picture as
+        // uploaded. The longest side is in each button's title.
         const sizes = [
-            ['small', 'imageSmall', 'Small', SIZE_SMALL],
-            ['medium', 'imageMedium', 'Medium', SIZE_MEDIUM],
-            ['large', 'imageLarge', 'Large', SIZE_LARGE],
-            ['full', 'imageFull', 'Full size', 0],
+            ['small', 'imageSmall', 'Small'],
+            ['medium', 'imageMedium', 'Medium'],
+            ['large', 'imageLarge', 'Large'],
+            ['original', 'imageFull', 'Full size'],
         ];
 
-        for (const [name, key, fallback, width] of sizes) {
-            const button = this._button(this.t(key, fallback), () => this._setWidth(width));
+        for (const [name, key, fallback] of sizes) {
+            const button = this._button(this.t(key, fallback), () => this._setSize(name));
+            const edge = PICTURE_SIZES[name];
 
             button.dataset.imageSize = name;
             button.setAttribute('aria-pressed', 'false');
+
+            if (edge > 0) {
+                button.title = this.t('imageSizeEdge', 'Longest side %s px').replace('%s', String(edge));
+            }
+
             this.bar.append(button);
         }
 
@@ -343,12 +356,13 @@ export class InlineImageEditor {
             return;
         }
 
-        const width = readEdits(this.image).displayWidth;
+        // Its own size, else the draft's: what it will actually go out with.
+        // A Custom draft size matches no button.
+        const own = readEdits(this.image).size;
+        const size = '' !== own ? own : this.draftSize();
 
         this.bar.querySelectorAll('[data-image-size]').forEach((button) => {
-            const size = { small: SIZE_SMALL, medium: SIZE_MEDIUM, large: SIZE_LARGE, full: 0 }[button.dataset.imageSize];
-
-            button.setAttribute('aria-pressed', size === width ? 'true' : 'false');
+            button.setAttribute('aria-pressed', size === button.dataset.imageSize ? 'true' : 'false');
         });
     }
 
@@ -410,19 +424,19 @@ export class InlineImageEditor {
         this.changed(fresh);
     }
 
-    /** A size button: 0 is the picture's own size. */
-    _setWidth(width) {
+    /** A file-size button: the width it is shown at stays as it is. */
+    _setSize(size) {
         if (null === this.image) {
             return;
         }
 
         const edits = readEdits(this.image);
 
-        if (edits.displayWidth === width) {
+        if (edits.size === size) {
             return;
         }
 
-        this._replace({ ...edits, displayWidth: width });
+        this._replace({ ...edits, size });
     }
 
     _rotate(direction) {
@@ -508,7 +522,7 @@ export class InlineImageEditor {
                 throw new Error('original');
             }
 
-            preview = await renderImage(original, { rotate: edits.rotate, crop: null, displayWidth: 0 }, PREVIEW_CHOICE, { force: true }) ?? original;
+            preview = await renderImage(original, { rotate: edits.rotate, crop: null, displayWidth: 0, size: '' }, PREVIEW_CHOICE, { force: true }) ?? original;
         } catch (_) {
             this.failed(this.t('imageEditFailed', 'The picture could not be edited'));
 
@@ -711,16 +725,6 @@ function followPointer(start, onMove, onEnd) {
     document.addEventListener('pointercancel', release, true);
     window.addEventListener('blur', finish);
 }
-
-/**
- * The bar's widths, in CSS pixels. Fixed sizes rather than shares of the
- * window: the recipient's window is not this one, and "Medium" should look
- * the same in every mail. Large is about the width most mail clients give a
- * message; Full size takes the width away.
- */
-export const SIZE_SMALL = 160;
-export const SIZE_MEDIUM = 320;
-export const SIZE_LARGE = 600;
 
 /** What the crop dialog shows: big enough to aim, small enough to decode fast. */
 const PREVIEW_CHOICE = Object.freeze({ size: 'custom', edge: 1600, quality: 85, restore: false, custom: true });

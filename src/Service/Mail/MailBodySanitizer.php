@@ -65,13 +65,15 @@ final readonly class MailBodySanitizer
         // browser (ReplyDraftBuilder::quote()). A message id, nothing more;
         // planted by hand it fetches a raw source the person owns anyway.
         'data-quote-sealed',
-        // A picture's crop and turn (#515), as fractions and a number of
-        // degrees: the recipe the composer makes the picture's bytes from,
-        // again from the original each time, so a draft opened tomorrow can
-        // still widen a crop or undo a turn. The width it is shown at is the
-        // ordinary `width` attribute, which the allow-list already keeps.
+        // A picture's crop, turn and file size (#515), as fractions, a number
+        // of degrees and a preset name: the recipe the composer makes the
+        // picture's bytes from, again from the original each time, so a draft
+        // opened tomorrow can still widen a crop, undo a turn or go back to
+        // Full size. The width it is shown at is the ordinary `width`
+        // attribute, which the allow-list already keeps.
         'data-pl-crop',
         'data-pl-rotate',
+        'data-pl-size',
     ];
 
     public function __construct(

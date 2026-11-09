@@ -4119,7 +4119,7 @@ export default class extends Controller {
      * the upload to the draft the second (_placeImage).
      */
     async _handleIntegrationInline(event) {
-        const { draftId, integrationId, fileIds } = event.detail ?? {};
+        const { draftId, integrationId, fileIds, thumbnails } = event.detail ?? {};
 
         if (undefined !== draftId && String(draftId) !== String(this._messageId())) {
             return;
@@ -4138,6 +4138,12 @@ export default class extends Controller {
             const placeholder = this._toolbar()?.insertImagePlaceholder() ?? null;
 
             this._setPlaceholderProgress(placeholder, null, fetching);
+
+            // The picker's own preview, blurred, from the first moment: the
+            // file itself replaces it once it is down (_placeImage).
+            if ('string' === typeof thumbnails?.[fileId]) {
+                this._toolbar()?.previewInPlaceholder(placeholder, thumbnails[fileId]);
+            }
 
             return { fileId, placeholder };
         });
@@ -4533,15 +4539,31 @@ export default class extends Controller {
         }
     }
 
-    /** The summary's size: the same numbers as the Image size row's total. */
+    /**
+     * The summary's size: the same numbers as the Image size row's total.
+     *
+     * And whether there is anything to sum up. The server draws the line for
+     * a draft with a file or a stored picture, and a stored picture need not
+     * be in the text: one deleted from it stays a part until the draft is
+     * saved, and one still on its way is a placeholder, not a picture yet. So
+     * the line shows only for files, or for pictures the text holds now —
+     * the test the Image size row makes (_refreshImageSize), on every edit.
+     */
     _refreshAttachmentSummary() {
-        const label = true === this.hasAttachmentsTarget
-            ? this.attachmentsTarget.querySelector('[data-attachments-summary-size]')
+        const summary = true === this.hasAttachmentsTarget
+            ? this.attachmentsTarget.querySelector('[data-attachments-summary]')
             : null;
+        const label = summary?.querySelector('[data-attachments-summary-size]') ?? null;
 
-        if (null === label) {
+        if (null === summary || null === label) {
             return;
         }
+
+        const files = this.element.querySelectorAll('[data-compose-part]').length;
+        const pictures = this._bodyImages().some((image) => null !== this._inlinePartId(image))
+            || this._bodyDataImages().length > 0;
+
+        summary.hidden = 0 === files && false === pictures;
 
         const { now, before } = this._attachmentTotals();
 
@@ -4946,6 +4968,22 @@ export default class extends Controller {
         row.dataset.quality = String(choice.quality);
         this._setStatus(this._t('imageSizeResizing', 'Resizing images…'), 'text-ink-faint');
 
+        // A size picked in the row is for every picture: one given a size of
+        // its own under it (the picture bar's Small … Full size) takes the
+        // row's again. Pictures added later have none to begin with.
+        if (true === all) {
+            for (const image of this._bodyImages()) {
+                if (image.hasAttribute('data-pl-size')) {
+                    image.removeAttribute('data-pl-size');
+                    bodyChanged = true;
+                }
+            }
+
+            if (true === bodyChanged) {
+                this._toolbar()?._bodyChanged();
+            }
+        }
+
         for (const part of parts) {
             if (false === all && true === part.scaled) {
                 continue;
@@ -5155,13 +5193,28 @@ export default class extends Controller {
      */
     _reloadInlineImage(partId) {
         let changed = false;
+        const next = `/mail/attachment/${partId}?v=${Date.now()}`;
+        let ready = null;
 
         this._bodyImages().forEach((image) => {
             if (String(partId) !== this._inlinePartId(image)) {
                 return;
             }
 
-            image.setAttribute('src', `/mail/attachment/${partId}?v=${Date.now()}`);
+            // The smaller picture loaded and decoded off screen first, then
+            // swapped in whole. Pointed at the new address straight away, the
+            // picture on screen emptied and painted again in bands — the
+            // second flicker after an upload whenever Image size is not
+            // Original.
+            ready ??= (() => {
+                const loader = new Image();
+
+                loader.src = next;
+
+                return loader.decode().catch(() => {});
+            })();
+
+            ready.then(() => image.setAttribute('src', next));
             changed = true;
         });
 
@@ -5257,7 +5310,11 @@ export default class extends Controller {
     }
 
     _bodyImages() {
-        return true === this.hasBodyTarget ? Array.from(this.bodyTarget.querySelectorAll('img')) : [];
+        // Not the blurred preview inside a picture's placeholder, which is
+        // the placeholder's, not a picture of the message.
+        return true === this.hasBodyTarget
+            ? Array.from(this.bodyTarget.querySelectorAll('img')).filter((image) => null === image.closest('[data-image-placeholder]'))
+            : [];
     }
 
     /** Pictures held in the body itself, which only a sealed draft has. */
@@ -5303,6 +5360,7 @@ export default class extends Controller {
             original: (image) => this._originalImage(image),
             changed: (image) => this._queueImageEdit(image),
             failed: (message) => this._setStatus(message, 'text-danger'),
+            draftSize: () => (true === this.hasImageSizeTarget ? this.imageSizeTarget.dataset.size : null) ?? 'original',
         });
 
         // Undo and redo put an earlier or later <img> back, attributes and
@@ -5401,6 +5459,22 @@ export default class extends Controller {
 
         const choice = this._currentImageChoice();
 
+        // Only the width it is shown at changed: that is the body's alone, and
+        // the bytes stay as they are (image_edit.js, "What changes the
+        // bytes"). Saving the body is all there is to do. A picture never
+        // written in this window counts as written with no edits, which is
+        // what a fresh upload or an untouched picture in a reopened draft is.
+        const original = image.dataset.plmailOriginal ?? image.getAttribute('src') ?? '';
+        const key = true === SCALABLE_DATA_URI.test(original) ? original : this._inlinePartId(image);
+        const signature = editSignature(readEdits(image));
+
+        if (null !== key && (this._appliedEdits?.get(String(key)) ?? editSignature(noEdits())) === signature) {
+            await this.saveDraft(null, { force: true, allowEmpty: true });
+            this._imageEditor?.place();
+
+            return;
+        }
+
         this._setStatus(this._t('imageEditing', 'Editing picture…'), 'text-ink-faint');
 
         // The parts as the server has them now — whether this one is already
@@ -5409,8 +5483,9 @@ export default class extends Controller {
         await this._refreshImageStrip();
 
         try {
-            if (true === SCALABLE_DATA_URI.test(image.dataset.plmailOriginal ?? image.getAttribute('src') ?? '')) {
+            if (true === SCALABLE_DATA_URI.test(original)) {
                 await this._scaleDataImage(image, choice);
+                this._appliedEdits?.set(original, signature);
             } else {
                 const part = this._partForImage(image);
 
@@ -5672,7 +5747,7 @@ export default class extends Controller {
             if (null === url) {
                 this._toolbar()?.removeImagePlaceholder(placeholder);
             } else {
-                this._toolbar()?.insertInlineImage({ url }, placeholder);
+                await this._toolbar()?.insertInlineImage({ url }, placeholder);
                 this._refreshImageSize();
                 await this.saveDraft(null, { force: true, allowEmpty: true });
                 await this._scaleNewImages();
@@ -5691,6 +5766,8 @@ export default class extends Controller {
         if (null !== placeholder && false === ('sized' in placeholder.dataset)) {
             this._sizePlaceholder(placeholder, await this._measureImage(file));
         }
+
+        this._toolbar()?.previewInPlaceholder(placeholder, file);
 
         await this.saveDraft(null, { force: true, allowEmpty: true });
 
@@ -5734,7 +5811,7 @@ export default class extends Controller {
             return;
         }
 
-        this._toolbar()?.insertInlineImage(payload, placeholder);
+        await this._toolbar()?.insertInlineImage(payload, placeholder);
 
         // The strip is not rendered again for a picture in the body, so the
         // Image size row learns of the new part here (#502). Before the save

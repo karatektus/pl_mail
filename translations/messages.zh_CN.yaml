@@ -1588,6 +1588,11 @@ compose:
             shorten: 更简短
         timing: '模型加载 %load% 秒 · %seconds% 秒生成 %count% 个 token · 总计 %total% 秒'
         working: 正在撰写…
+    arrange:
+        done: "完成"
+        hint: "拖动按钮，或用方向键移动选中的按钮。"
+        menu: "排列按钮"
+        reset: "重置"
     attachments_summary:
         files: '{1}1 个文件|]1,Inf[ %count% 个文件'
         hide: 收起

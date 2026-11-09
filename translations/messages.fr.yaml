@@ -1837,6 +1837,11 @@ compose:
             shorten: 'Raccourcir'
         timing: 'Chargement du modèle %load% s · %count% jetons en %seconds% s · %total% s au total'
         working: 'Rédaction…'
+    arrange:
+        done: "Terminé"
+        hint: "Faites glisser les boutons, ou déplacez-en un avec les flèches."
+        menu: "Organiser les boutons"
+        reset: "Réinitialiser"
     attachments_summary:
         files: '{1}1 fichier|]1,Inf[ %count% fichiers'
         hide: Masquer

@@ -1827,6 +1827,11 @@ compose:
             shorten: 'Make it shorter'
         timing: 'Model load %load%s · %count% tokens in %seconds%s · %total%s in total'
         working: 'Writing…'
+    arrange:
+        done: "Done"
+        hint: "Drag the buttons, or move one with the arrow keys."
+        menu: "Arrange buttons"
+        reset: "Reset"
     attachments_summary:
         files: '{1}1 file|]1,Inf[ %count% files'
         hide: Hide

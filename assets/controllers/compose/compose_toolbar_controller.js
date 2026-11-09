@@ -338,7 +338,7 @@ export default class extends Controller {
      * the identity InlineImageRewriter turns back into `cid:` on save, which is
      * what the recipient's client resolves against the embedded part.
      */
-    insertInlineImage({ url, contentId }, placeholder = null) {
+    async insertInlineImage({ url, contentId }, placeholder = null) {
         if ('string' !== typeof url || '' === url) { return; }
 
         const img = document.createElement('img');
@@ -350,45 +350,150 @@ export default class extends Controller {
             img.setAttribute('data-cid', contentId);
         }
 
-        // Where the placeholder stands, not where the caret is now: the
-        // writer may have typed on while the picture was on its way, and the
-        // picture belongs where it was asked for.
-        if (null !== placeholder && true === placeholder.isConnected) {
-            // A caret left right after the placeholder — where inserting it
-            // put the caret, and where it stays unless the writer moved on —
-            // would fall back to before the picture as the placeholder goes,
-            // and the next picture would land above this one.
-            const after = document.createRange();
-            after.setStartAfter(placeholder);
-            after.collapse(true);
-
-            const sel = window.getSelection();
-            const atPlaceholder = (range) => null !== range && undefined !== range && true === range.collapsed
-                && 0 === range.compareBoundaryPoints(Range.START_TO_START, after);
-            const savedThere = atPlaceholder(this.#savedRange);
-            const liveThere = null !== sel && sel.rangeCount > 0 && atPlaceholder(sel.getRangeAt(0));
-
-            placeholder.replaceWith(img);
-
-            const caret = document.createRange();
-            caret.setStartAfter(img);
-            caret.collapse(true);
-
-            if (true === savedThere) {
-                this.#savedRange = caret.cloneRange();
-            }
-
-            if (true === liveThere) {
-                sel.removeAllRanges();
-                sel.addRange(caret);
-            }
-
-            this._bodyChanged();
+        if (null === placeholder) {
+            this._insertAtCaret(img);
 
             return;
         }
 
-        this._insertAtCaret(img);
+        // Loaded and decoded before it goes in. Put in straight away, the
+        // picture painted in pieces as its bytes came — a band at a time, or
+        // nothing and then everything — where the placeholder had stood
+        // whole. decode() fetches it too; a picture that cannot be decoded
+        // goes in anyway, as it always did.
+        try {
+            await img.decode();
+        } catch (_) {
+            // Shown as the browser can.
+        }
+
+        // Gone while the picture was on its way: the writer deleted it, and
+        // with it the place the picture was meant for.
+        if (false === placeholder.isConnected) {
+            this._releasePreview(placeholder);
+
+            return;
+        }
+
+        // Where the placeholder stands, not where the caret is now: the
+        // writer may have typed on while the picture was on its way, and the
+        // picture belongs where it was asked for.
+        //
+        // A caret left right after the placeholder — where inserting it put
+        // the caret, and where it stays unless the writer moved on — would
+        // fall back to before the picture as the placeholder goes, and the
+        // next picture would land above this one.
+        const after = document.createRange();
+        after.setStartAfter(placeholder);
+        after.collapse(true);
+
+        const sel = window.getSelection();
+        const atPlaceholder = (range) => null !== range && undefined !== range && true === range.collapsed
+            && 0 === range.compareBoundaryPoints(Range.START_TO_START, after);
+        const savedThere = atPlaceholder(this.#savedRange);
+        const liveThere = null !== sel && sel.rangeCount > 0 && atPlaceholder(sel.getRangeAt(0));
+        const previewed = 'previewed' in placeholder.dataset;
+
+        placeholder.replaceWith(img);
+        this._releasePreview(placeholder);
+
+        const caret = document.createRange();
+        caret.setStartAfter(img);
+        caret.collapse(true);
+
+        if (true === savedThere) {
+            this.#savedRange = caret.cloneRange();
+        }
+
+        if (true === liveThere) {
+            sel.removeAllRanges();
+            sel.addRange(caret);
+        }
+
+        // The placeholder showed the picture blurred; it comes into focus
+        // rather than being swapped. The Web Animations API leaves the style
+        // attribute alone, so nothing of this reaches the saved body.
+        if (true === previewed && false === window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            img.animate(
+                [{ filter: `blur(${this.constructor.PREVIEW_BLUR_PX}px)` }, { filter: 'blur(0)' }],
+                { duration: 450, easing: 'ease-out' },
+            );
+        }
+
+        this._bodyChanged();
+    }
+
+    /**
+     * How blurred the placeholder shows a picture that is still uploading,
+     * and so where the picture's own unblur starts.
+     */
+    static PREVIEW_BLUR_PX = 12;
+
+    /**
+     * Show the picture in its placeholder, blurred: the picker's thumbnail
+     * (an address) from the moment the picture is asked for, then the file
+     * itself (a File) once the browser holds it — at once for one from the
+     * disk, after the download for one from a service. The file fades in
+     * over the thumbnail, so the blur never pops in or jumps, and the upload
+     * is then the only wait; insertInlineImage() brings it into focus.
+     *
+     * Not clickable, and not a picture of the body: the picture tools and
+     * the Image size row look past it (compose--compose#_bodyImages).
+     */
+    previewInPlaceholder(placeholder, source) {
+        const isFile = source instanceof Blob;
+
+        if (null === placeholder || false === placeholder.isConnected
+            || 'file' === placeholder.dataset.previewed
+            || (false === isFile && undefined !== placeholder.dataset.previewed)) {
+            return;
+        }
+
+        const url = true === isFile ? URL.createObjectURL(source) : String(source);
+        const preview = document.createElement('img');
+        const before = placeholder.querySelector('img[data-preview]');
+
+        placeholder.dataset.previewed = true === isFile ? 'file' : 'thumbnail';
+
+        if (true === isFile) {
+            this._releasePreview(placeholder);
+            this.#previews.set(placeholder, url);
+        }
+
+        preview.alt = '';
+        preview.dataset.preview = '';
+        preview.setAttribute('aria-hidden', 'true');
+        preview.className = 'absolute inset-0 w-full h-full max-w-none object-cover scale-110 '
+            + 'pointer-events-none opacity-0 transition-opacity duration-300';
+        preview.style.filter = `blur(${this.constructor.PREVIEW_BLUR_PX}px)`;
+        preview.addEventListener('load', () => {
+            preview.classList.remove('opacity-0');
+
+            // The thumbnail under it goes once the file has faded in over it.
+            if (null !== before) {
+                window.setTimeout(() => before.remove(), 300);
+            }
+        }, { once: true });
+        preview.src = url;
+
+        // Over the thumbnail, under the ring.
+        if (null !== before) {
+            before.after(preview);
+        } else {
+            placeholder.prepend(preview);
+        }
+    }
+
+    /** Object URLs of the previews shown, by placeholder, to free them. */
+    #previews = new WeakMap();
+
+    _releasePreview(placeholder) {
+        const url = this.#previews.get(placeholder);
+
+        if (undefined !== url) {
+            URL.revokeObjectURL(url);
+            this.#previews.delete(placeholder);
+        }
     }
 
     /**
@@ -422,8 +527,14 @@ export default class extends Controller {
         box.className = 'relative block w-full h-24 max-w-full overflow-hidden rounded-lg '
             + 'border border-line bg-sunken select-none';
 
+        // Above the blurred picture the placeholder shows once the file is
+        // here (previewInPlaceholder), on a backing of its own so it reads
+        // over any picture.
         const inner = document.createElement('span');
-        inner.className = 'absolute inset-0 flex items-center justify-center gap-2 text-xs text-ink-muted';
+        inner.className = 'absolute inset-0 z-10 flex items-center justify-center text-xs text-ink-muted';
+
+        const badge = document.createElement('span');
+        badge.className = 'flex items-center gap-2 rounded-full bg-surface/80 p-1 whitespace-nowrap';
 
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 
@@ -460,7 +571,7 @@ export default class extends Controller {
         // size of a small logo shows the ring alone (_sizePlaceholder).
         const words = document.createElement('span');
         words.dataset.words = '';
-        words.className = 'flex items-center gap-2 whitespace-nowrap';
+        words.className = 'flex items-center gap-2 pr-1.5';
 
         const label = document.createElement('span');
         label.dataset.label = '';
@@ -470,7 +581,8 @@ export default class extends Controller {
         percent.className = 'tabular-nums';
 
         words.append(label, percent);
-        inner.append(svg, words);
+        badge.append(svg, words);
+        inner.append(badge);
         box.append(inner);
 
         this._insertAtCaret(box);
@@ -479,7 +591,11 @@ export default class extends Controller {
     }
 
     removeImagePlaceholder(placeholder) {
-        if (null === placeholder || false === placeholder.isConnected) { return; }
+        if (null === placeholder) { return; }
+
+        this._releasePreview(placeholder);
+
+        if (false === placeholder.isConnected) { return; }
 
         placeholder.remove();
         this._bodyChanged();

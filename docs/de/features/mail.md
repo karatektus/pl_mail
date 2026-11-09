@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:f634fb3a9a9f81f99581efe0ea08fd42ec37551b -->
+<!-- translated-from: features/mail.md sha1:eaffa68fb9577faff3047213dfeaa922cf5c9dd3 -->
 
 # Mail
 
@@ -1251,9 +1251,13 @@ mit ihrer Pixelgröße kleiner.
 Klicke ein Bild an, das du in den Text gesetzt hast, um es auszuwählen. Es bekommt einen Rahmen mit
 vier Griffen und darunter eine Leiste:
 
-- **Klein**, **Mittel** und **Groß** zeigen das Bild 160, 320 oder 600 Pixel breit;
-  **Originalgröße** zeigt es so groß, wie es ist, aber nie breiter als die Nachricht. Ziehst du an
-  einem Eckgriff, stellst du jede Breite dazwischen ein, und das Bild behält seine Form.
+- Ziehst du an einem Eckgriff, stellst du ein, wie breit das Bild angezeigt wird, und es behält
+  seine Form. Mehr tut das nicht: Das Bild behält seine Pixel.
+- **Klein**, **Mittel** und **Groß** legen fest, mit wie vielen Pixeln dieses eine Bild
+  hinausgeht – 800, 1280 oder 2048 an der längsten Seite, wie dieselben Stufen in der Zeile
+  **Bildgröße** –, und **Originalgröße** schickt es so, wie du es hochgeladen hast. Sie ändern die
+  Datei, nicht wie groß das Bild angezeigt wird. Ein Bild ohne eigene Größe geht mit der Größe aus
+  der Zeile hinaus; wählst du danach eine Größe in der Zeile, gilt sie wieder für alle Bilder.
 - Die beiden Pfeile drehen das Bild um eine Vierteldrehung nach links oder rechts.
 - **Zuschneiden** öffnet das ganze Bild in einem eigenen Fenster. Zieh den Rahmen oder seine Ecken
   über den Teil, den du behalten willst, und drück **Zuschneiden**. **Ganzes Bild** nimmt den
@@ -1261,12 +1265,12 @@ vier Griffen und darunter eine Leiste:
 
 Die Empfängerin sieht das Bild in der Breite, die du gewählt hast, und bekommt nur, was du behalten
 hast: Ein zugeschnittenes oder gedrehtes Bild ist ein neues Bild und nicht das alte mit einem
-versteckten Teil. Ein Bild, das kleiner angezeigt wird, als es ist, geht auch kleiner hinaus, mit
-der doppelten Breite, in der es angezeigt wird (genug für ein scharfes Bild auf einem Bildschirm mit
-hoher Pixeldichte), und nie größer als die Bildgröße, die du für den Entwurf gewählt hast. plMail
-behält das Bild so, wie du es hochgeladen hast, bis du sendest, und macht jede Änderung von dort aus.
-Ein Zuschnitt lässt sich also wieder erweitern, und ein klein gemachtes Bild wird ohne Schärfeverlust
-wieder groß. Strg+Z (⌘Z auf dem Mac) nimmt eine Änderung zurück wie jede andere.
+versteckten Teil. Die Breite legt nur fest, wie groß das Bild angezeigt wird; wie viele Pixel
+hinausgehen, bestimmt die eigene Größe des Bildes, sonst die Zeile **Bildgröße**. plMail behält das
+Bild so, wie du es hochgeladen hast, bis du sendest, und macht jede Änderung von dort aus. Ein
+Zuschnitt lässt sich also wieder erweitern, und ein auf Klein gestelltes Bild wird ohne
+Schärfeverlust wieder zur Originalgröße. Strg+Z (⌘Z auf dem Mac) nimmt eine Änderung zurück wie
+jede andere.
 
 Mit Escape oder einem Klick irgendwo anders lässt du das Bild wieder los. Bilder in einer zitierten
 Nachricht und in deiner Signatur bearbeitest du hier nicht, ebenso wenig GIF-, SVG- und HEIC-Bilder.
@@ -1382,6 +1386,17 @@ die Nachricht *ist*, statt wie sie aussieht:
 **Verschlüsseln** sitzt im selben Menü, ausgegraut, und sagt warum: Es gibt noch keine
 Verschlüsselung. Der Knopf wird benannt statt versteckt, denn ein Schloss, das nichts tut, ist die
 eine Lüge, die ein Mailprogramm nicht erzählen darf.
+
+### Die Knöpfe anordnen
+
+Die Knöpfe hinter **Senden** können in jeder Reihenfolge stehen. **Weitere Optionen → Knöpfe
+anordnen** zeigt sie alle, auf so vielen Zeilen wie nötig, mit gestricheltem Rand: Zieh einen an die
+Stelle, an der du ihn haben willst, oder gib einem den Fokus und verschieb ihn mit den Pfeiltasten.
+**Fertig** behält die Reihenfolge, **Zurücksetzen** stellt die ursprüngliche wieder her, und Escape
+lässt alles, wie es war. Solange du anordnest, verschiebt ein Druck auf einen Knopf ihn, statt zu
+tun, was er sonst tut. Die Reihenfolge gilt für dich, in jedem Schreibfenster und auf jedem Gerät,
+auf dem du dich anmeldest, und Knöpfe, die nicht passen, wandern weiterhin vom rechten Ende deiner
+Reihenfolge in die **⋮**.
 
 ## Lesebestätigungen
 

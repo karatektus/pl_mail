@@ -1139,20 +1139,24 @@ are lossless and only get smaller with their pixel size.
 Click a picture you placed in the body to select it. A frame with four handles appears around it,
 and a bar under it:
 
-- **Small**, **Medium** and **Large** show the picture 160, 320 or 600 pixels wide; **Full size**
-  shows it as big as it is, never wider than the message. Dragging a corner handle sets any width
-  in between, and the picture keeps its shape.
+- Dragging a corner handle sets how wide the picture is shown, and it keeps its shape. That is all
+  it does: the picture keeps its pixels.
+- **Small**, **Medium** and **Large** set how many pixels this one picture goes out with — 800,
+  1280 or 2048 on its longest side, like the same choices in the **Image size** row — and
+  **Full size** sends it as you uploaded it. They change the file, not how big the picture is
+  shown. A picture without a size of its own goes out at the row's; picking a size in the row
+  later applies it to every picture again.
 - The two arrows turn the picture a quarter turn left or right.
 - **Crop** opens the whole picture in a window of its own. Drag the frame or its corners over the
   part to keep, then press **Crop**. **Whole picture** takes the crop away again.
 
 The recipient sees the picture at the width you chose, and gets only what you kept: a cropped or
-turned picture is a new picture, not the old one with part of it hidden. A picture shown smaller
-than it is also goes out smaller, at twice the width it is shown at (enough for a sharp picture on
-a high-density screen), and never larger than the Image size picked for the draft. plMail keeps the
-picture as you uploaded it until you send, and makes each change from that, so a crop can be widened
-again and a picture made small can be made big again without losing sharpness. Ctrl+Z (⌘Z on a Mac)
-takes back a change like any other.
+turned picture is a new picture, not the old one with part of it hidden. The width is only how big
+the picture is shown; how many pixels go out is the picture's own size, else the **Image size**
+row's (see [Sending images smaller](#sending-images-smaller)). plMail keeps the picture as you
+uploaded it until you send, and makes each change from that, so a crop can be widened again and a
+picture made Small can go back to Full size without losing sharpness. Ctrl+Z (⌘Z on a Mac) takes
+back a change like any other.
 
 Press Escape, or click anywhere else, to let go of the picture. Pictures in a quoted message and in
 your signature are not edited here, nor are GIF, SVG and HEIC pictures.
@@ -1255,6 +1259,16 @@ than how it looks:
 
 **Encrypt** sits in the same menu, disabled, and says why: there is no encryption yet. It is named
 rather than hidden because a lock icon that does nothing is the one lie a mail client must not tell.
+
+### Arranging the buttons
+
+The buttons after **Send** can stand in any order. **More options → Arrange buttons** shows all of
+them, on as many lines as it takes, with a dashed outline: drag one to where you want it, or give
+one the focus and move it with the arrow keys. **Done** keeps the order, **Reset** goes back to the
+order they came in, and Escape leaves everything as it was. While you are arranging, pressing a
+button moves it rather than doing what it does. The order is yours, in every compose window and on
+every device you sign in from, and buttons that do not fit still fold into **⋮** from the right
+end of your order.
 
 ## Read receipts
 

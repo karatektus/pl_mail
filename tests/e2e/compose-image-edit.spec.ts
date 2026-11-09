@@ -90,7 +90,7 @@ async function waitForSave(dock: Locator) {
     await expect(dock.locator('[data-compose--compose-target="saveStatus"]')).not.toContainText("Editing picture");
 }
 
-test("a picture made smaller is shown and sent smaller, and Full size brings it back", async ({ page }) => {
+test("the bar's sizes set the picture's file size and leave its width alone, and Full size brings it back", async ({ page }) => {
     const { dock, editor, image, partId, bar } = await openWithPicture(page, 2400, 1600);
 
     await expect(bar).toBeHidden();
@@ -115,23 +115,38 @@ test("a picture made smaller is shown and sent smaller, and Full size brings it 
     expect(barBox.y).toBeGreaterThanOrEqual(view.y - 0.5);
     expect(barBox.y + barBox.height).toBeLessThanOrEqual(view.y + view.height + 0.5);
 
+    // Full size is pressed to begin with: the draft's Image size is Original.
+    await expect(bar.getByRole("button", { name: "Full size" })).toHaveAttribute("aria-pressed", "true");
+
     await bar.getByRole("button", { name: "Small" }).click();
 
-    await expect(editor.locator("img[data-cid]")).toHaveAttribute("width", "160");
-    // The whole style, for the recipient's client: Chrome's insertHTML drops
-    // what the app's own CSS already gives an <img>.
+    // Small is how many pixels go out — the Image size row's Small, 800 on
+    // the longest side, for this picture alone — and nothing about how big
+    // it is shown, which is the corner handles' (the next test).
+    await expect(editor.locator("img[data-cid]")).toHaveAttribute("data-pl-size", "small");
+    await expect(editor.locator("img[data-cid]")).not.toHaveAttribute("width", /.*/);
     await expect(editor.locator("img[data-cid]")).toHaveAttribute("style", /max-width:\s*100%/);
     await expect(bar.getByRole("button", { name: "Small" })).toHaveAttribute("aria-pressed", "true");
-    // Twice the width it is shown at, the shape kept.
-    await expect.poll(() => servedSize(page, partId), SLOW).toEqual([320, 213]);
+    await expect.poll(() => servedSize(page, partId), SLOW).toEqual([800, 533]);
     await waitForSave(dock);
 
-    // Full size: the width goes, and the upload itself comes back.
+    // Full size: the upload itself comes back.
     await editor.locator("img[data-cid]").click();
     await bar.getByRole("button", { name: "Full size" }).click();
 
-    await expect(editor.locator("img[data-cid]")).not.toHaveAttribute("width", /.*/);
+    await expect(editor.locator("img[data-cid]")).toHaveAttribute("data-pl-size", "original");
     await expect.poll(() => servedSize(page, partId), SLOW).toEqual([2400, 1600]);
+    await waitForSave(dock);
+
+    // A size picked in the Image size row is for every picture: this one's
+    // own size goes, and it follows the row again.
+    await page.keyboard.press("Escape");
+    await dock.locator('[data-compose--compose-target="imageSize"]').getByRole("radio", { name: "Large" }).click();
+
+    await expect(editor.locator("img[data-cid]")).not.toHaveAttribute("data-pl-size", /.*/);
+    await expect.poll(() => servedSize(page, partId), SLOW).toEqual([2048, 1365]);
+    await editor.locator("img[data-cid]").click();
+    await expect(bar.getByRole("button", { name: "Large" })).toHaveAttribute("aria-pressed", "true");
 
     await page.keyboard.press("Escape");
     await expect(bar).toBeHidden();
@@ -139,7 +154,7 @@ test("a picture made smaller is shown and sent smaller, and Full size brings it 
     await deleteDraft(dock);
 });
 
-test("dragging a corner handle sets the width", async ({ page }) => {
+test("dragging a corner handle sets the width it is shown at, and only that", async ({ page }) => {
     const { dock, editor, image, partId } = await openWithPicture(page, 1200, 800);
 
     await image.click();
@@ -159,8 +174,8 @@ test("dragging a corner handle sets the width", async ({ page }) => {
 
     expect(width).toBeGreaterThan(before - 110);
     expect(width).toBeLessThan(before - 90);
-    await expect.poll(async () => (await servedSize(page, partId))[0], SLOW).toBe(Math.min(1200, width * 2));
     await waitForSave(dock);
+    expect(await servedSize(page, partId)).toEqual([1200, 800]);
 
     await deleteDraft(dock);
 });
@@ -236,12 +251,13 @@ test("the recipe survives reopening the draft", async ({ page }) => {
 
     await dock.getByPlaceholder("Subject").fill(subject);
     await image.click();
-    await bar.getByRole("button", { name: "Medium" }).click();
-    await expect(editor.locator("img[data-cid]")).toHaveAttribute("width", "320");
+    await bar.getByRole("button", { name: "Small" }).click();
+    await expect(editor.locator("img[data-cid]")).toHaveAttribute("data-pl-size", "small");
     await editor.locator("img[data-cid]").click();
     await bar.getByRole("button", { name: "Rotate left" }).click();
     await expect(editor.locator("img[data-cid]")).toHaveAttribute("data-pl-rotate", "270");
-    await expect.poll(() => servedSize(page, partId), SLOW).toEqual([426, 639]);
+    // Turned, and brought to Small's 800 on its longest side.
+    await expect.poll(() => servedSize(page, partId), SLOW).toEqual([533, 800]);
     await waitForSave(dock);
 
     await page.goto("/mail/drafts");
@@ -250,8 +266,7 @@ test("the recipe survives reopening the draft", async ({ page }) => {
     const reopened = page.locator("#compose_dock").locator('[data-compose--compose-toolbar-target="editor"] img[data-cid]');
 
     await expect(reopened).toHaveAttribute("data-pl-rotate", "270");
-    // Turned, so the width it is shown at became the shown height's.
-    await expect(reopened).toHaveAttribute("width", "213");
+    await expect(reopened).toHaveAttribute("data-pl-size", "small");
 
     await deleteDraft(page.locator("#compose_dock"));
 });
