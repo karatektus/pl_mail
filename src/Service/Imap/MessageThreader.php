@@ -94,7 +94,7 @@ final class MessageThreader
      */
     private function assignThreadByHeaders(Message $message, Account $account, bool $recordArrival): void
     {
-        // 2. RFC 5322 References / In-Reply-To.
+        // 2. RFC 5322 References / In-Reply-To: the thread of a message it names.
         $referenceIds = $this->collectReferenceIds($message);
 
         if (count($referenceIds) > 0) {
@@ -104,6 +104,12 @@ final class MessageThreader
                 $thread = $parentMessage->thread;
                 $this->attachMessageToThread($message, $thread, $recordArrival);
 
+                return;
+            }
+
+            // 2b. Nothing it names is here, but other mail may name the same
+            //     conversation start. See joinSiblings().
+            if (true === $this->joinSiblings($message, $account, $recordArrival)) {
                 return;
             }
 
@@ -193,6 +199,94 @@ final class MessageThreader
 
             $message->thread = $this->threadMerger->merge($thread, $replyThread);
         }
+    }
+
+    /**
+     * Join the conversation of other mail that starts from the same message,
+     * when that message itself was never received (#377).
+     *
+     * GitHub mails every comment on an issue with References naming the post
+     * that opened it, and does not mail that post to the person who wrote it.
+     * Step 2 looks for a parent by Message-ID, finds none, and every comment
+     * used to open a thread of its own; adoptReplies() cannot help either,
+     * because the siblings name the missing message, never each other. The
+     * same happens to any conversation whose first message the account never
+     * got: a mailing list joined halfway, or a first message deleted on the
+     * server before it was synced.
+     *
+     * Other clients group these, and so does the JWZ algorithm everybody's
+     * threading descends from: a missing parent becomes an empty placeholder,
+     * and what hangs off it is one conversation.
+     *
+     * ONLY THE ROOT
+     * ─────────────
+     * The id asked about is the first entry of References, the conversation's
+     * start, and not every id the message names. A later id two messages
+     * share means they share that id's ancestors too, the root among them, so
+     * nothing is lost by it; what it avoids is two replies being merged on an
+     * intermediate id alone, when a client that rewrites References put one
+     * there that the rest of the conversation does not carry. Mail without
+     * References falls back to In-Reply-To, which then is all there is.
+     *
+     * Every other conversation found from that root is folded into the one
+     * joined. That repairs a split left by earlier syncs as soon as one more
+     * message of it arrives, and it is the same merge adoptReplies() makes.
+     *
+     * Message rows are flushed before they are threaded, so the lookup sees
+     * siblings from the same batch too; one not threaded yet has no thread in
+     * memory either and is skipped, because it will find this one in turn.
+     *
+     * @return bool whether the message joined an existing thread
+     */
+    private function joinSiblings(Message $message, Account $account, bool $recordArrival): bool
+    {
+        $rootId = $this->rootReferenceId($message);
+
+        if (null === $rootId) {
+            return false;
+        }
+
+        $joined = null;
+
+        foreach ($this->messageRepository->findRepliesToForAccount($rootId, $account) as $sibling) {
+            $siblingThread = $sibling->thread;
+
+            if ($sibling === $message || null === $siblingThread || $siblingThread === $joined) {
+                continue;
+            }
+
+            // Same guard as adoptReplies(): never two people's mail in one thread.
+            if ($siblingThread->account !== $account) {
+                continue;
+            }
+
+            if (null === $joined) {
+                $this->attachMessageToThread($message, $siblingThread, $recordArrival);
+                $joined = $siblingThread;
+
+                continue;
+            }
+
+            $joined          = $this->threadMerger->merge($joined, $siblingThread);
+            $message->thread = $joined;
+        }
+
+        return null !== $joined;
+    }
+
+    /**
+     * The Message-ID the conversation started from, as far as this message
+     * says: the first entry of References, else the first of In-Reply-To.
+     */
+    private function rootReferenceId(Message $message): ?string
+    {
+        $references = MessageIdHelper::normaliseList($message->references);
+
+        if (count($references) > 0) {
+            return $references[0];
+        }
+
+        return MessageIdHelper::normaliseList($message->inReplyTo)[0] ?? null;
     }
 
     /**

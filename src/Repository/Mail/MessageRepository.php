@@ -2571,6 +2571,9 @@ class MessageRepository extends ServiceEntityRepository
      * threaded earlier in the same batch has its thread only in memory until
      * the batch is flushed, and the database still says NULL.
      *
+     * The threader also asks it about a Message-ID nobody has, to find the
+     * other mail that hangs off the same missing conversation start (#377).
+     *
      * Both spellings of the id are asked for. Rows synced before Message-IDs
      * were normalised still hold "<x@host>" in their arrays until the rethread
      * backfill has run over them, and `@>` compares exactly.
