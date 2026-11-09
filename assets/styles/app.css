@@ -5310,9 +5310,19 @@ html {
    that panel would survive without this rule. That is a side effect of a
    layout decision, though, and it would leave every other `sr-only` tile in
    the app still holding the bug. This rule is the one that says so on
-   purpose. */
-label:has(> input.sr-only) {
-    position: relative;
+   purpose.
+
+   In `@layer base`, so that a position utility on the label itself wins. Left
+   unlayered it beat every utility layer, and the one label that is
+   `absolute` on purpose — the row-wide hit area of a file in the "Attach
+   from" picker (integration/_row.html.twig) — became `relative` with no
+   content, a 0×0 box. Clicking a file selected nothing; only its Link chip
+   could be picked. A label without a position utility still gets
+   `relative`, which is all the reasoning above needs. */
+@layer base {
+    label:has(> input.sr-only) {
+        position: relative;
+    }
 }
 
 /* ── Per-surface density ───────────────────────────────────────────────────

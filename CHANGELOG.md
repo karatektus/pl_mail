@@ -298,6 +298,10 @@ used to open at the far right of the window, wherever the button was.
 Attach inline button beside Attach: the chosen pictures are placed in the message where the
 cursor is, like ones picked with the image button, instead of being attached beside it.
 
+**Clicking a file in the "Attach from" picker selects it again.** In the list of a file service
+such as Nextcloud, clicking a file did nothing, so a file could only be sent as a share link with
+its Link button, never attached. A click on the row selects it for attaching, as it was meant to.
+
 ## v0.4.1 — 2026-10-31
 
 plMail now speaks JMAP, keeps folders and labels properly apart, and the compose window and filters
