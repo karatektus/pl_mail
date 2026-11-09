@@ -354,7 +354,35 @@ export default class extends Controller {
         // writer may have typed on while the picture was on its way, and the
         // picture belongs where it was asked for.
         if (null !== placeholder && true === placeholder.isConnected) {
+            // A caret left right after the placeholder — where inserting it
+            // put the caret, and where it stays unless the writer moved on —
+            // would fall back to before the picture as the placeholder goes,
+            // and the next picture would land above this one.
+            const after = document.createRange();
+            after.setStartAfter(placeholder);
+            after.collapse(true);
+
+            const sel = window.getSelection();
+            const atPlaceholder = (range) => null !== range && undefined !== range && true === range.collapsed
+                && 0 === range.compareBoundaryPoints(Range.START_TO_START, after);
+            const savedThere = atPlaceholder(this.#savedRange);
+            const liveThere = null !== sel && sel.rangeCount > 0 && atPlaceholder(sel.getRangeAt(0));
+
             placeholder.replaceWith(img);
+
+            const caret = document.createRange();
+            caret.setStartAfter(img);
+            caret.collapse(true);
+
+            if (true === savedThere) {
+                this.#savedRange = caret.cloneRange();
+            }
+
+            if (true === liveThere) {
+                sel.removeAllRanges();
+                sel.addRange(caret);
+            }
+
             this._bodyChanged();
 
             return;
@@ -370,7 +398,8 @@ export default class extends Controller {
      * service can take many seconds to arrive — the server fetches it from
      * the service before the browser sees a byte — and a body with nothing in
      * it for that long reads as "nothing happened", which invites a second
-     * try. compose--compose#_setPlaceholderProgress moves its ring and
+     * try. compose--compose#_sizePlaceholder gives it the picture's size as
+     * soon as that is known and #_setPlaceholderProgress moves its ring and
      * percentage; insertInlineImage() puts the picture in its place, and
      * removeImagePlaceholder() takes it away when the picture never comes.
      *
@@ -380,13 +409,21 @@ export default class extends Controller {
     insertImagePlaceholder() {
         if (false === this.hasEditorTarget) { return null; }
 
+        // A block, as the picture will be: Tailwind's preflight makes every
+        // <img> `display: block`, so a picture in the body always stands on a
+        // line of its own, at the left, however small. Until its size is known
+        // the placeholder is the full width and a fixed height; then
+        // compose--compose#_sizePlaceholder gives it the picture's.
         const box = document.createElement('span');
 
         box.dataset.imagePlaceholder = '';
         box.setAttribute('contenteditable', 'false');
         box.setAttribute('role', 'status');
-        box.className = 'inline-flex items-center gap-2 align-middle my-1 px-3 py-2 min-w-48 rounded-lg '
-            + 'border border-line bg-sunken text-xs text-ink-muted select-none';
+        box.className = 'relative block w-full h-24 max-w-full overflow-hidden rounded-lg '
+            + 'border border-line bg-sunken select-none';
+
+        const inner = document.createElement('span');
+        inner.className = 'absolute inset-0 flex items-center justify-center gap-2 text-xs text-ink-muted';
 
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 
@@ -419,6 +456,12 @@ export default class extends Controller {
             svg.appendChild(circle);
         });
 
+        // The words go where there is no room for them: a placeholder the
+        // size of a small logo shows the ring alone (_sizePlaceholder).
+        const words = document.createElement('span');
+        words.dataset.words = '';
+        words.className = 'flex items-center gap-2 whitespace-nowrap';
+
         const label = document.createElement('span');
         label.dataset.label = '';
 
@@ -426,7 +469,9 @@ export default class extends Controller {
         percent.dataset.percent = '';
         percent.className = 'tabular-nums';
 
-        box.append(svg, label, percent);
+        words.append(label, percent);
+        inner.append(svg, words);
+        box.append(inner);
 
         this._insertAtCaret(box);
 

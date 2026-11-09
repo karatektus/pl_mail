@@ -13,6 +13,7 @@ import {
     recipientValues,
 } from "../../compose/template_variables.js";
 import { InlineImageEditor } from "../../compose/image_editor.js";
+import { IMAGE_HEAD_BYTES, imageDimensions } from "../../compose/image_dimensions.js";
 import { ORIGINAL_CHOICE, editSignature, hasEdits, noEdits, readEdits, renderImage } from "../../compose/image_edit.js";
 
 /**
@@ -4162,9 +4163,11 @@ export default class extends Controller {
                 if (true === response.ok) {
                     const name = decodeURIComponent(response.headers.get('X-File-Name') ?? 'image');
                     const type = response.headers.get('X-File-Type') ?? 'application/octet-stream';
-                    const blob = await this._readWithProgress(response, (share) => {
-                        this._setPlaceholderProgress(placeholder, null === share ? null : share / 2, fetching);
-                    });
+                    const blob = await this._readWithProgress(
+                        response,
+                        (share) => this._setPlaceholderProgress(placeholder, null === share ? null : share / 2, fetching),
+                        (size) => this._sizePlaceholder(placeholder, size),
+                    );
 
                     file = new File([blob], name, { type });
                 }
@@ -4184,25 +4187,33 @@ export default class extends Controller {
     }
 
     /**
-     * A response body as a Blob, reporting the share of it read so far.
+     * A response body as a Blob, reporting the share of it read so far and,
+     * as soon as its first bytes say, the size the picture will be shown at.
      *
      * The share is null where the length is unknown — no Content-Length, or a
      * body the browser decompresses, whose length is not the one announced —
      * and the ring then keeps spinning instead of showing a number it made up.
+     * The size is looked for in the first IMAGE_HEAD_BYTES only; a picture
+     * that does not say by then is measured whole by _placeImage.
      */
-    async _readWithProgress(response, onProgress) {
+    async _readWithProgress(response, onProgress, onSize) {
         const total = Number(response.headers.get('Content-Length') ?? 0);
-        const encoded = null !== response.headers.get('Content-Encoding');
+        const measurable = total > 0 && null === response.headers.get('Content-Encoding');
 
-        if (null === response.body || false === total > 0 || true === encoded) {
+        if (null === response.body) {
             onProgress(null);
 
             return response.blob();
         }
 
+        if (false === measurable) {
+            onProgress(null);
+        }
+
         const reader = response.body.getReader();
         const chunks = [];
         let received = 0;
+        let head = new Uint8Array(0);
 
         for (;;) {
             const { done, value } = await reader.read();
@@ -4213,10 +4224,78 @@ export default class extends Controller {
 
             chunks.push(value);
             received += value.length;
-            onProgress(Math.min(1, received / total));
+
+            if (true === measurable) {
+                onProgress(Math.min(1, received / total));
+            }
+
+            if (null !== head) {
+                const grown = new Uint8Array(Math.min(IMAGE_HEAD_BYTES, head.length + value.length));
+
+                grown.set(head);
+                grown.set(value.subarray(0, grown.length - head.length), head.length);
+                head = grown;
+
+                const size = imageDimensions(head);
+
+                if (null !== size) {
+                    onSize(size);
+                    head = null;
+                } else if (head.length >= IMAGE_HEAD_BYTES) {
+                    head = null;
+                }
+            }
         }
 
         return new Blob(chunks);
+    }
+
+    /**
+     * The size a picture file will be shown at: from its first bytes where
+     * they say (image_dimensions.js), else from the picture decoded, which
+     * costs a decode but knows every format the browser does.
+     */
+    async _measureImage(file) {
+        try {
+            const size = imageDimensions(new Uint8Array(await file.slice(0, IMAGE_HEAD_BYTES).arrayBuffer()));
+
+            if (null !== size) {
+                return size;
+            }
+
+            const bitmap = await createImageBitmap(file);
+            const decoded = { width: bitmap.width, height: bitmap.height };
+
+            bitmap.close();
+
+            return decoded;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    /**
+     * Give a picture placeholder the picture's own size, so the picture
+     * takes its place without the text around it moving.
+     *
+     * Its width in CSS pixels, as an <img> without a width shows it, held to
+     * the editor's width by the max-width both have, and its height from the
+     * proportions; a block, like the picture, so it stands where the picture
+     * will. Too small a box for the words keeps only the ring.
+     */
+    _sizePlaceholder(placeholder, size) {
+        if (null === placeholder || false === placeholder.isConnected || null === size) {
+            return;
+        }
+
+        placeholder.dataset.sized = '';
+        placeholder.classList.remove('w-full', 'h-24');
+        placeholder.style.width = `${size.width}px`;
+        placeholder.style.aspectRatio = `${size.width} / ${size.height}`;
+
+        const shown = placeholder.getBoundingClientRect();
+
+        placeholder.querySelector('[data-words]')?.classList.toggle('hidden', shown.width < 160 || shown.height < 32);
     }
 
     /**
@@ -5606,6 +5685,12 @@ export default class extends Controller {
 
         placeholder ??= this._toolbar()?.insertImagePlaceholder() ?? null;
         this._setPlaceholderProgress(placeholder, from, uploading);
+
+        // A picture from the disk is measured here; one from a service was
+        // sized by its first bytes on the way down, unless they did not say.
+        if (null !== placeholder && false === ('sized' in placeholder.dataset)) {
+            this._sizePlaceholder(placeholder, await this._measureImage(file));
+        }
 
         await this.saveDraft(null, { force: true, allowEmpty: true });
 

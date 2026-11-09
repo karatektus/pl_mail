@@ -304,8 +304,10 @@ its Link button, never attached. A click on the row selects it for attaching, as
 **A picture on its way into a message shows where it will go.** "Attach inline" from a file
 service, and a picture picked from the disk, now put a placeholder at the cursor straight away. Its
 ring turns while the service is being asked for the file and then fills with a percentage as the
-picture comes down and goes up to the draft; the picture takes its place when it is there. Before,
-nothing showed until the end, which from a slow service could be many seconds.
+picture comes down and goes up to the draft. As soon as the first bytes arrive the placeholder takes
+the picture's own size and shape, a phone photo taken upright included, so the picture takes its
+place without the text around it moving. Before, nothing showed until the end, which from a slow
+service could be many seconds.
 
 ## v0.4.1 — 2026-10-31
 
