@@ -10,12 +10,13 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
-## v0.4.2 — 2026-11-08
+## v0.4.2 — 2026-11-09
 
 plMail can now keep several unified inboxes, send photos smaller, resize, crop and turn the pictures
 in a message, notify you only for the mail you choose, attach from OpenCloud and connect Nextcloud
-by approving in the browser. The mail list is also quicker to switch and to act on. The picture
-beside each highlight opens large when you click it.
+by approving in the browser. The mail list is also quicker to switch and to act on, and a swipe
+can delete a conversation, with Undo. The picture beside each highlight opens large when you click
+it.
 
 <!-- highlight screenshot=unified-inboxes -->
 **Several unified inboxes, each with its own name, icon and accounts.** Settings → **Unified
@@ -217,6 +218,85 @@ picture instead of asking for it again.
 the mail Spam in plMail but archived it on the server, so after the next sync every message the
 filter had caught sat in the Archive, unread. Mail it already put there is moved to Spam with
 `php bin/console app:backfill spam-in-archive`.
+
+**Replies to a message you never received are one conversation again.** GitHub mails every
+comment on an issue as a reply to the post that opened it, and doesn't send that post to the
+person who wrote it, so each comment showed up as a conversation of its own. Mail that refers to
+the same missing first message is now grouped, and conversations already split this way come
+together when their next message arrives (`app:backfill rethread` regroups them all at once).
+IMAP and POP3 accounts only: Gmail, Outlook and JMAP accounts already took the provider's
+grouping. No schema change. [#377](https://github.com/karatektus/pl_mail/issues/377), reported by
+@phdelodder.
+
+**Bookings from genuine senders reach the calendar on iCloud accounts too.** On an iCloud
+account, plMail never believed Apple's sender check, because Apple checks mail under `icloud.com`
+names while the account reads it from `me.com`. Even when it did believe the check, the separate
+BIMI line Apple adds counted as a failure. So every booking was offered as a card, and every change
+to one was held. Apple's check is now read the same way as Gmail's: the sender is genuine when
+DMARC passes, or DKIM or SPF passes for the From domain. Two different DMARC or SPF results still
+count as a failure. No schema change. See
+[Calendar invitations → Only from a sender your mail server vouches for](docs/features/calendar-invitations.md#only-from-a-sender-your-mail-server-vouches-for).
+[#462](https://github.com/karatektus/pl_mail/issues/462), reported by @AunePVP.
+
+**`SERVER_NAME` can be the machine's IP address.** Set to an address such as `192.168.2.45`, the
+web server issued a certificate for it but then offered a browser a `localhost` certificate it did
+not have, so every visit ended in an SSL protocol error that cannot be clicked through. It now
+offers the address's own self-signed certificate, and the browser shows its usual warning. The
+stock default, a domain, and `:80` behind a reverse proxy are unchanged. See
+[Configuration → `SERVER_NAME`](docs/install/configuration.md).
+[#485](https://github.com/karatektus/pl_mail/issues/485), reported by @ohnese.
+
+**Copies of one email stored before v0.4.1 are folded even when an insight card links to one.**
+Folding the copies Proton's All Mail and similar folders had left as separate messages failed
+whenever the copies were in two conversations and one of them had an insight card, such as a parcel
+or a flight: the fold was rolled back with a Doctrine error on every sweep, and that email stayed
+doubled. It is folded now, and the card links to the message that stays. No schema change.
+[#521](https://github.com/karatektus/pl_mail/issues/521), reported by @sponger544.
+
+**A POP3 account whose server numbers its messages `1`, `2`, `3` deletes them again.** With
+"delete from server" on, a server whose UIDLs are plain numbers, which RFC 1939 allows, made every
+sync fail after storing the new mail and before deleting anything, so the server mailbox filled up
+until it hit its quota. No mail was lost or fetched twice. No schema change.
+[#522](https://github.com/karatektus/pl_mail/issues/522), reported by @mmssix.
+
+**A Google holiday calendar is no longer read from scratch every fifteen minutes.** Google refuses
+every sync token it hands out for its public holiday calendars, so each sweep found the stored
+token refused and read the whole calendar again. A read-only calendar whose token is refused on
+two runs in a row is now read every six hours instead; one accepted token puts it back on the
+fifteen-minute sweep. Adds the `calendar.sync_token_rejections` column (default 0).
+[#523](https://github.com/karatektus/pl_mail/issues/523).
+
+**A rate-limited Outlook mailbox is a warning in the log, not an error, and a sync asks Outlook
+about half as much.** Outlook rate-limits a personal mailbox about once an hour even when it is
+idle, and each time the log got an ERROR with a stack trace and an empty message. It is now one
+warning that says what happened, how long Outlook asked to wait, and Microsoft's request id. A
+sync also used to look up which folder is the Inbox, Sent and so on, thirteen requests, every
+time; the answer is kept now and asked again only when the folder list changes, or once a day.
+And a rate limit during those lookups is no longer taken to mean the folder does not exist, which
+could file the Inbox as a custom folder for one sync or create a second Archive folder. No schema
+change. [#524](https://github.com/karatektus/pl_mail/issues/524)
+
+**A swipe can delete a conversation, and deleting one offers Undo.** Delete is now a choice for
+either direction under **Settings → Mail → Swipe actions**; it moves the conversation to the bin,
+never deletes it for good, and its panel is red. Deleting a single conversation, by swipe, by the
+row's own button or from the action sheet, now shows an **Undo** toast, as archiving does. No
+schema change. [#527](https://github.com/karatektus/pl_mail/issues/527)
+
+**Settings → Accounts shows POP3 and JMAP accounts as what they are.** The badge on an account's
+row said IMAP for every account that signs in with a password, so a POP3 account looked as if the
+protocol choice had not been saved. It now shows the incoming protocol, in the same words as the
+account form. The System page's "How late mail arrives" table made the same mistake and is fixed
+too. Display only: the accounts always synced over the protocol they were set to. No schema
+change. [#528](https://github.com/karatektus/pl_mail/issues/528), reported by @ohnese.
+
+**The rest of the compose window's pop-ups open at the button that opened them.** Insert link
+opens over the link button, and over the link itself when you click one in the message. The
+plain-text question opens over More options (⋮) and the "send anyway?" question over Send. They
+used to open at the far right of the window, wherever the button was.
+
+**A picture from a connected service can go into the text.** The "Attach from" dialog has an
+Attach inline button beside Attach: the chosen pictures are placed in the message where the
+cursor is, like ones picked with the image button, instead of being attached beside it.
 
 ## v0.4.1 — 2026-10-31
 
