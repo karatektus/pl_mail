@@ -1,5 +1,6 @@
 // assets/controllers/compose_controller.js
 import { Controller } from '@hotwired/stimulus'
+import { liftAbove, visible } from '../../place_above.js';
 import { forgetPendingCancel, markPendingCancel } from "../../compose/pending_cancel.js";
 import { requestFailed } from "../../request_errors.js";
 import { csrfToken } from "../../csrf.js";
@@ -138,6 +139,8 @@ export default class extends Controller {
         // through the DOM tree.
         this._boundIntegrationAttached = this._handleIntegrationAttached.bind(this);
         window.addEventListener('plmail:integration-attached', this._boundIntegrationAttached);
+        this._boundIntegrationInline = this._handleIntegrationInline.bind(this);
+        window.addEventListener('plmail:integration-inline', this._boundIntegrationInline);
 
         // Guarded like every other lookup of it in this file. The form is
         // unconditional in _window.html.twig, so this is belt and braces —
@@ -975,6 +978,7 @@ export default class extends Controller {
 
         window.removeEventListener('beforeunload', this._boundBeforeUnload);
         window.removeEventListener('plmail:integration-attached', this._boundIntegrationAttached);
+        window.removeEventListener('plmail:integration-inline', this._boundIntegrationInline);
         const form = this.element.querySelector('form');
 
         // Guarded, and the indentation above is what gave it away: an `if` had
@@ -2451,6 +2455,13 @@ export default class extends Controller {
 
         this.plainWarningTarget.hidden = false;
 
+        // Over ⋮, whose menu holds the Plain text switch that asked — not at
+        // the far right of the toolbar. See place_above.js.
+        this._unliftPlainWarning?.();
+        this._unliftPlainWarning = liftAbove(this.plainWarningTarget, () =>
+            visible(this.element.querySelector('[data-compose--action-overflow-target="more"] button'))
+            ?? this.plainWarningTarget.parentElement);
+
         this._boundPlainWarningOutside ??= (event) => {
             if (false === this.plainWarningTarget.contains(event.target)) {
                 this.cancelPlainText();
@@ -2480,6 +2491,8 @@ export default class extends Controller {
         }
 
         this.plainWarningTarget.hidden = true;
+        this._unliftPlainWarning?.();
+        this._unliftPlainWarning = undefined;
 
         document.removeEventListener('click', this._boundPlainWarningOutside, { capture: true });
         document.removeEventListener('keydown', this._boundPlainWarningEscape);
@@ -3407,6 +3420,13 @@ export default class extends Controller {
             `${reasons.join(' ')} ${this._t('confirmSendAnyway', 'Send it anyway?')}`;
         this.sendWarningTarget.hidden = false;
 
+        // Over the Send button that was pressed — the one laid out; the window
+        // renders a second pill for the other layout. See place_above.js.
+        this._unliftSendWarning?.();
+        this._unliftSendWarning = liftAbove(this.sendWarningTarget, () =>
+            this.sendBtnTargets.map((button) => visible(button)).find((button) => null !== button)
+            ?? this.sendWarningTarget.parentElement);
+
         this._boundSendWarningEscape ??= (event) => {
             if ('Escape' === event.key) {
                 event.stopPropagation();
@@ -3425,6 +3445,9 @@ export default class extends Controller {
         if (true === this.hasSendWarningTarget) {
             this.sendWarningTarget.hidden = true;
         }
+
+        this._unliftSendWarning?.();
+        this._unliftSendWarning = undefined;
 
         document.removeEventListener('keydown', this._boundSendWarningEscape);
     }
@@ -4077,6 +4100,66 @@ export default class extends Controller {
         // input event — without this the draft would keep the pre-link body
         // until the next keystroke.
         this.saveDraft(null, { force: true, allowEmpty: true });
+    }
+
+    /**
+     * "Attach inline" in the integration picker: each chosen picture fetched
+     * from the service and placed at the caret like one from the disk.
+     *
+     * Same window filter as _handleIntegrationAttached. A plain-text body has
+     * nowhere to put a picture, so there the files are refused with the same
+     * sentence a failed insert gets rather than attached some other way.
+     */
+    async _handleIntegrationInline(event) {
+        const { draftId, integrationId, fileIds } = event.detail ?? {};
+
+        if (undefined !== draftId && String(draftId) !== String(this._messageId())) {
+            return;
+        }
+
+        const failure = this._t('imageFailed', 'Could not insert the image');
+
+        if (true === this._isPlainText()) {
+            this._setStatus(failure, 'text-danger');
+
+            return;
+        }
+
+        for (const fileId of fileIds ?? []) {
+            this._setStatus(this._t('uploading', 'Uploading…'), 'text-ink-faint');
+
+            let file = null;
+
+            try {
+                const response = await fetch(
+                    `/integrations/${encodeURIComponent(integrationId)}/inline-image?file=${encodeURIComponent(fileId)}`,
+                    { headers: { 'X-Requested-With': 'XMLHttpRequest' } },
+                );
+
+                if (415 === response.status) {
+                    this._setStatus(this._t('notAnImage', 'Not a picture'), 'text-danger');
+
+                    continue;
+                }
+
+                if (true === response.ok) {
+                    const name = decodeURIComponent(response.headers.get('X-File-Name') ?? 'image');
+                    const type = response.headers.get('X-File-Type') ?? 'application/octet-stream';
+
+                    file = new File([await response.blob()], name, { type });
+                }
+            } catch (_) {
+                file = null;
+            }
+
+            if (null === file) {
+                this._setStatus(failure, 'text-danger');
+
+                continue;
+            }
+
+            await this._placeImage(file);
+        }
     }
 
     /** Append share links as anchors at the top of the user's own writing. */

@@ -19,10 +19,10 @@ signature editor runs the SAME controller and had the same link button — and
 therefore had the same prompt. One popover, two hosts, no second copy to
 forget when one of them changes.
 
-The POSITIONING is the caller's, passed in as `class`: the compose window
-anchors it above a toolbar block that spans the window and never scrolls (the
-button itself lives in a sideways scroller and would drag the popover off
-screen with it); the signature editor anchors it under its own small bar.
+The POSITIONING is the caller's: the compose window passes `place: 'above'`
+and the controller opens it over the link button, or over the link in the body
+the viewing face describes (place_above.js); the signature editor pins it under
+its own small bar with `class`.
 
 The ENTRANCE is the caller's too, and for exactly the same reason as the
 positioning: a popover should travel away from the edge it is pinned to, and
@@ -39,9 +39,12 @@ Variables:
   id     string  unique suffix for the two field ids
   class  string  positioning and width classes for the popover box
   enter  string  motion.css entrance name (default 'fade')
+  place  string  'above' opens it over the link button (or the link in the
+                 body) in the top layer instead of where `class` pins it
 #}
 <div data-compose--compose-toolbar-target="linkPopover" hidden
      data-enter="{{ enter|default('fade') }}"
+     {% if place|default('') is not empty %}data-place="{{ place }}"{% endif %}
      role="dialog"
      aria-label="{{ 'compose.link.dialog'|trans }}"
      data-action="keydown->compose--compose-toolbar#linkKeydown"

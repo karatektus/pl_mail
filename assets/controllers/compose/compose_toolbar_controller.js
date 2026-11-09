@@ -1,5 +1,6 @@
 // assets/controllers/compose-toolbar_controller.js
 import { Controller } from '@hotwired/stimulus';
+import { liftAbove, visible } from '../../place_above.js';
 
 export default class extends Controller {
     static targets = [
@@ -499,7 +500,7 @@ export default class extends Controller {
 
         const wasEditing = this.hasLinkEditTarget && false === this.linkEditTarget.hidden;
 
-        this.linkPopoverTarget.hidden = true;
+        this._hideLinkPopover();
         this.#linkAnchor = null;
         this._detachLinkListeners();
         this._clearLinkError();
@@ -555,7 +556,7 @@ export default class extends Controller {
         // covers, which is right: the text field was prefilled FROM that
         // selection, so the selection is what the new link stands in for.
         this.#rangeLocked = false;
-        this.linkPopoverTarget.hidden = true;
+        this._hideLinkPopover();
         this._detachLinkListeners();
         this._insertAtCaret(created);
         this._closeAndSync();
@@ -612,7 +613,7 @@ export default class extends Controller {
         this.#savedRange = range.cloneRange();
         marker.remove();
 
-        this.linkPopoverTarget.hidden = true;
+        this._hideLinkPopover();
         this._detachLinkListeners();
         this._closeAndSync();
     }
@@ -687,6 +688,11 @@ export default class extends Controller {
             this.linkHrefTarget.textContent = href;
         }
 
+        // A click on another link while this face is up: placed again, over
+        // the new one.
+        this._unliftLink?.();
+        this._unliftLink = undefined;
+
         this._showLinkPopover();
 
         // Deliberately NOT focused and NOT range-locked: this face appears
@@ -698,6 +704,7 @@ export default class extends Controller {
 
     _showLinkPopover() {
         this.linkPopoverTarget.hidden = false;
+        this._liftLinkPopover();
 
         if (this.hasLinkBtnTarget) {
             this.linkBtnTarget.setAttribute('aria-expanded', 'true');
@@ -707,6 +714,43 @@ export default class extends Controller {
         // whatever was clicked stops propagation on its way up.
         document.addEventListener('click', this._boundOutside, { capture: true });
         document.addEventListener('keydown', this._boundEscape);
+    }
+
+    /**
+     * Over the control it is about, where the host asks for that
+     * (`data-place="above"`, the compose window): the link in the body for the
+     * viewing face, otherwise the link button — or ⋮ when the button has been
+     * folded into that menu. See place_above.js. The signature editor pins it
+     * under its own small bar and passes nothing.
+     */
+    _liftLinkPopover() {
+        const popover = this.linkPopoverTarget;
+
+        if ('above' !== popover.dataset.place) {
+            return;
+        }
+
+        // Already up: Change turns the viewing face into the editing one, and
+        // the popover stays over the link it is about rather than jumping to
+        // the toolbar — placed again, because the editing face is taller.
+        if (undefined !== this._unliftLink) {
+            this._unliftLink.place?.();
+
+            return;
+        }
+
+        const viewing = this.hasLinkViewTarget && false === this.linkViewTarget.hidden;
+
+        this._unliftLink = liftAbove(popover, () => (viewing ? visible(this.#linkAnchor) : null)
+            ?? (this.hasLinkBtnTarget ? visible(this.linkBtnTarget) : null)
+            ?? visible(this.element.querySelector('[data-compose--action-overflow-target="more"] button'))
+            ?? popover.parentElement);
+    }
+
+    _hideLinkPopover() {
+        this.linkPopoverTarget.hidden = true;
+        this._unliftLink?.();
+        this._unliftLink = undefined;
     }
 
     _detachLinkListeners() {
@@ -720,7 +764,7 @@ export default class extends Controller {
         this._detachLinkListeners();
 
         if (this.hasLinkPopoverTarget) {
-            this.linkPopoverTarget.hidden = true;
+            this._hideLinkPopover();
         }
 
         if (this.hasLinkBtnTarget) {
@@ -870,7 +914,7 @@ export default class extends Controller {
             return;
         }
 
-        this.linkPopoverTarget.hidden = true;
+        this._hideLinkPopover();
         this.#linkAnchor = null;
         this._detachLinkListeners();
     }

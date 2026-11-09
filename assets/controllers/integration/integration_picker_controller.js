@@ -273,6 +273,46 @@ export default class extends Controller {
     }
 
     /**
+     * Put the chosen pictures in the body instead of beside it.
+     *
+     * Nothing is fetched here: the compose window that opened the picker
+     * fetches each one and places it at the caret through the same code as a
+     * picture from the disk, so a sealed draft, the Image size row and the
+     * scaling all behave the same. The event is the seam, as for attaching.
+     *
+     * A share link has no picture to place, so a row set to Link is refused
+     * rather than quietly attached some other way.
+     */
+    attachInline() {
+        const chosen = this.modeTargets.filter((input) => input.checked);
+
+        if (0 === chosen.length) {
+            this._status(this._t("nothingSelected"));
+
+            return;
+        }
+
+        if (chosen.some((input) => "link" === input.value)) {
+            this._status(this._t("linkNotInline"));
+
+            return;
+        }
+
+        window.dispatchEvent(
+            new CustomEvent("plmail:integration-inline", {
+                detail: {
+                    draftId: this.draftValue,
+                    integrationId: this.integrationValue,
+                    // Read out of the input's name, as _chooseAvatar does.
+                    fileIds: chosen.map((input) => input.name.replace(/^mode\[(.*)\]$/, "$1")),
+                },
+            }),
+        );
+
+        this.dispatch("close", { prefix: "ui--modal" });
+    }
+
+    /**
      * Hand the chosen picture to the profile form, which posts it.
      *
      * Nothing is saved here: the picker and the form sit in different Turbo
@@ -299,9 +339,9 @@ export default class extends Controller {
     }
 
     _busy(busy) {
-        if (true === this.hasSubmitTarget) {
-            this.submitTarget.disabled = busy;
-        }
+        this.submitTargets.forEach((button) => {
+            button.disabled = busy;
+        });
     }
 
     _status(text) {

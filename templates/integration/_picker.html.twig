@@ -56,6 +56,7 @@ gap under the shortcuts row.
                  attaching:       'integration.picker.status.attaching'|trans,
                  attachFailed:    'integration.picker.status.attach_failed'|trans,
                  skipped:         'integration.picker.status.skipped'|trans,
+                 linkNotInline:   'integration.picker.status.link_not_inline'|trans,
              }|json_encode }}"
              class="flex-1 min-h-0 flex flex-col">
 
@@ -260,6 +261,19 @@ gap under the shortcuts row.
                                text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
                     {{ 'form.cancel'|trans }}
                 </button>
+                {# Into the body rather than beside it, like the image button
+                   beside the paperclip. Not in avatar mode, which hands one
+                   picture to the profile form and attaches nothing. #}
+                {% if not isAvatar %}
+                    <button type="button"
+                            data-action="click->integration--integration-picker#attachInline"
+                            data-integration--integration-picker-target="submit"
+                            class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                                   text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors
+                                   disabled:opacity-50">
+                        {{ 'integration.picker.attach_inline'|trans }}
+                    </button>
+                {% endif %}
                 <button type="button"
                         data-action="click->integration--integration-picker#attach"
                         data-integration--integration-picker-target="submit"
