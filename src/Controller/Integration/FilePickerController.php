@@ -284,6 +284,10 @@ final class FilePickerController extends AbstractController
             'Cache-Control'          => 'no-store',
             'X-File-Type'            => $file->mime,
             'X-File-Name'            => rawurlencode($file->filename),
+            // Said outright: the compose window's placeholder shows the
+            // download as a percentage of it, and without it the response
+            // goes out chunked and the ring can only spin.
+            'Content-Length'         => (string) strlen($file->contents),
         ]);
         $response->headers->set('Content-Disposition', $response->headers->makeDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,

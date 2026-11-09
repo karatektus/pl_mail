@@ -1689,6 +1689,7 @@ compose:
         tomorrow_morning: 明天上午
         when: '%date%，%time%'
     status:
+        fetching: 正在获取…
         pending_many: '再输入 %count% 个字符即可保存'
         pending_one: 再输入一个字符即可保存
         save_failed: 无法保存草稿

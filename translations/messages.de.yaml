@@ -1949,6 +1949,7 @@ compose:
         tomorrow_morning: Morgen früh
         when: '%date%, %time%'
     status:
+        fetching: "Wird abgerufen…"
         pending_many: "noch %count% Zeichen bis zum Speichern"
         pending_one: noch ein Zeichen bis zum Speichern
         save_failed: Entwurf konnte nicht gespeichert werden

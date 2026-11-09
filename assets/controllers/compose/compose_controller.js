@@ -4109,6 +4109,13 @@ export default class extends Controller {
      * Same window filter as _handleIntegrationAttached. A plain-text body has
      * nowhere to put a picture, so there the files are refused with the same
      * sentence a failed insert gets rather than attached some other way.
+     *
+     * Every picture gets its placeholder at once, in the order chosen, and the
+     * pictures then arrive one after the other into them. The server pulls a
+     * file from the service before it answers, which can take a while and
+     * says nothing about how far it got, so the ring spins until the first
+     * byte; from there the download to the browser fills the first half and
+     * the upload to the draft the second (_placeImage).
      */
     async _handleIntegrationInline(event) {
         const { draftId, integrationId, fileIds } = event.detail ?? {};
@@ -4125,8 +4132,17 @@ export default class extends Controller {
             return;
         }
 
-        for (const fileId of fileIds ?? []) {
-            this._setStatus(this._t('uploading', 'Uploading…'), 'text-ink-faint');
+        const fetching = this._t('fetching', 'Fetching…');
+        const pending = (fileIds ?? []).map((fileId) => {
+            const placeholder = this._toolbar()?.insertImagePlaceholder() ?? null;
+
+            this._setPlaceholderProgress(placeholder, null, fetching);
+
+            return { fileId, placeholder };
+        });
+
+        for (const { fileId, placeholder } of pending) {
+            this._setStatus(fetching, 'text-ink-faint');
 
             let file = null;
 
@@ -4137,6 +4153,7 @@ export default class extends Controller {
                 );
 
                 if (415 === response.status) {
+                    this._toolbar()?.removeImagePlaceholder(placeholder);
                     this._setStatus(this._t('notAnImage', 'Not a picture'), 'text-danger');
 
                     continue;
@@ -4145,21 +4162,84 @@ export default class extends Controller {
                 if (true === response.ok) {
                     const name = decodeURIComponent(response.headers.get('X-File-Name') ?? 'image');
                     const type = response.headers.get('X-File-Type') ?? 'application/octet-stream';
+                    const blob = await this._readWithProgress(response, (share) => {
+                        this._setPlaceholderProgress(placeholder, null === share ? null : share / 2, fetching);
+                    });
 
-                    file = new File([await response.blob()], name, { type });
+                    file = new File([blob], name, { type });
                 }
             } catch (_) {
                 file = null;
             }
 
             if (null === file) {
+                this._toolbar()?.removeImagePlaceholder(placeholder);
                 this._setStatus(failure, 'text-danger');
 
                 continue;
             }
 
-            await this._placeImage(file);
+            await this._placeImage(file, placeholder, 0.5);
         }
+    }
+
+    /**
+     * A response body as a Blob, reporting the share of it read so far.
+     *
+     * The share is null where the length is unknown — no Content-Length, or a
+     * body the browser decompresses, whose length is not the one announced —
+     * and the ring then keeps spinning instead of showing a number it made up.
+     */
+    async _readWithProgress(response, onProgress) {
+        const total = Number(response.headers.get('Content-Length') ?? 0);
+        const encoded = null !== response.headers.get('Content-Encoding');
+
+        if (null === response.body || false === total > 0 || true === encoded) {
+            onProgress(null);
+
+            return response.blob();
+        }
+
+        const reader = response.body.getReader();
+        const chunks = [];
+        let received = 0;
+
+        for (;;) {
+            const { done, value } = await reader.read();
+
+            if (true === done) {
+                break;
+            }
+
+            chunks.push(value);
+            received += value.length;
+            onProgress(Math.min(1, received / total));
+        }
+
+        return new Blob(chunks);
+    }
+
+    /**
+     * Move a picture placeholder's ring and words.
+     *
+     * `share` is 0…1 of the whole way, or null while there is nothing to
+     * measure, which spins a quarter ring and shows no number.
+     */
+    _setPlaceholderProgress(placeholder, share, label) {
+        if (null === placeholder || false === placeholder.isConnected) {
+            return;
+        }
+
+        const ring = placeholder.querySelector('[data-ring]');
+        const svg = ring?.ownerSVGElement;
+        const known = null !== share && Number.isFinite(share);
+        const percent = known ? Math.round(Math.min(1, Math.max(0, share)) * 100) : null;
+
+        svg?.classList.toggle('animate-spin', false === known);
+        ring?.setAttribute('stroke-dashoffset', String(known ? 100 - percent : 75));
+
+        placeholder.querySelector('[data-label]').textContent = label;
+        placeholder.querySelector('[data-percent]').textContent = known ? `${percent} %` : '';
     }
 
     /** Append share links as anchors at the top of the user's own writing. */
@@ -5475,9 +5555,17 @@ export default class extends Controller {
      * The forced save is the same rule attachments follow: a part is a row
      * hanging off a Message, so the draft has to exist before there is
      * anything to hang it off.
+     *
+     * A placeholder stands at the caret from the start, with the upload's
+     * progress on it, and the picture takes its place; before, nothing showed
+     * until the upload was done. One from a service brings its own, already
+     * half full from the download, and `from` is where the upload's share of
+     * the ring starts.
      */
-    async _placeImage(file) {
+    async _placeImage(file, placeholder = null, from = 0) {
         if (file.size > this.maxAttachmentBytesValue) {
+            this._toolbar()?.removeImagePlaceholder(placeholder);
+
             const limit = Math.round(this.maxAttachmentBytesValue / (1024 * 1024));
 
             this._setStatus(
@@ -5502,8 +5590,10 @@ export default class extends Controller {
                 reader.readAsDataURL(file);
             });
 
-            if (null !== url) {
-                this._toolbar()?.insertInlineImage({ url });
+            if (null === url) {
+                this._toolbar()?.removeImagePlaceholder(placeholder);
+            } else {
+                this._toolbar()?.insertInlineImage({ url }, placeholder);
                 this._refreshImageSize();
                 await this.saveDraft(null, { force: true, allowEmpty: true });
                 await this._scaleNewImages();
@@ -5512,12 +5602,19 @@ export default class extends Controller {
             return;
         }
 
+        const uploading = this._t('uploading', 'Uploading…');
+
+        placeholder ??= this._toolbar()?.insertImagePlaceholder() ?? null;
+        this._setPlaceholderProgress(placeholder, from, uploading);
+
         await this.saveDraft(null, { force: true, allowEmpty: true });
 
         const id = this._messageId();
+        const failure = this._t('imageFailed', 'Could not insert the image');
 
         if (null === id) {
-            this._setStatus(this._t('imageFailed', 'Could not insert the image'), 'text-danger');
+            this._toolbar()?.removeImagePlaceholder(placeholder);
+            this._setStatus(failure, 'text-danger');
 
             return;
         }
@@ -5525,40 +5622,34 @@ export default class extends Controller {
         const body = new FormData();
         body.append('file', file);
 
-        this._setStatus(this._t('uploading', 'Uploading…'), 'text-ink-faint');
+        this._setStatus(uploading, 'text-ink-faint');
 
-        const failure = this._t('imageFailed', 'Could not insert the image');
-        let payload = null;
+        // XMLHttpRequest rather than fetch(): fetch cannot report how much of
+        // a request body has gone out, and that is the number the placeholder
+        // is there to show.
+        const { status, payload } = await this._postWithProgress(
+            `/compose/inline-image/${id}`,
+            body,
+            {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': csrfToken(),
+                'Accept': 'application/json',
+            },
+            (share) => this._setPlaceholderProgress(placeholder, from + share * (1 - from), uploading),
+        );
 
-        try {
-            const response = await fetch(`/compose/inline-image/${id}`, {
-                method: 'POST',
-                body,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-Token': csrfToken(),
-                    'Accept': 'application/json',
-                },
-            });
-
-            // Anything that is not our JSON — a proxy's error page, a request
-            // PHP discarded whole for exceeding post_max_size — is a failure
-            // we cannot explain, and a parser's complaint is not an
-            // explanation to show anybody.
-            payload = await response.json().catch(() => null);
-
-            if (false === response.ok || 'string' !== typeof payload?.url) {
-                this._setStatus(payload?.error ?? failure, 'text-danger');
-
-                return;
-            }
-        } catch (_) {
-            this._setStatus(failure, 'text-danger');
+        // Anything that is not our JSON — a proxy's error page, a request PHP
+        // discarded whole for exceeding post_max_size — is a failure we cannot
+        // explain, and a parser's complaint is not an explanation to show
+        // anybody.
+        if (false === (status >= 200 && status < 300) || 'string' !== typeof payload?.url) {
+            this._toolbar()?.removeImagePlaceholder(placeholder);
+            this._setStatus(payload?.error ?? failure, 'text-danger');
 
             return;
         }
 
-        this._toolbar()?.insertInlineImage(payload);
+        this._toolbar()?.insertInlineImage(payload, placeholder);
 
         // The strip is not rendered again for a picture in the body, so the
         // Image size row learns of the new part here (#502). Before the save
@@ -5585,6 +5676,44 @@ export default class extends Controller {
         if (true === scalable) {
             await this._scaleNewImages();
         }
+    }
+
+    /**
+     * POST a form, reporting the share of the body sent so far.
+     *
+     * Resolves with the status and the JSON answer (null when it was not
+     * JSON), and with status 0 when the request never got an answer, so the
+     * caller has one failure path rather than a rejection besides.
+     */
+    _postWithProgress(url, body, headers, onProgress) {
+        return new Promise((resolve) => {
+            const xhr = new XMLHttpRequest();
+
+            xhr.open('POST', url);
+            Object.entries(headers).forEach(([name, value]) => xhr.setRequestHeader(name, value));
+
+            xhr.upload.addEventListener('progress', (event) => {
+                if (true === event.lengthComputable && event.total > 0) {
+                    onProgress(event.loaded / event.total);
+                }
+            });
+
+            xhr.addEventListener('load', () => {
+                let payload = null;
+
+                try {
+                    payload = JSON.parse(xhr.responseText);
+                } catch (_) {
+                    payload = null;
+                }
+
+                resolve({ status: xhr.status, payload });
+            });
+            xhr.addEventListener('error', () => resolve({ status: 0, payload: null }));
+            xhr.addEventListener('abort', () => resolve({ status: 0, payload: null }));
+
+            xhr.send(body);
+        });
     }
 
     /**
