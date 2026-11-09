@@ -2351,6 +2351,7 @@ integration:
         attach: 添加附件
         attach_from: '从 %name% 添加附件'
         attach_from_service: 从服务添加附件
+        attach_inline: 插入正文
         empty: 此文件夹为空。
         link: 链接
         more: 显示更多
@@ -2369,6 +2370,7 @@ integration:
         status:
             attach_failed: 无法添加附件
             attaching: 正在添加附件…
+            link_not_inline: 链接没有可插入正文的图片
             load_failed: 无法加载更多内容
             loading: 正在加载…
             nothing_selected: 未选择任何内容

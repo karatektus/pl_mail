@@ -2668,6 +2668,7 @@ integration:
         attach: Anhängen
         attach_from: 'Aus %name% anhängen'
         attach_from_service: 'Aus einem Dienst anhängen'
+        attach_inline: 'Im Text einfügen'
         empty: 'Dieser Ordner ist leer.'
         link: Link
         more: 'Mehr anzeigen'
@@ -2686,6 +2687,7 @@ integration:
         status:
             attach_failed: 'Anhängen fehlgeschlagen'
             attaching: 'Wird angehängt …'
+            link_not_inline: 'Ein Link hat kein Bild, das in den Text kann'
             load_failed: 'Mehr konnte nicht geladen werden'
             loading: 'Wird geladen …'
             nothing_selected: 'Nichts ausgewählt'

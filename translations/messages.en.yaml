@@ -2664,6 +2664,7 @@ integration:
         attach: Attach
         attach_from: 'Attach from %name%'
         attach_from_service: 'Attach from a service'
+        attach_inline: 'Attach inline'
         empty: 'This folder is empty.'
         link: Link
         more: 'Show more'
@@ -2682,6 +2683,7 @@ integration:
         status:
             attach_failed: 'Could not attach'
             attaching: 'Attaching…'
+            link_not_inline: 'A link has no picture to put in the text'
             load_failed: 'Could not load more'
             loading: 'Loading…'
             nothing_selected: 'Nothing selected'

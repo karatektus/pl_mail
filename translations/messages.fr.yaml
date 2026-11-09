@@ -2681,6 +2681,7 @@ integration:
         attach: Joindre
         attach_from: 'Joindre depuis %name%'
         attach_from_service: 'Joindre depuis un service'
+        attach_inline: 'Insérer dans le texte'
         empty: 'Ce dossier est vide.'
         link: Lien
         more: 'Afficher plus'
@@ -2699,6 +2700,7 @@ integration:
         status:
             attach_failed: 'Impossible de joindre'
             attaching: 'Ajout en cours…'
+            link_not_inline: 'Un lien n’a pas d’image à insérer dans le texte'
             load_failed: 'Impossible de charger plus'
             loading: 'Chargement…'
             nothing_selected: 'Rien de sélectionné'

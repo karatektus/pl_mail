@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { liftAbove, visible } from "../../place_above.js";
 
 /**
  * A small click-to-open menu.
@@ -113,78 +114,18 @@ export default class extends Controller {
         this.dispatch("closed", { target: this.menuTarget });
     }
 
-    /** Into the top layer, over the anchor. See "Above the button". */
+    /** Into the top layer, over the anchor. See "Above the button" and place_above.js. */
     _lift() {
-        const menu = this.menuTarget;
-
-        if ("function" !== typeof menu.showPopover) {
-            return;
-        }
-
-        if (false === menu.hasAttribute("popover")) {
-            menu.setAttribute("popover", "manual");
-        }
-
-        if (false === menu.matches(":popover-open")) {
-            menu.showPopover();
-        }
-
-        this._place();
-
-        this._boundPlace ??= () => this._place();
-        window.addEventListener("resize", this._boundPlace);
-    }
-
-    _place() {
-        const menu = this.menuTarget;
-
-        if (false === menu.matches(":popover-open")) {
-            return;
-        }
-
-        const margin = 8;
-        const anchor = this._visible(this._anchor) ?? this._visible(this.element.querySelector("button")) ?? this.element;
-        const box = anchor.getBoundingClientRect();
-
-        menu.style.position = "fixed";
-        menu.style.margin = "0";
-        menu.style.inset = "auto";
-        // Below md the window is the whole screen and the menu its width, as
-        // the template's left-2 right-2 had it.
-        menu.style.width = window.innerWidth < 768 ? `${window.innerWidth - margin * 2}px` : "";
-        menu.style.maxWidth = `${window.innerWidth - margin * 2}px`;
-        menu.style.maxHeight = `${Math.max(160, Math.floor(box.top - margin * 2))}px`;
-
-        const width = menu.getBoundingClientRect().width;
-        const left = Math.min(Math.max(margin, box.left), Math.max(margin, window.innerWidth - width - margin));
-
-        menu.style.left = `${Math.round(left)}px`;
-        menu.style.bottom = `${Math.round(window.innerHeight - box.top + margin)}px`;
+        this._unlift?.();
+        this._unlift = liftAbove(
+            this.menuTarget,
+            () => visible(this._anchor) ?? visible(this.element.querySelector("button")) ?? this.element,
+        );
     }
 
     _drop() {
-        const menu = this.menuTarget;
-
-        if (undefined !== this._boundPlace) {
-            window.removeEventListener("resize", this._boundPlace);
-        }
-
-        if (false === menu.hasAttribute("popover")) {
-            return;
-        }
-
-        if (menu.matches(":popover-open")) {
-            menu.hidePopover();
-        }
-
-        for (const property of ["position", "margin", "inset", "width", "max-width", "max-height", "left", "bottom"]) {
-            menu.style.removeProperty(property);
-        }
-    }
-
-    /** The element if it is laid out, null if it is hidden (folded into ⋮). */
-    _visible(element) {
-        return element instanceof Element && element.getClientRects().length > 0 ? element : null;
+        this._unlift?.();
+        this._unlift = undefined;
     }
 
     _handleOutside(event) {

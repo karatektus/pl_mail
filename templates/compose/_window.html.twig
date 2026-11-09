@@ -76,6 +76,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              confirmDiscard:   'compose.confirm.discard'|trans,
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
              imageFailed:      'compose.image_insert_failed'|trans,
+             notAnImage:       'integration.picker.not_an_image'|trans,
              imageSizeResizing: 'compose.image_size.resizing'|trans,
              imageSizeFailed:  'compose.image_size.failed'|trans,
              imageSizeTotal:   'compose.image_size.total'|trans({ '%size%': '%s' }),
@@ -685,17 +686,22 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                by construction at every width and in both compose modes. It is
                also why none of them need the `max-md:fixed` viewport pinning
                they used to carry: that was a workaround for the sideways
-               scrollers, and the scrollers are gone. #}
+               scrollers, and the scrollers are gone.
+
+               Since the row stopped wrapping, most of them open over their own
+               button instead (place_above.js) and this block is only where
+               they sit without the browser's popover API. #}
             <div class="relative px-2 md:px-3 pb-2 md:pb-3 pt-1 shrink-0">
 
                 {# ── Link popover ─────────────────────────────────────
                    Shared with the settings signature editor, which runs the
                    same toolbar controller and had the same `prompt()`. The
                    positioning is passed in because it is the one thing the two
-                   hosts disagree about: here it is anchored to the toolbar
-                   BLOCK, which spans the window — the link button itself sits
-                   in a row that wraps, and a popover anchored to it would hang
-                   off whichever edge the button wrapped to.
+                   hosts disagree about: here `place: 'above'` opens it over the
+                   link button (or over the link in the body it describes), in
+                   the top layer — see place_above.js. The row no longer wraps,
+                   so the button's x is a place worth opening at; `class` is
+                   only where it sits if the browser has no popover API.
 
                    `enter: 'rise'` for the same reason it is anchored upwards:
                    the popover should travel away from the toolbar it is pinned
@@ -705,6 +711,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                     id:    form.vars.id,
                     class: 'absolute bottom-full mb-2 left-2 right-2 md:left-auto md:right-3 md:w-80',
                     enter: 'rise',
+                    place: 'above',
                 }, with_context = false) }}
 
                 {# ── Plain-text warning ───────────────────────────────
