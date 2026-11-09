@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Repository\Mail;
 
+use App\Domain\Enum\Account\IncomingProtocol;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Label\Label;
@@ -259,6 +260,25 @@ final class MessageRepositoryTest extends KernelTestCase
             [(int) $inThread->id],
             $this->repository->findIdsForThreads([(int) $thread->id]),
         );
+    }
+
+    // ── arrival lag ──────────────────────────────────────────────────────────
+
+    /**
+     * The System page's "How late mail arrives" names a password account by
+     * the protocol it reads mail with. It said IMAP for every one, POP3 and
+     * JMAP included (#528).
+     */
+    public function testArrivalLagNamesAPasswordAccountByItsProtocol(): void
+    {
+        $pop3                   = $this->seedAccount($this->user, 'lag-pop3@example.test');
+        $pop3->incomingProtocol = IncomingProtocol::Pop3;
+        $this->em->flush();
+
+        $providers = array_column($this->repository->arrivalLagByAccount(new DateTimeImmutable('-1 day')), 'provider', 'account');
+
+        self::assertSame('imap', $providers['counts@example.test']);
+        self::assertSame('pop3', $providers['lag-pop3@example.test']);
     }
 
     // ── Fixtures ─────────────────────────────────────────────────────────────

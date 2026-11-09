@@ -760,7 +760,9 @@ admin:
             provider:
                 google: Gmail
                 imap: IMAP
+                jmap: 'JMAP'
                 microsoft: Outlook
+                pop3: 'POP3'
             push: 推送已开启
             slowest:
                 by:
@@ -3091,7 +3093,6 @@ settings:
             every: '每 %minutes% 分钟'
             heading: '每隔 … 分钟检查新邮件'
         type:
-            imap: 'IMAP'
             oauth: '%provider% (OAuth)'
     aliases:
         add: '添加'

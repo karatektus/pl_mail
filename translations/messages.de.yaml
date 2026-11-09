@@ -873,7 +873,9 @@ admin:
             provider:
                 google: 'Gmail'
                 imap: 'IMAP'
+                jmap: 'JMAP'
                 microsoft: 'Outlook'
+                pop3: 'POP3'
             push: 'Push an'
             slowest:
                 by:
@@ -3505,7 +3507,6 @@ settings:
             every: 'Alle %minutes% Min.'
             heading: 'Auf neue Mail prüfen alle … Min.'
         type:
-            imap: IMAP
             oauth: '%provider% (OAuth)'
     aliases:
         add: 'Hinzufügen'
