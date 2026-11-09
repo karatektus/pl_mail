@@ -238,6 +238,14 @@ class CalendarRepository extends ServiceEntityRepository
      * queued only to do nothing still costs a worker, still carries a retry
      * policy, and still ends up in the failure transport.
      *
+     * ── The slow lane ───────────────────────────────────────────────────────
+     * A read-only calendar whose provider refuses every sync token it hands out
+     * (Calendar::isInSlowLane()) is due SLOW_LANE_INTERVAL later than the
+     * others. Measured from $before rather than from now, so a cutoff in the
+     * future ("everything", the command without --stale) still means
+     * everything. Spelled out as columns rather than by calling the method,
+     * because this is the query and the method cannot run inside it.
+     *
      * `syncBackoffUntil IS NULL` is an explicit arm for the same reason the
      * lastSyncedAt one is — a null compares as unknown, not as true, and
      * without it this would skip every healthy calendar and sweep only the
@@ -253,10 +261,16 @@ class CalendarRepository extends ServiceEntityRepository
             ->andWhere('calendar.remoteId IS NOT NULL')
             ->andWhere('calendar.lastSyncedAt IS NULL OR calendar.lastSyncedAt < :before')
             ->andWhere('calendar.syncBackoffUntil IS NULL OR calendar.syncBackoffUntil <= :now')
+            ->andWhere(
+                'calendar.lastSyncedAt IS NULL OR calendar.isReadOnly = false'
+                . ' OR calendar.syncTokenRejections < :slowLaneAfter OR calendar.lastSyncedAt < :slowBefore',
+            )
             ->setParameter('remote', CalendarRole::Remote)
             ->setParameter('before', $before)
             ->setParameter('now', $now ?? new DateTimeImmutable())
             ->setParameter('epoch', new DateTimeImmutable('@0'))
+            ->setParameter('slowLaneAfter', Calendar::SLOW_LANE_AFTER_REJECTIONS)
+            ->setParameter('slowBefore', $before->modify('-' . Calendar::SLOW_LANE_INTERVAL))
             ->orderBy('dueSince', 'ASC')
             ->addOrderBy('calendar.id', 'ASC')
             ->setMaxResults($limit)
