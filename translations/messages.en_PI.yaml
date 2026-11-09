@@ -1834,6 +1834,7 @@ compose:
         tomorrow_morning: "On th' morrow at first light"
         when: '%date%, %time%'
     status:
+        fetching: "Fishin' it out…"
         pending_many: "%count% more marks afore stowin'"
         pending_one: one more mark afore stowin'
         save_failed: Could not stow the scroll

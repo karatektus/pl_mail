@@ -1946,6 +1946,7 @@ compose:
         tomorrow_morning: Demain matin
         when: '%date%, %time%'
     status:
+        fetching: "Récupération…"
         pending_many: "%count% caractères de plus à enregistrer"
         pending_one: un caractère de plus à enregistrer
         save_failed: Impossible d’enregistrer le brouillon

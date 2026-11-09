@@ -56,6 +56,7 @@ final class InlineImageFromServiceTest extends WebTestCase
         self::assertStringStartsWith('attachment', (string) $response->headers->get('Content-Disposition'));
         self::assertSame('image/png', $response->headers->get('X-File-Type'));
         self::assertSame('holiday%20photo.png', $response->headers->get('X-File-Name'));
+        self::assertSame('8', $response->headers->get('Content-Length'));
     }
 
     public function testSomethingThatIsNotAPictureIsRefused(): void

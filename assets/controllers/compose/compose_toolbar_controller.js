@@ -338,7 +338,7 @@ export default class extends Controller {
      * the identity InlineImageRewriter turns back into `cid:` on save, which is
      * what the recipient's client resolves against the embedded part.
      */
-    insertInlineImage({ url, contentId }) {
+    insertInlineImage({ url, contentId }, placeholder = null) {
         if ('string' !== typeof url || '' === url) { return; }
 
         const img = document.createElement('img');
@@ -350,7 +350,145 @@ export default class extends Controller {
             img.setAttribute('data-cid', contentId);
         }
 
+        // Where the placeholder stands, not where the caret is now: the
+        // writer may have typed on while the picture was on its way, and the
+        // picture belongs where it was asked for.
+        if (null !== placeholder && true === placeholder.isConnected) {
+            // A caret left right after the placeholder — where inserting it
+            // put the caret, and where it stays unless the writer moved on —
+            // would fall back to before the picture as the placeholder goes,
+            // and the next picture would land above this one.
+            const after = document.createRange();
+            after.setStartAfter(placeholder);
+            after.collapse(true);
+
+            const sel = window.getSelection();
+            const atPlaceholder = (range) => null !== range && undefined !== range && true === range.collapsed
+                && 0 === range.compareBoundaryPoints(Range.START_TO_START, after);
+            const savedThere = atPlaceholder(this.#savedRange);
+            const liveThere = null !== sel && sel.rangeCount > 0 && atPlaceholder(sel.getRangeAt(0));
+
+            placeholder.replaceWith(img);
+
+            const caret = document.createRange();
+            caret.setStartAfter(img);
+            caret.collapse(true);
+
+            if (true === savedThere) {
+                this.#savedRange = caret.cloneRange();
+            }
+
+            if (true === liveThere) {
+                sel.removeAllRanges();
+                sel.addRange(caret);
+            }
+
+            this._bodyChanged();
+
+            return;
+        }
+
         this._insertAtCaret(img);
+    }
+
+    /**
+     * A box at the caret that stands in for a picture still on its way.
+     *
+     * Shown the moment a picture is asked for, because one from a file
+     * service can take many seconds to arrive — the server fetches it from
+     * the service before the browser sees a byte — and a body with nothing in
+     * it for that long reads as "nothing happened", which invites a second
+     * try. compose--compose#_sizePlaceholder gives it the picture's size as
+     * soon as that is known and #_setPlaceholderProgress moves its ring and
+     * percentage; insertInlineImage() puts the picture in its place, and
+     * removeImagePlaceholder() takes it away when the picture never comes.
+     *
+     * Never part of the mail: `contenteditable=false` keeps the caret out of
+     * it, and _cleanHtml() leaves it out of what is saved and sent.
+     */
+    insertImagePlaceholder() {
+        if (false === this.hasEditorTarget) { return null; }
+
+        // A block, as the picture will be: Tailwind's preflight makes every
+        // <img> `display: block`, so a picture in the body always stands on a
+        // line of its own, at the left, however small. Until its size is known
+        // the placeholder is the full width and a fixed height; then
+        // compose--compose#_sizePlaceholder gives it the picture's.
+        const box = document.createElement('span');
+
+        box.dataset.imagePlaceholder = '';
+        box.setAttribute('contenteditable', 'false');
+        box.setAttribute('role', 'status');
+        box.className = 'relative block w-full h-24 max-w-full overflow-hidden rounded-lg '
+            + 'border border-line bg-sunken select-none';
+
+        const inner = document.createElement('span');
+        inner.className = 'absolute inset-0 flex items-center justify-center gap-2 text-xs text-ink-muted';
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+
+        svg.setAttribute('viewBox', '0 0 20 20');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.setAttribute('class', 'w-5 h-5 shrink-0 text-accent animate-spin');
+
+        // A track, and an arc over it drawn as a share of pathLength 100, so
+        // a percentage is the dash offset as it is.
+        [['0.25', null], ['1', 'ring']].forEach(([opacity, role]) => {
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+
+            circle.setAttribute('cx', '10');
+            circle.setAttribute('cy', '10');
+            circle.setAttribute('r', '8');
+            circle.setAttribute('fill', 'none');
+            circle.setAttribute('stroke', 'currentColor');
+            circle.setAttribute('stroke-width', '2.5');
+            circle.setAttribute('stroke-opacity', opacity);
+
+            if (null !== role) {
+                circle.dataset.ring = '';
+                circle.setAttribute('pathLength', '100');
+                circle.setAttribute('stroke-linecap', 'round');
+                circle.setAttribute('stroke-dasharray', '100');
+                circle.setAttribute('stroke-dashoffset', '75');
+                circle.setAttribute('transform', 'rotate(-90 10 10)');
+            }
+
+            svg.appendChild(circle);
+        });
+
+        // The words go where there is no room for them: a placeholder the
+        // size of a small logo shows the ring alone (_sizePlaceholder).
+        const words = document.createElement('span');
+        words.dataset.words = '';
+        words.className = 'flex items-center gap-2 whitespace-nowrap';
+
+        const label = document.createElement('span');
+        label.dataset.label = '';
+
+        const percent = document.createElement('span');
+        percent.dataset.percent = '';
+        percent.className = 'tabular-nums';
+
+        words.append(label, percent);
+        inner.append(svg, words);
+        box.append(inner);
+
+        this._insertAtCaret(box);
+
+        return box;
+    }
+
+    removeImagePlaceholder(placeholder) {
+        if (null === placeholder || false === placeholder.isConnected) { return; }
+
+        placeholder.remove();
+        this._bodyChanged();
+    }
+
+    /** What _insertAtCaret() does after a change, for one made in place. */
+    _bodyChanged() {
+        this._syncHiddenInput();
+        this.editorTarget.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     _insertAtCaret(node) {
@@ -1136,7 +1274,8 @@ export default class extends Controller {
     /**
      * Never let dev-tooling markup or editor chrome ride along into a saved
      * draft: the debug toolbar used to end up quoted inside the body, and the
-     * "show quoted text" toggle is a UI affordance, not part of the mail.
+     * "show quoted text" toggle is a UI affordance, not part of the mail;
+     * neither is the placeholder of a picture still on its way.
      * Scripts go too — nothing executable belongs in a mail we're sending.
      *
      * The fold around the quote goes with its toggle. Removing only the button
@@ -1150,14 +1289,15 @@ export default class extends Controller {
     _cleanHtml() {
         const html = this.editorTarget.innerHTML;
 
-        if (!/sf-toolbar|<script|sfwdt|data-quote-toggle|data-quote-wrapped/i.test(html)) {
+        if (!/sf-toolbar|<script|sfwdt|data-quote-toggle|data-quote-wrapped|data-image-placeholder/i.test(html)) {
             return html;
         }
 
         const clone = this.editorTarget.cloneNode(true);
 
         clone.querySelectorAll(
-            'script, .sf-toolbar, [id^="sfwdt"], [data-frankenphp-hot-reload-preserve], [data-quote-toggle]',
+            'script, .sf-toolbar, [id^="sfwdt"], [data-frankenphp-hot-reload-preserve], [data-quote-toggle], '
+            + '[data-image-placeholder]',
         ).forEach((node) => node.remove());
 
         clone.querySelectorAll('[data-quote-wrapped]').forEach((wrapper) => {

@@ -1936,6 +1936,7 @@ compose:
         tomorrow_morning: Tomorrow morning
         when: '%date%, %time%'
     status:
+        fetching: "Fetching…"
         pending_many: "%count% more characters to save"
         pending_one: one more character to save
         save_failed: Could not save the draft

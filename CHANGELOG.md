@@ -298,6 +298,17 @@ used to open at the far right of the window, wherever the button was.
 Attach inline button beside Attach: the chosen pictures are placed in the message where the
 cursor is, like ones picked with the image button, instead of being attached beside it.
 
+**Clicking a file in the "Attach from" picker selects it again.** In the list of a file service
+such as Nextcloud, clicking a file did nothing, so a file could only be sent as a share link with
+its Link button, never attached. A click on the row selects it for attaching, as it was meant to.
+**A picture on its way into a message shows where it will go.** "Attach inline" from a file
+service, and a picture picked from the disk, now put a placeholder at the cursor straight away. Its
+ring turns while the service is being asked for the file and then fills with a percentage as the
+picture comes down and goes up to the draft. As soon as the first bytes arrive the placeholder takes
+the picture's own size and shape, a phone photo taken upright included, so the picture takes its
+place without the text around it moving. Before, nothing showed until the end, which from a slow
+service could be many seconds.
+
 ## v0.4.1 — 2026-10-31
 
 plMail now speaks JMAP, keeps folders and labels properly apart, and the compose window and filters
