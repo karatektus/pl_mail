@@ -113,6 +113,8 @@ COPY --link --chmod=755 frankenphp/docker-entrypoint.sh /usr/local/bin/docker-en
 # Its own binary, not just a step inside the entrypoint: the secrets-init
 # service runs it on its own, before Postgres and Mercure start.
 COPY --link --chmod=755 frankenphp/generate-secrets.sh /usr/local/bin/generate-secrets
+# Its own file so the test suite can run it without the rest of the entrypoint.
+COPY --link --chmod=755 frankenphp/tls-default-sni.sh /usr/local/bin/tls-default-sni
 COPY --link frankenphp/Caddyfile /etc/frankenphp/Caddyfile
 # The hub and its own Caddyfile, verbatim: the image's default config (the one
 # that requires a subscriber JWT), not the dev one. See mercure_upstream above.
