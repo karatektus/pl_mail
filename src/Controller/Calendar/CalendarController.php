@@ -14,7 +14,9 @@ use App\Domain\Helper\DefaultEventStart;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use App\Repository\Calendar\Calendar\CalendarRepository;
+use App\Repository\Calendar\EventSourceLink\EventSourceLinkRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\CalendarEventWriter;
@@ -38,7 +40,6 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
-use App\Repository\Calendar\EventSourceLink\EventSourceLinkRepository;
 
 /**
  * The calendar, in its two shapes.
@@ -109,6 +110,7 @@ final class CalendarController extends AbstractController
         private readonly TranslatorInterface    $translator,
         private readonly EntityManagerInterface $em,
         private readonly EventSourceLinkRepository $sourceLinks,
+        private readonly CalendarEventRepository $calendarEventRepository,
     ) {
     }
 
@@ -1086,7 +1088,7 @@ final class CalendarController extends AbstractController
 
     private function ownedEvent(int $id): CalendarEvent
     {
-        $event = $this->em->getRepository(CalendarEvent::class)->find($id);
+        $event = $this->calendarEventRepository->find($id);
 
         if (null === $event) {
             throw $this->createNotFoundException();

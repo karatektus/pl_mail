@@ -108,4 +108,13 @@ class InsightReportRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
+
+    /** Repoint one message's reports at another, when a copy is folded into the email it duplicates. */
+    public function moveToMessage(int $copyId, int $survivorId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE insight_report SET message_id = :survivor WHERE message_id = :copy',
+            ['survivor' => $survivorId, 'copy' => $copyId],
+        );
+    }
 }

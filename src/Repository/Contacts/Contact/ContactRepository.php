@@ -321,4 +321,22 @@ class ContactRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * A user's contacts that went into the bin before $cutoff, for the purge
+     * that empties it.
+     *
+     * @return list<Contact>
+     */
+    public function findTrashedBefore(UserInterface $user, \DateTimeImmutable $cutoff): array
+    {
+        /** @var list<Contact> */
+        return $this->createQueryBuilder('c')
+            ->where('c.usr = :user')
+            ->andWhere('c.trashedAt < :cutoff')
+            ->setParameter('user', $user)
+            ->setParameter('cutoff', $cutoff)
+            ->getQuery()
+            ->getResult();
+    }
 }

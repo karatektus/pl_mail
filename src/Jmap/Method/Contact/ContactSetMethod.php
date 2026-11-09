@@ -15,6 +15,7 @@ use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Repository\Contacts\Contact\ContactRepository;
+use App\Repository\Mail\UploadedBlob\UploadedBlobRepository;
 use App\Service\Contacts\ContactFields;
 use App\Service\Contacts\ContactManager;
 use App\Service\Contacts\ContactPhotoStore;
@@ -118,6 +119,7 @@ final class ContactSetMethod implements JmapMethod
         private readonly ContactPhotoStore $photos,
         private readonly UploadStorage $uploadStorage,
         private readonly EntityManagerInterface $entityManager,
+        private readonly UploadedBlobRepository $uploadedBlobRepository,
     ) {
     }
 
@@ -550,7 +552,7 @@ final class ContactSetMethod implements JmapMethod
             throw new MethodException('invalidArguments', '"photoBlobId" must be a blobId from POST /jmap/contacts/photo.');
         }
 
-        $blob = $this->entityManager->find(UploadedBlob::class, $blobId->id);
+        $blob = $this->uploadedBlobRepository->find($blobId->id);
 
         if (null === $blob || null === $blob->account->usr || $blob->account->usr->id !== $user->id) {
             throw new MethodException('notFound', 'No such photo upload.');

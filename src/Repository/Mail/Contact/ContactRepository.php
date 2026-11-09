@@ -10,6 +10,7 @@ use App\Entity\User\User;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -358,5 +359,24 @@ class ContactRepository extends ServiceEntityRepository
                 ],
             );
         }
+    }
+
+    /**
+     * The base query for a contact picker: only this user's contacts, and none
+     * at all without a user. The bundle uses it both for the suggestion
+     * endpoint and to validate the ids a form submits, so it is the one place
+     * that keeps either from reaching another user's contacts.
+     */
+    public function pickableBy(?User $user): QueryBuilder
+    {
+        $builder = $this->createQueryBuilder('entity');
+
+        if (null === $user) {
+            return $builder->andWhere('1 = 0');
+        }
+
+        return $builder
+            ->andWhere('entity.usr = :usr')
+            ->setParameter('usr', $user);
     }
 }

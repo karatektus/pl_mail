@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Ai;
 
-use App\Service\Ai\AiCallRecorder;
 use App\Domain\Enum\Ai\PromptSlot;
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Ai\AiSettings;
-use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Entity\Embeddable\AiPreferences;
 use App\Entity\User\User;
+use App\Repository\Ai\AiCallMetric\AiCallMetricRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Ai\AiAssistant;
+use App\Service\Ai\AiCallRecorder;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\OllamaClient;
 use App\Service\Ai\OpenAiClient;
@@ -443,6 +444,6 @@ final class WritingAssistantTest extends KernelTestCase
      */
     private function recorder(): AiCallRecorder
     {
-        return new AiCallRecorder($this->createStub(Connection::class), new NullLogger());
+        return new AiCallRecorder(new AiCallMetricRepository($this->createStub(Connection::class)), new NullLogger());
     }
 }

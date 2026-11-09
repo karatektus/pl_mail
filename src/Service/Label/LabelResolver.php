@@ -106,7 +106,7 @@ final class LabelResolver
         $cachedId = $this->bindingIdCache[$cacheKey] ?? null;
 
         if (null !== $cachedId) {
-            $binding = $this->em->find(LabelBinding::class, $cachedId);
+            $binding = $this->bindingRepository->find($cachedId);
 
             if (null !== $binding) {
                 return $binding;
@@ -205,7 +205,7 @@ final class LabelResolver
         $label    = null;
 
         if (null !== $cachedId) {
-            $label = $this->em->find(Label::class, $cachedId);
+            $label = $this->labelRepository->find($cachedId);
         }
 
         if (null === $label) {
@@ -253,7 +253,7 @@ final class LabelResolver
         $cachedId = $this->pathIdCache[$userId][$fullName] ?? null;
 
         if (null !== $cachedId) {
-            $label = $this->em->find(Label::class, $cachedId);
+            $label = $this->labelRepository->find($cachedId);
 
             if (null !== $label) {
                 $this->binding($label, $account);

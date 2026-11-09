@@ -20,6 +20,10 @@ use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Infrastructure\Messaging\Message\ExtractEventsMessage;
 use App\Infrastructure\Messaging\Message\ExtractInsightsMessage;
 use App\Infrastructure\Messaging\Message\ProposeEventsMessage;
+use App\Repository\Ai\MessageEmbedding\MessageEmbeddingRepository;
+use App\Repository\Ai\ThreadSummary\ThreadSummaryRepository;
+use App\Repository\Calendar\EventProposal\EventProposalRepository;
+use App\Repository\Insight\MailInsight\MailInsightRepository;
 use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MailChangeRecorder;
@@ -63,6 +67,10 @@ final readonly class DecryptedMail
         private MessageBusInterface      $bus,
         private MailRuleEngine           $rules,
         private DecryptedMailPolicy      $policy,
+        private MessageEmbeddingRepository $embeddings,
+        private ThreadSummaryRepository $summaries,
+        private MailInsightRepository $mailInsightRepository,
+        private EventProposalRepository $eventProposalRepository,
     ) {
     }
 
@@ -174,17 +182,14 @@ final readonly class DecryptedMail
 
         $this->storage->delete($message->id, SealedMessageStorage::DECRYPTED);
 
-        $connection = $this->entityManager->getConnection();
-        $connection->executeStatement('DELETE FROM message_embedding WHERE message_id = ?', [$message->id]);
+        $this->embeddings->deleteForMessage((int) $message->id);
 
         if (null !== $message->thread?->id) {
-            $connection->executeStatement('DELETE FROM thread_summary WHERE thread_id = ?', [$message->thread->id]);
+            $this->summaries->deleteForThread($message->thread->id);
         }
 
-        $this->entityManager->createQuery('DELETE FROM ' . MailInsight::class . ' i WHERE i.message = :message')
-            ->setParameter('message', $message)->execute();
-        $this->entityManager->createQuery('DELETE FROM ' . EventProposal::class . ' p WHERE p.message = :message')
-            ->setParameter('message', $message)->execute();
+        $this->mailInsightRepository->deleteForMessage($message);
+        $this->eventProposalRepository->deleteForMessage($message);
 
         $this->changes->emailChanged((int) $message->account->id, (string) $message->id, false, $message->thread);
     }
@@ -207,17 +212,8 @@ final readonly class DecryptedMail
      */
     public function forgetModelOutput(Account $account): void
     {
-        $connection = $this->entityManager->getConnection();
-        $client     = PlaintextSource::Client->value;
-
-        $connection->executeStatement(
-            'DELETE FROM message_embedding WHERE message_id IN (SELECT id FROM message WHERE account_id = ? AND plaintext_source = ?)',
-            [$account->id, $client],
-        );
-        $connection->executeStatement(
-            'DELETE FROM thread_summary WHERE thread_id IN (SELECT thread_id FROM message WHERE account_id = ? AND plaintext_source = ? AND thread_id IS NOT NULL)',
-            [$account->id, $client],
-        );
+        $this->embeddings->deleteForPlaintextSource((int) $account->id, PlaintextSource::Client->value);
+        $this->summaries->deleteForPlaintextSource((int) $account->id, PlaintextSource::Client->value);
     }
 
     /**

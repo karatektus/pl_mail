@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Repository\Mail;
 
-use App\Domain\Enum\Ai\SemanticSkipReason;
 use App\Domain\DTO\Ai\SemanticSearch;
 use App\Domain\DTO\ParsedSearchQuery;
+use App\Domain\Enum\Ai\SemanticSkipReason;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Enum\Mail\ThreadingMethod;
@@ -15,14 +15,15 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
+use App\Repository\Ai\MessageEmbedding\MessageEmbeddingRepository;
 use App\Repository\Mail\MessageThread\MessageThreadSearchRepository;
 use App\Service\Ai\EmbeddingStore;
 use App\Service\Search\FreeTextCompiler;
 use App\Service\Search\SearchQueryParser;
-use Doctrine\Persistence\ManagerRegistry;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -1140,7 +1141,7 @@ final class MessageSearchTest extends KernelTestCase
 
     private function store(): EmbeddingStore
     {
-        return new EmbeddingStore($this->connection, new \Psr\Log\NullLogger());
+        return new EmbeddingStore(new MessageEmbeddingRepository($this->connection), new \Psr\Log\NullLogger());
     }
 
     /**

@@ -9,6 +9,7 @@ use App\Domain\Exception\JmapApiException;
 use App\Entity\Mail\Account;
 use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -45,6 +46,7 @@ final readonly class JmapImporter
         private LabelResolver          $labelResolver,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
+        private AccountRepository $accountRepository,
     ) {
     }
 
@@ -103,7 +105,7 @@ final readonly class JmapImporter
 
         // The account as it is now: ingest clears the entity manager when a
         // write is refused, and the plan is written onto this row.
-        $account = $this->em->find(Account::class, $account->id) ?? $account;
+        $account = $this->accountRepository->find($account->id) ?? $account;
 
         if (count($ids) < JmapEmailSyncer::BATCH_SIZE) {
             if ('inbox' === $plan['phase']) {

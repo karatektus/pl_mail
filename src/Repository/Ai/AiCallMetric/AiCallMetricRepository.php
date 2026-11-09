@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Repository\Ai\AiCallMetric;
 
+use App\Domain\DTO\Ai\AiCallTiming;
+use App\Domain\Enum\Ai\AiCallFeature;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Types\Types;
 use Throwable;
 
@@ -352,5 +355,54 @@ final readonly class AiCallMetricRepository
         }
 
         return round((float) $value / 1_000_000, 1);
+    }
+
+    /**
+     * One model call, as AiCallRecorder reports it. Throws on a failed write;
+     * the recorder is what decides that a lost measurement must not fail the
+     * call it measured.
+     */
+    public function insert(
+        AiCallFeature $feature,
+        string        $model,
+        bool          $succeeded,
+        ?string       $errorKind,
+        AiCallTiming  $timing,
+    ): void {
+        $this->connection->executeStatement(
+            <<<'SQL'
+                INSERT INTO ai_call_metric (
+                    feature, model,
+                    prompt_tokens, prompt_duration_ns,
+                    eval_tokens, eval_duration_ns,
+                    load_duration_ns, total_duration_ns,
+                    succeeded, error_kind, created_at
+                ) VALUES (
+                    :feature, :model,
+                    :promptTokens, :promptDurationNs,
+                    :evalTokens, :evalDurationNs,
+                    :loadDurationNs, :totalDurationNs,
+                    :succeeded, :errorKind, NOW()
+                )
+            SQL,
+            [
+                'feature'          => $feature->value,
+                // Truncated rather than refused: a model tag longer than
+                // the column is a strange name, not a reason to lose the
+                // measurement that goes with it.
+                'model'            => mb_substr($model, 0, 128),
+                'promptTokens'     => $timing->promptTokens,
+                'promptDurationNs' => $timing->promptDurationNs,
+                'evalTokens'       => $timing->evalTokens,
+                'evalDurationNs'   => $timing->evalDurationNs,
+                'loadDurationNs'   => $timing->loadDurationNs,
+                'totalDurationNs'  => $timing->totalDurationNs,
+                'succeeded'        => $succeeded,
+                'errorKind'        => $errorKind,
+            ],
+            [
+                'succeeded' => ParameterType::BOOLEAN,
+            ],
+        );
     }
 }

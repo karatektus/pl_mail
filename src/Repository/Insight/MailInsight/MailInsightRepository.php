@@ -8,6 +8,7 @@ use App\Domain\Enum\Insight\InsightKind;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Insight\MailInsight;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
@@ -194,5 +195,13 @@ class MailInsightRepository extends ServiceEntityRepository
     public function forThread(MessageThread $thread): array
     {
         return $this->findBy(['thread' => $thread], ['happensAt' => 'ASC', 'id' => 'ASC']);
+    }
+
+    /** Every insight read from one message. */
+    public function deleteForMessage(Message $message): void
+    {
+        $this->getEntityManager()->createQuery('DELETE FROM ' . MailInsight::class . ' i WHERE i.message = :message')
+            ->setParameter('message', $message)
+            ->execute();
     }
 }

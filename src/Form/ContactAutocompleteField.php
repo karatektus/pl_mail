@@ -132,18 +132,11 @@ class ContactAutocompleteField extends AbstractType
             // validates the submission. LabelType does the same thing; this
             // field was the outlier.
             'query_builder'        => function (ContactRepository $repository): QueryBuilder {
-                $builder = $repository->createQueryBuilder('entity');
-                $user    = $this->security->getUser();
+                $user = $this->security->getUser();
 
                 // The form is built in contexts with no session too, and
                 // "no user" must mean "no contacts" rather than "all of them".
-                if (false === $user instanceof User) {
-                    return $builder->andWhere('1 = 0');
-                }
-
-                return $builder
-                    ->andWhere('entity.usr = :usr')
-                    ->setParameter('usr', $user);
+                return $repository->pickableBy($user instanceof User ? $user : null);
             },
 
             // Suggestions from ContactSuggester — the harvest and the address

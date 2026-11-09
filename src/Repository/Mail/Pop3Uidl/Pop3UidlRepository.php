@@ -131,4 +131,13 @@ class Pop3UidlRepository extends ServiceEntityRepository
             [(int) $account->id],
         );
     }
+
+    /** Repoint one message's UIDLs at another, when a copy is folded into the email it duplicates. */
+    public function moveToMessage(int $copyId, int $survivorId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE pop3_uidl SET message_id = :survivor WHERE message_id = :copy',
+            ['survivor' => $survivorId, 'copy' => $copyId],
+        );
+    }
 }

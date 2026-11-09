@@ -11,8 +11,8 @@ use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
+use App\Repository\Mail\Message\MessageDecryptedRepository;
 use App\Service\Crypto\DecryptedMailPolicy;
-use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * "DecryptedMail/pending" — plMail extension, `urn:plmail:params:jmap:keys`.
@@ -31,7 +31,7 @@ final class DecryptedMailPendingMethod implements JmapMethod
     public function __construct(
         private readonly AccountResolver        $accounts,
         private readonly DecryptedMailPolicy    $policy,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly MessageDecryptedRepository $messageDecryptedRepository
     ) {
     }
 
@@ -52,17 +52,7 @@ final class DecryptedMailPendingMethod implements JmapMethod
         $ids = [];
 
         if (true === $this->policy->keeps($account)) {
-            $ids = array_map(static fn (array $row): string => (string) $row['id'], $this->entityManager->createQuery(
-                'SELECT m.id FROM ' . Message::class . ' m
-                  WHERE m.account = :account AND m.crypto IN (:crypto)
-                    AND m.plaintextSource = :none AND m.sealedDraft = false
-                  ORDER BY m.receivedAt DESC',
-            )
-                ->setParameter('account', $account)
-                ->setParameter('crypto', [MessageCrypto::PgpEncrypted, MessageCrypto::PgpInlineEncrypted, MessageCrypto::SmimeEncrypted])
-                ->setParameter('none', PlaintextSource::None)
-                ->setMaxResults($limit)
-                ->getArrayResult());
+            $ids = $this->messageDecryptedRepository->findIdsAwaitingDecryption($account, $limit);
         }
 
         return ['accountId' => (string) $account->id, 'ids' => $ids];

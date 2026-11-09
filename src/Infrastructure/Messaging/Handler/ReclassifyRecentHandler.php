@@ -6,16 +6,17 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Job\JobState;
-use App\Entity\Job\BackgroundJob;
 use App\Entity\Ai\AiFeature;
+use App\Entity\Job\BackgroundJob;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Infrastructure\Messaging\Message\ReclassifyRecentMessage;
+use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
 use App\Repository\Mail\Message\MessageAiRepository;
 use App\Repository\User\User\UserRepository;
-use App\Service\Job\JobNotifier;
 use App\Service\Ai\AiPermissions;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\Job\JobNotifier;
 use App\Service\Monitoring\ProcessHeartbeatService;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -64,7 +65,8 @@ final readonly class ReclassifyRecentHandler
         private JobNotifier            $jobs,
         private ProcessHeartbeatService $heartbeats,
         private EntityManagerInterface $em,
-        private LoggerInterface        $logger
+        private LoggerInterface        $logger,
+        private BackgroundJobRepository $backgroundJobRepository,
     ) {
     }
 
@@ -139,7 +141,7 @@ final readonly class ReclassifyRecentHandler
 
             $this->em->clear();
 
-            $found = $this->em->find(BackgroundJob::class, $jobId);
+            $found = $this->backgroundJobRepository->find($jobId);
 
             if (null === $found) {
                 return;

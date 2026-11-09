@@ -14,7 +14,10 @@ use App\Entity\Contacts\ContactMergeRecord;
 use App\Entity\Contacts\ContactRelation;
 use App\Entity\User\User;
 use App\Repository\AddressBook\AddressBook\AddressBookRepository;
+use App\Repository\Contacts\ContactMergeRecord\ContactMergeRecordRepository;
+use App\Repository\Contacts\ContactRelation\ContactRelationRepository;
 use App\Repository\Contacts\Contact\ContactRepository;
+use App\Service\Contacts\ContactFields;
 use App\Service\Contacts\ContactManager;
 use App\Service\Contacts\ContactMerger;
 use App\Service\Contacts\ContactPhotoStore;
@@ -22,7 +25,6 @@ use App\Service\Contacts\CsvExporter;
 use App\Service\Contacts\CsvImporter;
 use App\Service\Contacts\DuplicateFinder;
 use App\Service\Contacts\ImportRunner;
-use App\Service\Contacts\ContactFields;
 use App\Service\Contacts\ParsedContact;
 use App\Service\Contacts\ReferenceEmailFinder;
 use App\Service\Contacts\VCardExporter;
@@ -88,6 +90,8 @@ final class ContactController extends AbstractController
         private readonly EntityManagerInterface $em,
         #[Autowire('%kernel.project_dir%')]
         private readonly string $projectDir,
+        private readonly ContactRelationRepository $contactRelationRepository,
+        private readonly ContactMergeRecordRepository $contactMergeRecordRepository,
     ) {}
 
     // ── The docked pane ───────────────────────────────────────────────────
@@ -177,12 +181,10 @@ final class ContactController extends AbstractController
         $user = $this->user();
         $contact = $this->ownContact($id);
 
-        $relationRepo = $this->em->getRepository(ContactRelation::class);
-
         return $this->render('contacts/show.html.twig', [
             'contact'      => $contact,
-            'outRelations' => $relationRepo->findBy(['ownerContact' => $contact]),
-            'inRelations'  => $relationRepo->findBy(['relatedContact' => $contact]),
+            'outRelations' => $this->contactRelationRepository->findOwnedBy($contact),
+            'inRelations'  => $this->contactRelationRepository->findPointingAt($contact),
             'refEmails'    => $this->referenceEmails->findForContact($user, $contact, 50),
         ]);
     }
@@ -531,8 +533,7 @@ final class ContactController extends AbstractController
 
         return $this->render('contacts/duplicates.html.twig', [
             'pairs'   => $this->duplicateFinder->findCandidates($user),
-            'merges'  => $this->em->getRepository(ContactMergeRecord::class)
-                ->findBy(['usr' => $user], ['mergedAt' => 'DESC'], 10),
+            'merges'  => $this->contactMergeRecordRepository->findRecentForUser($user),
             'now'     => new \DateTimeImmutable(),
         ]);
     }

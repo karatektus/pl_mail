@@ -8,6 +8,8 @@ use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ForgetDecryptedMailMessage;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageDecryptedRepository;
 use App\Service\Crypto\DecryptedMail;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -27,26 +29,21 @@ final readonly class ForgetDecryptedMailHandler
     public function __construct(
         private EntityManagerInterface $entityManager,
         private DecryptedMail          $decryptedMail,
+        private AccountRepository $accountRepository,
+        private MessageDecryptedRepository $messageDecryptedRepository,
     ) {
     }
 
     public function __invoke(ForgetDecryptedMailMessage $job): void
     {
         do {
-            $account = $this->entityManager->find(Account::class, $job->accountId);
+            $account = $this->accountRepository->find($job->accountId);
 
             if (null === $account || true === $account->keepDecrypted) {
                 return;
             }
 
-            /** @var list<Message> $messages */
-            $messages = $this->entityManager->createQuery(
-                'SELECT m FROM ' . Message::class . ' m WHERE m.account = :account AND m.plaintextSource = :client ORDER BY m.id ASC',
-            )
-                ->setParameter('account', $account)
-                ->setParameter('client', PlaintextSource::Client)
-                ->setMaxResults(self::BATCH)
-                ->getResult();
+            $messages = $this->messageDecryptedRepository->findClientDecrypted($account, self::BATCH);
 
             foreach ($messages as $message) {
                 $this->decryptedMail->forget($message);

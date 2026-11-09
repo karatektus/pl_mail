@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Mail;
 
+use App\Repository\Mail\PurgedCopy\PurgedCopyRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -30,7 +31,7 @@ use Doctrine\ORM\Mapping as ORM;
  * recognised by the index pass as such (ImapCopies), recorded here in turn,
  * and deleted, never imported.
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: PurgedCopyRepository::class)]
 #[ORM\Table(name: 'purged_copy')]
 #[ORM\UniqueConstraint(name: 'uniq_purged_copy_mailbox_imap_uid', columns: ['mailbox_id', 'imap_uid'])]
 // The index pass looks a page of new copies up by Message-ID.

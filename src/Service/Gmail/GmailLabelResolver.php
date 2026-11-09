@@ -7,7 +7,6 @@ namespace App\Service\Gmail;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Repository\Label\Label\LabelRepository;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -30,8 +29,7 @@ final class GmailLabelResolver
 
     public function __construct(
         private readonly LabelRepository        $labelRepository,
-        private readonly EntityManagerInterface $em,
-        private readonly LoggerInterface        $logger,
+        private readonly LoggerInterface        $logger
     ) {}
 
     /**
@@ -66,7 +64,7 @@ final class GmailLabelResolver
                 return null;
             }
 
-            return $this->em->find(Label::class, $cachedId);
+            return $this->labelRepository->find($cachedId);
         }
 
         $label = $this->labelRepository->findOneByGmailLabelId($gmailLabelId, $account);

@@ -10,6 +10,7 @@ use App\Entity\Contacts\ContactAddress;
 use App\Entity\Contacts\ContactEmail;
 use App\Entity\Contacts\ContactPhone;
 use App\Entity\User\User;
+use App\Repository\Contacts\Contact\ContactRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -21,6 +22,7 @@ final class ContactManager
     public function __construct(
         private EntityManagerInterface $em,
         private ContactPhotoStore $photos,
+        private readonly ContactRepository $contactRepository,
     ) {
     }
 
@@ -148,15 +150,7 @@ final class ContactManager
     public function permanentPurge(User $user): int
     {
         $cutoff = new DateTimeImmutable('-90 days');
-        $stale = $this->em->createQueryBuilder()
-            ->select('c')
-            ->from(Contact::class, 'c')
-            ->where('c.usr = :user')
-            ->andWhere('c.trashedAt < :cutoff')
-            ->setParameter('user', $user)
-            ->setParameter('cutoff', $cutoff)
-            ->getQuery()
-            ->getResult();
+        $stale = $this->contactRepository->findTrashedBefore($user, $cutoff);
 
         $count = 0;
         foreach ($stale as $contact) {

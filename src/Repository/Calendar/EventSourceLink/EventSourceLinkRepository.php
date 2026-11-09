@@ -278,4 +278,17 @@ class EventSourceLinkRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Repoint the links of one message at another, when a copy is folded into
+     * the email it duplicates. A link the survivor already has for the same
+     * event and extractor stays with the copy and goes when it does.
+     */
+    public function moveToMessage(int $copyId, int $survivorId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE event_source_link l SET message_id = :survivor WHERE l.message_id = :copy AND NOT EXISTS (SELECT 1 FROM event_source_link s WHERE s.message_id = :survivor AND s.event_id = l.event_id AND s.extractor = l.extractor)',
+            ['survivor' => $survivorId, 'copy' => $copyId],
+        );
+    }
 }

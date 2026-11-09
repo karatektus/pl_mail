@@ -6,9 +6,9 @@ namespace App\Controller\Mail;
 
 use App\Domain\Helper\InlineDisposition;
 use App\Entity\Mail\MessagePart;
+use App\Repository\Mail\MessagePart\MessagePartRepository;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\InlineAttachmentSigner;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -48,7 +48,7 @@ final class InlineAttachmentController extends AbstractController
     ) {}
 
     #[Route('/mail/inline/{id}', name: 'app_mail_inline_attachment', methods: ['GET'], requirements: ['id' => '\d+'])]
-    public function serve(int $id, Request $request, EntityManagerInterface $entityManager): Response
+    public function serve(int $id, Request $request, MessagePartRepository $messageParts): Response
     {
         $signature = (string) $request->query->get('s', '');
         $expires   = $request->query->getInt('e');
@@ -57,7 +57,7 @@ final class InlineAttachmentController extends AbstractController
             throw new NotFoundHttpException();
         }
 
-        $part = $entityManager->find(MessagePart::class, $id);
+        $part = $messageParts->find($id);
 
         if (false === $part instanceof MessagePart) {
             throw new NotFoundHttpException();

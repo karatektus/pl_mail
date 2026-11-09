@@ -12,6 +12,7 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\EmbedMessagesHandler;
 use App\Infrastructure\Messaging\Message\EmbedMessagesMessage;
+use App\Repository\Ai\AiCallMetric\AiCallMetricRepository;
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\User\User\UserRepository;
@@ -153,7 +154,7 @@ final class EmbedMessagesUserOptOutTest extends KernelTestCase
             $container->get(AiSettingsRepository::class),
             new OllamaClient($http, new NullLogger()),
             new OpenAiClient($http, new NullLogger()),
-            new AiCallRecorder($this->createStub(Connection::class), new NullLogger()),
+            new AiCallRecorder(new AiCallMetricRepository($this->createStub(Connection::class)), new NullLogger()),
             new NullLogger(),
         );
 

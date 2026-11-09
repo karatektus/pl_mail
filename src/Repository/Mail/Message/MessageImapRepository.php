@@ -1025,4 +1025,20 @@ class MessageImapRepository extends ServiceEntityRepository
 
         return array_values(array_map(static fn ($id): string => (string) $id, $rows));
     }
+
+    /**
+     * Whether any row carries the epoch date a failed fetch leaves behind: one
+     * cheap probe before findEpochGhosts().
+     *
+     * One probe of a partial index that is empty on any install that has
+     * already been cleaned. See Version20260811160000, and note the literal: a
+     * bound parameter cannot be proven to imply the index's condition, so the
+     * index would be built and then not used.
+     */
+    public function hasEpochGhostSuspects(): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne(
+            "SELECT 1 FROM message WHERE received_at < TIMESTAMP '1971-01-01' LIMIT 1",
+        );
+    }
 }

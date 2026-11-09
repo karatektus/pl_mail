@@ -6,8 +6,8 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\CollectContactKeysMessage;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Crypto\ContactKeyCollector;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
@@ -21,14 +21,14 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class CollectContactKeysHandler
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
         private ContactKeyCollector    $collector,
+        private MessageRepository $messageRepository
     ) {
     }
 
     public function __invoke(CollectContactKeysMessage $job): void
     {
-        $message = $this->entityManager->find(Message::class, $job->messageId);
+        $message = $this->messageRepository->find($job->messageId);
 
         if (null === $message) {
             return;

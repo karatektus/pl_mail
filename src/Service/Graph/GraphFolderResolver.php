@@ -51,7 +51,7 @@ final class GraphFolderResolver
                 return null;
             }
 
-            return $this->em->find(Label::class, $cachedId);
+            return $this->labelRepository->find($cachedId);
         }
 
         $label = $this->labelRepository->findOneByGraphFolderId($graphFolderId, $account);
@@ -100,7 +100,7 @@ final class GraphFolderResolver
                     continue;
                 }
 
-                $label = $this->em->find(Label::class, $cachedId);
+                $label = $this->labelRepository->find($cachedId);
 
                 if (null !== $label) {
                     $labels[] = $label;

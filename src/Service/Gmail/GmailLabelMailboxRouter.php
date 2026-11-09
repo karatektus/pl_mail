@@ -8,7 +8,6 @@ use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Repository\Mail\Mailbox\MailboxRepository;
-use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Determines which local Mailbox a Gmail message belongs in based on its
@@ -34,8 +33,7 @@ final class GmailLabelMailboxRouter
     private array $idCache = [];
 
     public function __construct(
-        private readonly MailboxRepository      $mailboxRepository,
-        private readonly EntityManagerInterface $em,
+        private readonly MailboxRepository      $mailboxRepository
     ) {}
 
     /**
@@ -106,6 +104,6 @@ final class GmailLabelMailboxRouter
         // Always re-fetch by ID so the returned entity is managed by the
         // current EM unit of work, regardless of whether flush() has been
         // called since the ID was cached.
-        return $this->em->find(Mailbox::class, $id);
+        return $this->mailboxRepository->find($id);
     }
 }

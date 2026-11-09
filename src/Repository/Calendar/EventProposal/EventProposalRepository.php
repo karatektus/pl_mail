@@ -81,4 +81,25 @@ class EventProposalRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Repoint one message's proposals at another, when a copy is folded into
+     * the email it duplicates. A proposal the survivor already has for the
+     * same start stays with the copy and goes when it does.
+     */
+    public function moveToMessage(int $copyId, int $survivorId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE event_proposal p SET message_id = :survivor WHERE p.message_id = :copy AND NOT EXISTS (SELECT 1 FROM event_proposal s WHERE s.message_id = :survivor AND s.starts_at = p.starts_at)',
+            ['survivor' => $survivorId, 'copy' => $copyId],
+        );
+    }
+
+    /** Every proposal read from one message. */
+    public function deleteForMessage(Message $message): void
+    {
+        $this->getEntityManager()->createQuery('DELETE FROM ' . EventProposal::class . ' p WHERE p.message = :message')
+            ->setParameter('message', $message)
+            ->execute();
+    }
 }

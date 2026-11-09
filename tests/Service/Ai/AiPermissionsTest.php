@@ -7,6 +7,7 @@ namespace App\Tests\Service\Ai;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Ai\AiSettings;
 use App\Entity\User\User;
+use App\Repository\Ai\AiCallMetric\AiCallMetricRepository;
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiCallRecorder;
@@ -241,7 +242,7 @@ final class AiPermissionsTest extends KernelTestCase
             $this->settings,
             new OllamaClient(new MockHttpClient([]), new NullLogger()),
             new OpenAiClient(new MockHttpClient([]), new NullLogger()),
-            new AiCallRecorder($this->createStub(Connection::class), new NullLogger()),
+            new AiCallRecorder(new AiCallMetricRepository($this->createStub(Connection::class)), new NullLogger()),
             new NullLogger(),
         );
     }
