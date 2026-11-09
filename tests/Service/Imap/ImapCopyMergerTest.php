@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Domain\Enum\Insight\InsightKind;
+use App\Domain\Enum\Mail\ThreadingMethod;
+use App\Entity\Insight\MailInsight;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Service\Imap\ImapCopyMerger;
 use DateTimeImmutable;
@@ -80,6 +84,55 @@ final class ImapCopyMergerTest extends KernelTestCase
         self::assertSame(0, self::getContainer()->get(ImapCopyMerger::class)->foldKeptIn($this->inbox));
     }
 
+    /**
+     * #521: the copies sit in two conversations, and the copy's conversation
+     * has an insight card that links to the copy. Merging the conversations
+     * loads that insight to move its thread, so it was in memory still naming
+     * the copy when the copy was deleted, and the fold rolled back every sweep.
+     *
+     * Loaded afresh first, as the worker that runs it would have it.
+     */
+    public function testCopiesInTwoConversationsWithAnInsightOnTheCopyAreFolded(): void
+    {
+        $kept = $this->message($this->inbox, 11, null);
+        $copy = $this->message($this->archive, 4, null);
+
+        $keptThread = $this->thread($kept);
+        $copyThread = $this->thread($copy);
+
+        $insight            = new MailInsight();
+        $insight->account   = $this->account;
+        $insight->thread    = $copyThread;
+        $insight->message   = $copy;
+        $insight->kind      = InsightKind::Parcel;
+        $insight->title     = 'DHL parcel';
+        $insight->extractor = 'test';
+        $insight->dedupeKey = 'parcel-' . uniqid('', true);
+        $this->em->persist($insight);
+        $this->em->flush();
+
+        $keptId     = $kept->id;
+        $copyId     = $copy->id;
+        $threadId   = $keptThread->id;
+        $insightId  = $insight->id;
+        $inboxId    = $this->inbox->id;
+
+        $this->em->clear();
+
+        $inbox = $this->em->find(Mailbox::class, $inboxId);
+        self::assertInstanceOf(Mailbox::class, $inbox);
+
+        self::assertSame(1, self::getContainer()->get(ImapCopyMerger::class)->foldKeptIn($inbox), 'the email is folded, not left as it was');
+        $this->em->clear();
+
+        self::assertNull($this->em->find(Message::class, $copyId));
+
+        $moved = $this->em->find(MailInsight::class, $insightId);
+        self::assertInstanceOf(MailInsight::class, $moved);
+        self::assertSame($keptId, $moved->message?->id, 'the card links to the email that stayed');
+        self::assertSame($threadId, $moved->thread?->id, 'in the conversation that stayed');
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     private function message(Mailbox $mailbox, int $uid, ?string $jmapId, int $size = 1024): Message
@@ -100,6 +153,24 @@ final class ImapCopyMergerTest extends KernelTestCase
         $this->em->flush();
 
         return $message;
+    }
+
+    private function thread(Message $message): MessageThread
+    {
+        $thread                    = new MessageThread();
+        $thread->account           = $this->account;
+        $thread->subject           = 'Folded';
+        $thread->normalizedSubject = 'folded';
+        $thread->threadingMethod   = ThreadingMethod::References;
+        $thread->messageCount      = 1;
+        $thread->unreadCount       = 1;
+        $thread->attachmentCount   = 0;
+        $this->em->persist($thread);
+
+        $thread->addMessage($message);
+        $this->em->flush();
+
+        return $thread;
     }
 
     private function seed(): void
