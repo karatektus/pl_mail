@@ -1869,7 +1869,13 @@ class MessageThreadRepository extends ServiceEntityRepository
         bool              $withBodyRescue,
         ?SemanticSearch   $semantic = null,
     ): array {
-        [$sql, $params, $types] = $this->buildSearchSql($user, $query, $withBodyRescue, $semantic);
+        [$sql, $params, $types] = $this->buildSearchSql(
+            $user,
+            $query,
+            $withBodyRescue,
+            $semantic,
+            SearchSortOrder::Relevance === $sort,
+        );
 
         $sql .= ' ORDER BY ' . $sort->orderBy() . ' LIMIT :limit OFFSET :offset';
         $params['limit']  = $perPage;
@@ -2275,6 +2281,13 @@ class MessageThreadRepository extends ServiceEntityRepository
     /**
      * The statement both the page and its total come out of.
      *
+     * `$ranked` is whether the sort reads `rank`. Only Relevance does; Recent,
+     * the default, orders by date. Scoring is not free: `ts_rank` reads the
+     * search_vector of every matching message, and on 200,000 messages it was
+     * 125ms of a 310ms search for a word in 8% of them and 0.8s of 2.1s for one
+     * in nearly all. The column stays, as MAX(0), so both sorts read the same
+     * statement shape.
+     *
      * @return array{string, array<string,mixed>, array<string,mixed>}
      */
     private function buildSearchSql(
@@ -2282,6 +2295,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         ParsedSearchQuery $query,
         bool              $withBodyRescue = false,
         ?SemanticSearch   $semantic = null,
+        bool              $ranked = true,
     ): array {
         $params = [];
         $types  = [];
@@ -2631,7 +2645,16 @@ class MessageThreadRepository extends ServiceEntityRepository
                 $lexical[] = '(m.body_text ILIKE :freeLike OR m.body_html_text ILIKE :freeLike)';
             }
 
-            $where[] = 'm.id IN (' . implode(' UNION ', $cheap) . ')';
+            // UNION ALL, because `IN` is a semi-join and removes duplicates
+            // itself. A plain UNION asked for a second, sorted de-duplication
+            // first, and to feed it in id order Postgres walked message_pkey
+            // and tested `@@` on every row instead of using the GIN index:
+            // 0.9s per full-text arm on 200,000 messages. As UNION ALL each arm
+            // is a bitmap scan again and the semi-join hashes the ids, with the
+            // same rows out. A word in 8% of the mail went from 519ms to
+            // 310ms, one in nearly all of it from 5.2s to 2.1s; a rare word
+            // stays at a few milliseconds.
+            $where[] = 'm.id IN (' . implode(' UNION ALL ', $cheap) . ')';
 
             // A row reached only by the substring pass has no ts_rank to give;
             // GREATEST over what did match keeps relevance ordering meaningful
@@ -2645,8 +2668,10 @@ class MessageThreadRepository extends ServiceEntityRepository
             // Nested inside a GREATEST the two are no longer identical calls,
             // and every candidate row would pay for the distance function
             // twice.
-            $rankParts  = array_map(static fn (string $rank): string => "MAX({$rank})", $ranks);
-            $rankSelect = 1 === count($rankParts) ? $rankParts[0] : 'GREATEST(' . implode(', ', $rankParts) . ')';
+            if (true === $ranked) {
+                $rankParts  = array_map(static fn (string $rank): string => "MAX({$rank})", $ranks);
+                $rankSelect = 1 === count($rankParts) ? $rankParts[0] : 'GREATEST(' . implode(', ', $rankParts) . ')';
+            }
 
             // ── Where did this row come from ──────────────────────────
             // One column, computed from aggregates the statement is already

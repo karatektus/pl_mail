@@ -483,6 +483,32 @@ final class MessageSearchTest extends KernelTestCase
         self::assertSame($descending, $single);
     }
 
+    /**
+     * A message every arm finds is one result, counted once, in either order.
+     *
+     * The arms are joined with UNION ALL, which keeps duplicates; the `IN`
+     * around them is what removes them. This one matches the words, the
+     * prefix, the subject and both sender columns, five ids for one message.
+     */
+    public function testAMessageEveryArmFindsIsOneResult(): void
+    {
+        $this->seedMessage(
+            subject: 'Invoice 42',
+            fromAddress: 'invoice@acme.test',
+            fromName: 'Invoice Desk',
+            body: 'Your invoice is attached.',
+            receivedAt: '2026-03-01',
+        );
+        $this->seedMessage(subject: 'Other', body: 'One more invoice.', receivedAt: '2026-02-01');
+
+        foreach (SearchSortOrder::cases() as $sort) {
+            $page = $this->repository->searchPage($this->user, $this->parser->parse('invoice'), sort: $sort);
+
+            self::assertSame(2, $page->total, $sort->value);
+            self::assertCount(2, $page->threads, $sort->value);
+        }
+    }
+
     // ── Fixtures ─────────────────────────────────────────────────────────────
 
     /** @return list<string> subjects of the matching threads */
