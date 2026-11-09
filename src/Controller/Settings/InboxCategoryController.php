@@ -10,7 +10,7 @@ use App\Domain\Exception\InvalidInboxCategoryException;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ResortMailboxMessage;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\InboxCategoryManager;
 use App\Service\Mail\InboxTabs;
@@ -49,10 +49,10 @@ final class InboxCategoryController extends AbstractController
         private readonly InboxCategoryManager $manager,
         private readonly TranslatorInterface $translator,
         private readonly InboxTabs $tabs,
-        private readonly MessageThreadRepository $threads,
+        private readonly MessageThreadCategoryRepository $messageThreadCategoryRepository,
         private readonly EntityManagerInterface $em,
         private readonly MessageBusInterface $bus,
-        private readonly \App\Service\Mail\InboxTabChanges $tabChanges,
+        private readonly \App\Service\Mail\InboxTabChanges $tabChanges
     ) {
     }
 
@@ -100,7 +100,7 @@ final class InboxCategoryController extends AbstractController
         }
 
         if (false === $on) {
-            $this->threads->unpinFromCategory($user, $category);
+            $this->messageThreadCategoryRepository->unpinFromCategory($user, $category);
         }
 
         $user->categorySorting->switchOff($off);

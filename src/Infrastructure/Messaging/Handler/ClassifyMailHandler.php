@@ -12,7 +12,7 @@ use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Contact\ContactRepository;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use App\Service\Crypto\DecryptedMailPolicy;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Ai\AiAssistant;
@@ -85,7 +85,7 @@ final readonly class ClassifyMailHandler
     // saving as well as one fewer collaborator.
     public function __construct(
         private MessageRepository       $messages,
-        private MessageThreadRepository $threads,
+        private MessageThreadCategoryRepository $messageThreadCategoryRepository,
         private ContactRepository       $contacts,
         private MessageCategorizer      $categorizer,
         private AiAssistant             $ai,
@@ -96,7 +96,7 @@ final readonly class ClassifyMailHandler
         private EntityManagerInterface $entityManager,
         private LoggerInterface        $logger,
         private \App\Jmap\State\StateManager $stateManager,
-        private ?DecryptedMailPolicy   $decrypted = null,
+        private ?DecryptedMailPolicy   $decrypted = null
     ) {
     }
 
@@ -283,7 +283,7 @@ final readonly class ClassifyMailHandler
         // for mail the timed release has already shown.
         $this->releaser->release($mail);
 
-        foreach ($this->threads->recomputeCategoriesForThreads(array_keys($threadIds)) as $accountId => $moved) {
+        foreach ($this->messageThreadCategoryRepository->recomputeCategoriesForThreads(array_keys($threadIds)) as $accountId => $moved) {
             $this->stateManager->recordThreadsTouched($accountId, $moved);
         }
 

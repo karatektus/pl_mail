@@ -9,7 +9,7 @@ use App\Domain\Interface\UpgradeTaskInterface;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Repository\Mail\Message\MessageBackfillRepository;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MisfiledBodyDetector;
@@ -57,7 +57,7 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
 
     public function __construct(
         private MessageBackfillRepository $messageBackfillRepository,
-        private MessageThreadRepository $threads,
+        private MessageThreadRebuildRepository $messageThreadRebuildRepository,
         private AttachmentResolver      $attachments,
         private MisfiledBodyDetector    $detector,
         private MisfiledBodyUnpacker    $unpacker,
@@ -132,7 +132,7 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
 
         // Derived counters, rebuilt rather than patched by deltas — the same
         // reasoning ReclassifyAttachmentsCommand gives.
-        $this->threads->recomputeAttachmentCounts();
+        $this->messageThreadRebuildRepository->recomputeAttachmentCounts();
 
         $io->success(sprintf('%d message(s) repaired, %d left alone.', $repaired, $skipped));
 

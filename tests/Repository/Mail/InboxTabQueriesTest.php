@@ -15,6 +15,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -54,6 +55,7 @@ final class InboxTabQueriesTest extends KernelTestCase
     private EntityManagerInterface $em;
     private Connection $connection;
     private MessageThreadRepository $repository;
+    private MessageThreadBadgeRepository $messageThreadBadgeRepository;
     private User $user;
     private Account $account;
     private Label $inbox;
@@ -67,6 +69,7 @@ final class InboxTabQueriesTest extends KernelTestCase
         $this->em         = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
         $this->repository = $container->get(MessageThreadRepository::class);
+        $this->messageThreadBadgeRepository = $container->get(MessageThreadBadgeRepository::class);
 
         $this->connection->beginTransaction();
 
@@ -159,7 +162,7 @@ final class InboxTabQueriesTest extends KernelTestCase
         );
         self::assertEquals(
             [$key => 1, 'promotions' => 1],
-            $this->sorted($this->repository->countNewByCategoryForUnifiedInbox($this->user, new DateTimeImmutable())),
+            $this->sorted($this->messageThreadBadgeRepository->countNewByCategoryForUnifiedInbox($this->user, new DateTimeImmutable())),
         );
     }
 
@@ -194,7 +197,7 @@ final class InboxTabQueriesTest extends KernelTestCase
 
     public function testTheSendersHintNamesWhoWroteIntoTheReadersTab(): void
     {
-        $senders = $this->repository->newSendersByCategoryForUnifiedInbox($this->user, new DateTimeImmutable());
+        $senders = $this->messageThreadBadgeRepository->newSendersByCategoryForUnifiedInbox($this->user, new DateTimeImmutable());
 
         self::assertSame(['Carrier Co'], $senders['c' . $this->shipping->id] ?? null);
         self::assertSame(['Promo Co'], $senders['promotions'] ?? null);
@@ -228,7 +231,7 @@ final class InboxTabQueriesTest extends KernelTestCase
             [$key => 1, 'primary' => 1],
             $this->sorted($this->repository->countUnreadByCategoryForUnifiedInbox($this->user)),
         );
-        self::assertSame(['Promo Co'], $this->repository->newSendersByCategoryForUnifiedInbox($this->user, new DateTimeImmutable())['primary'] ?? null);
+        self::assertSame(['Promo Co'], $this->messageThreadBadgeRepository->newSendersByCategoryForUnifiedInbox($this->user, new DateTimeImmutable())['primary'] ?? null);
     }
 
     // ── one account's inbox ──────────────────────────────────────────────────

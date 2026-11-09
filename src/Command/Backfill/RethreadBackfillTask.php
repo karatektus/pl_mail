@@ -11,7 +11,7 @@ use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageThreadingRepository;
 use App\Repository\Mail\Message\MessageBackfillRepository;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
 use App\Service\Imap\MessageThreader;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -44,9 +44,9 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
         private MessageRepository       $messageRepository,
         private MessageBackfillRepository $messageBackfillRepository,
         private MessageThreadingRepository $messageThreadingRepository,
-        private MessageThreadRepository $threadRepository,
+        private MessageThreadRebuildRepository $messageThreadRebuildRepository,
         private MessageThreader         $threader,
-        private EntityManagerInterface  $em,
+        private EntityManagerInterface  $em
     ) {}
 
     public function getName(): string
@@ -161,13 +161,13 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
      */
     private function snapshotThreadState(int $accountId): array
     {
-        $rows = $this->threadRepository->findCarriedOverStateForAccount($accountId);
+        $rows = $this->messageThreadRebuildRepository->findCarriedOverStateForAccount($accountId);
 
         if (count($rows) === 0) {
             return [];
         }
 
-        $labelsByThread = $this->threadRepository->findLabelIdsByThread(
+        $labelsByThread = $this->messageThreadRebuildRepository->findLabelIdsByThread(
             array_map(static fn(array $row): int => (int) $row['id'], $rows),
         );
 
@@ -201,7 +201,7 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
     private function discardThreads(int $accountId): void
     {
         $this->messageThreadingRepository->detachAllFromThreadsForAccount($accountId);
-        $this->threadRepository->deleteAllForAccount($accountId);
+        $this->messageThreadRebuildRepository->deleteAllForAccount($accountId);
 
         $this->em->clear();
     }
@@ -264,7 +264,7 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
                 continue;
             }
 
-            $this->threadRepository->restoreCarriedOverState(
+            $this->messageThreadRebuildRepository->restoreCarriedOverState(
                 $threadId,
                 $snapshot['starredAt'],
                 $snapshot['snoozedUntil'],
@@ -273,7 +273,7 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
             );
 
             foreach ($snapshot['labels'] as $labelId) {
-                $this->threadRepository->addLabelIfAbsent($threadId, $labelId);
+                $this->messageThreadRebuildRepository->addLabelIfAbsent($threadId, $labelId);
             }
 
             ++$restored;

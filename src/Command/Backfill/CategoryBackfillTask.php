@@ -9,7 +9,7 @@ use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Contact\ContactRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageAiRepository;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use App\Service\Mail\MessageCategorizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -36,7 +36,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
     public function __construct(
         private AccountRepository       $accountRepository,
         private MessageAiRepository $messageAiRepository,
-        private MessageThreadRepository $threadRepository,
+        private MessageThreadCategoryRepository $messageThreadCategoryRepository,
         private ContactRepository       $contactRepository,
         private MessageCategorizer      $categorizer,
         private EntityManagerInterface  $em,
@@ -121,7 +121,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
 
         // Resolve each thread most-recent-wins from its messages, in one
         // statement. Runs after clear(), so it is pure DBAL.
-        $moved = $this->threadRepository->recomputeCategoriesForAccount($account);
+        $moved = $this->messageThreadCategoryRepository->recomputeCategoriesForAccount($account);
 
         // So a JMAP client hears about the conversations that changed tab.
         $this->stateManager->recordThreadsTouched((int) $account->id, $moved);

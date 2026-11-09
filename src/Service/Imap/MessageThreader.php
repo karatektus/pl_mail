@@ -11,7 +11,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageThreadingRepository;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -46,9 +46,9 @@ final class MessageThreader
         private readonly EntityManagerInterface  $entityManager,
         private readonly MessageRepository       $messageRepository,
         private readonly MessageThreadingRepository $messageThreadingRepository,
-        private readonly MessageThreadRepository $messageThreadRepository,
+        private readonly MessageThreadRebuildRepository $messageThreadRebuildRepository,
         private readonly ThreadMerger            $threadMerger,
-        private readonly ThreadLabelSynchronizer $threadLabels,
+        private readonly ThreadLabelSynchronizer $threadLabels
     )
     {
     }
@@ -133,7 +133,7 @@ final class MessageThreader
             $normalizedSubject = $this->normalizeSubject($message->subject);
 
             if ($normalizedSubject !== '') {
-                $candidateThread = $this->messageThreadRepository->findMatchingNormalizedSubjectThreadForAccount(
+                $candidateThread = $this->messageThreadRebuildRepository->findMatchingNormalizedSubjectThreadForAccount(
                     $normalizedSubject,
                     $account,
                     new \DateTimeImmutable(self::SUBJECT_FALLBACK_WINDOW),
@@ -313,7 +313,7 @@ final class MessageThreader
             return $pending;
         }
 
-        $thread = $this->messageThreadRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account);
+        $thread = $this->messageThreadRebuildRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account);
 
         if (null === $thread) {
             $thread = $this->createThread($message, $account, ThreadingMethod::Provider);

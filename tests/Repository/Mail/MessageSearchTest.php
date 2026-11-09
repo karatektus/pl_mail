@@ -15,7 +15,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadSearchRepository;
 use App\Service\Ai\EmbeddingStore;
 use App\Service\Search\FreeTextCompiler;
 use App\Service\Search\SearchQueryParser;
@@ -44,7 +44,8 @@ final class MessageSearchTest extends KernelTestCase
 {
     private EntityManagerInterface $em;
     private Connection $connection;
-    private MessageThreadRepository $repository;
+    private MessageThreadSearchRepository $repository;
+    private MessageThreadSearchRepository $messageThreadSearchRepository;
     private SearchQueryParser $parser;
     private User $user;
     private Account $account;
@@ -56,7 +57,8 @@ final class MessageSearchTest extends KernelTestCase
         $container        = self::getContainer();
         $this->em         = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
-        $this->repository = $container->get(MessageThreadRepository::class);
+        $this->repository = $container->get(MessageThreadSearchRepository::class);
+        $this->messageThreadSearchRepository = $container->get(MessageThreadSearchRepository::class);
         $this->parser     = $container->get(SearchQueryParser::class);
 
         $this->connection->beginTransaction();
@@ -377,7 +379,7 @@ final class MessageSearchTest extends KernelTestCase
         );
 
         self::assertSame(['Mine'], $this->search('from:billing@acme.test'));
-        self::assertSame(1, $this->repository->searchPage($this->user, $this->parser->parse('from:billing@acme.test'))->total);
+        self::assertSame(1, $this->messageThreadSearchRepository->searchPage($this->user, $this->parser->parse('from:billing@acme.test'))->total);
     }
 
     // ── Order ────────────────────────────────────────────────────────────────
@@ -502,7 +504,7 @@ final class MessageSearchTest extends KernelTestCase
         $this->seedMessage(subject: 'Other', body: 'One more invoice.', receivedAt: '2026-02-01');
 
         foreach (SearchSortOrder::cases() as $sort) {
-            $page = $this->repository->searchPage($this->user, $this->parser->parse('invoice'), sort: $sort);
+            $page = $this->messageThreadSearchRepository->searchPage($this->user, $this->parser->parse('invoice'), sort: $sort);
 
             self::assertSame(2, $page->total, $sort->value);
             self::assertCount(2, $page->threads, $sort->value);
@@ -516,7 +518,7 @@ final class MessageSearchTest extends KernelTestCase
     {
         return array_map(
             static fn (MessageThread $thread): string => (string) $thread->subject,
-            $this->repository->searchPage($this->user, $this->parser->parse($query), sort: $sort)->threads,
+            $this->messageThreadSearchRepository->searchPage($this->user, $this->parser->parse($query), sort: $sort)->threads,
         );
     }
 
@@ -529,7 +531,7 @@ final class MessageSearchTest extends KernelTestCase
     ): array {
         return array_map(
             static fn (MessageThread $thread): int => (int) $thread->id,
-            $this->repository->searchPage($this->user, $parsed, $page, $perPage, $sort)->threads,
+            $this->messageThreadSearchRepository->searchPage($this->user, $parsed, $page, $perPage, $sort)->threads,
         );
     }
 
@@ -556,7 +558,7 @@ final class MessageSearchTest extends KernelTestCase
     {
         $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
 
-        $impatient = new MessageThreadRepository(
+        $impatient = new MessageThreadSearchRepository(
             self::getContainer()->get(ManagerRegistry::class),
             new FreeTextCompiler(),
             rescueTimeoutMs: 1,
@@ -601,12 +603,12 @@ final class MessageSearchTest extends KernelTestCase
         // Lexically hopeless.
         self::assertCount(
             0,
-            $this->repository->searchPage($this->user, $this->parser->parse('meeting minutes'))->threads,
+            $this->messageThreadSearchRepository->searchPage($this->user, $this->parser->parse('meeting minutes'))->threads,
             'if the words alone find this, the test is not about the vector',
         );
 
         // The same query, with a vector pointing where the message is.
-        $page = $this->repository->searchPage(
+        $page = $this->messageThreadSearchRepository->searchPage(
             $this->user,
             $this->parser->parse('meeting minutes'),
             semantic: $this->semantic([1.0, 0.0, 0.0]),
@@ -629,7 +631,7 @@ final class MessageSearchTest extends KernelTestCase
         $id = (int) $this->connection->fetchOne('SELECT id FROM message WHERE subject = ?', ['Notes from the standup']);
         $this->store()->store($id, [1.0, 0.0, 0.0], 'test-model');
 
-        $page = $this->repository->searchPage(
+        $page = $this->messageThreadSearchRepository->searchPage(
             $this->user,
             $this->parser->parse('meeting minutes'),
             // Orthogonal: cosine distance 1, well past the threshold.
@@ -667,13 +669,13 @@ final class MessageSearchTest extends KernelTestCase
 
         self::assertCount(
             1,
-            $this->repository->searchPage($this->user, $query, semantic: $this->semantic($vector, minSimilarity: 0.5))->threads,
+            $this->messageThreadSearchRepository->searchPage($this->user, $query, semantic: $this->semantic($vector, minSimilarity: 0.5))->threads,
             'a threshold below the similarity has to admit the row',
         );
 
         self::assertCount(
             0,
-            $this->repository->searchPage($this->user, $query, semantic: $this->semantic($vector, minSimilarity: 0.7))->threads,
+            $this->messageThreadSearchRepository->searchPage($this->user, $query, semantic: $this->semantic($vector, minSimilarity: 0.7))->threads,
             'and one above it has to exclude the same row, from the same statement',
         );
     }
@@ -683,7 +685,7 @@ final class MessageSearchTest extends KernelTestCase
     {
         $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
 
-        $page = $this->repository->searchPage(
+        $page = $this->messageThreadSearchRepository->searchPage(
             $this->user,
             $this->parser->parse('pelican'),
             semantic: $this->semantic([1.0, 0.0, 0.0]),
@@ -711,7 +713,7 @@ final class MessageSearchTest extends KernelTestCase
         $this->store()->store($this->messageId('Quarterly figures'), [1.0, 0.0, 0.0], 'test-model');
         $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'test-model');
 
-        $page = $this->repository->searchPage(
+        $page = $this->messageThreadSearchRepository->searchPage(
             $this->user,
             $this->parser->parse('pelican'),
             semantic: $this->semantic([1.0, 0.0, 0.0]),
@@ -746,7 +748,7 @@ final class MessageSearchTest extends KernelTestCase
         $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.');
         $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'previous-model');
 
-        $page = $this->repository->searchPage(
+        $page = $this->messageThreadSearchRepository->searchPage(
             $this->user,
             $this->parser->parse('meeting minutes'),
             semantic: $this->semantic([1.0, 0.0, 0.0], 'current-model'),
@@ -781,11 +783,11 @@ final class MessageSearchTest extends KernelTestCase
 
         self::assertCount(
             2,
-            $this->repository->searchPage($this->user, $query, semantic: $vector)->threads,
+            $this->messageThreadSearchRepository->searchPage($this->user, $query, semantic: $vector)->threads,
             'both rows clear the threshold, so the fixture is about the cap and nothing else',
         );
 
-        $capped = new MessageThreadRepository(
+        $capped = new MessageThreadSearchRepository(
             self::getContainer()->get(ManagerRegistry::class),
             new FreeTextCompiler(),
             semanticHits: 1,
@@ -817,7 +819,7 @@ final class MessageSearchTest extends KernelTestCase
         $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.', receivedAt: '2026-06-01');
         $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'test-model');
 
-        $page = $this->repository->searchPage(
+        $page = $this->messageThreadSearchRepository->searchPage(
             $this->user,
             $this->parser->parse('pelican'),
             semantic: $this->semantic([1.0, 0.0, 0.0], minSimilarity: 0.5),
@@ -842,7 +844,7 @@ final class MessageSearchTest extends KernelTestCase
         $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.');
         $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'test-model');
 
-        $page = $this->repository->searchPage(
+        $page = $this->messageThreadSearchRepository->searchPage(
             $this->user,
             $this->parser->parse('meeting minutes'),
             semantic: SemanticSearch::ran(
@@ -874,7 +876,7 @@ final class MessageSearchTest extends KernelTestCase
         $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
         $this->store()->store($this->messageId('Quarterly figures'), [1.0, 0.0, 0.0], 'test-model');
 
-        $impatient = new MessageThreadRepository(
+        $impatient = new MessageThreadSearchRepository(
             self::getContainer()->get(ManagerRegistry::class),
             new FreeTextCompiler(),
             semanticTimeoutMs: 1,
@@ -937,7 +939,7 @@ final class MessageSearchTest extends KernelTestCase
 
         $this->connection->executeStatement('DROP FUNCTION plmail_embed_distance(real[], real[])');
 
-        $page = $this->repository->searchPage(
+        $page = $this->messageThreadSearchRepository->searchPage(
             $this->user,
             $this->parser->parse('pelican'),
             semantic: $this->semantic([1.0, 0.0, 0.0]),
@@ -966,7 +968,7 @@ final class MessageSearchTest extends KernelTestCase
         $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.');
         $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'test-model');
 
-        $impatient = new MessageThreadRepository(
+        $impatient = new MessageThreadSearchRepository(
             self::getContainer()->get(ManagerRegistry::class),
             new FreeTextCompiler(),
             semanticTimeoutMs: 1,
@@ -1014,7 +1016,7 @@ final class MessageSearchTest extends KernelTestCase
         $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.', receivedAt: '2026-01-01');
         $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'test-model');
 
-        $narrow = new MessageThreadRepository(
+        $narrow = new MessageThreadSearchRepository(
             self::getContainer()->get(ManagerRegistry::class),
             new FreeTextCompiler(),
             semanticCandidates: 2,
@@ -1045,7 +1047,7 @@ final class MessageSearchTest extends KernelTestCase
     {
         $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
 
-        $impatient = new MessageThreadRepository(
+        $impatient = new MessageThreadSearchRepository(
             self::getContainer()->get(ManagerRegistry::class),
             new FreeTextCompiler(),
             semanticTimeoutMs: 1,
@@ -1195,7 +1197,7 @@ final class MessageSearchTest extends KernelTestCase
      */
     private function searchSqlFor(string $query): string
     {
-        $method = new \ReflectionMethod(MessageThreadRepository::class, 'buildSearchSql');
+        $method = new \ReflectionMethod(MessageThreadSearchRepository::class, 'buildSearchSql');
 
         /** @var array{string, array<string,mixed>, array<string,mixed>} $built */
         $built = $method->invoke($this->repository, $this->user, $this->parser->parse($query), false);
@@ -1218,7 +1220,7 @@ final class MessageSearchTest extends KernelTestCase
 
         self::assertCount(
             1,
-            $this->repository->searchPage($this->user, $this->parser->parse('elica'))->threads,
+            $this->messageThreadSearchRepository->searchPage($this->user, $this->parser->parse('elica'))->threads,
             'if this finds nothing the body pass is not running and the budget tests prove nothing',
         );
     }
@@ -1257,7 +1259,7 @@ final class MessageSearchTest extends KernelTestCase
      */
     public function testAnExpiredBodyPassGivesUpInsteadOfFailing(): void
     {
-        $impatient = new MessageThreadRepository(
+        $impatient = new MessageThreadSearchRepository(
             self::getContainer()->get(ManagerRegistry::class),
             new FreeTextCompiler(),
             rescueTimeoutMs: 1,
@@ -1269,7 +1271,7 @@ final class MessageSearchTest extends KernelTestCase
         // the guard must hand back exactly this, not an empty page.
         $fallback = [['thread_id' => 7]];
 
-        $rows = new \ReflectionMethod(MessageThreadRepository::class, 'rescueRows')->invoke(
+        $rows = new \ReflectionMethod(MessageThreadSearchRepository::class, 'rescueRows')->invoke(
             $impatient,
             // The same connection rescueRows() put the budget on — a second one
             // would be a different session and would never see the timeout.
@@ -1288,7 +1290,7 @@ final class MessageSearchTest extends KernelTestCase
     {
         $this->seedMessage('Invoice 88', fromAddress: 'billing@acme.test');
 
-        $impatient = new MessageThreadRepository(
+        $impatient = new MessageThreadSearchRepository(
             self::getContainer()->get(ManagerRegistry::class),
             new FreeTextCompiler(),
             rescueTimeoutMs: 1,

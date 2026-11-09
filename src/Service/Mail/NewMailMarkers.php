@@ -11,7 +11,7 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\MessageThread;
 use App\Entity\Mail\UnifiedInbox;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -73,9 +73,9 @@ class NewMailMarkers implements ResetInterface
     private ?\DateTimeImmutable $now = null;
 
     public function __construct(
-        private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageThreadBadgeRepository $messageThreadBadgeRepository,
         private readonly Security                $security,
-        private readonly UnifiedInboxes          $inboxes,
+        private readonly UnifiedInboxes          $inboxes
     ) {
     }
 
@@ -171,7 +171,7 @@ class NewMailMarkers implements ResetInterface
             return $this->forRole(LabelRole::Inbox);
         }
 
-        $this->byAccount ??= $this->threadRepository->countNewInboxPerAccount($user, $this->now());
+        $this->byAccount ??= $this->messageThreadBadgeRepository->countNewInboxPerAccount($user, $this->now());
 
         $count = 0;
 
@@ -194,7 +194,7 @@ class NewMailMarkers implements ResetInterface
 
             $this->byCategory = null === $user
                 ? []
-                : $this->threadRepository->countNewByCategoryForUnifiedInbox($user, $this->now(), $this->tabAccounts);
+                : $this->messageThreadBadgeRepository->countNewByCategoryForUnifiedInbox($user, $this->now(), $this->tabAccounts);
         }
 
         return $this->byCategory[$tab->value] ?? 0;
@@ -217,7 +217,7 @@ class NewMailMarkers implements ResetInterface
 
             $this->sendersByCategory = null === $user
                 ? []
-                : $this->threadRepository->newSendersByCategoryForUnifiedInbox($user, $this->now(), accountIds: $this->tabAccounts);
+                : $this->messageThreadBadgeRepository->newSendersByCategoryForUnifiedInbox($user, $this->now(), accountIds: $this->tabAccounts);
         }
 
         return $this->sendersByCategory[$tab->value] ?? [];
@@ -248,7 +248,7 @@ class NewMailMarkers implements ResetInterface
 
             $this->byRole = null === $user
                 ? []
-                : $this->threadRepository->countNewPerRole($user, $this->now());
+                : $this->messageThreadBadgeRepository->countNewPerRole($user, $this->now());
         }
 
         return $this->byRole[$role->value] ?? 0;
@@ -261,7 +261,7 @@ class NewMailMarkers implements ResetInterface
 
             $this->byLabel = null === $user
                 ? []
-                : $this->threadRepository->countNewPerUserLabel($user, $this->now());
+                : $this->messageThreadBadgeRepository->countNewPerUserLabel($user, $this->now());
         }
 
         return $this->byLabel[(int) $label->id] ?? 0;
@@ -274,7 +274,7 @@ class NewMailMarkers implements ResetInterface
 
             $this->starred = null === $user
                 ? 0
-                : $this->threadRepository->countNewForStarred($user, $this->now());
+                : $this->messageThreadBadgeRepository->countNewForStarred($user, $this->now());
         }
 
         return $this->starred;

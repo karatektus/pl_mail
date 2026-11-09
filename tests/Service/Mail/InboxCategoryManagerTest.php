@@ -9,6 +9,7 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Exception\InvalidInboxCategoryException;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Mail\InboxCategoryManager;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
@@ -46,7 +47,7 @@ final class InboxCategoryManagerTest extends KernelTestCase
         // inlined into it when the container is compiled, and cannot be asked for.
         $this->manager    = new InboxCategoryManager(
             $container->get(InboxCategoryRepository::class),
-            $container->get(MessageThreadRepository::class),
+            self::getContainer()->get(MessageThreadCategoryRepository::class),
             $this->em,
             $container->get(\Symfony\Contracts\Translation\TranslatorInterface::class),
             $container->get(\App\Jmap\State\StateManager::class),

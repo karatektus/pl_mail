@@ -12,7 +12,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -45,11 +45,11 @@ final readonly class InboxCategoryManager
 {
     public function __construct(
         private InboxCategoryRepository $categories,
-        private MessageThreadRepository $threads,
+        private MessageThreadCategoryRepository $messageThreadCategoryRepository,
         private EntityManagerInterface $em,
         private TranslatorInterface $translator,
         private \App\Jmap\State\StateManager $stateManager,
-        private InboxTabChanges $tabChanges,
+        private InboxTabChanges $tabChanges
     ) {
     }
 
@@ -147,7 +147,7 @@ final readonly class InboxCategoryManager
             // them from its messages like any other conversation.
             // And told: a JMAP client shows the reader's own tabs too, and
             // these conversations have just left one.
-            foreach ($this->threads->recomputeCategoriesForThreads($held) as $accountId => $moved) {
+            foreach ($this->messageThreadCategoryRepository->recomputeCategoriesForThreads($held) as $accountId => $moved) {
                 $this->stateManager->recordThreadsTouched($accountId, $moved);
             }
 

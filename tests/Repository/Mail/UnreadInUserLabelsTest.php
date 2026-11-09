@@ -6,6 +6,7 @@ namespace App\Tests\Repository\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -66,7 +67,7 @@ final class UnreadInUserLabelsTest extends KernelTestCase
     private function countUnreadInUserLabels(): int
     {
         return static::getContainer()
-            ->get(MessageThreadRepository::class)
+            ->get(MessageThreadBadgeRepository::class)
             ->countUnreadInUserLabels($this->user);
     }
 
@@ -83,7 +84,7 @@ final class UnreadInUserLabelsTest extends KernelTestCase
         // One conversation under each label, so each row says 1 — not 3, which
         // is how many unread MESSAGES are in it. Both rows open a list holding
         // exactly the one thread they counted.
-        $perLabel = static::getContainer()->get(MessageThreadRepository::class)
+        $perLabel = static::getContainer()->get(MessageThreadBadgeRepository::class)
             ->countUnreadPerUserLabel($this->user);
 
         self::assertSame(1, $perLabel[(int) $work->id]);

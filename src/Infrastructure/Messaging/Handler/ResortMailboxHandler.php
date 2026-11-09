@@ -8,7 +8,7 @@ use App\Infrastructure\Messaging\Message\ResortMailboxMessage;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Contact\ContactRepository;
 use App\Repository\Mail\Message\MessageAiRepository;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use App\Repository\User\User\UserRepository;
 use App\Jmap\State\StateManager;
 use App\Service\Mail\MessageCategorizer;
@@ -46,7 +46,7 @@ final readonly class ResortMailboxHandler
         private UserRepository          $users,
         private AccountRepository       $accounts,
         private MessageAiRepository $messageAiRepository,
-        private MessageThreadRepository $threads,
+        private MessageThreadCategoryRepository $messageThreadCategoryRepository,
         private ContactRepository       $contacts,
         private MessageCategorizer      $categorizer,
         private EntityManagerInterface  $em,
@@ -108,7 +108,7 @@ final readonly class ResortMailboxHandler
                 // moved them silently left it drawing the old ones.
                 $this->stateManager->recordThreadsTouched(
                     $accountId,
-                    $this->threads->recomputeCategoriesForAccount($fresh),
+                    $this->messageThreadCategoryRepository->recomputeCategoriesForAccount($fresh),
                 );
                 $this->em->flush();
             }

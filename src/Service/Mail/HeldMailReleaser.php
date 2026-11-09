@@ -7,7 +7,7 @@ namespace App\Service\Mail;
 use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -42,11 +42,11 @@ use Doctrine\ORM\EntityManagerInterface;
 final readonly class HeldMailReleaser
 {
     public function __construct(
-        private MessageThreadRepository $threads,
+        private MessageThreadCategoryRepository $messageThreadCategoryRepository,
         private MailChangeRecorder      $changes,
         private NotifyScopes            $notifyScopes,
         private SyncNotifier            $notifier,
-        private EntityManagerInterface  $em,
+        private EntityManagerInterface  $em
     ) {
     }
 
@@ -86,7 +86,7 @@ final readonly class HeldMailReleaser
             }
         }
 
-        $this->threads->recomputeCategoriesForThreads(array_keys($threadIds));
+        $this->messageThreadCategoryRepository->recomputeCategoriesForThreads(array_keys($threadIds));
 
         $this->announce($released);
 

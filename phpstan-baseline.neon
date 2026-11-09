@@ -524,7 +524,7 @@ parameters:
 			message: '#^Access to an undefined property Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:\$id\.$#'
 			identifier: property.notFound
 			count: 1
-			path: src/Repository/Mail/MessageThread/MessageThreadRepository.php
+			path: src/Repository/Mail/MessageThread/MessageThreadSearchRepository.php
 
 		-
 			message: '#^Method App\\Security\\ApiTokenAuthenticator\:\:onAuthenticationFailure\(\) never returns null so it can be removed from the return type\.$#'

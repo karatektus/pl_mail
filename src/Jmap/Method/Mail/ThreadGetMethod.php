@@ -10,7 +10,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadJmapRepository;
 
 /**
  * "Thread/get" (RFC 8621 §3.1). A Thread is just an id plus its Emails in
@@ -26,9 +26,9 @@ final class ThreadGetMethod implements JmapMethod
 
     public function __construct(
         private readonly AccountResolver $accountResolver,
-        private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageThreadJmapRepository $messageThreadJmapRepository,
         private readonly StateManager $stateManager,
-        private readonly \App\Jmap\Mapper\InboxTabMapper $tabs,
+        private readonly \App\Jmap\Mapper\InboxTabMapper $tabs
     ) {
     }
 
@@ -68,7 +68,7 @@ final class ThreadGetMethod implements JmapMethod
         // NewMailMarkers holds a per-request reading for exactly this reason.
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
-        $threads = $this->threadRepository->findByAccountAndIds(
+        $threads = $this->messageThreadJmapRepository->findByAccountAndIds(
             $accountId,
             array_map('intval', $requestedIds),
         );

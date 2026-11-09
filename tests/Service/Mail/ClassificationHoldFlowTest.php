@@ -24,25 +24,27 @@ use App\Infrastructure\Messaging\Message\ReleaseHeldMailMessage;
 use App\Jmap\State\StateManager;
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Repository\Mail\Contact\ContactRepository;
-use App\Repository\Mail\Message\MessageRepository;
-use App\Repository\Mail\Message\MessageAiRepository;
+use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiCallRecorder;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\LiveMailPriority;
-use App\Service\Ai\PromptLibrary;
-use App\Service\Mail\MessageCategorizer;
 use App\Service\Ai\OllamaClient;
 use App\Service\Ai\OpenAiClient;
+use App\Service\Ai\PromptLibrary;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\HeldMailReleaser;
+use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\PostIngestPipeline;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Log\NullLogger;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -326,17 +328,19 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         self::assertTrue($message->isCategoryHeld());
 
         $threads = self::getContainer()->get(MessageThreadRepository::class);
+
+        $messageThreadBadgeRepository = self::getContainer()->get(MessageThreadBadgeRepository::class);
         $now     = new DateTimeImmutable('+1 second');
         $inbox   = LabelRole::Inbox->value;
 
         // A held thread still comes back from the grouped count, under '':
         // its NULL category folded to a key no tab has. Nothing else may.
-        $tabs = $threads->countNewByCategoryForUnifiedInbox($this->user, $now);
+        $tabs = $messageThreadBadgeRepository->countNewByCategoryForUnifiedInbox($this->user, $now);
         unset($tabs['']);
 
         self::assertSame([], $tabs, 'held mail is in no tab');
-        self::assertSame(0, $threads->countNewPerRole($this->user, $now)[$inbox] ?? 0, 'so the Inbox dot waits too');
-        self::assertSame(0, $threads->countUnreadPerRole($this->user)[$inbox] ?? 0, 'and so does the Inbox badge');
+        self::assertSame(0, $messageThreadBadgeRepository->countNewPerRole($this->user, $now)[$inbox] ?? 0, 'so the Inbox dot waits too');
+        self::assertSame(0, $messageThreadBadgeRepository->countUnreadPerRole($this->user)[$inbox] ?? 0, 'and so does the Inbox badge');
 
         self::getContainer()->get(HeldMailReleaser::class)->release([$message]);
         $this->em->refresh($message->thread);
@@ -344,9 +348,9 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         // Keyed by the tab the release filed it in, whichever the rules chose.
         $tab = (string) $message->thread->category?->value;
 
-        self::assertSame(1, $threads->countNewByCategoryForUnifiedInbox($this->user, $now)[$tab] ?? 0);
-        self::assertSame(1, $threads->countNewPerRole($this->user, $now)[$inbox] ?? 0);
-        self::assertSame(1, $threads->countUnreadPerRole($this->user)[$inbox] ?? 0);
+        self::assertSame(1, $messageThreadBadgeRepository->countNewByCategoryForUnifiedInbox($this->user, $now)[$tab] ?? 0);
+        self::assertSame(1, $messageThreadBadgeRepository->countNewPerRole($this->user, $now)[$inbox] ?? 0);
+        self::assertSame(1, $messageThreadBadgeRepository->countUnreadPerRole($this->user)[$inbox] ?? 0);
     }
 
     public function testMailHeldTooLongIsFoundByTheSweep(): void
@@ -607,7 +611,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
 
         return new ClassifyMailHandler(
             $container->get(MessageRepository::class),
-            $container->get(MessageThreadRepository::class),
+            self::getContainer()->get(MessageThreadCategoryRepository::class),
             $container->get(ContactRepository::class),
             $container->get(MessageCategorizer::class),
             $assistant,

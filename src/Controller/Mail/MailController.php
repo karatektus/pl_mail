@@ -20,6 +20,7 @@ use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Ai\ThreadSummariser;
 use App\Service\Ai\ThreadSummaryStore;
@@ -57,6 +58,7 @@ final class MailController extends AbstractController
         private readonly MailboxRepository $mailboxRepository,
         private readonly MessageRepository $messageRepository,
         private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageThreadBadgeRepository $messageThreadBadgeRepository,
         private readonly LabelRepository $labelRepository,
         private readonly AccountRepository $accountRepository,
         private readonly ThreadListRenderer $listRenderer,
@@ -236,7 +238,7 @@ final class MailController extends AbstractController
             self::PER_PAGE * 2,
         );
 
-        $marked = $this->threadRepository->markListedForUser(
+        $marked = $this->messageThreadBadgeRepository->markListedForUser(
             $ids,
             $this->getUser(),
             new \DateTimeImmutable(),

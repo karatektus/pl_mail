@@ -12,7 +12,7 @@ use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use App\Service\Label\LabelResolver;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -39,7 +39,7 @@ final class ThreadUserCategoryResolutionTest extends KernelTestCase
 {
     private EntityManagerInterface $em;
     private Connection $connection;
-    private MessageThreadRepository $repository;
+    private MessageThreadCategoryRepository $messageThreadCategoryRepository;
     private Account $account;
 
     protected function setUp(): void
@@ -49,7 +49,7 @@ final class ThreadUserCategoryResolutionTest extends KernelTestCase
         $container        = self::getContainer();
         $this->em         = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
-        $this->repository = $container->get(MessageThreadRepository::class);
+        $this->messageThreadCategoryRepository = $container->get(MessageThreadCategoryRepository::class);
 
         $this->connection->beginTransaction();
 
@@ -228,7 +228,7 @@ final class ThreadUserCategoryResolutionTest extends KernelTestCase
         $theirMessage->account = $other;
         $this->em->flush();
 
-        $this->repository->recomputeCategoriesForAccount($this->account);
+        $this->messageThreadCategoryRepository->recomputeCategoriesForAccount($this->account);
 
         self::assertSame($shipping->id, $this->userCategoryOf($mine));
         self::assertNull($this->userCategoryOf($theirs), 'another account\'s conversation was resolved too');
@@ -240,7 +240,7 @@ final class ThreadUserCategoryResolutionTest extends KernelTestCase
     private function resolve(string $which, array $threads): void
     {
         if ('threads' === $which) {
-            $this->repository->recomputeCategoriesForThreads(array_map(
+            $this->messageThreadCategoryRepository->recomputeCategoriesForThreads(array_map(
                 static fn (MessageThread $thread): int => (int) $thread->id,
                 $threads,
             ));
@@ -248,7 +248,7 @@ final class ThreadUserCategoryResolutionTest extends KernelTestCase
             return;
         }
 
-        $this->repository->recomputeCategoriesForAccount($this->account);
+        $this->messageThreadCategoryRepository->recomputeCategoriesForAccount($this->account);
     }
 
     private function userCategoryOf(MessageThread $thread): ?int
