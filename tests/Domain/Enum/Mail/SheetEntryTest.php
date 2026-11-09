@@ -18,9 +18,11 @@ use Symfony\Component\Yaml\Yaml;
  * The case set is the claim to guard. Trash, restore, purge, snooze, move,
  * labels, spam and select are the sheet's own; read/unread, archive and star are
  * the swipe's, and a sheet entry must never share a value with one of them, or
- * the sheet would have two answers for one action. Trash is the case that matters
- * most: it lives here and never in SwipeAction (D5), so a swipe cannot commit a
- * delete with no tap in front of it.
+ * the sheet would have two answers for one action. Trash is the one exception
+ * (#527): it is in both, and both name the same route and follow the same
+ * rules, so the answer is still one. Purge is the
+ * case that matters most now: it lives here and never in SwipeAction, so a swipe
+ * cannot delete for good with no tap in front of it.
  *
  * Each rule is a match table with no default, so a case without a mapping is an
  * error at the match. The tests below name the mapping they expect for every case.
@@ -36,15 +38,23 @@ final class SheetEntryTest extends KernelTestCase
 
         self::assertSame(['trash', 'restore', 'purge', 'snooze', 'move', 'labels', 'spam', 'select'], $values);
 
-        foreach ($values as $value) {
+        foreach (array_diff($values, ['trash']) as $value) {
             self::assertNull(SwipeAction::tryFrom($value), sprintf('"%s" must not be a swipe action too', $value));
         }
     }
 
-    public function testTrashIsASheetEntryAndNeverASwipeAction(): void
+    /** Trash is in both sets, and both post it to the same route: one action, one answer. */
+    public function testTrashIsInBothSetsAndBothPostToTheSameRoute(): void
     {
-        self::assertSame(SheetEntry::Trash, SheetEntry::from('trash'), 'presence companion: trash is in the sheet');
-        self::assertNull(SwipeAction::tryFrom('trash'), 'absence: trash is not a swipe action');
+        self::assertSame(SheetEntry::Trash, SheetEntry::from('trash'), 'trash is in the sheet');
+        self::assertSame(SheetEntry::Trash->requireRoute(), SwipeAction::Trash->requireRoute());
+        self::assertSame(SheetEntry::Trash->needsNotADraft(), SwipeAction::Trash->needsNotADraft(), 'both are on drafts');
+    }
+
+    public function testPurgeIsASheetEntryAndNeverASwipeAction(): void
+    {
+        self::assertSame(SheetEntry::Purge, SheetEntry::from('purge'), 'presence companion: purge is in the sheet');
+        self::assertNull(SwipeAction::tryFrom('purge'), 'absence: purge is not a swipe action');
     }
 
     public function testRoutedEntriesNameARouteTheRouterKnows(): void

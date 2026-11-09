@@ -755,13 +755,15 @@ archived. What each direction does is set under **Settings → Mail → Swipe ac
 the row's width the action waits behind the row, and pressing it does the thing. Past two thirds, or a
 quick flick past the first third, it happens as you let go. Touching anything else closes an open row,
 and that touch does nothing more. Read / unread and archive are offered only on ordinary mail: never on
-a draft, and never in the archive, the bin or spam. Star is offered on every row, drafts included. Without touch, the row's checkbox (its avatar) and
+a draft, and never in the archive, the bin or spam. Delete is offered where the row's own delete button
+is: never in the archive, the bin or spam, but on a draft too. Star is offered on every row, drafts included. Without touch, the row's checkbox (its avatar) and
 the toolbar do the same work, **Archive** and **More** on a selection included.
 
 Each direction has its own setting under **Settings → Mail → Swipe actions**, a select for right and one
-for left. The choices are read / unread, archive, star, and nothing. Both directions may be set to the
-same choice. Trash is not one of them (see *Things that bite*). A star is a toggle on the row, so a
-second swipe takes it off again, as it does for read / unread; archive offers its **Undo**.
+for left. The choices are read / unread, archive, star, delete, and nothing. Both directions may be set
+to the same choice. Delete moves the conversation to the bin, never deletes it for good, and its
+panel is red whichever side it is on. A star is a toggle on the row, so a second swipe takes it off
+again, as it does for read / unread; archive and delete offer their **Undo**.
 
 On a phone, pressing and holding a row also opens its actions. Hold a row still for about half a second
 and an action sheet rises from the bottom of the screen with every action the row offers: select it,
@@ -1429,16 +1431,17 @@ a sync or an update redraws the list, and the change to that row arrives when yo
 is only pressed, or that a long press has opened into the action sheet, is redrawn as usual. A refresh
 that removes the row takes it off the list, and closes the sheet with it.
 
-**Trash is not a swipe.** A full drag has no tap in front of it, and a trashed row has no undo of its
-own, so deleting stays with the row's buttons and the bin, where a tap comes first. Trash is not one of
-the **Settings → Mail → Swipe actions** choices either: a value stored for it reads as that direction's
-default, so a restored backup cannot bring it back.
+**A swipe can move mail to the bin, but never delete it for good.** A full drag has no tap in front of
+it, so a swipe set to delete goes only as far as the bin, and the toast after it offers **Undo**, as
+the row's own delete button and the action sheet's do. Deleting for good stays with the bin's own
+buttons, where a tap comes first. Delete is never a direction's default: it is a choice under
+**Settings → Mail → Swipe actions**, and nobody gets it without picking it.
 
 **A long press opens the sheet, and a phone's rows are not dragged.** Below the tablet breakpoint a
 thread row is not a native drag: HTML5 drag never worked from a finger, and turning it off keeps iOS
 from lifting a row during the half-second hold. A mouse still drags a row as before. The sheet offers
-trash on a row in the inbox, where the row's own trash button does, and it has no Undo, as that button
-has none.
+delete on a row in the inbox, where the row's own delete button does, and it offers Undo, as that
+button does.
 
 **A signature image has to be small to travel with the mail.** A picture in a *signature* is stored
 inside it and sent as an inline part, up to 256 KB each and 768 KB per signature; see

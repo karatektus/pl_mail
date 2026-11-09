@@ -4580,8 +4580,8 @@ settings:
         heading: Swipe actions
         hint: >-
             A swipe acts once you drag far enough or flick quickly. Read and star
-            can be undone by swiping again, and archive offers Undo. Trash is not a
-            choice: a swipe that deleted mail would have nothing to undo it.
+            can be undone by swiping again, and archive and delete offer Undo.
+            Delete moves the conversation to the bin; it never deletes it for good.
         left:
             label: Swipe left
         option:
@@ -4589,6 +4589,7 @@ settings:
             none: Nothing
             read_unread: Read / unread
             star: Star
+            trash: Delete
         right:
             label: Swipe right
         subheading: What a swipe across a row does on a phone.
@@ -5220,6 +5221,7 @@ toast:
     send_failed_unavailable: 'That message could not be sent: %subject%. Your mail provider could not be reached.'
     sent: Message sent.
     spam_filtered: 'Moved to Spam. Future mail from %sender% goes there too.'
+    trashed: Conversation moved to the bin.
     undo: Undo
     # The Undo was pressed twice, or after newer actions pushed it out. Said
     # plainly: the button promised to put something back and has not.

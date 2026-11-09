@@ -21,7 +21,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  *
  * The question the row's hover strip already answers, asked once more for the
  * swipe: an action is offered on a row exactly where the strip draws its button
- * (D4 in the touch-gesture plan). The rule lives in SwipeAction::needsOrdinaryMail()
+ * (D4 in the touch-gesture plan). The rule lives in SwipeAction::needsOrdinaryPlacement() and needsNotADraft()
  * and the placement comes from MailPlacement, so this service decides nothing
  * the strip does not already decide; it only names the answer for the client.
  *
@@ -78,7 +78,8 @@ final class SwipeActionResolver
      * Every entry the long-press sheet offers on this row, keyed by the entry's
      * value. The sheet shares read/unread, archive and star with the swipe, so
      * those come from for(); everything else is a SheetEntry, offered by the
-     * rules in offersSheetEntry(), which mirror the row's strip.
+     * rules in offersSheetEntry(), which mirror the row's strip. Trash comes
+     * from SheetEntry::Trash, under the same rules SwipeAction::Trash follows.
      *
      * @return array<string, SheetAffordance>
      */
@@ -171,7 +172,11 @@ final class SwipeActionResolver
             return null;
         }
 
-        if ($action->needsOrdinaryMail() && (true === $draft || MailPlacement::NORMAL !== $this->placement->of($item))) {
+        if ($action->needsNotADraft() && true === $draft) {
+            return null;
+        }
+
+        if ($action->needsOrdinaryPlacement() && MailPlacement::NORMAL !== $this->placement->of($item)) {
             return null;
         }
 

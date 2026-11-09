@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:cfd1aa1e5ba9c5b38899355b297077b32ea42587 -->
+<!-- translated-from: features/mail.md sha1:f634fb3a9a9f81f99581efe0ea08fd42ec37551b -->
 
 # Mail
 
@@ -827,14 +827,17 @@ tut, stellst du unter **Einstellungen → E-Mail → Wischgesten** ein (siehe un
 sie aus. Über zwei Drittel, oder ein schneller Wisch über das erste Drittel, geschieht sie beim
 Loslassen. Ein Tippen irgendwo anders schließt eine offene Zeile, und dieses Tippen tut sonst nichts.
 Gelesen / ungelesen und Archivieren gibt es nur bei normalen Mails: nie bei einem Entwurf und nie im
-Archiv, im Papierkorb oder bei Spam. Stern gibt es bei jeder Zeile, auch bei Entwürfen. Ohne Berührung erledigen das
+Archiv, im Papierkorb oder bei Spam. Löschen gibt es dort, wo der Löschen-Knopf der Zeile ist: nie im
+Archiv, im Papierkorb oder bei Spam, aber auch bei einem Entwurf. Stern gibt es bei jeder Zeile, auch bei Entwürfen. Ohne Berührung erledigen das
 Kontrollkästchen der Zeile (ihr Avatar) und die Leiste dieselbe Arbeit, **Archivieren** und **Mehr**
 für eine Auswahl eingeschlossen.
 
 Jede Richtung hat ihre eigene Einstellung unter **Einstellungen → E-Mail → Wischgesten**, je eine
-Auswahl für rechts und für links. Zur Wahl stehen Gelesen / ungelesen, Archivieren, Stern und Nichts.
-Beide Richtungen dürfen auf dasselbe gesetzt sein. Löschen gehört nicht dazu (siehe *Fallstricke*). Ein Stern ist auf der Zeile ein Schalter: Ein zweiter Wisch nimmt ihn wieder weg, wie bei Gelesen /
-ungelesen; Archivieren bietet sein **Rückgängig** an.
+Auswahl für rechts und für links. Zur Wahl stehen Gelesen / ungelesen, Archivieren, Stern, Löschen und
+Nichts. Beide Richtungen dürfen auf dasselbe gesetzt sein. Löschen verschiebt die Unterhaltung in den
+Papierkorb, endgültig gelöscht wird dabei nichts, und seine Fläche ist auf beiden Seiten rot. Ein Stern
+ist auf der Zeile ein Schalter: Ein zweiter Wisch nimmt ihn wieder weg, wie bei Gelesen / ungelesen;
+Archivieren und Löschen bieten ihr **Rückgängig** an.
 
 Auf dem Telefon öffnet auch ein längeres Drücken einer Zeile ihre Aktionen. Halte eine Zeile etwa eine
 halbe Sekunde still, und von unten erscheint ein Aktionsblatt mit allem, was die Zeile anbietet:
@@ -1646,15 +1649,16 @@ Die Änderung an dieser Zeile kommt, wenn du sie schließt. Eine Zeile, die nur 
 ein langes Drücken in das Aktionsblatt geöffnet hat, wird wie gewohnt neu gezeichnet. Eine
 Aktualisierung, die die Zeile entfernt, nimmt sie von der Liste und schließt das Blatt mit ihr.
 
-**Löschen ist kein Wisch.** Ein voller Zug hat kein Tippen davor, und eine Zeile im Papierkorb hat
-kein eigenes Rückgängig. Das Löschen bleibt daher bei den Knöpfen der Zeile und im Papierkorb, wo
-zuerst getippt werden muss. Auch unter **Einstellungen → E-Mail → Wischgesten** ist Löschen keine
-Wahl: Ein dafür gespeicherter Wert gilt als Standard der Richtung, sodass auch ein wiederhergestelltes
-Backup es nicht zurückbringt.
+**Ein Wisch kann Mail in den Papierkorb legen, aber nie endgültig löschen.** Ein voller Zug hat kein
+Tippen davor, also geht ein Wisch, der auf Löschen gestellt ist, nur bis in den Papierkorb, und die
+Meldung danach bietet **Rückgängig** an, wie der Löschen-Knopf der Zeile und das Aktionsblatt auch.
+Endgültig löschen bleibt bei den Knöpfen im Papierkorb, wo zuerst getippt werden muss. Löschen ist
+nie der Standard einer Richtung: Unter **Einstellungen → E-Mail → Wischgesten** ist es eine Wahl, und
+niemand bekommt es, ohne es auszuwählen.
 
 **Ein längeres Drücken öffnet das Blatt, und Zeilen werden auf dem Telefon nicht gezogen.** Unterhalb des
 Tablet-Breakpunkts ist eine Unterhaltung kein natives Ziehen: Ziehen per HTML5 hat mit dem Finger nie
 funktioniert, und das Abschalten verhindert, dass iOS eine Zeile während der halben Sekunde anhebt. Mit der
 Maus lässt sich eine Zeile wie bisher ziehen. Das Blatt bietet Löschen an einer Zeile im Posteingang an, wie
-es der eigene Knopf der Zeile tut, und hat kein Rückgängig, so wie dieser Knopf.
+es der eigene Knopf der Zeile tut, und bietet Rückgängig an, so wie dieser Knopf.
 

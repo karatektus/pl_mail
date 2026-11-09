@@ -9,13 +9,14 @@ use LogicException;
 /**
  * What a swipe across a mail row does, once it commits.
  *
- * Deliberately no Trash case. A swipe commits on a full drag or a fling with no
- * tap in front of it, and trash has no Undo on a single row: a full swipe
- * would delete mail by accident, with nothing to take it back. Trash is
- * offered by the row's own strip and by the long-press sheet, where a tap
- * stands between the finger and the delete. Do not add it here to "complete"
- * the set; the case-set test in SwipeActionTest is the place that makes anyone
- * reopen that decision first.
+ * Trash is a case since #527. It was left out at first because a swipe commits
+ * on a full drag or a fling with no tap in front of it, and a trashed row had
+ * no Undo: a slipped thumb would have deleted mail with nothing to take it
+ * back. The trash route now answers with the same Undo toast archive does
+ * (ThreadStatusController::trash(), StatusUndoService), so a trash swipe is as
+ * recoverable as an archive swipe, and it is a choice, never a default. Purge
+ * is still not a swipe action and must not become one: it is the one route that
+ * destroys mail, and nothing can undo it.
  *
  * Each rule is an exhaustive match with no default, so a new case is an error
  * at the first match that reaches it, and the enum test names the mapping it
@@ -39,6 +40,12 @@ enum SwipeAction: string
     /** Star or unstar. The route toggles on the server, so the client only posts. */
     case Star = 'star';
 
+    /**
+     * Move the row to the bin. Its Undo toast is the server's, as archive's is.
+     * Never purge: a swipe must not end in the one action nothing undoes.
+     */
+    case Trash = 'trash';
+
     /** The direction does nothing. Inert on every row, and deliberately without a route. */
     case None = 'none';
 
@@ -52,6 +59,7 @@ enum SwipeAction: string
             self::ReadUnread => 'app_status_mark_read',
             self::Archive    => 'app_status_archive',
             self::Star       => 'app_status_star',
+            self::Trash      => 'app_status_trash',
             self::None       => null,
         };
     }
@@ -70,9 +78,9 @@ enum SwipeAction: string
     }
 
     /**
-     * Whether pressing it twice undoes it. Read and star do; archive does not,
-     * because it leaves the list and comes back only through its Undo or the
-     * Archive folder.
+     * Whether pressing it twice undoes it. Read and star do; archive and trash
+     * do not, because the row leaves the list and comes back only through its
+     * Undo, or from the Archive folder or the bin.
      */
     public function toggles(): bool
     {
@@ -80,6 +88,7 @@ enum SwipeAction: string
             self::ReadUnread => true,
             self::Star       => true,
             self::Archive    => false,
+            self::Trash      => false,
             self::None       => false,
         };
     }
@@ -95,6 +104,7 @@ enum SwipeAction: string
             self::ReadUnread => $unread ? 'thread_row.actions.mark_read' : 'thread_row.actions.mark_unread',
             self::Archive    => 'thread_row.actions.archive',
             self::Star       => $starred ? 'thread_row.unstar' : 'thread_row.star',
+            self::Trash      => 'thread_row.actions.delete',
             self::None       => null,
         };
     }
@@ -110,21 +120,39 @@ enum SwipeAction: string
             self::ReadUnread => $unread ? 'fa-solid fa-envelope-open' : 'fa-solid fa-envelope',
             self::Archive    => 'fa-solid fa-box-archive',
             self::Star       => $starred ? 'fa-solid fa-star' : 'fa-regular fa-star',
+            self::Trash      => 'fa-solid fa-trash',
             self::None       => null,
         };
     }
 
     /**
-     * Whether the row's strip offers it only on ordinary mail: not a draft, and
-     * not in the archive, the bin or spam. Read and archive are, and star is on
-     * every row. This is the strip's own rule, moved here so the strip, the
+     * Whether the row's strip offers it only on mail in its ordinary place: not
+     * in the archive, the bin or spam. Read, archive and trash are, and star is
+     * in every place. This is the strip's own rule, moved here so the strip, the
      * swipe and the sheet share one answer (see SwipeActionResolver).
      */
-    public function needsOrdinaryMail(): bool
+    public function needsOrdinaryPlacement(): bool
     {
         return match ($this) {
             self::ReadUnread => true,
             self::Archive    => true,
+            self::Trash      => true,
+            self::Star       => false,
+            self::None       => false,
+        };
+    }
+
+    /**
+     * Whether the strip withholds it from a draft. Read and archive are withheld;
+     * star and trash are on drafts too, as the strip's own buttons are, so a
+     * draft can be swiped into the bin like any other row (#527).
+     */
+    public function needsNotADraft(): bool
+    {
+        return match ($this) {
+            self::ReadUnread => true,
+            self::Archive    => true,
+            self::Trash      => false,
             self::Star       => false,
             self::None       => false,
         };
@@ -142,6 +170,7 @@ enum SwipeAction: string
             self::ReadUnread => ['read' => $unread],
             self::Archive    => [],
             self::Star       => [],
+            self::Trash      => [],
             self::None       => [],
         };
     }
@@ -149,9 +178,8 @@ enum SwipeAction: string
     /**
      * Whatever was stored for a direction, read charitably: the settings bag is
      * untyped and may hold a value a hand edit or a restored backup put there.
-     * Anything that is not one of the cases above, "trash" among them, reads as
-     * the direction's own default, so no stored string can bring a trash swipe
-     * back.
+     * Anything that is not one of the cases above, "purge" among them, reads as
+     * the direction's own default.
      */
     public static function fromSetting(mixed $value, self $default): self
     {

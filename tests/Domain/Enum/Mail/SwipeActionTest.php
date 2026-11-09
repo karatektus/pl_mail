@@ -13,11 +13,11 @@ use Symfony\Component\Yaml\Yaml;
 /**
  * What a row swipe can do, and what each action says about itself.
  *
- * The case set is the claim most worth guarding. Trash is not a swipe action
- * (D5 in the touch-gesture plan): there is no Undo for a deleted row, and a
- * full swipe with no tap in front of it is the one place a delete could happen
- * by accident. So the set below is exact, and adding a case fails here until
- * whoever adds it has reopened that decision.
+ * The case set is the claim most worth guarding. Trash joined it in #527, once
+ * the trash route answered with an Undo (D5 in the touch-gesture plan had kept
+ * it out for want of one). Purge must never join it: a full swipe with no tap in
+ * front of it must not end in the one action nothing undoes. So the set below is
+ * exact, and adding a case fails here until whoever adds it has reopened that.
  *
  * Each rule is a match table with no default, so a case without a mapping is an
  * error at the match, and the tests below name the mapping they expect so a
@@ -28,13 +28,20 @@ final class SwipeActionTest extends KernelTestCase
     /** The locales the shipped catalogue carries; a key missing from one is a gap a user would see. */
     private const array LOCALES = ['de', 'en', 'en_PI', 'fr', 'zh_CN'];
 
-    public function testTheCaseSetIsExactlyTheFourTheDesignAllows(): void
+    public function testTheCaseSetIsExactlyTheFiveTheDesignAllows(): void
     {
         $names = array_map(static fn (SwipeAction $case): string => $case->name, SwipeAction::cases());
 
         // Presence first: a set compared on its own could pass for an empty enum.
         self::assertContains('ReadUnread', $names);
-        self::assertSame(['ReadUnread', 'Archive', 'Star', 'None'], $names);
+        self::assertSame(['ReadUnread', 'Archive', 'Star', 'Trash', 'None'], $names);
+    }
+
+    /** Trash moves to the bin; it never names the route that deletes for good. */
+    public function testTrashIsTheBinAndNeverPurge(): void
+    {
+        self::assertSame('app_status_trash', SwipeAction::Trash->route(), 'presence: trash posts to the bin');
+        self::assertNull(SwipeAction::tryFrom('purge'), 'absence: purge is not a swipe action');
     }
 
     public function testReadUnreadArchiveAndStarHaveRoutesAndNoneHasNone(): void
@@ -42,6 +49,7 @@ final class SwipeActionTest extends KernelTestCase
         self::assertSame('app_status_mark_read', SwipeAction::ReadUnread->route());
         self::assertSame('app_status_archive', SwipeAction::Archive->route());
         self::assertSame('app_status_star', SwipeAction::Star->route());
+        self::assertSame('app_status_trash', SwipeAction::Trash->route());
         self::assertNull(SwipeAction::None->route());
     }
 
@@ -62,11 +70,12 @@ final class SwipeActionTest extends KernelTestCase
         }
     }
 
-    public function testMarkReadAndStarToggleWhileArchiveDoesNot(): void
+    public function testMarkReadAndStarToggleWhileArchiveAndTrashDoNot(): void
     {
         self::assertTrue(SwipeAction::ReadUnread->toggles(), 'mark read and mark unread are one toggle');
         self::assertTrue(SwipeAction::Star->toggles(), 'the star route toggles on the server');
         self::assertFalse(SwipeAction::Archive->toggles(), 'archive has an Undo, not a second swipe');
+        self::assertFalse(SwipeAction::Trash->toggles(), 'trash has an Undo, not a second swipe');
         self::assertFalse(SwipeAction::None->toggles());
     }
 
@@ -84,6 +93,7 @@ final class SwipeActionTest extends KernelTestCase
         yield 'an unstarred row offers to star it' => ['star', false, false, 'thread_row.star'];
         yield 'a starred row offers to unstar it' => ['star', false, true, 'thread_row.unstar'];
         yield 'archive is always archive' => ['archive', true, true, 'thread_row.actions.archive'];
+        yield 'trash reads as the strip\'s delete' => ['trash', false, false, 'thread_row.actions.delete'];
         yield 'none has no label' => ['none', true, true, null];
     }
 
@@ -124,6 +134,7 @@ final class SwipeActionTest extends KernelTestCase
         self::assertSame('fa-solid fa-envelope', SwipeAction::ReadUnread->icon(false, false));
         self::assertSame('fa-solid fa-star', SwipeAction::Star->icon(false, true));
         self::assertSame('fa-regular fa-star', SwipeAction::Star->icon(false, false));
+        self::assertSame('fa-solid fa-trash', SwipeAction::Trash->icon(false, false));
         self::assertNull(SwipeAction::None->icon(false, false));
     }
 
@@ -135,6 +146,22 @@ final class SwipeActionTest extends KernelTestCase
         self::assertSame(['read' => false], SwipeAction::ReadUnread->requestBody(false));
         self::assertSame([], SwipeAction::Archive->requestBody(true));
         self::assertSame([], SwipeAction::Star->requestBody(true));
+        self::assertSame([], SwipeAction::Trash->requestBody(true));
+    }
+
+    /**
+     * Trash is offered where the strip's delete button is: in ordinary
+     * placement only, as archive, but on drafts too, as star.
+     */
+    public function testTrashNeedsOrdinaryPlacementButIsOfferedOnDrafts(): void
+    {
+        self::assertTrue(SwipeAction::Trash->needsOrdinaryPlacement());
+        self::assertTrue(SwipeAction::Archive->needsOrdinaryPlacement());
+        self::assertFalse(SwipeAction::Star->needsOrdinaryPlacement());
+
+        self::assertFalse(SwipeAction::Trash->needsNotADraft(), 'a draft can be swiped into the bin');
+        self::assertTrue(SwipeAction::Archive->needsNotADraft());
+        self::assertFalse(SwipeAction::Star->needsNotADraft());
     }
 
     /**
@@ -165,6 +192,7 @@ final class SwipeActionTest extends KernelTestCase
         self::assertSame(SwipeAction::ReadUnread, SwipeAction::fromSetting('read_unread', SwipeAction::Archive));
         self::assertSame(SwipeAction::Archive, SwipeAction::fromSetting('archive', SwipeAction::ReadUnread));
         self::assertSame(SwipeAction::Star, SwipeAction::fromSetting('star', SwipeAction::Archive));
+        self::assertSame(SwipeAction::Trash, SwipeAction::fromSetting('trash', SwipeAction::Archive));
         self::assertSame(SwipeAction::None, SwipeAction::fromSetting('none', SwipeAction::ReadUnread));
     }
 
@@ -180,15 +208,15 @@ final class SwipeActionTest extends KernelTestCase
     }
 
     /**
-     * The stored "trash" is the value a hand-edited bag or an imported backup
-     * could carry. It must fall back, so no stored string brings a trash swipe
-     * back. The Star case is the presence companion in the same test.
+     * A stored "purge" is the value a hand-edited bag could carry. It must fall
+     * back, so no stored string makes a swipe delete for good. The Trash case is
+     * the presence companion in the same test.
      */
-    public function testTrashIsNotAnActionEvenWhenStored(): void
+    public function testPurgeIsNotAnActionEvenWhenStored(): void
     {
-        self::assertSame(SwipeAction::ReadUnread, SwipeAction::fromSetting('trash', SwipeAction::ReadUnread));
-        self::assertSame(SwipeAction::Archive, SwipeAction::fromSetting('trash', SwipeAction::Archive));
-        self::assertSame(SwipeAction::Star, SwipeAction::fromSetting('star', SwipeAction::Archive));
+        self::assertSame(SwipeAction::ReadUnread, SwipeAction::fromSetting('purge', SwipeAction::ReadUnread));
+        self::assertSame(SwipeAction::Archive, SwipeAction::fromSetting('purge', SwipeAction::Archive));
+        self::assertSame(SwipeAction::Trash, SwipeAction::fromSetting('trash', SwipeAction::Archive));
     }
 
     #[DataProvider('unreadableSettings')]

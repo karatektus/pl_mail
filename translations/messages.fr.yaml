@@ -4642,8 +4642,8 @@ settings:
         hint: >-
             Un balayage agit dès que vous allez assez loin ou faites un geste rapide.
             Lu / non lu et étoile se rétablissent en balayant à nouveau, et archiver
-            propose Annuler. La corbeille n’est pas proposée : un balayage qui
-            supprimerait du courrier n’aurait rien pour l’annuler.
+            et supprimer proposent Annuler. Supprimer place la conversation dans la
+            corbeille ; rien n’est supprimé définitivement.
         left:
             label: Balayer vers la gauche
         option:
@@ -4651,6 +4651,7 @@ settings:
             none: Aucune action
             read_unread: Lu / non lu
             star: Étoile
+            trash: Supprimer
         right:
             label: Balayer vers la droite
         subheading: Ce que fait un balayage sur une ligne, sur téléphone.
@@ -5257,6 +5258,7 @@ toast:
     send_failed_unavailable: 'Ce message n’a pas pu être envoyé : %subject%. Votre fournisseur était injoignable.'
     sent: Message envoyé.
     spam_filtered: 'Déplacé vers Spam. Le courrier futur de %sender% y ira aussi.'
+    trashed: Conversation placée dans la corbeille.
     undo: Annuler
     # The Undo was pressed twice, or after newer actions pushed it out. Said
     # plainly: the button promised to put something back and has not.

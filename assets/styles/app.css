@@ -6094,6 +6094,13 @@ li[data-swipe-side="left"] > [data-swipe-panel="left"] {
     background: rgb(var(--rgb-info));
 }
 
+/* Trash is red whichever side it is on, so a row about to go to the bin does not
+   look like one about to be archived. The sheet's danger, not the page's: it is
+   the deep red every theme keeps at 4.5:1 against white, and the label is white. */
+[data-swipe-panel] [data-swipe-commit][data-swipe-action="trash"] {
+    background: rgb(var(--rgb-sheet-danger));
+}
+
 /* Eased back into place by a release, and held still under a finger. */
 [data-swipe-content] {
     transition: transform 180ms ease-out;

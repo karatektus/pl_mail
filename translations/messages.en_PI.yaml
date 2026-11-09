@@ -4392,8 +4392,9 @@ settings:
         heading: "Swipe deeds"
         hint: >-
             A swipe acts once ye drag far enough or flick quick. Read an' star can
-            be unswiped by swipin' again, an' archive offers Undo. Trash be no
-            choice: a swipe that sank mail would have nothing to haul it back.
+            be unswiped by swipin' again, an' archive an' feedin' to the fishes
+            offer Undo. The fishes only get it in Davy Jones' locker; nothin' be
+            sunk for good.
         left:
             label: "Swipe left"
         option:
@@ -4401,6 +4402,7 @@ settings:
             none: "Nowt"
             read_unread: "Read / unread"
             star: "Star"
+            trash: "Feed to the fishes"
         right:
             label: "Swipe right"
         subheading: "What a swipe across a bottle does on yer phone."
@@ -5001,6 +5003,7 @@ toast:
     send_failed_unavailable: 'That message could not be hoisted: %subject%. Yer mail port could not be reached.'
     sent: Message away!
     spam_filtered: 'Pumped into th'' bilge. Whatever %sender% sends next goes th'' same way.'
+    trashed: Fed to the fishes.
     undo: Belay that
     undo_expired: Too late to belay that, matey.
     undone: Belayed.
