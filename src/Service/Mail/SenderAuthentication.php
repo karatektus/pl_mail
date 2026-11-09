@@ -37,7 +37,11 @@ use App\Entity\Mail\Message;
  *
  *   IMAP       A name on the same registrable domain as the account's IMAP
  *              host: `mx.example.org` for an account on `imap.example.org` is
- *              plainly the same operator. Anything else is not believed. The
+ *              plainly the same operator. Anything else is not believed, apart
+ *              from the few providers in KNOWN_RECEIVERS whose receiving
+ *              servers live on another domain than their IMAP host — iCloud
+ *              reads mail on `imap.mail.me.com` and signs it `*.icloud.com`.
+ *              The
  *              issue that prompted this (#34) weighed learning the name from
  *              the mailbox, or asking for it in a setting, and both were
  *              turned down: a learned name is a guess a patient sender can
@@ -51,8 +55,22 @@ use App\Entity\Mail\Message;
  * pass for a domain that matches the From domain. An unaligned pass proves
  * only that SOME domain sent the mail, which every spammer's own domain does.
  *
- * Every believed line has to pass. Two lines under the believed name that
- * disagree mean one of them is not the server's, and there is no telling which.
+ * The believed lines are judged together, as one set of results. Gmail and
+ * Microsoft write everything into one line; iCloud writes a line per method
+ * — BIMI, ARC, DMARC, DKIM and SPF each under their own name (#462). Asking
+ * each of those lines to pass on its own failed every iCloud message, the BIMI
+ * line first, and even after that would have demanded an aligned SPF pass on
+ * top of DMARC, which mail sent through a mailing service rarely has. Pooled,
+ * the same message gets the same verdict whichever way its server laid it out.
+ *
+ * What pooling must not lose is the forgery signal of two lines that
+ * disagree: one of them is not the server's, and there is no telling which. A
+ * message has one DMARC result and one SPF result, so two different ones
+ * among the believed lines are a Fail. DKIM is left out of that rule: a
+ * message can carry several signatures and one may be broken.
+ *
+ * Believed lines with no DMARC, DKIM or SPF result at all — only BIMI or ARC,
+ * or "none" — say nothing about the sender, and that is Unknown.
  *
  * WHAT THIS IS FOR
  * ────────────────
@@ -81,7 +99,16 @@ final readonly class SenderAuthentication
     private const array KNOWN_RECEIVERS = [
         'gmail.com'      => 'google.com',
         'googlemail.com' => 'google.com',
+        // iCloud (#462): `imap.mail.me.com` for every iCloud, me.com and mac.com
+        // address, received and checked under `*.icloud.com` names.
+        'me.com'         => 'icloud.com',
     ];
+
+    /** The methods that report on the sender; BIMI and ARC do not. */
+    private const array SENDER_METHODS = ['dmarc', 'dkim', 'spf'];
+
+    /** Methods with one result per message: two different ones is a forgery. */
+    private const array SINGLE_RESULT_METHODS = ['dmarc', 'spf'];
 
     public function verdict(Message $message): SenderVerdict
     {
@@ -97,13 +124,17 @@ final readonly class SenderAuthentication
             return SenderVerdict::Unknown;
         }
 
-        foreach ($believed as $line) {
-            if (false === $this->passes($line, $fromDomain)) {
-                return SenderVerdict::Fail;
-            }
+        $results = $this->senderResults($believed);
+
+        if ([] === $results) {
+            return SenderVerdict::Unknown;
         }
 
-        return SenderVerdict::Pass;
+        if (true === $this->disagree($results)) {
+            return SenderVerdict::Fail;
+        }
+
+        return true === $this->passes($results, $fromDomain) ? SenderVerdict::Pass : SenderVerdict::Fail;
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -182,13 +213,72 @@ final readonly class SenderAuthentication
         return $domain === $host || $domain === (self::KNOWN_RECEIVERS[$host] ?? null);
     }
 
-    private function passes(string $line, string $fromDomain): bool
+    /**
+     * Every DMARC, DKIM and SPF result in the believed lines, lower-cased.
+     * Each result is "method=result" followed by its properties, and results
+     * are separated by semicolons — within a line and, here, across lines.
+     *
+     * @param list<string> $lines
+     *
+     * @return list<string>
+     */
+    private function senderResults(array $lines): array
     {
-        // Each result is "method=result" followed by its properties, and the
-        // results are separated by semicolons.
-        foreach (explode(';', strtolower($line)) as $result) {
-            $result = trim($result);
+        $results = [];
 
+        foreach ($lines as $line) {
+            foreach (explode(';', strtolower($line)) as $result) {
+                $result = trim($result);
+
+                if (true === in_array($this->methodOf($result), self::SENDER_METHODS, true)) {
+                    $results[] = $result;
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Two different DMARC results, or two different SPF results: one of the
+     * lines they came from is not the receiving server's.
+     *
+     * @param list<string> $results
+     */
+    private function disagree(array $results): bool
+    {
+        $seen = [];
+
+        foreach ($results as $result) {
+            $method = (string) $this->methodOf($result);
+
+            if (false === in_array($method, self::SINGLE_RESULT_METHODS, true)
+                || 1 !== preg_match('/^[a-z]+\s*=\s*([a-z]+)/', $result, $match)) {
+                continue;
+            }
+
+            if (isset($seen[$method]) && $seen[$method] !== $match[1]) {
+                return true;
+            }
+
+            $seen[$method] = $match[1];
+        }
+
+        return false;
+    }
+
+    /** "dkim" for "dkim=pass header.d=…", null for anything not a result. */
+    private function methodOf(string $result): ?string
+    {
+        return 1 === preg_match('/^([a-z][a-z0-9-]*)\s*=/', $result, $match) ? $match[1] : null;
+    }
+
+    /**
+     * @param list<string> $results
+     */
+    private function passes(array $results, string $fromDomain): bool
+    {
+        foreach ($results as $result) {
             if (1 === preg_match('/^dmarc\s*=\s*pass\b/', $result)) {
                 return true;
             }
