@@ -3978,7 +3978,7 @@ class MessageRepository extends ServiceEntityRepository
         $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
             <<<'SQL'
             SELECT a.email AS account,
-                   a.auth_type, a.oauth_provider, a.push_enabled,
+                   a.auth_type, a.oauth_provider, a.incoming_protocol, a.push_enabled,
                    COUNT(l.lag) FILTER (WHERE l.inbox) AS messages,
                    percentile_cont(0.5)  WITHIN GROUP (ORDER BY l.lag) FILTER (WHERE l.inbox) AS median,
                    percentile_cont(0.95) WITHIN GROUP (ORDER BY l.lag) FILTER (WHERE l.inbox) AS p95,
@@ -3996,7 +3996,7 @@ class MessageRepository extends ServiceEntityRepository
                      AND LOWER(COALESCE(m.from_address, '')) <> LOWER(COALESCE(a.email, ''))
               ) l ON true
              WHERE a.is_active = true
-             GROUP BY a.id, a.email, a.auth_type, a.oauth_provider, a.push_enabled
+             GROUP BY a.id, a.email, a.auth_type, a.oauth_provider, a.incoming_protocol, a.push_enabled
              ORDER BY a.email
             SQL,
             ['since' => $since],
@@ -4005,9 +4005,11 @@ class MessageRepository extends ServiceEntityRepository
 
         return array_map(static fn (array $row): array => [
             'account'  => (string) $row['account'],
+            // A password account is named by its protocol, so a POP3 or JMAP
+            // account is not listed as IMAP (#528).
             'provider' => 'oauth2' === $row['auth_type'] && null !== $row['oauth_provider']
                 ? (string) $row['oauth_provider']
-                : 'imap',
+                : (string) $row['incoming_protocol'],
             'push'     => true === (bool) $row['push_enabled'],
             'messages' => (int) $row['messages'],
             'median'   => null === $row['median'] ? null : (float) $row['median'],

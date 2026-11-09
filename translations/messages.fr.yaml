@@ -869,7 +869,9 @@ admin:
             provider:
                 google: 'Gmail'
                 imap: 'IMAP'
+                jmap: 'JMAP'
                 microsoft: 'Outlook'
+                pop3: 'POP3'
             push: 'push activé'
             slowest:
                 by:
@@ -3535,7 +3537,6 @@ settings:
             every: 'Toutes les %minutes% min'
             heading: 'Relever le courrier toutes les … min'
         type:
-            imap: IMAP
             oauth: '%provider% (OAuth)'
     aliases:
         add: 'Ajouter'

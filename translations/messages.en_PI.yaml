@@ -799,7 +799,9 @@ admin:
             provider:
                 google: 'Gmail'
                 imap: 'IMAP'
+                jmap: 'JMAP'
                 microsoft: 'Outlook'
+                pop3: 'POP3'
             push: 'cannon on'
             slowest:
                 by:
@@ -3361,7 +3363,6 @@ settings:
             every: 'Every %minutes% min'
             heading: 'Check for bottles every … min'
         type:
-            imap: IMAP
             oauth: '%provider% (OAuth)'
     aliases:
         add: 'Add'
