@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus";
 import { renderSVG } from "uqr";
 import { takeTransferKey } from "../../crypto/pairing.js";

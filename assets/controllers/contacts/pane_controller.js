@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus";
 import * as Turbo from "@hotwired/turbo";
 import { registerPane } from "../../panes.js";
