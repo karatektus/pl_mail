@@ -14,8 +14,8 @@ use App\Entity\User\User;
 use App\Jmap\State\JmapObjectType;
 use DateTimeImmutable;
 use App\Jmap\State\StateManager;
-use App\Repository\Label\LabelBindingRepository;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Label\Label\LabelRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

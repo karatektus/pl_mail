@@ -9,7 +9,7 @@ use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\MessageThread;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Label\Label\LabelRepository;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;

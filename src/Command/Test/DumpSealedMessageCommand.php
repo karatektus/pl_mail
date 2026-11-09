@@ -6,8 +6,8 @@ namespace App\Command\Test;
 
 use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

@@ -6,10 +6,10 @@ namespace App\Service\Mail;
 
 use App\Domain\Enum\Account\IncomingProtocol;
 use App\Entity\Mail\Account;
-use App\Repository\Label\LabelBindingRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\Pop3UidlRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Pop3Uidl\Pop3UidlRepository;
 use Psr\Log\LoggerInterface;
 
 /**

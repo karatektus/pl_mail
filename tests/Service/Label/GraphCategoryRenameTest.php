@@ -171,9 +171,9 @@ final class GraphCategoryRenameTest extends KernelTestCase
         });
 
         return new ApplyLabelStructureHandler(
-            $container->get('App\Repository\Mail\AccountRepository'),
-            $container->get('App\Repository\Label\LabelRepository'),
-            $container->get('App\Repository\Mail\MessageRepository'),
+            $container->get('App\Repository\Mail\Account\AccountRepository'),
+            $container->get('App\Repository\Label\Label\LabelRepository'),
+            $container->get('App\Repository\Mail\Message\MessageRepository'),
             $container->get('messenger.default_bus'),
             $container->get('App\Service\Graph\GraphCategoryColorMapper'),
             $container->get('App\Service\Gmail\GmailLabelColorMapper'),

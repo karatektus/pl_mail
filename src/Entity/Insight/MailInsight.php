@@ -9,7 +9,7 @@ use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Insight\MailInsightRepository;
+use App\Repository\Insight\MailInsight\MailInsightRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;

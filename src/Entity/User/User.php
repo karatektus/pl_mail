@@ -23,7 +23,7 @@ use App\Entity\Embeddable\CategorySorting;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;

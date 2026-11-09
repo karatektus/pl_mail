@@ -9,7 +9,7 @@ use App\Domain\Enum\Onboarding\OnboardingStep;
 use App\Entity\Integration\MailProviderConfig;
 use App\Entity\User\User;
 use App\Form\Integration\MailProviderConfigType;
-use App\Repository\Integration\MailProviderConfigRepository;
+use App\Repository\Integration\MailProviderConfig\MailProviderConfigRepository;
 use App\Service\Integration\ProviderConfigWriter;
 use App\Service\Onboarding\OnboardingStepHandlerInterface;
 use Symfony\Component\Form\FormFactoryInterface;

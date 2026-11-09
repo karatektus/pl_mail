@@ -15,7 +15,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Ai\EmbeddingStore;
 use App\Service\Search\FreeTextCompiler;
 use App\Service\Search\SearchQueryParser;

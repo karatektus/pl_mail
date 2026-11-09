@@ -15,7 +15,7 @@ use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
 use App\Entity\User\User;
 use App\Infrastructure\Event\Listener\ContactSyncTracker;
-use App\Repository\Contacts\ContactRepository;
+use App\Repository\Contacts\Contact\ContactRepository;
 use App\Service\AddressBook\AddressBookDriverRegistry;
 use App\Service\AddressBook\AddressBookLock;
 use App\Service\AddressBook\AddressBookSync;

@@ -13,8 +13,8 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\Capability;
 use App\Jmap\Protocol\JmapContext;
 use App\Service\Calendar\Change\CalendarChangeReader;
-use App\Repository\Calendar\CalendarEventOccurrenceRepository;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEventOccurrence\CalendarEventOccurrenceRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 
 /**
  * "CalendarEvent/get".

@@ -11,7 +11,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Imap\MessageThreader;
 use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
 use Doctrine\ORM\EntityManagerInterface;

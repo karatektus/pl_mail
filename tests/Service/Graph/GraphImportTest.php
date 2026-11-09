@@ -397,7 +397,7 @@ final class GraphImportTest extends KernelTestCase
             new GraphApiClient($http, $container->get('App\Service\OAuth\OAuthTokenManager')),
             $container->get('App\Service\Graph\GraphFolderResolver'),
             $container->get('App\Service\Graph\GraphLabelPolicy'),
-            $container->get('App\Repository\Mail\MessageRepository'),
+            $container->get('App\Repository\Mail\Message\MessageRepository'),
             $this->em,
             $container->get('App\Jmap\State\StateManager'),
             $bus,

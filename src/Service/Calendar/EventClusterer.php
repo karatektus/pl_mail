@@ -9,7 +9,7 @@ use App\Domain\Enum\Calendar\EventStatus;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\CalendarEventOccurrence;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use DateTimeImmutable;
 
 /**

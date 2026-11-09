@@ -9,8 +9,8 @@ use App\Domain\DTO\Calendar\DayGrid;
 use App\Domain\DTO\Calendar\OccurrenceCluster;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventOccurrenceRepository;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarEventOccurrence\CalendarEventOccurrenceRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 

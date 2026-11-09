@@ -9,7 +9,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Monitoring\CategoryReport;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\Contact\ContactRepository;
 use App\Service\Mail\CategoryReportRecorder;
 use App\Service\Mail\MessageCategorizer;
 use PHPUnit\Framework\TestCase;

@@ -7,7 +7,7 @@ namespace App\Service\Imap;
 use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Mailbox;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Label\KeywordLabelFollower;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;

@@ -6,7 +6,7 @@ namespace App\Tests\Repository\Mail;
 
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Service\Imap\VanishedMessageReconciler;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

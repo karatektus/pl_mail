@@ -42,7 +42,7 @@ use App\Domain\Enum\Mail\UnifiedInboxIcon;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Mail\AccountCreator;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;

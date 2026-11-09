@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Mail\MessageEraser;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;

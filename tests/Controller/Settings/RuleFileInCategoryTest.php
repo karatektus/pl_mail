@@ -6,7 +6,7 @@ namespace App\Tests\Controller\Settings;
 
 use App\Entity\Mail\InboxCategory;
 use App\Entity\User\User;
-use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
 use App\Service\Rule\RuleActionExecutor;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

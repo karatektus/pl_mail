@@ -6,7 +6,7 @@ namespace App\Command\Backfill;
 
 use App\Domain\Interface\UpgradeTaskInterface;
 use App\Infrastructure\Event\Listener\ArrivalStamper;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;

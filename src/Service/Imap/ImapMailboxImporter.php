@@ -7,8 +7,8 @@ namespace App\Service\Imap;
 use App\Entity\Mail\Mailbox;
 use App\Infrastructure\ImapClient\Exception\ImapCommandException;
 use App\Infrastructure\ImapClient\ImapSession;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 

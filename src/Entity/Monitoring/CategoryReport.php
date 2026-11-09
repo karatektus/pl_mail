@@ -6,7 +6,7 @@ namespace App\Entity\Monitoring;
 
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\User\User;
-use App\Repository\Monitoring\CategoryReportRepository;
+use App\Repository\Monitoring\CategoryReport\CategoryReportRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

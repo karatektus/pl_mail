@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Infrastructure\Event\Subscriber;
 
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**

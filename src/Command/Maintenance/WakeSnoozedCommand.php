@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Maintenance;
 
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Mail\ThreadSnoozeService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;

@@ -5,7 +5,7 @@ namespace App\Form;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Contact;
 use App\Entity\User\User;
-use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\Contact\ContactRepository;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\AbstractType;

@@ -12,7 +12,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Crypto\SealedDrafts;
 use App\Service\Label\LabelChangePropagator;

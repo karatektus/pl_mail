@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Backfill;
 
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Calendar\EventReconciler;
 use App\Service\Calendar\Extraction\EventExtractionRunner;
 use DateTimeImmutable;

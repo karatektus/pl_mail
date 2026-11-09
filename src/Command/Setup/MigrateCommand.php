@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Setup;
 
 use App\Infrastructure\Setup\DatabaseCacheTables;
-use App\Repository\Monitoring\PostgresStatusRepository;
+use App\Repository\Monitoring\PostgresStatus\PostgresStatusRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Symfony\Component\Console\Attribute\AsCommand;

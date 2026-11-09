@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Infrastructure\Messaging\Message\ResortMailboxMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\ContactRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Contact\ContactRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\User\User\UserRepository;
 use App\Jmap\State\StateManager;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Monitoring\ProcessHeartbeatService;

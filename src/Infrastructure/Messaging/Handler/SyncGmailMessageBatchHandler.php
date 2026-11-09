@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
-use App\Repository\Mail\GmailSkippedMessageRepository;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
 use App\Entity\Mail\GmailSkippedMessage;
 use App\Domain\Enum\Mail\GmailSkipReason;
 use App\Domain\DTO\Mail\IngestedMessage;
@@ -16,8 +16,8 @@ use App\Entity\Mail\Message;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Gmail\GmailAddressFilter;
 use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Gmail\GmailMessageBuilder;

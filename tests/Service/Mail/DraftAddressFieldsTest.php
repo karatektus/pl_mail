@@ -7,7 +7,7 @@ namespace App\Tests\Service\Mail;
 use App\Entity\Mail\Contact;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\Contact\ContactRepository;
 use App\Service\Mail\DraftAddressFields;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\FormInterface;

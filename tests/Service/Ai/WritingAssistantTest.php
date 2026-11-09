@@ -8,7 +8,7 @@ use App\Service\Ai\AiCallRecorder;
 use App\Domain\Enum\Ai\PromptSlot;
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Ai\AiSettings;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Entity\Embeddable\AiPreferences;
 use App\Entity\User\User;
 use App\Service\Ai\AiAssistant;

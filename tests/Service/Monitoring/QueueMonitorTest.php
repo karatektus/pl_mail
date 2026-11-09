@@ -222,7 +222,7 @@ final class QueueMonitorTest extends KernelTestCase
      */
     public function testOnlyWorkThatIsDueOrFreshlyInHandMakesAQueueActive(): void
     {
-        $queues = self::getContainer()->get(\App\Repository\Monitoring\MessengerQueueRepository::class);
+        $queues = self::getContainer()->get(\App\Repository\Monitoring\MessengerQueue\MessengerQueueRepository::class);
         $utc    = new \DateTimeZone('UTC');
 
         $insert = function (string $available, ?string $delivered = null) use ($utc): void {

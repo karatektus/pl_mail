@@ -14,7 +14,7 @@ use App\Jmap\Blob\BlobId;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
-use App\Repository\Contacts\ContactRepository;
+use App\Repository\Contacts\Contact\ContactRepository;
 use App\Service\Contacts\ContactFields;
 use App\Service\Contacts\ContactManager;
 use App\Service\Contacts\ContactPhotoStore;

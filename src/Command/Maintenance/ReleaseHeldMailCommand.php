@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Command\Maintenance;
 
-use App\Repository\Ai\AiSettingsRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Mail\HeldMailReleaser;
 use DateTimeImmutable;
 use Symfony\Component\Console\Attribute\AsCommand;

@@ -6,7 +6,7 @@ namespace App\Service\Mail;
 
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Calendar\CalendarProvisioner;
 use App\Twig\SenderAvatarExtension;
 use DateTimeImmutable;

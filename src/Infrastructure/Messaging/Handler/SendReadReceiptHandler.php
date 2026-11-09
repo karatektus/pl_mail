@@ -6,7 +6,7 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Mail\ReadReceiptMode;
 use App\Infrastructure\Messaging\Message\SendReadReceiptMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Mail\ReadReceiptPolicy;
 use App\Service\Mail\ReadReceiptSender;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

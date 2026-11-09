@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Service\Maintenance;
 
 use App\Infrastructure\Setup\GeneratedSecretsFile;
-use App\Repository\Calendar\CalendarRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Maintenance\DataResetRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Maintenance\DataReset\DataResetRepository;
 use App\Service\Monitoring\WorkerRestartSignal;
 use App\Service\Push\PushTeardown;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;

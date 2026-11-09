@@ -10,7 +10,7 @@ use App\Domain\Enum\Account\Pop3DeleteMode;
 use App\Domain\Model\AccountModel;
 use App\Entity\User\User;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;

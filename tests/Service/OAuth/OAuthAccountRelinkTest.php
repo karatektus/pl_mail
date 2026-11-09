@@ -15,7 +15,7 @@ use App\Infrastructure\Messaging\Message\SubscribeAccountContactsMessage;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\OAuth\OAuthAccountLinker;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;

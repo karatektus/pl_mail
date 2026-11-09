@@ -7,7 +7,7 @@ use App\Domain\Exception\SendOutcomeUnknownException;
 use App\Domain\Exception\SendRefusedException;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Imap\MessageSendService;
 use App\Service\Mail\SendOutcomeNotifier;
 use Doctrine\ORM\EntityManagerInterface;

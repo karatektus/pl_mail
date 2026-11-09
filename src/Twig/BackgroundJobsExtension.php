@@ -7,7 +7,7 @@ namespace App\Twig;
 use App\Entity\Job\BackgroundJob;
 use App\Domain\DTO\Mail\ImportLine;
 use App\Entity\User\User;
-use App\Repository\Job\BackgroundJobRepository;
+use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
 use App\Service\Mail\ImportProgress;
 use Symfony\Bundle\SecurityBundle\Security;
 use Twig\Extension\AbstractExtension;

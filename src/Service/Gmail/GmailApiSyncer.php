@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
-use App\Repository\Mail\GmailSkippedMessageRepository;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
 use App\Domain\Exception\GmailApiException;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\MessageEraser;
 use App\Service\Mail\SyncOrigin;

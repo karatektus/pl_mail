@@ -11,8 +11,8 @@ use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\InboxCategoryRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 

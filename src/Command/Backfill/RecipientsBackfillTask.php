@@ -6,7 +6,7 @@ namespace App\Command\Backfill;
 
 use App\Domain\Helper\RecipientHeaderHelper;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 

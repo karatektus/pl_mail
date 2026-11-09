@@ -6,9 +6,9 @@ namespace App\Tests\Support\Mail;
 
 use App\Jmap\State\ChangeLogRepository;
 use App\Jmap\State\StateManager;
-use App\Repository\Insight\MailInsightRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Insight\MailInsight\MailInsightRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Imap\ThreadMerger;
 use App\Service\Label\ThreadLabelSynchronizer;

@@ -8,8 +8,8 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Message;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
 

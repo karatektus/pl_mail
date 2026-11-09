@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Mapper;
 
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 
 /**
  * Loads every Mailbox count for one account in a single grouped query per

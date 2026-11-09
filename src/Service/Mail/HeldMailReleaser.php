@@ -7,7 +7,7 @@ namespace App\Service\Mail;
 use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 

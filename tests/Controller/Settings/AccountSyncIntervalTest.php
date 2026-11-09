@@ -8,7 +8,7 @@ use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;

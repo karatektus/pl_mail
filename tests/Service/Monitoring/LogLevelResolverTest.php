@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Monitoring;
 
 use App\Entity\Monitoring\LogSettings;
-use App\Repository\Monitoring\LogSettingsRepository;
+use App\Repository\Monitoring\LogSettings\LogSettingsRepository;
 use App\Service\Monitoring\LogLevelResolver;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

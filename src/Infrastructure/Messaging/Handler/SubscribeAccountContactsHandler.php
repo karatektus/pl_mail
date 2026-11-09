@@ -6,8 +6,8 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Infrastructure\Messaging\Message\SubscribeAccountContactsMessage;
-use App\Repository\AddressBook\AddressBookRepository;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\AddressBook\AddressBook\AddressBookRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\AddressBook\AddressBookSubscriber;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

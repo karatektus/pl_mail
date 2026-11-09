@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Jmap\Mapper;
 
 use App\Jmap\Mapper\MailboxCountsProvider;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use PHPUnit\Framework\TestCase;
 
 /**

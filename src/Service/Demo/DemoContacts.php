@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Demo;
 
 use App\Entity\User\User;
-use App\Repository\Contacts\ContactRepository;
+use App\Repository\Contacts\Contact\ContactRepository;
 use App\Service\Contacts\ContactManager;
 use Doctrine\ORM\EntityManagerInterface;
 

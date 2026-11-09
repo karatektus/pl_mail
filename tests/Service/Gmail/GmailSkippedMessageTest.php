@@ -12,7 +12,7 @@ use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\SyncGmailMessageBatchHandler;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
-use App\Repository\Mail\GmailSkippedMessageRepository;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\ImportProgress;
 use App\Service\Mail\SyncNotifier;
@@ -450,8 +450,8 @@ final class GmailSkippedMessageTest extends KernelTestCase
         $pacer     = new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock());
 
         $handler = new SyncGmailMessageBatchHandler(
-            $container->get('App\Repository\Mail\MessageRepository'),
-            $container->get('App\Repository\Mail\AccountRepository'),
+            $container->get('App\Repository\Mail\Message\MessageRepository'),
+            $container->get('App\Repository\Mail\Account\AccountRepository'),
             new GmailApiClient($httpClient, $container->get('App\Service\OAuth\OAuthTokenManager'), $pacer),
             $container->get('App\Service\Gmail\GmailMessageBuilder'),
             $container->get('App\Service\Gmail\GmailAddressFilter'),

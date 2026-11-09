@@ -13,8 +13,8 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Label\LabelBindingRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Mail\MoveToService;
 use App\Service\Mail\ThreadSnoozeService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -82,7 +82,7 @@ final class ThreadSetMethod implements JmapMethod
         private readonly LabelBindingRepository $bindingRepository,
         private readonly \App\Service\Mail\InboxTabs $inboxTabs,
         private readonly \App\Service\Mail\ThreadStatusUpdater $status,
-        private readonly \App\Repository\Mail\InboxCategoryRepository $inboxCategories,
+        private readonly \App\Repository\Mail\InboxCategory\InboxCategoryRepository $inboxCategories,
     ) {
     }
 

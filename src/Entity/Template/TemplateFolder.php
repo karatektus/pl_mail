@@ -7,7 +7,7 @@ namespace App\Entity\Template;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Template\TemplateFolderRepository;
+use App\Repository\Template\TemplateFolder\TemplateFolderRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

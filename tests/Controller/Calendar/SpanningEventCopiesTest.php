@@ -12,7 +12,7 @@ use App\Domain\Enum\Calendar\CalendarView;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use App\Service\Calendar\CalendarPuller;
 use App\Service\Calendar\CalendarRangeReader;
 use DateTimeImmutable;

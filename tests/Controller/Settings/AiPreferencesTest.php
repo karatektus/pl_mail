@@ -9,7 +9,7 @@ use App\Entity\Ai\AiFeature;
 use App\Entity\Ai\AiSettings;
 use App\Entity\Embeddable\AiPreferences;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;

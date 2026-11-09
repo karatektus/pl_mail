@@ -8,8 +8,8 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
 use App\Entity\User\User;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageRepository;
 
 /**
  * What deleting a label involves, worked out before anything is deleted.

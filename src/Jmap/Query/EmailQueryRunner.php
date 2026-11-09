@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\Query;
 
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 
 /**
  * Runs a compiled Email/query: filter -> sort -> optional thread collapse ->

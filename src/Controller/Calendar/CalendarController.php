@@ -14,7 +14,7 @@ use App\Domain\Helper\DefaultEventStart;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\CalendarEventWriter;
@@ -38,7 +38,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
-use App\Repository\Calendar\EventSourceLinkRepository;
+use App\Repository\Calendar\EventSourceLink\EventSourceLinkRepository;
 
 /**
  * The calendar, in its two shapes.

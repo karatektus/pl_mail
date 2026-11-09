@@ -6,7 +6,7 @@ namespace App\Service\Graph;
 
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Label\Label\LabelRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 

@@ -225,9 +225,9 @@ final class GraphLabelDeleteTest extends KernelTestCase
         $container = self::getContainer();
 
         return new ApplyLabelStructureHandler(
-            $container->get('App\Repository\Mail\AccountRepository'),
-            $container->get('App\Repository\Label\LabelRepository'),
-            $container->get('App\Repository\Mail\MessageRepository'),
+            $container->get('App\Repository\Mail\Account\AccountRepository'),
+            $container->get('App\Repository\Label\Label\LabelRepository'),
+            $container->get('App\Repository\Mail\Message\MessageRepository'),
             $container->get('messenger.default_bus'),
             $container->get('App\Service\Graph\GraphCategoryColorMapper'),
             $container->get('App\Service\Gmail\GmailLabelColorMapper'),
@@ -249,7 +249,7 @@ final class GraphLabelDeleteTest extends KernelTestCase
             $container->get('App\Service\Imap\ImapConnector'),
             $container->get('App\Service\Mail\GmailApiClient'),
             $this->graph(),
-            $container->get('App\Repository\Mail\MessageRepository'),
+            $container->get('App\Repository\Mail\Message\MessageRepository'),
             $container->get('App\Service\Imap\ImapFolderProvisioner'),
             $container->get(LabelResolver::class),
             $this->em,

@@ -7,7 +7,7 @@ namespace App\Tests\Controller;
 use App\Entity\User\User;
 use App\Infrastructure\Backup\ConfigBackupCipher;
 use App\Infrastructure\Setup\GeneratedSecretsFile;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Backup\ConfigBackupExporter;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

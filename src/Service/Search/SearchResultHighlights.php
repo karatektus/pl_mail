@@ -6,7 +6,7 @@ namespace App\Service\Search;
 
 use App\Domain\DTO\Mail\ThreadRowMessage;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Mail\ThreadRows;
 use Twig\Markup;
 

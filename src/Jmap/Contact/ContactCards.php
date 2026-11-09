@@ -11,7 +11,7 @@ use App\Entity\Mail\UploadedBlob;
 use App\Entity\User\User;
 use App\Jmap\Blob\BlobId;
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\AddressBook\AddressBookRepository;
+use App\Repository\AddressBook\AddressBook\AddressBookRepository;
 use App\Service\AddressBook\Jmap\JsContactMapper;
 use App\Service\Contacts\ContactPhoto;
 use App\Service\Contacts\ContactPhotoStore;

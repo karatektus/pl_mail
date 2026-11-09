@@ -170,9 +170,9 @@ final class GraphMissingArchiveFolderTest extends KernelTestCase
         });
 
         $handler = new ApplyGraphChangesHandler(
-            $container->get('App\Repository\Mail\AccountRepository'),
-            $container->get('App\Repository\Mail\MessageRepository'),
-            $container->get('App\Repository\Label\LabelRepository'),
+            $container->get('App\Repository\Mail\Account\AccountRepository'),
+            $container->get('App\Repository\Mail\Message\MessageRepository'),
+            $container->get('App\Repository\Label\Label\LabelRepository'),
             new GraphApiClient($client, $container->get('App\Service\OAuth\OAuthTokenManager')),
             $container->get('App\Service\Graph\GraphLabelPolicy'),
             $container->get('messenger.default_bus'),

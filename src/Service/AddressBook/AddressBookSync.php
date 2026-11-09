@@ -12,7 +12,7 @@ use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
 use App\Infrastructure\Event\Listener\ContactSyncTracker;
-use App\Repository\Contacts\ContactRepository;
+use App\Repository\Contacts\Contact\ContactRepository;
 use App\Domain\DTO\AddressBook\RemoteCard;
 use App\Service\Contacts\ContactPhoto;
 use App\Service\Contacts\ContactPhotoStore;

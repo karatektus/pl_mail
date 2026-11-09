@@ -7,7 +7,7 @@ namespace App\Service\Gmail;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

@@ -8,7 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\ThreadStatusUpdater;
 use Doctrine\ORM\EntityManagerInterface;

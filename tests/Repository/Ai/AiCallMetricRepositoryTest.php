@@ -6,7 +6,7 @@ namespace App\Tests\Repository\Ai;
 
 use App\Domain\DTO\Ai\AiCallTiming;
 use App\Domain\Enum\Ai\AiCallFeature;
-use App\Repository\Ai\AiCallMetricRepository;
+use App\Repository\Ai\AiCallMetric\AiCallMetricRepository;
 use App\Service\Ai\AiCallRecorder;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;

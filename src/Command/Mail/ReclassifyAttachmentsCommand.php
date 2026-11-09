@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Command\Mail;
 
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessagePartRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessagePart\MessagePartRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Mail\InlineAttachmentDetector;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;

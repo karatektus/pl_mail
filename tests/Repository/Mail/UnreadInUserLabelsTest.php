@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Repository\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

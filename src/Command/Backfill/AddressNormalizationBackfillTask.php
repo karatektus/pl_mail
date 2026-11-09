@@ -6,8 +6,8 @@ namespace App\Command\Backfill;
 
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\ContactRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Contact\ContactRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 

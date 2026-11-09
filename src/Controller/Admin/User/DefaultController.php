@@ -7,7 +7,7 @@ namespace App\Controller\Admin\User;
 use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use App\Form\Admin\UserFormType;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Crypto\Keyring;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;

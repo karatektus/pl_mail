@@ -8,7 +8,7 @@ use App\Controller\ChecksCsrf;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ForgetDecryptedMailMessage;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Crypto\DecryptedMail;
 use App\Service\Crypto\DecryptedMailPolicy;

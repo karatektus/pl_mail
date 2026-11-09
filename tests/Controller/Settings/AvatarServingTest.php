@@ -6,7 +6,7 @@ namespace App\Tests\Controller\Settings;
 
 use App\Domain\Helper\AvatarStorage;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Tests\Domain\Helper\JpegOrientationTest;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;

@@ -6,7 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
 

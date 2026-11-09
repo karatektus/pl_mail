@@ -12,7 +12,7 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Label\Label\LabelRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\ThreadSnoozeService;
 use Doctrine\DBAL\Connection;

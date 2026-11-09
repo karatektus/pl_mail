@@ -14,7 +14,7 @@ use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\ApplyMailRuleHandler;
 use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
 use App\Jmap\Query\EmailFilterCompiler;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Rule\MailRuleEngine;
 use Doctrine\DBAL\Connection;

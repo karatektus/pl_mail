@@ -9,7 +9,7 @@ use App\Domain\Enum\PushTransport;
 use App\Entity\Push\PushDelivery;
 use App\Entity\User\PushSubscription;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;

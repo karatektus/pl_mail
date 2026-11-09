@@ -9,7 +9,7 @@ use App\Service\Ai\SemanticCoverage;
 use App\Service\Ai\SemanticQuery;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Mail\ThreadListRenderer;
 use App\Service\Mail\ThreadRows;
 use App\Service\Search\SearchQueryParser;

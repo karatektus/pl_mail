@@ -7,7 +7,7 @@ namespace App\Tests\Service\Gmail;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Gmail\GmailBackfillStep;
 use App\Service\Gmail\GmailQuotaPacer;
@@ -180,7 +180,7 @@ final class GmailImportPagingTest extends TestCase
             new NullLogger(),
             $this->createStub(MessageEraser::class),
             new SyncOrigin(),
-            $this->createStub(\App\Repository\Mail\GmailSkippedMessageRepository::class),
+            $this->createStub(\App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository::class),
             new \App\Service\Gmail\GmailifyLinks(
                 $this->createStub(MessageRepository::class),
                 new \App\Service\Gmail\GmailLabelPolicy(),

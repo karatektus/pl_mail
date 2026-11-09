@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Backfill;
 
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Insight\InsightHarvester;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;

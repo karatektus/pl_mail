@@ -7,8 +7,8 @@ namespace App\Service\Rule;
 use App\Entity\Mail\Account;
 use App\Entity\Rule\MailRule;
 use App\Entity\Mail\Message;
-use App\Repository\Rule\MailRuleRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use Psr\Log\LoggerInterface;
 
 /**

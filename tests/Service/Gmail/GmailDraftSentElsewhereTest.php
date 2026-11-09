@@ -165,8 +165,8 @@ final class GmailDraftSentElsewhereTest extends KernelTestCase
         $container = self::getContainer();
 
         $handler = new SyncGmailMessageBatchHandler(
-            $container->get('App\Repository\Mail\MessageRepository'),
-            $container->get('App\Repository\Mail\AccountRepository'),
+            $container->get('App\Repository\Mail\Message\MessageRepository'),
+            $container->get('App\Repository\Mail\Account\AccountRepository'),
             new GmailApiClient($httpClient, $container->get('App\Service\OAuth\OAuthTokenManager'), new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock())),
             $container->get('App\Service\Gmail\GmailMessageBuilder'),
             $container->get('App\Service\Gmail\GmailAddressFilter'),
@@ -185,7 +185,7 @@ final class GmailDraftSentElsewhereTest extends KernelTestCase
             $container->get('App\Service\Imap\MessageThreader'),
             new \App\Service\Mail\SyncOrigin(),
             new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock()),
-            $container->get(\App\Repository\Mail\GmailSkippedMessageRepository::class),
+            $container->get(\App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository::class),
         );
 
         $handler(new SyncGmailMessageBatchMessage((int) $this->account->id, [self::GMAIL_ID], null, $onlyMissing));

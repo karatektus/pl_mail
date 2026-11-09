@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Repository\Monitoring;
 
 use App\Entity\Monitoring\LogEntry;
-use App\Repository\Monitoring\LogEntryRepository;
+use App\Repository\Monitoring\LogEntry\LogEntryRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

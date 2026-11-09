@@ -411,7 +411,7 @@ final class GraphInboundReadStateTest extends KernelTestCase
             ),
             $container->get('App\Service\Graph\GraphFolderResolver'),
             $container->get('App\Service\Graph\GraphLabelPolicy'),
-            $container->get('App\Repository\Mail\MessageRepository'),
+            $container->get('App\Repository\Mail\Message\MessageRepository'),
             $this->em,
             $container->get('App\Jmap\State\StateManager'),
             $container->get('messenger.default_bus'),

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Command\Backfill;
 
 use App\Entity\Mail\Account;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\ContactRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Contact\ContactRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Mail\MessageCategorizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;

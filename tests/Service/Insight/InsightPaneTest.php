@@ -7,7 +7,7 @@ namespace App\Tests\Service\Insight;
 use App\Domain\Enum\Insight\InsightKind;
 use App\Entity\Insight\MailInsight;
 use App\Entity\User\User;
-use App\Repository\Insight\MailInsightRepository;
+use App\Repository\Insight\MailInsight\MailInsightRepository;
 use App\Service\Insight\InsightPane;
 use DateTimeImmutable;
 use DateTimeZone;

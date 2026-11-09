@@ -7,7 +7,7 @@ namespace App\Tests\Service\Ai;
 use App\Domain\Enum\Ai\SemanticSkipReason;
 use App\Service\Ai\AiCallRecorder;
 use App\Entity\Ai\AiSettings;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Entity\User\User;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPermissions;

@@ -10,7 +10,7 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Jmap\Method\Calendar\CalendarEventSetMethod;
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use DateTimeImmutable;
 
 /**

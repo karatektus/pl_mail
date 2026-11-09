@@ -6,7 +6,7 @@ namespace App\Service\JmapClient;
 
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
-use App\Repository\Label\LabelBindingRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\Service\ResetInterface;
 

@@ -16,7 +16,7 @@ use App\Domain\Enum\Mail\SyncTrigger;
 use App\Domain\Helper\ReadableBody;
 use App\Domain\Model\MessageModel;
 use App\Entity\Label\Label;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;

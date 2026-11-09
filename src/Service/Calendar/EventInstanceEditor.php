@@ -6,7 +6,7 @@ namespace App\Service\Calendar;
 
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\CalendarEventOccurrence;
-use App\Repository\Calendar\CalendarEventOccurrenceRepository;
+use App\Repository\Calendar\CalendarEventOccurrence\CalendarEventOccurrenceRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 

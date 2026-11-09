@@ -7,7 +7,7 @@ namespace App\Infrastructure\Event\Subscriber;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Exception\SendFailureException;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Mail\SendOutcomeNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;

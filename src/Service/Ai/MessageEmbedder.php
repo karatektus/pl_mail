@@ -9,7 +9,7 @@ use App\Domain\Helper\ReadableBody;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Crypto\DecryptedMailPolicy;
 use Doctrine\ORM\EntityManagerInterface;
 

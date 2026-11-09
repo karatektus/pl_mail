@@ -7,7 +7,7 @@ namespace App\Tests\Controller;
 use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;

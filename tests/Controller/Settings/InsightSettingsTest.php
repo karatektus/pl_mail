@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Settings;
 
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Insight\InsightExtractorInterface;
 use App\Service\Insight\InsightExtractorRegistry;
 use Doctrine\ORM\EntityManagerInterface;

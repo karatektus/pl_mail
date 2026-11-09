@@ -8,7 +8,7 @@ use App\Domain\DTO\Push\ClientConfig;
 use App\Domain\DTO\Push\ServiceAccount;
 use App\Domain\Exception\InvalidFirebaseCredentialsException;
 use App\Entity\Push\FcmConfig;
-use App\Repository\Push\FcmConfigRepository;
+use App\Repository\Push\FcmConfig\FcmConfigRepository;
 use Psr\Log\LoggerInterface;
 
 /**

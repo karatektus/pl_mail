@@ -6,7 +6,7 @@ namespace App\Tests\Controller\Admin;
 
 use App\Entity\User\User;
 use App\Infrastructure\Setup\GeneratedSecretsFile;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Monitoring\WorkerRestartSignal;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;

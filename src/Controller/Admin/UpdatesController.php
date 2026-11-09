@@ -7,7 +7,7 @@ namespace App\Controller\Admin;
 use App\Controller\ChecksCsrf;
 use App\Domain\Enum\System\UpdateChannel;
 use App\Entity\System\UpdateCheck;
-use App\Repository\System\UpdateCheckRepository;
+use App\Repository\System\UpdateCheck\UpdateCheckRepository;
 use App\Service\System\Update\ImageRegistry;
 use App\Service\System\Update\UpdateChecker;
 use DateTimeImmutable;

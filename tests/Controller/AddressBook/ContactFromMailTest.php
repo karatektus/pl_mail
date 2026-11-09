@@ -11,7 +11,7 @@ use App\Entity\Contacts\ContactEmail;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
 use App\Infrastructure\Event\Listener\ContactSyncTracker;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Contacts\ContactManager;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

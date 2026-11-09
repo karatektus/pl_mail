@@ -8,7 +8,7 @@ use App\Domain\DTO\Mail\SpamSender;
 use App\Domain\Filter\FilterAstValidator;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
-use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 

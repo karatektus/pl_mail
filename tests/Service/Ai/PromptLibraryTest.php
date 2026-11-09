@@ -8,7 +8,7 @@ use App\Domain\Enum\Ai\PromptSlot;
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Ai\AiSettings;
 use App\Entity\Embeddable\AiPrompts;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Ai\PromptLibrary;
 use App\Service\Ai\ThreadSummariser;
 use Doctrine\DBAL\Connection;

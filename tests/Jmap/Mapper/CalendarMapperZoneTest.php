@@ -7,7 +7,7 @@ namespace App\Tests\Jmap\Mapper;
 use App\Entity\Calendar\Calendar;
 use App\Entity\User\User;
 use App\Jmap\Mapper\CalendarMapper;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarTimeResolver;
 use App\Service\User\UserTimezoneResolver;
 use PHPUnit\Framework\TestCase;

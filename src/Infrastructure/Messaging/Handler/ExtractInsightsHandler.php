@@ -6,7 +6,7 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ExtractInsightsMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Insight\InsightHarvester;
 use App\Service\Insight\InsightNotifier;
 use Doctrine\ORM\EntityManagerInterface;

@@ -10,7 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Mail\SenderResolver;
 use PHPUnit\Framework\TestCase;
 

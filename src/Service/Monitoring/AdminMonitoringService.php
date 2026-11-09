@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Service\Monitoring;
 
 use App\Entity\Mail\Account;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Monitoring\LogEntryRepository;
-use App\Repository\Monitoring\PostgresStatusRepository;
-use App\Repository\Monitoring\ProcessHeartbeatRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Monitoring\LogEntry\LogEntryRepository;
+use App\Repository\Monitoring\PostgresStatus\PostgresStatusRepository;
+use App\Repository\Monitoring\ProcessHeartbeat\ProcessHeartbeatRepository;
 use App\Service\Gmail\GmailPushSettings;
 use App\Service\Push\PushSubscriptionRegistry;
 use App\Service\Setup\PublicUrlSetting;

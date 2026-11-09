@@ -12,10 +12,10 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\UnifiedInbox;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Repository\Label\LabelBindingRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\Service\ResetInterface;
 

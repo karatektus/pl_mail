@@ -6,7 +6,7 @@ namespace App\Tests\Infrastructure\Setup;
 
 use App\Infrastructure\Setup\EncryptionKeyProbe;
 use App\Infrastructure\Setup\GeneratedSecretsFile;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use Doctrine\DBAL\Types\ConversionException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;

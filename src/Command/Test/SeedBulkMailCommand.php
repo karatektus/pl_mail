@@ -6,8 +6,8 @@ namespace App\Command\Test;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

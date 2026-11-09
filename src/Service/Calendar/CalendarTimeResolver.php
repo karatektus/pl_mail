@@ -7,7 +7,7 @@ namespace App\Service\Calendar;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\User\UserTimezoneResolver;
 use DateTimeImmutable;
 use DateTimeZone;

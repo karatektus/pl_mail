@@ -15,7 +15,7 @@ use App\Jmap\Method\Mail\EmailSubmissionChangesMethod;
 use App\Jmap\Method\Mail\EmailSubmissionGetMethod;
 use App\Jmap\Method\Mail\EmailSubmissionSetMethod;
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Tests\Jmap\JmapTestCase;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;

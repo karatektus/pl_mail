@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Monitoring;
 
-use App\Repository\Monitoring\PostgresStatusRepository;
+use App\Repository\Monitoring\PostgresStatus\PostgresStatusRepository;
 
 /**
  * Postgres performance read-model for the admin dashboard.

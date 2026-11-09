@@ -8,8 +8,8 @@ use App\Domain\Enum\Monitoring\ReportKind;
 use App\Domain\Monitoring\ReportedMail;
 use App\Entity\Insight\InsightReport;
 use App\Entity\Monitoring\CategoryReport;
-use App\Repository\Insight\InsightReportRepository;
-use App\Repository\Monitoring\CategoryReportRepository;
+use App\Repository\Insight\InsightReport\InsightReportRepository;
+use App\Repository\Monitoring\CategoryReport\CategoryReportRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

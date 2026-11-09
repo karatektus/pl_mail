@@ -7,7 +7,7 @@ namespace App\Tests\Service\Contacts;
 use App\Entity\Contacts\Contact;
 use App\Entity\Contacts\ContactEmail;
 use App\Entity\User\User;
-use App\Repository\Contacts\ContactRepository;
+use App\Repository\Contacts\Contact\ContactRepository;
 use App\Service\Contacts\CsvExporter;
 use App\Service\Contacts\CsvImporter;
 use PHPUnit\Framework\TestCase;

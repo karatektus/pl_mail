@@ -17,7 +17,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\Capability;
 use App\Jmap\Protocol\JmapContext;
 use App\Service\Calendar\Change\CalendarChangeReader;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;

@@ -7,7 +7,7 @@ namespace App\Tests\Controller\Settings;
 use App\Domain\Enum\Account\AuthType;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

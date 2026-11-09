@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Auth;
 
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Security\PasswordKdf;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;

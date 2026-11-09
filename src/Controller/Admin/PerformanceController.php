@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Domain\Enum\Ai\MetricWindow;
-use App\Repository\Ai\AiSettingsRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Monitoring\QueueMonitor;
 use App\Service\System\Work\BackgroundProcesses;
 use DateTimeImmutable;

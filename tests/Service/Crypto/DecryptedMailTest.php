@@ -14,7 +14,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Handler\ForgetDecryptedMailHandler;
 use App\Infrastructure\Messaging\Message\ForgetDecryptedMailMessage;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Ai\EmbeddingStore;
 use App\Service\Crypto\DecryptedMail;
 use App\Service\Crypto\DecryptedMailPolicy;

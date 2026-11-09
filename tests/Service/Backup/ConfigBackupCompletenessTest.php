@@ -6,22 +6,22 @@ namespace App\Tests\Service\Backup;
 
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Calendar\BookingPageRepository;
-use App\Repository\Calendar\CalendarRepository;
-use App\Repository\Calendar\CalendarShareLinkRepository;
-use App\Repository\Integration\IntegrationRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\InboxCategoryRepository;
-use App\Repository\Rule\MailRuleRepository;
-use App\Repository\User\ApiTokenRepository;
-use App\Repository\Crypto\AddressKeyRepository;
-use App\Repository\Crypto\ContactCertificateRepository;
-use App\Repository\Crypto\ContactKeyRepository;
-use App\Repository\Crypto\SmimeCertificateRepository;
-use App\Repository\Crypto\UserKeyCopyRepository;
-use App\Repository\Crypto\UserKeyRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Calendar\BookingPage\BookingPageRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarShareLink\CalendarShareLinkRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
+use App\Repository\User\ApiToken\ApiTokenRepository;
+use App\Repository\Crypto\AddressKey\AddressKeyRepository;
+use App\Repository\Crypto\ContactCertificate\ContactCertificateRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
+use App\Repository\Crypto\SmimeCertificate\SmimeCertificateRepository;
+use App\Repository\Crypto\UserKeyCopy\UserKeyCopyRepository;
+use App\Repository\Crypto\UserKey\UserKeyRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Backup\ConfigBackupDatabase;
 use App\Service\Backup\ConfigBackupUsers;
 use Doctrine\ORM\Mapping\Column;
@@ -250,9 +250,9 @@ final class ConfigBackupCompletenessTest extends TestCase
             self::createStub(ContactKeyRepository::class),
             self::createStub(SmimeCertificateRepository::class),
             self::createStub(ContactCertificateRepository::class),
-            self::createStub(\App\Repository\Crypto\KeyPublicationRepository::class),
-            self::createStub(\App\Repository\Mail\UnifiedInboxRepository::class),
-            self::createStub(\App\Repository\Mail\UnifiedInboxAccountRepository::class),
+            self::createStub(\App\Repository\Crypto\KeyPublication\KeyPublicationRepository::class),
+            self::createStub(\App\Repository\Mail\UnifiedInbox\UnifiedInboxRepository::class),
+            self::createStub(\App\Repository\Mail\UnifiedInboxAccount\UnifiedInboxAccountRepository::class),
         );
     }
 

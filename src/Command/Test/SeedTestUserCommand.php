@@ -6,7 +6,7 @@ namespace App\Command\Test;
 
 use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Security\PasswordKdf;
 use App\Service\Onboarding\OnboardingFlow;
 use DateTimeImmutable;

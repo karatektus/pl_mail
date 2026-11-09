@@ -12,7 +12,7 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncJmapMessageBatchMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\JmapClient\JmapAccountSyncer;
 use App\Service\JmapClient\JmapEmailSyncer;
 use App\Service\JmapClient\JmapImporter;

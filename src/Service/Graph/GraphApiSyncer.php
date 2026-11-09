@@ -12,7 +12,7 @@ use App\Entity\Mail\Message;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\GraphApiClient;
 use App\Service\Mail\MessageEraser;

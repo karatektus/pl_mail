@@ -1,0 +1,4113 @@
+<?php
+
+namespace App\Repository\Mail\Message;
+
+use App\Domain\Enum\Crypto\MessageCrypto;
+use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\Enum\Mail\SendFailure;
+use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Helper\CalendarAttachment;
+use App\Entity\Label\Label;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Mailbox;
+use App\Entity\Mail\Message;
+use Doctrine\ORM\QueryBuilder;
+use App\Entity\Mail\MessageLocation;
+use App\Entity\Mail\MessagePart;
+use App\Entity\Mail\MessageThread;
+use App\Entity\Mail\Pop3Uidl;
+use App\Entity\User\User;
+use App\Jmap\Query\CompiledFilter;
+use App\Service\Graph\GraphMessageBuilder;
+use DateTimeImmutable;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
+use Doctrine\DBAL\Types\Types;
+use Doctrine\Persistence\ManagerRegistry;
+
+class MessageRepository extends ServiceEntityRepository
+{
+    /**
+     * Messages that could plausibly carry an event.
+     *
+     * A mailbox is mostly newsletters, and parsing every one to find the few
+     * per cent that are bookings is work nobody gets back. Three signals, one
+     * per extractor: a calendar part (an invite, on IMAP or Gmail — see CalendarAttachment), the
+     * synthetic Graph meeting header (an invite with no part to find), and
+     * schema.org markup in the raw body (a reservation).
+     *
+     * Raw DBAL because none of the three is expressible otherwise: jsonb key
+     * existence has no DQL operator and no registered function, and the rest
+     * is an EXISTS correlated to a second entity. Written as jsonb_exists()
+     * rather than the `?` operator that means the same thing — DBAL reads a
+     * bare `?` as a positional placeholder and refuses the query — and cast,
+     * because message.headers is a json column rather than jsonb. The
+     * parameters are namespaced so they cannot collide if this is ever
+     * combined with a compiled filter, as MessageRepository::matchingIds does.
+     *
+     * This is the WHERE both candidate queries share, so a change to what
+     * counts as a candidate cannot land in one and not the other. Built by
+     * concatenation rather than by editing a finished query — the first version
+     * pulled the LIMIT off with str_replace and silently stopped matching the
+     * moment the heredoc's indentation changed.
+     */
+    private const string EXTRACTION_CANDIDATE_WHERE = <<<'SQL'
+        m.id > :extAfterId
+        AND (
+              EXISTS (
+                  SELECT 1 FROM message_part p
+                  WHERE p.message_id = m.id
+                    AND (
+                          LOWER(p.content_type) IN (:extCalendarTypes)
+                       OR LOWER(p.filename) LIKE :extCalendarName
+                    )
+              )
+           OR jsonb_exists(m.headers::jsonb, :extMeetingHeader)
+           OR m.body_html LIKE :extJsonLd
+        )
+        SQL;
+
+    /**
+     * Every Message-ID a row points at, In-Reply-To and References as one
+     * jsonb array.
+     *
+     * Spelled once because an index is built on exactly this expression
+     * (idx_message_referenced_ids, Version20261016130000) and the planner only
+     * uses it for a query that states the same one. A change here without a
+     * migration that rebuilds the index leaves the lookup correct and slow,
+     * which on a large mailbox is the quadratic import the index exists to
+     * prevent.
+     */
+    private const string REFERENCED_IDS = <<<'SQL'
+        (COALESCE(in_reply_to::jsonb, '[]'::jsonb) || COALESCE(thread_references::jsonb, '[]'::jsonb))
+        SQL;
+
+    /**
+     * Raw DBAL for the reasons EXTRACTION_CANDIDATE_WHERE gives above.
+     *
+     * @param DateTimeImmutable|null $since only mail received at or after this; null for all of it
+     */
+    public function countExtractionCandidates(?DateTimeImmutable $since = null): int
+    {
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM message m WHERE ' . self::EXTRACTION_CANDIDATE_WHERE . $this->candidateSince($since),
+            $this->candidateParameters(0, $since),
+            $this->candidateTypes(),
+        );
+    }
+
+    /**
+     * @param DateTimeImmutable|null $since only mail received at or after this; null for all of it
+     *
+     * @return list<Message>
+     */
+    public function extractionCandidates(int $afterId, int $limit, ?DateTimeImmutable $since = null): array
+    {
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT m.id FROM message m WHERE ' . self::EXTRACTION_CANDIDATE_WHERE . $this->candidateSince($since)
+            . ' ORDER BY m.id ASC LIMIT ' . max(1, $limit),
+            $this->candidateParameters($afterId, $since),
+            $this->candidateTypes(),
+        );
+
+        if (0 === count($ids)) {
+            return [];
+        }
+
+        return $this->findBy(['id' => array_map('intval', $ids)], ['id' => 'ASC']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function candidateParameters(int $afterId, ?DateTimeImmutable $since = null): array
+    {
+        return (null === $since ? [] : ['extSince' => $since]) + [
+            'extAfterId'       => $afterId,
+            'extCalendarTypes' => CalendarAttachment::CONTENT_TYPES,
+            'extCalendarName'  => '%' . CalendarAttachment::EXTENSION,
+            'extMeetingHeader' => GraphMessageBuilder::MEETING_TYPE_HEADER,
+            'extJsonLd'        => '%application/ld+json%',
+        ];
+    }
+
+    /**
+     * The clause that narrows candidates to recent mail, or nothing.
+     *
+     * Appended rather than written into the constant as "IS NULL OR": Postgres
+     * cannot infer the type of a parameter that is only ever compared to NULL,
+     * and a clause that is absent needs no parameter at all.
+     */
+    private function candidateSince(?DateTimeImmutable $since): string
+    {
+        return null === $since ? '' : ' AND m.received_at >= :extSince';
+    }
+
+    /**
+     * Mail in id order, a batch at a time, optionally only what arrived since
+     * a given moment — the walk a backfill that re-reads mail makes.
+     *
+     * Keyset on the id rather than OFFSET, so the cost of a batch does not
+     * grow with how far the walk has got.
+     *
+     * @return list<Message>
+     */
+    public function receivedSince(?DateTimeImmutable $since, int $afterId, int $limit): array
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->where('m.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults(max(1, $limit));
+
+        if (null !== $since) {
+            $qb->andWhere('m.receivedAt >= :since')->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    public function countReceivedSince(?DateTimeImmutable $since): int
+    {
+        $qb = $this->createQueryBuilder('m')->select('COUNT(m.id)');
+
+        if (null !== $since) {
+            $qb->where('m.receivedAt >= :since')->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function candidateTypes(): array
+    {
+        return [
+            'extAfterId'       => ParameterType::INTEGER,
+            'extCalendarTypes' => ArrayParameterType::STRING,
+            'extCalendarName'  => ParameterType::STRING,
+            'extSince'         => Types::DATETIME_IMMUTABLE,
+            'extMeetingHeader' => ParameterType::STRING,
+            'extJsonLd'        => ParameterType::STRING,
+        ];
+    }
+
+    /**
+     * Which of these messages a compiled filter matches.
+     *
+     * This is the single place a rule's conditions are ever evaluated. Letting
+     * Postgres answer means there is exactly one implementation of what a
+     * filter means — an in-memory twin was tried and deleted, because two
+     * implementations can drift and the symptom is mail quietly filed in the
+     * wrong place. It also makes `text` usable in rules: search_vector is
+     * built by Postgres as the row is written, so full-text works here and
+     * could never be reproduced faithfully in PHP.
+     *
+     * The messages must already be flushed — they are, since rules run after
+     * the id-granting flush in every sync path.
+     *
+     * @param list<int> $messageIds
+     *
+     * @return list<int> ids that match, in the order given
+     */
+    public function matchingIds(array $messageIds, CompiledFilter $filter): array
+    {
+        if (0 === count($messageIds)) {
+            return [];
+        }
+
+        $sql = sprintf(
+            'SELECT m.id FROM message m WHERE m.id IN (:ruleMessageIds) AND (%s)',
+            $filter->sql,
+        );
+
+        $parameters = $filter->parameters;
+        $parameters['ruleMessageIds'] = $messageIds;
+
+        $types = $filter->parameterTypes();
+        $types['ruleMessageIds'] = ArrayParameterType::INTEGER;
+
+        $rows = $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery($sql, $parameters, $types)
+            ->fetchFirstColumn();
+
+        return array_map('intval', $rows);
+    }
+
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, Message::class);
+    }
+
+    /**
+     * Take ownership of a message for sending, or report that it is not ours.
+     *
+     * The whole point is that this is ONE statement. SendMessageHandler used to
+     * read `cancelled` and then send, which is two, and an undo that committed
+     * between them vanished without trace — the mail went out and the user had
+     * already been told it was cancelled. Here the guard and the claim happen
+     * in the same UPDATE, so the answer to "may I send this?" is the same event
+     * as "nobody else may cancel it now", and Postgres is what decides.
+     *
+     * The three conditions are the three ways a send can be illegitimate: it
+     * was cancelled, it already left, or another worker holds it. Returning
+     * false covers all three, and the caller does not need to know which —
+     * every one of them means "do not send".
+     *
+     * Deliberately raw DBAL and deliberately not going through the ORM: an
+     * entity write would be a read-modify-write through the identity map, which
+     * is exactly the shape that lost the race in the first place.
+     *
+     * With $pinsSendAt the claim also requires submission_send_at to still be
+     * $sendAt — the release time the envelope was dispatched for. A fourth way
+     * a send can be illegitimate: it was rescheduled, and this envelope is the
+     * old schedule's. See SendMessageMessage. IS NOT DISTINCT FROM because
+     * NULL is a value here (a composer send has no submission time) and `=`
+     * would never match it.
+     */
+    public function claimForSend(int $messageId, bool $pinsSendAt = false, ?DateTimeImmutable $sendAt = null): bool
+    {
+        $parameters = ['id' => $messageId];
+        $types      = [];
+        $schedule   = '';
+
+        if (true === $pinsSendAt) {
+            $schedule             = 'AND submission_send_at IS NOT DISTINCT FROM :sendAt';
+            $parameters['sendAt'] = $sendAt;
+            $types['sendAt']      = Types::DATETIME_IMMUTABLE;
+        }
+
+        $affected = $this->getEntityManager()->getConnection()->executeStatement(
+            // The database's own clock, not PHP's: the claim is decided here,
+            // so the timestamp that records it should be too.
+            // A warning left by an earlier send is lifted by this one: the
+            // draft is being sent again, and if this attempt fails too it is
+            // marked afresh (#125).
+            'UPDATE message
+                SET send_claimed_at = LOCALTIMESTAMP,
+                    send_failed_at = NULL,
+                    send_failure = NULL
+              WHERE id = :id
+                AND cancelled = false
+                AND sent_at IS NULL
+                ' . $schedule . '
+                AND (
+                    send_claimed_at IS NULL
+                    -- A claim is "a handler has this right now", and a handler
+                    -- that was killed between claiming and releasing cannot say
+                    -- so. Without an expiry that draft could never be sent
+                    -- again by anything: the retry, a resubmission and the JMAP
+                    -- path would all be refused by bookkeeping belonging to a
+                    -- process that no longer exists. Far longer than any send
+                    -- takes and far shorter than a person waits before
+                    -- complaining.
+                    OR send_claimed_at < LOCALTIMESTAMP - INTERVAL \'15 minutes\'
+                )',
+            $parameters,
+            $types,
+        );
+
+        return $affected > 0;
+    }
+
+    /**
+     * Call a send off, and say whether the call arrived in time.
+     *
+     * The mirror image of claimForSend(), and the reason a cancel can now be
+     * reported honestly. `send_claimed_at IS NULL` is what makes it truthful:
+     * once the handler holds the message the cancel has lost, even though
+     * sent_at may still be null for as long as the SMTP conversation takes.
+     * Checking sent_at alone would have answered "cancelled" for the whole
+     * duration of the send that was in flight.
+     *
+     * submission_send_at is cleared in the same statement because a hold that
+     * has been called off must stop being reported as `pending` by
+     * EmailSubmission/get — see ComposeController::callOffSend().
+     *
+     * $cancelledAt is the JMAP shape of the same act, and differs on purpose:
+     * EmailSubmission/set keeps submission_send_at and records the cancel in
+     * submission_cancelled_at instead, because EmailSubmission/get reports the
+     * submission as `canceled` from those two and would answer notFound with
+     * the release time gone. The guard is the same either way — that is the
+     * part that must not differ between the two surfaces.
+     */
+    public function cancelSend(int $messageId, ?DateTimeImmutable $cancelledAt = null): bool
+    {
+        if (null !== $cancelledAt) {
+            $affected = $this->getEntityManager()->getConnection()->executeStatement(
+                'UPDATE message
+                    SET cancelled = true,
+                        submission_cancelled_at = :cancelledAt
+                  WHERE id = :id
+                    AND send_claimed_at IS NULL
+                    AND sent_at IS NULL',
+                ['id' => $messageId, 'cancelledAt' => $cancelledAt],
+                ['cancelledAt' => Types::DATETIME_IMMUTABLE],
+            );
+
+            return $affected > 0;
+        }
+
+        $affected = $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE message
+                SET cancelled = true,
+                    submission_send_at = NULL
+              WHERE id = :id
+                AND send_claimed_at IS NULL
+                AND sent_at IS NULL',
+            ['id' => $messageId],
+        );
+
+        return $affected > 0;
+    }
+
+    /**
+     * Give a claimed message back, because the send did not happen.
+     *
+     * Without this a failed send would wedge the message forever: the claim
+     * would stand, and the messenger retry — plus any later resubmission from
+     * the composer or from EmailSubmission/set — would be refused by
+     * claimForSend() as "somebody else holds it". A claim describes a handler
+     * that is working on the message right now, so a handler that has stopped
+     * working on it has to put it down.
+     */
+    public function releaseSendClaim(int $messageId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE message SET send_claimed_at = NULL WHERE id = :id AND sent_at IS NULL',
+            ['id' => $messageId],
+        );
+    }
+
+    /**
+     * Start the clock on a send that is being retried, if it is not running
+     * already, and say how long it has been running in seconds (#125).
+     *
+     * One statement for both, so two attempts racing each other cannot each
+     * start their own clock. The database's clock, as for the claim.
+     *
+     * Raw DBAL because that one statement is the point and DQL cannot write
+     * it: it has no `UPDATE … RETURNING`, and no `EXTRACT(EPOCH FROM …)` to
+     * turn the interval into seconds. Split into an UPDATE and a SELECT it
+     * would be two statements again, and the race back.
+     */
+    public function secondsRetryingSend(int $messageId): int
+    {
+        $elapsed = $this->getEntityManager()->getConnection()->fetchOne(
+            'UPDATE message
+                SET send_retrying_since = COALESCE(send_retrying_since, LOCALTIMESTAMP)
+              WHERE id = :id
+          RETURNING EXTRACT(EPOCH FROM LOCALTIMESTAMP - send_retrying_since)',
+            ['id' => $messageId],
+        );
+
+        return false === $elapsed ? 0 : (int) $elapsed;
+    }
+
+    /**
+     * Note that an attempt lost its answer, so the next one looks in Sent
+     * before sending. See SendOutcomeUnknownException.
+     */
+    public function markSendUnconfirmed(int $messageId): void
+    {
+        $this->createQueryBuilder('m')
+            ->update()
+            ->set('m.sendUnconfirmedAt', 'CURRENT_TIMESTAMP()')
+            ->where('m.id = :id')
+            ->andWhere('m.sentAt IS NULL')
+            ->setParameter('id', $messageId)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * Mark a draft whose send finally failed, and stop its retry clock (#125).
+     *
+     * A bulk UPDATE rather than a change to the entity: it is written on the
+     * way out of a failed send, after the entity manager has been cleared of
+     * whatever the attempt left half-done, and a bulk update goes to the
+     * database without reading anything back into it. Not on a message that
+     * went out after all — sent_at is the one fact that wins.
+     */
+    public function markSendFailed(int $messageId, SendFailure $failure): void
+    {
+        $this->createQueryBuilder('m')
+            ->update()
+            ->set('m.sendFailedAt', 'CURRENT_TIMESTAMP()')
+            ->set('m.sendFailure', ':failure')
+            ->set('m.sendRetryingSince', 'NULL')
+            ->set('m.sendUnconfirmedAt', 'NULL')
+            ->where('m.id = :id')
+            ->andWhere('m.sentAt IS NULL')
+            ->setParameter('id', $messageId)
+            ->setParameter('failure', $failure->value)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * How many of a user's drafts carry a failed-send warning — the sidebar's
+     * mark on Drafts. Drafts only, by label as the Drafts list selects them, so
+     * a marked draft that was thrown away stops counting with it.
+     */
+    public function countUnsentDraftsForUser(User $user): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(DISTINCT m.id)')
+            ->innerJoin('m.account', 'a')
+            ->innerJoin('m.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('m.sendFailedAt IS NOT NULL')
+            ->andWhere('m.sentAt IS NULL')
+            ->andWhere('l.role = :drafts')
+            ->setParameter('user', $user)
+            ->setParameter('drafts', LabelRole::Drafts)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * How many of a user's messages a compiled filter matches.
+     *
+     * Powers the live "matches N messages" readout while a rule is being
+     * written. Capped, because the only question being answered is "is this
+     * filter roughly right" — an exact count over a large mailbox costs a full
+     * scan to tell the author something they do not need.
+     *
+     * @return array{count: int, capped: bool}
+     */
+    public function countMatchingForUser(
+        User $user,
+        CompiledFilter $filter,
+        int $cap = 500,
+        ?Account $account = null,
+    ): array {
+        // Null account is the rule's own "every account", so the absence of
+        // the clause is the scope rather than a missing one.
+        $scope = null === $account ? '' : ' AND a.id = :ruleAccountId';
+
+        $sql = sprintf(
+            'SELECT COUNT(*) FROM (
+                 SELECT 1 FROM message m
+                 JOIN account a ON a.id = m.account_id
+                 WHERE a.usr_id = :ruleUserId%s AND (%s)
+                 LIMIT :ruleCap
+             ) probe',
+            $scope,
+            $filter->sql,
+        );
+
+        $parameters = $filter->parameters;
+        $parameters['ruleUserId'] = $user->id;
+        $parameters['ruleCap'] = $cap + 1;
+
+        if (null !== $account) {
+            $parameters['ruleAccountId'] = $account->id;
+        }
+
+        $count = (int) $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery($sql, $parameters, $filter->parameterTypes())
+            ->fetchOne();
+
+        return [
+            'count' => min($count, $cap),
+            'capped' => $count > $cap,
+        ];
+    }
+
+    /**
+     * One page of a user's messages matching a filter, for applying a rule to
+     * mail that arrived before it existed.
+     *
+     * Keyset pagination rather than a cap: applying a rule must reach every
+     * matching message, and a mailbox can hold more of them than fits in
+     * memory. Paging by id also survives the run's own writes — an OFFSET walk
+     * would skip messages as the rows it already acted on stop matching.
+     *
+     * @return list<int> ascending, empty when the walk is finished
+     */
+    public function findIdsMatchingForUser(User $user, CompiledFilter $filter, int $afterId = 0, int $batchSize = 200): array
+    {
+        $sql = sprintf(
+            'SELECT m.id FROM message m
+             JOIN account a ON a.id = m.account_id
+             WHERE a.usr_id = :ruleUserId AND m.id > :ruleAfterId AND (%s)
+             ORDER BY m.id ASC
+             LIMIT :ruleBatchSize',
+            $filter->sql,
+        );
+
+        $parameters = $filter->parameters;
+        $parameters['ruleUserId'] = $user->id;
+        $parameters['ruleAfterId'] = $afterId;
+        $parameters['ruleBatchSize'] = $batchSize;
+
+        $rows = $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery($sql, $parameters, $filter->parameterTypes())
+            ->fetchFirstColumn();
+
+        return array_map('intval', $rows);
+    }
+
+    /**
+     * One page of Email/query: the ids of an account's messages matching a
+     * compiled JMAP filter, in the requested order, from $position on.
+     *
+     * Raw SQL for the same reason matchingIds() is: the filter arrives as a SQL
+     * fragment compiled from the client's request, because Postgres is the only
+     * implementation of what a JMAP filter means.
+     *
+     * The window is applied here rather than in PHP. This used to return every
+     * matching row of the account, sorted, for EmailQueryRunner to slice — on
+     * every page of every list a client scrolls, a mailbox's worth of rows to
+     * hand back 50. With $collapseThreads the spec's `position` counts
+     * collapsed rows, so the collapse has to happen before the window: the
+     * inner DISTINCT ON keeps each thread's first message in the requested
+     * order (a message with no thread is its own group, keyed by its negated
+     * id so it cannot meet a real thread id), and the outer query sorts and
+     * pages those. The default order is served by
+     * idx_message_account_received_at.
+     *
+     * $orderBySql is interpolated because ORDER BY takes expressions, not bound
+     * values. It is safe by construction: EmailQueryRunner builds it from a
+     * fixed property→column map and raises unsupportedSort for anything absent
+     * from it, so no client string ever reaches this.
+     *
+     * @return list<string>
+     */
+    public function findIdsForQuery(
+        int $accountId,
+        ?CompiledFilter $filter,
+        string $orderBySql,
+        bool $collapseThreads,
+        int $position,
+        ?int $limit,
+    ): array {
+        [$where, $parameters, $types] = $this->queryWhere($accountId, $filter);
+
+        $sql = true === $collapseThreads
+            ? sprintf(
+                'SELECT m.id FROM message m WHERE m.id IN (
+                    SELECT DISTINCT ON (COALESCE(m.thread_id, -m.id)) m.id
+                      FROM message m
+                     WHERE %s
+                     ORDER BY COALESCE(m.thread_id, -m.id), %s
+                 ) ORDER BY %s',
+                $where,
+                $orderBySql,
+                $orderBySql,
+            )
+            : sprintf('SELECT m.id FROM message m WHERE %s ORDER BY %s', $where, $orderBySql);
+
+        $sql .= ' OFFSET :emailQueryOffset';
+        $parameters['emailQueryOffset'] = $position;
+        $types['emailQueryOffset']      = ParameterType::INTEGER;
+
+        if (null !== $limit) {
+            $sql .= ' LIMIT :emailQueryLimit';
+            $parameters['emailQueryLimit'] = $limit;
+            $types['emailQueryLimit']      = ParameterType::INTEGER;
+        }
+
+        $ids = $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery($sql, $parameters, $types)
+            ->fetchFirstColumn();
+
+        return array_map('strval', $ids);
+    }
+
+    /**
+     * Email/query's `total`: how many rows the whole collapsed or uncollapsed
+     * list has, which findIdsForQuery() no longer reads. A COUNT because that
+     * is the question, and raw for the filter fragment, as above.
+     */
+    public function countForQuery(int $accountId, ?CompiledFilter $filter, bool $collapseThreads): int
+    {
+        [$where, $parameters, $types] = $this->queryWhere($accountId, $filter);
+
+        $count = true === $collapseThreads ? 'COUNT(DISTINCT COALESCE(m.thread_id, -m.id))' : 'COUNT(*)';
+
+        return (int) $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery(sprintf('SELECT %s FROM message m WHERE %s', $count, $where), $parameters, $types)
+            ->fetchOne();
+    }
+
+    /**
+     * @return array{0: string, 1: array<string,mixed>, 2: array<string,ArrayParameterType|ParameterType|null>}
+     */
+    private function queryWhere(int $accountId, ?CompiledFilter $filter): array
+    {
+        $parameters = ['accountId' => $accountId];
+        $types      = [];
+        $where      = 'm.account_id = :accountId';
+
+        if (null !== $filter) {
+            $where     .= ' AND '.$filter->sql;
+            $parameters = array_merge($parameters, $filter->parameters);
+            $types      = $filter->parameterTypes();
+        }
+
+        return [$where, $parameters, $types];
+    }
+
+    /**
+     * Highlighted subject and body fragments for a SearchSnippet/get.
+     *
+     * The body is the one search_vector indexed: body_html_text where it is
+     * set, the text part otherwise (#477). Headlining body_text alone would
+     * find nothing to mark in an HTML-only message the search just matched.
+     *
+     * Raw SQL because `ts_headline` is the whole point — it is a Postgres
+     * full-text function with no DQL equivalent, and reproducing "which words
+     * matched, in context" in PHP would be a second, disagreeing implementation
+     * of the search that produced the hits.
+     *
+     * @param list<int> $ids
+     *
+     * @return list<array{id: int|string, subject: mixed, preview: mixed}>
+     */
+    public function findSearchHeadlines(int $accountId, array $ids, string $text, string $headlineOptions): array
+    {
+        if (0 === count($ids)) {
+            return [];
+        }
+
+        $sql = <<<'SQL'
+            SELECT
+                m.id,
+                ts_headline('english', coalesce(m.subject, ''),
+                    websearch_to_tsquery('english', :text), :options) AS subject,
+                ts_headline('english', coalesce(m.body_html_text, m.body_text, ''),
+                    websearch_to_tsquery('english', :text), :options) AS preview
+            FROM message m
+            WHERE m.account_id = :account
+              AND m.id IN (:ids)
+            SQL;
+
+        /** @var list<array{id: int|string, subject: mixed, preview: mixed}> */
+        return $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            $sql,
+            [
+                'text'    => $text,
+                'options' => $headlineOptions,
+                'account' => $accountId,
+                'ids'     => $ids,
+            ],
+            [
+                'ids' => ArrayParameterType::INTEGER,
+            ],
+        );
+    }
+
+    /**
+     * The raw subject and text part of specific messages, for the fields
+     * `ts_headline` declined to mark.
+     *
+     * The companion to findSearchHeadlines() above, and only ever called after
+     * it: SearchHighlighter's fallback is a substring search, so it needs the
+     * field as it was written rather than the fragment Postgres returned. Both
+     * callers hold rows rather than hydrated bodies: a JMAP SearchSnippet/get
+     * has DBAL rows and nothing else, and the web search page's rows carry no
+     * bodies either (see App\Service\Mail\ThreadRows).
+     *
+     * TWO ID LISTS, BECAUSE THE TWO COLUMNS COST DIFFERENT AMOUNTS. A subject
+     * is tens of bytes and a text part is thousands, and the field that is
+     * normally unmarked is the SUBJECT — most searches match in the body, so on
+     * a plain request every row wants its subject checked and not one wants its
+     * body. Scoping this by ROW, the shape first sketched when the fallback was
+     * deferred, would therefore drag every body along for the sake of the
+     * subjects: measured at 500 ids over ~4.5KB bodies, 7.9ms and 2.2MB to
+     * deliver 30KB of subjects.
+     *
+     * So `$ids` is every row that wants either field and `$withBody` is the
+     * subset that wants the expensive one. The CASE is not cosmetic — Postgres
+     * does not detoast a column it does not evaluate, and the same statement
+     * measures 1.5ms with `$withBody` empty against 7.9ms with all 500 in it,
+     * scaling linearly in between (4.5ms at half). An empty `$withBody` is fine
+     * and is the common case: DBAL expands an empty array parameter to the
+     * literal NULL, `id IN (NULL)` is NULL rather than an error, and the CASE
+     * falls through.
+     *
+     * Raw SQL and not DQL for the same reason findSearchHeadlines() is: this is
+     * the other half of one statement pair, and a conditional projection over a
+     * TOASTed column is a physical-storage concern the ORM has no vocabulary
+     * for. Keyed by id rather than returned as a list, because a lookup is the
+     * only thing its one caller can do with it.
+     *
+     * "body_text" in the result is the body findSearchHeadlines() headlined,
+     * body_html_text where there is one, so that the fallback looks for the
+     * hit in the same words.
+     *
+     * @param list<int> $ids       every message whose subject or body is wanted
+     * @param list<int> $withBody  the subset whose body_text is actually wanted
+     *
+     * @return array<int, array{subject: mixed, body_text: mixed}>
+     */
+    public function findSearchTexts(int $accountId, array $ids, array $withBody): array
+    {
+        if (0 === count($ids)) {
+            return [];
+        }
+
+        $sql = <<<'SQL'
+            SELECT
+                m.id,
+                m.subject,
+                CASE WHEN m.id IN (:withBody) THEN coalesce(m.body_html_text, m.body_text) END AS body_text
+            FROM message m
+            WHERE m.account_id = :account
+              AND m.id IN (:ids)
+            SQL;
+
+        /** @var list<array{id: int|string, subject: mixed, body_text: mixed}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            $sql,
+            [
+                'withBody' => $withBody,
+                'account'  => $accountId,
+                'ids'      => $ids,
+            ],
+            [
+                'withBody' => ArrayParameterType::INTEGER,
+                'ids'      => ArrayParameterType::INTEGER,
+            ],
+        );
+
+        $texts = [];
+
+        foreach ($rows as $row) {
+            $texts[(int) $row['id']] = ['subject' => $row['subject'], 'body_text' => $row['body_text']];
+        }
+
+        return $texts;
+    }
+
+    /**
+     * Per-label message totals and unread counts for one account, in one
+     * grouped query — the numbers behind a Mailbox/get.
+     *
+     * DBAL rather than DQL: this is a pure aggregate over the message↔label
+     * join table, nothing is hydrated, and counting per label through the ORM
+     * over a large label tree is a textbook N+1.
+     *
+     * Unread is "seen_at IS NULL", not the absence of the \Seen entry in
+     * Message::$flags. The two disagree: flags is an IMAP mirror that only the
+     * plain-IMAP sync path populates, so it is a strict subset of seen_at.
+     * seen_at is the field the web UI reads and writes, so it is authoritative.
+     *
+     * $labelIds narrows the aggregate to those labels, for a Mailbox/get that
+     * named its ids; null counts every label of the account.
+     *
+     * @param list<int>|null $labelIds
+     *
+     * @return array<int,array{total:int,unread:int}> label id => counts
+     */
+    public function countEmailsPerLabelForAccount(int $accountId, ?array $labelIds = null): array
+    {
+        return $this->labelCounts($accountId, $labelIds, <<<'SQL'
+            SELECT ml.label_id,
+                   COUNT(*) AS total,
+                   COUNT(*) FILTER (WHERE m.seen_at IS NULL) AS unread
+            FROM message_label ml
+            JOIN message m ON m.id = ml.message_id
+            WHERE m.account_id = :accountId
+              %s
+            GROUP BY ml.label_id
+            SQL);
+    }
+
+    /**
+     * The same per label, counting distinct threads instead of messages.
+     *
+     * Counted through message_label rather than thread_label so both grains
+     * stay consistent by construction — a thread is in a mailbox exactly when
+     * one of its messages is.
+     *
+     * Note this reads unreadThreads as "threads with an unread Email *in this
+     * mailbox*". RFC 8621 defines it slightly more loosely (an unread Email
+     * anywhere in the Thread). The stricter reading is what the plMail UI
+     * shows, and it cannot exceed totalThreads, which is what clients assert.
+     *
+     * @param list<int>|null $labelIds as countEmailsPerLabelForAccount()
+     *
+     * @return array<int,array{total:int,unread:int}> label id => counts
+     */
+    public function countThreadsPerLabelForAccount(int $accountId, ?array $labelIds = null): array
+    {
+        return $this->labelCounts($accountId, $labelIds, <<<'SQL'
+            SELECT ml.label_id,
+                   COUNT(DISTINCT m.thread_id) AS total,
+                   COUNT(DISTINCT m.thread_id) FILTER (WHERE m.seen_at IS NULL) AS unread
+            FROM message_label ml
+            JOIN message m ON m.id = ml.message_id
+            WHERE m.account_id = :accountId
+              AND m.thread_id IS NOT NULL
+              %s
+            GROUP BY ml.label_id
+            SQL);
+    }
+
+    /**
+     * @param list<int>|null $labelIds
+     *
+     * @return array<int,array{total:int,unread:int}>
+     */
+    private function labelCounts(int $accountId, ?array $labelIds, string $sql): array
+    {
+        if ([] === $labelIds) {
+            return [];
+        }
+
+        $parameters = ['accountId' => $accountId];
+        $types      = [];
+        $narrow     = '';
+
+        if (null !== $labelIds) {
+            $narrow               = 'AND ml.label_id IN (:labelIds)';
+            $parameters['labelIds'] = $labelIds;
+            $types['labelIds']      = ArrayParameterType::INTEGER;
+        }
+
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(sprintf($sql, $narrow), $parameters, $types);
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $counts[(int) $row['label_id']] = [
+                'total'  => (int) $row['total'],
+                'unread' => (int) $row['unread'],
+            ];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Ids of messages that have a header bag, oldest first — the backfill
+     * cursor for header normalisation.
+     *
+     * QueryBuilder because this is keyset pagination over a projection:
+     * findBy() can neither express `id > :afterId` nor return bare ids, and
+     * hydrating a batch of entities to read one column off each is exactly the
+     * cost a backfill cursor exists to avoid.
+     *
+     * @return list<int>
+     */
+    public function findIdsWithHeaders(int $afterId, int $limit): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->where('m.headers IS NOT NULL')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map('intval', $rows);
+    }
+
+    /**
+     * Ids of every message, oldest first — the backfill cursor for tasks that
+     * rewrite a column present on every row (address normalisation).
+     *
+     * Keyset over a projection, for the reason findIdsWithHeaders() gives.
+     *
+     * @return list<int>
+     */
+    public function findIdsAfter(int $afterId, int $limit): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->where('m.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map('intval', $rows);
+    }
+
+    /**
+     * Every message id of an account, for a task that has to walk all of them.
+     *
+     * Ids rather than entities, and by arrival when the caller is replaying
+     * history: the rethread backfill clears the EntityManager on every batch,
+     * which would invalidate a cursor held across it.
+     *
+     * QueryBuilder for the projection — findBy() returns entities, which is the
+     * one thing this must not do.
+     *
+     * @return list<int>
+     */
+    public function findAllIdsForAccount(int $accountId, bool $orderByArrival = false): array
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->where('m.account = :accountId')
+            ->setParameter('accountId', $accountId);
+
+        if (true === $orderByArrival) {
+            $qb->orderBy('m.receivedAt', 'ASC');
+        }
+
+        $qb->addOrderBy('m.id', 'ASC');
+
+        return array_map(
+            static fn(array $row): int => (int) $row['id'],
+            $qb->getQuery()->getArrayResult(),
+        );
+    }
+
+    /**
+     * @param list<int> $ids
+     *
+     * @return list<Message>
+     */
+    /**
+     * One page of a user's message ids, ascending, for a walk that has to
+     * survive being interrupted.
+     *
+     * Ascending id rather than date because it is the one ordering nothing can
+     * change underneath a walk that takes hours: mail arriving during it gets a
+     * higher id and is met by the pass still coming, and mail deleted during it
+     * is simply absent. A date cursor would have to cope with both, and with
+     * two messages sharing a timestamp.
+     *
+     * Scoped through the account, which is where ownership lives — a message
+     * belongs to a user only by way of one.
+     *
+     * @return list<int>
+     */
+    public function idsForUserAfter(int $userId, ?int $afterId, int $limit): array
+    {
+        /** @var list<int|string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            <<<'SQL'
+                SELECT m.id
+                  FROM message m
+                  JOIN account a ON a.id = m.account_id
+                 WHERE a.usr_id = :userId
+                   AND (:afterId::int IS NULL OR m.id > :afterId::int)
+                 ORDER BY m.id ASC
+                 LIMIT :limit
+            SQL,
+            ['userId' => $userId, 'afterId' => $afterId, 'limit' => $limit],
+        );
+
+        return array_map(intval(...), $ids);
+    }
+
+    /**
+     * The newest of one user's messages that have no vector from THIS model.
+     *
+     * What the two catch-up triggers walk — the nightly sweep and the batch
+     * queued in the warm minute after somebody searched. See
+     * App\Service\Ai\EmbeddingCatchUp, which is the only caller.
+     *
+     * NEWEST FIRST, which is the opposite of idsForUserAfter() above and for a
+     * reason rather than a preference. That one is a WALK: it has to cover a
+     * whole mailbox exactly once and never lose its place, so it goes forwards
+     * by id and remembers where it stopped. This is a CATCH-UP with a budget:
+     * it will only ever do a few messages, so the few it does should be the
+     * mail somebody might actually search for tomorrow morning. A shared
+     * ordering would make one of the two wrong.
+     *
+     * THE MODEL IS PART OF "INDEXED". Vectors from two embedding models are not
+     * comparable — different space, different width, and the shipped distance
+     * function compares whatever overlaps rather than refusing — so after
+     * somebody changes the model in settings every stored row is dead weight
+     * and every message is outstanding again. Matching the model here is what
+     * makes that true rather than leaving a mailbox that reports itself indexed
+     * and searches like it is not.
+     *
+     * AND DELIBERATELY NOT THE WIDTH. EmbeddingStore::
+     * coverageDetailFor() matches on both, and this deliberately does not, so
+     * here is the trap it avoids. What consumes these ids is
+     * EmbedMessagesHandler, which skips whatever EmbeddingStore::
+     * alreadyStored() reports — and that asks about the MODEL alone. A finder
+     * that tested the width too would, on the one installation where the two
+     * disagree (a model upgraded in place and now answering at a different
+     * width), hand over a full budget of ids that the handler then drops as
+     * already done: a sweep that runs every night, reports itself busy, and
+     * indexes nothing, forever. The width mismatch is a real problem and it
+     * already has an owner — coverageDetailFor()'s third number, which tells
+     * the person their mailbox needs re-indexing rather than quietly trying.
+     *
+     * NOT EXISTS rather than a LEFT JOIN with an IS NULL: it is the same
+     * anti-join to the planner and it cannot accidentally multiply rows if the
+     * embedding table ever stops being keyed one-to-one on the message.
+     *
+     * THE JOIN GOES THROUGH THE THREAD, which is what coverageDetailFor()
+     * counts through. The two have to agree or the notice under somebody's
+     * search box says "4,120 of 4,125 indexed" forever while a sweep that can
+     * see five more messages than the counter can keeps finding nothing to do.
+     *
+     * WHAT IT COSTS WHEN THERE IS NOTHING TO DO. The LIMIT can only stop the
+     * scan early when there IS outstanding mail; a fully indexed mailbox is
+     * walked to the end. That is bounded by the mailbox and it is strictly
+     * cheaper than the coverage count the search page already pays for on the
+     * same request — but it is the reason both callers are rate-limited rather
+     * than run per search.
+     *
+     * @return list<int>
+     */
+    public function unembeddedIdsForUser(int $userId, string $model, int $limit): array
+    {
+        /** @var list<int|string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            <<<'SQL'
+                SELECT m.id
+                  FROM message m
+                  JOIN message_thread t ON t.id = m.thread_id
+                  JOIN account a ON a.id = t.account_id
+                 WHERE a.usr_id = :userId
+                   AND NOT EXISTS (
+                       SELECT 1
+                         FROM message_embedding e
+                        WHERE e.message_id = m.id
+                          AND e.model = :model
+                   )
+                 ORDER BY m.id DESC
+                 LIMIT :limit
+            SQL,
+            [
+                'userId' => $userId,
+                'model'  => $model,
+                'limit'  => $limit,
+            ],
+            [
+                'userId' => ParameterType::INTEGER,
+                'limit'  => ParameterType::INTEGER,
+            ],
+        );
+
+        return array_map(intval(...), $ids);
+    }
+
+    /**
+     * The newest message ids across one person's active accounts.
+     *
+     * Ids and not entities: the only caller hands them to a Messenger envelope
+     * a batch at a time, and hydrating a few hundred messages to read their
+     * primary keys would be a waste of an identity map.
+     *
+     * Ordered by arrival with the id as the tiebreaker, so "the last 200" is a
+     * stable set rather than whatever the planner felt like returning — mail
+     * with no receivedAt (this account's own sent copies) sorts last rather
+     * than first, which is what NULLS LAST buys.
+     *
+     * @return list<int>
+     */
+    public function findRecentIdsForUser(int $userId, int $limit): array
+    {
+        /** @var list<int> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            <<<'SQL'
+            SELECT m.id
+              FROM message m
+              JOIN account a ON a.id = m.account_id
+             WHERE a.usr_id = :userId
+               AND a.is_active = true
+             ORDER BY m.received_at DESC NULLS LAST, m.id DESC
+             LIMIT :limit
+            SQL,
+            ['userId' => $userId, 'limit' => $limit],
+            ['userId' => ParameterType::INTEGER, 'limit' => ParameterType::INTEGER],
+        );
+
+        return array_map(intval(...), $ids);
+    }
+
+    /**
+     * One page of an account's message ids that sit in a folder, ascending,
+     * for a walk that re-dispatches itself page by page
+     * (ImportImapKeywordsHandler). Keyset on id for the reason
+     * idsForUserAfter() gives.
+     *
+     * @return list<int>
+     */
+    public function idsInFoldersForAccountAfter(int $accountId, int $afterId, int $limit): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->where('m.account = :accountId')
+            ->andWhere('m.mailbox IS NOT NULL')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('accountId', $accountId)
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map('intval', $rows);
+    }
+
+    public function findByIds(array $ids): array
+    {
+        if (0 === count($ids)) {
+            return [];
+        }
+
+        return $this->findBy(['id' => $ids], ['id' => 'ASC']);
+    }
+
+    /**
+     * The same set, ordered as the mail server delivered it.
+     *
+     * The tiebreak on id is what makes the order total: two messages that
+     * arrived in the same second have to thread in a stable sequence, or a
+     * rebuild is not reproducible.
+     *
+     * @param list<int> $ids
+     *
+     * @return list<Message>
+     */
+    public function findByIdsInArrivalOrder(array $ids): array
+    {
+        if (0 === count($ids)) {
+            return [];
+        }
+
+        return $this->findBy(['id' => $ids], ['receivedAt' => 'ASC', 'id' => 'ASC']);
+    }
+
+    /**
+     * Ids of every message hanging off these threads, as scalars.
+     *
+     * Scalars on purpose. The callers are about to delete the threads, and
+     * hydrating the messages only to delete them leaves the unit of work in a
+     * state where the reseed's own flush insists the threads it has just
+     * persisted were never persisted ("A new entity was found through the
+     * relationship Message#thread"). Nothing here wants the objects.
+     *
+     * @param list<int> $threadIds
+     *
+     * @return list<int>
+     */
+    public function findIdsForThreads(array $threadIds): array
+    {
+        if (0 === count($threadIds)) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->where('m.thread IN (:threads)')
+            ->setParameter('threads', $threadIds)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map('intval', $rows);
+    }
+
+    /**
+     * Which thread a message currently belongs to, without loading either.
+     *
+     * The rethread backfill asks this between clearing the EntityManager and
+     * writing carried-over state back, so hydrating a Message here would pull
+     * an entity into a unit of work that is deliberately empty.
+     */
+    public function findThreadIdFor(int $messageId): ?int
+    {
+        $threadId = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT thread_id FROM message WHERE id = :messageId',
+            ['messageId' => $messageId],
+        );
+
+        if (false === $threadId || null === $threadId) {
+            return null;
+        }
+
+        return (int) $threadId;
+    }
+
+    /**
+     * Cut every message of an account loose from its thread.
+     *
+     * Deliberately a single UPDATE and deliberately not the ORM: MessageThread
+     * cascades remove onto its messages, so detaching by walking the
+     * association and then removing threads through the EntityManager would
+     * delete the mail along with them.
+     */
+    public function detachAllFromThreadsForAccount(int $accountId): int
+    {
+        return (int) $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE message SET thread_id = NULL WHERE account_id = :accountId',
+            ['accountId' => $accountId],
+        );
+    }
+
+    /**
+     * Messages with an HTML body but no sanitized copy — the safe-html
+     * backfill's cursor.
+     *
+     * QueryBuilder because `bodyHtml <> ''` and `id > :afterId` are comparisons
+     * findBy() cannot state. Keyset by id rather than a shrinking IS NULL
+     * cursor so the scan cannot loop on rows the sanitizer legitimately leaves
+     * null (whitespace-only bodies).
+     *
+     * @return list<Message>
+     */
+    public function findPendingSafeHtml(int $afterId, int $limit): array
+    {
+        return $this->pendingSafeHtmlQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countPendingSafeHtml(): int
+    {
+        return (int) $this->pendingSafeHtmlQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function pendingSafeHtmlQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            ->andWhere("m.bodyHtml <> ''")
+            ->andWhere('m.bodyHtmlSafe IS NULL')
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
+     * Messages whose HTML body carries a charset declaration of its own — the
+     * set the safe-html re-tag repair has to walk.
+     *
+     * bodyHtmlSafe is derived, so a row mangled by a declaration the parser
+     * believed is repaired by sanitising it again; bodyHtml itself was never
+     * wrong. Narrowed by the substring rather than the damage because the
+     * damage is not something SQL can recognise, and re-sanitising a row that
+     * was already right produces the same bytes it already has.
+     *
+     * @return list<Message>
+     */
+    public function findWithHtmlCharsetDeclaration(int $afterId, int $limit): array
+    {
+        return $this->htmlCharsetDeclarationQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithHtmlCharsetDeclaration(): int
+    {
+        return (int) $this->htmlCharsetDeclarationQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function htmlCharsetDeclarationQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            ->andWhere("m.bodyHtml <> ''")
+            // LIKE is case-sensitive in Postgres and the tag is written every
+            // way there is, so the comparison is folded rather than the tag
+            // guessed at.
+            ->andWhere("LOWER(m.bodyHtml) LIKE '%charset%'")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
+     * Messages whose HTML body holds a form, or a stylesheet that says
+     * `!important` — the set the hidden-card repair has to walk (#271).
+     *
+     * The sanitizer dropped a form with everything in it, and the inliner let
+     * an inline `display:none` beat a stylesheet `!important`. Neither leaves a
+     * mark in bodyHtmlSafe that SQL could find, because what is missing is
+     * simply not there, so the walk is narrowed on the cause in the sender's
+     * own copy. Loosely, as the table-link walk is: `!important` anywhere after
+     * a `<style>` is far more mail than was hidden, and re-sanitising the rest
+     * writes back what the sanitizer makes of it today.
+     *
+     * @return list<Message>
+     */
+    public function findWithFormOrImportantRule(int $afterId, int $limit): array
+    {
+        return $this->formOrImportantRuleQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithFormOrImportantRule(): int
+    {
+        return (int) $this->formOrImportantRuleQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function formOrImportantRuleQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            // Folded: tags and the keyword are written in every case there is.
+            ->andWhere("(LOWER(m.bodyHtml) LIKE '%<form%' OR LOWER(m.bodyHtml) LIKE '%<style%!important%')")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
+     * Messages whose HTML body has a table somewhere after a link opens — the
+     * set the table-in-a-link repair has to walk.
+     *
+     * The damage is a link emptied by the old inliner's parser (see
+     * Html5CssInliner), and like the charset one it is not something SQL can
+     * recognise in bodyHtmlSafe: what is left is an `<a>` with nothing in it,
+     * which is also what a sender's tracking anchor looks like. So the walk is
+     * narrowed on the cause, in the sender's own copy, and deliberately
+     * loosely — "a table after a link" rather than "a table inside one",
+     * which would take a parser to decide. Re-sanitising a body that was never
+     * affected writes back what it already had.
+     *
+     * @return list<Message>
+     */
+    public function findWithTableAfterLink(int $afterId, int $limit): array
+    {
+        return $this->tableAfterLinkQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithTableAfterLink(): int
+    {
+        return (int) $this->tableAfterLinkQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function tableAfterLinkQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            // Folded for the reason the charset walk folds: tags are written
+            // in every case there is.
+            ->andWhere("LOWER(m.bodyHtml) LIKE '%<a %<table%'")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
+     * Messages whose sanitized body shows an Outlook conditional-comment
+     * marker as text — the set the conditional-comment repair has to walk.
+     *
+     * Unlike the charset and table-link damage, this one SQL can recognise in
+     * bodyHtmlSafe itself: a marker that reached the sanitizer as text comes
+     * out escaped, `[endif]--&gt;` or `[if mso]&gt;`, and the sanitizer never
+     * writes a comment, so a body that was rendered right holds neither. Folded
+     * because Outlook writes `[ENDIF]` as often as `[endif]`. Narrowed on the
+     * damage rather than on the cause, because the cause — a conditional
+     * comment in bodyHtml — is in a large part of all commercial mail, nearly
+     * none of which was affected (#175).
+     *
+     * @return list<Message>
+     */
+    public function findWithConditionalCommentText(int $afterId, int $limit): array
+    {
+        return $this->conditionalCommentTextQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithConditionalCommentText(): int
+    {
+        return (int) $this->conditionalCommentTextQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function conditionalCommentTextQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            ->andWhere('m.bodyHtmlSafe IS NOT NULL')
+            ->andWhere("(LOWER(m.bodyHtmlSafe) LIKE '%[endif]%' OR LOWER(m.bodyHtmlSafe) LIKE '%[if %]&gt;%')")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
+     * Messages whose body webklex filed as an attachment, oldest id first.
+     *
+     * The set MisfiledBodyDetector now keeps out of the database, found after
+     * the fact. Two conditions, and each carries half the confidence:
+     *
+     * `multipart/*` IS IN THE LIST, and it is what the real reports turned out
+     * to be. webklex hands over a whole `multipart/related` when it holds a
+     * single part, so the row is not a text body at all but the MIME block
+     * around one — see MisfiledBodyUnpacker. Selecting only text/plain and
+     * text/html found nothing on the installation that reported this.
+     *
+     * A FILENAME OF EXACTLY EIGHT CHARACTERS, because that is not a filename.
+     * Webklex fills an absent one with `hash("crc32c", …)` of the part, and
+     * eight is what that hash measures. The hex-ness is checked in PHP rather
+     * than here — a LIKE pattern for it is eight repetitions of a character
+     * class and unreadable, and this predicate is only narrowing the walk.
+     *
+     * AN EMPTY BODY OF THE PART'S OWN TYPE, which is what makes the first
+     * condition safe to act on. A nameless text part next to a body that
+     * parsed fine is something else and is left alone; a nameless text part
+     * next to nothing at all is the body, and the message currently renders
+     * blank either way.
+     *
+     * EXISTS rather than a join, and that is not a preference. A
+     * multipart/alternative can have both halves misfiled, so a join returns
+     * the message once per matching part — and the obvious fix, SELECT
+     * DISTINCT, cannot run at all here: Message carries json columns and
+     * Postgres has no equality operator for json, so the query dies with
+     * "could not identify an equality operator for type json". EXISTS asks the
+     * question without multiplying the rows, so there is nothing to
+     * de-duplicate.
+     *
+     * @return list<Message>
+     */
+    public function findWithMisfiledBodyPart(int $afterId, int $limit): array
+    {
+        return $this->misfiledBodyPartQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * The first message stored at or after $since, or null if there is none.
+     *
+     * Where MessageArrivalBackfillTask starts walking. Asked once, because
+     * `created_at` has no index and this reads the table; the walk itself is
+     * by primary key from here.
+     */
+    public function firstIdStoredSince(DateTimeImmutable $since): ?int
+    {
+        $id = $this->createQueryBuilder('m')
+            ->select('MIN(m.id)')
+            ->andWhere('m.createdAt >= :since')
+            ->setParameter('since', $since)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return null === $id ? null : (int) $id;
+    }
+
+    /**
+     * Messages after $afterId that have no provider accept time yet, in id
+     * order. Not every one of them can be given one — a draft has no
+     * `Received:` header — so the caller advances by id and not by result.
+     *
+     * @return list<Message>
+     */
+    public function findWithoutAcceptTime(int $afterId, int $limit): array
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.providerAcceptedAt IS NULL')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithMisfiledBodyPart(): int
+    {
+        return (int) $this->misfiledBodyPartQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * IMAP messages after $afterId whose original bytes are on disk, in id
+     * order: the set RepeatedHeaderBackfillTask reads.
+     *
+     * Every one of them, not the ones whose body looks wrong. A repeated
+     * header block is only visible in body_html for a single-part message; a
+     * multipart one renders correctly and carries the doubled block in its
+     * .eml all the same, and only reading the file finds it.
+     *
+     * @return list<Message>
+     */
+    public function findImapWithStoredRaw(int $afterId, int $limit): array
+    {
+        return $this->imapWithStoredRawQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countImapWithStoredRaw(): int
+    {
+        return (int) $this->imapWithStoredRawQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function imapWithStoredRawQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m AND l.imapUid IS NOT NULL)')
+            ->andWhere('m.rawPath IS NOT NULL')
+            ->setParameter('afterId', $afterId);
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function misfiledBodyPartQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere(
+                'EXISTS ('
+                . ' SELECT p.id FROM ' . MessagePart::class . ' p'
+                . ' WHERE p.message = m'
+                // Sealed parts are a sealed draft's encrypted attachments,
+                // never a misfiled body — see MisfiledBodyBackfillTask.
+                . ' AND p.sealed = false'
+                . " AND (p.contentType IN (:bodyTypes) OR p.contentType LIKE 'multipart/%')"
+                . ' AND LENGTH(p.filename) = 8'
+                . " AND ((p.contentType = 'text/html' AND (m.bodyHtml IS NULL OR m.bodyHtml = ''))"
+                . "   OR (p.contentType = 'text/plain' AND (m.bodyText IS NULL OR m.bodyText = ''))"
+                // A container can yield both bodies at once, so it only counts
+                // when there is nothing to overwrite in either.
+                . "   OR (p.contentType LIKE 'multipart/%'"
+                . "       AND (m.bodyHtml IS NULL OR m.bodyHtml = '')"
+                . "       AND (m.bodyText IS NULL OR m.bodyText = '')))"
+                . ')'
+            )
+            ->setParameter('afterId', $afterId)
+            ->setParameter('bodyTypes', ['text/plain', 'text/html']);
+    }
+
+    /**
+     * One account's messages awaiting categorisation — everything when the
+     * classifier itself changed, otherwise only the rows that have no category
+     * yet.
+     *
+     * QueryBuilder for the keyset bound, as with the safe-html walk.
+     *
+     * @return list<Message>
+     */
+    public function findPendingCategorization(int $accountId, bool $includeCategorized, int $afterId, int $limit): array
+    {
+        return $this->pendingCategorizationQueryBuilder($accountId, $includeCategorized, $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countPendingCategorization(int $accountId, bool $includeCategorized): int
+    {
+        return (int) $this->pendingCategorizationQueryBuilder($accountId, $includeCategorized, 0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function pendingCategorizationQueryBuilder(int $accountId, bool $includeCategorized, int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->andWhere('m.account = :accountId')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('accountId', $accountId)
+            ->setParameter('afterId', $afterId);
+
+        if (false === $includeCategorized) {
+            $qb->andWhere('m.category IS NULL');
+        }
+
+        return $qb;
+    }
+
+    /**
+     * Every raw-message path still pointed at by a row, as a lookup set — the
+     * "keep" list for the blob sweep.
+     *
+     * One streamed sequential scan rather than a batched IN() per thousand
+     * files: raw_path is not indexed, and indexing it to serve a maintenance
+     * command would tax every write to buy nothing the rest of the year. The
+     * LIKE keeps provider-scheme values (gmail://, msgraph://) out of the set,
+     * since those name no local file.
+     *
+     * @return array<string, true>
+     */
+    public function findReferencedRawPaths(string $pathPrefix): array
+    {
+        return $this->referencedPathSet('SELECT raw_path FROM message WHERE raw_path LIKE :prefix', $pathPrefix);
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private function referencedPathSet(string $sql, string $pathPrefix): array
+    {
+        $referenced = [];
+
+        $result = $this->getEntityManager()->getConnection()->executeQuery($sql, ['prefix' => $pathPrefix.'/%']);
+
+        foreach ($result->iterateColumn() as $path) {
+            $referenced[$path] = true;
+        }
+
+        return $referenced;
+    }
+
+    /**
+     * The UIDs above $aboveUid this mailbox has already stored.
+     *
+     * QueryBuilder for the projection: the syncer diffs a set of integers
+     * against what the server offers, and hydrating a Message per UID to read
+     * one column would make a routine poll cost a mailbox load.
+     *
+     * Bounded below because the syncer only ever asks the server for UIDs
+     * above its high-water mark: loading every UID a large folder has ever
+     * stored, on every poll, to check the handful above it was the cost.
+     *
+     * Read off the locations alone: the UIDs are theirs, and the unique index
+     * on (mailbox_id, imap_uid) answers this without touching message.
+     */
+    public function findSyncedUids(Mailbox $mailbox, int $aboveUid = 0): array
+    {
+        return $this->getEntityManager()->createQueryBuilder()
+            ->select('l.imapUid')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid IS NOT NULL')
+            ->andWhere('l.imapUid > :aboveUid')
+            ->setParameter('mailbox', $mailbox)
+            ->setParameter('aboveUid', $aboveUid)
+            ->getQuery()
+            ->getSingleColumnResult();
+    }
+
+    /**
+     * How many messages are stored for an account.
+     *
+     * For the progress line of a Gmail import, which has no folders to add
+     * up: what is stored against what the provider said the mailbox holds.
+     * Asked only while such an import is running.
+     */
+    /**
+     * Messages this Gmail mailbox brought in that live on another account:
+     * mail addressed to a connected sibling, stored there, and copies the
+     * sibling already had that took on their Gmail identity. Both point back
+     * through Message::$gmailCarrierAccount.
+     */
+    public function countCarriedBy(Account $account): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.gmailCarrierAccount = :account')
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * A sibling's own IMAP copies that a Gmail mailbox has merged into, a page
+     * at a time in id order: the rows with a folder of their own AND a carrier.
+     *
+     * The folder is what tells these apart from the other carried rows. A row
+     * Gmail built for a sibling has no IMAP folder and Gmail is its only
+     * source; a row with one is the IMAP server's, and Gmail only knows about
+     * it. See GmailifyLinks.
+     *
+     * By the carrier's id rather than the entity: the callers page through
+     * tens of thousands of rows and clear the entity manager between pages,
+     * which would leave an entity argument detached.
+     *
+     * @param int|null $carrierId null for every carrier on the install
+     * @return list<Message>
+     */
+    public function findImapCopiesCarried(?int $carrierId, int $afterId, int $limit): array
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->where('m.gmailCarrierAccount IS NOT NULL')
+            ->andWhere('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m)')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit);
+
+        if (null !== $carrierId) {
+            $qb->andWhere('IDENTITY(m.gmailCarrierAccount) = :carrierId')->setParameter('carrierId', $carrierId);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /** How many rows findImapCopiesCarried() would page through. */
+    /**
+     * Spam that is in the archive: mail wearing Spam that also wears Archive or
+     * has a copy in the server's Archive folder. What a "Mark as spam" filter
+     * left behind while it archived on the server instead of moving to Junk —
+     * see SpamInArchiveBackfillTask. Keyset-paged by id.
+     *
+     * @return list<Message>
+     */
+    public function findSpamInArchive(int $afterId, int $limit): array
+    {
+        return $this->spamInArchive($this->createQueryBuilder('m'))
+            ->andWhere('m.id > :after')
+            ->setParameter('after', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countSpamInArchive(): int
+    {
+        return (int) $this->spamInArchive($this->createQueryBuilder('m')->select('COUNT(m.id)'))
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    private function spamInArchive(QueryBuilder $qb): QueryBuilder
+    {
+        // EXISTS rather than joins: a message wears each label once but may
+        // have several copies, and a join would count it once per copy.
+        return $qb
+            ->where('EXISTS (SELECT 1 FROM ' . Label::class . ' sl WHERE sl MEMBER OF m.labels AND sl.role = :spam)')
+            ->andWhere($qb->expr()->orX(
+                'EXISTS (SELECT 1 FROM ' . Label::class . ' al WHERE al MEMBER OF m.labels AND al.role = :archive)',
+                'EXISTS (SELECT 1 FROM ' . MessageLocation::class . ' loc JOIN loc.mailbox lmb WHERE loc.message = m AND lmb.specialUse = :archiveFolder)',
+            ))
+            ->setParameter('spam', LabelRole::Spam)
+            ->setParameter('archive', LabelRole::Archive)
+            ->setParameter('archiveFolder', MailboxSpecialUse::ARCHIVE);
+    }
+
+    public function countImapCopiesCarried(?int $carrierId): int
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.gmailCarrierAccount IS NOT NULL')
+            ->andWhere('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m)');
+
+        if (null !== $carrierId) {
+            $qb->andWhere('IDENTITY(m.gmailCarrierAccount) = :carrierId')->setParameter('carrierId', $carrierId);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    public function countForAccount(Account $account): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.account = :account')
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * What this mailbox's rows currently say about their flags, and nothing
+     * else about them.
+     *
+     * The flag pass compares a folder listing against these five values and
+     * changes, in the ordinary case, none of them. It used to reach for the
+     * whole entity to find that out — `SELECT m.* FROM message WHERE
+     * mailbox_id = ? AND imap_uid IS NOT NULL`, hydrated — which means every
+     * body, every stored HTML part, the headers and the tsvector, for a
+     * comparison that touches a boolean, a boolean and a small JSON array. In
+     * the slow-query panel of a real install that one statement was the
+     * largest single cost in the database: 262 seconds over 1,187 calls,
+     * 698,517 rows, because it runs per folder per sweep for ever.
+     *
+     * So the comparison reads this, and only the rows that turn out to differ
+     * are hydrated (see ImapFlagReconciler). Array hydration on purpose: the
+     * caller wants values to compare, and an entity it does not intend to
+     * change is an entity the UnitOfWork has to track and check anyway.
+     *
+     * With each, its copy here: the location and the flags the server last
+     * reported for that copy, which is what a listing is compared against
+     * first (#415, see MessageLocation::$serverFlags).
+     *
+     * @return array<int,array{id:int,flags:list<string>,seen:bool,flagged:bool,pending:bool,location:int,serverFlags:list<string>|null}>
+     *         imapUid => its current flag state
+     */
+    public function findFlagStateByUid(Mailbox $mailbox): array
+    {
+        /** @var list<array{id:int,imapUid:int,flags:list<string>|null,seenAt:?\DateTimeInterface,starredAt:?\DateTimeInterface,flagsTouchedAt:?\DateTimeInterface,location:int,serverFlags:list<string>|null}> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id', 'l.imapUid', 'm.flags', 'm.seenAt', 'm.starredAt', 'm.flagsTouchedAt', 'l.id AS location', 'l.serverFlags')
+            ->join('m.locations', 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid IS NOT NULL')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->getArrayResult();
+
+        $state = [];
+
+        foreach ($rows as $row) {
+            $state[(int) $row['imapUid']] = [
+                'id'      => (int) $row['id'],
+                'flags'   => $row['flags'] ?? [],
+                'seen'    => null !== $row['seenAt'],
+                'flagged' => null !== $row['starredAt'],
+                'pending'     => null !== $row['flagsTouchedAt'],
+                'location'    => (int) $row['location'],
+                'serverFlags' => $row['serverFlags'],
+            ];
+        }
+
+        return $state;
+    }
+
+    /**
+     * One message in one folder, by the UID the server calls it.
+     *
+     * `(mailbox_id, imap_uid)` is unique by constraint, so this is a point
+     * lookup rather than a search — which is what makes it a fit answer to a
+     * flag notification that already named exactly one message. The only reply
+     * the IDLE loop used to have to one of those was to list the whole folder.
+     */
+    public function findOneInMailboxByUid(Mailbox $mailbox, int $uid): ?Message
+    {
+        return $this->createQueryBuilder('m')
+            ->join('m.locations', 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid = :uid')
+            ->setParameter('mailbox', $mailbox)
+            ->setParameter('uid', $uid)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * The rows a flag pass has decided it actually needs to change.
+     *
+     * @param list<int> $ids
+     *
+     * @return array<int,Message> imapUid => Message
+     */
+    public function findByIdsKeyedByUid(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<Message> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->where('m.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+
+        $located = [];
+
+        foreach ($rows as $row) {
+            $located[(int) $row->imapUid] = $row;
+        }
+
+        return $located;
+    }
+
+    /**
+     * Stored mail of this account that a new copy might be (#415): the rows
+     * with one of these Message-IDs or server ids. ImapCopies decides
+     * which, if any, is the same email; this only narrows the account down to
+     * the handful worth comparing.
+     *
+     * By message.account, never across accounts — see ImapCopies.
+     *
+     * @param list<string> $messageIds normalised, without angle brackets
+     * @param list<string> $serverIds  X-GM-MSGID / EMAILID values
+     *
+     * @return list<Message>
+     */
+    public function findCopyCandidates(Account $account, array $messageIds, array $serverIds): array
+    {
+        if ([] === $messageIds && [] === $serverIds) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('m')
+            ->where('m.account = :account')
+            ->setParameter('account', $account)
+            ->orderBy('m.id', 'ASC');
+
+        $either = $qb->expr()->orX();
+
+        if ([] !== $messageIds) {
+            $either->add('m.messageId IN (:messageIds)');
+            $qb->setParameter('messageIds', $messageIds);
+        }
+
+        if ([] !== $serverIds) {
+            $either->add('m.serverEmailId IN (:serverIds)');
+            $qb->setParameter('serverIds', $serverIds);
+        }
+
+        /** @var list<Message> */
+        return $qb->andWhere($either)->getQuery()->getResult();
+    }
+
+    /**
+     * Which of these messages the server keeps in more than one place, so that
+     * losing one copy is not losing the email (#415).
+     *
+     * @param list<int> $ids
+     *
+     * @return list<int>
+     */
+    public function findIdsWithSeveralLocations(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_map(intval(...), $this->getEntityManager()->createQueryBuilder()
+            ->select('IDENTITY(l.message)')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.message IN (:ids)')
+            ->groupBy('l.message')
+            ->having('COUNT(l.id) > 1')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getSingleColumnResult());
+    }
+
+    /**
+     * Every message with a copy in this folder.
+     *
+     * @return list<Message>
+     */
+    public function findKeptIn(Mailbox $mailbox): array
+    {
+        /** @var list<Message> */
+        return $this->createQueryBuilder('m')
+            ->where('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m AND l.mailbox = :mailbox)')
+            ->setParameter('mailbox', $mailbox)
+            ->orderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Forget this folder's copies of mail that is primarily somewhere else.
+     *
+     * For a mirror folder that has been switched off: nothing lists it any
+     * more, so its copies would go on claiming an address nobody checks. By
+     * query, because only secondary copies go — a message's primary is left
+     * for MailboxSyncer::dropMirrorCopies(), which erases it as it always did —
+     * so no message's $mailbox / $imapUid changes underneath it.
+     */
+    public function dropSecondaryLocationsIn(Mailbox $mailbox): int
+    {
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->delete(MessageLocation::class, 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('EXISTS (SELECT m.id FROM ' . Message::class . ' m WHERE m = l.message AND m.mailbox <> :mailbox)')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * Every addressable server copy of these messages, for a job that has to
+     * reach each one: [messageId, mailboxId, UID].
+     *
+     * @param list<int> $ids
+     *
+     * @return list<array{int,int,int}>
+     */
+    public function findCopiesOf(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->createQueryBuilder()
+            ->select('IDENTITY(l.message) AS message', 'IDENTITY(l.mailbox) AS mailbox', 'l.imapUid')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.message IN (:ids)')
+            ->andWhere('l.imapUid IS NOT NULL')
+            ->orderBy('l.id', 'ASC')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(
+            static fn (array $row): array => [(int) $row['message'], (int) $row['mailbox'], (int) $row['imapUid']],
+            $rows,
+        );
+    }
+
+    /**
+     * Emails this folder keeps that are stored as more than one message, each
+     * as the ids of its messages, the one to keep first — see ImapCopyMerger.
+     *
+     * One account, one Message-ID, one size, no two server ids that differ,
+     * and every row kept somewhere by the server. Grouped in SQL: the accounts
+     * that need this have it for most of their mail.
+     *
+     * @return list<list<int>>
+     */
+    public function findDuplicateCopyGroups(Mailbox $mailbox, int $limit): array
+    {
+        $rows = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT array_to_json(array_agg(m.id ORDER BY (m.gmail_id IS NULL), m.id))'
+            . ' FROM message m'
+            . ' WHERE m.account_id = :account'
+            . ' AND m.message_id IS NOT NULL AND m.rfc822_size IS NOT NULL'
+            . ' AND EXISTS (SELECT 1 FROM message_location l WHERE l.message_id = m.id)'
+            . ' AND (m.message_id, m.rfc822_size) IN ('
+            . '   SELECT k.message_id, k.rfc822_size FROM message k JOIN message_location kl ON kl.message_id = k.id'
+            . '   WHERE kl.mailbox_id = :mailbox AND k.rfc822_size IS NOT NULL AND k.message_id IS NOT NULL'
+            . ' )'
+            . ' GROUP BY m.message_id, m.rfc822_size'
+            . ' HAVING COUNT(*) > 1 AND COUNT(DISTINCT m.server_email_id) <= 1'
+            . ' LIMIT :limit',
+            ['account' => $mailbox->account->id, 'mailbox' => $mailbox->id, 'limit' => $limit],
+        );
+
+        return array_map(
+            static fn (string $ids): array => array_map(intval(...), json_decode($ids, true, flags: JSON_THROW_ON_ERROR)),
+            $rows,
+        );
+    }
+
+    /**
+     * Give rows stored before #415 the size their copy in this folder has.
+     *
+     * The size is what guards a Message-ID match (ImapCopies), and a row
+     * without one is never recognised: a copy of it that turns up in another
+     * folder is stored again, and a move another client made is only found by
+     * asking the server about each Message-ID. Each folder's listing fills the
+     * rows it keeps, once; after that this finds nothing to do.
+     *
+     * @param array<int, int> $sizesByUid UID => RFC822.SIZE, as the folder listed them
+     *
+     * @return int rows given a size
+     */
+    public function backfillSizes(Mailbox $mailbox, array $sizesByUid): int
+    {
+        if ([] === $sizesByUid) {
+            return 0;
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+
+        $unsized = array_flip(array_map(intval(...), $connection->fetchFirstColumn(
+            'SELECT l.imap_uid FROM message_location l JOIN message m ON m.id = l.message_id'
+            . ' WHERE l.mailbox_id = ? AND l.imap_uid IS NOT NULL AND m.rfc822_size IS NULL',
+            [$mailbox->id],
+        )));
+
+        $wanted = array_intersect_key($sizesByUid, $unsized);
+        $filled = 0;
+
+        foreach (array_chunk($wanted, 500, true) as $chunk) {
+            $values = [];
+            $params = [];
+
+            foreach ($chunk as $uid => $size) {
+                $values[] = '(?::int, ?::int)';
+                $params[] = $uid;
+                $params[] = $size;
+            }
+
+            // The folder's id last, as its placeholder comes after the VALUES.
+            $params[] = (int) $mailbox->id;
+
+            $filled += (int) $connection->executeStatement(
+                'UPDATE message m SET rfc822_size = v.size'
+                . ' FROM (VALUES ' . implode(', ', $values) . ') AS v(uid, size), message_location l'
+                . ' WHERE l.mailbox_id = ? AND l.imap_uid = v.uid AND l.message_id = m.id AND m.rfc822_size IS NULL',
+                $params,
+            );
+        }
+
+        return $filled;
+    }
+
+    /**
+     * Write down what the server just reported for these copies' flags.
+     *
+     * In SQL and in chunks, because the first listing after #415 records
+     * every copy in the folder, and a folder can hold a hundred thousand.
+     * After that only the copies that changed come here.
+     *
+     * @param array<int, list<string>> $flagsByLocation location id => canonical flags
+     */
+    public function recordServerFlags(array $flagsByLocation): void
+    {
+        $connection = $this->getEntityManager()->getConnection();
+
+        foreach (array_chunk($flagsByLocation, 500, true) as $chunk) {
+            $values = [];
+            $params = [];
+
+            foreach ($chunk as $locationId => $flags) {
+                $values[] = '(?::int, ?::json)';
+                $params[] = $locationId;
+                $params[] = json_encode(array_values($flags), JSON_THROW_ON_ERROR);
+            }
+
+            $connection->executeStatement(
+                'UPDATE message_location l SET server_flags = v.flags FROM (VALUES ' . implode(', ', $values) . ') AS v(id, flags) WHERE l.id = v.id',
+                $params,
+            );
+        }
+    }
+
+    /**
+     * Every address this mailbox holds, as row id => UID.
+     *
+     * findSyncedUids() answers "have I seen this UID", which is all the
+     * incremental path needs. The sweep asks the opposite question — which of
+     * my rows is the server no longer offering — and to answer it has to name
+     * the rows, not merely count them.
+     *
+     * @return array<int,int> messageId => imapUid
+     */
+    public function findLocatedUidsById(Mailbox $mailbox): array
+    {
+        $rows = $this->getEntityManager()->createQueryBuilder()
+            ->select('IDENTITY(l.message) AS id', 'l.imapUid')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid IS NOT NULL')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->getArrayResult();
+
+        $located = [];
+
+        foreach ($rows as $row) {
+            $located[(int) $row['id']] = (int) $row['imapUid'];
+        }
+
+        return $located;
+    }
+
+    /**
+     * Record that these rows were not in their folder's listing.
+     *
+     * A bulk update rather than hydrated entities: a sweep of a large folder
+     * after a bad night can name thousands of rows, and loading a Message per
+     * row to write one nullable column would turn the safety net into the
+     * slowest thing in the poll.
+     *
+     * `vanishedAt IS NULL` in the predicate keeps the *first* absence as the
+     * instant that counts. Refreshing it on every sweep would push the deadline
+     * out forever and nothing would ever be reaped.
+     *
+     * @param list<int> $ids
+     */
+    public function markVanished(array $ids, \DateTimeImmutable $at): int
+    {
+        return $this->updateVanishedAt($ids, $at, onlyUnmarked: true);
+    }
+
+    /**
+     * Take the mark off rows the server has just produced after all.
+     *
+     * @param list<int> $ids
+     */
+    public function clearVanished(array $ids): int
+    {
+        return $this->updateVanishedAt($ids, null, onlyUnmarked: false);
+    }
+
+    /**
+     * @param list<int> $ids
+     */
+    private function updateVanishedAt(array $ids, ?\DateTimeImmutable $at, bool $onlyUnmarked): int
+    {
+        if (0 === count($ids)) {
+            return 0;
+        }
+
+        $affected = 0;
+
+        // Chunked because Postgres has a bind-parameter ceiling and a folder
+        // that was rebuilt server-side can put every row it has in this list.
+        foreach (array_chunk($ids, 1000) as $chunk) {
+            $qb = $this->getEntityManager()->createQueryBuilder()
+                ->update(Message::class, 'm')
+                ->set('m.vanishedAt', ':at')
+                ->where('m.id IN (:ids)')
+                ->setParameter('at', $at)
+                ->setParameter('ids', $chunk);
+
+            if (true === $onlyUnmarked) {
+                $qb->andWhere('m.vanishedAt IS NULL');
+            } else {
+                $qb->andWhere('m.vanishedAt IS NOT NULL');
+            }
+
+            $affected += (int) $qb->getQuery()->execute();
+        }
+
+        return $affected;
+    }
+
+    /**
+     * Drop every JMAP Email id an account's rows carry, keeping the rows.
+     *
+     * The JMAP half of unlocateAll(), for an account that stops reading over
+     * JMAP: the ids name nothing to the protocol it switches to, and a row
+     * that kept one would go on being patched and destroyed by JMAP jobs
+     * still on the queue. Recognised again by Message-ID if it ever switches
+     * back — see JmapEmailSyncer.
+     */
+    public function forgetJmapIds(Account $account): int
+    {
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->update(Message::class, 'm')
+            ->set('m.jmapId', ':nothing')
+            ->where('m.account = :account')
+            ->andWhere('m.jmapId IS NOT NULL')
+            ->setParameter('nothing', null)
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * Strip every stored UID in this folder, keeping the rows.
+     *
+     * What a UIDVALIDITY change means and the most that may be done about it.
+     * The addresses are void; the mail is not, and the server may still have
+     * all of it. An unlocated row is the shape SentCopyReconciler::claim()
+     * re-matches by Message-ID when the folder is re-read, so this is a
+     * re-match and not a wipe.
+     *
+     * The vanish marks go with them: a row with no address cannot be confirmed
+     * gone by anything, so leaving it marked would only give the reaper
+     * questions it can never answer.
+     */
+    public function unlocateAll(Mailbox $mailbox): int
+    {
+        // The locations first, in the same terms: an update by query goes past
+        // Message::mirrorLocation(), so it has to say the same thing twice
+        // until the message columns are gone (#415).
+        $this->getEntityManager()->createQueryBuilder()
+            ->update(MessageLocation::class, 'l')
+            ->set('l.imapUid', ':nothing')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid IS NOT NULL')
+            ->setParameter('nothing', null)
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->execute();
+
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->update(Message::class, 'm')
+            ->set('m.imapUid', ':nothing')
+            ->set('m.vanishedAt', ':nothing')
+            ->where('m.mailbox = :mailbox')
+            ->andWhere('m.imapUid IS NOT NULL')
+            ->setParameter('nothing', null)
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * Rows that went missing before every folder had been looked in.
+     *
+     * The cutoff is the caller's business and is the whole safety of this: it
+     * passes the *earliest* sweep across the account's folders, so a row only
+     * comes back from here once every one of them has been listed since it
+     * vanished and none produced it. See VanishedMessageReconciler::reap().
+     *
+     * Ordered by the instant they vanished so the oldest evidence is acted on
+     * first, and capped, because erasing is the one thing here that cannot be
+     * undone by the next poll.
+     *
+     * @return list<Message>
+     */
+    public function findReapable(Account $account, \DateTimeImmutable $vanishedBefore, int $limit): array
+    {
+        return $this->createQueryBuilder('m')
+            ->where('m.account = :account')
+            ->andWhere('m.vanishedAt IS NOT NULL')
+            ->andWhere('m.vanishedAt < :before')
+            ->setParameter('account', $account)
+            ->setParameter('before', $vanishedBefore)
+            ->orderBy('m.vanishedAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Rows that are not mail: the epoch-dated corpses of a failed fetch.
+     *
+     * An IMAP FETCH that came back empty used to be assembled into a Message
+     * anyway — see MessageSyncer::isUsableFetch(), which now refuses it. The
+     * rows already written by that path are what this finds: no Message-ID, no
+     * sender, no subject, no body, no attachments, and a receivedAt of the
+     * epoch, because webklex's empty Attribute parses through Carbon as
+     * `false` and lands on 1970-01-01.
+     *
+     * Every condition is required, and that is the point. The predicate has to
+     * be unable to match mail a user would miss, and the way to guarantee that
+     * is to demand the whole profile rather than any part of it:
+     *
+     *  - A genuinely subjectless message still carries a Message-ID and a
+     *    sender, so it fails on both counts before the subject is even looked
+     *    at.
+     *  - A message whose Date header was missing is now stored at ingest time,
+     *    never at the epoch, so it cannot drift into range.
+     *  - An empty draft has no receivedAt at all rather than an epoch one,
+     *    which is why the date test demands a real value BELOW the cutoff
+     *    instead of accepting NULL. Drafts are excluded by label as well —
+     *    belt and braces, because a draft is the one thing in the schema that
+     *    is legitimately blank.
+     *
+     * The cutoff is a year wide rather than an exact equality so a row written
+     * through a different timezone still matches; nothing real is dated 1970.
+     *
+     * @return list<Message>
+     */
+    public function findEpochGhosts(int $limit): array
+    {
+        $qb = $this->createQueryBuilder('m');
+
+        return $qb
+            ->where('m.receivedAt IS NOT NULL')
+            ->andWhere('m.receivedAt < :epochCutoff')
+            ->andWhere($qb->expr()->orX('m.messageId IS NULL', "m.messageId = ''"))
+            ->andWhere($qb->expr()->orX('m.fromAddress IS NULL', "m.fromAddress = ''"))
+            ->andWhere($qb->expr()->orX('m.subject IS NULL', "m.subject = ''"))
+            ->andWhere($qb->expr()->orX('m.bodyText IS NULL', "m.bodyText = ''"))
+            ->andWhere($qb->expr()->orX('m.bodyHtml IS NULL', "m.bodyHtml = ''"))
+            ->andWhere($qb->expr()->orX('m.hasAttachments IS NULL', 'm.hasAttachments = false'))
+            ->andWhere(
+                $qb->expr()->notIn(
+                    'm.id',
+                    'SELECT drafted.id FROM ' . Message::class . ' drafted'
+                        . ' JOIN drafted.labels draftedLabel'
+                        . ' WHERE draftedLabel.role = :draftsRole',
+                ),
+            )
+            ->setParameter('epochCutoff', new \DateTimeImmutable('1971-01-01'))
+            ->setParameter('draftsRole', LabelRole::Drafts)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * The rows behind a set of Gmail ids, scoped to one owner.
+     *
+     * Scoped through the user rather than the account: plMail attributes a
+     * Gmail message to whichever of the owner's accounts it was actually
+     * addressed to, so the row for an id that arrived on one account's
+     * history feed may well hang off a sibling.
+     *
+     * @param list<string> $gmailIds
+     *
+     * @return list<Message>
+     */
+    public function findByGmailIdsForUser(User $user, array $gmailIds): array
+    {
+        if (0 === count($gmailIds)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->innerJoin('m.account', 'a')
+            ->where('a.usr = :usr')
+            ->andWhere('m.gmailId IN (:gmailIds)')
+            ->setParameter('usr', $user)
+            ->setParameter('gmailIds', $gmailIds)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * The one row for a Gmail id among the owner's accounts, for the batch
+     * handler's "already stored?" check.
+     *
+     * Scoped through the user and not the account, for the reason given on
+     * findByGmailIdsForUser(): a message fetched by one Gmail account may be
+     * attributed to a sibling. It used to be a bare findOneBy(['gmailId']),
+     * which searched every user on the install — a gmailId is only unique per
+     * account, so another user's row could be found and enriched with this
+     * user's labels. QueryBuilder because the owner is behind an association.
+     */
+    public function findOneByGmailIdForUser(User $user, string $gmailId): ?Message
+    {
+        return $this->createQueryBuilder('m')
+            ->innerJoin('m.account', 'a')
+            ->where('a.usr = :usr')
+            ->andWhere('m.gmailId = :gmailId')
+            ->setParameter('usr', $user)
+            ->setParameter('gmailId', $gmailId)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * A few of an account's Gmail ids, newest first: something to fetch again
+     * for the quota probe without asking Gmail what there is.
+     *
+     * @return list<string>
+     */
+    public function findSomeGmailIdsForAccount(Account $account, int $limit): array
+    {
+        return array_map(strval(...), $this->createQueryBuilder('m')
+            ->select('m.gmailId')
+            ->where('m.account = :account')
+            ->andWhere('m.gmailId IS NOT NULL')
+            ->setParameter('account', $account)
+            ->orderBy('m.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult());
+    }
+
+    /**
+     * Which of these Gmail ids the owner already has, as ids and nothing
+     * else: what a listing's batch asks before it fetches.
+     *
+     * @param list<string> $gmailIds
+     *
+     * @return list<string>
+     */
+    public function findStoredGmailIdsForUser(User $user, array $gmailIds): array
+    {
+        if (0 === count($gmailIds)) {
+            return [];
+        }
+
+        return array_map(strval(...), $this->createQueryBuilder('m')
+            ->select('m.gmailId')
+            ->innerJoin('m.account', 'a')
+            ->where('a.usr = :usr')
+            ->andWhere('m.gmailId IN (:gmailIds)')
+            ->setParameter('usr', $user)
+            ->setParameter('gmailIds', $gmailIds)
+            ->getQuery()
+            ->getSingleColumnResult());
+    }
+
+    /**
+     * Joined via thread since Gmail-API messages carry no mailbox — a join
+     * across an association, which findOneBy() has no way to state.
+     */
+    public function findOneByMessageIdsForAccount(array $messageIds, Account $account): ?Message
+    {
+        if (count($messageIds) === 0) {
+            return null;
+        }
+
+        return $this->createQueryBuilder('message')
+            ->innerJoin('message.thread', 'thread')
+            ->where('thread.account = :account')
+            ->andWhere('message.messageId IN (:messageIds)')
+            ->setParameter('account', $account)
+            ->setParameter('messageIds', $messageIds)
+            ->orderBy('message.receivedAt', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * The messages of an account that name this Message-ID in In-Reply-To or
+     * References — its replies, and their replies, wherever they were threaded.
+     *
+     * The other direction from findOneByMessageIdsForAccount(), for the message
+     * that arrives after the mail answering it (#172). Raw SQL for the ids,
+     * because containment in a json array has no DQL spelling; entities for
+     * the result, through findBy(), so a row this unit of work already holds
+     * comes back as the instance it holds. That matters to the caller: a reply
+     * threaded earlier in the same batch has its thread only in memory until
+     * the batch is flushed, and the database still says NULL.
+     *
+     * The threader also asks it about a Message-ID nobody has, to find the
+     * other mail that hangs off the same missing conversation start (#377).
+     *
+     * Both spellings of the id are asked for. Rows synced before Message-IDs
+     * were normalised still hold "<x@host>" in their arrays until the rethread
+     * backfill has run over them, and `@>` compares exactly.
+     *
+     * @return list<Message>
+     */
+    public function findRepliesToForAccount(string $messageId, Account $account): array
+    {
+        $sql = sprintf(
+            <<<'SQL'
+                SELECT id
+                  FROM message
+                 WHERE account_id = :accountId
+                   AND %s @> ANY (ARRAY[jsonb_build_array(CAST(:bare AS text)), jsonb_build_array(CAST(:bracketed AS text))])
+                SQL,
+            self::REFERENCED_IDS,
+        );
+
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            $sql,
+            [
+                'accountId' => $account->id,
+                'bare'      => $messageId,
+                'bracketed' => sprintf('<%s>', $messageId),
+            ],
+            ['accountId' => ParameterType::INTEGER],
+        );
+
+        return array_values($this->findByIds(array_map(intval(...), $ids)));
+    }
+
+    /**
+     * Does the thread contain a message sent by any of these addresses?
+     *
+     * Threading passes the candidate's sender *and* its recipients: a reply from
+     * someone new to the conversation shares no sender with it, but its To/Cc
+     * almost always names someone who has already posted. Checking senders only
+     * would reject those replies.
+     *
+     * QueryBuilder because the comparison is on LOWER(fromAddress) — addresses
+     * are stored as they arrived and matched case-insensitively — and because
+     * this only ever needs to know whether a row exists, which is why it
+     * selects a literal and stops at one instead of hydrating a Message.
+     *
+     * @param list<string> $addresses
+     */
+    public function existsWithAnyFromAddressInThread(array $addresses, MessageThread $thread): bool
+    {
+        $normalized = array_values(array_unique(array_filter(
+            array_map(static fn(string $address): string => mb_strtolower(trim($address)), $addresses),
+            static fn(string $address): bool => '' !== $address,
+        )));
+
+        if (0 === count($normalized)) {
+            return false;
+        }
+
+        $result = $this->createQueryBuilder('m')
+            ->select('1')
+            ->where('m.thread = :thread')
+            ->andWhere('LOWER(m.fromAddress) IN (:addresses)')
+            ->setParameter('thread', $thread)
+            ->setParameter('addresses', $normalized)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $result !== null;
+    }
+
+    /**
+     * Does the thread hold stored mail that is neither in Spam nor in the bin?
+     *
+     * Asked by MessageThreader::recordArrival() before a set-aside message may
+     * move a conversation: one that lives in the Inbox must not be brought to
+     * the top by the spam a filter has just taken out of it.
+     *
+     * Stored rows only, which is what the question needs: the arriving message
+     * is not in the thread in the database yet, and is left out by id in case
+     * it is. A literal and one row, for the reason existsWithAnyFromAddressInThread()
+     * gives.
+     */
+    public function existsNotSetAsideInThread(MessageThread $thread, Message $except): bool
+    {
+        if (null === $thread->id) {
+            return false;
+        }
+
+        $qb = $this->createQueryBuilder('m');
+
+        $qb->select('1')
+            ->where('m.thread = :thread')
+            ->andWhere($qb->expr()->notIn(
+                'm.id',
+                'SELECT asideMessage.id FROM ' . Message::class . ' asideMessage'
+                    . ' JOIN asideMessage.labels asideLabel'
+                    . ' WHERE asideMessage.thread = :thread AND asideLabel.role IN (:asideRoles)',
+            ))
+            ->setParameter('thread', $thread)
+            ->setParameter('asideRoles', [LabelRole::Spam, LabelRole::Trash])
+            ->setMaxResults(1);
+
+        if (null !== $except->id) {
+            $qb->andWhere('m.id <> :except')
+                ->setParameter('except', $except->id);
+        }
+
+        return null !== $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /** A null criterion is Doctrine's IS NULL, so this needs no query of its own. */
+    /**
+     * The folder's own numbers, as the server would give them: the messages it
+     * keeps, each once however many copies it holds (#415).
+     */
+    public function countUnseenForMailbox(Mailbox $mailbox): int
+    {
+        return $this->countKeptIn($mailbox, true);
+    }
+
+    public function countTotalForMailbox(Mailbox $mailbox): int
+    {
+        return $this->countKeptIn($mailbox, false);
+    }
+
+    private function countKeptIn(Mailbox $mailbox, bool $unseenOnly): int
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m AND l.mailbox = :mailbox)')
+            ->setParameter('mailbox', $mailbox);
+
+        if (true === $unseenOnly) {
+            $qb->andWhere('m.seenAt IS NULL');
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Label-based: covers Gmail drafts too (no mailbox to join through), and
+     * the label is a to-many association, which findBy() cannot filter on.
+     */
+    public function findDrafts(): array
+    {
+        return $this->createQueryBuilder('m')
+            ->innerJoin('m.labels', 'l')
+            ->where('l.role = :drafts')
+            ->setParameter('drafts', LabelRole::Drafts)
+            ->orderBy('m.updatedAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Every draft a user owns, on every account.
+     *
+     * Selected by Drafts-role label the way the Drafts list selects them, so
+     * Gmail-style drafts with no mailbox are covered — a join over a to-many
+     * association plus a join to the owning account, neither of which findBy()
+     * can express.
+     *
+     * @return list<Message>
+     */
+    public function findDraftsForUser(User $user): array
+    {
+        return $this->createQueryBuilder('m')
+            ->innerJoin('m.account', 'a')
+            ->innerJoin('m.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('l.role = :drafts')
+            ->setParameter('user', $user)
+            ->setParameter('drafts', LabelRole::Drafts)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Stream the address fields of every message belonging to an account — via
+     * its mailbox (IMAP) or its thread (Gmail-API messages carry no mailbox
+     * row).
+     *
+     * QueryBuilder twice over: the OR spans two joined associations, and the
+     * result is streamed rather than returned, which findBy() cannot do at all.
+     * Streaming is the point — an account's whole mail does not fit in memory.
+     *
+     * Five columns rather than the entity, and that is the whole reason this
+     * returns arrays. The only caller reads from/to/cc/bcc; hydrating Message
+     * also fetched body_html, body_text, body_html_safe, headers and the
+     * search_vector — the five widest columns in the table — and discarded
+     * them. On a fifty-thousand-message account that is most of a mailbox read
+     * off disk to learn some addresses. Scalars also keep the unit of work
+     * empty, which a toIterable() over entities does not.
+     *
+     * @return iterable<array{fromAddress: ?string, fromName: ?string, toAddresses: ?array<mixed>, ccAddresses: ?array<mixed>, bccAddresses: ?array<mixed>}>
+     */
+    public function iterateAddressesForAccount(Account $account): iterable
+    {
+        return $this->createQueryBuilder('message')
+            ->select(
+                'message.fromAddress AS fromAddress',
+                'message.fromName AS fromName',
+                'message.toAddresses AS toAddresses',
+                'message.ccAddresses AS ccAddresses',
+                'message.bccAddresses AS bccAddresses',
+            )
+            // EXISTS rather than a join: one row per address set, however many
+            // folders the message is kept in.
+            ->leftJoin('message.thread', 'thread')
+            ->where('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l JOIN l.mailbox mailbox WHERE l.message = message AND mailbox.account = :account) OR thread.account = :account')
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->toIterable();
+    }
+
+    /**
+     * The rows behind a set of JMAP Email ids on one account.
+     *
+     * Scoped to the account and not the user, unlike the Gmail lookups: a
+     * JMAP Email id is the server's name for a message in one mailbox store,
+     * and nothing attributes a JMAP message to a sibling account.
+     *
+     * @param list<string> $jmapIds
+     *
+     * @return list<Message>
+     */
+    public function findByJmapIdsForAccount(Account $account, array $jmapIds): array
+    {
+        if ([] === $jmapIds) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->where('m.account = :account')
+            ->andWhere('m.jmapId IN (:jmapIds)')
+            ->setParameter('account', $account)
+            ->setParameter('jmapIds', $jmapIds)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Which of these JMAP Email ids the account already has, as ids only:
+     * what a page of a listing asks before it fetches anything.
+     *
+     * @param list<string> $jmapIds
+     *
+     * @return list<string>
+     */
+    public function findStoredJmapIdsForAccount(Account $account, array $jmapIds): array
+    {
+        if ([] === $jmapIds) {
+            return [];
+        }
+
+        return array_map(strval(...), $this->createQueryBuilder('m')
+            ->select('m.jmapId')
+            ->where('m.account = :account')
+            ->andWhere('m.jmapId IN (:jmapIds)')
+            ->setParameter('account', $account)
+            ->setParameter('jmapIds', $jmapIds)
+            ->getQuery()
+            ->getSingleColumnResult());
+    }
+
+    /**
+     * The account's own copy of a message (via mailbox or thread ownership)
+     * by canonical RFC Message-ID — the enrichment target for Gmailify dedup.
+     *
+     * The OR across two joins is what findOneBy() cannot say: ownership lives
+     * on whichever of the two associations this message happens to have.
+     */
+    public function findOneForAccountByMessageId(Account $account, string $messageId): ?Message
+    {
+        return $this->createQueryBuilder('message')
+            ->leftJoin('message.thread', 'thread')
+            ->where('message.messageId = :messageId')
+            ->andWhere('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l JOIN l.mailbox mailbox WHERE l.message = message AND mailbox.account = :account) OR thread.account = :account')
+            ->setParameter('messageId', $messageId)
+            ->setParameter('account', $account)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * A message this account already holds under the given RFC Message-ID that
+     * has no IMAP location yet — claimable by the syncer when the server-side
+     * copy shows up.
+     *
+     * Two kinds of row qualify, and they are the same situation twice: a
+     * Gmail-imported copy waiting for its IMAP twin, and a message this
+     * installation composed and sent itself, whose Sent-folder copy is about to
+     * come back. Both already went through the whole ingest pipeline and both
+     * are what JMAP clients, attachments and calendar links point at, so the
+     * server copy has to attach to them rather than land as a second row.
+     *
+     * Deliberately not restricted by gmailId any more. It used to be, and that
+     * is precisely why a web-composed reply came back from Sent as a duplicate:
+     * the row had no gmailId, so nothing recognised it.
+     *
+     * An unsent draft cannot be caught by this. Drafts never get a Message-ID —
+     * MessageSendService mints one at send — so they have nothing to match on.
+     *
+     * QueryBuilder for the ownership test: it spans two associations, since a
+     * row reaches its account through its mailbox or through its thread
+     * depending on where it came from.
+     *
+     * $forSentFolder false leaves out the rows waiting for their Sent copy —
+     * the send path files those in the Sent mailbox, or in none when the
+     * account has no Sent folder, and they carry no gmailId. Only the Sent
+     * folder may claim them. A mail you Cc'd to yourself arrives in INBOX
+     * under the same Message-ID, often before the Sent copy, and used to take
+     * the sent row over: the message left Sent and the Sent copy that followed
+     * was inserted as a second row. Gmail-imported copies (gmailId set) and
+     * rows a UIDVALIDITY rebuild unlocated in their own folder stay claimable
+     * from anywhere.
+     */
+    public function findUnlocatedByMessageId(Account $account, string $messageId, bool $forSentFolder = true): ?Message
+    {
+        $qb = $this->createQueryBuilder('message')
+            ->leftJoin('message.mailbox', 'mailbox')
+            ->leftJoin('message.thread', 'thread')
+            ->where('message.messageId = :messageId')
+            ->andWhere('message.imapUid IS NULL')
+            ->andWhere('mailbox.account = :account OR thread.account = :account')
+            ->setParameter('messageId', $messageId)
+            ->setParameter('account', $account)
+            ->orderBy('message.id', 'ASC')
+            ->setMaxResults(1);
+
+        if (false === $forSentFolder) {
+            $qb->andWhere(
+                'message.gmailId IS NOT NULL'
+                . ' OR (mailbox.id IS NOT NULL AND (mailbox.specialUse IS NULL OR mailbox.specialUse != :sent))',
+            )->setParameter('sent', MailboxSpecialUse::SENT);
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * A row this account holds with no server address that is the same
+     * message as one a server is offering, judged by Message-ID or — for mail
+     * that has none — by MessageSyncer::fingerprintOf(). Null when there is
+     * none to adopt.
+     *
+     * For an account that changed incoming protocol (#289), whose rows all
+     * lost their addresses in the switch. Two narrowings keep it from taking
+     * one message for another:
+     *
+     *  - Only unlocated rows. A row with an IMAP UID is somewhere on a server
+     *    already, and is SentCopyReconciler's to match.
+     *  - $notInPop3Ledger: only rows no UIDL names yet. A POP3 adoption does
+     *    not give the row an address, so without this two copies on the server
+     *    that look alike would both be taken for the one row, and the second
+     *    — which the delete mode would then remove — would exist nowhere.
+     *
+     * A fingerprint match also leaves out unsent drafts (no sentAt), which
+     * have no Message-ID either and are nobody's copy of anything.
+     *
+     * @param array{from: string, subject: string, date: \DateTimeImmutable}|null $fingerprint
+     */
+    public function findAdoptable(Account $account, string $messageId, ?array $fingerprint, bool $notInPop3Ledger): ?Message
+    {
+        $qb = $this->createQueryBuilder('message')
+            ->where('message.account = :account')
+            ->andWhere('message.imapUid IS NULL')
+            ->setParameter('account', $account)
+            ->orderBy('message.id', 'ASC')
+            ->setMaxResults(1);
+
+        if ('' !== $messageId) {
+            $qb->andWhere('message.messageId = :messageId')->setParameter('messageId', $messageId);
+        } elseif (null !== $fingerprint) {
+            $qb->andWhere("message.messageId IS NULL OR message.messageId = ''")
+                ->andWhere('message.subject = :subject')
+                ->andWhere('message.receivedAt = :date')
+                ->andWhere('message.sentAt IS NOT NULL')
+                ->setParameter('subject', $fingerprint['subject'])
+                ->setParameter('date', $fingerprint['date']);
+
+            if ('' === $fingerprint['from']) {
+                $qb->andWhere("message.fromAddress IS NULL OR message.fromAddress = ''");
+            } else {
+                $qb->andWhere('message.fromAddress = :from')->setParameter('from', $fingerprint['from']);
+            }
+        } else {
+            return null;
+        }
+
+        if (true === $notInPop3Ledger) {
+            $qb->andWhere('NOT EXISTS (SELECT ledger.id FROM ' . Pop3Uidl::class . ' ledger WHERE ledger.message = message)');
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * A *server-side* copy already stored in this exact folder under this RFC
+     * Message-ID.
+     *
+     * The guard against a second server-side copy of one sent message: plenty
+     * of providers file their own Sent copy of everything they relay, so our
+     * APPEND and their auto-save both sit in Sent with the same Message-ID and
+     * different UIDs. One message, one row.
+     *
+     * The UID is what makes it server-side, and requiring it is not optional.
+     * A message we sent is filed into the Sent *folder* by the send path itself
+     * while it is still waiting for its server copy — so without this it
+     * matches itself, is reported as already present, and never gets the UID it
+     * came here to be given.
+     *
+     * Folder-scoped on purpose. Across folders the same Message-ID is normal —
+     * a mail you sent to yourself is genuinely in both Sent and INBOX, and this
+     * app models those as separate rows carrying separate labels.
+     */
+    public function findInMailboxByMessageId(Mailbox $mailbox, string $messageId): ?Message
+    {
+        return $this->createQueryBuilder('message')
+            ->where('message.mailbox = :mailbox')
+            ->andWhere('message.imapUid IS NOT NULL')
+            ->andWhere('message.messageId = :messageId')
+            ->setParameter('mailbox', $mailbox)
+            ->setParameter('messageId', $messageId)
+            ->orderBy('message.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Rows in a mirror folder (Mailbox::$mirrorsOtherFolders) whose email the
+     * server also keeps in a real folder — the second copies #414 is about.
+     *
+     * "Keeps" means a row with an address the server has confirmed: a folder,
+     * a UID, and no vanish mark. A row waiting for its copy after a move has
+     * none of those yet, and erasing the mirror copy beside it would leave the
+     * email with no confirmed address at all. Nor does a copy in another
+     * mirror count: a message in both Starred and All Mail and nowhere else is
+     * in neither for good, and erasing by this rule would take it from both.
+     *
+     * By Message-ID, the only key two folder copies share. Rows without one
+     * are never matched, so they stay.
+     *
+     * @return list<Message>
+     */
+    public function findMirrorCopiesKeptElsewhere(Mailbox $mirror, int $limit): array
+    {
+        /** @var list<Message> */
+        return $this->createQueryBuilder('message')
+            ->where('message.mailbox = :mirror')
+            ->andWhere('message.messageId IS NOT NULL')
+            ->andWhere(
+                'EXISTS (SELECT kept.id FROM ' . Message::class . ' kept'
+                . ' JOIN kept.mailbox keptIn'
+                . ' WHERE kept.account = message.account'
+                . ' AND kept.messageId = message.messageId'
+                . ' AND kept.mailbox <> message.mailbox'
+                . ' AND kept.imapUid IS NOT NULL'
+                . ' AND kept.vanishedAt IS NULL'
+                . ' AND keptIn.mirrorsOtherFolders = false)',
+            )
+            ->setParameter('mirror', $mirror)
+            ->orderBy('message.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Rows in a Sent folder that were written by the send path before it minted
+     * Message-IDs: sent (so not a draft), filed into this folder, but carrying
+     * neither an IMAP UID nor an RFC Message-ID.
+     *
+     * That combination has exactly one producer — MessageSendService as it was
+     * before the identity fix — so this is not content matching, it is naming
+     * the one shape of row the old bug left behind. Anything synced from a
+     * server has a UID; anything composed since has a Message-ID; a draft has
+     * no sentAt.
+     *
+     * @return list<Message>
+     */
+    public function findIdentitylessSentRows(Mailbox $mailbox): array
+    {
+        return $this->createQueryBuilder('message')
+            ->where('message.mailbox = :mailbox')
+            ->andWhere('message.imapUid IS NULL')
+            ->andWhere('message.messageId IS NULL')
+            ->andWhere('message.sentAt IS NOT NULL')
+            ->setParameter('mailbox', $mailbox)
+            ->orderBy('message.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Server-side copies in the same folder that can only be the imported twin
+     * of $ghost: same conversation, same sender, same subject, and actually
+     * synced from the server.
+     *
+     * Thread rather than a time window is the anchor, and that is the point.
+     * The two rows always share a thread — the imported copy was threaded onto
+     * it by References, off the very headers the ghost's own send wrote — and a
+     * thread is an identity the database holds, not a guess. A timestamp
+     * comparison would have had to reconcile a locally-clocked sentAt with a
+     * Date: header parsed out of the appended MIME, which is the sort of match
+     * that works until it silently does not.
+     *
+     * Ordered so a caller pairing several of these consumes them predictably.
+     *
+     * @return list<Message>
+     */
+    public function findImportedTwinsOf(Message $ghost): array
+    {
+        $thread = $ghost->thread;
+
+        if (null === $thread || null === $ghost->mailbox) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('message')
+            ->where('message.thread = :thread')
+            ->andWhere('message.mailbox = :mailbox')
+            ->andWhere('message.imapUid IS NOT NULL')
+            ->andWhere('LOWER(message.fromAddress) = LOWER(:fromAddress)')
+            ->andWhere('message.subject = :subject')
+            ->setParameter('thread', $thread)
+            ->setParameter('mailbox', $ghost->mailbox)
+            ->setParameter('fromAddress', (string) $ghost->fromAddress)
+            ->setParameter('subject', (string) $ghost->subject)
+            ->orderBy('message.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Server-side copies of this message that the account holds in some *other*
+     * folder.
+     *
+     * The candidate set for "did this message move here, or is it merely also
+     * here?". Both readings are legitimate on plain IMAP — a mail addressed to
+     * yourself really is in Sent and INBOX at once, and a COPY leaves the
+     * original where it was — so this only gathers the candidates. Deciding
+     * between them needs the server, and that decision lives in
+     * SentCopyReconciler::claim().
+     *
+     * Ordered oldest first so the row that has been carrying the user's flags
+     * and JMAP id the longest is the one offered up for relocation.
+     *
+     * @return list<Message>
+     */
+    public function findLocatedByMessageIdElsewhere(
+        Account $account,
+        string  $messageId,
+        Mailbox $excluding,
+    ): array {
+        return $this->createQueryBuilder('message')
+            ->where('message.account = :account')
+            ->andWhere('message.messageId = :messageId')
+            ->andWhere('message.imapUid IS NOT NULL')
+            ->andWhere('message.mailbox IS NOT NULL')
+            ->andWhere('message.mailbox != :excluding')
+            ->setParameter('account', $account)
+            ->setParameter('messageId', $messageId)
+            ->setParameter('excluding', $excluding)
+            ->orderBy('message.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Every server-side copy this account holds of one message, in any folder.
+     *
+     * @return list<Message>
+     */
+    public function findLocatedByMessageId(Account $account, string $messageId): array
+    {
+        return $this->createQueryBuilder('message')
+            ->where('message.account = :account')
+            ->andWhere('message.messageId = :messageId')
+            ->andWhere('message.imapUid IS NOT NULL')
+            ->andWhere('message.mailbox IS NOT NULL')
+            ->orderBy('message.id', 'ASC')
+            ->setParameter('account', $account)
+            ->setParameter('messageId', $messageId)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Message-IDs this mailbox holds that the account also holds somewhere else.
+     *
+     * The work list for the self-repair pass: every one of these is either a
+     * message that was moved and left a ghost behind, or a copy that genuinely
+     * exists twice. This cannot tell them apart and does not try — it narrows
+     * millions of rows down to the handful worth asking the server about.
+     *
+     * Grouped in SQL rather than by loading both sides, because on the accounts
+     * that need repairing most the duplicates number in the thousands. Limited
+     * for the same reason: a sync must not turn into an unbounded probing run,
+     * so the backlog drains a slice per pass.
+     *
+     * Rows the server confirmed as genuine copies since $recheckAfter are left
+     * out: probing them again would find them all present again, and without
+     * this they filled the slice every sync and starved the real ghosts behind
+     * them. See Message::$copiesConfirmedAt.
+     *
+     * @return list<string>
+     */
+    public function findMessageIdsAlsoFiledElsewhere(Mailbox $mailbox, int $limit, \DateTimeImmutable $recheckAfter): array
+    {
+
+        $rows = $this->createQueryBuilder('message')
+            ->select('message.messageId')
+            ->innerJoin(
+                Message::class,
+                'twin',
+                'WITH',
+                'twin.messageId = message.messageId AND twin.account = message.account AND twin.mailbox != message.mailbox',
+            )
+            ->where('message.mailbox = :mailbox')
+            ->andWhere('message.messageId IS NOT NULL')
+            ->andWhere("message.messageId != ''")
+            ->andWhere('message.imapUid IS NOT NULL')
+            ->andWhere('twin.imapUid IS NOT NULL')
+            ->andWhere('twin.mailbox IS NOT NULL')
+            ->andWhere('message.copiesConfirmedAt IS NULL OR message.copiesConfirmedAt < :recheckAfter')
+            ->groupBy('message.messageId')
+            ->setParameter('mailbox', $mailbox)
+            ->setParameter('recheckAfter', $recheckAfter)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(static fn ($id): string => (string) $id, $rows));
+    }
+
+    /**
+     * QueryBuilder for the join to the owning user and for the single-column
+     * projection.
+     *
+     * @return list<string>
+     */
+    public function findSyncedGraphIdsForUser(User $user): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.graphId')
+            ->join('m.account', 'a')
+            ->andWhere('a.usr = :user')
+            ->andWhere('m.graphId IS NOT NULL')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_values(array_map('strval', array_column($rows, 'graphId')));
+    }
+
+    /**
+     * JMAP Email/get: fetch by id, scoped to the account so a foreign id can
+     * never resolve. Labels and parts are eager-joined because the mapper
+     * touches both for every message.
+     *
+     * The fetch-join is the reason this is not findBy(): findBy() honours the
+     * mapped fetch mode, so each message's labels and parts would be lazy-loaded
+     * one query at a time — the N+1 an Email/get over a page of ids exists to
+     * avoid.
+     *
+     * @param list<int> $ids
+     *
+     * @return list<Message>
+     */
+    public function findByAccountAndIds(int $accountId, array $ids): array
+    {
+        if (count($ids) === 0) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->addSelect('l', 'p')
+            ->leftJoin('m.labels', 'l')
+            ->leftJoin('m.messageParts', 'p')
+            ->where('m.account = :account')
+            ->andWhere('m.id IN (:ids)')
+            ->setParameter('account', $accountId)
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Ids of one account's messages carrying one label, by keyset.
+     *
+     * For re-tagging after an Exchange master category is renamed: Exchange
+     * stores a category on each message as a string, so the messages have to be
+     * pushed again or they go on carrying the old name. See
+     * ApplyLabelStructureHandler.
+     *
+     * Ids rather than entities, and keyset rather than OFFSET: the population is
+     * "every message that has ever had this label", which on a busy mailbox is
+     * unbounded, and both hydrating it and paging it by offset degrade as it
+     * grows. The caller walks with the last id it saw.
+     *
+     * Only messages the provider knows about — a message with no graphId has
+     * never been at Exchange and there is nothing there to re-tag.
+     *
+     * @return list<int>
+     */
+    public function findIdsWithLabelForAccount(
+        int $accountId,
+        int $labelId,
+        int $afterId = 0,
+        int $limit = 200,
+    ): array {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->innerJoin('m.labels', 'l')
+            ->where('m.account = :account')
+            ->andWhere('l.id = :label')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.graphId IS NOT NULL')
+            ->setParameter('account', $accountId)
+            ->setParameter('label', $labelId)
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+
+    /**
+     * The mail a label's new folder takes in on one account: what wears the
+     * label, less what is in the bin, in spam, or sent or drafted, which is not
+     * being filed by giving a tag a folder.
+     *
+     * @return list<int>
+     */
+    public function findIdsToFileIntoFolder(int $accountId, int $labelId, int $afterId = 0, int $limit = 100): array
+    {
+        $rows = $this->toFileIntoFolder($accountId, $labelId)
+            ->select('m.id')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+
+    public function countToFileIntoFolder(int $accountId, int $labelId): int
+    {
+        return (int) $this->toFileIntoFolder($accountId, $labelId)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    private function toFileIntoFolder(int $accountId, int $labelId): QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->innerJoin('m.labels', 'l')
+            ->where('m.account = :account')
+            ->andWhere('l.id = :label')
+            ->andWhere('NOT EXISTS (SELECT 1 FROM ' . Message::class . ' stays JOIN stays.labels staysIn WHERE stays = m AND staysIn.role IN (:staying))')
+            ->setParameter('account', $accountId)
+            ->setParameter('label', $labelId)
+            ->setParameter('staying', [LabelRole::Trash, LabelRole::Spam, LabelRole::Sent, LabelRole::Drafts]);
+    }
+
+    /**
+     * Ids of one account's messages carrying one label, by keyset — every one
+     * of them, not only those Exchange knows.
+     *
+     * For emptying a folder-backed label before it is deleted: the walk is
+     * findIdsWithLabelForAccount()'s, without its graphId filter, because the
+     * mail that has to leave an IMAP folder never had a graphId at all.
+     *
+     * @return list<int>
+     */
+    public function findAllIdsWithLabelForAccount(
+        int $accountId,
+        int $labelId,
+        int $afterId = 0,
+        int $limit = 200,
+    ): array {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->innerJoin('m.labels', 'l')
+            ->where('m.account = :account')
+            ->andWhere('l.id = :label')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('account', $accountId)
+            ->setParameter('label', $labelId)
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+
+    /**
+     * How many of one account's messages carry one label.
+     *
+     * What the delete dialog asks before it offers a destination: a folder
+     * with nothing in it on this account needs no move.
+     */
+    public function countWithLabelForAccount(int $accountId, int $labelId): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->innerJoin('m.labels', 'l')
+            ->where('m.account = :account')
+            ->andWhere('l.id = :label')
+            ->setParameter('account', $accountId)
+            ->setParameter('label', $labelId)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * How many messages are recorded as sitting in this folder.
+     *
+     * Asked before a Mailbox row is removed, and the answer has to be zero:
+     * message.mailbox_id cascades on delete, so removing the row of a folder
+     * that still has mail recorded in it deletes that mail here.
+     *
+     * Messages, not locations: a message with two copies in one folder is
+     * still one message that would be lost.
+     */
+    public function countInMailbox(Mailbox $mailbox): int
+    {
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->select('COUNT(DISTINCT IDENTITY(l.message))')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.mailbox = :mailbox')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * A thread's messages in the order the conversation actually happened.
+     *
+     * Received mail is placed by when it arrived, sent mail by when it was
+     * sent, and a bare draft by when it was written — `received_at`, then
+     * `sent_at`, then `created_at`. The mapped `messages` association can only
+     * order by `receivedAt`, which is null on everything this account sent, so
+     * Postgres sorted every reply to the very bottom of its own thread, under
+     * mail that had arrived after it. Ordered here instead, with no stored
+     * duplicate of a value the three columns already hold.
+     *
+     * COALESCE cannot sit in a DQL ORDER BY directly, so it is selected as a
+     * HIDDEN alias — computed and ordered on, never hydrated into the result.
+     *
+     * @return list<Message>
+     */
+    public function forThreadInConversationOrder(MessageThread $thread): array
+    {
+        return $this->createQueryBuilder('m')
+            ->addSelect('COALESCE(m.receivedAt, m.sentAt, m.createdAt) AS HIDDEN effectiveAt')
+            ->where('m.thread = :thread')
+            ->setParameter('thread', $thread)
+            ->orderBy('effectiveAt', 'ASC')
+            ->addOrderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * forThreadInConversationOrder() plus what the reading pane reads off each
+     * message — its label chips and its attachment chips — so a conversation
+     * costs the same number of queries at two messages as at twenty.
+     *
+     * Labels are fetch-joined into the one statement; parts are NOT, because a
+     * second to-many join multiplies the first (labels × parts rows, every one
+     * carrying the bodies). They are a statement of their own instead, for
+     * every message of the thread. It used to be only those with
+     * hasAttachments, because the pane touched no other message's parts; since
+     * phase 6g of #28 it does — a message whose one attachment is the sender's
+     * own key has hasAttachments false and still says that key in its banner
+     * (AttachedKeyExtension) — and a part-less message asked lazily is one
+     * query per message, which the budget test catches.
+     *
+     * @return list<Message>
+     */
+    public function forThreadView(MessageThread $thread): array
+    {
+        /** @var list<Message> $messages */
+        $messages = $this->createQueryBuilder('m')
+            ->addSelect('l')
+            ->leftJoin('m.labels', 'l')
+            ->addSelect('COALESCE(m.receivedAt, m.sentAt, m.createdAt) AS HIDDEN effectiveAt')
+            ->where('m.thread = :thread')
+            ->setParameter('thread', $thread)
+            ->orderBy('effectiveAt', 'ASC')
+            ->addOrderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $ids = array_values(array_filter(array_map(static fn (Message $message): ?int => $message->id, $messages)));
+
+        if ([] !== $ids) {
+            // Already managed, so this only initialises messageParts on them —
+            // an empty collection too, for a message without any.
+            $this->createQueryBuilder('m')
+                ->addSelect('p')
+                ->leftJoin('m.messageParts', 'p')
+                ->where('m.id IN (:ids)')
+                ->setParameter('ids', $ids)
+                ->getQuery()
+                ->getResult();
+        }
+
+        return $messages;
+    }
+
+    /**
+     * The handful of columns a conversation row reads from each of its
+     * thread's messages, for every thread on a list page in one statement.
+     *
+     * Fields rather than entities, and that is the point: hydrating Message
+     * here pulled every body (text, raw HTML, sanitised HTML), the header blob
+     * and the search vector of every message on the page into PHP, to read a
+     * sender and a date off each. See App\Service\Mail\ThreadRows.
+     *
+     * ORDERED the way the association is (#[ORM\OrderBy(receivedAt, id)]),
+     * because the row's "latest" and "draft" are both "the last one of these".
+     *
+     * @param list<int> $threadIds
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function findRowFieldsForThreads(array $threadIds): array
+    {
+        if ([] === $threadIds) {
+            return [];
+        }
+
+        /** @var list<array<string, mixed>> */
+        return $this->createQueryBuilder('m')
+            ->select(
+                'm.id',
+                'IDENTITY(m.thread) AS threadId',
+                'm.fromAddress',
+                'm.fromName',
+                'm.toAddresses',
+                'm.flags',
+                'm.receivedAt',
+                'm.sentAt',
+                'm.createdAt',
+                'm.submissionSendAt',
+                // The warning a draft whose send failed wears in the list (#125).
+                'm.sendFailure',
+                // Whether the message is filed under Sent or Drafts, for
+                // ThreadRowMessage::$filedAsSent. A count in the same statement
+                // rather than a join: a join would repeat the row per label,
+                // and a second statement would be one more query on every list
+                // page for a column most rows never have read.
+                '(SELECT COUNT(sentLabel.id) FROM ' . Message::class . ' filed
+                    JOIN filed.labels sentLabel
+                    WHERE filed.id = m.id AND sentLabel.role IN (:sentRoles)) AS filedAsSent',
+                // Whether it is in the bin, for the side of a partly deleted
+                // conversation the row shows (BinView). Counted the same way.
+                '(SELECT COUNT(trashLabel.id) FROM ' . Message::class . ' inBin
+                    JOIN inBin.labels trashLabel
+                    WHERE inBin.id = m.id AND trashLabel.role = :trashRole) AS trashed',
+                'm.seenAt',
+                'm.hasAttachments',
+            )
+            ->where('m.thread IN (:threads)')
+            ->setParameter('sentRoles', [LabelRole::Sent, LabelRole::Drafts])
+            ->setParameter('trashRole', LabelRole::Trash)
+            ->setParameter('threads', $threadIds)
+            ->addOrderBy('m.receivedAt', 'ASC')
+            ->addOrderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+    }
+
+    /**
+     * The stored list previews of specific messages — one per list row, the
+     * row's latest — with what decides whether each still fits: its key, the
+     * message's category, and whether it is encrypted (the lock in front of
+     * the row's subject, ThreadRow::$encrypted). See Message::$preview.
+     *
+     * No body columns: not fetching them is half of what the stored preview
+     * saves. Only the rows whose preview is missing or stale go on to
+     * findSnippetBodies().
+     *
+     * @param list<int> $ids
+     *
+     * @return array<int, array{preview: ?string, previewKey: ?int, category: ?MessageCategory, crypto: ?MessageCrypto}>
+     */
+    public function findPreviews(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<array{id: int|string, preview: ?string, previewKey: int|string|null, category: MessageCategory|string|null, crypto: ?MessageCrypto}> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id', 'm.preview', 'm.previewKey', 'm.category', 'm.crypto')
+            ->where('m.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getArrayResult();
+
+        $previews = [];
+
+        foreach ($rows as $row) {
+            $category = $row['category'];
+
+            $previews[(int) $row['id']] = [
+                'preview'    => $row['preview'],
+                'previewKey' => null === $row['previewKey'] ? null : (int) $row['previewKey'],
+                'category'   => is_string($category) ? MessageCategory::tryFrom($category) : $category,
+                'crypto'     => $row['crypto'],
+            ];
+        }
+
+        return $previews;
+    }
+
+    /**
+     * Keep the previews a list just made, so the next list reads them.
+     *
+     * One statement for the page, and straight to the table rather than
+     * through the entities: these messages were never hydrated, and a cache
+     * filled from a read is no reason to load fifty of them. The columns are
+     * outside every trigger on `message`, search_vector's included.
+     *
+     * Best effort. A preview that could not be kept is made again next time,
+     * so a failure here — a lock, a connection gone between two statements —
+     * must not fail the list it was only saving work for. In a transaction of
+     * its own, which inside somebody else's is a savepoint: a failed statement
+     * in Postgres poisons the transaction it ran in, and swallowing the error
+     * without rolling back to before it would fail every query after it.
+     *
+     * A body replaced between the read that made a preview and this write
+     * would get the old body's line until the next change to it; bodies are
+     * replaced rarely (a decrypted copy handed over, a repair), and that
+     * window is one request long.
+     *
+     * @param array<int, array{string, int}> $previews message id => [preview, key]
+     */
+    public function storePreviews(array $previews): void
+    {
+        if ([] === $previews) {
+            return;
+        }
+
+        $values = [];
+        $params = [];
+
+        foreach ($previews as $id => [$preview, $key]) {
+            $values[] = '(?::int, ?::text, ?::smallint)';
+            array_push($params, $id, $preview, $key);
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+
+        try {
+            $connection->transactional(static fn (Connection $connection): int|string => $connection->executeStatement(
+                'UPDATE message AS m SET preview = v.preview, preview_key = v.preview_key
+                 FROM (VALUES ' . implode(', ', $values) . ') AS v(id, preview, preview_key)
+                 WHERE m.id = v.id',
+                $params,
+            ));
+        } catch (\Doctrine\DBAL\Exception) {
+            // Made again on the next list; see above.
+        }
+    }
+
+    /**
+     * The columns MessageSnippet reads, for specific messages only — one per
+     * list row, the row's latest. The category decides whether the preview
+     * may skip a bulk mail's chrome; whether it is encrypted is the lock in
+     * front of the row's subject (ThreadRow::$encrypted).
+     *
+     * @param list<int> $ids
+     *
+     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string, category: ?MessageCategory, crypto: ?MessageCrypto}>
+     */
+    public function findSnippetBodies(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string, category: MessageCategory|string|null, crypto: ?MessageCrypto}> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText', 'm.category', 'm.crypto')
+            ->where('m.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getArrayResult();
+
+        $bodies = [];
+
+        foreach ($rows as $row) {
+            $category = $row['category'];
+
+            $bodies[(int) $row['id']] = [
+                'bodyHtmlSafe' => $row['bodyHtmlSafe'],
+                'bodyText'     => $row['bodyText'],
+                'category'     => is_string($category) ? MessageCategory::tryFrom($category) : $category,
+                'crypto'       => $row['crypto'],
+            ];
+        }
+
+        return $bodies;
+    }
+
+    /**
+     * The newest mail of one person's that the assistant has never been asked
+     * about — what ClassificationCatchUp works through after an import.
+     *
+     * NEWEST FIRST, the opposite of a backfill's walk and for the reason
+     * EmbeddingCatchUp gives: this is a bounded handful per run, and the mail
+     * worth spending it on is the mail somebody is most likely to scroll to.
+     * A mailbox is classified backwards from today, so stopping at any point
+     * leaves the useful end done.
+     *
+     * `ai_categorised_at IS NULL` is "never asked", not "no answer" — the
+     * stamp is written even when the model said nothing usable — so a message
+     * the model cannot answer is offered once and not on every run for ever.
+     * A host that could not be reached leaves it unstamped, so it is offered
+     * again here once the host is back.
+     *
+     * $since is the age limit from Admin → AI (#208), applied to the date the
+     * way AiSettings::isTooOldToSortInBulk() applies it — receivedAt, else
+     * sentAt, and a message with neither is not too old — so the query and
+     * the handler that checks again cannot disagree about a message. Without
+     * it the walk would reach past the limit once the recent mail was done,
+     * and queue envelopes the handler would only throw away.
+     *
+     * @param DateTimeImmutable|null $since nothing older than this; null for any age
+     *
+     * @return list<int>
+     */
+    public function unclassifiedIdsForUser(int $userId, int $limit, ?DateTimeImmutable $since = null): array
+    {
+        $sql = <<<'SQL'
+            SELECT m.id
+              FROM message m
+              JOIN account a ON a.id = m.account_id
+             WHERE a.usr_id = :userId
+               AND a.is_active = true
+               AND m.ai_categorised_at IS NULL
+            SQL;
+
+        $parameters = ['userId' => $userId, 'limit' => $limit];
+        $types      = ['userId' => ParameterType::INTEGER, 'limit' => ParameterType::INTEGER];
+
+        // Appended rather than written in as "IS NULL OR", for the reason
+        // candidateSince() gives: Postgres cannot type a parameter that is only
+        // ever compared with NULL.
+        if (null !== $since) {
+            $sql .= "\n" . <<<'SQL'
+                   AND (m.received_at >= :since
+                        OR (m.received_at IS NULL AND (m.sent_at IS NULL OR m.sent_at >= :since)))
+                SQL;
+
+            $parameters['since'] = $since;
+            $types['since']      = Types::DATETIME_IMMUTABLE;
+        }
+
+        $sql .= "\n" . <<<'SQL'
+             ORDER BY m.received_at DESC NULLS LAST, m.id DESC
+             LIMIT :limit
+            SQL;
+
+        /** @var list<int|string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn($sql, $parameters, $types);
+
+        return array_map(intval(...), $ids);
+    }
+
+    /**
+     * Mail still held for the assistant that was held before $before.
+     *
+     * For the sweep that is the last line of the promise that holding is
+     * bounded — see ReleaseHeldMailCommand. Limited, because the caller
+     * hydrates what this returns and the case where there is a great deal of
+     * it is the case where something is already wrong.
+     *
+     * @return list<Message>
+     */
+    public function findHeldBefore(DateTimeImmutable $before, int $limit = 200): array
+    {
+        /** @var list<Message> */
+        return $this->createQueryBuilder('m')
+            ->where('m.categoryHeldAt IS NOT NULL')
+            ->andWhere('m.categoryReleasedAt IS NULL')
+            ->andWhere('m.categoryHeldAt < :before')
+            ->setParameter('before', $before)
+            ->orderBy('m.categoryHeldAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Unread mail stored since $since in this user's active accounts — what
+     * NotifyScopes::hasRecentUnread() sorts into switches.
+     *
+     * By when plMail STORED it (createdAt), not by the date it carries: the
+     * question is about mail a push has just announced, and a message stamped
+     * by a sender's slow clock arrived just now all the same. createdAt has no
+     * index, though, so the date it carries narrows the search first, through
+     * idx_message_account_received_at, with a day of slack for that slow
+     * clock. A message dated more than a day before it arrived is missed, and
+     * the cost of that is one notification not shown.
+     *
+     * Bounded on purpose. The answer is "is there at least one", so a few
+     * dozen candidates are plenty. Labels are not fetch-joined for the same
+     * reason: a LIMIT over a joined collection limits rows, not messages.
+     *
+     * @return list<Message>
+     */
+    public function findRecentUnreadForUser(User $user, DateTimeImmutable $since, int $limit = 50): array
+    {
+        /** @var list<Message> */
+        return $this->createQueryBuilder('m')
+            ->join('m.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('m.seenAt IS NULL')
+            ->andWhere('m.receivedAt >= :dated')
+            ->andWhere('m.createdAt >= :since')
+            ->setParameter('user', $user)
+            ->setParameter('dated', $since->modify('-1 day'))
+            ->setParameter('since', $since)
+            ->orderBy('m.createdAt', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * How long holding mail for the assistant has actually delayed it.
+     *
+     * The number Admin → AI puts beside the switch, so that "is the wait worth
+     * it" is answered by this installation's own host rather than by a guess.
+     *
+     * `timedOut` is a message shown before the model had answered — no
+     * ai_categorised_at at all, or one later than the release. It went to the
+     * rules' tab first and may have moved when the answer came. A high share
+     * of those means the wait is being paid and the jump is happening anyway.
+     *
+     * percentile_cont is Postgres-only, which this application already is.
+     * Both come back null over an empty window, and are passed on as null —
+     * a median of zero would read as "instant" where the truth is "no data".
+     *
+     * @return array{held: int, timedOut: int, median: float|null, p95: float|null, max: float|null}
+     */
+    public function holdDelayStats(DateTimeImmutable $since): array
+    {
+        /** @var array{held: int|string, timed_out: int|string, median: float|string|null, p95: float|string|null, max: float|string|null}|false $row */
+        $row = $this->getEntityManager()->getConnection()->fetchAssociative(
+            <<<'SQL'
+            SELECT COUNT(*) AS held,
+                   COUNT(*) FILTER (WHERE m.ai_categorised_at IS NULL OR m.ai_categorised_at > m.category_released_at) AS timed_out,
+                   percentile_cont(0.5)  WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (m.category_released_at - m.category_held_at))) AS median,
+                   percentile_cont(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (m.category_released_at - m.category_held_at))) AS p95,
+                   MAX(EXTRACT(EPOCH FROM (m.category_released_at - m.category_held_at))) AS max
+              FROM message m
+             WHERE m.category_held_at >= :since
+               AND m.category_released_at IS NOT NULL
+            SQL,
+            ['since' => $since],
+            ['since' => Types::DATETIME_IMMUTABLE],
+        );
+
+        if (false === $row) {
+            return ['held' => 0, 'timedOut' => 0, 'median' => null, 'p95' => null, 'max' => null];
+        }
+
+        return [
+            'held'     => (int) $row['held'],
+            'timedOut' => (int) $row['timed_out'],
+            'median'   => null === $row['median'] ? null : (float) $row['median'],
+            'p95'      => null === $row['p95'] ? null : (float) $row['p95'],
+            'max'      => null === $row['max'] ? null : (float) $row['max'],
+        ];
+    }
+
+    /**
+     * The held messages themselves, newest first — what the summary above is a
+     * summary of.
+     *
+     * The summary says "typically six seconds, one took thirteen". This is the
+     * thirteen: which message, and where its time went. See
+     * Message::$aiQueueMs for the three parts.
+     *
+     * NO SUBJECT AND NO SENDER, and that is a rule of the admin panel rather
+     * than an economy here: an administrator can manage every mailbox on the
+     * installation and read none of them. The account is named because the
+     * panel already lists accounts; what was in the mail is nobody's business
+     * but its owner's.
+     *
+     * `answeredAfter` is null for a message the model was never heard from
+     * about. `stillHeld` is a message being waited on at this moment.
+     *
+     * @return list<array{id: int, account: string, heldAt: DateTimeImmutable, shownAfter: float|null,
+     *     answeredAfter: float|null, stillHeld: bool, shownFirst: bool, queueMs: int|null, callMs: int|null,
+     *     loadMs: int|null, filed: string|null, verdict: string|null}>
+     */
+    public function holdDetails(DateTimeImmutable $since, int $limit = 50): array
+    {
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            <<<'SQL'
+            SELECT m.id,
+                   a.email AS account,
+                   m.category_held_at AS held_at,
+                   EXTRACT(EPOCH FROM (m.category_released_at - m.category_held_at)) AS shown_after,
+                   EXTRACT(EPOCH FROM (m.ai_categorised_at - m.category_held_at))    AS answered_after,
+                   m.category_released_at IS NULL AS still_held,
+                   m.category_released_at IS NOT NULL
+                       AND (m.ai_categorised_at IS NULL OR m.ai_categorised_at > m.category_released_at) AS shown_first,
+                   m.ai_queue_ms, m.ai_call_ms, m.ai_load_ms,
+                   m.category, m.ai_category
+              FROM message m
+              JOIN account a ON a.id = m.account_id
+             WHERE m.category_held_at >= :since
+             ORDER BY m.category_held_at DESC, m.id DESC
+             LIMIT :limit
+            SQL,
+            ['since' => $since, 'limit' => $limit],
+            ['since' => Types::DATETIME_IMMUTABLE, 'limit' => ParameterType::INTEGER],
+        );
+
+        return array_map(static fn (array $row): array => [
+            'id'            => (int) $row['id'],
+            'account'       => (string) $row['account'],
+            'heldAt'        => new DateTimeImmutable((string) $row['held_at']),
+            'shownAfter'    => null === $row['shown_after'] ? null : (float) $row['shown_after'],
+            'answeredAfter' => null === $row['answered_after'] ? null : (float) $row['answered_after'],
+            'stillHeld'     => true === (bool) $row['still_held'],
+            'shownFirst'    => true === (bool) $row['shown_first'],
+            'queueMs'       => null === $row['ai_queue_ms'] ? null : (int) $row['ai_queue_ms'],
+            'callMs'        => null === $row['ai_call_ms'] ? null : (int) $row['ai_call_ms'],
+            'loadMs'        => null === $row['ai_load_ms'] ? null : (int) $row['ai_load_ms'],
+            // Where it ended up, which after a verdict is the assistant's answer and
+            // not the rules' — the rules' own is not kept once it has been replaced.
+            'filed'         => null === $row['category'] ? null : (string) $row['category'],
+            'verdict'       => null === $row['ai_category'] ? null : (string) $row['ai_category'],
+        ], $rows);
+    }
+
+    /**
+     * How long mail took to get from the provider into plMail, per account.
+     *
+     * The gap between the provider accepting a message and the moment its row
+     * was created. It is the number that says whether push is working: an
+     * account on IMAP IDLE or Gmail push shows seconds, and one living on the
+     * quarter-hourly poll shows minutes — with nothing else on any screen to
+     * tell the two apart, since both "work".
+     *
+     * FROM provider_accepted_at, NOT received_at. This measured from the
+     * message's own date until it was noticed that the date is the sender's:
+     * a newsletter stamped 28 minutes before it was sent counted as 28 minutes
+     * of plMail being slow. See ProviderAcceptTime. Mail with no accept time —
+     * anything stored more than a week before that column existed — is not in
+     * the figures at all, which is better than being in them wrongly.
+     *
+     * THE INBOX AND EVERYTHING ELSE, COUNTED APART. A provider announces what
+     * lands in the inbox and nothing more, so spam and mail a filter files
+     * elsewhere wait for the schedule by design. Mixed in, they put a
+     * quarter-hour tail on an account whose push is perfect; the three delay
+     * figures are therefore of inbox mail, and the rest gets a count and a
+     * typical delay of its own. By where the mail was filed when it arrived,
+     * not where it is now — see ArrivalPlace.
+     *
+     * ONLY MAIL THAT ARRIVED, not mail that was imported. A mailbox being
+     * brought in is years of history stored today, and its "lag" would be
+     * years. So a message counts only if it was stored within a day of being
+     * accepted. The cost is that an outage longer than a day is invisible
+     * here — which is the right way round for a latency figure, and an outage
+     * that long is on the System page in red.
+     *
+     * And not the account's own outgoing copies, which are written by plMail
+     * at send time and would report a flattering zero.
+     *
+     * Clamped at zero: the accept time is the provider's clock, and a clock a
+     * few seconds fast is not negative latency.
+     *
+     * Driven from `account` so each account's messages are found through
+     * idx_message_account_accepted_at rather than by reading the table.
+     *
+     * @return list<array{account: string, provider: string, push: bool, messages: int,
+     *     median: float|null, p95: float|null, max: float|null,
+     *     elsewhere: int, elsewhereMedian: float|null}>
+     */
+    public function arrivalLagByAccount(DateTimeImmutable $since): array
+    {
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            <<<'SQL'
+            SELECT a.email AS account,
+                   a.auth_type, a.oauth_provider, a.incoming_protocol, a.push_enabled,
+                   COUNT(l.lag) FILTER (WHERE l.inbox) AS messages,
+                   percentile_cont(0.5)  WITHIN GROUP (ORDER BY l.lag) FILTER (WHERE l.inbox) AS median,
+                   percentile_cont(0.95) WITHIN GROUP (ORDER BY l.lag) FILTER (WHERE l.inbox) AS p95,
+                   MAX(l.lag) FILTER (WHERE l.inbox) AS max,
+                   COUNT(l.lag) FILTER (WHERE NOT l.inbox) AS elsewhere,
+                   percentile_cont(0.5)  WITHIN GROUP (ORDER BY l.lag) FILTER (WHERE NOT l.inbox) AS elsewhere_median
+              FROM account a
+              LEFT JOIN LATERAL (
+                  SELECT GREATEST(0, EXTRACT(EPOCH FROM (m.created_at - m.provider_accepted_at))) AS lag,
+                         COALESCE(m.arrived_in, 'elsewhere') = 'inbox' AS inbox
+                    FROM message m
+                   WHERE m.account_id = a.id
+                     AND m.provider_accepted_at >= :since
+                     AND m.created_at <= m.provider_accepted_at + INTERVAL '1 day'
+                     AND LOWER(COALESCE(m.from_address, '')) <> LOWER(COALESCE(a.email, ''))
+              ) l ON true
+             WHERE a.is_active = true
+             GROUP BY a.id, a.email, a.auth_type, a.oauth_provider, a.incoming_protocol, a.push_enabled
+             ORDER BY a.email
+            SQL,
+            ['since' => $since],
+            ['since' => Types::DATETIME_IMMUTABLE],
+        );
+
+        return array_map(static fn (array $row): array => [
+            'account'  => (string) $row['account'],
+            // A password account is named by its protocol, so a POP3 or JMAP
+            // account is not listed as IMAP (#528).
+            'provider' => 'oauth2' === $row['auth_type'] && null !== $row['oauth_provider']
+                ? (string) $row['oauth_provider']
+                : (string) $row['incoming_protocol'],
+            'push'     => true === (bool) $row['push_enabled'],
+            'messages' => (int) $row['messages'],
+            'median'   => null === $row['median'] ? null : (float) $row['median'],
+            'p95'      => null === $row['p95'] ? null : (float) $row['p95'],
+            'max'      => null === $row['max'] ? null : (float) $row['max'],
+            'elsewhere'       => (int) $row['elsewhere'],
+            'elsewhereMedian' => null === $row['elsewhere_median'] ? null : (float) $row['elsewhere_median'],
+        ], $rows);
+    }
+
+    /**
+     * The messages that took longest to arrive, slowest first — the rows
+     * behind arrivalLagByAccount(), for the question a percentile cannot
+     * answer: which ones, and what was different about them.
+     *
+     * Each row carries the three things that explain a delay. What brought it
+     * in: a push, IDLE, the schedule. Where it was filed: fourteen minutes for
+     * spam on the schedule is the design, and the same for inbox mail on an
+     * account with push is the fault this page exists to show. And how long
+     * the message had already existed before the provider had it — time no
+     * mail client could have saved, and the usual reason mail FEELS late when
+     * every figure above says seconds.
+     *
+     * The same mail as the summary, under the same three exclusions, for the
+     * reasons given there.
+     *
+     * NOTHING ABOUT WHAT WAS IN THE MAIL, like holdDetails() and for its
+     * reason: no subject and no sender, on a page an administrator reads
+     * about mailboxes that are not theirs.
+     *
+     * @return list<array{account: string, acceptedAt: DateTimeImmutable, lag: float,
+     *     underway: float|null, by: string|null, in: string|null}>
+     */
+    public function slowestArrivals(DateTimeImmutable $since, int $limit): array
+    {
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            <<<'SQL'
+            SELECT a.email AS account,
+                   m.provider_accepted_at,
+                   m.arrived_by,
+                   m.arrived_in,
+                   GREATEST(0, EXTRACT(EPOCH FROM (m.created_at - m.provider_accepted_at))) AS lag,
+                   GREATEST(0, EXTRACT(EPOCH FROM (m.provider_accepted_at - m.received_at))) AS underway
+              FROM message m
+              JOIN account a ON a.id = m.account_id
+             WHERE a.is_active = true
+               AND m.provider_accepted_at >= :since
+               AND m.created_at <= m.provider_accepted_at + INTERVAL '1 day'
+               AND LOWER(COALESCE(m.from_address, '')) <> LOWER(COALESCE(a.email, ''))
+             ORDER BY lag DESC, m.id DESC
+             LIMIT :limit
+            SQL,
+            ['since' => $since, 'limit' => $limit],
+            ['since' => Types::DATETIME_IMMUTABLE, 'limit' => Types::INTEGER],
+        );
+
+        return array_map(static fn (array $row): array => [
+            'account'    => (string) $row['account'],
+            'acceptedAt' => new DateTimeImmutable((string) $row['provider_accepted_at']),
+            'lag'        => (float) $row['lag'],
+            'underway'   => null === $row['underway'] ? null : (float) $row['underway'],
+            'by'         => null === $row['arrived_by'] ? null : (string) $row['arrived_by'],
+            'in'         => null === $row['arrived_in'] ? null : (string) $row['arrived_in'],
+        ], $rows);
+    }
+
+    /**
+     * The newest PGP-signed messages a person received from one address,
+     * newest first — what SignatureRecheck checks again once a key for that
+     * address is added, pinned or replaced.
+     *
+     * Only messages whose signature the server checks: signed, not encrypted.
+     * The browser checks the signature inside an encrypted message every time
+     * it opens one, so there is nothing stored to bring up to date.
+     *
+     * @return list<int>
+     */
+    public function findPgpSignedIdsFrom(User $user, string $email, int $limit): array
+    {
+        /** @var list<array{id: int|string}> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->join('m.account', 'a')
+            ->where('a.usr = :usr')
+            ->andWhere('LOWER(m.fromAddress) = :email')
+            ->andWhere('m.crypto IN (:crypto)')
+            ->setParameter('usr', $user)
+            ->setParameter('email', strtolower(trim($email)))
+            ->setParameter('crypto', [MessageCrypto::PgpSigned->value, MessageCrypto::PgpInlineSigned->value])
+            ->orderBy('m.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+}

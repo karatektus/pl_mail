@@ -9,7 +9,7 @@ use App\Domain\Helper\MessageParser;
 use App\Domain\Helper\RawMessageStorage;
 use App\Domain\Helper\RepeatedHeaderHelper;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Mail\MailBodySanitizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;

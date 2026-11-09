@@ -12,7 +12,7 @@ use App\Jmap\Method\Calendar\CalendarGetMethod;
 use App\Jmap\Protocol\Capability;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\Protocol\StateChangeBuilder;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 
 /**
  * The calendar methods under the IETF draft's URN.

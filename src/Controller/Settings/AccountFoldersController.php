@@ -12,7 +12,7 @@ use App\Domain\Exception\InvalidFolderNameException;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Infrastructure\Messaging\Message\ImportImapKeywordsMessage;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Imap\FolderTree;
 use App\Service\Imap\ImapConnector;

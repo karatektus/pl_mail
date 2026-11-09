@@ -8,7 +8,7 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Monitoring\CategoryReport;
 use App\Entity\User\User;
-use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\Contact\ContactRepository;
 
 /**
  * Turns one message and one objection into a row worth reading later.

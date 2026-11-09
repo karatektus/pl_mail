@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Security;
 
-use App\Repository\Oidc\OidcConfigRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Oidc\OidcConfig\OidcConfigRepository;
+use App\Repository\User\User\UserRepository;
 use App\Security\OidcAuthenticator;
 use App\Service\OAuth\OAuthStateStore;
 use App\Service\Oidc\IdTokenValidator;

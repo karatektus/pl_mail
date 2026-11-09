@@ -6,9 +6,9 @@ namespace App\Command\Test;
 
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;

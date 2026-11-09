@@ -8,7 +8,7 @@ use App\Domain\Enum\Account\AuthType;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Integration\IntegrationConnector;
 use Symfony\Component\Form\FormInterface;
 

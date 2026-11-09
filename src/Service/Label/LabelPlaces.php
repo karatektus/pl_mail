@@ -8,7 +8,7 @@ use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 
 /**
  * Where a label is kept on each of the user's plain IMAP and Microsoft

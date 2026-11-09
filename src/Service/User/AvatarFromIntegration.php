@@ -13,7 +13,7 @@ use App\Domain\Helper\AvatarStorage;
 use App\Domain\Interface\OriginalFileDriverInterface;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
-use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
 use App\Service\Integration\IntegrationDriverRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use finfo;

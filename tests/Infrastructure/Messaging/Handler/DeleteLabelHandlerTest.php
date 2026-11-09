@@ -411,9 +411,9 @@ final class DeleteLabelHandlerTest extends KernelTestCase
         };
 
         return new DeleteLabelHandler(
-            $container->get(\App\Repository\Job\BackgroundJobRepository::class),
-            $container->get(\App\Repository\Label\LabelRepository::class),
-            $container->get(\App\Repository\Mail\MessageRepository::class),
+            $container->get(\App\Repository\Job\BackgroundJob\BackgroundJobRepository::class),
+            $container->get(\App\Repository\Label\Label\LabelRepository::class),
+            $container->get(\App\Repository\Mail\Message\MessageRepository::class),
             $container->get(\App\Service\Label\LabelDeletion::class),
             $remover,
             $container->get(\App\Service\Mail\ThreadStatusUpdater::class),

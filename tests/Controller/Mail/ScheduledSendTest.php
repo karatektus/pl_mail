@@ -10,7 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\DBAL\Connection;

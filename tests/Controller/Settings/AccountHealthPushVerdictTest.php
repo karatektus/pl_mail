@@ -9,7 +9,7 @@ use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

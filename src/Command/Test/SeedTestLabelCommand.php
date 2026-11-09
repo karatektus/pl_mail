@@ -6,9 +6,9 @@ namespace App\Command\Test;
 
 use App\Entity\Label\Label;
 use App\Entity\Mail\Mailbox;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;

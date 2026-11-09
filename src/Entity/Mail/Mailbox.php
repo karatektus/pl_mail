@@ -5,7 +5,7 @@ namespace App\Entity\Mail;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use App\Domain\Trait\TimestampableTrait;

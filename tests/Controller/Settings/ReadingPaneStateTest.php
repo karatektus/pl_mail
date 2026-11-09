@@ -6,7 +6,7 @@ namespace App\Tests\Controller\Settings;
 
 use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;

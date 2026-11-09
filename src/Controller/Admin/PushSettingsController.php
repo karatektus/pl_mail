@@ -7,7 +7,7 @@ namespace App\Controller\Admin;
 use App\Domain\Enum\PushDeliveryOutcome;
 use App\Domain\Enum\PushTransport;
 use App\Form\Admin\FcmConfigType;
-use App\Repository\Push\PushDeliveryRepository;
+use App\Repository\Push\PushDelivery\PushDeliveryRepository;
 use App\Service\Push\FcmConfigWriter;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;

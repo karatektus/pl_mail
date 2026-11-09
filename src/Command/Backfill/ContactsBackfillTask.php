@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\HarvestContactsService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;

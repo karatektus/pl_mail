@@ -11,7 +11,7 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\MessageThread;
 use App\Entity\Mail\UnifiedInbox;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\Service\ResetInterface;
 

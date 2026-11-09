@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Command\Maintenance;
 
 use App\Domain\Helper\UploadStorage;
-use App\Repository\Mail\MessagePartRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\UploadedBlobRepository;
+use App\Repository\Mail\MessagePart\MessagePartRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\UploadedBlob\UploadedBlobRepository;
 use App\Service\Mail\AttachmentThumbnailer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;

@@ -14,7 +14,7 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\ProcessReadReceiptsHandler;
 use App\Infrastructure\Messaging\Message\ProcessReadReceiptsMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\BounceCorrelator;
 use App\Service\Mail\MailChangeRecorder;

@@ -7,9 +7,9 @@ namespace App\Service\Rule;
 use App\Domain\Enum\Mail\CategoryFiling;
 use App\Entity\Mail\Message;
 use App\Entity\Rule\MailRule;
-use App\Repository\Mail\InboxCategoryRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
 use Psr\Log\LoggerInterface;
 
 /**

@@ -9,7 +9,7 @@ use App\Domain\Exception\GmailPermanentException;
 use App\Domain\Exception\GmailThrottledException;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Service\Gmail\GmailApiSyncer;
@@ -543,7 +543,7 @@ final class GmailApiSyncerHistoryTest extends TestCase
             new NullLogger(),
             $eraser,
             new \App\Service\Mail\SyncOrigin(),
-            $this->createStub(\App\Repository\Mail\GmailSkippedMessageRepository::class),
+            $this->createStub(\App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository::class),
             new \App\Service\Gmail\GmailifyLinks(
                 $this->createStub(MessageRepository::class),
                 new \App\Service\Gmail\GmailLabelPolicy(),

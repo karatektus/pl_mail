@@ -7,8 +7,8 @@ namespace App\Service\Mail;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Mail\ContactRepository;
-use App\Repository\Mail\TrustedImageSenderRepository;
+use App\Repository\Mail\Contact\ContactRepository;
+use App\Repository\Mail\TrustedImageSender\TrustedImageSenderRepository;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**

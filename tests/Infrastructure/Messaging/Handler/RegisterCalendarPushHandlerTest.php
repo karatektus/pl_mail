@@ -14,7 +14,7 @@ use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\RegisterCalendarPushHandler;
 use App\Infrastructure\Messaging\Message\RegisterCalendarPushMessage;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\Push\CalendarPushRegistry;
 use App\Service\Calendar\Push\GoogleCalendarPushManager;
 use App\Service\Calendar\Push\PushCallbackUrl;

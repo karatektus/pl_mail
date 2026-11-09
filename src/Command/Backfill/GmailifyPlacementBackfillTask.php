@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Gmail\GmailifyLinks;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;

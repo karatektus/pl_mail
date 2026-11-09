@@ -10,7 +10,7 @@ use App\Domain\Exception\InvalidInboxCategoryException;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ResortMailboxMessage;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\InboxCategoryManager;
 use App\Service\Mail\InboxTabs;

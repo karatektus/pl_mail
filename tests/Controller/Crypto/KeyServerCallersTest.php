@@ -10,7 +10,7 @@ use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 use App\Service\Mail\RawMessageResolver;
 use App\Tests\Command\MailFixtures;
 use App\Tests\Support\Crypto\Gpg;

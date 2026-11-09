@@ -12,7 +12,7 @@ use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Label\LabelResolver;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;

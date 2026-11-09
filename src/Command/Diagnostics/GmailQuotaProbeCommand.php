@@ -6,8 +6,8 @@ namespace App\Command\Diagnostics;
 
 use App\Domain\Enum\Account\AuthType;
 use App\Entity\Mail\Account;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\OAuth\OAuthTokenManager;
 use DateTimeImmutable;

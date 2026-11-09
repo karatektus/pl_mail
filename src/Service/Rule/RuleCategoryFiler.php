@@ -8,7 +8,7 @@ use App\Domain\Enum\Mail\CategoryFiling;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Rule\MailRule;
-use App\Repository\Mail\InboxCategoryRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use App\Service\Imap\MessageThreader;
 use Psr\Log\LoggerInterface;
 

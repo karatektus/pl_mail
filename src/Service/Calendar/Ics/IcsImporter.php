@@ -13,7 +13,7 @@ use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\Sync\CalDav\CalDavEventConverter;
 use Psr\Log\LoggerInterface;

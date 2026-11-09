@@ -8,7 +8,7 @@ use App\Entity\Ai\AiFeature;
 use App\Domain\Helper\ReadableBody;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Crypto\DecryptedMailPolicy;
 
 /**
