@@ -608,6 +608,9 @@ class Account extends AccountModel
     /** Removals a Microsoft import was not yet able to judge. See $graphRemovals. */
     public const string SETTING_GRAPH_REMOVALS = 'sync.graph_removals';
 
+    /** Which Microsoft folder is the Inbox, Sent and so on. See $graphWellKnownFolders. */
+    public const string SETTING_GRAPH_WELL_KNOWN = 'sync.graph_well_known';
+
     /**
      * Whether this Gmail account files mail addressed to another connected
      * account under that account (Gmailify). See $gmailifyEnabled.
@@ -1167,6 +1170,51 @@ class Account extends AccountModel
         }
         set (array $ids) {
             $this->setSetting(self::SETTING_GRAPH_REMOVALS, array_values($ids));
+        }
+    }
+
+    /**
+     * Which of a Microsoft mailbox's folders is the Inbox, Sent, Drafts and the
+     * rest, as Graph last said, with what the folder list looked like then.
+     *
+     * Graph only says it one folder at a time — `GET /me/mailFolders/inbox` —
+     * so finding out costs a request per name, thirteen of them, and that was
+     * done on every sync although the answer almost never changes. It was more
+     * than half of what a sync of an idle mailbox sent. It is kept here instead
+     * and asked again only when it may have changed; GraphFolderSyncer decides
+     * when.
+     *
+     * `folders` is wellKnownName => folder id, `listing` a fingerprint of every
+     * folder id in the list at the time, `at` when it was asked.
+     *
+     * Virtual, out of the settings bag, like $graphImport.
+     *
+     * @var array{folders: array<string,string>, listing: string, at: int}|null
+     */
+    public ?array $graphWellKnownFolders {
+        get {
+            $kept = $this->getSetting(self::SETTING_GRAPH_WELL_KNOWN);
+
+            if (false === is_array($kept) || false === is_array($kept['folders'] ?? null) || false === is_string($kept['listing'] ?? null)) {
+                return null;
+            }
+
+            $folders = [];
+
+            foreach ($kept['folders'] as $name => $id) {
+                if (is_string($name) && is_string($id) && '' !== $id) {
+                    $folders[$name] = $id;
+                }
+            }
+
+            return [
+                'folders' => $folders,
+                'listing' => $kept['listing'],
+                'at'      => (int) ($kept['at'] ?? 0),
+            ];
+        }
+        set (?array $kept) {
+            $this->setSetting(self::SETTING_GRAPH_WELL_KNOWN, $kept);
         }
     }
 

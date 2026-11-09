@@ -39,8 +39,10 @@ use Psr\Log\LoggerInterface;
  * consulted while walking the list.
  *
  * That is also the more correct approach: immutable ids do not cover mailFolder
- * resources, so system folder ids can rotate, and resolving by name every sync
- * means a rotated id re-links itself.
+ * resources, so system folder ids can rotate, and resolving by name means a
+ * rotated id re-links itself. It is not done on every sync, though — it costs
+ * thirteen requests — but whenever the folder list's ids have changed, which a
+ * rotation does, and once a day. See wellKnownFolders().
  */
 final readonly class GraphFolderSyncer
 {
@@ -81,6 +83,12 @@ final readonly class GraphFolderSyncer
         'outbox',
     ];
 
+    /**
+     * How long the kept answer to "which folder is the Inbox" is trusted when
+     * the folder list has not changed. See wellKnownFolders().
+     */
+    private const int WELL_KNOWN_MAX_AGE = 86_400;
+
     private const array SYSTEM_MAP = [
         'inbox'         => LabelRole::Inbox,
         'sentitems'     => LabelRole::Sent,
@@ -105,12 +113,6 @@ final readonly class GraphFolderSyncer
     {
         $folders = $this->apiClient->listFolders($account);
 
-        // wellKnownName => folderId, then inverted so the walk can ask
-        // "what role, if any, does this folder id have?"
-        $wellKnownByName = $this->apiClient->resolveWellKnownFolders($account, self::WELL_KNOWN_NAMES);
-        $nameByFolderId  = array_flip($wellKnownByName);
-        $rootId          = $wellKnownByName['msgfolderroot'] ?? '';
-
         /** @var array<string, array<string,mixed>> $byId */
         $byId = [];
 
@@ -123,6 +125,12 @@ final readonly class GraphFolderSyncer
 
             $byId[$id] = $folder;
         }
+
+        // wellKnownName => folderId, then inverted so the walk can ask
+        // "what role, if any, does this folder id have?"
+        $wellKnownByName = $this->wellKnownFolders($account, array_keys($byId));
+        $nameByFolderId  = array_flip($wellKnownByName);
+        $rootId          = $wellKnownByName['msgfolderroot'] ?? '';
 
         $syncable = [];
         $synced   = 0;
@@ -197,6 +205,54 @@ final readonly class GraphFolderSyncer
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Which folder is the Inbox, Sent and the rest: kept on the account, and
+     * asked of Graph again only when it may have changed.
+     *
+     * Asking costs a request per name (see Account::$graphWellKnownFolders),
+     * and it used to be done on every sync. The answer changes when a folder
+     * id does — Exchange can rotate a system folder's id, which is why it is
+     * never stored on its own — and a changed id changes the folder list this
+     * sync has just read anyway. So the list is the check: its ids are
+     * fingerprinted, and a different fingerprint, a folder created, deleted or
+     * re-addressed anywhere, asks again in this same sync. Nothing waits for a
+     * later one. Renaming a folder, or the mailbox's language turning "Inbox"
+     * into "Posteingang", keeps its id and needs nothing.
+     *
+     * Once a day it is asked regardless, for whatever the fingerprint cannot
+     * see: a well-known folder that is not in the list at all, such as the
+     * root.
+     *
+     * @param list<string> $folderIds every id in the folder list just read
+     *
+     * @return array<string, string> wellKnownName => folderId
+     */
+    private function wellKnownFolders(Account $account, array $folderIds): array
+    {
+        sort($folderIds);
+
+        $listing = sha1(implode("\n", $folderIds));
+        $kept    = $account->graphWellKnownFolders;
+        $now     = time();
+
+        if (null !== $kept && $kept['listing'] === $listing && $now - $kept['at'] < self::WELL_KNOWN_MAX_AGE) {
+            return $kept['folders'];
+        }
+
+        // A throttle part-way through escapes from here, and nothing is kept:
+        // a map with a gap in it would have the sync file the missing system
+        // folder as a custom one until the next refresh.
+        $folders = $this->apiClient->resolveWellKnownFolders($account, self::WELL_KNOWN_NAMES);
+
+        $account->graphWellKnownFolders = [
+            'folders' => $folders,
+            'listing' => $listing,
+            'at'      => $now,
+        ];
+
+        return $folders;
+    }
 
     /**
      * Walk parentFolderId upward, collecting display names root-first.

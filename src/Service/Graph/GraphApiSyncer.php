@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Graph;
 
+use App\Domain\Exception\GraphThrottledException;
 use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
@@ -157,6 +158,23 @@ final class GraphApiSyncer
 
             try {
                 $result = $this->apiClient->deltaMessages($account, $folderId, $deltaLinks[$folderId]);
+            } catch (GraphThrottledException $e) {
+                // Outlook is rate-limiting this mailbox: about once an hour on
+                // a personal one, on whichever call it happens to fall. It is
+                // skipped exactly like any failed folder — the link is not
+                // advanced, so the next sync resumes from the same point, and
+                // the coverage guard below still holds — but it is not a fault,
+                // so it is one warning and not an ERROR with a stack trace.
+                $this->logger->warning('GraphApiSyncer: Outlook is rate-limiting this mailbox; the folder is read again on the next sync', [
+                    'accountId'  => $account->id,
+                    'folderId'   => $folderId,
+                    'error'      => $e->getMessage(),
+                    'retryAfter' => $e->getRetryAfterSeconds(),
+                ]);
+
+                $everyFolderAnswered = false;
+
+                continue;
             } catch (\Throwable $e) {
                 $this->logger->error('GraphApiSyncer: delta failed', [
                     'accountId' => $account->id,
