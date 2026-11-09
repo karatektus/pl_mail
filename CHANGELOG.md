@@ -51,11 +51,12 @@ the message's size before and after once something is smaller. [#502](https://gi
 
 <!-- highlight -->
 **Resize, crop and turn a picture in the message you are writing.** Click a picture in the body
-for a frame with corner handles and a bar: Small, Medium, Large or Full size, a quarter turn either
-way, and Crop, which opens the whole picture to pick the part to keep. The recipient gets only the
-part you kept, and a picture shown smaller goes out smaller too, at twice the width it is shown at.
-plMail makes every change from the picture as you uploaded it, so a crop can be widened again until
-you send, and Ctrl+Z takes a change back. Works in encrypted drafts too. No schema change.
+for a frame with corner handles and a bar. Drag a corner to set how big it is shown; Small, Medium,
+Large or Full size on the bar set how many pixels this picture goes out with, as the Image size row
+does for all of them. A quarter turn either way, and Crop, which opens the whole picture to pick
+the part to keep: the recipient gets only the part you kept. plMail makes every change from the
+picture as you uploaded it, so a crop can be widened again until you send, and Ctrl+Z takes a
+change back. Works in encrypted drafts too. No schema change.
 [#517](https://github.com/karatektus/pl_mail/issues/517).
 
 <!-- highlight screenshot=notify-for -->
@@ -308,6 +309,12 @@ picture comes down and goes up to the draft. As soon as the first bytes arrive t
 the picture's own size and shape, a phone photo taken upright included, so the picture takes its
 place without the text around it moving. Before, nothing showed until the end, which from a slow
 service could be many seconds.
+**Put the compose window's buttons in your own order.** More options (⋮) → Arrange buttons shows
+every button after Send with a dashed outline: drag them where you want them, or move the focused
+one with the arrow keys, then Done. Reset goes back to the order they came in, and Escape leaves it
+as it was. The order is kept with your settings, so every compose window and every device you sign
+in from shows it, and a configuration backup carries it. Buttons that do not fit still fold into ⋮,
+from the right end of your order. No schema change.
 
 ## v0.4.1 — 2026-10-31
 

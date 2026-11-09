@@ -11,6 +11,9 @@
  *   data-pl-rotate  90, 180 or 270: quarter turns clockwise; absent is none
  *   data-pl-crop    "x,y,w,h": the part kept, as fractions of the picture
  *                   AFTER rotating; absent is all of it
+ *   data-pl-size    small, medium, large or original: how many pixels this
+ *                   picture goes out with, the bar's Small … Full size;
+ *                   absent is the draft's Image size row
  *
  * Not on the server's MessagePart, for two reasons. A sealed draft has no
  * part for a picture in its body — the picture is a data: URI the server never
@@ -27,22 +30,24 @@
  * crop can be widened again, a picture made small can be made big again
  * without going soft, and a second rotation does not re-encode a JPEG twice.
  *
- * WHY THE BYTES CHANGE AT ALL
- * ───────────────────────────
- * A width alone would show the picture smaller and still send all of it: a
- * phone photo shown 300 pixels wide is a 5 MB attachment. So a picture shown
- * smaller than it is goes out at twice the size it is shown at — enough for a
- * high-density screen, and a fraction of the bytes. Crop and rotate change the
- * picture itself, so they are in the bytes by nature: a crop that only hid
- * the rest with CSS would send the rest along, to everyone who opens the mail
- * in a client that ignores the CSS, and to everyone who saves the picture.
+ * WHAT CHANGES THE BYTES
+ * ──────────────────────
+ * Crop and rotate change the picture itself, so they are in the bytes by
+ * nature: a crop that only hid the rest with CSS would send the rest along,
+ * to everyone who opens the mail in a client that ignores the CSS, and to
+ * everyone who saves the picture.
+ *
+ * The width it is shown at does not. Dragging a picture smaller is a layout
+ * choice; the pixels it goes out with are a choice of their own — the
+ * picture's Small … Full size (data-pl-size), else the draft's Image size row
+ * (#502). Two settings, kept apart. It used to cap the bytes too, at twice
+ * the width shown, so every drag re-encoded and re-uploaded the picture and
+ * a picture dragged small and then sent kept none of its detail for the
+ * recipient who opens it whole.
  */
 
 /** The formats a picture can be re-encoded as itself in every browser. */
 export const EDITABLE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-
-/** How much bigger than shown a picture goes out: one high-density screen's worth. */
-export const DENSITY = 2;
 
 /**
  * The quality JPEG and WebP are written at when an edit needs new bytes and
@@ -62,11 +67,37 @@ export const MIN_WIDTH = 24;
  * @property {number} rotate        0, 90, 180 or 270
  * @property {?number[]} crop       [x, y, w, h] fractions, or null for all of it
  * @property {number} displayWidth  CSS pixels, or 0 for natural size
+ * @property {string} size          '' (the draft's), or one of PICTURE_SIZES
  */
+
+/**
+ * A picture's own file size, the same presets as the draft's Image size row
+ * (App\Domain\Enum\Mail\ImageSize::edge() and PRESET_QUALITY — kept in step by
+ * hand): the longest side in pixels, 0 for the picture as uploaded.
+ */
+export const PICTURE_SIZES = Object.freeze({ small: 800, medium: 1280, large: 2048, original: 0 });
+
+const PRESET_QUALITY = 85;
+
+/**
+ * The Image size choice one picture goes out with: its own where it has one,
+ * else the draft's.
+ */
+export function pictureChoice(edits, choice) {
+    if (undefined === edits.size || '' === edits.size || false === Object.hasOwn(PICTURE_SIZES, edits.size)) {
+        return choice;
+    }
+
+    if ('original' === edits.size) {
+        return ORIGINAL_CHOICE;
+    }
+
+    return Object.freeze({ size: edits.size, edge: PICTURE_SIZES[edits.size], quality: PRESET_QUALITY, restore: false, custom: false });
+}
 
 /** @returns {ImageEdits} */
 export function noEdits() {
-    return { rotate: 0, crop: null, displayWidth: 0 };
+    return { rotate: 0, crop: null, displayWidth: 0, size: '' };
 }
 
 /**
@@ -80,11 +111,13 @@ export function noEdits() {
 export function readEdits(image) {
     const rotate = Number(image.getAttribute('data-pl-rotate')) || 0;
     const width = Number.parseInt(image.getAttribute('width') ?? '', 10);
+    const size = image.getAttribute('data-pl-size') ?? '';
 
     return {
         rotate: [90, 180, 270].includes(rotate) ? rotate : 0,
         crop: parseCrop(image.getAttribute('data-pl-crop')),
         displayWidth: Number.isFinite(width) && width > 0 ? width : 0,
+        size: Object.hasOwn(PICTURE_SIZES, size) ? size : '',
     };
 }
 
@@ -109,6 +142,12 @@ export function writeEdits(image, edits) {
         image.removeAttribute('data-pl-crop');
     }
 
+    if (Object.hasOwn(PICTURE_SIZES, edits.size ?? '')) {
+        image.setAttribute('data-pl-size', edits.size);
+    } else {
+        image.removeAttribute('data-pl-size');
+    }
+
     image.removeAttribute('height');
 
     if (edits.displayWidth > 0) {
@@ -122,14 +161,18 @@ export function writeEdits(image, edits) {
     }
 }
 
-/** Whether the recipe asks for anything beyond the picture as it came. */
+/**
+ * Whether the recipe asks for other pixels than the picture came with: a
+ * turn, a crop, or a file size of its own short of the original. The width
+ * it is shown at is not one (see above).
+ */
 export function hasEdits(edits) {
-    return edits.rotate > 0 || null !== edits.crop || edits.displayWidth > 0;
+    return edits.rotate > 0 || null !== edits.crop || (PICTURE_SIZES[edits.size] ?? 0) > 0;
 }
 
-/** A string that changes whenever the bytes the recipe makes would. */
+/** A string that changes whenever the bytes the recipe makes would: not with the width. */
 export function editSignature(edits) {
-    return `${edits.rotate}|${null === edits.crop ? '' : edits.crop.join(',')}|${edits.displayWidth}`;
+    return `${edits.rotate}|${null === edits.crop ? '' : edits.crop.join(',')}|${edits.size ?? ''}`;
 }
 
 /**
@@ -157,6 +200,7 @@ export function rotateEdits(edits, direction, aspect) {
         rotate,
         crop,
         displayWidth: edits.displayWidth > 0 && aspect > 0 ? Math.max(MIN_WIDTH, Math.round(edits.displayWidth / aspect)) : edits.displayWidth,
+        size: edits.size,
     };
 }
 
@@ -181,13 +225,15 @@ export function cropEdits(edits, frame) {
         rotate: edits.rotate,
         crop,
         displayWidth: edits.displayWidth > 0 ? Math.max(MIN_WIDTH, Math.round(edits.displayWidth * after / before)) : 0,
+        size: edits.size,
     };
 }
 
 /**
  * The bytes a picture goes out as: its original turned, cropped, and brought
- * down to the smaller of the draft's Image size and twice the width it is
- * shown at — or null when the original itself is what should go.
+ * down to its own file size, else the draft's Image size (pictureChoice) — or
+ * null when the original itself is what should go. The width it is shown at
+ * plays no part.
  *
  * An Image size preset leaves a picture already within its size alone, as
  * #502 always did: Medium on a small screenshot should not touch it. Custom
@@ -208,8 +254,9 @@ export function cropEdits(edits, frame) {
  * @param {{force?: boolean}} [options] force: answer bytes even where the original would do (previews)
  * @returns {Promise<?Blob>}
  */
-export async function renderImage(blob, edits, choice, options = {}) {
+export async function renderImage(blob, edits, draftChoice, options = {}) {
     const type = (blob.type || '').toLowerCase();
+    const choice = pictureChoice(edits, draftChoice);
 
     if (false === EDITABLE_TYPES.includes(type)) {
         return null;
@@ -245,10 +292,6 @@ export async function renderImage(blob, edits, choice, options = {}) {
 
         if (choice.edge > 0) {
             target = Math.min(target, choice.edge);
-        }
-
-        if (edits.displayWidth > 0) {
-            target = Math.min(target, Math.ceil(edits.displayWidth * DENSITY * longest / sw));
         }
 
         const resize = target < longest;

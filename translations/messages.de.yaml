@@ -1848,6 +1848,11 @@ compose:
             shorten: 'Kürzer fassen'
         timing: 'Modell laden %load% s · %count% Tokens in %seconds% s · insgesamt %total% s'
         working: 'Schreibt…'
+    arrange:
+        done: "Fertig"
+        hint: "Zieh die Knöpfe an ihren Platz oder verschieb einen mit den Pfeiltasten."
+        menu: "Knöpfe anordnen"
+        reset: "Zurücksetzen"
     attachments_summary:
         files: '{1}1 Datei|]1,Inf[ %count% Dateien'
         hide: Ausblenden

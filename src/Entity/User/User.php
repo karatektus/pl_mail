@@ -13,6 +13,7 @@ use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SwipeAction;
 use App\Domain\Enum\Mail\SwipeDirection;
 use App\Domain\Enum\Mail\SearchSortOrder;
+use App\Domain\Enum\Mail\ComposeAction;
 use App\Domain\Enum\Mail\SidebarRow;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Domain\Helper\TimezoneHelper;
@@ -1036,6 +1037,15 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public const string SETTING_COMPOSE_SEND_FEEDBACK = 'compose.send_feedback';
 
+    /**
+     * The order of the compose window's action bar, as a list of
+     * {@see \App\Domain\Enum\Mail\ComposeAction} values — absent for
+     * everybody who has never arranged it, and cleared again by "Reset", so
+     * a change to the default order reaches them. Read through
+     * $composeActionOrder, which makes any stored list whole.
+     */
+    public const string SETTING_COMPOSE_ACTION_ORDER = 'compose.action_order';
+
     /** The composer closes at once and the toast carries the undo. */
     public const string SEND_FEEDBACK_OPTIMISTIC = 'optimistic';
 
@@ -1873,6 +1883,41 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         );
 
         return $this->setSetting(self::SETTING_SIDEBAR_MORE, $values);
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_COMPOSE_ACTION_ORDER.
+     *
+     * @var list<ComposeAction>
+     */
+    public array $composeActionOrder {
+        get => ComposeAction::ordered($this->getSetting(self::SETTING_COMPOSE_ACTION_ORDER));
+    }
+
+    /**
+     * Store an order, or forget it: null, or the default order itself, clears
+     * the key, so somebody who arranged the bar back to how it came follows
+     * the default from then on.
+     *
+     * @param list<ComposeAction>|null $order
+     */
+    public function setComposeActionOrder(?array $order): static
+    {
+        $whole = null === $order ? ComposeAction::cases() : ComposeAction::ordered(array_map(
+            static fn (ComposeAction $action): string => $action->value,
+            $order,
+        ));
+
+        if ($whole === ComposeAction::cases()) {
+            unset($this->settings[self::SETTING_COMPOSE_ACTION_ORDER]);
+
+            return $this;
+        }
+
+        return $this->setSetting(self::SETTING_COMPOSE_ACTION_ORDER, array_map(
+            static fn (ComposeAction $action): string => $action->value,
+            $whole,
+        ));
     }
 
     /** The sidebar's half of setAdminPanelCollapsed(), and the same shape. */

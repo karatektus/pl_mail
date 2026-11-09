@@ -1733,6 +1733,11 @@ compose:
             shorten: 'Make it shorter'
         timing: "Oracle wakin' %load%s · %count% tokens in %seconds%s · %total%s all told"
         working: "Writin'…"
+    arrange:
+        done: "Aye, done"
+        hint: "Haul the buttons about, or shift one with the arrow keys."
+        menu: "Stow the buttons"
+        reset: "Back to how she came"
     attachments_summary:
         files: '{1}1 bit o’ cargo|]1,Inf[ %count% bits o’ cargo'
         hide: Stow it

@@ -305,11 +305,32 @@ export default class extends Controller {
                     integrationId: this.integrationValue,
                     // Read out of the input's name, as _chooseAvatar does.
                     fileIds: chosen.map((input) => input.name.replace(/^mode\[(.*)\]$/, "$1")),
+                    thumbnails: this._thumbnails(chosen),
                 },
             }),
         );
 
         this.dispatch("close", { prefix: "ui--modal" });
+    }
+
+    /**
+     * The preview this picker already shows for each chosen file, by file id,
+     * where one loaded: the compose window blurs it into the picture's
+     * placeholder from the first moment, long before the picture itself is
+     * down. A row keeps its picture beside the input, a tile around it.
+     */
+    _thumbnails(chosen) {
+        const thumbnails = {};
+
+        chosen.forEach((input) => {
+            const image = (input.closest("li") ?? input.closest("label"))?.querySelector("img");
+
+            if (image instanceof HTMLImageElement && true === image.complete && image.naturalWidth > 0) {
+                thumbnails[input.name.replace(/^mode\[(.*)\]$/, "$1")] = image.currentSrc || image.src;
+            }
+        });
+
+        return thumbnails;
     }
 
     /**
