@@ -75,7 +75,10 @@ use Psr\Log\LoggerInterface;
  *   Calendar::$syncToken and re-pulls from scratch. Exactly once — a driver
  *   that answers requiresFullResync to a null token has a bug, and looping on
  *   it would hammer a provider forever, so the second one is a permanent
- *   failure with a name that says whose bug it is.
+ *   failure with a name that says whose bug it is. A token refused on two
+ *   runs in a row means the provider does not keep tokens for that calendar
+ *   at all, and a read-only one then moves to the slow lane — see
+ *   Calendar::$syncTokenRejections.
  *
  *   **7. A full read is authoritative about deletions.** With no token there
  *   are no tombstones, so a removal that happened while the token was dead is
@@ -202,6 +205,13 @@ final readonly class CalendarSyncService
             $changes = $this->pullOnce($driver, $calendar, $token);
 
             if (false === $changes->requiresFullResync) {
+                // A token that was presented and accepted ends the streak. A
+                // full read proves nothing either way: the token it returns has
+                // not been tried yet.
+                if (null !== $token) {
+                    $calendar->syncTokenRejections = 0;
+                }
+
                 return $touched + $this->puller->apply($calendar, $changes, null === $token);
             }
 
@@ -218,11 +228,32 @@ final readonly class CalendarSyncService
             // also start from scratch rather than presenting the token the
             // remote has already rejected.
             $calendar->syncToken = null;
-            $token               = null;
+
+            // Counted only when a token was actually presented: a driver that
+            // refuses a null one is the bug the MAX_RESYNCS check above is for,
+            // not a provider that forgets tokens.
+            if (null !== $token) {
+                ++$calendar->syncTokenRejections;
+            }
 
             $this->logger->info('CalendarSync: sync token expired, reading the calendar from scratch', [
                 'calendarId' => $calendar->id,
+                'rejections' => $calendar->syncTokenRejections,
             ]);
+
+            // Said once, when the calendar moves lanes, so the log explains
+            // why a calendar that used to be read every quarter of an hour now
+            // is not. Every later refusal still logs the line above.
+            if (true === $calendar->isInSlowLane()
+                && Calendar::SLOW_LANE_AFTER_REJECTIONS === $calendar->syncTokenRejections) {
+                $this->logger->notice(
+                    'CalendarSync: the provider does not keep sync tokens for this read-only calendar, so it is read every '
+                    . Calendar::SLOW_LANE_INTERVAL . ' from now on',
+                    ['calendarId' => $calendar->id],
+                );
+            }
+
+            $token = null;
         }
     }
 
