@@ -1,2 +1,10 @@
 <turbo-stream action="remove" target="thread_{{ message is defined ? message.id : thread.id }}">
 </turbo-stream>
+
+{# Trash passes an Undo (#527); restore, which shares this stream, does not. #}
+{% if undoToken|default(null) is not null %}
+    {% include 'thread/status/_undo_toast.stream.html.twig' with {
+        message:   undoToast|trans,
+        undoToken: undoToken,
+    } only %}
+{% endif %}

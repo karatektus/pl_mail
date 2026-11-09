@@ -8,8 +8,9 @@ A plain form that submits on change and redirects, like the clock beside the
 calendar's: the choice decides what the NEXT list draws, so nothing here is
 worth streaming back.
 
-The choices are the SwipeAction cases and nothing else. Trash is not among
-them, and the hint says why, so nobody adds it back to "complete" the list.
+The choices are the SwipeAction cases and nothing else. Trash is among them
+since #527, because a trashed row now offers Undo; purge is not, and the hint
+says that only the actions that can be undone are offered.
 
 Accepts:
   choices  list<SwipeAction>  every action a direction may take

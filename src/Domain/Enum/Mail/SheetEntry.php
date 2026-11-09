@@ -7,14 +7,14 @@ namespace App\Domain\Enum\Mail;
 use LogicException;
 
 /**
- * What the long-press action sheet offers that a swipe does not.
+ * What the long-press action sheet offers beyond read/unread, archive and star.
  *
- * The sheet offers every SwipeAction (read/unread, archive, star) as well, under
- * the same rules, so those three are not repeated here. These are the entries
- * outside the swipe set: the ones a swipe must never commit by itself. Trash
- * is the clearest case. A swipe has no tap in front of it, and trash has no
- * Undo on a single row, so trash lives here and not in SwipeAction. Do not
- * move it back to "complete" that enum; SwipeActionTest guards the four-case set.
+ * The sheet offers those three SwipeActions under the same rules as the swipe,
+ * so they are not repeated here. Trash is both: a SwipeAction since #527, and
+ * still an entry here, where the sheet's entries that are not swipe actions
+ * live. Both post to the same route under the same rules (ordinary placement,
+ * drafts included), and SheetEntryTest holds them to it.
+ * Purge is the entry a swipe must never commit: nothing undoes it.
  *
  * Move, Labels and Select post nothing themselves. The first two open the
  * existing pickers and the last ticks the row's own checkbox, so they have no

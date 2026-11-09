@@ -17,8 +17,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  *
  * Two selects, one per direction, each saved on its own. The claims worth
  * pinning: a POST changes only the direction it names; a value that is not a
- * choice, trash among them, is refused and changes nothing, not even the valid
- * direction posted beside it; and the page offers exactly the four choices.
+ * choice, purge among them, is refused and changes nothing, not even the valid
+ * direction posted beside it; and the page offers exactly the five choices.
  *
  * Every refusal has its companion in the same test: the same request with a
  * valid value changes the stored choice. An empty answer alone cannot tell a
@@ -80,9 +80,9 @@ final class SwipeActionSettingTest extends WebTestCase
         $this->storeChoices(SwipeAction::Star, SwipeAction::Archive);
         $token = $this->tokenFromPage();
 
-        $this->client->request('POST', '/settings/swipe-actions', ['_token' => $token, 'swipeLeft' => 'trash']);
+        $this->client->request('POST', '/settings/swipe-actions', ['_token' => $token, 'swipeLeft' => 'purge']);
 
-        self::assertSame(404, $this->client->getResponse()->getStatusCode(), 'trash is not a choice');
+        self::assertSame(404, $this->client->getResponse()->getStatusCode(), 'purge is not a choice');
         self::assertSame(SwipeAction::Archive, $this->storedUser()->swipeLeftAction, 'the stored left choice is unchanged');
 
         $this->client->request('POST', '/settings/swipe-actions', ['_token' => $token, 'swipeLeft' => 'star']);
@@ -99,7 +99,7 @@ final class SwipeActionSettingTest extends WebTestCase
         $this->client->request('POST', '/settings/swipe-actions', [
             '_token'     => $token,
             'swipeRight' => 'archive',
-            'swipeLeft'  => 'trash',
+            'swipeLeft'  => 'purge',
         ]);
 
         self::assertSame(404, $this->client->getResponse()->getStatusCode());
@@ -136,7 +136,20 @@ final class SwipeActionSettingTest extends WebTestCase
         self::assertSame(SwipeAction::Star, $this->storedUser()->swipeRightAction);
     }
 
-    public function testEachSelectOffersExactlyTheFourChoicesAndNoTrash(): void
+    /** Trash is a choice since #527, and it is stored as itself. */
+    public function testTrashCanBeChosenForADirection(): void
+    {
+        $this->storeChoices(SwipeAction::ReadUnread, SwipeAction::Archive);
+        $token = $this->tokenFromPage();
+
+        $this->client->request('POST', '/settings/swipe-actions', ['_token' => $token, 'swipeLeft' => 'trash']);
+
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        self::assertSame(SwipeAction::Trash, $this->storedUser()->swipeLeftAction);
+        self::assertSame(SwipeAction::ReadUnread, $this->storedUser()->swipeRightAction, 'the other direction is untouched');
+    }
+
+    public function testEachSelectOffersExactlyTheFiveChoicesAndNoPurge(): void
     {
         $crawler = $this->client->request('GET', '/settings?section=swipe-actions');
 
@@ -146,7 +159,7 @@ final class SwipeActionSettingTest extends WebTestCase
             $values = $crawler->filter(sprintf('select[name="%s"] option', $name))
                 ->each(static fn ($option): string => (string) $option->attr('value'));
 
-            self::assertSame(['read_unread', 'archive', 'star', 'none'], $values, sprintf('%s offers exactly the four choices', $name));
+            self::assertSame(['read_unread', 'archive', 'star', 'trash', 'none'], $values, sprintf('%s offers exactly the five choices', $name));
         }
     }
 

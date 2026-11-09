@@ -217,8 +217,8 @@ final class SettingsController extends AbstractController
 
     /**
      * The choices the swipe selects offer, for their own section only. Every case
-     * the enum has and nothing else: trash is not a case, so it is not offered
-     * (see SwipeAction).
+     * the enum has and nothing else, so purge, which is not a case, is never
+     * offered (see SwipeAction).
      *
      * @return array<string, mixed>
      */

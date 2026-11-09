@@ -51,7 +51,7 @@ final class SwipeActionSettingsTest extends TestCase
     {
         $user = new User();
         $user->setSetting(User::SETTING_SWIPE_RIGHT_ACTION, 'star');
-        $user->setSetting(User::SETTING_SWIPE_LEFT_ACTION, 'trash');
+        $user->setSetting(User::SETTING_SWIPE_LEFT_ACTION, 'purge');
 
         self::assertSame(SwipeAction::Archive, $user->swipeLeftAction);
         self::assertSame(SwipeAction::Star, $user->swipeRightAction, 'presence companion: the valid right value still comes back');
@@ -61,7 +61,7 @@ final class SwipeActionSettingsTest extends TestCase
     {
         $user = new User();
         $user->setSetting(User::SETTING_SWIPE_LEFT_ACTION, 'star');
-        $user->setSetting(User::SETTING_SWIPE_RIGHT_ACTION, 'trash');
+        $user->setSetting(User::SETTING_SWIPE_RIGHT_ACTION, 'purge');
 
         self::assertSame(SwipeAction::ReadUnread, $user->swipeRightAction);
         self::assertSame(SwipeAction::Star, $user->swipeLeftAction, 'presence companion: the valid left value still comes back');
@@ -81,7 +81,7 @@ final class SwipeActionSettingsTest extends TestCase
     /** @return iterable<string, array{mixed}> */
     public static function unreadableStoredValues(): iterable
     {
-        yield 'trash, which is not a swipe action' => ['trash'];
+        yield 'purge, which is not a swipe action' => ['purge'];
         yield 'an action that does not exist'      => ['bounce'];
         yield 'a number'                           => [2];
     }
