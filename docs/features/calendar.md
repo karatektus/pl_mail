@@ -196,6 +196,20 @@ also **Not an event**, which is a different thing from deleting — see
 [Invitations and events from mail](calendar-invitations.md). **Download .ics** takes the event out as
 a calendar file.
 
+### From a mail
+
+**Create an event from this message**, in the **⋮** menu of a message, opens the same editor over
+the mail, with the subject as the title and a line naming the mail above it. The date and the
+reminders are yours to choose — a mail that says "before the 20th" is one plMail deliberately does
+not turn into a date on its own (see
+[Dates found in prose](calendar-invitations.md#dates-found-in-prose)). Once saved, the event keeps
+the mail as where it came from: its details show the subject, and clicking it opens the mail. The
+event is otherwise an ordinary one you typed — no **Not an event**, nothing revising it later.
+
+The link is plMail's own. Google, Microsoft and CalDAV have no field for it, so on a mirrored
+calendar the event reaches your phone without it; put anything the other side should see in the
+**Description**.
+
 ### Repeating events
 
 **Repeat** offers *Does not repeat*, *Every day*, *Every week*, *Every month* and *Every year*. More

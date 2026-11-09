@@ -1399,6 +1399,7 @@ calendar:
         location: Where
         new: A new reckonin'
         new_on: A new reckonin' on %date%
+        from_message: From the yarn
         repeat: Comes round again
         repeats: Comes round again
         save: Stow it
@@ -2732,6 +2733,7 @@ message:
         more: More
         print: Print
         report_insight: "Report what the spyglass missed"
+        create_event: 'Chart a reckoning from this yarn'
         filter_from_message: 'Rig a sorting order from this yarn'
         show_original: Show the original scroll
         star: Mark with an X

@@ -1313,6 +1313,7 @@ calendar:
         location: 地点
         new: 新建日程
         new_on: '在 %date% 新建日程'
+        from_message: '来自邮件'
         repeat: 重复
         repeats: 重复规则
         save: 保存
@@ -2533,6 +2534,7 @@ message:
         more: '更多'
         print: '打印'
         report_insight: '报告遗漏的要点'
+        create_event: 根据此邮件创建日程
         filter_from_message: 根据此邮件创建过滤器
         show_original: '查看原始邮件'
         star: '加星标'

@@ -33,6 +33,10 @@ on an empty string, and clearing the location is a thing a user may mean.
    the OLD title back beside the error complaining it was missing. #}
 {% set event_title = title is defined ? title : (event ? event.title : '') %}
 {% set recurrence_id = recurrenceId|default('') %}
+{# The mail a new event is being created from ("Create event" in a message's
+   menu), or null. Posted back so the save can keep it as the event's
+   provenance; shown so the user can see the mail is going along. #}
+{% set source_message = event is null ? sourceMessage|default(null) : null %}
 {% set copies = copies|default([]) %}
 {% set errors = errors|default({}) %}
 
@@ -76,6 +80,9 @@ on an empty string, and clearing the location is a thing a user may mean.
     <input type="hidden" name="timeZone" value="{{ timeZone }}">
     <input type="hidden" name="view" value="{{ app.request.query.get('view', 'week') }}">
     <input type="hidden" name="recurrenceId" value="{{ recurrence_id }}">
+    {% if source_message %}
+        <input type="hidden" name="sourceMessage" value="{{ source_message.id }}">
+    {% endif %}
 
     {# Read only by the delete route, which this same form submits to via
        `formaction` — see the Delete button. `date` is where the user is put
@@ -116,6 +123,14 @@ on an empty string, and clearing the location is a thing a user may mean.
                 {% endfor %}
             </div>
         </div>
+
+        {% if source_message %}
+            <p class="flex items-center gap-2 rounded-lg border border-line bg-sunken/40 px-3 py-2 text-xs text-ink-muted min-w-0">
+                <i class="fa-regular fa-envelope shrink-0 text-ink-faint" aria-hidden="true"></i>
+                <span class="shrink-0">{{ 'calendar.event.from_message'|trans }}</span>
+                <span class="truncate text-ink">{{ source_message.subject ?: 'calendar.soon.untitled'|trans }}</span>
+            </p>
+        {% endif %}
 
         <div>
             <label for="event-title" class="block text-xs text-ink-muted mb-1">

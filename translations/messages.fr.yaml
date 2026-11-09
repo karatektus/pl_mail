@@ -1490,6 +1490,7 @@ calendar:
         location: Lieu
         new: Nouvel événement
         new_on: Nouvel événement le %date%
+        from_message: Depuis le mail
         repeat: Répéter
         repeats: Se répète
         save: Enregistrer
@@ -2867,6 +2868,7 @@ message:
         more: Plus
         print: Imprimer
         report_insight: Signaler un aperçu manqué
+        create_event: 'Créer un événement à partir de ce message'
         filter_from_message: 'Créer un filtre à partir de ce message'
         show_original: Afficher l’original
         star: Suivre
