@@ -326,6 +326,117 @@ final class ThreadingOutOfOrderTest extends KernelTestCase
         self::assertNull($this->em->find(MessageThread::class, $plainId));
     }
 
+    /**
+     * The report in #377: GitHub mails every comment on an issue with
+     * References naming the post that opened it, and the person who opened
+     * the issue never gets that post. The comments are one conversation all
+     * the same, whether they arrive one sync at a time or all at once.
+     *
+     * @param list<list<string>> $batches message keys, in sync order
+     */
+    #[DataProvider('siblingArrivals')]
+    public function testMailHangingOffAMissingStartIsOneConversation(array $batches): void
+    {
+        $comments = [
+            'first'  => $this->message('comment-1', 'issue-221', 'Re: [pl_mail] Folder leaks (#221)', '-3 hours'),
+            'second' => $this->message('comment-2', 'issue-221', 'Re: [pl_mail] Folder leaks (#221)', '-2 hours'),
+            'third'  => $this->message('comment-3', 'issue-221', 'Re: [pl_mail] Folder leaks (#221)', '-1 hour'),
+        ];
+
+        foreach ($batches as $keys) {
+            $this->syncBatch(array_map(static fn (string $key): Message => $comments[$key], $keys));
+        }
+
+        $threads = array_unique(array_map($this->storedThreadOf(...), array_values($comments)));
+
+        self::assertCount(1, $threads, 'the comments are split over several threads');
+
+        $this->em->clear();
+
+        self::assertSame(3, $this->em->find(MessageThread::class, reset($threads))?->messageCount);
+    }
+
+    /**
+     * @return iterable<string, array{list<list<string>>}>
+     */
+    public static function siblingArrivals(): iterable
+    {
+        yield 'a batch per message' => [[['first'], ['second'], ['third']]];
+        yield 'all in one batch'    => [[['first', 'second', 'third']]];
+    }
+
+    /**
+     * Conversations split before the fix are folded together by the next
+     * message of the conversation, and the one kept is the oldest.
+     */
+    public function testTheNextSiblingFoldsAnEarlierSplitTogether(): void
+    {
+        $older = $this->thread('Re: Release notes', null);
+        $newer = $this->thread('Re: Release notes', null);
+
+        $inOlder = $this->message('split-1', 'split-root', 'Re: Release notes', '-3 hours');
+        $inNewer = $this->message('split-2', 'split-root', 'Re: Release notes', '-2 hours');
+
+        $inOlder->thread = $older;
+        $inNewer->thread = $newer;
+        $this->em->persist($inOlder);
+        $this->em->persist($inNewer);
+        $this->em->flush();
+
+        $newerId = $newer->id;
+        $next    = $this->message('split-3', 'split-root', 'Re: Release notes', '-1 hour');
+
+        $this->syncBatch([$next]);
+
+        foreach ([$inOlder, $inNewer, $next] as $message) {
+            self::assertSame($older->id, $this->storedThreadOf($message));
+        }
+
+        $this->em->clear();
+
+        self::assertNull($this->em->find(MessageThread::class, $newerId));
+        self::assertSame(3, $this->em->find(MessageThread::class, $older->id)?->messageCount);
+    }
+
+    /**
+     * The start turning up after all, forwarded or found in another folder,
+     * joins the conversation its replies have already formed.
+     */
+    public function testTheMissingStartArrivingLaterJoinsItsReplies(): void
+    {
+        $one   = $this->message('late-start-1', 'late-start', 'Re: Offsite', '-2 hours');
+        $two   = $this->message('late-start-2', 'late-start', 'Re: Offsite', '-1 hour');
+        $start = $this->message('late-start', null, 'Offsite', '-3 hours', seen: true);
+
+        $this->syncBatch([$one]);
+        $this->syncBatch([$two]);
+        $this->syncBatch([$start]);
+
+        self::assertSame($this->storedThreadOf($one), $this->storedThreadOf($two));
+        self::assertSame($this->storedThreadOf($one), $this->storedThreadOf($start));
+    }
+
+    /**
+     * Only the conversation's start is asked about. Two messages that share a
+     * later id but name different starts stay apart; a client that rewrote
+     * References is not a reason to merge two conversations.
+     */
+    public function testMailSharingOnlyALaterIdStaysApart(): void
+    {
+        $one = $this->message('later-1', null, 'Re: Meeting', '-2 hours');
+        $two = $this->message('later-2', null, 'Re: Meeting', '-1 hour');
+
+        $one->references = [$this->messageId('later-root-a'), $this->messageId('later-shared')];
+        $one->inReplyTo  = [$this->messageId('later-shared')];
+        $two->references = [$this->messageId('later-root-b'), $this->messageId('later-shared')];
+        $two->inReplyTo  = [$this->messageId('later-shared')];
+
+        $this->syncBatch([$one]);
+        $this->syncBatch([$two]);
+
+        self::assertNotSame($this->storedThreadOf($one), $this->storedThreadOf($two));
+    }
+
     // ── fixture ──────────────────────────────────────────────────────────────
 
     /**
