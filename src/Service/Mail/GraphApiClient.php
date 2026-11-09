@@ -186,8 +186,18 @@ final class GraphApiClient
         foreach ($names as $name) {
             try {
                 $folder = $this->getWellKnownFolder($account, $name);
-            } catch (GraphApiException) {
-                // 404 for a folder this mailbox does not have. Not an error.
+            } catch (GraphApiException $e) {
+                // A throttle or a server fault is not an answer. Taken as one,
+                // a 429 on `inbox` said "this mailbox has no Inbox", and the
+                // folder syncer then filed the real Inbox as a custom folder
+                // called "Inbox" for that run. Only a refusal about the folder
+                // itself — 404 for one this mailbox does not have, and the
+                // 400/403 some mailboxes give for the recoverable-items ones —
+                // means it is not there.
+                if ($e instanceof GraphThrottledException || 500 <= $e->getStatus()) {
+                    throw $e;
+                }
+
                 continue;
             }
 
@@ -1246,12 +1256,32 @@ final class GraphApiClient
         }
 
         if (429 === $status || 503 === $status) {
-            $retryAfter = $response->getHeaders(false)['retry-after'][0] ?? null;
+            $headers    = $response->getHeaders(false);
+            $retryAfter = $headers['retry-after'][0] ?? null;
+            $retryAfter = null !== $retryAfter && ctype_digit(trim($retryAfter)) ? (int) trim($retryAfter) : null;
 
-            throw new GraphThrottledException(
-                $body,
-                null !== $retryAfter ? (int) $retryAfter : null,
-            );
+            // Said in words, and not just the body. Outlook answers a throttled
+            // personal mailbox with an EMPTY body, and that body used to be the
+            // whole message: the log line read `"error": ""`, with nothing to
+            // say what had happened or which limit it was. The request id is
+            // what Microsoft asks for when one of these is to be looked into.
+            $message = sprintf('Graph answered %d (throttled)', $status);
+
+            if (null !== $retryAfter) {
+                $message .= sprintf(', retry after %d s', $retryAfter);
+            }
+
+            $requestId = $headers['request-id'][0] ?? null;
+
+            if (null !== $requestId && '' !== $requestId) {
+                $message .= ', request-id ' . $requestId;
+            }
+
+            if ('' !== trim($body)) {
+                $message .= ': ' . $body;
+            }
+
+            throw new GraphThrottledException($message, $retryAfter);
         }
 
         throw new GraphApiException(sprintf('Graph request failed with %d: %s', $status, $body), $status);
