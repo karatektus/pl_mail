@@ -302,6 +302,7 @@ cursor is, like ones picked with the image button, instead of being attached bes
 **Clicking a file in the "Attach from" picker selects it again.** In the list of a file service
 such as Nextcloud, clicking a file did nothing, so a file could only be sent as a share link with
 its Link button, never attached. A click on the row selects it for attaching, as it was meant to.
+
 **A picture on its way into a message shows where it will go.** "Attach inline" from a file
 service, and a picture picked from the disk, now put a placeholder at the cursor straight away. Its
 ring turns while the service is being asked for the file and then fills with a percentage as the
@@ -309,6 +310,7 @@ picture comes down and goes up to the draft. As soon as the first bytes arrive t
 the picture's own size and shape, a phone photo taken upright included, so the picture takes its
 place without the text around it moving. Before, nothing showed until the end, which from a slow
 service could be many seconds.
+
 **Put the compose window's buttons in your own order.** More options (⋮) → Arrange buttons shows
 every button after Send with a dashed outline: drag them where you want them, or move the focused
 one with the arrow keys, then Done. Reset goes back to the order they came in, and Escape leaves it
@@ -1891,6 +1893,7 @@ import line in the background-work indicator now shows the quota, roughly how mu
 use, how many messages a minute are coming in, how long the rest of the import takes, and says
 so when Google has paused it. No
 migration. [#90](https://github.com/karatektus/pl_mail/issues/90), reported by @karamanliev.
+
 **Your own tabs on an account's page.** Clicking an
 account in the sidebar offered the five built-in tabs and none of the ones you made. Mail filed in
 one of yours is in that tab only — not in Primary or any other — so on an account's page it was in
@@ -1940,6 +1943,7 @@ A two-line row has no unread dot; like a one-line row it says unread with a bold
 Also fixed: with the two-line preview setting on, a one-line row wrapped its preview anyway. No
 setting; no migration.
 [#62](https://github.com/karatektus/pl_mail/pull/62), by @Flouss.
+
 **The calendar button can skip a view.** The button in the top bar has always been a three-way
 switch: mail, then the calendar beside the mail, then the calendar full width. Settings → Calendar →
 Behaviour has one choice, **Calendar button**, that can make it a two-way one. **Full width only**
