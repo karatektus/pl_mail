@@ -72,6 +72,72 @@ final class SenderAuthenticationTest extends TestCase
             ['mx.example.org; dmarc=fail header.from=airline.example', 'mx.example.org; ' . $pass],
             SenderVerdict::Fail,
         ];
+        yield 'imap: a believed line with no results says nothing' => ['imap', 'imap.example.org', 'a@airline.example', 'mx.example.org; none', SenderVerdict::Unknown];
+
+        // iCloud (#462): read on imap.mail.me.com, checked under *.icloud.com,
+        // one line per method. The first set is the reporter's Booking.com mail.
+        $icloud = static fn (string ...$results): array => array_map(
+            static fn (string $result): string => explode('=', $result, 2)[0] . '.icloud.com; ' . $result,
+            $results,
+        );
+
+        yield 'icloud: one line per method, all passing' => [
+            'imap', 'imap.mail.me.com', 'noreply@booking.com',
+            [
+                'bimi.icloud.com; bimi=pass header.d=booking.com header.selector=default policy.authority=pass',
+                'arc.icloud.com; arc=none',
+                'dmarc.icloud.com; dmarc=pass header.from=booking.com',
+                'dkim-verifier.icloud.com; dkim=pass header.d=booking.com header.i=noreply@booking.com header.b=abc',
+                'spf.icloud.com; spf=pass (domain of noreply@mailer.booking.com designates 1.2.3.4 as permitted sender) smtp.mailfrom=noreply@mailer.booking.com',
+                'bimi.icloud.com',
+            ],
+            SenderVerdict::Pass,
+        ];
+        yield 'icloud: a failing BIMI line says nothing about the sender' => [
+            'imap', 'imap.mail.me.com', 'noreply@booking.com',
+            $icloud('bimi=fail reason="certificate expired"', 'dmarc=pass header.from=booking.com'),
+            SenderVerdict::Pass,
+        ];
+        yield 'icloud: no DMARC record, aligned DKIM, SPF at the mailing service' => [
+            'imap', 'imap.mail.me.com', 'a@small.example',
+            $icloud('dmarc=none header.from=small.example', 'dkim=pass header.d=small.example', 'spf=pass smtp.mailfrom=bounce@amazonses.com'),
+            SenderVerdict::Pass,
+        ];
+        yield 'icloud: forwarded, so DMARC passes and SPF does not' => [
+            'imap', 'imap.mail.me.com', 'a@airline.example',
+            $icloud('dmarc=pass header.from=airline.example', 'spf=fail smtp.mailfrom=a@airline.example'),
+            SenderVerdict::Pass,
+        ];
+        yield 'icloud: only BIMI and ARC lines' => [
+            'imap', 'imap.mail.me.com', 'a@airline.example',
+            $icloud('bimi=pass header.d=airline.example', 'arc=none'),
+            SenderVerdict::Unknown,
+        ];
+        yield 'icloud: passes only for somebody else\'s domain' => [
+            'imap', 'imap.mail.me.com', 'a@airline.example',
+            $icloud('dmarc=fail header.from=airline.example', 'dkim=pass header.d=evil.example', 'spf=pass smtp.mailfrom=x@evil.example'),
+            SenderVerdict::Fail,
+        ];
+        yield 'icloud: a second DMARC line that disagrees' => [
+            'imap', 'imap.mail.me.com', 'a@airline.example',
+            $icloud('dmarc=fail header.from=airline.example', 'dmarc=pass header.from=airline.example'),
+            SenderVerdict::Fail,
+        ];
+        yield 'icloud: a second SPF line that disagrees' => [
+            'imap', 'imap.mail.me.com', 'a@airline.example',
+            $icloud('spf=fail smtp.mailfrom=x@evil.example', 'spf=pass smtp.mailfrom=a@airline.example'),
+            SenderVerdict::Fail,
+        ];
+        yield 'icloud: two DKIM signatures, one broken' => [
+            'imap', 'imap.mail.me.com', 'a@airline.example',
+            $icloud('dkim=fail header.d=list.example', 'dkim=pass header.d=airline.example'),
+            SenderVerdict::Pass,
+        ];
+        yield 'icloud: a line under a name that is not Apple\'s' => [
+            'imap', 'imap.mail.me.com', 'a@airline.example',
+            ['mx.evil.example; dmarc=pass header.from=airline.example'],
+            SenderVerdict::Unknown,
+        ];
     }
 
     /**

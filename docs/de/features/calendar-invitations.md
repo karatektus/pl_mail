@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-invitations.md sha1:ac003e74ee2c24e2b32f0a4a85c2b20bac368a6c -->
+<!-- translated-from: features/calendar-invitations.md sha1:3ced29776774f39a54c13e09a7470d0de2c8cfaf -->
 
 # Einladungen und Termine aus E-Mails
 
@@ -159,6 +159,7 @@ Buchung verschieben oder stornieren darf, die du schon hast.
 |---|---|
 | **Gmail** | Dem von Google. |
 | **Outlook / Microsoft 365** | Dem von Microsoft. |
+| **iCloud** | Dem von Apple (`*.icloud.com`), obwohl das Konto seine Mail von `imap.mail.me.com` liest. |
 | **Andere (IMAP)** | Dem eines Servers auf derselben Domain wie der IMAP-Host des Kontos — `mx.example.org` für ein Konto auf `imap.example.org`. |
 
 Alles andere — ein Absender, der die Prüfung nicht bestanden hat, ein Server, der keine festhält,

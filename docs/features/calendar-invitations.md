@@ -144,6 +144,7 @@ header). The same check decides whether a later mail may move or cancel a bookin
 |---|---|
 | **Gmail** | Google's. |
 | **Outlook / Microsoft 365** | Microsoft's. |
+| **iCloud** | Apple's (`*.icloud.com`), though the account reads mail from `imap.mail.me.com`. |
 | **Other (IMAP)** | A server on the same domain as the account's IMAP host — `mx.example.org` for an account on `imap.example.org`. |
 
 Everything else — a sender that failed the check, a server that does not record one, a server
