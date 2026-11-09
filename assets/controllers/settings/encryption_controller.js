@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus";
 import { askConfirm } from "../../confirm.js";
 import { keyring } from "../../crypto/keyring.js";

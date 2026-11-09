@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from '@hotwired/stimulus';
 import { csrfToken, jsonCsrfHeaders } from '../../csrf.js';
 import { requestFailed } from '../../request_errors.js';
