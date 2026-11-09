@@ -370,6 +370,10 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
     private function markStored(Account $account, Pop3Session $session, array $numbers): void
     {
         foreach ($this->uidls->ledgerFor($account) as $uidl => $state) {
+            // PHP keeps an all-digit key as an int, and RFC 1939 lets a server
+            // use plain counters (`449`) as UIDLs. Uncast, isMarkedDeleted()
+            // threw before QUIT and nothing was ever deleted (#522).
+            $uidl   = (string) $uidl;
             $number = $numbers[$uidl] ?? null;
 
             if (false === $state['stored'] || null === $number || true === $session->isMarkedDeleted($uidl)) {
