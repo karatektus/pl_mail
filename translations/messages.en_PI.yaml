@@ -799,7 +799,9 @@ admin:
             provider:
                 google: 'Gmail'
                 imap: 'IMAP'
+                jmap: 'JMAP'
                 microsoft: 'Outlook'
+                pop3: 'POP3'
             push: 'cannon on'
             slowest:
                 by:
@@ -2544,6 +2546,7 @@ integration:
         attach: 'Haul aboard'
         attach_from: 'Haul from %name%'
         attach_from_service: 'Haul from a port'
+        attach_inline: 'Nail to the page'
         empty: 'This hold be empty.'
         link: Link
         more: 'Show more'
@@ -2562,6 +2565,7 @@ integration:
         status:
             attach_failed: 'Couldn''t haul it aboard'
             attaching: 'Haulin'' aboard…'
+            link_not_inline: 'A link be no picture to nail to the page'
             load_failed: 'Couldn''t haul up more'
             loading: 'Haulin'' up…'
             nothing_selected: 'Naught be chosen'
@@ -3361,7 +3365,6 @@ settings:
             every: 'Every %minutes% min'
             heading: 'Check for bottles every … min'
         type:
-            imap: IMAP
             oauth: '%provider% (OAuth)'
     aliases:
         add: 'Add'
@@ -4392,8 +4395,9 @@ settings:
         heading: "Swipe deeds"
         hint: >-
             A swipe acts once ye drag far enough or flick quick. Read an' star can
-            be unswiped by swipin' again, an' archive offers Undo. Trash be no
-            choice: a swipe that sank mail would have nothing to haul it back.
+            be unswiped by swipin' again, an' archive an' feedin' to the fishes
+            offer Undo. The fishes only get it in Davy Jones' locker; nothin' be
+            sunk for good.
         left:
             label: "Swipe left"
         option:
@@ -4401,6 +4405,7 @@ settings:
             none: "Nowt"
             read_unread: "Read / unread"
             star: "Star"
+            trash: "Feed to the fishes"
         right:
             label: "Swipe right"
         subheading: "What a swipe across a bottle does on yer phone."
@@ -5001,6 +5006,7 @@ toast:
     send_failed_unavailable: 'That message could not be hoisted: %subject%. Yer mail port could not be reached.'
     sent: Message away!
     spam_filtered: 'Pumped into th'' bilge. Whatever %sender% sends next goes th'' same way.'
+    trashed: Fed to the fishes.
     undo: Belay that
     undo_expired: Too late to belay that, matey.
     undone: Belayed.

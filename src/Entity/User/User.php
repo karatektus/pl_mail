@@ -947,8 +947,8 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * What a dragged row does, one key per direction — see SwipeAction and
      * SwipeDirection. The bag, like the reading pane's keys beside them, for a
      * choice about THIS screen that needs no column and no migration. Each
-     * stores one SwipeAction value; "trash" is not one of them, and a stored
-     * "trash" reads as the direction's default (SwipeAction::fromSetting).
+     * stores one SwipeAction value; anything else stored reads as the
+     * direction's default (SwipeAction::fromSetting).
      */
     public const string SETTING_SWIPE_RIGHT_ACTION = 'swipe.right_action';
     public const string SETTING_SWIPE_LEFT_ACTION = 'swipe.left_action';

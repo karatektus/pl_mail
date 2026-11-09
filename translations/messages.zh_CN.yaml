@@ -760,7 +760,9 @@ admin:
             provider:
                 google: Gmail
                 imap: IMAP
+                jmap: 'JMAP'
                 microsoft: Outlook
+                pop3: 'POP3'
             push: 推送已开启
             slowest:
                 by:
@@ -2349,6 +2351,7 @@ integration:
         attach: 添加附件
         attach_from: '从 %name% 添加附件'
         attach_from_service: 从服务添加附件
+        attach_inline: 插入正文
         empty: 此文件夹为空。
         link: 链接
         more: 显示更多
@@ -2367,6 +2370,7 @@ integration:
         status:
             attach_failed: 无法添加附件
             attaching: 正在添加附件…
+            link_not_inline: 链接没有可插入正文的图片
             load_failed: 无法加载更多内容
             loading: 正在加载…
             nothing_selected: 未选择任何内容
@@ -3091,7 +3095,6 @@ settings:
             every: '每 %minutes% 分钟'
             heading: '每隔 … 分钟检查新邮件'
         type:
-            imap: 'IMAP'
             oauth: '%provider% (OAuth)'
     aliases:
         add: '添加'
@@ -3918,7 +3921,7 @@ settings:
         subheading: '是否需要手动允许邮件加载远程图片。'
     swipe_actions:
         heading: "滑动操作"
-        hint: "拖动足够远或快速轻扫时触发操作。再次滑动可撤销已读状态和星标操作，归档后也可选择撤销。不提供删除选项，因为滑动删除邮件后将无法撤销。"
+        hint: "拖动足够远或快速轻扫时触发操作。再次滑动可撤销已读状态和星标操作，归档和删除后也可选择撤销。删除会将会话移至废纸篓，不会永久删除。"
         left:
             label: "向左滑动"
         option:
@@ -3926,6 +3929,7 @@ settings:
             none: "无操作"
             read_unread: "已读 / 未读"
             star: "星标"
+            trash: "删除"
         right:
             label: "向右滑动"
         subheading: "在手机上滑动邮件行时执行的操作。"
@@ -4486,6 +4490,7 @@ toast:
     send_failed_unavailable: '此邮件未能发送：%subject%。无法连接邮件服务商。'
     sent: '邮件已发送。'
     spam_filtered: '已移至垃圾邮件。以后来自 %sender% 的邮件也会移至此处。'
+    trashed: '会话已移至废纸篓。'
     undo: '撤销'
     undo_expired: '此操作已无法撤销。'
     undone: '已撤销。'

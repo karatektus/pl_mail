@@ -1,4 +1,4 @@
-<!-- translated-from: install/configuration.md sha1:31307be109da041a6245219867145ccece0e3637 -->
+<!-- translated-from: install/configuration.md sha1:91cdc6afc6b949be67aa0e94aa9747ad147004ba -->
 # Konfigurationsreferenz
 
 Jede Umgebungsvariable, die plMail liest, was sie bewirkt, welchen Vorgabewert sie hat und was
@@ -110,7 +110,7 @@ sie direkt, wenn er `DATABASE_URL` zusammensetzt.
 
 | Variable | Was sie bewirkt | Vorgabe | Wenn sie falsch ist |
 |---|---|---|---|
-| `SERVER_NAME` | Der Hostname, den Caddy im `php`-Container bedient. | `localhost, :443, php:80` | Caddy entscheidet daran, ob es TLS terminiert. Der Vorgabewert bedient jeden Namen und jede Adresse, unter der die Maschine erreicht wird, mit einem selbstsignierten Zertifikat. `:80` liefert schlichtes HTTP aus, was du hinter einem Reverse-Proxy willst. Ein Hostname bringt Caddy dazu, ein Zertifikat dafür zu beschaffen, und ist dann der einzige Name, der bedient wird. |
+| `SERVER_NAME` | Der Hostname, den Caddy im `php`-Container bedient. | `localhost, :443, php:80` | Caddy entscheidet daran, ob es TLS terminiert. Der Vorgabewert bedient jeden Namen und jede Adresse, unter der die Maschine erreicht wird, mit einem selbstsignierten Zertifikat. `:80` liefert schlichtes HTTP aus, was du hinter einem Reverse-Proxy willst. Ein Hostname bringt Caddy dazu, ein Zertifikat dafür zu beschaffen, und ist dann der einzige Name, der bedient wird. Eine IP-Adresse funktioniert genauso, mit einem selbstsignierten Zertifikat für diese Adresse (behoben in v0.4.3; vorher meldete der Browser einen SSL-Protokollfehler). Soll weiterhin jeder Name beantwortet werden, lass `:443` in der Liste, und `localhost` daneben: `:443` allein hat kein Zertifikat anzubieten. Ein geänderter Wert wirkt erst mit `docker compose up -d`, nicht mit `docker compose restart`, das die alte Umgebung behält. |
 | `HTTP_PORT` | Host-Port, der auf Container-Port 80/tcp abgebildet wird. | `80` | Ein bereits belegter Port hindert den `php`-Container am Start. |
 | `HTTPS_PORT` | Host-Port, der auf Container-Port 443/tcp abgebildet wird. | `443` | Wie oben. |
 | `HTTP3_PORT` | Host-Port, der auf Container-Port 443/udp abgebildet wird. | `443` | Nur relevant, wenn du HTTP/3 direkt ausliefern willst. |

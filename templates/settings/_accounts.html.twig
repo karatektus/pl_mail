@@ -73,9 +73,14 @@
                     <p class="truncate text-xs text-ink-faint">{{ account.username }} · {{ account.imapHost }}</p>
                 </div>
 
+                {# A password account says how its mail is read, not how it
+                   signs in: this badge used to say IMAP for every one of
+                   them, POP3 and JMAP included (#528). Same words as the
+                   form's protocol choice, so the two never disagree. #}
                 <span class="hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium
-                             {{ isPassword ? 'bg-zinc-500/10 text-ink-muted' : 'bg-accent-soft text-accent' }}">
-                    {{ isPassword ? 'settings.accounts.type.imap'|trans : 'settings.accounts.type.oauth'|trans({ '%provider%': account.oauthProvider|capitalize }) }}
+                             {{ isPassword ? 'bg-zinc-500/10 text-ink-muted' : 'bg-accent-soft text-accent' }}"
+                      data-account-type>
+                    {{ isPassword ? ('account.form.protocol.' ~ account.incomingProtocol.value)|trans : 'settings.accounts.type.oauth'|trans({ '%provider%': account.oauthProvider|capitalize }) }}
                 </span>
 
                 <div class="flex items-center gap-1 shrink-0">

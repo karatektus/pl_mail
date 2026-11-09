@@ -197,8 +197,11 @@ Seven rules, each because the obvious alternative is worse:
 `SenderAuthentication` does no checking of its own. It reads the receiving server's
 `Authentication-Results` header and its whole job is deciding which such header to believe,
 since a sender can write one too: `mx.google.com` for Gmail, the single nameless header for
-Microsoft, and for IMAP a server on the same registrable domain as the account's IMAP host.
-A pass is `dmarc=pass`, or a DKIM or SPF pass **aligned** with the From domain.
+Microsoft, and for IMAP a server on the same registrable domain as the account's IMAP host
+(or, for the providers in `KNOWN_RECEIVERS` such as iCloud, the domain mapped to it).
+The believed lines are judged as one set, because iCloud writes a line per method. A pass is
+`dmarc=pass`, or a DKIM or SPF pass **aligned** with the From domain; two different DMARC or SPF
+results among the believed lines are a fail.
 
 The same verdict gates creation. A booking whose sender is not vouched for is created as an
 offer (`myParticipation = NeedsAction`, not drawn), exactly as a calendar file naming nobody

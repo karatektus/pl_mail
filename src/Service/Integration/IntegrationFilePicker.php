@@ -236,6 +236,30 @@ final readonly class IntegrationFilePicker
     }
 
     /**
+     * One picture from a service, for the compose window to put in the body.
+     *
+     * Handed to the browser rather than stored as a part here: "attach inline"
+     * then goes through the same upload as a picture chosen from the disk, and
+     * that path already knows what this would have to repeat — a sealed draft
+     * keeping its pictures inside itself as data: URIs, the Image size row, the
+     * scaling to the size already picked.
+     *
+     * @return RemoteFile|null null when it is not a picture or is over $maxBytes
+     *
+     * @throws IntegrationException when the service cannot hand it over
+     */
+    public function inlineImage(Integration $integration, string $fileId, int $maxBytes): ?RemoteFile
+    {
+        $file = $this->drivers->forIntegration($integration)->download($integration, $fileId);
+
+        if (false === str_starts_with(strtolower($file->mime), 'image/') || $file->size() > $maxBytes) {
+            return null;
+        }
+
+        return $file;
+    }
+
+    /**
      * Send an attachment the other way: out of a message and into a service.
      *
      * AttachmentResolver is what makes this work for provider-hosted mail — a

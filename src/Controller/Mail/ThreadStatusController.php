@@ -92,10 +92,18 @@ class ThreadStatusController extends AbstractController
     {
         $messages = $this->resolveMessages($request, $type, $id);
 
+        // Trash answers with an Undo, as archive does, and for the same reason:
+        // the row is gone either way, and since #527 a swipe can do this with no
+        // tap in front of it. Remembered before the move, so the snapshot is what
+        // the messages wore, snooze included (StatusUndoService::remember()).
+        $undoToken = $this->undo->remember($messages);
+
         $this->status->trash($messages);
 
         return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
-            $type => 'message' === $type ? $messages[0] : $messages[0]->thread,
+            $type       => 'message' === $type ? $messages[0] : $messages[0]->thread,
+            'undoToken' => $undoToken,
+            'undoToast' => 'toast.trashed',
         ]);
     }
 

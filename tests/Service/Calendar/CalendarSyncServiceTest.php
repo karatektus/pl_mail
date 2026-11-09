@@ -16,6 +16,7 @@ use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\CalendarNotifier;
 use App\Service\Calendar\CalendarPuller;
@@ -291,6 +292,124 @@ final class CalendarSyncServiceTest extends KernelTestCase
                 'one pull, one full read, then stop — anything more is hammering the provider',
             );
         }
+    }
+
+    /**
+     * Google refuses every sync token it hands out for its public holiday
+     * calendars, so the token from one run's full read is dead by the next
+     * run, and every sweep paid a refused request plus a full read. Seen on a
+     * real install: calendar 14, de.german#holiday, "sync token expired" every
+     * fifteen minutes all day, while the other calendars on the account kept
+     * their tokens.
+     *
+     * Driven through two whole runs and then the sweep's own query, because the
+     * claim is about what the NEXT sweep does, and that is decided by a column
+     * and a query rather than by anything this service returns.
+     */
+    public function testAReadOnlyCalendarWhoseTokensNeverStickIsSweptLessOften(): void
+    {
+        $this->calendar->isReadOnly = true;
+        $this->calendar->syncToken  = 'token-from-the-first-read';
+        $this->em->flush();
+
+        // Each run: the stored token refused, then a full read that hands out
+        // a fresh token — which the next run finds refused too.
+        foreach (['token-2', 'token-3'] as $fresh) {
+            $this->driver->changeSets = [
+                CalendarChangeSet::resyncRequired(),
+                new CalendarChangeSet([$this->remoteEvent('r-h', 'uid-h', 'St. Martin', 'etag-h')], $fresh),
+            ];
+
+            $this->sync->sync($this->calendar);
+        }
+
+        self::assertSame(
+            ['token-from-the-first-read', null, 'token-2', null],
+            $this->driver->pulledWith,
+            'each run presents the token the previous full read stored',
+        );
+        self::assertSame(2, $this->calendar->syncTokenRejections);
+        self::assertTrue($this->calendar->isInSlowLane());
+        self::assertCount(
+            1,
+            $this->logger->matching('notice', 'does not keep sync tokens'),
+            'moving lanes is said once, when it happens',
+        );
+
+        $repository = self::getContainer()->get(CalendarRepository::class);
+        $sweep      = static fn (): array => array_map(
+            static fn (Calendar $c): ?int => $c->id,
+            $repository->findDueForSync(new DateTimeImmutable('-14 minutes'), 10_000),
+        );
+
+        $this->calendar->lastSyncedAt = new DateTimeImmutable('-20 minutes');
+        $this->em->flush();
+
+        self::assertNotContains(
+            $this->calendar->id,
+            $sweep(),
+            'twenty minutes after its last read, a calendar in the slow lane is not due yet',
+        );
+
+        $this->calendar->lastSyncedAt = new DateTimeImmutable('-7 hours');
+        $this->em->flush();
+
+        self::assertContains($this->calendar->id, $sweep(), 'after the slow interval it is read again');
+    }
+
+    /**
+     * The slow lane is for read-only calendars. A writable one keeps its
+     * fifteen-minute sweep whatever its provider does with tokens: being six
+     * hours behind on a calendar people write to costs more than full reads.
+     */
+    public function testAWritableCalendarIsNeverSweptLessOften(): void
+    {
+        $this->calendar->syncTokenRejections = 5;
+        $this->calendar->lastSyncedAt        = new DateTimeImmutable('-20 minutes');
+        $this->em->flush();
+
+        self::assertFalse($this->calendar->isInSlowLane());
+
+        $due = self::getContainer()->get(CalendarRepository::class)
+            ->findDueForSync(new DateTimeImmutable('-14 minutes'), 10_000);
+
+        self::assertContains($this->calendar, $due);
+    }
+
+    /**
+     * One accepted token is enough to leave the slow lane: the provider has
+     * started keeping them, and the calendar goes back to the normal sweep.
+     */
+    public function testAnAcceptedTokenEndsTheStreak(): void
+    {
+        $this->calendar->isReadOnly          = true;
+        $this->calendar->syncTokenRejections = 3;
+        $this->calendar->syncToken           = 'token-that-works';
+        $this->em->flush();
+
+        $this->driver->changeSets = [CalendarChangeSet::unchanged('token-that-works-2')];
+
+        $this->sync->sync($this->calendar);
+
+        self::assertSame(0, $this->calendar->syncTokenRejections);
+        self::assertFalse($this->calendar->isInSlowLane());
+    }
+
+    /**
+     * A first read has no token to refuse, so it says nothing about whether
+     * the provider keeps them — not even when the driver wrongly asks for a
+     * resync of it, which is a different bug with its own exception.
+     */
+    public function testAFullReadThatIsRefusedIsNotCountedAsARefusedToken(): void
+    {
+        $this->driver->changeSets = [CalendarChangeSet::resyncRequired()];
+
+        try {
+            $this->sync->sync($this->calendar);
+        } catch (CalendarSyncPermanentException) {
+        }
+
+        self::assertSame(0, $this->calendar->syncTokenRejections);
     }
 
     /**

@@ -7,6 +7,7 @@ namespace App\Service\Graph;
 use App\Entity\Mail\Account;
 use App\Service\Label\LabelResolver;
 use App\Domain\Exception\GraphApiException;
+use App\Domain\Exception\GraphThrottledException;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -44,6 +45,20 @@ final readonly class GraphCategorySyncer
     {
         try {
             $categories = $this->apiClient->listMasterCategories($account);
+        } catch (GraphThrottledException $e) {
+            // Outlook is rate-limiting this mailbox. Not a fault, and nothing
+            // is lost: the list is asked for again on the next sync. One line,
+            // without the trace that made it look like one — and the sync goes
+            // on to the messages, which are what the person is waiting for.
+            // Rethrowing would have put them off by a whole retry for the sake
+            // of the category list.
+            $this->logger->warning('GraphCategorySyncer: Outlook is rate-limiting this mailbox; categories are listed again on the next sync', [
+                'accountId'  => $account->id,
+                'error'      => $e->getMessage(),
+                'retryAfter' => $e->getRetryAfterSeconds(),
+            ]);
+
+            return;
         } catch (GraphApiException $e) {
             // 403 here almost always means the MailboxSettings.ReadWrite scope
             // is missing rather than anything being broken: master categories

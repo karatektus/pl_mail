@@ -19,9 +19,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * left does on a row.
  *
  * One select per direction, each posting only its own field. The choice is a
- * SwipeAction, and the enum has no trash case on purpose (see SwipeAction), so a
- * posted "trash" is refused rather than stored: the whole post is refused, and
- * the valid direction posted beside it is not applied either.
+ * SwipeAction, and anything the enum has no case for ("purge", say) is refused
+ * rather than stored: the whole post is refused, and the valid direction posted
+ * beside it is not applied either.
  */
 #[IsGranted('ROLE_USER')]
 final class SwipeActionController extends AbstractController

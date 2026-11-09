@@ -156,6 +156,28 @@ final class Pop3AccountSyncerTest extends KernelTestCase
     }
 
     /**
+     * UIDLs that are plain counters are stored and deleted like any other.
+     *
+     * PHP keeps an all-digit array key as an int, so a loop over the ledger
+     * hands out `449`, not `'449'`, and the delete pass threw a TypeError
+     * before QUIT: mail was stored but never deleted from the server (#522).
+     */
+    public function testNumericUidlsAreStoredAndDeleted(): void
+    {
+        $this->account->pop3DeleteMode = Pop3DeleteMode::Delete;
+        $this->em->flush();
+
+        $this->server->add('449', $this->raw('one@example.test', 'One'));
+        $this->server->add('450', $this->raw('two@example.test', 'Two'));
+
+        $this->syncer()->sync($this->account);
+
+        self::assertSame(['One', 'Two'], $this->storedSubjects());
+        self::assertEqualsCanonicalizing(['449', '450'], $this->server->sent('DELE'));
+        self::assertSame([], $this->server->messages);
+    }
+
+    /**
      * A sync that spans sessions asks each one for its own numbering.
      *
      * Another client deletes mail between our sessions, so every number from

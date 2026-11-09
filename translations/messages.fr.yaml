@@ -869,7 +869,9 @@ admin:
             provider:
                 google: 'Gmail'
                 imap: 'IMAP'
+                jmap: 'JMAP'
                 microsoft: 'Outlook'
+                pop3: 'POP3'
             push: 'push activé'
             slowest:
                 by:
@@ -2679,6 +2681,7 @@ integration:
         attach: Joindre
         attach_from: 'Joindre depuis %name%'
         attach_from_service: 'Joindre depuis un service'
+        attach_inline: 'Insérer dans le texte'
         empty: 'Ce dossier est vide.'
         link: Lien
         more: 'Afficher plus'
@@ -2697,6 +2700,7 @@ integration:
         status:
             attach_failed: 'Impossible de joindre'
             attaching: 'Ajout en cours…'
+            link_not_inline: 'Un lien n’a pas d’image à insérer dans le texte'
             load_failed: 'Impossible de charger plus'
             loading: 'Chargement…'
             nothing_selected: 'Rien de sélectionné'
@@ -3535,7 +3539,6 @@ settings:
             every: 'Toutes les %minutes% min'
             heading: 'Relever le courrier toutes les … min'
         type:
-            imap: IMAP
             oauth: '%provider% (OAuth)'
     aliases:
         add: 'Ajouter'
@@ -4642,8 +4645,8 @@ settings:
         hint: >-
             Un balayage agit dès que vous allez assez loin ou faites un geste rapide.
             Lu / non lu et étoile se rétablissent en balayant à nouveau, et archiver
-            propose Annuler. La corbeille n’est pas proposée : un balayage qui
-            supprimerait du courrier n’aurait rien pour l’annuler.
+            et supprimer proposent Annuler. Supprimer place la conversation dans la
+            corbeille ; rien n’est supprimé définitivement.
         left:
             label: Balayer vers la gauche
         option:
@@ -4651,6 +4654,7 @@ settings:
             none: Aucune action
             read_unread: Lu / non lu
             star: Étoile
+            trash: Supprimer
         right:
             label: Balayer vers la droite
         subheading: Ce que fait un balayage sur une ligne, sur téléphone.
@@ -5257,6 +5261,7 @@ toast:
     send_failed_unavailable: 'Ce message n’a pas pu être envoyé : %subject%. Votre fournisseur était injoignable.'
     sent: Message envoyé.
     spam_filtered: 'Déplacé vers Spam. Le courrier futur de %sender% y ira aussi.'
+    trashed: Conversation placée dans la corbeille.
     undo: Annuler
     # The Undo was pressed twice, or after newer actions pushed it out. Said
     # plainly: the button promised to put something back and has not.

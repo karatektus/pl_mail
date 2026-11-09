@@ -206,6 +206,37 @@ final class SwipeActionResolverTest extends KernelTestCase
     }
 
     /**
+     * Trash chosen for the left (#527) is offered in the Inbox, drafts included,
+     * posting to the bin with the strip's delete label, and is inert once the row
+     * is in the bin.
+     */
+    public function testAChosenTrashIsOfferedInTheInboxAndInertInTheBin(): void
+    {
+        $user                  = new User();
+        $user->swipeLeftAction = SwipeAction::Trash;
+        $this->signIn($user);
+
+        $thread = $this->seedThread(unreadCount: 1);
+
+        $inbox = $this->resolver->forDirection(SwipeDirection::Left, $thread, draft: false);
+
+        self::assertInstanceOf(SwipeAffordance::class, $inbox);
+        self::assertSame(SwipeAction::Trash, $inbox->action);
+        self::assertSame('/status/thread/' . $thread->id . '/trash', $inbox->url);
+        self::assertSame('thread_row.actions.delete', $inbox->label);
+        self::assertSame([], $inbox->body);
+
+        $draft = $this->resolver->forDirection(SwipeDirection::Left, $thread, draft: true);
+
+        self::assertInstanceOf(SwipeAffordance::class, $draft, 'a draft can be swiped into the bin too');
+        self::assertSame(SwipeAction::Trash, $draft->action);
+
+        $this->placeIn($thread, LabelRole::Trash);
+
+        self::assertNull($this->resolver->forDirection(SwipeDirection::Left, $thread, draft: false));
+    }
+
+    /**
      * A setting does not lift the strip's rules: archive chosen for the right is
      * offered in the Inbox and inert in the archive, as the default was.
      */
@@ -228,13 +259,13 @@ final class SwipeActionResolverTest extends KernelTestCase
     }
 
     /**
-     * A stored "trash" never reaches the resolver as an action: the direction falls
+     * A stored "purge" never reaches the resolver as an action: the direction falls
      * back to its own default, so left archives, and right keeps its own setting.
      */
-    public function testAStoredTrashFallsBackToTheDirectionsDefaultInTheResolver(): void
+    public function testAStoredPurgeFallsBackToTheDirectionsDefaultInTheResolver(): void
     {
         $user = new User();
-        $user->setSetting(User::SETTING_SWIPE_LEFT_ACTION, 'trash');
+        $user->setSetting(User::SETTING_SWIPE_LEFT_ACTION, 'purge');
         $user->setSetting(User::SETTING_SWIPE_RIGHT_ACTION, 'star');
         $this->signIn($user);
 
@@ -336,10 +367,19 @@ final class SwipeActionResolverTest extends KernelTestCase
         $stripRead    = $this->stripRoute($html, 'data-mail--message-row-read-url-param');
         $stripArchive = $this->stripRoute($html, 'data-mail--message-row-archive-url-param');
         $stripStar    = $this->stripRoute($html, 'data-mail--message-row-star-url-param');
+        $stripTrash   = $this->stripRoute($html, 'data-mail--message-row-trash-url-param');
 
         $read    = $this->resolver->for(SwipeAction::ReadUnread, $item, $draft);
         $archive = $this->resolver->for(SwipeAction::Archive, $item, $draft);
         $star    = $this->resolver->for(SwipeAction::Star, $item, $draft);
+        $trash   = $this->resolver->for(SwipeAction::Trash, $item, $draft);
+
+        // Trash is offered exactly where the strip's delete button is, drafts included.
+        self::assertSame(null !== $stripTrash, null !== $trash, 'trash, ' . $cell);
+
+        if (null !== $trash) {
+            self::assertSame($stripTrash, $trash->url, 'trash route, ' . $cell);
+        }
 
         self::assertSame(null !== $stripRead, null !== $read, 'mark read, ' . $cell);
         self::assertSame(null !== $stripArchive, null !== $archive, 'archive, ' . $cell);

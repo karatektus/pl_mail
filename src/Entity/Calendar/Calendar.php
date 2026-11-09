@@ -182,6 +182,33 @@ class Calendar
     public ?DateTimeImmutable $lastSyncedAt = null;
 
     /**
+     * How many runs in a row found the stored sync token refused, and had to
+     * read the calendar from scratch. Reset by the first run whose token is
+     * accepted.
+     *
+     * ── Why this is counted ─────────────────────────────────────────────────
+     * Google answers 410 to every syncToken it hands out for its public holiday
+     * calendars (`…#holiday@group.v.calendar.google.com`): the token from a full
+     * read is refused on the very next run, fifteen minutes later, every time.
+     * Seen on the install this was written for, where the German holiday
+     * calendar logged "sync token expired" on every sweep, all day, while the
+     * personal and family calendars on the same account kept theirs. Each of
+     * those runs is a refused request plus a full read of the window, forever.
+     *
+     * One refusal is normal — tokens do expire — and costs one full read, which
+     * is rule 6 in CalendarSyncService. Two in a row means the token from that
+     * full read did not survive one interval, so the provider is not keeping
+     * tokens for this calendar and polling it at the normal rate only buys full
+     * reads. See isInSlowLane().
+     *
+     * Counted rather than recognised by remote id. Nothing in Google's
+     * documentation says which calendars do this, and a list of id patterns
+     * would be a guess that goes stale; the count is what actually happened.
+     */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $syncTokenRejections = 0;
+
+    /**
      * Why the last sync failed, or null if it succeeded. Mirrors
      * Integration::$lastError, for the same reason and with the same rule: it
      * is rendered in the calendar settings list, so it is phrased for a person
@@ -372,6 +399,34 @@ class Calendar
      * way wherever it is listed, and two spellings of "it is fine now" is how
      * one of them ends up not clearing the error.
      */
+    /**
+     * Consecutive refused tokens after which a read-only calendar is swept
+     * every SLOW_LANE_INTERVAL instead of every fifteen minutes.
+     */
+    public const int SLOW_LANE_AFTER_REJECTIONS = 2;
+
+    /**
+     * How often a calendar in the slow lane is read. A holiday calendar changes
+     * a few times a year; six hours is still four reads a day, and each of them
+     * is a full read that brings in whatever did change.
+     */
+    public const string SLOW_LANE_INTERVAL = '6 hours';
+
+    /**
+     * Whether the sweep reads this calendar only every SLOW_LANE_INTERVAL.
+     *
+     * Read-only calendars only. Their changes come from somebody else and
+     * nothing waits on them going out; a writable calendar polled every six
+     * hours would sit on the user's own edits made elsewhere, and a provider
+     * refusing tokens there is worth paying full reads to stay current.
+     * CalendarRepository::findDueForSync() states the same rule as a query.
+     */
+    public function isInSlowLane(): bool
+    {
+        return true === $this->isReadOnly
+            && self::SLOW_LANE_AFTER_REJECTIONS <= $this->syncTokenRejections;
+    }
+
     public function recordSyncSuccess(): void
     {
         $this->lastSyncedAt  = new DateTimeImmutable();

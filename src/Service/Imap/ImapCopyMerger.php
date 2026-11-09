@@ -10,6 +10,7 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
+use App\Repository\Insight\MailInsightRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\MessageEraser;
@@ -63,6 +64,7 @@ final readonly class ImapCopyMerger
         private ImapCopies              $copies,
         private ThreadLabelSynchronizer $threadLabels,
         private ThreadMerger            $threadMerger,
+        private MailInsightRepository   $insights,
         private StateManager            $stateManager,
         private EntityManagerInterface  $em,
         private ManagerRegistry         $registry,
@@ -160,7 +162,19 @@ final readonly class ImapCopyMerger
 
             $connection->executeStatement('UPDATE event_source_link l SET message_id = :survivor WHERE l.message_id = :copy AND NOT EXISTS (SELECT 1 FROM event_source_link s WHERE s.message_id = :survivor AND s.event_id = l.event_id AND s.extractor = l.extractor)', $params);
             $connection->executeStatement('UPDATE event_proposal p SET message_id = :survivor WHERE p.message_id = :copy AND NOT EXISTS (SELECT 1 FROM event_proposal s WHERE s.message_id = :survivor AND s.starts_at = p.starts_at)', $params);
-            $connection->executeStatement('UPDATE mail_insight SET message_id = :survivor WHERE message_id = :copy', $params);
+            // The insights through the entity manager and not in SQL, unlike
+            // the rows around them: they may already be loaded. Merging the two
+            // threads above loads the absorbed thread's insights to move their
+            // thread (ThreadMerger::moveMessages()), and those instances still
+            // name the copy. An UPDATE behind their back left them doing so,
+            // the copy is deleted by the first flush below, and the second
+            // flush then found an insight pointing at a message it no longer
+            // knew and threw — so the whole fold rolled back, every sweep, for
+            // any email whose copies sat in two threads with a card (#521).
+            foreach ($this->insights->findBy(['message' => $copy]) as $insight) {
+                $insight->message = $survivor;
+            }
+
             $connection->executeStatement('UPDATE insight_report SET message_id = :survivor WHERE message_id = :copy', $params);
             $connection->executeStatement('UPDATE pop3_uidl SET message_id = :survivor WHERE message_id = :copy', $params);
 

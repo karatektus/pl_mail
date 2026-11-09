@@ -861,7 +861,9 @@ admin:
             provider:
                 google: 'Gmail'
                 imap: 'IMAP'
+                jmap: 'JMAP'
                 microsoft: 'Outlook'
+                pop3: 'POP3'
             push: 'push on'
             slowest:
                 by:
@@ -2662,6 +2664,7 @@ integration:
         attach: Attach
         attach_from: 'Attach from %name%'
         attach_from_service: 'Attach from a service'
+        attach_inline: 'Attach inline'
         empty: 'This folder is empty.'
         link: Link
         more: 'Show more'
@@ -2680,6 +2683,7 @@ integration:
         status:
             attach_failed: 'Could not attach'
             attaching: 'Attaching…'
+            link_not_inline: 'A link has no picture to put in the text'
             load_failed: 'Could not load more'
             loading: 'Loading…'
             nothing_selected: 'Nothing selected'
@@ -3513,7 +3517,6 @@ settings:
             every: 'Every %minutes% min'
             heading: 'Check for new mail every … min'
         type:
-            imap: IMAP
             oauth: '%provider% (OAuth)'
     aliases:
         add: 'Add'
@@ -4580,8 +4583,8 @@ settings:
         heading: Swipe actions
         hint: >-
             A swipe acts once you drag far enough or flick quickly. Read and star
-            can be undone by swiping again, and archive offers Undo. Trash is not a
-            choice: a swipe that deleted mail would have nothing to undo it.
+            can be undone by swiping again, and archive and delete offer Undo.
+            Delete moves the conversation to the bin; it never deletes it for good.
         left:
             label: Swipe left
         option:
@@ -4589,6 +4592,7 @@ settings:
             none: Nothing
             read_unread: Read / unread
             star: Star
+            trash: Delete
         right:
             label: Swipe right
         subheading: What a swipe across a row does on a phone.
@@ -5220,6 +5224,7 @@ toast:
     send_failed_unavailable: 'That message could not be sent: %subject%. Your mail provider could not be reached.'
     sent: Message sent.
     spam_filtered: 'Moved to Spam. Future mail from %sender% goes there too.'
+    trashed: Conversation moved to the bin.
     undo: Undo
     # The Undo was pressed twice, or after newer actions pushed it out. Said
     # plainly: the button promised to put something back and has not.

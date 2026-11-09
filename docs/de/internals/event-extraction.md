@@ -1,4 +1,4 @@
-<!-- translated-from: internals/event-extraction.md sha1:df3af56b21c9e45e194d0ab553c927148694fae9 -->
+<!-- translated-from: internals/event-extraction.md sha1:b7043bf481ab648066940bc54e3c6802c378ed5d -->
 # Extraktion von Terminen
 
 Wie aus einer `.ics`-Einladung ein Kalendereintrag wird, wie aus einem gewöhnlichen Satz das
@@ -221,8 +221,11 @@ Sieben Regeln, jede davon, weil die naheliegende Alternative schlechter ist:
 empfangenden Servers, und seine ganze Aufgabe ist zu entscheiden, welchem solchen Header zu
 glauben ist, denn ein Absender kann auch einen schreiben: `mx.google.com` bei Gmail, der eine
 namenlose Header bei Microsoft, und bei IMAP ein Server auf derselben registrierbaren Domain wie
-der IMAP-Host des Kontos. Bestanden ist `dmarc=pass` oder ein DKIM- oder SPF-Pass, der zur
-Von-Domain **passt**.
+der IMAP-Host des Kontos (oder, für die Anbieter in `KNOWN_RECEIVERS` wie iCloud, auf der dafür
+hinterlegten Domain). Die geglaubten Zeilen werden als eine Menge beurteilt, weil iCloud eine Zeile
+pro Verfahren schreibt. Bestanden ist `dmarc=pass` oder ein DKIM- oder SPF-Pass, der zur
+Von-Domain **passt**; zwei verschiedene DMARC- oder SPF-Ergebnisse unter den geglaubten Zeilen sind
+ein Fehlschlag.
 
 Dasselbe Urteil entscheidet über das Anlegen. Eine Buchung, für deren Absender niemand bürgt,
 wird als Angebot angelegt (`myParticipation = NeedsAction`, nicht gezeichnet), genau wie eine

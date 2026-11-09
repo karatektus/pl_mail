@@ -110,6 +110,7 @@ final class CalendarChangeLogListener
         'integration',
         'remoteId',
         'syncToken',
+        'syncTokenRejections',
         'lastSyncedAt',
         'lastSyncError',
         'syncFailureCount',

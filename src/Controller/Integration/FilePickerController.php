@@ -21,6 +21,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -245,6 +246,51 @@ final class FilePickerController extends AbstractController
             'links'           => $transfer->links,
             'errors'          => $transfer->errors,
         ]);
+    }
+
+    /**
+     * The bytes of one picture, for "Attach inline" in the compose picker.
+     *
+     * The compose window turns them into a File and places it like a picture
+     * from the disk (IntegrationFilePicker::inlineImage says why). Always a
+     * download of untyped bytes, with the real type in a header of its own,
+     * for the reason thumbnail() gives: the type comes from the service, and a
+     * response that renders in our origin must not take it on trust.
+     */
+    #[Route('/{id}/inline-image', name: 'inline_image', methods: ['GET'])]
+    public function inlineImage(Integration $integration, Request $request): Response
+    {
+        $this->assertUsable($integration, Capability::Download);
+
+        $fileId = (string) $request->query->get('file', '');
+
+        if ('' === $fileId) {
+            throw $this->createNotFoundException();
+        }
+
+        try {
+            $file = $this->picker->inlineImage($integration, $fileId, ComposeAttachmentController::MAX_ATTACHMENT_BYTES);
+        } catch (IntegrationException) {
+            return new Response(null, Response::HTTP_BAD_GATEWAY);
+        }
+
+        if (null === $file) {
+            return new Response(null, Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
+        }
+
+        $response = new Response($file->contents, Response::HTTP_OK, [
+            'Content-Type'           => 'application/octet-stream',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control'          => 'no-store',
+            'X-File-Type'            => $file->mime,
+            'X-File-Name'            => rawurlencode($file->filename),
+        ]);
+        $response->headers->set('Content-Disposition', $response->headers->makeDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            'image',
+        ));
+
+        return $response;
     }
 
     /**

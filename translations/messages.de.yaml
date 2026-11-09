@@ -873,7 +873,9 @@ admin:
             provider:
                 google: 'Gmail'
                 imap: 'IMAP'
+                jmap: 'JMAP'
                 microsoft: 'Outlook'
+                pop3: 'POP3'
             push: 'Push an'
             slowest:
                 by:
@@ -2666,6 +2668,7 @@ integration:
         attach: Anhängen
         attach_from: 'Aus %name% anhängen'
         attach_from_service: 'Aus einem Dienst anhängen'
+        attach_inline: 'Im Text einfügen'
         empty: 'Dieser Ordner ist leer.'
         link: Link
         more: 'Mehr anzeigen'
@@ -2684,6 +2687,7 @@ integration:
         status:
             attach_failed: 'Anhängen fehlgeschlagen'
             attaching: 'Wird angehängt …'
+            link_not_inline: 'Ein Link hat kein Bild, das in den Text kann'
             load_failed: 'Mehr konnte nicht geladen werden'
             loading: 'Wird geladen …'
             nothing_selected: 'Nichts ausgewählt'
@@ -3505,7 +3509,6 @@ settings:
             every: 'Alle %minutes% Min.'
             heading: 'Auf neue Mail prüfen alle … Min.'
         type:
-            imap: IMAP
             oauth: '%provider% (OAuth)'
     aliases:
         add: 'Hinzufügen'
@@ -4604,9 +4607,9 @@ settings:
         hint: >-
             Eine Wischbewegung wirkt, sobald du weit genug ziehst oder schnell
             wischst. Gelesen/ungelesen und Stern nimmst du zurück, indem du noch
-            einmal wischst. Archivieren bietet „Rückgängig“ an. Den Papierkorb gibt
-            es hier nicht: Eine Wischbewegung, die Mail löscht, hätte nichts, womit
-            sie sich zurücknehmen ließe.
+            einmal wischst. Archivieren und Löschen bieten „Rückgängig“ an. Löschen
+            verschiebt die Unterhaltung in den Papierkorb, endgültig gelöscht wird
+            dabei nichts.
         left:
             label: Nach links wischen
         option:
@@ -4614,6 +4617,7 @@ settings:
             none: Nichts
             read_unread: Gelesen / ungelesen
             star: Stern
+            trash: Löschen
         right:
             label: Nach rechts wischen
         subheading: Was eine Wischbewegung über eine Zeile auf dem Telefon bewirkt.
@@ -5231,6 +5235,7 @@ toast:
     send_failed_unavailable: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Dein Mailanbieter war nicht erreichbar.'
     sent: Nachricht gesendet.
     spam_filtered: 'In den Spam verschoben. Künftige Mail von %sender% landet auch dort.'
+    trashed: Unterhaltung in den Papierkorb verschoben.
     undo: Rückgängig
     undo_expired: Das lässt sich nicht mehr rückgängig machen.
     undone: Rückgängig gemacht.

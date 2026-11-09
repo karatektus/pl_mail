@@ -354,6 +354,7 @@ final readonly class ConfigBackupUsers
         Account::SETTING_IMPORT_BEAT_AT => 'when the other host\'s import last moved; here it would hold a new import back as though one were running',
         Account::SETTING_GRAPH_IMPORT => 'the folders the OTHER host had still to read, by ids and page links that mean nothing to a mailbox connected afresh; the target plans its own on its first sync',
         Account::SETTING_GRAPH_REMOVALS => 'message ids the other host was waiting to judge, for rows this host does not have',
+        Account::SETTING_GRAPH_WELL_KNOWN => 'a cache of which folder is the Inbox, Sent and so on, as the other host last asked; the target asks again on its first sync',
         Account::SETTING_IMPORT_TOTAL => 'the size of the mailbox as the other host found it, for a progress line about an import that is not this one',
         Account::SETTING_POP3_ADOPTING => 'a pass over the OTHER host\'s POP3 mailbox that had still to finish; the target keeps no UIDLs from the file and fetches the mailbox afresh',
         Account::SETTING_JMAP_STATES => 'the server states the OTHER host had synced up to; carried, the target would ask only for changes since then and never import the mail it does not have',
