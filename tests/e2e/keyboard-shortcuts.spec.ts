@@ -164,6 +164,45 @@ test.describe("keyboard shortcuts", () => {
         await expect(page.locator(`${ROWS}:focus`)).toHaveAttribute("data-kbd-cursor", "");
     });
 
+    /**
+     * The feedback on v0.4.2: walk down the list with the arrows, act on the
+     * row with its own button rather than a key, and the next ↓ started from
+     * the top again. Only the keys knew to move the cursor off a row that was
+     * about to leave; a row archived by a click, moved, snoozed or reported as
+     * spam took the cursor with it.
+     */
+    test("a row that leaves by a click leaves the cursor on the row after it", async ({ page }) => {
+        await inbox(page);
+
+        const subject = INBOX_SUBJECTS.archive;
+        const ids = await page.locator(ROWS).evaluateAll((rows) =>
+            rows.map((row) => row.getAttribute("data-mail--message-row-id-value")));
+        const id = await mailRow(page, subject).getAttribute("data-mail--message-row-id-value");
+        const at = ids.indexOf(id);
+
+        // Past the top, or "back at the top" and "where it should be" are
+        // the same row.
+        expect(at).toBeGreaterThan(0);
+        expect(at).toBeLessThan(ids.length - 2);
+
+        for (let step = 0; step <= at; step++) {
+            await page.keyboard.press("ArrowDown");
+        }
+
+        await expect(mailRow(page, subject)).toBeFocused();
+
+        await mailRow(page, subject).hover();
+        await mailRow(page, subject).locator("[data-action='click->mail--message-row#archive']").click();
+        await expect(mailRow(page, subject)).toHaveCount(0);
+
+        const row = (rowId: string) => page.locator(`${ROWS}[data-mail--message-row-id-value="${rowId}"]`);
+
+        await expect(page.locator(CURSOR)).toHaveAttribute("data-mail--message-row-id-value", ids[at + 1]!);
+
+        await page.keyboard.press("ArrowDown");
+        await expect(row(ids[at + 2]!)).toBeFocused();
+    });
+
     test("e archives the row under the cursor, and z takes it back", async ({ page }) => {
         await inbox(page);
 
