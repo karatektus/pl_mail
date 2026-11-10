@@ -252,7 +252,7 @@ final class ReapStrandedJobsCommandTest extends KernelTestCase
         $job->total          = 1770;
         $job->processed      = 1400;
         $job->lastProgressAt = new DateTimeImmutable($lastProgressAt);
-        $job->createdAt      = new DateTimeImmutable($createdAt ?? $lastProgressAt);
+        $job->restoreCreatedAt(new DateTimeImmutable($createdAt ?? $lastProgressAt));
 
         $this->em->persist($job);
         $this->em->flush();

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity\Monitoring;
 
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
 use App\Repository\Monitoring\CategoryReport\CategoryReportRepository;
 use DateTimeImmutable;
@@ -45,8 +46,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'category_report')]
 #[ORM\Index(columns: ['created_at'], name: 'idx_category_report_created')]
 #[ORM\Index(name: 'idx_category_report_usr', columns: ['usr_id'])]
+#[ORM\HasLifecycleCallbacks]
 class CategoryReport
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -173,9 +177,6 @@ class CategoryReport
     #[ORM\Column(type: 'text')]
     public string $subject = '';
 
-    #[ORM\Column]
-    public DateTimeImmutable $createdAt;
-
     /**
      * When somebody decided this one had been dealt with.
      *
@@ -193,6 +194,11 @@ class CategoryReport
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $handledAt = null;
 
+    /**
+     * Stamped here and not left to PrePersist: CategoryReportRecorder hands
+     * back an unsaved report and asLine() reads the date, so it has to exist
+     * before the row does. The trait's `??=` keeps it on persist.
+     */
     public function __construct()
     {
         $this->createdAt = new DateTimeImmutable();

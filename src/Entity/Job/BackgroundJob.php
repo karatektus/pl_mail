@@ -6,6 +6,7 @@ namespace App\Entity\Job;
 
 use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Job\JobState;
+use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
 use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
 use DateTimeImmutable;
@@ -38,8 +39,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: BackgroundJobRepository::class)]
 #[ORM\Table(name: 'background_job')]
 #[ORM\Index(name: 'idx_background_job_owner_state', columns: ['usr_id', 'state'])]
+#[ORM\HasLifecycleCallbacks]
 class BackgroundJob
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -67,9 +71,6 @@ class BackgroundJob
 
     #[ORM\Column(options: ['default' => 0])]
     public int $processed = 0;
-
-    #[ORM\Column]
-    public DateTimeImmutable $createdAt;
 
     /**
      * When this job last showed a sign of life.
