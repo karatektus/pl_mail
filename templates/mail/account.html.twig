@@ -56,18 +56,21 @@ it and from the account's other folders beside it.
                         {# `replace`, as on the Inbox's strip: see the note there. #}
                         data-turbo-action="replace"
                         {% if isActive %}aria-current="page" data-ui--scroll-active-target="current"{% endif %}
-                        class="flex items-center gap-2.5 px-3 @xl:px-5 py-1.5 min-h-14 font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
+                        title="{{ tabCase.isCustom ? tabCase.name : ('tabs.' ~ tabCase.value)|trans }}"
+                        class="flex items-center gap-1.5 @xl:gap-2 px-2 @xl:px-4 py-1.5 min-h-12 @xl:min-h-14 font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
                     >
                         {% if isActive %}
-                            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <svg class="w-4 h-4 @xl:w-5 @xl:h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd" clip-rule="evenodd" d="{{ glyphs.solid(tabCase.isCustom ? 'custom' : tabCase.value) }}"/>
                             </svg>
                         {% else %}
-                            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <svg class="w-4 h-4 @xl:w-5 @xl:h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="{{ glyphs.outline(tabCase.isCustom ? 'custom' : tabCase.value) }}"/>
                             </svg>
                         {% endif %}
-                        {{ tabCase.isCustom ? tabCase.name : ('tabs.' ~ tabCase.value)|trans }}
+                        {# Name only on the open tab below `@md`, as on the
+                           Inbox's strip: see the note there. #}
+                        <span class="{{ isActive ? '' : 'sr-only @md:not-sr-only' }}">{{ tabCase.isCustom ? tabCase.name : ('tabs.' ~ tabCase.value)|trans }}</span>
                     </a>
                 {% endfor %}
             </nav>

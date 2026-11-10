@@ -130,6 +130,11 @@
        later, at `@rowwide` — because the card can be narrow on a wide
        viewport too.
 
+       Narrower again below `@md` (28rem): there a tab that is not the open
+       one is its glyph and its counts, no label — see the note on the label.
+       That is what lets a phone show the whole row; the scroll remains for a
+       card narrower still, or more tabs than Gmail's five.
+
        `pb-px -mb-px` on the nav is what the tabs' own `-mb-px` used to do
        against the wrapper's hairline: an overflow container clips whatever
        pokes out of its padding box, and without it the active underline lost
@@ -191,15 +196,16 @@
                     data-turbo-action="replace"
                     {% if false == isActive %}data-dnd-category="{{ tabCase.value }}"{% endif %}
                     {% if isActive %}data-ui--scroll-active-target="current"{% endif %}
-                    class="flex items-center gap-2.5 px-3 @xl:px-5 py-1.5 min-h-14 font-medium border-b-2 -mb-px transition-colors shrink-0 {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
+                    title="{{ tabName }}"
+                    class="flex items-center gap-1.5 @xl:gap-2 px-2 @xl:px-4 py-1.5 min-h-12 @xl:min-h-14 font-medium border-b-2 -mb-px transition-colors shrink-0 {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
                 >
                     {% if isActive %}
-                        <svg class="w-5 h-5 shrink-0{{ unreadHere > 0 ? ' ' ~ iconTone : '' }}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+                        <svg class="w-4 h-4 @xl:w-5 @xl:h-5 shrink-0{{ unreadHere > 0 ? ' ' ~ iconTone : '' }}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
                              {% if tintable %}data-tab-icon data-count-key="category:{{ tabCase.value }}" data-tone-class="{{ iconTone }}"{% endif %}>
                             <path fill-rule="evenodd" clip-rule="evenodd" d="{{ glyphs.solid(tabCase.isCustom ? 'custom' : tabCase.value) }}"/>
                         </svg>
                     {% else %}
-                        <svg class="w-5 h-5 shrink-0{{ unreadHere > 0 ? ' ' ~ iconTone : '' }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"
+                        <svg class="w-4 h-4 @xl:w-5 @xl:h-5 shrink-0{{ unreadHere > 0 ? ' ' ~ iconTone : '' }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"
                              {% if tintable %}data-tab-icon data-count-key="category:{{ tabCase.value }}" data-tone-class="{{ iconTone }}"{% endif %}>
                             <path stroke-linecap="round" stroke-linejoin="round" d="{{ glyphs.outline(tabCase.isCustom ? 'custom' : tabCase.value) }}"/>
                         </svg>
@@ -207,7 +213,17 @@
 
                     <span class="flex flex-col justify-center min-w-0">
                         <span class="flex items-center whitespace-nowrap">
-                            {{ tabName }}
+                            {# On a card narrower than `@md` (28rem — a phone)
+                               only the tab you are on spells its name out; the
+                               others are their glyph and their counts. Four
+                               full tabs measured 498px against a 359px strip
+                               even at the tightest padding, so most of the
+                               row sat past the edge, and what is off-screen
+                               cannot say it holds unread mail. Hidden from
+                               sight only: the name is still what a screen
+                               reader announces, and the link carries it as a
+                               title. #}
+                            <span class="{{ isActive ? '' : 'sr-only @md:not-sr-only' }}">{{ tabName }}</span>
 
                             {# How many conversations here hold unread mail —
                                the number the sidebar's Inbox badge adds up,
@@ -241,7 +257,7 @@
                                rendered and still patched, so switching it back
                                on shows the right figure at once. #}
                             {% set unreadCount = tab_unread[tabCase.value]|default(0) %}
-                            <span class="ml-1.5 text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 bg-accent text-accent-ink{{ unreadCount > 0 ? '' : ' hidden' }}"
+                            <span class="ml-1 @xl:ml-1.5 text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 bg-accent text-accent-ink{{ unreadCount > 0 ? '' : ' hidden' }}"
                                   data-tab-unread
                                   data-count-key="category:{{ tabCase.value }}"
                                   data-label-template="{{ 'sidebar.badge.unread'|trans }}"
@@ -262,7 +278,7 @@
                                carries the data-count-key the counts endpoint
                                emits, and the patcher rewrites text as well as
                                visibility. #}
-                            <span class="ml-1.5 inline-flex align-middle">{{ newMarkers.new_pill(newCount, 'new:category:' ~ tabCase.value, tabName, tabTones[tabCase.value] ?? customTone) }}</span>
+                            <span class="ml-1 @xl:ml-1.5 inline-flex align-middle">{{ newMarkers.new_pill(newCount, 'new:category:' ~ tabCase.value, tabName, tabTones[tabCase.value] ?? customTone) }}</span>
                         </span>
 
                         {# Who the new mail is from — Gmail's second line.
@@ -272,10 +288,16 @@
                            keeps the strip steady when this appears. The
                            patcher writes the text and flips the class from
                            the same payload value. #}
-                        <span class="text-[11px] leading-4 font-normal {{ isActive ? 'text-accent opacity-70' : 'text-ink-faint' }} truncate max-w-44{{ senderNames != '' ? '' : ' hidden' }}"
+                        {# The wrapper, not the line itself, is what a narrow
+                           card hides on the tabs that have dropped their
+                           label: the line's own `hidden` belongs to the
+                           patcher. `contents` keeps it a child of the column. #}
+                        <span class="{{ isActive ? 'contents' : 'hidden @md:contents' }}">
+                        <span class="text-[11px] leading-4 font-normal {{ isActive ? 'text-accent opacity-70' : 'text-ink-faint' }} truncate max-w-28 @xl:max-w-44{{ senderNames != '' ? '' : ' hidden' }}"
                               data-tab-senders
                               data-count-key="senders:category:{{ tabCase.value }}"
                         >{{ senderNames }}</span>
+                        </span>
                     </span>
                 </a>
             {% endfor %}
@@ -304,7 +326,7 @@
                 <span
                     data-dnd-category="{{ tabCase.value }}"
                     data-dnd-ghost
-                    class="flex items-center shrink-0 px-3 @xl:px-5 py-1.5 min-h-14 text-sm font-medium
+                    class="flex items-center shrink-0 px-2 @xl:px-4 py-1.5 min-h-12 @xl:min-h-14 text-sm font-medium
                            text-ink-faint border-b-2 border-dashed border-transparent
                            whitespace-nowrap transition-colors"
                 >{{ tabCase.isCustom ? tabCase.name : ('tabs.' ~ tabCase.value)|trans }}</span>
