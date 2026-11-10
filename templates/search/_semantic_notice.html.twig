@@ -51,9 +51,16 @@
             offering nothing — on a family install the person searching is very
             often not the person who set the model up. The sentence above stands
             on its own without it.
+
+            To the admin page's AI section, not to /admin/ai: that route is the
+            section's frame, a fragment with no layout. And out of the list's
+            frame with _top, because this line sits inside inbox-list-frame and
+            a frame navigation would fetch whatever the link names as a
+            fragment of the list — which is how it opened as an unstyled page.
         #}
         {% if is_granted('ROLE_ADMIN') and (semantic.indexing or semantic.modelChanged) %}
-            <a href="{{ path('app_admin_ai_settings') }}" class="text-accent hover:underline">
+            <a href="{{ path('app_admin_dashboard', { section: 'ai' }) }}" data-turbo-frame="_top"
+               class="text-accent hover:underline" data-semantic-admin-link>
                 {{ 'search.semantic.admin_link'|trans }}
             </a>
         {% endif %}
