@@ -71,9 +71,11 @@ final readonly class MessageSearchIndexRepository
      * another pass holds. The bodies come back only for rows that need their
      * words read; the rest are not even detoasted.
      *
+     * @param list<int> $except rows this pass already failed to index
+     *
      * @return list<array{id: int|string, graph_id: ?string, needs_words: bool, body_text: ?string, body_html: ?string, body_html_safe: ?string}>
      */
-    public function lockPendingBatch(int $limit): array
+    public function lockPendingBatch(int $limit, array $except = []): array
     {
         /** @var list<array{id: int|string, graph_id: ?string, needs_words: bool, body_text: ?string, body_html: ?string, body_html_safe: ?string}> */
         return $this->connection->fetchAllAssociative(
@@ -82,9 +84,10 @@ final readonly class MessageSearchIndexRepository
             . ' CASE WHEN ' . self::NEEDS_WORDS . ' THEN m.body_html END AS body_html,'
             . ' CASE WHEN ' . self::NEEDS_WORDS . ' THEN m.body_html_safe END AS body_html_safe'
             . ' FROM message m WHERE m.search_vector IS NULL'
+            . ([] === $except ? '' : ' AND m.id NOT IN (:except)')
             . ' ORDER BY m.id DESC LIMIT :limit FOR UPDATE SKIP LOCKED',
-            ['limit' => $limit],
-            ['limit' => ParameterType::INTEGER],
+            ['limit' => $limit] + ([] === $except ? [] : ['except' => $except]),
+            ['limit' => ParameterType::INTEGER] + ([] === $except ? [] : ['except' => ArrayParameterType::INTEGER]),
         );
     }
 

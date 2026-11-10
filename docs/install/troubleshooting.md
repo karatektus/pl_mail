@@ -192,7 +192,14 @@ docker compose exec php php bin/console app:mail:test-connection      # IMAP/SMT
 docker compose exec php php bin/console app:imap:test --account=ID    # connection and folder listing
 docker compose exec php php bin/console app:graph:diagnose            # what Graph actually permits
 docker compose exec php php bin/console app:mail:sync ACCOUNT_ID      # dispatch a sync by hand
+docker compose exec php php bin/console app:mail:fetch-missing ACCOUNT_ID  # fetch mail the sync passed over
 ```
+
+A message the sync cannot store is tried five times and then passed over, with `Failed to build
+message too many times; skipping it for good` in the log, and it is not asked for again by itself.
+Once whatever stopped it is fixed (an update, usually), `app:mail:fetch-missing` looks through the
+account's folders and fetches what the server holds and plMail does not. Mail deleted in plMail and
+not yet gone from the server is left out.
 
 For Gmail push specifically, the admin area's **Gmail webhooks** panel shows the topic, the exact
 endpoint Pub/Sub must call, and why any notification was refused.
