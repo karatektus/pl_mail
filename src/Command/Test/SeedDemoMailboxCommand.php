@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Demo\DemoContacts;
 use App\Service\Demo\DemoMailbox;
 use App\Service\Demo\DemoTemplates;

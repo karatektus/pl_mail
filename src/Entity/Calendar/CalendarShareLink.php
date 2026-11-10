@@ -8,7 +8,7 @@ use App\Domain\Enum\Calendar\ShareDetail;
 use App\Domain\Enum\Calendar\ShareWindow;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarShareLinkRepository;
+use App\Repository\Calendar\CalendarShareLink\CalendarShareLinkRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;

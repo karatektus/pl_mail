@@ -42,7 +42,7 @@ use App\Domain\Enum\Mail\UnifiedInboxIcon;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Mail\AccountCreator;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -164,22 +164,8 @@ final readonly class ConfigBackupUserRestorer
         // Expressing that preference inside one query means ordering by
         // deletedAt and depending on where the engine puts NULLs, which in
         // PostgreSQL is last for ASC — the wrong end, and wrong quietly.
-        return $this->idWhere('user.email = :email', $email)
-            ?? $this->idWhere('user.emailAtDeletion = :email', $email);
-    }
-
-    /** One indexed lookup answering with an id and nothing else. */
-    private function idWhere(string $predicate, string $email): ?int
-    {
-        $id = $this->users->createQueryBuilder('user')
-            ->select('user.id')
-            ->andWhere($predicate)
-            ->setParameter('email', $email)
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
-
-        return is_array($id) && is_int($id['id'] ?? null) ? $id['id'] : null;
+        return $this->users->findIdByEmail($email)
+            ?? $this->users->findIdByEmailAtDeletion($email);
     }
 
     /**

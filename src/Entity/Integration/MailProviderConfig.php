@@ -7,7 +7,7 @@ namespace App\Entity\Integration;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Trait\TimestampableTrait;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\Integration\MailProviderConfigRepository;
+use App\Repository\Integration\MailProviderConfig\MailProviderConfigRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

@@ -9,7 +9,8 @@ use App\Entity\Ai\AiSettings;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiCallMetric\AiCallMetricRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiCallRecorder;
 use App\Service\Ai\AiPermissions;
@@ -503,7 +504,7 @@ final class ThreadSummaryStreamTest extends KernelTestCase
                 return 1;
             });
 
-        return new AiCallRecorder($connection, new NullLogger());
+        return new AiCallRecorder(new AiCallMetricRepository($connection), new NullLogger());
     }
 
     /** One thread carrying $messageCount, which is all the refusal reads. */

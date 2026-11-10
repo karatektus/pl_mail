@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Oidc;
 
 use App\Entity\Oidc\OidcConfig;
-use App\Repository\Oidc\OidcConfigRepository;
+use App\Repository\Oidc\OidcConfig\OidcConfigRepository;
 use App\Service\Integration\ProviderConfigWriter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Form\FormInterface;

@@ -11,8 +11,8 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Integration\IntegrationRepository;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
+use App\Repository\Mail\Account\AccountRepository;
 
 /**
  * The questions a compose window has to answer that are not about HTTP.

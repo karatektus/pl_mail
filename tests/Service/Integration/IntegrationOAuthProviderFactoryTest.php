@@ -6,7 +6,7 @@ namespace App\Tests\Service\Integration;
 
 use App\Domain\Enum\Integration\Provider;
 use App\Entity\Integration\IntegrationProviderConfig;
-use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationOAuthProviderFactory;
 use GuzzleHttp\Client;
 use PHPUnit\Framework\TestCase;

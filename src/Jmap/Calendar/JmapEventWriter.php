@@ -9,7 +9,7 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\CalendarTimeResolver;
 use DateInterval;

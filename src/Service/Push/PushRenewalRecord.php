@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Push;
 
-use App\Repository\Monitoring\ProcessHeartbeatRepository;
+use App\Repository\Monitoring\ProcessHeartbeat\ProcessHeartbeatRepository;
 use App\Service\Monitoring\ProcessHeartbeatService;
 use DateTimeImmutable;
 

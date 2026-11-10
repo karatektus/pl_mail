@@ -15,6 +15,7 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\ApplyGraphChangesHandler;
 use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
 use App\Service\Graph\GraphApiSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GraphApiClient;
@@ -201,7 +202,8 @@ final class GraphCategoryFollowTest extends KernelTestCase
             ),
             $container->get('App\Service\Graph\GraphFolderResolver'),
             $container->get('App\Service\Graph\GraphLabelPolicy'),
-            $container->get('App\Repository\Mail\MessageRepository'),
+            $container->get('App\Repository\Mail\Message\MessageRepository'),
+            self::getContainer()->get(MessageProviderIdRepository::class),
             $this->em,
             $container->get('App\Jmap\State\StateManager'),
             $container->get('messenger.default_bus'),
@@ -243,9 +245,9 @@ final class GraphCategoryFollowTest extends KernelTestCase
         });
 
         (new ApplyGraphChangesHandler(
-            $container->get('App\Repository\Mail\AccountRepository'),
-            $container->get('App\Repository\Mail\MessageRepository'),
-            $container->get('App\Repository\Label\LabelRepository'),
+            $container->get('App\Repository\Mail\Account\AccountRepository'),
+            $container->get('App\Repository\Mail\Message\MessageRepository'),
+            $container->get('App\Repository\Label\Label\LabelRepository'),
             new GraphApiClient($client, $container->get('App\Service\OAuth\OAuthTokenManager')),
             $container->get('App\Service\Graph\GraphLabelPolicy'),
             $container->get('messenger.default_bus'),

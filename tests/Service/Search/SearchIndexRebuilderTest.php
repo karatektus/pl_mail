@@ -7,6 +7,8 @@ namespace App\Tests\Service\Search;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
+use App\Repository\Ai\MessageEmbedding\MessageEmbeddingRepository;
+use App\Repository\Mail\Message\MessageSearchIndexRepository;
 use App\Service\Search\SearchIndexRebuilder;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -74,7 +76,7 @@ final class SearchIndexRebuilderTest extends KernelTestCase
 
         self::assertNull($this->connection->fetchOne('SELECT search_vector FROM message WHERE id = ?', [$id]));
 
-        new SearchIndexRebuilder($this->connection)->rebuild();
+        new SearchIndexRebuilder(new MessageSearchIndexRepository($this->connection), new MessageEmbeddingRepository($this->connection))->rebuild();
 
         self::assertTrue($this->indexed($id, 'gravatt'), 'the rebuild did not index the HTML body');
         self::assertTrue($this->indexed($id, 'renamed'));
@@ -87,7 +89,7 @@ final class SearchIndexRebuilderTest extends KernelTestCase
         $newer = $this->waiting('<p>newer</p>');
 
         // One row per batch, and a budget that is spent after the first.
-        $done = new SearchIndexRebuilder($this->connection, 1)->rebuild(0.000001);
+        $done = new SearchIndexRebuilder(new MessageSearchIndexRepository($this->connection), new MessageEmbeddingRepository($this->connection), 1)->rebuild(0.000001);
 
         self::assertSame(1, $done['indexed']);
         self::assertTrue($this->indexed($newer, 'newer'));

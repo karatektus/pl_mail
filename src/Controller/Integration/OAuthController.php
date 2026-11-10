@@ -8,7 +8,7 @@ use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Entity\User\User;
-use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationOAuthProviderFactory;
 use App\Service\Integration\IntegrationTokenManager;
 use App\Service\OAuth\OAuthStateStore;

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\User;
 
 use App\Domain\DTO\Push\NotifyScope;
@@ -9,29 +11,29 @@ use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Contacts\ContactsPaneMode;
 use App\Domain\Enum\Contacts\ContactsSwitchSkip;
 use App\Domain\Enum\Crypto\KeyringRoot;
+use App\Domain\Enum\Mail\ComposeAction;
 use App\Domain\Enum\Mail\ReadingPaneMode;
+use App\Domain\Enum\Mail\SearchSortOrder;
+use App\Domain\Enum\Mail\SidebarRow;
 use App\Domain\Enum\Mail\SwipeAction;
 use App\Domain\Enum\Mail\SwipeDirection;
-use App\Domain\Enum\Mail\SearchSortOrder;
-use App\Domain\Enum\Mail\ComposeAction;
-use App\Domain\Enum\Mail\SidebarRow;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
+use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Embeddable\AiPreferences;
-use App\Entity\Embeddable\CategorySorting;
 use App\Entity\Embeddable\Appearance;
+use App\Entity\Embeddable\CategorySorting;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
+use DateTimeImmutable;
+use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
-use App\Domain\Trait\TimestampableTrait;
-use DateTimeImmutable;
-use DateTimeInterface;
-use Exception;
 use Doctrine\ORM\Mapping as ORM;
+use Exception;
 use Scheb\TwoFactorBundle\Model\BackupCodeInterface;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfiguration;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfigurationInterface;
@@ -357,8 +359,8 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     #[ORM\Column(length: 255)]
     public ?string $nameLast = null;
 
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    public ?\DateTimeInterface $lastLogin = null;
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    public ?\DateTimeImmutable $lastLogin = null;
 
 
 
@@ -1963,7 +1965,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     public function addAccount(Account $account): static
     {
-        if (!$this->accounts->contains($account)) {
+        if (false === $this->accounts->contains($account)) {
             $this->accounts->add($account);
             $account->usr = $this;
         }

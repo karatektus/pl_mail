@@ -6,7 +6,7 @@ namespace App\Service\Maintenance;
 
 use App\Domain\Interface\UpgradeTaskInterface;
 use App\Entity\Maintenance\UpgradeTaskRun;
-use App\Repository\Maintenance\UpgradeTaskRunRepository;
+use App\Repository\Maintenance\UpgradeTaskRun\UpgradeTaskRunRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;

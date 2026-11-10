@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Entity\Mail\Account;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 
 /**
  * Whether an account is still bringing in its mailbox for the first time.

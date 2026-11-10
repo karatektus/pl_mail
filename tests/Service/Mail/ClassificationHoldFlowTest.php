@@ -22,26 +22,29 @@ use App\Infrastructure\Messaging\Message\ProcessReadReceiptsMessage;
 use App\Infrastructure\Messaging\Message\ProposeEventsMessage;
 use App\Infrastructure\Messaging\Message\ReleaseHeldMailMessage;
 use App\Jmap\State\StateManager;
-use App\Repository\Ai\AiSettingsRepository;
-use App\Repository\Mail\ContactRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
+use App\Repository\Mail\Contact\ContactRepository;
+use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiCallRecorder;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\LiveMailPriority;
-use App\Service\Ai\PromptLibrary;
-use App\Service\Mail\MessageCategorizer;
 use App\Service\Ai\OllamaClient;
 use App\Service\Ai\OpenAiClient;
+use App\Service\Ai\PromptLibrary;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\HeldMailReleaser;
+use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\PostIngestPipeline;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Log\NullLogger;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -325,17 +328,19 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         self::assertTrue($message->isCategoryHeld());
 
         $threads = self::getContainer()->get(MessageThreadRepository::class);
+
+        $messageThreadBadgeRepository = self::getContainer()->get(MessageThreadBadgeRepository::class);
         $now     = new DateTimeImmutable('+1 second');
         $inbox   = LabelRole::Inbox->value;
 
         // A held thread still comes back from the grouped count, under '':
         // its NULL category folded to a key no tab has. Nothing else may.
-        $tabs = $threads->countNewByCategoryForUnifiedInbox($this->user, $now);
+        $tabs = $messageThreadBadgeRepository->countNewByCategoryForUnifiedInbox($this->user, $now);
         unset($tabs['']);
 
         self::assertSame([], $tabs, 'held mail is in no tab');
-        self::assertSame(0, $threads->countNewPerRole($this->user, $now)[$inbox] ?? 0, 'so the Inbox dot waits too');
-        self::assertSame(0, $threads->countUnreadPerRole($this->user)[$inbox] ?? 0, 'and so does the Inbox badge');
+        self::assertSame(0, $messageThreadBadgeRepository->countNewPerRole($this->user, $now)[$inbox] ?? 0, 'so the Inbox dot waits too');
+        self::assertSame(0, $messageThreadBadgeRepository->countUnreadPerRole($this->user)[$inbox] ?? 0, 'and so does the Inbox badge');
 
         self::getContainer()->get(HeldMailReleaser::class)->release([$message]);
         $this->em->refresh($message->thread);
@@ -343,9 +348,9 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         // Keyed by the tab the release filed it in, whichever the rules chose.
         $tab = (string) $message->thread->category?->value;
 
-        self::assertSame(1, $threads->countNewByCategoryForUnifiedInbox($this->user, $now)[$tab] ?? 0);
-        self::assertSame(1, $threads->countNewPerRole($this->user, $now)[$inbox] ?? 0);
-        self::assertSame(1, $threads->countUnreadPerRole($this->user)[$inbox] ?? 0);
+        self::assertSame(1, $messageThreadBadgeRepository->countNewByCategoryForUnifiedInbox($this->user, $now)[$tab] ?? 0);
+        self::assertSame(1, $messageThreadBadgeRepository->countNewPerRole($this->user, $now)[$inbox] ?? 0);
+        self::assertSame(1, $messageThreadBadgeRepository->countUnreadPerRole($this->user)[$inbox] ?? 0);
     }
 
     public function testMailHeldTooLongIsFoundByTheSweep(): void
@@ -358,9 +363,11 @@ final class ClassificationHoldFlowTest extends KernelTestCase
 
         $repository = self::getContainer()->get(MessageRepository::class);
 
-        self::assertSame([], $repository->findHeldBefore(new DateTimeImmutable('-1 hour')));
+        $messageAiRepository = self::getContainer()->get(MessageAiRepository::class);
 
-        $found = $repository->findHeldBefore(new DateTimeImmutable('+1 minute'));
+        self::assertSame([], $messageAiRepository->findHeldBefore(new DateTimeImmutable('-1 hour')));
+
+        $found = $messageAiRepository->findHeldBefore(new DateTimeImmutable('+1 minute'));
 
         self::assertCount(1, $found);
         self::assertSame($message->id, $found[0]->id);
@@ -475,8 +482,8 @@ final class ClassificationHoldFlowTest extends KernelTestCase
 
         $this->em->flush();
 
-        $repository = self::getContainer()->get(MessageRepository::class);
-        $stats      = $repository->holdDelayStats(new DateTimeImmutable('-1 hour'));
+        $messageAiRepository = self::getContainer()->get(MessageAiRepository::class);
+        $stats               = $messageAiRepository->holdDelayStats(new DateTimeImmutable('-1 hour'));
 
         self::assertSame(2, $stats['held']);
         self::assertSame(1, $stats['timedOut']);
@@ -485,7 +492,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
 
         self::assertSame(
             ['held' => 0, 'timedOut' => 0, 'median' => null, 'p95' => null, 'max' => null],
-            $repository->holdDelayStats(new DateTimeImmutable('+1 hour')),
+            $messageAiRepository->holdDelayStats(new DateTimeImmutable('+1 hour')),
             'no data is null, not zero: a median of zero would read as instant',
         );
     }
@@ -584,7 +591,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
     /** @return list<int> what the catch-up sweep would offer this person */
     private function unclassified(): array
     {
-        return self::getContainer()->get(MessageRepository::class)->unclassifiedIdsForUser((int) $this->user->id, 100);
+        return self::getContainer()->get(MessageAiRepository::class)->unclassifiedIdsForUser((int) $this->user->id, 100);
     }
 
     private function handlerAround(MockResponse $response): ClassifyMailHandler
@@ -604,7 +611,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
 
         return new ClassifyMailHandler(
             $container->get(MessageRepository::class),
-            $container->get(MessageThreadRepository::class),
+            self::getContainer()->get(MessageThreadCategoryRepository::class),
             $container->get(ContactRepository::class),
             $container->get(MessageCategorizer::class),
             $assistant,

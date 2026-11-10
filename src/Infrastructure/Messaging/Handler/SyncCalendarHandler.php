@@ -8,7 +8,7 @@ use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarSyncService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

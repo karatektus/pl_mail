@@ -10,7 +10,7 @@ use App\Jmap\Mapper\TemplateMapper;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
-use App\Repository\Template\MailTemplateRepository;
+use App\Repository\Template\MailTemplate\MailTemplateRepository;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Template\TemplateLibrary;
 use Doctrine\ORM\EntityManagerInterface;

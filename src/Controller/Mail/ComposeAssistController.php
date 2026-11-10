@@ -9,7 +9,7 @@ use App\Domain\Enum\Ai\WritingTask;
 use App\Domain\Helper\RequestTimeLimit;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Ai\OllamaClient;
 use App\Service\Ai\ReplyContextReader;

@@ -7,7 +7,7 @@ namespace App\Tests\Controller\Settings;
 use App\Tests\Support\Mail\OpensComposeWindow;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;

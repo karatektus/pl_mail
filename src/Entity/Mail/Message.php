@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\Mail;
 
 use App\Domain\Enum\Crypto\MessageCrypto;
@@ -16,7 +18,7 @@ use App\Domain\Enum\Mail\SyncTrigger;
 use App\Domain\Helper\ReadableBody;
 use App\Domain\Model\MessageModel;
 use App\Entity\Label\Label;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -961,7 +963,7 @@ class Message extends MessageModel
 
     public function addMessagePart(MessagePart $messagePart): static
     {
-        if (!$this->messageParts->contains($messagePart)) {
+        if (false === $this->messageParts->contains($messagePart)) {
             $this->messageParts->add($messagePart);
             $messagePart->message = $this;
         }

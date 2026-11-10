@@ -6,8 +6,8 @@ namespace App\Service\Imap;
 
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Insight\MailInsightRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Insight\MailInsight\MailInsightRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Mail\MailChangeRecorder;
 use Doctrine\ORM\EntityManagerInterface;
 

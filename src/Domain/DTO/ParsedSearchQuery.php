@@ -40,6 +40,6 @@ final class ParsedSearchQuery
             && !$this->isStarred
             && $this->mailboxRole === null
             && $this->after === null
-            && $this->before === null;
+            && null === $this->before;
     }
 }

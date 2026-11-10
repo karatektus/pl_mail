@@ -8,7 +8,7 @@ use App\Command\Mail\MailSyncCommand;
 use App\Service\Demo\DemoMode;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Tests\Command\MailFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

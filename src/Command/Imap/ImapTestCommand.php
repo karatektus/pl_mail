@@ -6,7 +6,7 @@ namespace App\Command\Imap;
 
 use App\Entity\Mail\Account;
 use App\Infrastructure\ImapClient\ImapFolder;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Imap\ImapConnector;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

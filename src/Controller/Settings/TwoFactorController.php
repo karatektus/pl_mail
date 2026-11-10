@@ -6,7 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
-use App\Repository\User\TrustedDeviceRepository;
+use App\Repository\User\TrustedDevice\TrustedDeviceRepository;
 use App\Security\TwoFactor\TrustedDeviceCookieJar;
 use App\Service\User\TwoFactor\TwoFactorEnrolment;
 use Doctrine\ORM\EntityManagerInterface;

@@ -13,7 +13,7 @@ use App\Domain\Interface\DestinationDriverInterface;
 use App\Domain\Interface\IntegrationDriverInterface;
 use App\Domain\Interface\SearchableDriverInterface;
 use App\Entity\Integration\Integration;
-use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationUrlValidator;
 use DateTimeImmutable;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionInterface;
@@ -85,9 +85,9 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
         XML;
 
     public function __construct(
-        protected HttpClientInterface                 $httpClient,
-        protected IntegrationUrlValidator             $urlValidator,
-        protected IntegrationProviderConfigRepository $configRepository,
+        protected readonly HttpClientInterface $httpClient,
+        protected readonly IntegrationUrlValidator $urlValidator,
+        protected readonly IntegrationProviderConfigRepository $configRepository,
     ) {
     }
 

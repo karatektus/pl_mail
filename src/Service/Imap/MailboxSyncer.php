@@ -10,8 +10,8 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\MessageLocation;
 use App\Infrastructure\ImapClient\ImapFolder;
 use App\Infrastructure\ImapClient\ImapSession;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessageEraser;
 use DateTimeImmutable;
@@ -142,10 +142,10 @@ readonly class MailboxSyncer
         private EntityManagerInterface $em,
         private ImapConnector          $connector,
         private LabelResolver          $labelResolver,
-        private MessageRepository      $messageRepository,
+        private MessageImapRepository $messageImapRepository,
         private MessageEraser          $eraser,
         private ImapCopies             $copies,
-        private LoggerInterface        $logger,
+        private LoggerInterface        $logger
     ) {}
 
     /**
@@ -302,7 +302,7 @@ readonly class MailboxSyncer
         // its primary when the folder's row and its cascade go.
         $lastCopies = [];
 
-        foreach ($this->messageRepository->findKeptIn($mailbox) as $message) {
+        foreach ($this->messageImapRepository->findKeptIn($mailbox) as $message) {
             if (count($message->locations) > count(array_filter(
                 $message->locations->toArray(),
                 static fn (MessageLocation $location): bool => $location->mailbox === $mailbox,
@@ -536,9 +536,9 @@ readonly class MailboxSyncer
         foreach ($mirrors as $mirror) {
             // Copies that are not the email's primary are locations only, and
             // go without a word: the email stays where it is primarily kept.
-            $this->messageRepository->dropSecondaryLocationsIn($mirror);
+            $this->messageImapRepository->dropSecondaryLocationsIn($mirror);
 
-            $copies = $this->messageRepository->findMirrorCopiesKeptElsewhere($mirror, self::MIRROR_ERASE_BATCH);
+            $copies = $this->messageImapRepository->findMirrorCopiesKeptElsewhere($mirror, self::MIRROR_ERASE_BATCH);
 
             if ([] === $copies) {
                 continue;

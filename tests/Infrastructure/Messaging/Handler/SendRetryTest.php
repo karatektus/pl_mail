@@ -19,12 +19,13 @@ use App\Entity\User\User;
 use App\Infrastructure\Event\Subscriber\SendGaveUpSubscriber;
 use App\Infrastructure\Messaging\Handler\SendMessageHandler;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
 use App\Service\Crypto\AutocryptHeader;
-use App\Service\Crypto\SealedDrafts;
 use App\Service\Crypto\SealGuard;
+use App\Service\Crypto\SealedDrafts;
 use App\Service\Crypto\SendingKey;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\MessageSendService;
@@ -375,19 +376,20 @@ final class SendRetryTest extends KernelTestCase
     {
         $id         = $this->seedDraft();
         $repository = self::getContainer()->get(MessageRepository::class);
+        $messageSendRepository = self::getContainer()->get(MessageSendRepository::class);
         $message    = $this->em->find(Message::class, $id);
         self::assertNotNull($message);
         $user = $message->account->usr;
         self::assertNotNull($user);
 
-        $repository->markSendFailed($id, SendFailure::Unavailable);
-        self::assertSame(0, $repository->countUnsentDraftsForUser($user), 'not filed as a draft, not counted');
+        $messageSendRepository->markSendFailed($id, SendFailure::Unavailable);
+        self::assertSame(0, $messageSendRepository->countUnsentDraftsForUser($user), 'not filed as a draft, not counted');
 
         // Filed under Drafts, as the Drafts list selects it.
         $message->labels->add(self::getContainer()->get(LabelResolver::class)->systemLabel(LabelRole::Drafts, $message->account));
         $this->em->flush();
 
-        self::assertSame(1, $repository->countUnsentDraftsForUser($user));
+        self::assertSame(1, $messageSendRepository->countUnsentDraftsForUser($user));
     }
 
     private function handler(MailSenderInterface $sender): SendMessageHandler
@@ -416,6 +418,7 @@ final class SendRetryTest extends KernelTestCase
 
         return new SendMessageHandler(
             $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageSendRepository::class),
             $service,
             $this->em,
             $this->notifier(),
@@ -426,6 +429,7 @@ final class SendRetryTest extends KernelTestCase
     {
         return new SendGaveUpSubscriber(
             self::getContainer()->get(MessageRepository::class),
+            self::getContainer()->get(MessageSendRepository::class),
             $this->em,
             $this->notifier(),
         );

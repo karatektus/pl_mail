@@ -12,8 +12,8 @@ use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\SendMessageHandler;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Mail\MailSenderRegistry;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -165,13 +165,13 @@ final class UndoSendTest extends WebTestCase
 
         $id = $this->composeAndSend($client, $account);
 
-        $repository = static::getContainer()->get(MessageRepository::class);
+        $messageSendRepository = static::getContainer()->get(MessageSendRepository::class);
         $cancelWon  = null;
 
         // Fired from inside the send, so the ordering under test is the real
         // one and not a sleep.
-        $this->onSend = static function () use ($repository, $id, &$cancelWon): void {
-            $cancelWon = $repository->cancelSend($id);
+        $this->onSend = static function () use ($messageSendRepository, $id, &$cancelWon): void {
+            $cancelWon = $messageSendRepository->cancelSend($id);
         };
 
         $this->runHandler($id);
@@ -205,7 +205,7 @@ final class UndoSendTest extends WebTestCase
         // Exactly what SendMessageHandler does first, and all it takes for the
         // cancel to be too late.
         self::assertTrue(
-            static::getContainer()->get(MessageRepository::class)->claimForSend($id),
+            static::getContainer()->get(MessageSendRepository::class)->claimForSend($id),
         );
 
         $client->request('POST', '/compose/undo/' . $id, server: $this->ajaxCsrf($client));

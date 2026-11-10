@@ -13,8 +13,8 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\EmbedMessagesMessage;
-use App\Repository\Ai\AiSettingsRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\BackfillPolicy;
 use App\Service\Ai\EmbeddingCatchUp;
@@ -295,7 +295,7 @@ final class EmbeddingCatchUpTest extends KernelTestCase
         $container = self::getContainer();
 
         return new EmbeddingCatchUp(
-            $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageAiRepository::class),
             $container->get(AiPermissions::class),
             $container->get(AiSettingsRepository::class),
             $container->get(BackfillPolicy::class),

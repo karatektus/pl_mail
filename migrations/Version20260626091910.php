@@ -14,7 +14,7 @@ final class Version20260626091910 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Create accounts, mailboxes, messages and threads';
     }
 
     public function up(Schema $schema): void

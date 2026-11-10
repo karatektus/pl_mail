@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Gmail;
 
-use Psr\Log\NullLogger;
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
@@ -16,11 +15,15 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\SyncGmailMessageBatchHandler;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\SyncNotifier;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -271,14 +274,13 @@ final class GmailInboundReadStateTest extends KernelTestCase
         $container = self::getContainer();
 
         $handler = new SyncGmailMessageBatchHandler(
-            $container->get('App\Repository\Mail\MessageRepository'),
-            $container->get('App\Repository\Mail\AccountRepository'),
+            self::getContainer()->get(MessageThreadingRepository::class),
+            self::getContainer()->get(MessageProviderIdRepository::class),
+            $container->get('App\Repository\Mail\Account\AccountRepository'),
             new GmailApiClient($httpClient, $container->get('App\Service\OAuth\OAuthTokenManager'), new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock())),
             $container->get('App\Service\Gmail\GmailMessageBuilder'),
             $container->get('App\Service\Gmail\GmailAddressFilter'),
             $container->get('App\Service\HarvestContactsService'),
-            // The real notifier publishes to Mercure, which the test kernel has
-            // no signing key for. What it announces is not what is under test.
             new SyncNotifier($this->createStub(HubInterface::class), new NullLogger()),
             $container->get('messenger.default_bus'),
             $container->get('App\Service\Mail\PostIngestPipeline'),
@@ -291,7 +293,7 @@ final class GmailInboundReadStateTest extends KernelTestCase
             $container->get('App\Service\Imap\MessageThreader'),
             new \App\Service\Mail\SyncOrigin(),
             new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock()),
-            $container->get(\App\Repository\Mail\GmailSkippedMessageRepository::class),
+            $container->get(GmailSkippedMessageRepository::class),
         );
 
         $handler(new SyncGmailMessageBatchMessage((int) $this->account->id, [self::GMAIL_ID], null, $onlyMissing));

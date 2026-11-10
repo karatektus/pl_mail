@@ -7,7 +7,7 @@ namespace App\Tests\Repository\Mail;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
-use App\Repository\Mail\MessagePartRepository;
+use App\Repository\Mail\MessagePart\MessagePartRepository;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

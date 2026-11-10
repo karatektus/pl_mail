@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Calendar;
 
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\Push\CalendarPushRegistry;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

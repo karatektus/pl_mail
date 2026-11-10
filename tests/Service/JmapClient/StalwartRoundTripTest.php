@@ -12,7 +12,7 @@ use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Messaging\Handler\ApplyJmapChangesHandler;
 use App\Infrastructure\Messaging\Message\ApplyJmapChangesMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\JmapClient\JmapAccountSyncer;
 use App\Service\JmapClient\JmapImporter;
 use App\Service\JmapClient\JmapImportStep;

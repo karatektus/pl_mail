@@ -14,7 +14,7 @@ final class Version20260629131312 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Let a message exist without a thread';
     }
 
     public function up(Schema $schema): void

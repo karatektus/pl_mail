@@ -8,7 +8,7 @@ use App\Domain\DTO\Mail\InboxTab;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Embeddable\CategorySorting;
 use App\Entity\User\User;
-use App\Repository\Mail\InboxCategoryRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Service\ResetInterface;
 

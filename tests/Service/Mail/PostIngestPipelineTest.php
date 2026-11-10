@@ -16,7 +16,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\Contact\ContactRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Mail\InitialImportState;
 use App\Service\Mail\ClassificationHold;

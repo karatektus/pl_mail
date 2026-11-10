@@ -65,10 +65,14 @@ side's comment points at the other.
 
 ## Every query lives in a repository
 
-There is no `createQueryBuilder` outside `src/Repository`. A query used twice is a named
-repository method; a query used once but with a reason is a named repository method whose
-docblock gives the reason. `App\Repository\Calendar\CalendarEventRepository` is the clearest
-example of the payoff — `findOneByRemoteId()`, `findOneByUid()`, `findPendingSync()`,
+There is no query outside `src/Repository`: no query builder, DQL, raw DBAL or
+`EntityManager::find()` in a service, controller, handler, listener or anywhere else, and
+`QueriesLiveInRepositoriesTest` fails the build on one. A query used twice is a named repository
+method; a query used once but with a reason is a named repository method whose docblock gives the
+reason. Repositories sit in a folder per model, `src/Repository/<Area>/<Model>/`, with the model's
+Doctrine repository and one repository per topic beside it (`MessageRepository`,
+`MessageSendRepository`, `MessageImapRepository`, …), so none of them grows to thousands of lines.
+`App\Repository\Calendar\CalendarEvent\CalendarEventRepository` is the clearest example of the payoff — `findOneByRemoteId()`, `findOneByUid()`, `findPendingSync()`,
 `findRemoteRowsNotIn()` and `findRowsTheRemoteNeverGave()` each carry the paragraph
 explaining what population it selects, and the sync engine reads as a sequence of decisions
 rather than as a sequence of queries.
@@ -242,17 +246,19 @@ methods in the entire `src/Entity` tree and each is doing something a property c
 
 Two habits are worth calling out because they are where correctness actually lives.
 
-**Every index and unique constraint carries a comment saying what it protects and why the
-columns are in that order.** `uniq_calendar_booking_page_start` on `calendar_booking` is not
+**An index or constraint whose reason is not obvious carries a comment saying what it
+protects and why the columns are in that order.** An index on a foreign key needs none.
+`uniq_calendar_booking_page_start` on `calendar_booking` is not
 an optimisation — it is the only thing that stops two strangers taking the same half hour,
 and the page id leads because the constraint is about one page's slots.
 `uniq_calendar_event_calendar_uid` scopes UID uniqueness to one calendar, which is what makes
 a copy of a meeting on a second calendar legal rather than merely tolerated.
 
-**Timestamps come from `App\Domain\Trait\TimestampableTrait`, on every entity, with no
-exceptions** — including the tables written once. One rule for every entity is worth more
-than the bytes an exception saves, and nothing has to decide which kind of entity it is
-looking at. The trait needs `#[ORM\HasLifecycleCallbacks]` on the adopting class and Doctrine
+**Timestamps come from `App\Domain\Trait\TimestampableTrait`, and only from it.** Not
+every entity has them: a record that is created and later edited does, while join rows, rows
+rebuilt from other data and markers that something was seen do without. Nothing writes
+`createdAt` or `updatedAt` by hand, and a moment that means something particular is named for
+it (`purgedAt`, `finishedAt`). The trait needs `#[ORM\HasLifecycleCallbacks]` on the adopting class and Doctrine
 silently does nothing without it, so `TimestampableTest` checks every adopting entity for the
 attribute — the requirement the trait cannot enforce itself.
 

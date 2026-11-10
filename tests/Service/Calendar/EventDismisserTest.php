@@ -13,7 +13,7 @@ use App\Entity\Calendar\EventSuppression;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Calendar\EventSuppressionRepository;
+use App\Repository\Calendar\EventSuppression\EventSuppressionRepository;
 use App\Service\Calendar\EventDismisser;
 use DateTimeImmutable;
 use DateTimeZone;

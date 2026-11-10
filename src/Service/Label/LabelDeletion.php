@@ -8,8 +8,8 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
 use App\Entity\User\User;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageLabelRepository;
 
 /**
  * What deleting a label involves, worked out before anything is deleted.
@@ -51,8 +51,8 @@ final readonly class LabelDeletion
 
     public function __construct(
         private LabelRepository   $labels,
-        private MessageRepository $messages,
-        private LabelResolver     $labelResolver,
+        private MessageLabelRepository $messageLabelRepository,
+        private LabelResolver     $labelResolver
     ) {
     }
 
@@ -126,7 +126,7 @@ final readonly class LabelDeletion
         $count = 0;
 
         foreach ($this->folderBindings($label) as $binding) {
-            $count += $this->messages->countWithLabelForAccount(
+            $count += $this->messageLabelRepository->countWithLabelForAccount(
                 (int) $binding->account?->id,
                 (int) $binding->label?->id,
             );

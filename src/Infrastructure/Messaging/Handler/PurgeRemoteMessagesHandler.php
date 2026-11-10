@@ -11,7 +11,7 @@ use App\Infrastructure\ImapClient\ImapSession;
 use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\PurgedCopies;
 use App\Service\JmapClient\JmapMailboxSyncer;

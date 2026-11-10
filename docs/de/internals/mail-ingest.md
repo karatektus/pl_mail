@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:d06783871817375a11da1fd9b71ced333d18b805 -->
+<!-- translated-from: internals/mail-ingest.md sha1:fa7506cb507c00540ad7a333364b9d81abebda7e -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -390,7 +390,7 @@ einer Antwort auf das, was sie beantwortet, also hing das Ergebnis allein von de
 Synchronisation ab. Ordner werden nacheinander synchronisiert, und Antworten im INBOX kommen
 regelmäßig vor der Nachricht aus Sent Items an, auf die sie antworten; sie fanden nichts, legten
 eigene Konversationen an und blieben dort (#172). Nach Stufe 2 und 3 fragt `adoptReplies()`
-`MessageRepository::findRepliesToForAccount()` nach jeder Nachricht des Kontos, deren
+`MessageThreadingRepository::findRepliesToForAccount()` nach jeder Nachricht des Kontos, deren
 `in_reply_to` oder `thread_references` diese Message-ID nennt, und `ThreadMerger` faltet jede
 ihrer Konversationen in diese hier. Ein GIN-Ausdrucksindex, `idx_message_referenced_ids`, hält
 diese Abfrage davon ab, pro Nachricht das ganze Postfach zu durchsuchen. Stufe 1 überspringt das:

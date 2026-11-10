@@ -10,7 +10,7 @@ use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Interface\CalendarSyncDriverInterface;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use LogicException;

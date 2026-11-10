@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Demo;
 
 use App\Domain\Enum\Calendar\CalendarPaneMode;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
-use App\Repository\User\UserRepository;
+use App\Domain\Helper\SignatureStorage;
 use App\Infrastructure\Messaging\Handler\DemoAutoReplyHandler;
 use App\Infrastructure\Messaging\Message\DemoAutoReplyMessage;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Demo\DemoInbox;
 use App\Service\Demo\DemoMailbox;
-use App\Service\Demo\DemoScenario;
 use App\Service\Demo\DemoMode;
 use App\Service\Demo\DemoProvisioner;
+use App\Service\Demo\DemoScenario;
 use App\Service\Demo\DemoScenarios;
-use App\Domain\Helper\SignatureStorage;
 use App\Service\Demo\DemoUserEraser;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -267,7 +267,7 @@ final class DemoFlowTest extends WebTestCase
 
         // And a week worth looking at beside the mail.
         self::assertNotEmpty(
-            $container->get(\App\Repository\Calendar\CalendarEventRepository::class)
+            $container->get(\App\Repository\Calendar\CalendarEvent\CalendarEventRepository::class)
                 ->findBy(['usr' => $visitor]),
             'the demo should provision a calendar too',
         );
@@ -275,7 +275,7 @@ final class DemoFlowTest extends WebTestCase
         // And templates to pick from: an empty picker shows nothing of what
         // the feature does. What is in them is DemoTemplatesTest's.
         self::assertNotEmpty(
-            $container->get(\App\Repository\Template\MailTemplateRepository::class)
+            $container->get(\App\Repository\Template\MailTemplate\MailTemplateRepository::class)
                 ->findBy(['usr' => $visitor]),
             'the demo should provision templates too',
         );

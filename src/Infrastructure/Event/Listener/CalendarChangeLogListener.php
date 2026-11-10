@@ -7,6 +7,7 @@ namespace App\Infrastructure\Event\Listener;
 use App\Domain\Enum\Calendar\CalendarChangeKind;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
+use App\Repository\Calendar\CalendarChangeLog\CalendarChangeLogAppendRepository;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Event\OnFlushEventArgs;
@@ -78,6 +79,11 @@ use Doctrine\ORM\Events;
 #[AsDoctrineListener(event: Events::postFlush)]
 final class CalendarChangeLogListener
 {
+    public function __construct(
+        private readonly CalendarChangeLogAppendRepository $changeLog,
+    ) {
+    }
+
     /**
      * Fields whose movement is invisible to every calendar client: plMail's own
      * extraction metadata, the outbound-sync bookkeeping, the provider's ids,
@@ -184,8 +190,6 @@ final class CalendarChangeLogListener
 
         $rows          = $this->pending;
         $this->pending = [];
-
-        $connection = $args->getObjectManager()->getConnection();
         $now        = (new DateTimeImmutable())->format('Y-m-d H:i:s');
 
         foreach ($rows as $row) {
@@ -206,7 +210,7 @@ final class CalendarChangeLogListener
                 continue;
             }
 
-            $connection->insert('calendar_change_log', [
+            $this->changeLog->append([
                 'user_id'     => $row['user'],
                 'calendar_id' => $calendarId,
                 'event_id'    => $eventId,

@@ -10,7 +10,7 @@ use App\Entity\Insight\MailInsight;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Insight\MailInsightRepository;
+use App\Repository\Insight\MailInsight\MailInsightRepository;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use DateTimeImmutable;
 use DateTimeZone;

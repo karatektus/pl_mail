@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Service\Oidc;
 
 use App\Entity\User\User;
-use App\Repository\Oidc\OidcConfigRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Oidc\OidcConfig\OidcConfigRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Oidc\OidcIdentity;
 use App\Service\Oidc\OidcLoginFailed;
 use App\Service\Oidc\OidcSettings;

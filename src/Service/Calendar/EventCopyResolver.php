@@ -8,8 +8,8 @@ use App\Domain\DTO\Calendar\EventCopy;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 
 /**
  * Which calendars a meeting could be on, which of them it is on, and the rows a

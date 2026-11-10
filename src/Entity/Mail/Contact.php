@@ -6,7 +6,7 @@ namespace App\Entity\Mail;
 
 use App\Domain\Helper\AddressHelper;
 use App\Entity\User\User;
-use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\Contact\ContactRepository;
 use DateTimeImmutable;
 use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;

@@ -6,7 +6,7 @@ namespace App\Service\Mail;
 
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**

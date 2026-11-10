@@ -6,7 +6,7 @@ namespace App\Tests\Controller\Settings;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\UnifiedInbox;
-use App\Repository\Mail\UnifiedInboxRepository;
+use App\Repository\Mail\UnifiedInbox\UnifiedInboxRepository;
 use App\Service\Mail\UnifiedInboxes;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;

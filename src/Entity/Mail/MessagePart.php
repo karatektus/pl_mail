@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\Mail;
 
-use App\Repository\Mail\MessagePartRepository;
+use App\Repository\Mail\MessagePart\MessagePartRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 

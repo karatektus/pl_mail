@@ -9,7 +9,7 @@ use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\CalendarEventOccurrence;
 use App\Domain\Enum\Calendar\ExtractionKind;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventOccurrenceRepository;
+use App\Repository\Calendar\CalendarEventOccurrence\CalendarEventOccurrenceRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\DBAL\Connection;

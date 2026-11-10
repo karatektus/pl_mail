@@ -10,7 +10,7 @@ use App\Domain\Enum\Crypto\PgpScheme;
 use App\Domain\Enum\Crypto\RecipientPolicy;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

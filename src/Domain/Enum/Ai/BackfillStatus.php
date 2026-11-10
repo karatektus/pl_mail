@@ -14,7 +14,7 @@ namespace App\Domain\Enum\Ai;
  * operator looking for a fault in the one case where there is none.
  *
  * The status is STORED, and the progress behind it is not — see
- * {@see \App\Repository\Ai\AiBackfillStateRepository}. Counting embedded
+ * {@see \App\Repository\Ai\AiBackfillState\AiBackfillStateRepository}. Counting embedded
  * messages is a query against the vectors themselves, so a killed worker
  * resumes rather than restarts; this column only records intent.
  */

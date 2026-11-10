@@ -7,7 +7,7 @@ namespace App\Service\Contacts;
 use App\Entity\Contacts\Contact;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Repository\Mail\Message\MessageContactRepository;
 
 /**
  * The signature of the newest mail a contact sent this person — where a
@@ -34,7 +34,7 @@ final readonly class SignatureFinder
     private const int SIGNATURE_LINES = 12;
     private const int MAX_CHARS       = 1200;
 
-    public function __construct(private EntityManagerInterface $em)
+    public function __construct(private MessageContactRepository $messageContactRepository)
     {
     }
 
@@ -54,21 +54,7 @@ final readonly class SignatureFinder
         }
 
         /** @var list<Message> $messages */
-        $messages = $this->em->createQueryBuilder()
-            ->select('m')
-            ->from(Message::class, 'm')
-            ->join('m.account', 'a')
-            ->where('a.usr = :user')
-            ->andWhere('LOWER(m.fromAddress) IN (:addresses)')
-            ->andWhere('m.vanishedAt IS NULL')
-            ->orderBy('m.receivedAt', 'DESC')
-            ->setParameter('user', $user)
-            ->setParameter('addresses', $addresses)
-            // A few, not one: the newest can be a one-line "thanks!" sent
-            // from a phone, with no signature at all.
-            ->setMaxResults(5)
-            ->getQuery()
-            ->getResult();
+        $messages = $this->messageContactRepository->findLatestFrom($user, $addresses, 5);
 
         foreach ($messages as $message) {
             $text = self::signature($message->bodyText ?? self::textOf($message->bodyHtmlSafe));

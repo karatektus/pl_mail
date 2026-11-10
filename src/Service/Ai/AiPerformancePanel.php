@@ -10,8 +10,8 @@ use App\Domain\DTO\Ai\LoadedModel;
 use App\Domain\Enum\Ai\AiProvider;
 use App\Domain\Enum\Ai\MetricWindow;
 use App\Entity\Ai\AiFeature;
-use App\Repository\Ai\AiCallMetricRepository;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiCallMetric\AiCallMetricRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use DateTimeImmutable;
 
 /**

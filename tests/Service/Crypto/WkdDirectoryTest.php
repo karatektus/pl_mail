@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Crypto;
 
 use App\Domain\Enum\Crypto\WkdState;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Crypto\Keyring;
 use App\Service\Crypto\PublicKeyReader;
 use App\Service\Crypto\SendingKey;

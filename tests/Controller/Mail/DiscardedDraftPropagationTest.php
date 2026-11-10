@@ -14,7 +14,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Label\LabelResolver;
 use App\Tests\Support\Mail\SendsAjaxCsrf;
 use DateTimeImmutable;

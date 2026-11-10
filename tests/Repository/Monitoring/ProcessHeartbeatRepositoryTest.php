@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Repository\Monitoring;
 
 use App\Entity\Monitoring\ProcessHeartbeat;
-use App\Repository\Monitoring\ProcessHeartbeatRepository;
+use App\Repository\Monitoring\ProcessHeartbeat\ProcessHeartbeatRepository;
 use App\Service\Monitoring\ProcessHeartbeatService;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

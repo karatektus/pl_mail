@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Security;
 
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Exception;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
@@ -59,7 +61,7 @@ class UserProvider implements UserProviderInterface, PasswordUpgraderInterface
      */
     public function refreshUser(UserInterface $user): UserInterface
     {
-        if (!$user instanceof User) {
+        if (false === $user instanceof User) {
             throw new UnsupportedUserException(sprintf('Invalid user class "%s".', get_class($user)));
         }
 

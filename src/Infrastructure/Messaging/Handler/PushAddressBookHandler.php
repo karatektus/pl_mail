@@ -9,7 +9,7 @@ use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
-use App\Repository\AddressBook\AddressBookRepository;
+use App\Repository\AddressBook\AddressBook\AddressBookRepository;
 use App\Service\AddressBook\AddressBookSync;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

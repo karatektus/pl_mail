@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
@@ -12,7 +14,8 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Crypto\SealedDrafts;
 use App\Service\Label\LabelChangePropagator;
@@ -76,7 +79,7 @@ class ComposeController extends AbstractController
      * instead of one of them being accidentally safe.
      *
      * The two seconds are not the guarantee, they are the margin. The
-     * guarantee is MessageRepository::claimForSend(): a cancel that loses
+     * guarantee is MessageSendRepository::claimForSend(): a cancel that loses
      * anyway — a slow request, a busy worker — is now TOLD it lost. This is
      * what keeps that path rare enough to be an edge case.
      */
@@ -85,6 +88,7 @@ class ComposeController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface  $em,
         private readonly MessageRepository       $messageRepository,
+        private readonly MessageSendRepository $messageSendRepository,
         private readonly ComposeWindow           $window,
         private readonly ComposeFormFactory      $formFactory,
         private readonly MessageBusInterface     $bus,
@@ -720,7 +724,7 @@ class ComposeController extends AbstractController
      *
      * Answers whether the cancel actually took. False means SendMessageHandler
      * had already claimed the message and the mail is gone or going — see
-     * MessageRepository::cancelSend(), which is where that is decided, and in
+     * MessageSendRepository::cancelSend(), which is where that is decided, and in
      * one statement so there is no window for the two to disagree.
      *
      * No longer writes through the entity, and that is the point rather than a
@@ -732,7 +736,7 @@ class ComposeController extends AbstractController
      */
     private function callOffSend(Message $message): bool
     {
-        $won = $this->messageRepository->cancelSend((int) $message->id);
+        $won = $this->messageSendRepository->cancelSend((int) $message->id);
 
         // The row moved underneath the entity either way — we won and it is
         // cancelled, or we lost and the handler is writing sentAt onto it.

@@ -8,7 +8,7 @@ use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Helper\AppIconStorage;
 use App\Domain\Helper\CustomLogoStorage;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Appearance\LogoIcons;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;

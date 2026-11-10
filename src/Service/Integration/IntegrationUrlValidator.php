@@ -11,7 +11,7 @@ use App\Entity\Integration\IntegrationProviderConfig;
 use App\Infrastructure\Http\PrivateNetwork;
 use App\Infrastructure\Http\TrustedHosts;
 use App\Infrastructure\Http\UserUrlHttpClient;
-use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service\Imap;
 
 use App\Domain\Enum\Mail\MessageCategory;
@@ -9,8 +11,9 @@ use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -44,9 +47,10 @@ final class MessageThreader
     public function __construct(
         private readonly EntityManagerInterface  $entityManager,
         private readonly MessageRepository       $messageRepository,
-        private readonly MessageThreadRepository $messageThreadRepository,
+        private readonly MessageThreadingRepository $messageThreadingRepository,
+        private readonly MessageThreadRebuildRepository $messageThreadRebuildRepository,
         private readonly ThreadMerger            $threadMerger,
-        private readonly ThreadLabelSynchronizer $threadLabels,
+        private readonly ThreadLabelSynchronizer $threadLabels
     )
     {
     }
@@ -98,9 +102,9 @@ final class MessageThreader
         $referenceIds = $this->collectReferenceIds($message);
 
         if (count($referenceIds) > 0) {
-            $parentMessage = $this->messageRepository->findOneByMessageIdsForAccount($referenceIds, $account);
+            $parentMessage = $this->messageThreadingRepository->findOneByMessageIdsForAccount($referenceIds, $account);
 
-            if ($parentMessage !== null && $parentMessage->thread !== null) {
+            if (null !== $parentMessage && null !== $parentMessage->thread) {
                 $thread = $parentMessage->thread;
                 $this->attachMessageToThread($message, $thread, $recordArrival);
 
@@ -131,13 +135,13 @@ final class MessageThreader
             $normalizedSubject = $this->normalizeSubject($message->subject);
 
             if ($normalizedSubject !== '') {
-                $candidateThread = $this->messageThreadRepository->findMatchingNormalizedSubjectThreadForAccount(
+                $candidateThread = $this->messageThreadRebuildRepository->findMatchingNormalizedSubjectThreadForAccount(
                     $normalizedSubject,
                     $account,
                     new \DateTimeImmutable(self::SUBJECT_FALLBACK_WINDOW),
                 );
 
-                if ($candidateThread !== null && $this->participantsOverlap($message, $candidateThread)) {
+                if (null !== $candidateThread && $this->participantsOverlap($message, $candidateThread)) {
                     $this->attachMessageToThread($message, $candidateThread, $recordArrival);
 
                     return;
@@ -182,7 +186,7 @@ final class MessageThreader
             return;
         }
 
-        foreach ($this->messageRepository->findRepliesToForAccount($messageId, $account) as $reply) {
+        foreach ($this->messageThreadingRepository->findRepliesToForAccount($messageId, $account) as $reply) {
             $thread      = $message->thread;
             $replyThread = $reply->thread;
 
@@ -248,7 +252,7 @@ final class MessageThreader
 
         $joined = null;
 
-        foreach ($this->messageRepository->findRepliesToForAccount($rootId, $account) as $sibling) {
+        foreach ($this->messageThreadingRepository->findRepliesToForAccount($rootId, $account) as $sibling) {
             $siblingThread = $sibling->thread;
 
             if ($sibling === $message || null === $siblingThread || $siblingThread === $joined) {
@@ -311,7 +315,7 @@ final class MessageThreader
             return $pending;
         }
 
-        $thread = $this->messageThreadRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account);
+        $thread = $this->messageThreadRebuildRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account);
 
         if (null === $thread) {
             $thread = $this->createThread($message, $account, ThreadingMethod::Provider);
@@ -367,7 +371,7 @@ final class MessageThreader
 
     public function normalizeSubject(?string $subject): string
     {
-        if ($subject === null) {
+        if (null === $subject) {
             return '';
         }
 
@@ -377,7 +381,7 @@ final class MessageThreader
         // variants like "RE :", "Fwd:Fwd:" and "Re[2]:".
         $normalized = preg_replace(self::REPLY_PREFIX_PATTERN, '', $normalized);
 
-        if ($normalized === null) {
+        if (null === $normalized) {
             $normalized = trim($subject);
         }
 

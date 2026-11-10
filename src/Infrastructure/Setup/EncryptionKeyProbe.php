@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Setup;
 
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use Doctrine\DBAL\Exception as DbalException;
 use Doctrine\DBAL\Types\ConversionException;
 use RuntimeException;

@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Security;
 
 use App\Entity\User\User;
 use App\Service\Oidc\OidcSettings;
-use DateTime;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,7 +33,7 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
 {
     use TargetPathTrait;
 
-    public const LOGIN_ROUTE = 'app_login';
+    public const string LOGIN_ROUTE = 'app_login';
 
     private EntityManagerInterface $documentManager;
 
@@ -112,7 +114,7 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
     {
         $user = $token->getUser();
         if ($user instanceof User) {
-            $user->lastLogin = new DateTime();
+            $user->lastLogin = new DateTimeImmutable();
             $this->documentManager->flush();
         }
 

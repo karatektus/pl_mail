@@ -6,7 +6,7 @@ namespace App\Command\Maintenance;
 
 use App\Domain\Enum\Job\JobState;
 use App\Entity\Job\BackgroundJob;
-use App\Repository\Job\BackgroundJobRepository;
+use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
 use App\Service\Job\JobNotifier;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;

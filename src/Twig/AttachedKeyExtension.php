@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Entity\Mail\Message;
-use App\Repository\Crypto\AddressKeyRepository;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\AddressKey\AddressKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 use App\Service\Crypto\ContactKeyCollector;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;

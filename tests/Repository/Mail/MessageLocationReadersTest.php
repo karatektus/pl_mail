@@ -9,8 +9,10 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageLocation;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Gmail\GmailifyLinks;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -32,6 +34,8 @@ final class MessageLocationReadersTest extends KernelTestCase
     private EntityManagerInterface $em;
     private Connection $connection;
     private MessageRepository $messages;
+    private MessageThreadingRepository $messageThreadingRepository;
+    private MessageImapRepository $messageImapRepository;
 
     private Account $account;
     private Mailbox $inbox;
@@ -45,6 +49,8 @@ final class MessageLocationReadersTest extends KernelTestCase
         $this->em         = self::getContainer()->get(EntityManagerInterface::class);
         $this->connection = self::getContainer()->get(Connection::class);
         $this->messages   = self::getContainer()->get(MessageRepository::class);
+        $this->messageThreadingRepository = self::getContainer()->get(MessageThreadingRepository::class);
+        $this->messageImapRepository = self::getContainer()->get(MessageImapRepository::class);
 
         $this->connection->beginTransaction();
 
@@ -62,27 +68,27 @@ final class MessageLocationReadersTest extends KernelTestCase
 
     public function testEachFolderListsTheUidItsCopyHas(): void
     {
-        self::assertSame([11], array_map(intval(...), $this->messages->findSyncedUids($this->inbox)));
-        self::assertSame([905], array_map(intval(...), $this->messages->findSyncedUids($this->allMail)));
-        self::assertSame([], $this->messages->findSyncedUids($this->allMail, 905), 'still bounded below');
+        self::assertSame([11], array_map(intval(...), $this->messageImapRepository->findSyncedUids($this->inbox)));
+        self::assertSame([905], array_map(intval(...), $this->messageImapRepository->findSyncedUids($this->allMail)));
+        self::assertSame([], $this->messageImapRepository->findSyncedUids($this->allMail, 905), 'still bounded below');
     }
 
     public function testTheMessageIsFoundThroughEitherCopy(): void
     {
-        self::assertSame($this->message->id, $this->messages->findOneInMailboxByUid($this->inbox, 11)?->id);
-        self::assertSame($this->message->id, $this->messages->findOneInMailboxByUid($this->allMail, 905)?->id);
-        self::assertNull($this->messages->findOneInMailboxByUid($this->allMail, 11), 'a UID means something only in its own folder');
+        self::assertSame($this->message->id, $this->messageImapRepository->findOneInMailboxByUid($this->inbox, 11)?->id);
+        self::assertSame($this->message->id, $this->messageImapRepository->findOneInMailboxByUid($this->allMail, 905)?->id);
+        self::assertNull($this->messageImapRepository->findOneInMailboxByUid($this->allMail, 11), 'a UID means something only in its own folder');
     }
 
     public function testTheFlagStateOfAFolderIsKeyedByThatFoldersUid(): void
     {
-        self::assertSame([905], array_keys($this->messages->findFlagStateByUid($this->allMail)));
-        self::assertSame($this->message->id, $this->messages->findFlagStateByUid($this->allMail)[905]['id']);
+        self::assertSame([905], array_keys($this->messageImapRepository->findFlagStateByUid($this->allMail)));
+        self::assertSame($this->message->id, $this->messageImapRepository->findFlagStateByUid($this->allMail)[905]['id']);
     }
 
     public function testTheSweepNamesTheMessageByThatFoldersUid(): void
     {
-        self::assertSame([$this->message->id => 905], $this->messages->findLocatedUidsById($this->allMail));
+        self::assertSame([$this->message->id => 905], $this->messageImapRepository->findLocatedUidsById($this->allMail));
     }
 
     /**
@@ -116,7 +122,7 @@ final class MessageLocationReadersTest extends KernelTestCase
         $addresses = iterator_to_array($this->messages->iterateAddressesForAccount($this->account), false);
 
         self::assertCount(1, $addresses, 'one address set, not one per copy');
-        self::assertSame($this->message->id, $this->messages->findOneForAccountByMessageId($this->account, '<kept-twice@example.test>')?->id);
+        self::assertSame($this->message->id, $this->messageThreadingRepository->findOneForAccountByMessageId($this->account, '<kept-twice@example.test>')?->id);
     }
 
     public function testTheSyncOverviewCountsTheMessageOnce(): void
@@ -144,15 +150,15 @@ final class MessageLocationReadersTest extends KernelTestCase
         $this->message->gmailId             = 'gmail-kept-twice';
         $this->em->flush();
 
-        self::assertSame(1, $this->messages->countImapCopiesCarried((int) $carrier->id), 'carried once, not once per copy');
+        self::assertSame(1, $this->messageImapRepository->countImapCopiesCarried((int) $carrier->id), 'carried once, not once per copy');
 
         self::assertSame(1, self::getContainer()->get(GmailifyLinks::class)->severCarriedBy((int) $carrier->id));
 
         $this->em->clear();
 
-        self::assertSame(0, $this->messages->countImapCopiesCarried((int) $carrier->id));
-        self::assertSame([11], array_map(intval(...), $this->messages->findSyncedUids($this->em->find(Mailbox::class, $this->inbox->id))));
-        self::assertSame([905], array_map(intval(...), $this->messages->findSyncedUids($this->em->find(Mailbox::class, $this->allMail->id))));
+        self::assertSame(0, $this->messageImapRepository->countImapCopiesCarried((int) $carrier->id));
+        self::assertSame([11], array_map(intval(...), $this->messageImapRepository->findSyncedUids($this->em->find(Mailbox::class, $this->inbox->id))));
+        self::assertSame([905], array_map(intval(...), $this->messageImapRepository->findSyncedUids($this->em->find(Mailbox::class, $this->allMail->id))));
         self::assertNull($this->em->find(Message::class, $this->message->id)?->gmailId);
     }
 

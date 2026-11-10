@@ -14,7 +14,7 @@ final class Version20260719110720 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Create labels and the labels on messages';
     }
 
     public function up(Schema $schema): void

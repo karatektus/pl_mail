@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
-use App\Repository\Mail\GmailSkippedMessageRepository;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
 use App\Entity\Mail\GmailSkippedMessage;
 use App\Domain\Enum\Mail\GmailSkipReason;
 use App\Domain\DTO\Mail\IngestedMessage;
@@ -16,8 +16,9 @@ use App\Entity\Mail\Message;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
 use App\Service\Gmail\GmailAddressFilter;
 use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Gmail\GmailMessageBuilder;
@@ -49,7 +50,8 @@ final readonly class SyncGmailMessageBatchHandler
     private const int RETRY_DELAY_MS = 30000;
 
     public function __construct(
-        private MessageRepository      $messageRepository,
+        private MessageThreadingRepository $messageThreadingRepository,
+        private MessageProviderIdRepository $messageProviderIdRepository,
         private AccountRepository      $accountRepository,
         private GmailApiClient         $apiClient,
         private GmailMessageBuilder    $messageBuilder,
@@ -67,7 +69,7 @@ final readonly class SyncGmailMessageBatchHandler
         private MessageThreader         $messageThreader,
         private SyncOrigin              $origin,
         private GmailQuotaPacer         $pacer,
-        private GmailSkippedMessageRepository $skipped,
+        private GmailSkippedMessageRepository $skipped
     ) {}
 
     public function __invoke(SyncGmailMessageBatchMessage $message): void
@@ -123,7 +125,7 @@ final readonly class SyncGmailMessageBatchHandler
             // reason: a listing that ran before the first of these batches
             // was handled named those too. See GmailSkippedMessage.
             $stored  = array_flip([
-                ...$this->messageRepository->findStoredGmailIdsForUser($account->usr, $toFetch),
+                ...$this->messageProviderIdRepository->findStoredGmailIdsForUser($account->usr, $toFetch),
                 ...$this->skipped->findGmailIdsAmong($account, array_map(strval(...), $toFetch)),
             ]);
             $toFetch = array_values(array_filter(
@@ -263,7 +265,7 @@ final readonly class SyncGmailMessageBatchHandler
             // while its twin still held it, a duplicate key, and the whole
             // batch failed and was fetched again on every retry (#168).
             if ('' !== $gmailId) {
-                $known = $this->messageRepository->findOneByGmailIdForUser($account->usr, $gmailId);
+                $known = $this->messageProviderIdRepository->findOneByGmailIdForUser($account->usr, $gmailId);
 
                 if (null !== $known) {
                     // A native Gmail row: Gmail is the authority on its flags,
@@ -324,7 +326,7 @@ final readonly class SyncGmailMessageBatchHandler
                 $rfcMessageId = MessageIdHelper::normalise($headers['message-id'] ?? '');
 
                 if ('' !== $rfcMessageId) {
-                    $existing = $this->messageRepository->findOneForAccountByMessageId($targetAccount, $rfcMessageId);
+                    $existing = $this->messageThreadingRepository->findOneForAccountByMessageId($targetAccount, $rfcMessageId);
 
                     if (null !== $existing && false === $this->mayTakeGmailId($existing, $account)) {
                         $newlySkipped += $this->recordHeldElsewhere($account, $gmailId, $labelIds, $headers, $alreadySkipped, $nowStored);
@@ -775,7 +777,7 @@ final readonly class SyncGmailMessageBatchHandler
 
             $asked[(int) $sibling->id] = true;
 
-            $existing = $this->messageRepository->findOneForAccountByMessageId($sibling, $rfcMessageId);
+            $existing = $this->messageThreadingRepository->findOneForAccountByMessageId($sibling, $rfcMessageId);
 
             if (null !== $existing) {
                 return $existing;

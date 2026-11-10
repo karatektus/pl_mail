@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Repository\Mail\GmailSkippedMessageRepository;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
 use App\Domain\DTO\Mail\GmailQuotaStatus;
 use App\Domain\DTO\Mail\ImportLine;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\Graph\GraphFolderResolver;
 use DateTimeImmutable;

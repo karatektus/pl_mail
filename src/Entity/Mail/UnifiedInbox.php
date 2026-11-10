@@ -7,7 +7,7 @@ namespace App\Entity\Mail;
 use App\Domain\Enum\Mail\UnifiedInboxIcon;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Mail\UnifiedInboxRepository;
+use App\Repository\Mail\UnifiedInbox\UnifiedInboxRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

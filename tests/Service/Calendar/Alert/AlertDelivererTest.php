@@ -11,7 +11,7 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarAlertDelivery;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarAlertDeliveryRepository;
+use App\Repository\Calendar\CalendarAlertDelivery\CalendarAlertDeliveryRepository;
 use App\Service\Calendar\Alert\AlertDeliverer;
 use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\CalendarEventWriter;

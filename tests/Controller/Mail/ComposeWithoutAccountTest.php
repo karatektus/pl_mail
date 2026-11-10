@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Mail;
 
 use App\Entity\Mail\Account;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 

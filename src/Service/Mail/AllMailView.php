@@ -8,7 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 
 /**
  * What the All Mail view holds, asked by everything that acts on its rows.

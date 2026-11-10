@@ -7,7 +7,7 @@ namespace App\Tests\Domain\Enum\Ai;
 use App\Domain\Enum\Ai\PromptSlot;
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Ai\AiSettings;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Ai\PromptLibrary;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

@@ -8,7 +8,7 @@ use App\Entity\Mail\Contact;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use Doctrine\Common\Collections\Collection;
-use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\Contact\ContactRepository;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -112,7 +112,7 @@ final readonly class DraftAddressFields
         foreach (self::FIELDS as $field) {
             $addresses = $this->selectedAddresses($form, $field);
 
-            if (false === empty($addresses)) {
+            if ([] !== $addresses) {
                 $message->{$field} = $addresses;
             }
         }
@@ -138,7 +138,7 @@ final readonly class DraftAddressFields
         /** @var Collection<int, Contact>|null $contacts */
         $contacts = $form->get($field)->getData();
 
-        if (empty($contacts)) {
+        if (null === $contacts) {
             return [];
         }
 

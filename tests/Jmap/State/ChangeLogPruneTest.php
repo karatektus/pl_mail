@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Jmap\State;
 
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Jmap\State\ChangeLogRepository;
+use App\Repository\Jmap\ChangeLog\ChangeLogRepository;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use Doctrine\DBAL\Connection;

@@ -6,7 +6,7 @@ namespace App\Tests\Repository\Mail;
 
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

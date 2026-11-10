@@ -12,7 +12,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Label\LabelBindingRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
 
 /**
  * "Mailbox/query" (RFC 8621 §2.3). Returns the ordered id list for the account.

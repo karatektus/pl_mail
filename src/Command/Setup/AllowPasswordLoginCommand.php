@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Setup;
 
-use App\Repository\Oidc\OidcConfigRepository;
+use App\Repository\Oidc\OidcConfig\OidcConfigRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

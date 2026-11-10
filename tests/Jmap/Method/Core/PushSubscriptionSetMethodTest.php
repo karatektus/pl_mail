@@ -8,7 +8,7 @@ use App\Entity\User\PushSubscription;
 use App\Jmap\Method\Core\PushSubscriptionGetMethod;
 use App\Jmap\Method\Core\PushSubscriptionSetMethod;
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\User\PushSubscriptionRepository;
+use App\Repository\User\PushSubscription\PushSubscriptionRepository;
 use App\Tests\Jmap\JmapTestCase;
 
 /**

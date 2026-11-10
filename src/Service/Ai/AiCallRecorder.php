@@ -6,8 +6,7 @@ namespace App\Service\Ai;
 
 use App\Domain\DTO\Ai\AiCallTiming;
 use App\Domain\Enum\Ai\AiCallFeature;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\ParameterType;
+use App\Repository\Ai\AiCallMetric\AiCallMetricRepository;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -48,7 +47,7 @@ use Throwable;
 final readonly class AiCallRecorder
 {
     public function __construct(
-        private Connection      $connection,
+        private AiCallMetricRepository $metrics,
         private LoggerInterface $logger,
     ) {
     }
@@ -68,41 +67,7 @@ final readonly class AiCallRecorder
         AiCallTiming  $timing,
     ): void {
         try {
-            $this->connection->executeStatement(
-                <<<'SQL'
-                    INSERT INTO ai_call_metric (
-                        feature, model,
-                        prompt_tokens, prompt_duration_ns,
-                        eval_tokens, eval_duration_ns,
-                        load_duration_ns, total_duration_ns,
-                        succeeded, error_kind, created_at
-                    ) VALUES (
-                        :feature, :model,
-                        :promptTokens, :promptDurationNs,
-                        :evalTokens, :evalDurationNs,
-                        :loadDurationNs, :totalDurationNs,
-                        :succeeded, :errorKind, NOW()
-                    )
-                SQL,
-                [
-                    'feature'          => $feature->value,
-                    // Truncated rather than refused: a model tag longer than
-                    // the column is a strange name, not a reason to lose the
-                    // measurement that goes with it.
-                    'model'            => mb_substr($model, 0, 128),
-                    'promptTokens'     => $timing->promptTokens,
-                    'promptDurationNs' => $timing->promptDurationNs,
-                    'evalTokens'       => $timing->evalTokens,
-                    'evalDurationNs'   => $timing->evalDurationNs,
-                    'loadDurationNs'   => $timing->loadDurationNs,
-                    'totalDurationNs'  => $timing->totalDurationNs,
-                    'succeeded'        => $succeeded,
-                    'errorKind'        => $errorKind,
-                ],
-                [
-                    'succeeded' => ParameterType::BOOLEAN,
-                ],
-            );
+            $this->metrics->insert($feature, $model, $succeeded, $errorKind, $timing);
         } catch (Throwable $exception) {
             // Warning, not error: the user-facing operation succeeded or failed
             // on its own merits and this changes neither. It is worth a line

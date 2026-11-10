@@ -8,7 +8,7 @@ use App\Domain\Enum\PushDeliveryOutcome;
 use App\Domain\Enum\PushTransport;
 use App\Entity\Push\PushDelivery;
 use App\Entity\User\User;
-use App\Repository\Push\PushDeliveryRepository;
+use App\Repository\Push\PushDelivery\PushDeliveryRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

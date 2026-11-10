@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Command\Setup;
 
 use App\Infrastructure\Setup\DatabaseCacheTables;
-use App\Repository\Monitoring\PostgresStatusRepository;
+use App\Repository\Monitoring\PostgresStatus\PostgresStatusRepository;
+use App\Repository\System\AdvisoryLock\AdvisoryLockRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -90,6 +91,7 @@ final class MigrateCommand extends Command
         private readonly Connection $connection,
         private readonly PostgresStatusRepository $statistics,
         private readonly DatabaseCacheTables $cacheTables,
+        private readonly AdvisoryLockRepository $locks,
     ) {
         parent::__construct();
     }
@@ -115,13 +117,13 @@ final class MigrateCommand extends Command
         // database is unusual" into "your container will not start" — so
         // migrate unprotected, which is exactly what happened before this
         // command existed.
-        if (!$this->connection->getDatabasePlatform() instanceof PostgreSQLPlatform) {
+        if (false === $this->connection->getDatabasePlatform() instanceof PostgreSQLPlatform) {
             return $this->migrate($io, $output);
         }
 
         $timeout = max(0, (int) $input->getOption('lock-timeout'));
 
-        if (!$this->acquireLock($io, $timeout)) {
+        if (false === $this->acquireLock($io, $timeout)) {
             $io->error(sprintf(
                 'Timed out after %ds waiting for another container to finish running migrations. '
                 .'Refusing to migrate: whatever holds the lock may still be mid-migration, and a '
@@ -232,7 +234,7 @@ final class MigrateCommand extends Command
                 return false;
             }
 
-            if (!$announced) {
+            if (false === $announced) {
                 $io->text('Another container is running migrations; waiting for it to finish...');
                 $announced = true;
             }
@@ -242,33 +244,21 @@ final class MigrateCommand extends Command
     }
 
     /**
-     * The one place in this project where SQL lives outside a repository, and
-     * deliberately so.
-     *
-     * `pg_try_advisory_lock` reads nothing and returns no rows — it is a lock
-     * primitive, not a query over domain data, so there is no entity it belongs
-     * to and no repository it would be at home in. More decisively, an advisory
-     * lock is scoped to the database SESSION: it has to be taken, held and
-     * released on the very connection that runs the migration. Routing it
-     * through a collaborator would put a second object between this command and
-     * the only property that makes the lock work, for no gain.
-     *
-     * Cast to int in SQL: pg_try_advisory_lock returns a boolean, and what a
-     * driver hands back for one is its own business — true, 't' and '1' are all
-     * plausible. An integer is not.
+     * Through AdvisoryLockRepository, which is built on the same Connection
+     * service this command migrates through. That matters more than anything
+     * else here: an advisory lock is scoped to the database SESSION, so it has
+     * to be taken, held and released on the very connection that runs the
+     * migration, and the container hands both the same one.
      */
     private function tryLock(): bool
     {
-        return 1 === (int) $this->connection->fetchOne(
-            'SELECT pg_try_advisory_lock(?)::int',
-            [self::LOCK_KEY],
-        );
+        return $this->locks->tryLock(self::LOCK_KEY);
     }
 
     private function releaseLock(SymfonyStyle $io): void
     {
         try {
-            $this->connection->executeQuery('SELECT pg_advisory_unlock(?)', [self::LOCK_KEY]);
+            $this->locks->unlock(self::LOCK_KEY);
         } catch (\Throwable $error) {
             // Worth saying, not worth failing over. The lock belongs to this
             // session, so it is gone the moment the process is — the only cost

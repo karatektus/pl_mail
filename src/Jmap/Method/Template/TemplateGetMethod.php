@@ -8,7 +8,7 @@ use App\Entity\Template\MailTemplate;
 use App\Jmap\Mapper\TemplateMapper;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\JmapContext;
-use App\Repository\Template\MailTemplateRepository;
+use App\Repository\Template\MailTemplate\MailTemplateRepository;
 
 /**
  * "Template/get" — plMail extension, `urn:plmail:params:jmap:templates`.

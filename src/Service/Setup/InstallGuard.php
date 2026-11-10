@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Setup;
 
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**

@@ -7,7 +7,7 @@ namespace App\Controller\Auth;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Exception\AccountIdentityMismatch;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\OAuth\MicrosoftOAuthErrorTranslator;
 use App\Service\OAuth\OAuthAccountLinker;

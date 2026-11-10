@@ -12,7 +12,9 @@ use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\SyncGmailMessageBatchHandler;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
-use App\Repository\Mail\GmailSkippedMessageRepository;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\ImportProgress;
 use App\Service\Mail\SyncNotifier;
@@ -450,14 +452,13 @@ final class GmailSkippedMessageTest extends KernelTestCase
         $pacer     = new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock());
 
         $handler = new SyncGmailMessageBatchHandler(
-            $container->get('App\Repository\Mail\MessageRepository'),
-            $container->get('App\Repository\Mail\AccountRepository'),
+            self::getContainer()->get(MessageThreadingRepository::class),
+            self::getContainer()->get(MessageProviderIdRepository::class),
+            $container->get('App\Repository\Mail\Account\AccountRepository'),
             new GmailApiClient($httpClient, $container->get('App\Service\OAuth\OAuthTokenManager'), $pacer),
             $container->get('App\Service\Gmail\GmailMessageBuilder'),
             $container->get('App\Service\Gmail\GmailAddressFilter'),
             $container->get('App\Service\HarvestContactsService'),
-            // The real notifier publishes to Mercure, which the test kernel has
-            // no signing key for. What it announces is not what is under test.
             new SyncNotifier($this->createStub(HubInterface::class), new NullLogger()),
             $container->get('messenger.default_bus'),
             $container->get('App\Service\Mail\PostIngestPipeline'),

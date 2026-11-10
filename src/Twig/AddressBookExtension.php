@@ -6,8 +6,7 @@ namespace App\Twig;
 
 use App\Domain\Helper\AddressHelper;
 use App\Entity\User\User;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Query;
+use App\Repository\Contacts\ContactEmail\ContactEmailRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\Service\ResetInterface;
 use Twig\Extension\AbstractExtension;
@@ -33,7 +32,7 @@ final class AddressBookExtension extends AbstractExtension implements ResetInter
     }
 
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private readonly ContactEmailRepository $contactEmailRepository,
         private readonly Security $security,
     ) {
     }
@@ -76,23 +75,10 @@ final class AddressBookExtension extends AbstractExtension implements ResetInter
             return;
         }
 
-        /** @var list<array{email: string, id: int|string}> $rows */
-        $rows = $this->em->createQuery(
-            'SELECT LOWER(e.email) AS email, MIN(c.id) AS id FROM App\Entity\Contacts\ContactEmail e
-             JOIN e.contact c
-             WHERE c.usr = :user AND c.trashedAt IS NULL AND LOWER(e.email) IN (:emails)
-             GROUP BY e.email'
-        )
-            ->setParameter('user', $user)
-            ->setParameter('emails', array_keys($wanted))
-            ->getArrayResult();
+        $ids = $this->contactEmailRepository->contactIdsByEmail($user, array_keys($wanted));
 
         foreach (array_keys($wanted) as $email) {
-            $this->memo[$user->id . '|' . $email] = null;
-        }
-
-        foreach ($rows as $row) {
-            $this->memo[$user->id . '|' . $row['email']] = (int) $row['id'];
+            $this->memo[$user->id . '|' . $email] = $ids[$email] ?? null;
         }
     }
 
@@ -112,17 +98,9 @@ final class AddressBookExtension extends AbstractExtension implements ResetInter
             return $this->memo[$cacheKey];
         }
 
-        $id = $this->em->createQuery(
-            'SELECT c.id FROM App\Entity\Contacts\ContactEmail e
-             JOIN e.contact c
-             WHERE c.usr = :user AND c.trashedAt IS NULL AND LOWER(e.email) = :email'
-        )
-            ->setParameter('user', $user)
-            ->setParameter('email', $email)
-            ->setMaxResults(1)
-            ->getOneOrNullResult(Query::HYDRATE_SINGLE_SCALAR);
+        $id = $this->contactEmailRepository->contactIdByEmail($user, $email);
 
-        return $this->memo[$cacheKey] = null === $id ? null : (int) $id;
+        return $this->memo[$cacheKey] = $id;
     }
 
     /**

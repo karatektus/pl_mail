@@ -6,6 +6,7 @@ namespace App\Entity\Contacts;
 
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
+use App\Repository\Contacts\ContactMergeRecord\ContactMergeRecordRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -14,7 +15,7 @@ use Doctrine\ORM\Mapping as ORM;
  * Records a merge of one or more contacts into a kept contact, with the
  * full pre-merge snapshot needed to undo it within 90 days.
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: ContactMergeRecordRepository::class)]
 #[ORM\Table(name: 'contacts_contact_merge_record')]
 #[ORM\Index(name: 'idx_contacts_merge_owner_undo', columns: ['usr_id', 'undo_until'])]
 #[ORM\HasLifecycleCallbacks]

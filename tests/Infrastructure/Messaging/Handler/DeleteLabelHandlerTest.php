@@ -15,6 +15,10 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Handler\DeleteLabelHandler;
 use App\Infrastructure\Messaging\Message\DeleteLabelMessage;
+use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageLabelRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\RemoteLabelRemover;
 use App\Tests\Support\Mail\SeedsFolderLabels;
@@ -411,9 +415,10 @@ final class DeleteLabelHandlerTest extends KernelTestCase
         };
 
         return new DeleteLabelHandler(
-            $container->get(\App\Repository\Job\BackgroundJobRepository::class),
-            $container->get(\App\Repository\Label\LabelRepository::class),
-            $container->get(\App\Repository\Mail\MessageRepository::class),
+            $container->get(BackgroundJobRepository::class),
+            $container->get(LabelRepository::class),
+            $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageLabelRepository::class),
             $container->get(\App\Service\Label\LabelDeletion::class),
             $remover,
             $container->get(\App\Service\Mail\ThreadStatusUpdater::class),

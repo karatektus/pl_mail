@@ -7,7 +7,7 @@ namespace App\Command\Mail;
 use App\Domain\Enum\Mail\SyncTrigger;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Demo\DemoMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;

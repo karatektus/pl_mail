@@ -7,7 +7,7 @@ namespace App\Tests\Controller\Settings;
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Entity\Calendar\Calendar;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Tests\Support\Push\ScriptedCalendarPushManager;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

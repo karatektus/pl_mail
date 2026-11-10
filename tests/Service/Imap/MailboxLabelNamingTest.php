@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Infrastructure\ImapClient\ImapFolder;
-use App\Infrastructure\ImapClient\ImapLoop;
-use App\Service\Imap\ImapConnector;
-use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
+use App\Infrastructure\ImapClient\ImapFolder;
+use App\Infrastructure\ImapClient\ImapLoop;
 use App\Jmap\State\StateManager;
-use App\Repository\Label\LabelBindingRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapCopies;
 use App\Service\Imap\MailboxSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessageEraser;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
@@ -244,7 +244,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
                 $this->em,
                 $container->get(StateManager::class),
             ),
-            $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageImapRepository::class),
             $container->get(MessageEraser::class),
             $container->get(ImapCopies::class),
             new NullLogger(),

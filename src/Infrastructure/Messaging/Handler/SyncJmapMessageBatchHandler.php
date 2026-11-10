@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Infrastructure\Messaging\Message\SyncJmapMessageBatchMessage;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\JmapClient\JmapEmailSyncer;
 use App\Service\Mail\SyncOrigin;
 use Psr\Log\LoggerInterface;

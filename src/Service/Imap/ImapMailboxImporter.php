@@ -7,8 +7,9 @@ namespace App\Service\Imap;
 use App\Entity\Mail\Mailbox;
 use App\Infrastructure\ImapClient\Exception\ImapCommandException;
 use App\Infrastructure\ImapClient\ImapSession;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -62,6 +63,7 @@ final readonly class ImapMailboxImporter
         private PurgedCopies           $purgedCopies,
         private MailboxRepository      $mailboxes,
         private MessageRepository      $messages,
+        private MessageImapRepository $messageImapRepository,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {}
@@ -184,7 +186,7 @@ final readonly class ImapMailboxImporter
         // Purged here and not yet confirmed gone on the server count as
         // stored: importing them would bring back mail deleted forever (#427).
         $stored  = array_flip([
-            ...array_map('intval', $this->messages->findSyncedUids($mailbox, 0)),
+            ...array_map('intval', $this->messageImapRepository->findSyncedUids($mailbox, 0)),
             ...$this->purgedCopies->uidsIn($mailbox),
         ]);
         $missing = array_values(array_filter($onServer, static fn (int $uid): bool => false === isset($stored[$uid])));

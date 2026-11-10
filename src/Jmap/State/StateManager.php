@@ -6,6 +6,7 @@ namespace App\Jmap\State;
 
 use App\Entity\User\User;
 use App\Jmap\Protocol\Exception\MethodException;
+use App\Repository\Jmap\ChangeLog\ChangeLogRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

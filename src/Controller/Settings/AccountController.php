@@ -10,7 +10,7 @@ use App\Domain\Enum\Account\IncomingProtocol;
 use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
 use App\Form\AccountType;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Graph\GraphSubscriptionManager;
 use App\Service\Mail\AccountCreator;

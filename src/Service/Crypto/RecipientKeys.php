@@ -9,7 +9,7 @@ use App\Domain\Enum\Crypto\RecipientPolicy;
 use App\Entity\Crypto\SmimeCertificate;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 use App\Service\Demo\DemoMode;
 use DateTimeInterface;
 use Throwable;

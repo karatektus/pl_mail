@@ -7,8 +7,8 @@ namespace App\Service\Rule;
 use App\Entity\Mail\Account;
 use App\Entity\Rule\MailRule;
 use App\Entity\Mail\Message;
-use App\Repository\Rule\MailRuleRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
+use App\Repository\Mail\Message\MessageFilterRepository;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -50,10 +50,10 @@ final readonly class MailRuleEngine
 {
     public function __construct(
         private MailRuleRepository  $ruleRepository,
-        private MessageRepository   $messageRepository,
+        private MessageFilterRepository $messageFilterRepository,
         private RuleConditions $conditions,
         private RuleActionExecutor  $executor,
-        private LoggerInterface     $logger,
+        private LoggerInterface     $logger
     ) {}
 
     /**
@@ -126,7 +126,7 @@ final readonly class MailRuleEngine
     private function match(MailRule $rule, array $candidateIds): array
     {
         try {
-            return $this->messageRepository->matchingIds(
+            return $this->messageFilterRepository->matchingIds(
                 $candidateIds,
                 $this->conditions->compile($rule),
             );

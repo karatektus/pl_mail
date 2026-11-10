@@ -6,7 +6,7 @@ namespace App\Service\Calendar\Alert;
 
 use App\Domain\DTO\Calendar\DueAlert;
 use App\Domain\Interface\AlertChannelInterface;
-use App\Repository\Calendar\CalendarAlertDeliveryRepository;
+use App\Repository\Calendar\CalendarAlertDelivery\CalendarAlertDeliveryRepository;
 use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;

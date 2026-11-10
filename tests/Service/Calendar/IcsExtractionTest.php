@@ -9,15 +9,16 @@ use App\Domain\Enum\Calendar\ParticipationStatus;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\EventSourceLink;
+use App\Entity\Calendar\EventSuppression;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\User\User;
-use App\Repository\Calendar\EventSuppressionRepository;
+use App\Repository\Calendar\EventSuppression\EventSuppressionRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
 use App\Service\Calendar\CalendarProvisioner;
 use App\Service\Calendar\EventReconciler;
 use App\Service\Calendar\Extraction\EventExtractionRunner;
-use App\Entity\Calendar\EventSuppression;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -595,7 +596,7 @@ final class IcsExtractionTest extends KernelTestCase
     {
         $message = $this->messageWithInvite('BEGIN:VCALENDAR', 'application/octet-stream', 'termineinladung.ics');
 
-        $candidates = $this->em->getRepository(Message::class)->extractionCandidates((int) $message->id - 1, 10);
+        $candidates = self::getContainer()->get(MessageAiRepository::class)->extractionCandidates((int) $message->id - 1, 10);
 
         self::assertContains($message->id, array_map(static fn (Message $m): ?int => $m->id, $candidates));
     }
@@ -611,7 +612,7 @@ final class IcsExtractionTest extends KernelTestCase
         $new = $this->messageWithInvite('BEGIN:VCALENDAR');
         $this->em->flush();
 
-        $messages = $this->em->getRepository(Message::class);
+        $messages = self::getContainer()->get(MessageAiRepository::class);
         $after    = (int) $old->id - 1;
         $ids      = static fn (array $found): array => array_map(static fn (Message $m): ?int => $m->id, $found);
 

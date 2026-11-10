@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Crypto;
 
-use App\Repository\Crypto\AddressKeyBindingRepository;
+use App\Repository\Crypto\AddressKeyBinding\AddressKeyBindingRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command\Setup;
 
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Setup\FirstAdminInstaller;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -12,7 +14,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 class SetupCommand extends Command
 {
-    private const NAME = 'app:setup';
+    private const string NAME = 'app:setup';
 
     private FirstAdminInstaller $firstAdminInstaller;
 

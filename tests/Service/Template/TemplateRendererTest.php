@@ -6,7 +6,7 @@ namespace App\Tests\Service\Template;
 
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Template\TemplateRenderer;
 use DateTimeImmutable;

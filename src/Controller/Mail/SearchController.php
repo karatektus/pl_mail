@@ -9,7 +9,8 @@ use App\Service\Ai\SemanticCoverage;
 use App\Service\Ai\SemanticQuery;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadSearchRepository;
 use App\Service\Mail\ThreadListRenderer;
 use App\Service\Mail\ThreadRows;
 use App\Service\Search\SearchQueryParser;
@@ -27,14 +28,14 @@ final class SearchController extends AbstractController
 {
     public function __construct(
         private readonly SearchQueryParser       $parser,
-        private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageThreadSearchRepository $messageThreadSearchRepository,
         private readonly EntityManagerInterface  $em,
         private readonly ThreadListRenderer      $listRenderer,
         private readonly SemanticQuery           $semantic,
         private readonly SemanticCoverage        $coverage,
         private readonly EmbeddingCatchUp        $catchUp,
         private readonly SearchResultHighlights  $highlights,
-        private readonly ThreadRows              $threadRows,
+        private readonly ThreadRows              $threadRows
     ) {}
 
     #[Route('', name: '', methods: ['GET'])]
@@ -131,7 +132,7 @@ final class SearchController extends AbstractController
         // it always was. See SemanticQuery.
         $semantic = $this->semantic->forQuery($user instanceof User ? $user : null, $parsed->freeText);
 
-        $results = $this->threadRepository->searchPage($user, $parsed, $page, sort: $sort, semantic: $semantic);
+        $results = $this->messageThreadSearchRepository->searchPage($user, $parsed, $page, sort: $sort, semantic: $semantic);
         $threads = $results->threads;
 
         // The list views have always preloaded and search never did, which is
@@ -156,7 +157,7 @@ final class SearchController extends AbstractController
         // `semantic_only` and for the same reason: a highlight is a property of
         // THIS search, and hanging it on the shared MessageThread entity would
         // leave it in Doctrine's identity map for every other list in the
-        // request to find. See MessageThreadRepository::searchPage().
+        // request to find. See MessageThreadSearchRepository::searchPage().
         $highlights = $this->highlights->forPage($threads, $parsed->freeText);
 
         // Through ThreadListRenderer, not $this->render(): a row whose subject

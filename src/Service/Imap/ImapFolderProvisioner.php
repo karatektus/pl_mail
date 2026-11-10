@@ -12,7 +12,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Infrastructure\ImapClient\Exception\ImapCommandException;
 use App\Infrastructure\ImapClient\ImapSession;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;

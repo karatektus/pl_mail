@@ -6,16 +6,17 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Job\JobState;
-use App\Entity\Job\BackgroundJob;
 use App\Entity\Ai\AiFeature;
+use App\Entity\Job\BackgroundJob;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Infrastructure\Messaging\Message\ReclassifyRecentMessage;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\User\UserRepository;
-use App\Service\Job\JobNotifier;
+use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Ai\AiPermissions;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\Job\JobNotifier;
 use App\Service\Monitoring\ProcessHeartbeatService;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -58,13 +59,14 @@ final readonly class ReclassifyRecentHandler
 
     public function __construct(
         private UserRepository         $users,
-        private MessageRepository      $messages,
+        private MessageAiRepository $messageAiRepository,
         private AiPermissions          $permissions,
         private ClassifyMailHandler    $classify,
         private JobNotifier            $jobs,
         private ProcessHeartbeatService $heartbeats,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
+        private BackgroundJobRepository $backgroundJobRepository,
     ) {
     }
 
@@ -76,7 +78,7 @@ final readonly class ReclassifyRecentHandler
             return;
         }
 
-        $ids = $this->messages->findRecentIdsForUser($message->userId, $message->limit);
+        $ids = $this->messageAiRepository->findRecentIdsForUser($message->userId, $message->limit);
 
         // A JOB ROW, so this can be watched.
         //
@@ -139,7 +141,7 @@ final readonly class ReclassifyRecentHandler
 
             $this->em->clear();
 
-            $found = $this->em->find(BackgroundJob::class, $jobId);
+            $found = $this->backgroundJobRepository->find($jobId);
 
             if (null === $found) {
                 return;

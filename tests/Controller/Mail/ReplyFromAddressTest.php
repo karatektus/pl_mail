@@ -10,7 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Tests\Support\Mail\OpensComposeWindow;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

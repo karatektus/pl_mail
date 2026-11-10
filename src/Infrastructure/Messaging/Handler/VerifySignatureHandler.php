@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
-use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\VerifySignatureMessage;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Crypto\SignatureVerifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -23,12 +23,13 @@ final readonly class VerifySignatureHandler
     public function __construct(
         private EntityManagerInterface $entityManager,
         private SignatureVerifier      $verifier,
+        private MessageRepository $messageRepository,
     ) {
     }
 
     public function __invoke(VerifySignatureMessage $job): void
     {
-        $message = $this->entityManager->find(Message::class, $job->messageId);
+        $message = $this->messageRepository->find($job->messageId);
 
         if (null === $message) {
             return;

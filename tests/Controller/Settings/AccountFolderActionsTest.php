@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Settings;
 
 use App\Domain\Enum\Mail\MailboxSpecialUse;
-use App\Infrastructure\ImapClient\ImapLoop;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\User\UserRepository;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\User\User\UserRepository;
 use App\Tests\Service\Imap\FakeFolderServer;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

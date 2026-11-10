@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\Query;
 
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageJmapRepository;
 
 /**
  * Runs a compiled Email/query: filter -> sort -> optional thread collapse ->
@@ -14,7 +14,7 @@ use App\Repository\Mail\MessageRepository;
  *
  * What this owns is the JMAP half — which sort properties exist, what an
  * unsupported one costs the client, and where "position" and "total" are
- * measured. The read is MessageRepository::findIdsForQuery().
+ * measured. The read is MessageJmapRepository::findIdsForQuery().
  */
 final class EmailQueryRunner
 {
@@ -32,8 +32,8 @@ final class EmailQueryRunner
     ];
 
     public function __construct(
-        private readonly MessageRepository $messages,
-        private readonly EmailFilterCompiler $filterCompiler,
+        private readonly MessageJmapRepository $messageJmapRepository,
+        private readonly EmailFilterCompiler $filterCompiler
     ) {
     }
 
@@ -57,7 +57,7 @@ final class EmailQueryRunner
     ): EmailQueryResult {
         $compiled = null === $filter ? null : $this->filterCompiler->compile($filter);
 
-        $ids = $this->messages->findIdsForQuery(
+        $ids = $this->messageJmapRepository->findIdsForQuery(
             $accountId,
             $compiled,
             $this->orderBy($sort),
@@ -68,7 +68,7 @@ final class EmailQueryRunner
 
         return new EmailQueryResult(
             $ids,
-            true === $calculateTotal ? $this->messages->countForQuery($accountId, $compiled, $collapseThreads) : null,
+            true === $calculateTotal ? $this->messageJmapRepository->countForQuery($accountId, $compiled, $collapseThreads) : null,
             $position,
         );
     }

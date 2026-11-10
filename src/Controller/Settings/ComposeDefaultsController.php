@@ -7,7 +7,7 @@ namespace App\Controller\Settings;
 use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Mail\ReadReceiptMode;
 use App\Entity\Mail\Account;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Security\Voter\OwnershipVoter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

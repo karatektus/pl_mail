@@ -12,7 +12,7 @@ use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Integration\Integration;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\User\User;
-use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use App\Service\Calendar\Sync\CalDav\CalDavCalendarDriver;

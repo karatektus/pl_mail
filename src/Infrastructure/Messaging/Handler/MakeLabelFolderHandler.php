@@ -7,10 +7,11 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Domain\Enum\Job\JobState;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\MakeLabelFolderMessage;
-use App\Repository\Job\BackgroundJobRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageLabelRepository;
 use App\Service\Job\JobNotifier;
 use App\Service\Label\LabelNotifier;
 use App\Service\Mail\GraphApiClient;
@@ -42,6 +43,7 @@ final readonly class MakeLabelFolderHandler
         private LabelRepository         $labels,
         private AccountRepository       $accounts,
         private MessageRepository       $messages,
+        private MessageLabelRepository $messageLabelRepository,
         private ThreadStatusUpdater     $status,
         private GraphApiClient          $graph,
         private LabelNotifier           $labelNotifier,
@@ -94,7 +96,7 @@ final readonly class MakeLabelFolderHandler
             return;
         }
 
-        $job->begin($this->messages->countToFileIntoFolder($accountId, $labelId));
+        $job->begin($this->messageLabelRepository->countToFileIntoFolder($accountId, $labelId));
         $this->em->flush();
         $this->notifier->changed($job);
 
@@ -102,7 +104,7 @@ final readonly class MakeLabelFolderHandler
         $afterId   = 0;
 
         while (true) {
-            $ids = $this->messages->findIdsToFileIntoFolder($accountId, $labelId, $afterId, self::CHUNK);
+            $ids = $this->messageLabelRepository->findIdsToFileIntoFolder($accountId, $labelId, $afterId, self::CHUNK);
 
             if ([] === $ids) {
                 return;

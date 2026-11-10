@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Calendar;
 
-use App\Repository\Calendar\CalendarAlertDeliveryRepository;
+use App\Repository\Calendar\CalendarAlertDelivery\CalendarAlertDeliveryRepository;
 use App\Service\Calendar\Alert\AlertDeliverer;
 use App\Service\Calendar\Alert\DueAlertReader;
 use DateTimeImmutable;

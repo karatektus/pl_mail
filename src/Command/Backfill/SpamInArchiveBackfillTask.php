@@ -8,7 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\ThreadStatusUpdater;
 use Doctrine\ORM\EntityManagerInterface;
@@ -27,7 +27,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * ── Which rows ───────────────────────────────────────────────────────────────
  * Mail wearing Spam that also wears Archive or has a copy in the server's
- * Archive folder (MessageRepository::findSpamInArchive()). Nothing else
+ * Archive folder (MessageBackfillRepository::findSpamInArchive()). Nothing else
  * removes Spam from a message, so the filter's label is still there to find
  * them by, and a message somebody filed as spam is spam wherever its copy is.
  *
@@ -44,10 +44,10 @@ final readonly class SpamInArchiveBackfillTask implements BackfillTaskInterface
     private const int BATCH_SIZE = 200;
 
     public function __construct(
-        private MessageRepository      $messages,
+        private MessageBackfillRepository $messageBackfillRepository,
         private LabelResolver          $labels,
         private ThreadStatusUpdater    $status,
-        private EntityManagerInterface $em,
+        private EntityManagerInterface $em
     ) {}
 
     public function getName(): string
@@ -62,7 +62,7 @@ final readonly class SpamInArchiveBackfillTask implements BackfillTaskInterface
 
     public function run(SymfonyStyle $io): int
     {
-        $total = $this->messages->countSpamInArchive();
+        $total = $this->messageBackfillRepository->countSpamInArchive();
 
         if (0 === $total) {
             $io->success('Nothing to repair — no spam is in the archive.');
@@ -77,7 +77,7 @@ final readonly class SpamInArchiveBackfillTask implements BackfillTaskInterface
         $skipped = 0;
 
         while (true) {
-            $rows = $this->messages->findSpamInArchive($lastId, self::BATCH_SIZE);
+            $rows = $this->messageBackfillRepository->findSpamInArchive($lastId, self::BATCH_SIZE);
 
             if ([] === $rows) {
                 break;

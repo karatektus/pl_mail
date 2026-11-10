@@ -17,7 +17,7 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\RunBulkStatusHandler;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Driver\Exception as DriverException;
@@ -492,15 +492,15 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
         $container = self::getContainer();
 
         return new RunBulkStatusHandler(
-            $container->get(\App\Repository\Job\BackgroundJobRepository::class),
-            $threads ?? $container->get(\App\Repository\Mail\MessageThreadRepository::class),
+            $container->get(\App\Repository\Job\BackgroundJob\BackgroundJobRepository::class),
+            $threads ?? $container->get(\App\Repository\Mail\MessageThread\MessageThreadRepository::class),
             $container->get(\App\Service\Mail\ListViewResolver::class),
             $container->get(\App\Service\Mail\ThreadStatusUpdater::class),
             $container->get(\App\Service\Mail\ThreadSnoozeService::class),
             $container->get(\App\Service\Mail\MoveToService::class),
             $container->get(\App\Service\Mail\MessagePurger::class),
             $container->get(\App\Service\Mail\MailPlacement::class),
-            $container->get(\App\Repository\Label\LabelRepository::class),
+            $container->get(\App\Repository\Label\Label\LabelRepository::class),
             $container->get(\App\Service\Job\JobNotifier::class),
             $this->em,
             $container->get(\Doctrine\Persistence\ManagerRegistry::class),

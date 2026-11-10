@@ -9,7 +9,7 @@ use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Exception\GraphThrottledException;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Label\LabelBindingRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Service\Graph\GraphCategoryColorMapper;
 use App\Service\Graph\GraphCategorySyncer;
 use App\Service\Graph\GraphFolderSyncer;

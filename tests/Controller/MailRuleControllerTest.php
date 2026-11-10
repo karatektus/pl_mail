@@ -11,7 +11,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
-use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

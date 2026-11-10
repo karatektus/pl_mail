@@ -11,8 +11,8 @@ use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\InboxCategoryRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -45,11 +45,11 @@ final readonly class InboxCategoryManager
 {
     public function __construct(
         private InboxCategoryRepository $categories,
-        private MessageThreadRepository $threads,
+        private MessageThreadCategoryRepository $messageThreadCategoryRepository,
         private EntityManagerInterface $em,
         private TranslatorInterface $translator,
         private \App\Jmap\State\StateManager $stateManager,
-        private InboxTabChanges $tabChanges,
+        private InboxTabChanges $tabChanges
     ) {
     }
 
@@ -90,8 +90,6 @@ final readonly class InboxCategoryManager
     public function remove(InboxCategory $category): void
     {
         $this->em->wrapInTransaction(function () use ($category): void {
-            $connection = $this->em->getConnection();
-
             // Recorded while the id is still there to be named.
             $this->tabChanges->destroyed($category->usr, [$category->tabKey()]);
 
@@ -105,18 +103,9 @@ final readonly class InboxCategoryManager
 
             // Taken BEFORE the delete, because the delete is what empties the
             // column this is read from.
-            $held = array_map(
-                intval(...),
-                $connection->fetchFirstColumn(
-                    'SELECT id FROM message_thread WHERE user_category_id = :id',
-                    ['id' => $category->id],
-                ),
-            );
+            $held = $this->messageThreadCategoryRepository->findIdsInUserCategory((int) $category->id);
 
-            $connection->executeStatement(
-                'UPDATE message_thread SET category_pinned_at = NULL WHERE user_category_id = :id',
-                ['id' => $category->id],
-            );
+            $this->messageThreadCategoryRepository->unpinFromUserCategory((int) $category->id);
 
             // The foreign keys un-file the rows; what is already loaded in this
             // request still points at the category, and the next flush would
@@ -147,7 +136,7 @@ final readonly class InboxCategoryManager
             // them from its messages like any other conversation.
             // And told: a JMAP client shows the reader's own tabs too, and
             // these conversations have just left one.
-            foreach ($this->threads->recomputeCategoriesForThreads($held) as $accountId => $moved) {
+            foreach ($this->messageThreadCategoryRepository->recomputeCategoriesForThreads($held) as $accountId => $moved) {
                 $this->stateManager->recordThreadsTouched($accountId, $moved);
             }
 

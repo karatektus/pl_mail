@@ -18,7 +18,7 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\SendMessageHandler;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Crypto\CertificateReader;
 use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Mail\MailSenderRegistry;

@@ -16,7 +16,7 @@ use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
 use App\Jmap\Blob\BlobId;
 use App\Jmap\Blob\BlobResolver;
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\Label\LabelBindingRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Crypto\SealGuard;
 use App\Service\Imap\MessageSyncer;

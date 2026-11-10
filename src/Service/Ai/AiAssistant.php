@@ -14,7 +14,7 @@ use App\Domain\Enum\Ai\AiCallFeature;
 use App\Domain\Enum\Ai\AiProvider;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Ai\AiSettings;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use Psr\Log\LoggerInterface;
 
 /**

@@ -6,7 +6,7 @@ namespace App\Service\Graph;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
-use App\Repository\Label\LabelBindingRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;

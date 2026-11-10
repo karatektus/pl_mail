@@ -7,8 +7,8 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Infrastructure\Messaging\Message\ApplyRemoteFlagsMessage;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Label\KeywordLabelFollower;
 use App\Service\Mail\ThreadStatusUpdater;
 use Doctrine\ORM\EntityManagerInterface;
@@ -42,11 +42,11 @@ final readonly class ApplyRemoteFlagsMessageHandler
 {
     public function __construct(
         private MailboxRepository      $mailboxRepository,
-        private MessageRepository      $messageRepository,
+        private MessageImapRepository $messageImapRepository,
         private ThreadStatusUpdater    $status,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
-        private KeywordLabelFollower   $keywords,
+        private KeywordLabelFollower   $keywords
     ) {
     }
 
@@ -58,7 +58,7 @@ final readonly class ApplyRemoteFlagsMessageHandler
             return;
         }
 
-        $subject = $this->messageRepository->findOneInMailboxByUid($mailbox, $message->uid);
+        $subject = $this->messageImapRepository->findOneInMailboxByUid($mailbox, $message->uid);
 
         if (null === $subject) {
             $this->logger->debug('Flag notification for a message that is not here yet', [

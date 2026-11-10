@@ -14,7 +14,7 @@ final class Version20260716100955 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Add a full-text search vector to messages';
     }
 
     public function up(Schema $schema): void

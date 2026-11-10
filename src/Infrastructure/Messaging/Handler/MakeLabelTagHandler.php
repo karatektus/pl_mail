@@ -8,10 +8,11 @@ use App\Domain\Enum\Job\JobState;
 use App\Domain\Exception\LabelDeleteRefusedException;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\MakeLabelTagMessage;
-use App\Repository\Job\BackgroundJobRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageLabelRepository;
 use App\Service\Job\JobNotifier;
 use App\Service\Label\LabelNotifier;
 use App\Service\Label\RemoteLabelRemover;
@@ -55,6 +56,7 @@ final readonly class MakeLabelTagHandler
         private LabelRepository         $labels,
         private AccountRepository       $accounts,
         private MessageRepository       $messages,
+        private MessageLabelRepository $messageLabelRepository,
         private RemoteLabelRemover      $remover,
         private ThreadStatusUpdater     $status,
         private LabelNotifier           $labelNotifier,
@@ -121,7 +123,7 @@ final readonly class MakeLabelTagHandler
             throw new \RuntimeException($this->translator->trans('label.delete.failed_destination_gone', [], null, $job->usr->locale));
         }
 
-        $job->begin($this->messages->countToFileIntoFolder($accountId, $labelId));
+        $job->begin($this->messageLabelRepository->countToFileIntoFolder($accountId, $labelId));
         $this->em->flush();
         $this->notifier->changed($job);
 
@@ -135,7 +137,7 @@ final readonly class MakeLabelTagHandler
         $moved = [];
 
         while (true) {
-            $ids = $this->messages->findIdsToFileIntoFolder($accountId, $labelId, 0, self::CHUNK);
+            $ids = $this->messageLabelRepository->findIdsToFileIntoFolder($accountId, $labelId, 0, self::CHUNK);
 
             if ([] === $ids) {
                 return count($moved);

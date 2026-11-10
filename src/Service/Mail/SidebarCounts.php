@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Jmap\State\ChangeLogRepository;
+use App\Repository\Jmap\ChangeLog\ChangeLogRepository;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\SidebarRow;
 use App\Entity\Label\Label;
@@ -12,10 +12,12 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\UnifiedInbox;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Repository\Label\LabelBindingRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadSnoozeRepository;
+use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -119,12 +121,14 @@ class SidebarCounts implements ResetInterface
 
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageThreadBadgeRepository $messageThreadBadgeRepository,
+        private readonly MessageThreadSnoozeRepository $messageThreadSnoozeRepository,
         private readonly LabelRepository         $labelRepository,
         private readonly Security                $security,
         private readonly ChangeLogRepository     $changeLog,
-        private readonly MessageRepository       $messages,
+        private readonly MessageSendRepository $messageSendRepository,
         private readonly LabelBindingRepository  $bindings,
-        private readonly UnifiedInboxes          $inboxes,
+        private readonly UnifiedInboxes          $inboxes
     ) {}
 
     /** @var array<int, int>|null account id => conversations holding unread mail in its Inbox */
@@ -176,7 +180,7 @@ class SidebarCounts implements ResetInterface
             return $this->forRole(LabelRole::Inbox);
         }
 
-        $this->inboxUnread ??= $this->threadRepository->countUnreadInboxPerAccount($user);
+        $this->inboxUnread ??= $this->messageThreadBadgeRepository->countUnreadInboxPerAccount($user);
 
         $count = 0;
 
@@ -365,7 +369,7 @@ class SidebarCounts implements ResetInterface
 
             $this->accountLabelCounts[$accountId] = null === $user
                 ? []
-                : $this->threadRepository->countUnreadPerUserLabel($user, $account);
+                : $this->messageThreadBadgeRepository->countUnreadPerUserLabel($user, $account);
         }
 
         return $this->accountLabelCounts[$accountId][(int) $label->id] ?? 0;
@@ -477,7 +481,7 @@ class SidebarCounts implements ResetInterface
             if (null === $user) {
                 $this->roleCounts = [];
             } else {
-                $this->roleCounts = $this->threadRepository->countUnreadPerRole($user);
+                $this->roleCounts = $this->messageThreadBadgeRepository->countUnreadPerRole($user);
             }
         }
 
@@ -508,7 +512,7 @@ class SidebarCounts implements ResetInterface
 
     /**
      * The LABELS heading's own number, shown only while that section is
-     * collapsed — see MessageThreadRepository::countUnreadInUserLabels() for
+     * collapsed — see MessageThreadBadgeRepository::countUnreadInUserLabels() for
      * why it is not the sum of the rows it stands in for.
      */
     public function unreadInLabels(): int
@@ -518,7 +522,7 @@ class SidebarCounts implements ResetInterface
 
             $this->labelsUnread = null === $user
                 ? 0
-                : $this->threadRepository->countUnreadInUserLabels($user);
+                : $this->messageThreadBadgeRepository->countUnreadInUserLabels($user);
         }
 
         return $this->labelsUnread;
@@ -535,7 +539,7 @@ class SidebarCounts implements ResetInterface
             $user = $this->security->getUser();
 
             $this->unsentDrafts = $user instanceof User
-                ? $this->messages->countUnsentDraftsForUser($user)
+                ? $this->messageSendRepository->countUnsentDraftsForUser($user)
                 : 0;
         }
 
@@ -550,7 +554,7 @@ class SidebarCounts implements ResetInterface
             if (null === $user) {
                 $this->starredCount = 0;
             } else {
-                $this->starredCount = $this->threadRepository->countUnreadForStarred($user);
+                $this->starredCount = $this->messageThreadBadgeRepository->countUnreadForStarred($user);
             }
         }
 
@@ -651,7 +655,7 @@ class SidebarCounts implements ResetInterface
 
             $this->snoozedCount = null === $user
                 ? 0
-                : $this->threadRepository->countSnoozedForUser($user);
+                : $this->messageThreadSnoozeRepository->countSnoozedForUser($user);
         }
 
         return $this->snoozedCount > 0;
@@ -890,7 +894,7 @@ class SidebarCounts implements ResetInterface
         if (null === $user) {
             $this->labelCounts = [];
         } else {
-            $this->labelCounts = $this->threadRepository->countUnreadPerUserLabel($user);
+            $this->labelCounts = $this->messageThreadBadgeRepository->countUnreadPerUserLabel($user);
         }
     }
 

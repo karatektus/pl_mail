@@ -14,7 +14,7 @@ final class Version20260723104544 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Add inbox categories to messages, and mark correspondents';
     }
 
     public function up(Schema $schema): void

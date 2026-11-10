@@ -6,7 +6,7 @@ namespace App\Service\Search;
 
 use App\Domain\DTO\Mail\ThreadRowMessage;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageJmapRepository;
 use App\Service\Mail\ThreadRows;
 use Twig\Markup;
 
@@ -27,7 +27,7 @@ use Twig\Markup;
  * here goes into Doctrine's identity map carrying the answer to somebody else's
  * question for the rest of the request. Same reasoning, and the same shape of
  * answer, as the `semanticOnly` id list — see
- * MessageThreadRepository::searchPage().
+ * MessageThreadSearchRepository::searchPage().
  *
  * THE BRIDGE FROM THREADS TO MESSAGES. `ts_headline` runs over a MESSAGE: the
  * subject and text part it highlights are columns of `message`, and the search
@@ -85,9 +85,9 @@ final class SearchResultHighlights
     private const int MAX_MESSAGES_PER_THREAD = 5;
 
     public function __construct(
-        private readonly MessageRepository $messages,
+        private readonly MessageJmapRepository $messageJmapRepository,
         private readonly SearchHighlighter $highlighter,
-        private readonly ThreadRows $rows,
+        private readonly ThreadRows $rows
     ) {
     }
 
@@ -125,7 +125,7 @@ final class SearchResultHighlights
         $bodies    = [];
 
         foreach ($candidates as $accountId => $messageIds) {
-            $rows = $this->messages->findSearchHeadlines(
+            $rows = $this->messageJmapRepository->findSearchHeadlines(
                 $accountId,
                 $messageIds,
                 $freeText,
@@ -137,7 +137,7 @@ final class SearchResultHighlights
             foreach ($rows as $row) {
                 $headlines[(int) $row['id']] = $row;
 
-                if (!$this->highlighter->isMarked($row['preview'])) {
+                if (false === $this->highlighter->isMarked($row['preview'])) {
                     $unmarked[] = (int) $row['id'];
                 }
             }
@@ -145,7 +145,7 @@ final class SearchResultHighlights
             // Only the bodies `ts_headline` declined to mark, which the
             // fallback has to search itself. Usually none, and then no
             // statement is issued at all.
-            foreach ($this->messages->findSearchTexts($accountId, $unmarked, $unmarked) as $id => $text) {
+            foreach ($this->messageJmapRepository->findSearchTexts($accountId, $unmarked, $unmarked) as $id => $text) {
                 $bodies[$id] = $text['body_text'];
             }
         }
@@ -232,7 +232,7 @@ final class SearchResultHighlights
      * nothing, SearchHighlighter needs the raw field to search it itself. The
      * list no longer hydrates message bodies (see ThreadRows), so forPage()
      * fetches `body_text` for exactly those unmarked messages through
-     * MessageRepository::findSearchTexts() — not by widening
+     * MessageJmapRepository::findSearchTexts() — not by widening
      * findSearchHeadlines(), which would pull every candidate's body a second
      * time, marked or not.
      *

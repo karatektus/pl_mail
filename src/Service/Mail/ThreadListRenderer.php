@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Entity\Mail\MessageThread;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Twig\Environment;
@@ -41,7 +41,7 @@ final class ThreadListRenderer
 {
     public function __construct(
         private readonly Environment             $twig,
-        private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageThreadBadgeRepository $messageThreadBadgeRepository
     ) {
     }
 
@@ -73,7 +73,7 @@ final class ThreadListRenderer
             return $response;
         }
 
-        $this->threadRepository->markListed($new, $now);
+        $this->messageThreadBadgeRepository->markListed($new, $now);
 
         return $response;
     }

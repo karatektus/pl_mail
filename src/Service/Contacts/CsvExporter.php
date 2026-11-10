@@ -6,7 +6,7 @@ namespace App\Service\Contacts;
 
 use App\Entity\Contacts\Contact;
 use App\Entity\User\User;
-use App\Repository\Contacts\ContactRepository;
+use App\Repository\Contacts\Contact\ContactRepository;
 
 /**
  * Exports the address book as CSV: one row per contact, primary email/phone
@@ -20,7 +20,7 @@ use App\Repository\Contacts\ContactRepository;
 final class CsvExporter
 {
     public function __construct(
-        private ContactRepository $contacts,
+        private readonly ContactRepository $contacts,
     ) {
     }
 

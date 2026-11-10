@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Ai;
 
-use App\Repository\Ai\AiCallMetricRepository;
+use App\Repository\Ai\AiCallMetric\AiCallMetricRepository;
 use DateTimeImmutable;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

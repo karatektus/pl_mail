@@ -8,7 +8,7 @@ use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 
 /**
  * Whether a message the browser built may still go out as it was built.

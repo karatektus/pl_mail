@@ -8,8 +8,8 @@ use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
 use DateTimeImmutable;
 use App\Service\Graph\GraphMessageBuilder;
 use App\Service\HarvestContactsService;
@@ -46,7 +46,7 @@ final readonly class SyncGraphMessageBatchHandler
     private const int RETRY_DELAY_MS = 30000;
 
     public function __construct(
-        private MessageRepository      $messageRepository,
+        private MessageThreadingRepository $messageThreadingRepository,
         private AccountRepository      $accountRepository,
         private GraphApiClient         $apiClient,
         private GraphMessageBuilder    $messageBuilder,
@@ -56,7 +56,7 @@ final readonly class SyncGraphMessageBatchHandler
         private PostIngestPipeline     $postIngest,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
-        private SyncOrigin             $origin,
+        private SyncOrigin             $origin
     ) {}
 
     public function __invoke(SyncGraphMessageBatchMessage $message): void
@@ -120,7 +120,7 @@ final readonly class SyncGraphMessageBatchHandler
             $rfcMessageId = MessageIdHelper::normalise((string) ($payload['internetMessageId'] ?? ''));
 
             if ('' !== $rfcMessageId) {
-                $existing = $this->messageRepository->findOneForAccountByMessageId($account, $rfcMessageId);
+                $existing = $this->messageThreadingRepository->findOneForAccountByMessageId($account, $rfcMessageId);
 
                 if (null !== $existing) {
                     // Already have it under a previous (or rotated) address —

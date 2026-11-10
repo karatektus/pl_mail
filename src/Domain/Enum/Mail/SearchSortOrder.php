@@ -26,7 +26,7 @@ enum SearchSortOrder: string
     case Relevance = 'relevance';
 
     /**
-     * The ORDER BY for {@see \App\Repository\Mail\MessageThreadRepository}, over
+     * The ORDER BY for {@see \App\Repository\Mail\MessageThread\MessageThreadRepository}, over
      * the aliases its search projection exposes.
      *
      * Both orders end in `thread_id DESC`, and that is not decoration. LIMIT /

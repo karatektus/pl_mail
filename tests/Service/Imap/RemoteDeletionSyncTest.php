@@ -13,7 +13,8 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Imap\SentCopyReconciler;
 use App\Service\Imap\VanishedMessageReconciler;
 use App\Service\Label\LabelResolver;
@@ -47,6 +48,7 @@ final class RemoteDeletionSyncTest extends KernelTestCase
     private VanishedMessageReconciler $vanished;
     private SentCopyReconciler $reconciler;
     private MessageRepository $messages;
+    private MessageImapRepository $messageImapRepository;
     private LabelResolver $labels;
 
     private User $user;
@@ -66,6 +68,7 @@ final class RemoteDeletionSyncTest extends KernelTestCase
         $this->vanished   = $container->get(VanishedMessageReconciler::class);
         $this->reconciler = $container->get(SentCopyReconciler::class);
         $this->messages   = $container->get(MessageRepository::class);
+        $this->messageImapRepository = $container->get(MessageImapRepository::class);
         $this->labels     = $container->get(LabelResolver::class);
 
         $this->connection->beginTransaction();
@@ -802,7 +805,7 @@ final class RemoteDeletionSyncTest extends KernelTestCase
         foreach ([$this->inbox, $this->archive, $this->trash] as $mailbox) {
             $present = [];
 
-            foreach ($this->messages->findLocatedUidsById($mailbox) as $uid) {
+            foreach ($this->messageImapRepository->findLocatedUidsById($mailbox) as $uid) {
                 if (true === isset($missing[$mailbox->id . ':' . $uid])) {
                     continue;
                 }

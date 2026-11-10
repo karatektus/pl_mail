@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Diagnostics;
 
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Mail\ConnectionTester;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
