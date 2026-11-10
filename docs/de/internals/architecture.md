@@ -1,4 +1,4 @@
-<!-- translated-from: internals/architecture.md sha1:8e527918b9d49ce397ceac9151318ef5bdc53f4c -->
+<!-- translated-from: internals/architecture.md sha1:f092616b374273166f571a14bcd7a8ea45a8ff4d -->
 # Architektur
 
 Die Schichten, was wo liegt, und die Regeln, die das so halten. Diese Seite beschreibt die
@@ -266,18 +266,20 @@ Property nicht kann.
 
 Zwei Gewohnheiten seien hervorgehoben, weil dort die Korrektheit tatsächlich wohnt.
 
-**Jeder Index und jedes Unique Constraint trägt einen Kommentar, der sagt, was er schützt und
-warum die Spalten in dieser Reihenfolge stehen.** `uniq_calendar_booking_page_start` auf
+**Ein Index oder Constraint, dessen Grund nicht offensichtlich ist, trägt einen Kommentar, der
+sagt, was er schützt und warum die Spalten in dieser Reihenfolge stehen.** Ein Index auf einem
+Fremdschlüssel braucht keinen. `uniq_calendar_booking_page_start` auf
 `calendar_booking` ist keine Optimierung — es ist das Einzige, was zwei Fremde davon abhält,
 dieselbe halbe Stunde zu nehmen, und die Id der Seite steht vorn, weil das Constraint von den
 Zeitfenstern einer Seite handelt. `uniq_calendar_event_calendar_uid` begrenzt die
 Eindeutigkeit der UID auf einen Kalender, und genau das macht die Kopie einer Besprechung auf
 einem zweiten Kalender legal statt bloß geduldet.
 
-**Zeitstempel kommen aus `App\Domain\Trait\TimestampableTrait`, auf jeder Entity, ohne
-Ausnahme** — auch auf den Tabellen, die einmal geschrieben werden. Eine Regel für jede Entity
-ist mehr wert als die Bytes, die eine Ausnahme spart, und nichts muss entscheiden, welche Art
-Entity gerade vor ihm liegt. Der Trait braucht `#[ORM\HasLifecycleCallbacks]` an der
+**Zeitstempel kommen aus `App\Domain\Trait\TimestampableTrait`, und nur von dort.** Nicht
+jede Entity hat welche: ein Datensatz, der angelegt und später bearbeitet wird, schon;
+Verknüpfungszeilen, aus anderen Daten neu aufgebaute Zeilen und Markierungen, dass etwas
+gesehen wurde, kommen ohne aus. Nichts schreibt `createdAt` oder `updatedAt` von Hand, und ein
+Zeitpunkt mit eigener Bedeutung wird nach ihr benannt (`purgedAt`, `finishedAt`). Der Trait braucht `#[ORM\HasLifecycleCallbacks]` an der
 aufnehmenden Klasse und Doctrine tut ohne das stillschweigend nichts, deshalb prüft
 `TimestampableTest` jede aufnehmende Entity auf das Attribut — die eine Anforderung, die der
 Trait selbst nicht erzwingen kann.

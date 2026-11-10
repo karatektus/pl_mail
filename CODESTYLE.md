@@ -275,12 +275,13 @@ use Doctrine\ORM\EntityManagerInterface;
 alphabetical, no grouping by vendor, no trailing blank line games. Fully-qualified inline names
 (`\LogicException`, `\Exception`) appear only for throwaway catches.
 
-### 4.2 `final` by default, `readonly` where it fits
+### 4.2 `readonly` where it fits
 
-349 of 505 source files declare a `final` class. The default is final; non-final is a decision you
-make when a subclass exists, and it is usually an entity extending its `…Model` base.
+`final` is not a default. Many classes carry it from an earlier version of this rule, and it can
+stay where it is, but a new class does not need it, and removing it so a test can double the class
+needs no justification.
 
-Value objects and Messenger payloads are `final readonly`:
+Value objects and Messenger payloads are `readonly`:
 
 ```php
 final readonly class IngestedMessage
@@ -294,8 +295,7 @@ final readonly class IngestedMessage
 }
 ```
 
-`final` has a real payoff here and the tests lean on it: when every collaborator is final, mocking
-is impossible, so tests are written against the real container instead. See §9.3.
+Tests prefer the real container to doubles for their own reasons; see §9.3.
 
 ### 4.3 Constructor injection, promoted, aligned, `readonly`
 
@@ -743,10 +743,11 @@ public function addMessagePart(MessagePart $messagePart): static
 
 Mutators return `static` so they chain.
 
-### 6.2 Indexes and constraints are commented
+### 6.2 Indexes and constraints are commented when the reason is not obvious
 
-Every index and unique constraint carries a comment saying what it protects and **why the columns
-are in that order**:
+An index on a foreign key or a lookup column explains itself and gets no comment. A unique
+constraint that guards against a race, a composite index whose column order matters, or a partial
+index gets a comment saying what it protects and **why the columns are in that order**:
 
 ```php
 // Remote-id uniqueness per account: one row per Gmail/Graph message. The
@@ -759,7 +760,12 @@ are in that order**:
 
 Constraint names are `uniq_<table>_<columns>` and `idx_<table>_<columns>`, snake_case, spelled out.
 
-### 6.3 Timestamps are a trait, and there are no exceptions
+### 6.3 Timestamps come from the trait, and only from the trait
+
+Not every entity has timestamps. A record that is created and later edited does, and takes them from
+`TimestampableTrait`; nothing writes `createdAt` or `updatedAt` by hand. Join rows, rows rebuilt
+from other data and markers that something was seen do without. A row whose moment means something
+particular names the column after it (`purgedAt`, `finishedAt`) rather than calling it `createdAt`.
 
 ```php
 trait TimestampableTrait
@@ -1321,12 +1327,12 @@ Paste this into `CLAUDE.md`, `AGENTS.md`, or a PR template.
 8. One service per concept; every caller goes through it. Differences between callers are named at
    both ends.
 9. Interfaces for the axis that varies; implementations under the provider's own directory.
-10. DTOs (`final readonly`) cross boundaries, not arrays.
+10. DTOs (`readonly`) cross boundaries, not arrays.
 11. Messenger payloads are readonly and carry ids, never entities.
 
 **PHP**
 12. `declare(strict_types=1);` on every file. PSR-4, one class per file.
-13. `final` by default; `final readonly` for value objects.
+13. `readonly` for value objects. `final` is not a default.
 14. Constructor injection, promoted, `private readonly`, one per line, aligned, trailing comma.
 15. Public properties with `public private(set)` where the outside must not write. No getters or
     setters.
@@ -1339,8 +1345,10 @@ Paste this into `CLAUDE.md`, `AGENTS.md`, or a PR template.
 22. Four spaces, LF, UTF-8, final newline, no trailing whitespace.
 
 **Data**
-23. Timestamps come from one trait, on every entity, with no exceptions.
-24. Every index and unique constraint is commented, including why the columns are in that order.
+23. Records that are created and later edited take `createdAt`/`updatedAt` from the trait; nothing
+    writes them by hand. A moment with a meaning of its own is named for it.
+24. An index or constraint whose reason is not obvious is commented, including why the columns are
+    in that order.
 25. Migrations carry a reasoning docblock and a one-line imperative description; backfills go
     nullable → populate → NOT NULL.
 
