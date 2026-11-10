@@ -14,7 +14,7 @@ final class Version20260720075342 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Move account options into a settings column';
     }
 
     public function up(Schema $schema): void

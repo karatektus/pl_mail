@@ -44,7 +44,7 @@ final readonly class InsightHarvester
         $account = $message->account;
         $user = $account->usr;
 
-        if (!$user instanceof User) {
+        if (false === $user instanceof User) {
             return 0;
         }
 

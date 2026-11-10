@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\Mail;
 
 use App\Domain\Enum\Mail\MailboxSpecialUse;
@@ -307,7 +309,7 @@ class Mailbox
 
     public function addMessage(Message $message): static
     {
-        if (!$this->messages->contains($message)) {
+        if (false === $this->messages->contains($message)) {
             $this->messages->add($message);
             $message->mailbox = $this;
         }

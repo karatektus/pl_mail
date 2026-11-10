@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service\Imap;
 
 use App\Domain\Enum\Crypto\PlaintextSource;

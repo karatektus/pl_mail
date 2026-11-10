@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\Mail;
 
 use App\Domain\Enum\Crypto\MessageCrypto;
@@ -961,7 +963,7 @@ class Message extends MessageModel
 
     public function addMessagePart(MessagePart $messagePart): static
     {
-        if (!$this->messageParts->contains($messagePart)) {
+        if (false === $this->messageParts->contains($messagePart)) {
             $this->messageParts->add($messagePart);
             $messagePart->message = $this;
         }

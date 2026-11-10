@@ -137,7 +137,7 @@ final class SearchResultHighlights
             foreach ($rows as $row) {
                 $headlines[(int) $row['id']] = $row;
 
-                if (!$this->highlighter->isMarked($row['preview'])) {
+                if (false === $this->highlighter->isMarked($row['preview'])) {
                     $unmarked[] = (int) $row['id'];
                 }
             }

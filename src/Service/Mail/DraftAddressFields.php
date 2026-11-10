@@ -112,7 +112,7 @@ final readonly class DraftAddressFields
         foreach (self::FIELDS as $field) {
             $addresses = $this->selectedAddresses($form, $field);
 
-            if (false === empty($addresses)) {
+            if ([] !== $addresses) {
                 $message->{$field} = $addresses;
             }
         }
@@ -138,7 +138,7 @@ final readonly class DraftAddressFields
         /** @var Collection<int, Contact>|null $contacts */
         $contacts = $form->get($field)->getData();
 
-        if (empty($contacts)) {
+        if (null === $contacts) {
             return [];
         }
 

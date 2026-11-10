@@ -182,7 +182,7 @@ final readonly class RecurrenceMaterialiser
         $last    = max($keys);
 
         try {
-            $iterator = new RRuleIterator($rrule, \DateTime::createFromInterface($event->startsAt->setTimezone($zone)));
+            $iterator = new RRuleIterator($rrule, $event->startsAt->setTimezone($zone));
         } catch (\Throwable) {
             return [];
         }
@@ -262,7 +262,7 @@ final readonly class RecurrenceMaterialiser
         $previousId = null;
 
         try {
-            $iterator = new RRuleIterator($rrule, \DateTime::createFromInterface($seed));
+            $iterator = new RRuleIterator($rrule, $seed);
         } catch (\Throwable $e) {
             $this->logger->warning('Calendar: unusable recurrence rule', [
                 'eventId'   => $event->id,

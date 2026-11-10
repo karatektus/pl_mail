@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository\Mail\Account;
 
 use App\Domain\Enum\Account\IncomingProtocol;

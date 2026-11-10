@@ -14,7 +14,7 @@ final class Version20260719175512 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Drop the thread-to-mailbox table and archive time for labels';
     }
 
     public function up(Schema $schema): void

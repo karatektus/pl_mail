@@ -166,7 +166,7 @@ final readonly class ContactAssistant
             . ' A fix to a saved field repeats its value (fixed) with the right type and label.'
             . ' Every field and the name get "reason": a short phrase (at most ten words) in '
             . self::languageName($language) . ' saying where it comes from or why'
-            . ($signature === null ? '.' : ' — for a detail from the signature, say so, with the date of the mail.');
+            . (null === $signature ? '.' : ' — for a detail from the signature, say so, with the date of the mail.');
 
         $saved = [
             'name'       => $contact->displayName,

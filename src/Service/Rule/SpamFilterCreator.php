@@ -79,6 +79,7 @@ final readonly class SpamFilterCreator
         $actions    = [['type' => RuleActionExecutor::MARK_SPAM]];
 
         foreach ($this->rules->findForUserOrdered($user) as $existing) {
+            // Loose on purpose: two rules are the same when their arrays hold the same pairs, in any key order.
             if ($existing->conditions == $conditions && $existing->actions == $actions && null === $existing->account) {
                 return [$existing, false];
             }

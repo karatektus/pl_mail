@@ -20,7 +20,7 @@ use App\Repository\Contacts\Contact\ContactRepository;
 final class CsvExporter
 {
     public function __construct(
-        private ContactRepository $contacts,
+        private readonly ContactRepository $contacts,
     ) {
     }
 

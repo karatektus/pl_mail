@@ -21,7 +21,7 @@ final class ServerTimingSubscriberTest extends WebTestCase
         $client = static::createClient();
         $user   = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => self::ADMIN_EMAIL]);
 
-        if (!$user instanceof User) {
+        if (false === $user instanceof User) {
             self::markTestSkipped('run `app:test:seed-user --admin` first');
         }
 

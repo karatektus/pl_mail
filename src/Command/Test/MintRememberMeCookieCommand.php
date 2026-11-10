@@ -90,7 +90,7 @@ final class MintRememberMeCookieCommand extends Command
 
         $cookie = $request->attributes->get(ResponseListener::COOKIE_ATTR_NAME);
 
-        if (!$cookie instanceof Cookie) {
+        if (false === $cookie instanceof Cookie) {
             $io->error('The firewall made no remember-me cookie.');
 
             return Command::FAILURE;

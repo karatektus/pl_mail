@@ -40,14 +40,14 @@ final class HarvestContactsCommand extends Command
         $io        = new SymfonyStyle($input, $output);
         $accountId = $input->getArgument('account-id');
 
-        if ($accountId !== null) {
+        if (null !== $accountId) {
             $accounts = [$this->accountRepository->find((int) $accountId)];
         } else {
             $accounts = $this->accountRepository->findBy(['isActive' => true]);
         }
 
         foreach ($accounts as $account) {
-            if ($account === null) {
+            if (null === $account) {
                 $io->error('Account not found.');
                 return Command::FAILURE;
             }

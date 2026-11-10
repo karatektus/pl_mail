@@ -14,7 +14,7 @@ final class Version20260729124052 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Record the progress of a mail rule run';
     }
 
     public function up(Schema $schema): void

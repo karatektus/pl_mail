@@ -64,7 +64,7 @@ final class DuplicateFinder
     ];
 
     public function __construct(
-        private ContactRepository $contacts,
+        private readonly ContactRepository $contacts,
     ) {
     }
 

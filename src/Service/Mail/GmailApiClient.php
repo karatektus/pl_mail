@@ -25,7 +25,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 final class GmailApiClient
 {
     private const BASE  = 'https://gmail.googleapis.com/gmail/v1/users/me';
-    private const BATCH = 'https://www.googleapis.com/batch/gmail/v1';
+    private const string BATCH = 'https://www.googleapis.com/batch/gmail/v1';
 
     /**
      * Gmail reports quota rejections as 403, not 429 — the status alone cannot

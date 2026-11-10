@@ -117,13 +117,13 @@ final class MigrateCommand extends Command
         // database is unusual" into "your container will not start" — so
         // migrate unprotected, which is exactly what happened before this
         // command existed.
-        if (!$this->connection->getDatabasePlatform() instanceof PostgreSQLPlatform) {
+        if (false === $this->connection->getDatabasePlatform() instanceof PostgreSQLPlatform) {
             return $this->migrate($io, $output);
         }
 
         $timeout = max(0, (int) $input->getOption('lock-timeout'));
 
-        if (!$this->acquireLock($io, $timeout)) {
+        if (false === $this->acquireLock($io, $timeout)) {
             $io->error(sprintf(
                 'Timed out after %ds waiting for another container to finish running migrations. '
                 .'Refusing to migrate: whatever holds the lock may still be mid-migration, and a '
@@ -234,7 +234,7 @@ final class MigrateCommand extends Command
                 return false;
             }
 
-            if (!$announced) {
+            if (false === $announced) {
                 $io->text('Another container is running migrations; waiting for it to finish...');
                 $announced = true;
             }

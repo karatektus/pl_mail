@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Infrastructure\Messaging\Handler;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Exception\SendDeferredException;

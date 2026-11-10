@@ -1067,30 +1067,30 @@ class MessageThreadSearchRepository extends ServiceEntityRepository
 
         // ── Operator filters ──────────────────────────────────────────────
 
-        if ($query->from !== null) {
+        if (null !== $query->from) {
             // Parenthesised: this OR must not bleed into the surrounding
             // AND-joined WHERE clause when other filters are present.
             $where[]            = '(LOWER(m.from_address) LIKE :fromAddr OR LOWER(m.from_name) LIKE :fromAddr)';
             $params['fromAddr'] = '%' . strtolower($query->from) . '%';
         }
 
-        if ($query->to !== null) {
+        if (null !== $query->to) {
             // to_addresses is a JSON array of {name, address} objects
             $where[]      = "m.to_addresses::text ILIKE :toAddr";
             $params['toAddr'] = '%' . $query->to . '%';
         }
 
-        if ($query->cc !== null) {
+        if (null !== $query->cc) {
             $where[]          = 'm.cc_addresses::text ILIKE :ccAddr';
             $params['ccAddr'] = '%' . $query->cc . '%';
         }
 
-        if ($query->subject !== null) {
+        if (null !== $query->subject) {
             $where[]           = 'LOWER(m.subject) LIKE :subject';
             $params['subject'] = '%' . strtolower($query->subject) . '%';
         }
 
-        if ($query->hasAttachment === true) {
+        if (true === $query->hasAttachment) {
             $where[] = 'm.has_attachments = true';
         }
 
@@ -1106,17 +1106,17 @@ class MessageThreadSearchRepository extends ServiceEntityRepository
             $where[] = 't.starred_at IS NOT NULL';
         }
 
-        if ($query->after !== null) {
+        if (null !== $query->after) {
             $where[]          = 'm.received_at >= :after';
             $params['after']  = $query->after->format('Y-m-d H:i:s');
         }
 
-        if ($query->before !== null) {
+        if (null !== $query->before) {
             $where[]           = 'm.received_at < :before';
             $params['before']  = $query->before->format('Y-m-d H:i:s');
         }
 
-        if ($query->label !== null) {
+        if (null !== $query->label) {
             $where[]         = 'LOWER(lbl.name) = :labelName AND lbl.role IS NULL';
             $params['labelName'] = strtolower($query->label);
         }
@@ -1125,7 +1125,7 @@ class MessageThreadSearchRepository extends ServiceEntityRepository
         // and rejects what it cannot resolve, so a mailbox this install does
         // not have never reaches the SQL as a filter that silently matches
         // nothing — or, as it used to, a filter silently dropped.
-        if ($query->mailboxRole !== null) {
+        if (null !== $query->mailboxRole) {
             $where[]             = 'lbl.role = :labelRole';
             $params['labelRole'] = $query->mailboxRole;
         }

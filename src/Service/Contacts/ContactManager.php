@@ -20,8 +20,8 @@ use Doctrine\ORM\EntityManagerInterface;
 final class ContactManager
 {
     public function __construct(
-        private EntityManagerInterface $em,
-        private ContactPhotoStore $photos,
+        private readonly EntityManagerInterface $em,
+        private readonly ContactPhotoStore $photos,
         private readonly ContactRepository $contactRepository,
     ) {
     }

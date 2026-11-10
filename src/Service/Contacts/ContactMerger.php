@@ -42,8 +42,8 @@ use Doctrine\ORM\EntityManagerInterface;
 final class ContactMerger
 {
     public function __construct(
-        private EntityManagerInterface $em,
-        private ContactPhotoStore $photos,
+        private readonly EntityManagerInterface $em,
+        private readonly ContactPhotoStore $photos,
         private readonly ContactRepository $contactRepository,
         private readonly ContactMergeRecordRepository $contactMergeRecordRepository,
         private readonly ContactRelationRepository $contactRelationRepository,

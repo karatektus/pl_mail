@@ -101,7 +101,7 @@ final class ContactAssistController extends AbstractController
         $user    = $this->user();
         $contact = $this->contacts->findOneBy(['id' => $id, 'usr' => $user, 'trashedAt' => null]);
 
-        if (!$contact instanceof Contact) {
+        if (false === $contact instanceof Contact) {
             throw $this->createNotFoundException();
         }
 

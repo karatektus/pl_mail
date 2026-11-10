@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service\Imap;
 
 use App\Domain\Enum\Mail\MessageCategory;
@@ -102,7 +104,7 @@ final class MessageThreader
         if (count($referenceIds) > 0) {
             $parentMessage = $this->messageThreadingRepository->findOneByMessageIdsForAccount($referenceIds, $account);
 
-            if ($parentMessage !== null && $parentMessage->thread !== null) {
+            if (null !== $parentMessage && null !== $parentMessage->thread) {
                 $thread = $parentMessage->thread;
                 $this->attachMessageToThread($message, $thread, $recordArrival);
 
@@ -139,7 +141,7 @@ final class MessageThreader
                     new \DateTimeImmutable(self::SUBJECT_FALLBACK_WINDOW),
                 );
 
-                if ($candidateThread !== null && $this->participantsOverlap($message, $candidateThread)) {
+                if (null !== $candidateThread && $this->participantsOverlap($message, $candidateThread)) {
                     $this->attachMessageToThread($message, $candidateThread, $recordArrival);
 
                     return;
@@ -369,7 +371,7 @@ final class MessageThreader
 
     public function normalizeSubject(?string $subject): string
     {
-        if ($subject === null) {
+        if (null === $subject) {
             return '';
         }
 
@@ -379,7 +381,7 @@ final class MessageThreader
         // variants like "RE :", "Fwd:Fwd:" and "Re[2]:".
         $normalized = preg_replace(self::REPLY_PREFIX_PATTERN, '', $normalized);
 
-        if ($normalized === null) {
+        if (null === $normalized) {
             $normalized = trim($subject);
         }
 

@@ -14,7 +14,7 @@ final class Version20260722101906 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Link every message to its account';
     }
 
     public function up(Schema $schema): void

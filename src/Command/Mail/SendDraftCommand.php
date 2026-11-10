@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command\Mail;
 
 use App\Repository\Mail\Message\MessageRepository;
@@ -36,10 +38,10 @@ class SendDraftCommand extends Command
 
         $messageId = $input->getArgument('message-id');
 
-        if ($messageId !== null) {
+        if (null !== $messageId) {
             $message = $this->messageRepository->find((int) $messageId);
 
-            if ($message === null) {
+            if (null === $message) {
                 $io->error(sprintf('No message found with ID %d.', $messageId));
                 return Command::FAILURE;
             }
@@ -71,7 +73,7 @@ class SendDraftCommand extends Command
             $selectedId = array_search($choice, $choices);
             $message    = $this->messageRepository->find($selectedId);
 
-            if ($message === null) {
+            if (null === $message) {
                 $io->error('Could not load the selected draft.');
                 return Command::FAILURE;
             }

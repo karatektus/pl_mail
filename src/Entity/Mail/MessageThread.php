@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
@@ -313,7 +315,7 @@ class MessageThread
 
     public function addMessage(Message $message): static
     {
-        if (!$this->messages->contains($message)) {
+        if (false === $this->messages->contains($message)) {
             $this->messages->add($message);
             $message->thread = $this;
         }
@@ -342,7 +344,7 @@ class MessageThread
      */
     public function isSnoozed(): bool
     {
-        return $this->snoozedUntil !== null && $this->snoozedUntil > new \DateTimeImmutable();
+        return null !== $this->snoozedUntil && $this->snoozedUntil > new \DateTimeImmutable();
     }
 
     public function addLabel(Label $label): static

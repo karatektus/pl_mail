@@ -85,9 +85,9 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
         XML;
 
     public function __construct(
-        protected HttpClientInterface                 $httpClient,
-        protected IntegrationUrlValidator             $urlValidator,
-        protected IntegrationProviderConfigRepository $configRepository,
+        protected readonly HttpClientInterface $httpClient,
+        protected readonly IntegrationUrlValidator $urlValidator,
+        protected readonly IntegrationProviderConfigRepository $configRepository,
     ) {
     }
 

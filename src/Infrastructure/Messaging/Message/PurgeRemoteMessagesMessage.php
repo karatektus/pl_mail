@@ -52,10 +52,10 @@ final class PurgeRemoteMessagesMessage
      * @param list<string>             $jmapIds
      */
     public function __construct(
-        public int   $accountId,
-        public array $imapUids = [],
-        public array $gmailIds = [],
-        public array $graphIds = [],
+        public readonly int $accountId,
+        public readonly array $imapUids = [],
+        public readonly array $gmailIds = [],
+        public readonly array $graphIds = [],
         array $jmapIds = [],
     ) {
         $this->jmapIds = $jmapIds;

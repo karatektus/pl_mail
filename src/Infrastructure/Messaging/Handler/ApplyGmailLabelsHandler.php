@@ -48,7 +48,7 @@ final class ApplyGmailLabelsHandler
 {
     public function __construct(
         private readonly AccountRepository      $accountRepository,
-        private GmailLabelColorMapper  $colorMapper,
+        private readonly GmailLabelColorMapper $colorMapper,
         private readonly MessageRepository      $messageRepository,
         private readonly LabelRepository        $labelRepository,
         private readonly GmailApiClient         $apiClient,

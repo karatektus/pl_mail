@@ -18,7 +18,7 @@ use DateTimeZone;
 final class ReferenceEmailFinder
 {
     public function __construct(
-        private MessageContactRepository $messageContactRepository,
+        private readonly MessageContactRepository $messageContactRepository,
     ) {
     }
 

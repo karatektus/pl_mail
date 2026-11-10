@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository\Mail\Message;
 
 use App\Domain\Enum\Crypto\MessageCrypto;
@@ -182,7 +184,7 @@ class MessageRepository extends ServiceEntityRepository
             ->getQuery()
             ->getOneOrNullResult();
 
-        return $result !== null;
+        return null !== $result;
     }
 
     /**

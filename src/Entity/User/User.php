@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\User;
 
 use App\Domain\DTO\Push\NotifyScope;
@@ -357,8 +359,8 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     #[ORM\Column(length: 255)]
     public ?string $nameLast = null;
 
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    public ?\DateTimeInterface $lastLogin = null;
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    public ?\DateTimeImmutable $lastLogin = null;
 
 
 
@@ -1963,7 +1965,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     public function addAccount(Account $account): static
     {
-        if (!$this->accounts->contains($account)) {
+        if (false === $this->accounts->contains($account)) {
             $this->accounts->add($account);
             $account->usr = $this;
         }

@@ -67,8 +67,8 @@ final class ContactController extends AbstractController
 {
     use ChecksCsrf;
 
-    private const PAGE_SIZE = 50;
-    private const PREVIEW_ROWS = 25;
+    private const int PAGE_SIZE = 50;
+    private const int PREVIEW_ROWS = 25;
 
     public function __construct(
         private readonly ContactRepository $contacts,
@@ -356,7 +356,7 @@ final class ContactController extends AbstractController
 
         $file = $request->files->get('photo');
 
-        if (!$file instanceof UploadedFile || !$file->isValid()) {
+        if (false === $file instanceof UploadedFile || false === $file->isValid()) {
             $this->addFlash('error', $this->trans('contacts.photo_invalid'));
 
             return $this->redirectToRoute('app_contacts_edit', ['id' => $id], Response::HTTP_SEE_OTHER);
@@ -429,7 +429,7 @@ final class ContactController extends AbstractController
 
         $file = $request->files->get('file');
 
-        if (!$file instanceof UploadedFile || !$file->isValid()) {
+        if (false === $file instanceof UploadedFile || false === $file->isValid()) {
             $this->addFlash('error', $this->trans('contacts.import_no_file'));
 
             return $this->redirectToRoute('app_contacts_import', [], Response::HTTP_SEE_OTHER);
