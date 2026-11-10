@@ -147,6 +147,16 @@ export default class extends Controller {
      */
     #focusedRow = null;
 
+    /**
+     * The rows' order as of the last paint, by id.
+     *
+     * So the cursor can stay where it was when its row leaves by any route.
+     * #moveOffLeavingRow() covers the keys, which know beforehand; a row
+     * archived with its own button, moved, snoozed or reported as spam left
+     * with the cursor still on its id, and the next ↓ started from the top.
+     */
+    #order = [];
+
     connect() {
         this._onKeydown = (event) => this.#handle(event);
         this._onFrameKey = (event) => this.#handle({
@@ -582,6 +592,8 @@ export default class extends Controller {
     }
 
     #paint() {
+        this.#followLeftRow();
+
         for (const row of document.querySelectorAll(`[${CURSOR}]`)) {
             if (row.getAttribute(ROW_ID) !== cursorId) {
                 row.removeAttribute(CURSOR);
@@ -609,6 +621,8 @@ export default class extends Controller {
             }
         }
 
+        this.#order = rows.map((each) => each.getAttribute(ROW_ID));
+
         // The focused row was replaced and the focus fell to <body>: onto its
         // successor, which is the cursor's row — same id, or the row
         // #moveOffLeavingRow() chose for one that left the list. Hidden counts
@@ -621,6 +635,32 @@ export default class extends Controller {
                 row.focus({ preventScroll: true });
             }
         }
+    }
+
+    /**
+     * The cursor's row has gone: onto the first row after it that is still
+     * here, else the nearest before it.
+     *
+     * Only when some of the list it was in is still here. A list where none of
+     * the old rows remain is another list — a different folder, the next page —
+     * and the cursor does not carry over to a row it was never near.
+     */
+    #followLeftRow() {
+        if (null === cursorId || null !== this.#cursorRow()) {
+            return;
+        }
+
+        const at = this.#order.indexOf(cursorId);
+
+        if (-1 === at) {
+            return;
+        }
+
+        const present = new Set(this.#rows().map((row) => row.getAttribute(ROW_ID)));
+        const after = this.#order.slice(at + 1).find((id) => present.has(id));
+        const before = this.#order.slice(0, at).reverse().find((id) => present.has(id));
+
+        cursorId = after ?? before ?? null;
     }
 
     // ── Small things ──────────────────────────────────────────────────────
