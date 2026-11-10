@@ -85,6 +85,12 @@ services:
       MERCURE_EXTRA_DIRECTIVES: |
         resource_identifier https://plmail.invalid/.well-known/mercure
         cookie_name mercure_access_token
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:2019/mercure/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
 
   app:
     <<: *test-app
