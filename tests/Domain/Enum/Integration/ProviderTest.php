@@ -25,6 +25,7 @@ use App\Service\Integration\Driver\NextcloudDriver;
 use App\Service\Integration\Driver\OpenCloudDriver;
 use App\Service\Integration\Driver\OneDriveDriver;
 use App\Service\Integration\Driver\PaperlessDriver;
+use App\Service\Integration\Driver\WebDavDriver;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -49,7 +50,7 @@ final class ProviderTest extends TestCase
     public function testEveryProviderIsImplemented(): void
     {
         self::assertSame(Provider::cases(), Provider::implemented());
-        self::assertCount(11, Provider::cases());
+        self::assertCount(12, Provider::cases());
     }
 
     /**
@@ -95,7 +96,7 @@ final class ProviderTest extends TestCase
             self::assertTrue($provider->offersCalendars(), $provider->value . ' is a calendar service');
         }
 
-        foreach ([Provider::Immich, Provider::Paperless, Provider::GoogleDrive, Provider::GooglePhotos, Provider::OneDrive, Provider::Dropbox, Provider::CardDav] as $provider) {
+        foreach ([Provider::Immich, Provider::Paperless, Provider::GoogleDrive, Provider::GooglePhotos, Provider::OneDrive, Provider::Dropbox, Provider::WebDav, Provider::CardDav] as $provider) {
             self::assertFalse($provider->offersCalendars(), $provider->value . ' has no calendars to offer');
         }
     }
@@ -178,6 +179,7 @@ final class ProviderTest extends TestCase
             'googlePhotos' => 'GooglePhotosDriver',
             'oneDrive'     => 'OneDriveDriver',
             'dropbox'      => 'DropboxDriver',
+            'webdav'       => 'WebDavDriver',
         ];
 
         self::assertSame(
@@ -215,6 +217,8 @@ final class ProviderTest extends TestCase
         self::assertFalse(Provider::Immich->supports(Capability::ShareLink));
         self::assertFalse(Provider::GooglePhotos->supports(Capability::ShareLink));
         self::assertFalse(Provider::Paperless->supports(Capability::ShareLink));
+        // Not cheap or expensive but absent: WebDAV has no public link at all.
+        self::assertFalse(Provider::WebDav->supports(Capability::ShareLink));
 
         self::assertTrue(Provider::Nextcloud->supports(Capability::ShareLink));
         self::assertTrue(Provider::OpenCloud->supports(Capability::ShareLink));
@@ -226,7 +230,7 @@ final class ProviderTest extends TestCase
         // either listed above or fails here, rather than slipping in with
         // whatever its capability arm happened to say.
         self::assertCount(
-            8,
+            9,
             Provider::of(ServiceKind::Files),
             'a file provider was added without deciding whether it can share',
         );
@@ -251,13 +255,14 @@ final class ProviderTest extends TestCase
             'googlePhotos' => GooglePhotosDriver::class,
             'oneDrive'     => OneDriveDriver::class,
             'dropbox'      => DropboxDriver::class,
+            'webdav'       => WebDavDriver::class,
         ];
 
         foreach (Provider::of(ServiceKind::Files) as $provider) {
             $implements = class_implements($drivers[$provider->value]) ?: [];
 
             self::assertSame(
-                Provider::GooglePhotos !== $provider,
+                false === in_array($provider, [Provider::GooglePhotos, Provider::WebDav], true),
                 $provider->supports(Capability::Search),
                 $provider->value.' search capability',
             );
@@ -280,15 +285,27 @@ final class ProviderTest extends TestCase
         }
     }
 
+    /**
+     * Browse, download and upload are what makes something a file service.
+     * Previews are not: plain WebDAV (#547) has none, and the picker draws a
+     * file icon for it — so it is the one exception, named here so a second
+     * one has to be argued for rather than slipping through.
+     */
     public function testEveryFileProviderCanBrowseDownloadUploadAndPreview(): void
     {
         foreach (Provider::of(ServiceKind::Files) as $provider) {
-            foreach ([Capability::Browse, Capability::Download, Capability::Upload, Capability::Thumbnail] as $capability) {
+            foreach ([Capability::Browse, Capability::Download, Capability::Upload] as $capability) {
                 self::assertTrue(
                     $provider->supports($capability),
                     sprintf('%s should support %s', $provider->value, $capability->value),
                 );
             }
+
+            self::assertSame(
+                Provider::WebDav !== $provider,
+                $provider->supports(Capability::Thumbnail),
+                $provider->value.' preview capability',
+            );
         }
     }
 
@@ -301,7 +318,7 @@ final class ProviderTest extends TestCase
         // and AuthKind is what makes needsBaseUrl() true so the address is
         // validated. See Provider::authKind(), which says why that is not a
         // third AuthKind case.
-        foreach ([Provider::Nextcloud, Provider::OpenCloud, Provider::Immich, Provider::Paperless, Provider::CalDav, Provider::Ics, Provider::CardDav] as $provider) {
+        foreach ([Provider::Nextcloud, Provider::OpenCloud, Provider::Immich, Provider::Paperless, Provider::WebDav, Provider::CalDav, Provider::Ics, Provider::CardDav] as $provider) {
             self::assertSame(AuthKind::AppPassword, $provider->authKind());
             self::assertTrue($provider->needsBaseUrl(), 'a self-hosted service has no canonical host');
             self::assertSame([], $provider->scopes(), 'an app-password provider asks for no OAuth scopes');
@@ -340,6 +357,8 @@ final class ProviderTest extends TestCase
         self::assertSame('caldav', Provider::CalDav->transKey());
         self::assertSame('carddav', Provider::CardDav->slug());
         self::assertSame('carddav', Provider::CardDav->transKey());
+        self::assertSame('webdav', Provider::WebDav->slug());
+        self::assertSame('webdav', Provider::WebDav->transKey());
     }
 
     /**
@@ -413,7 +432,7 @@ final class ProviderTest extends TestCase
         // rather than with the libraries: it is a document archive, so its
         // consumer takes a PDF, a scan or a spreadsheet alike, and a part whose
         // type could not be read is exactly the sort of thing it should get.
-        foreach ([Provider::Nextcloud, Provider::OpenCloud, Provider::Paperless, Provider::GoogleDrive, Provider::OneDrive, Provider::Dropbox] as $store) {
+        foreach ([Provider::Nextcloud, Provider::OpenCloud, Provider::Paperless, Provider::GoogleDrive, Provider::OneDrive, Provider::Dropbox, Provider::WebDav] as $store) {
             yield $store->value.' pdf'   => [$store, 'application/pdf', true];
             yield $store->value.' image' => [$store, 'image/jpeg', true];
             yield $store->value.' null'  => [$store, null, true];
@@ -453,6 +472,7 @@ final class ProviderTest extends TestCase
         yield 'googleDrive'  => [Provider::GoogleDrive, DestinationKind::Folder];
         yield 'oneDrive'     => [Provider::OneDrive, DestinationKind::Folder];
         yield 'dropbox'      => [Provider::Dropbox, DestinationKind::Folder];
+        yield 'webdav'       => [Provider::WebDav, DestinationKind::Folder];
         yield 'immich'       => [Provider::Immich, DestinationKind::Album];
         yield 'googlePhotos' => [Provider::GooglePhotos, DestinationKind::Album];
         yield 'paperless'    => [Provider::Paperless, DestinationKind::Tag];

@@ -349,6 +349,9 @@ services:
     App\Service\Integration\Driver\OpenCloudDriver:
         arguments:
             $httpClient: '@app.http_client.integration'
+    App\Service\Integration\Driver\WebDavDriver:
+        arguments:
+            $httpClient: '@app.http_client.integration'
     App\Service\Integration\Driver\PaperlessDriver:
         arguments:
             $httpClient: '@app.http_client.integration'

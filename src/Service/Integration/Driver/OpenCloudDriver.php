@@ -9,6 +9,7 @@ use App\Domain\DTO\Integration\Listing;
 use App\Domain\DTO\Integration\RemoteFile;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
+use App\Domain\Interface\SearchableDriverInterface;
 use App\Entity\Integration\Integration;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionInterface;
 
@@ -51,7 +52,7 @@ use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionIn
  *     space, and JSON asked for by name. OpenCloud refuses a public link
  *     without a password unless the admin turned that policy off.
  */
-final readonly class OpenCloudDriver extends AbstractWebDavDriver
+final readonly class OpenCloudDriver extends AbstractWebDavDriver implements SearchableDriverInterface
 {
     /** Where a space's tree lives, and where search hits point. */
     private const string SPACES_PATH = '/remote.php/dav/spaces';

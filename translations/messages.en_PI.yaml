@@ -692,6 +692,13 @@ admin:
                 step_base_url: 'Optionally set th'' port address fast, say https://paperless.example.com.'
                 step_enable: 'Hoist "Offer this port to th'' crew" above.'
                 step_token: 'Every hand copies their API token from Paperless under My Profile → API Auth Token and stows it in their own port settings.'
+            webdav:
+                intro: "WebDAV covers any file hold that speaks it — FileBrowser Quantum, a Synology NAS, rclone serve webdav, Apache mod_dav. Each hand boards with their own password or token, so there be nothin' to register here."
+                no_links: "WebDAV has no public links, no previews an' no search. Files heavier than th' attachment limit can't come aboard, an' the picker shows a file mark instead o' a likeness."
+                security: "A hold in private waters, like a NAS at home, is only reached once its host be listed in INTEGRATIONS_ALLOWED_HOSTS."
+                step_base_url: "Optionally nail down the address, like https://files.example.com/dav/files/. It be the full bearin' o' the folder to open, path an' all: on FileBrowser Quantum that be /dav/ followed by the source name."
+                step_enable: 'Hoist "Offer this port to th'' crew" above.'
+                step_user: "Each hand enters that address, a username if the hold asks for one, an' a password or API token. FileBrowser Quantum takes an API token as the password an' pays the username no mind."
         tutorial_heading: 'Riggin'''
         unimplemented_notice: 'plMail cannot hail this port yet. Stow th'' papers now — they be used th'' moment passage opens.'
     loading: 'Haulin'' aboard…'
@@ -4142,6 +4149,8 @@ settings:
         field:
             base_url: 'Port address'
             base_url_fixed: 'Sailin'' to %url%, set by th'' quartermaster.'
+            base_url_help:
+                webdav: "The full bearin' o' the folder to open, path an' all — on FileBrowser Quantum, https://host/dav/<source>/."
             name: Name
             name_help: 'Only ye see it, to tell two moorings apart.'
             permissions:
@@ -4157,6 +4166,7 @@ settings:
                 oneDrive: 'Access token'
                 openCloud: 'App token'
                 paperless: 'API token'
+                webdav: "Password or token"
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -4166,6 +4176,7 @@ settings:
                 oneDrive: ''
                 openCloud: 'Make one in OpenCloud under yer account settings → App Tokens, and pick a long life: a token past its day stops workin''. With single sign-on, th'' username may be th'' ID shown under Preferences.'
                 paperless: 'Copy it from Paperless under My Profile → API Auth Token.'
+                webdav: "For FileBrowser Quantum, forge an API token an' paste it here; the username can stay empty. A token that runs out stops workin'."
             secret_unchanged: 'Leave blank to keep th'' stored papers'
             username: Username
         heading: 'Friendly ports'

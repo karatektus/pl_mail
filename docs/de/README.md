@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:e371d8ae984370b98178d715a075bfdae3633b73 -->
+<!-- translated-from: README.md sha1:13a03ab279db5393cc1c720b3fbc05e5a7d7126b -->
 
 # plMail-Dokumentation
 
@@ -38,7 +38,7 @@ wo der Mechanismus dahinter steht.
 | [Verbundene Kalender](features/calendar-sync.md) | Google-, Microsoft- und CalDAV-Kalender abonnieren, Abgleich in beide Richtungen, ICS-Import, -Export und Feed-Abonnements, doppelte Termine |
 | [Teilen und Buchen](features/calendar-sharing.md) | Freigabelinks und was jeder preisgibt, Buchungsseiten, wie eine Buchung ankommt |
 | [Kontakte](features/contacts.md) | Das Adressbuch: eigene und synchronisierte Kontakte nebeneinander, Bearbeiten, Duplikate und Zusammenführen, vCard- und CSV-Import und -Export |
-| [Dateien und Integrationen](features/integrations.md) | Anhängen aus und Speichern in Drive, Photos, OneDrive, Dropbox, Nextcloud, OpenCloud, Immich und Paperless-ngx |
+| [Dateien und Integrationen](features/integrations.md) | Anhängen aus und Speichern in Drive, Photos, OneDrive, Dropbox, Nextcloud, OpenCloud, Immich, Paperless-ngx und WebDAV |
 | [Sicherheit](features/security.md) | Dein Passwort ändern, Zwei-Faktor-Authentifizierung, Wiederherstellungscodes, gemerkte Geräte, App-Passwörter, Sitzungen |
 | [Verschlüsselung](features/encryption.md) | Deine OpenPGP-Schlüssel, die Recovery-Phrase, bekannte Geräte, Schlüssel importieren und exportieren, was ein Passwort-Reset mit ihnen macht |
 | [Andere Clients](features/clients.md) | Einen JMAP-Client verbinden, Passwörter pro App, die PWA und Browser-Benachrichtigungen |

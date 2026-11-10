@@ -749,6 +749,13 @@ admin:
                 step_base_url: 'Optionally pin the server address, for example https://paperless.example.com.'
                 step_enable: 'Turn on "Offer this service to users" above.'
                 step_token: 'Each user copies their API token from Paperless under My Profile → API Auth Token and pastes it into their own integration settings.'
+            webdav:
+                intro: "WebDAV covers any file server that speaks it — FileBrowser Quantum, a Synology NAS, rclone serve webdav, Apache mod_dav. Each user connects with their own password or token, so there is nothing to register here."
+                no_links: "WebDAV has no public links, previews or search. Files above the attachment size limit cannot be attached, and the picker shows a file icon instead of a thumbnail."
+                security: "A server on a private network, such as a NAS at home, is only reached once its host is listed in INTEGRATIONS_ALLOWED_HOSTS."
+                step_base_url: "Optionally pin the address, for example https://files.example.com/dav/files/. It is the full address of the folder to open, path included: on FileBrowser Quantum that is /dav/ followed by the source name."
+                step_enable: 'Turn on "Offer this service to users" above.'
+                step_user: "Each user enters that address, a username if the server asks for one, and a password or API token. FileBrowser Quantum takes an API token as the password and ignores the username."
         tutorial_heading: 'Setup'
         unimplemented_notice: 'plMail cannot talk to this service yet. You can register the credentials now — they will be used as soon as support ships.'
     loading: 'Loading…'
@@ -4323,6 +4330,8 @@ settings:
         field:
             base_url: 'Server address'
             base_url_fixed: 'Connecting to %url%, set by your administrator.'
+            base_url_help:
+                webdav: "The full address of the folder to open, path included — on FileBrowser Quantum, https://host/dav/<source>/."
             name: Name
             name_help: 'Only shown to you, so you can tell two connections apart.'
             permissions:
@@ -4338,6 +4347,7 @@ settings:
                 oneDrive: 'Access token'
                 openCloud: 'App token'
                 paperless: 'API token'
+                webdav: "Password or token"
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -4347,6 +4357,7 @@ settings:
                 oneDrive: ''
                 openCloud: 'Create one in OpenCloud under your account settings → App Tokens, and choose a long expiry: an expired token stops working. With single sign-on, the username may be the ID shown under Preferences.'
                 paperless: 'Copy it from Paperless under My Profile → API Auth Token.'
+                webdav: "For FileBrowser Quantum, create an API token and paste it here; the username can stay empty. A token that expires stops working."
             secret_unchanged: 'Leave blank to keep the stored credential'
             username: Username
         heading: Integrations
