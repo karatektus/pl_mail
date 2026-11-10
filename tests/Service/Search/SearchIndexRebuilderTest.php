@@ -96,6 +96,80 @@ final class SearchIndexRebuilderTest extends KernelTestCase
         self::assertNull($this->connection->fetchOne('SELECT search_vector FROM message WHERE id = ?', [$older]));
     }
 
+    /**
+     * #546: Postgres refuses a tsvector over 1 MB, and the trigger fed it the
+     * whole body. A body like this one — 2.9 million characters of words that
+     * do not repeat, the worst case there is — could not be indexed, and since
+     * the trigger runs on INSERT too, could not be stored: the sync retried it
+     * and then skipped it for good.
+     */
+    public function testAMessageWithAHugeBodyIsStoredAndFoundByItsFirstWords(): void
+    {
+        $id = $this->store('pelican ' . self::hugeText());
+
+        self::assertTrue($this->indexed($id, 'pelican'));
+    }
+
+    /** The rebuild got as far as the first batch with such a message in it, and no further. */
+    public function testAHugeHtmlBodyIsIndexedByTheRebuildWithTheRest(): void
+    {
+        $older = $this->waiting('<p>older</p>');
+        $huge  = $this->waiting('<p>flamingo ' . self::hugeText() . '</p>');
+        $newer = $this->waiting('<p>newer</p>');
+
+        new SearchIndexRebuilder(new MessageSearchIndexRepository($this->connection), new MessageEmbeddingRepository($this->connection))->rebuild();
+
+        self::assertTrue($this->indexed($huge, 'flamingo'));
+        self::assertTrue($this->indexed($older, 'older'));
+        self::assertTrue($this->indexed($newer, 'newer'));
+    }
+
+    /**
+     * One row Postgres will not index, for whatever reason, costs that row
+     * and not its batch. A batch was one transaction, and newest first the
+     * next pass took the same batch and failed the same way.
+     *
+     * The refusal is a trigger made for the test, inside its transaction, so
+     * that it does not depend on any one way of failing.
+     */
+    public function testARowThatWillNotIndexDoesNotStopTheRest(): void
+    {
+        $older  = $this->waiting('<p>older</p>');
+        $poison = $this->waiting('<p>refused</p>');
+        $plain  = $this->store('');
+        $newer  = $this->waiting('<p>newer</p>');
+
+        $this->connection->executeStatement('UPDATE message SET search_vector = NULL WHERE id = ?', [$plain]);
+        $this->connection->executeStatement("UPDATE message SET subject = 'poison' WHERE id IN (?, ?)", [$poison, $plain]);
+        $this->connection->executeStatement(<<<'SQL'
+            CREATE FUNCTION test_refuse_poison() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN
+                IF NEW.subject = 'poison' AND NEW.search_vector IS NOT NULL THEN
+                    RAISE EXCEPTION 'refused for the test';
+                END IF;
+
+                RETURN NEW;
+            END
+            $$
+            SQL);
+        $this->connection->executeStatement('CREATE TRIGGER test_refuse_poison BEFORE UPDATE ON message FOR EACH ROW EXECUTE FUNCTION test_refuse_poison()');
+
+        // Batches of two, so the refused rows share theirs with a good one.
+        $done = new SearchIndexRebuilder(new MessageSearchIndexRepository($this->connection), new MessageEmbeddingRepository($this->connection), 2)->rebuild();
+
+        self::assertTrue($this->indexed($newer, 'newer'));
+        self::assertTrue($this->indexed($older, 'older'));
+        self::assertNull($this->connection->fetchOne('SELECT search_vector FROM message WHERE id = ?', [$poison]));
+        self::assertNull($this->connection->fetchOne('SELECT search_vector FROM message WHERE id = ?', [$plain]));
+        self::assertSame(4, $done['indexed'], 'each row taken once, and the pass ended');
+    }
+
+    /** About 2.9 million characters of words that never repeat. */
+    private static function hugeText(): string
+    {
+        return implode(' ', array_map(static fn (int $i): string => md5((string) $i), range(1, 85000)));
+    }
+
     private function indexed(int $id, string $word): bool
     {
         return (bool) $this->connection->fetchOne(
