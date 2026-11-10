@@ -320,6 +320,11 @@ plMail stored from them before are removed over the next syncs; mail only they h
 over IMAP All Mail stays on, because archived mail lives there and nowhere else. Switching
 either back on fetches the copies it had removed again.
 
+Their labels leave the sidebar at the same time, since what they hold once the folder is off is
+only that leftover mail and not everything. In their place plMail switches on its own **All Mail**
+(see [Mail](mail.md)), which lists every conversation from every folder. Both labels stay in
+**Settings → Labels**, where they can be shown again.
+
 Nested folders are indented under their parent. A folder that only groups others and holds no mail
 of its own — Gmail's `[Gmail]`, for one — is listed greyed out with its switch off and disabled:
 the server will not open it, so there is nothing to fetch.

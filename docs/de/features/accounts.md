@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:7e1be9d1794b261c19145ce0c560716bdeae60ef -->
+<!-- translated-from: features/accounts.md sha1:be438d5303168917c046e09f2a1f5efeff934643 -->
 
 # Konten und Aliase
 
@@ -360,6 +360,12 @@ gespeichert hat, werden über die nächsten Synchronisierungen entfernt; Mail, d
 bleibt. Bei Gmail über IMAP bleibt All Mail eingeschaltet, denn archivierte Mail liegt dort und
 nirgends sonst. Schaltest du einen wieder ein, holt plMail die entfernten
 Kopien erneut ab.
+
+Ihre Labels verschwinden zur selben Zeit aus der Seitenleiste, denn was sie bei ausgeschaltetem
+Ordner enthalten, ist nur diese übrig gebliebene Mail und nicht alles. An ihrer Stelle schaltet
+plMail sein eigenes **Alle E-Mails** ein (siehe [Mail](mail.md)), das jede Unterhaltung aus
+jedem Ordner zeigt. Beide Labels bleiben unter **Einstellungen → Labels**, wo du sie wieder
+einblenden kannst.
 
 Verschachtelte Ordner sind unter ihrem übergeordneten Ordner eingerückt. Ein Ordner, der nur andere
 zusammenfasst und selbst keine Post enthält — etwa `[Gmail]` bei Gmail —, steht ausgegraut in der
