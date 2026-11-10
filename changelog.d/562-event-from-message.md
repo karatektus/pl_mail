@@ -3,4 +3,4 @@ in the **⋮** menu of a message, opens the event editor over the mail with the 
 You pick the date and the reminders; once saved, the event's details name the mail and open it in
 one click, the same provenance an invitation or a booking read out of mail already carries. The link
 stays in plMail — a mirrored Google, Microsoft or CalDAV calendar has no field for it. No schema
-change.
+change. [#562](https://github.com/karatektus/pl_mail/issues/562)
