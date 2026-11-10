@@ -7,6 +7,7 @@ namespace App\Tests\Service\Imap;
 use App\Infrastructure\ImapClient\Exception\ImapConnectionException;
 use App\Infrastructure\ImapClient\ImapLoop;
 use App\Infrastructure\ImapClient\ImapSession;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Entity\Mail\Mailbox;
 use App\Service\Imap\ImapImportOutcome;
@@ -333,6 +334,79 @@ final class ImapMailboxImporterTest extends KernelTestCase
     private function missing(FakeImapServer $server): array
     {
         return array_values(array_diff(array_keys($server->messages['INBOX']), $this->storedUids()));
+    }
+
+    /**
+     * #546: a message the sync gave up on was never asked for again. The
+     * search vector refused anything with megabytes of text, so such mail was
+     * tried five times and passed over, and lastSeenUid went on past it.
+     * Planning the import again from the top brings in exactly those, and
+     * asks for nothing that is already here.
+     */
+    public function testAReopenedImportFetchesWhatTheSyncGaveUpOnAndNothingElse(): void
+    {
+        $server = $this->server($this->mails(range(1, self::TOP)));
+
+        // Finished, with two messages the sync passed over: one in the
+        // history, one among new mail above where the import began.
+        $everything = $this->server($this->mails(array_diff(range(1, self::TOP), [7, 120])));
+
+        while (ImapImportOutcome::Finished !== $this->importer->importPage($this->mailboxId, $this->session($everything))) {
+        }
+
+        self::assertNotContains(7, $this->storedUids());
+        self::assertNotContains(120, $this->storedUids());
+
+        $reopened = static::getContainer()->get(MailboxRepository::class)->reopenImport($this->account);
+        $this->em->clear();
+
+        self::assertSame(1, $reopened);
+
+        while (ImapImportOutcome::Finished !== $this->importer->importPage($this->mailboxId, $this->session($server))) {
+        }
+
+        self::assertSame(range(1, self::TOP), $this->storedUids());
+        // Each is asked for twice, by the index pass that looks for a copy
+        // already here and then for the message; what matters is which.
+        $asked = array_values(array_unique(array_merge(...$server->fetched)));
+        sort($asked);
+
+        self::assertSame([7, 120], $asked, 'only the two that were missing were fetched');
+    }
+
+    /** Folders that are not synced, or were never planned, are left as they are. */
+    public function testReopeningLeavesFoldersItHasNoBusinessWith(): void
+    {
+        $off                 = new Mailbox();
+        $off->account        = $this->account;
+        $off->name           = 'Starred';
+        $off->fullPath       = 'Starred';
+        $off->isSyncEnabled  = false;
+        $off->lastSeenUid    = 40;
+        $off->importFloorUid = 0;
+
+        $unplanned                = new Mailbox();
+        $unplanned->account       = $this->account;
+        $unplanned->name          = 'Fresh';
+        $unplanned->fullPath      = 'Fresh';
+        $unplanned->isSyncEnabled = true;
+
+        $this->em->persist($off);
+        $this->em->persist($unplanned);
+        $this->connection->executeStatement('UPDATE mailbox SET import_floor_uid = 0 WHERE id = ?', [$this->mailboxId]);
+        $this->em->flush();
+
+        self::assertSame(1, static::getContainer()->get(MailboxRepository::class)->reopenImport($this->account));
+
+        $floors = $this->connection->fetchAllKeyValue(
+            'SELECT full_path, import_floor_uid FROM mailbox WHERE account_id = ?',
+            [$this->account->id],
+        );
+
+        $floors = array_map(static fn (mixed $floor): ?int => null === $floor ? null : (int) $floor, $floors);
+        ksort($floors);
+
+        self::assertSame(['Fresh' => null, 'INBOX' => self::TOP + 1, 'Starred' => 0], $floors, 'only INBOX');
     }
 
     public function testAnEmptyFolderIsFinishedAtOnce(): void

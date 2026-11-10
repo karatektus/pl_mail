@@ -163,6 +163,46 @@ class MailboxRepository extends ServiceEntityRepository
     }
 
     /**
+     * Plan the history import of these folders again from the top, so it
+     * brings in whatever the server holds and this database does not (#546).
+     *
+     * The import already works that way: it asks the server which UIDs exist
+     * below its floor and fetches only those not stored here, leaving out
+     * mail plMail has deleted and the server not yet (#427). From the top, it
+     * is a search per folder and a fetch of the gaps. The gaps are mail the
+     * sync gave up on — a message it tried five times and then passed over
+     * for good, which before the search vector was capped was any message
+     * with megabytes of text.
+     *
+     * Folders that are synced, the server still lists, and whose import was
+     * planned once: an unplanned one is planned by its next sync anyway, and
+     * one with no lastSeenUid has nothing to stand the floor on.
+     *
+     * @return int how many folders will be looked through
+     */
+    public function reopenImport(?Account $account = null): int
+    {
+        $qb = $this->getEntityManager()->createQueryBuilder()
+            ->update(Mailbox::class, 'mailbox')
+            ->set('mailbox.importFloorUid', 'mailbox.lastSeenUid + 1')
+            ->set('mailbox.importTotal', 'NULL')
+            ->set('mailbox.importRemaining', 'NULL')
+            ->set('mailbox.importPageAttempts', '0')
+            ->where('mailbox.isSyncEnabled = true')
+            ->andWhere('mailbox.isSelectable = true')
+            ->andWhere('mailbox.missingSince IS NULL')
+            ->andWhere('mailbox.lastSeenUid IS NOT NULL')
+            ->andWhere('mailbox.importFloorUid IS NOT NULL');
+
+        if (null !== $account) {
+            $qb->andWhere('mailbox.account = :account')
+                ->setParameter('account', $account);
+        }
+
+        return (int) $qb->getQuery()->execute();
+    }
+
+    /**
      * How many of an account's folders still have history to bring in.
      *
      * What "the first import is still running" means for IMAP, which has no
