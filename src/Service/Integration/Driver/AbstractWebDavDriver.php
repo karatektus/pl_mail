@@ -11,7 +11,6 @@ use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Interface\DestinationDriverInterface;
 use App\Domain\Interface\IntegrationDriverInterface;
-use App\Domain\Interface\SearchableDriverInterface;
 use App\Entity\Integration\Integration;
 use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationUrlValidator;
@@ -21,9 +20,15 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
- * A file store reached over the ownCloud flavour of WebDAV: Nextcloud, and
- * OpenCloud (#476), which forked from ownCloud Infinite Scale and kept the
- * same /remote.php/dav/files/{user} tree for the clients that expect it.
+ * A file store reached over WebDAV: Nextcloud, OpenCloud (#476), which forked
+ * from ownCloud Infinite Scale and kept the same /remote.php/dav/files/{user}
+ * tree for the clients that expect it, and any plain WebDAV server (#547).
+ *
+ * The defaults here are the ownCloud flavour, because two of the three speak
+ * it. WebDavDriver overrides where the tree starts (the address itself), turns
+ * the username optional, and declines the OCS share call; search is not part
+ * of this class at all, since a plain server has none, so the two drivers
+ * that can search declare SearchableDriverInterface themselves.
  *
  * Extracted from NextcloudDriver when OpenCloud arrived, because the two agree
  * on everything a picker does most: PROPFIND to list, GET to download, PUT and
@@ -44,7 +49,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * individually revocable and survive the account having 2FA or SSO turned on,
  * which a login password does not.
  */
-abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterface, SearchableDriverInterface, DestinationDriverInterface
+abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterface, DestinationDriverInterface
 {
     /** The files tree under the DAV root, one collection per user. */
     protected const string FILES_PATH = '/remote.php/dav/files';
@@ -363,6 +368,16 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
         return '' === $id;
     }
 
+    /**
+     * Whether a request may go out without a username. Nextcloud and
+     * OpenCloud address the files tree by it, so a missing one is a broken
+     * connection rather than an anonymous one.
+     */
+    protected function usernameIsOptional(): bool
+    {
+        return false;
+    }
+
     /** The error for a share the server would not create. */
     protected function shareRefused(string $message): IntegrationException
     {
@@ -380,7 +395,7 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
      */
     protected function propfind(Integration $integration, string $path): array
     {
-        $response = $this->request($integration, 'PROPFIND', $this->davUrl($integration, $path), [
+        $response = $this->request($integration, 'PROPFIND', $this->collectionUrl($integration, $path), [
             'headers' => [
                 'Depth'        => '1',
                 'Content-Type' => 'application/xml',
@@ -493,7 +508,7 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
                 continue;
             }
 
-            $status = $this->request($integration, 'MKCOL', $this->davUrl($integration, $walked), [], false)
+            $status = $this->request($integration, 'MKCOL', $this->collectionUrl($integration, $walked), [], false)
                 ->getStatusCode();
 
             // 201 created, 405 already there. Anything else is a real problem,
@@ -565,7 +580,13 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
         array $options = [],
         bool $throwOnError = true,
     ): ResponseInterface {
-        if (null === $integration->username || null === $integration->secret) {
+        $username = $integration->username;
+
+        if (null === $username && true === $this->usernameIsOptional()) {
+            $username = '';
+        }
+
+        if (null === $username || null === $integration->secret) {
             throw new IntegrationException(sprintf(
                 'This %s connection is missing its username or %s.',
                 $this->provider()->label(),
@@ -573,7 +594,7 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
             ));
         }
 
-        $options['auth_basic'] = [$integration->username, $integration->secret];
+        $options['auth_basic'] = [$username, $integration->secret];
 
         $options += HttpLimits::CALL;
 
@@ -656,6 +677,17 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
         }
 
         return $url.'/'.$this->encodePath($path);
+    }
+
+    /**
+     * The URL of a folder, for PROPFIND and MKCOL. The same as davUrl() here:
+     * Nextcloud and OpenCloud answer a collection with or without its
+     * trailing slash. A plain WebDAV server may not — Apache mod_dav answers
+     * the bare form with a 301 — so WebDavDriver adds it.
+     */
+    protected function collectionUrl(Integration $integration, string $path): string
+    {
+        return $this->davUrl($integration, $path);
     }
 
     /** Percent-encode each segment of a path, keeping the slashes. */

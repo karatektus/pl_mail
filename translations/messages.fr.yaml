@@ -756,6 +756,13 @@ admin:
                 step_base_url: 'Facultatif : imposez l’adresse du serveur, par exemple https://paperless.example.com.'
                 step_enable: 'Activez « Proposer ce service aux utilisateurs » ci-dessus.'
                 step_token: 'Chaque utilisateur copie son jeton d’API depuis Paperless sous Mon profil → Jeton d’authentification API et le colle dans ses propres réglages d’intégration.'
+            webdav:
+                intro: "WebDAV couvre tout serveur de fichiers qui le parle — FileBrowser Quantum, un NAS Synology, rclone serve webdav, Apache mod_dav. Chaque utilisateur se connecte avec son propre mot de passe ou jeton : il n’y a rien à enregistrer ici."
+                no_links: "WebDAV n’offre ni liens publics, ni aperçus, ni recherche. Les fichiers au-delà de la taille maximale des pièces jointes ne peuvent pas être joints, et le sélecteur affiche une icône de fichier au lieu d’une miniature."
+                security: "Un serveur sur un réseau privé, comme un NAS à la maison, n’est joignable qu’une fois son hôte ajouté à INTEGRATIONS_ALLOWED_HOSTS."
+                step_base_url: "Facultatif : imposez l’adresse, par exemple https://files.example.com/dav/files/. C’est l’adresse complète du dossier à ouvrir, chemin compris : sur FileBrowser Quantum, /dav/ suivi du nom de la source."
+                step_enable: 'Activez « Proposer ce service aux utilisateurs » ci-dessus.'
+                step_user: "Chaque utilisateur saisit cette adresse, un nom d’utilisateur si le serveur en demande un, et un mot de passe ou un jeton d’API. FileBrowser Quantum prend un jeton d’API comme mot de passe et ignore le nom d’utilisateur."
         tutorial_heading: 'Configuration'
         unimplemented_notice: 'plMail ne sait pas encore communiquer avec ce service. Vous pouvez enregistrer les identifiants dès maintenant — ils seront utilisés dès que la prise en charge arrivera.'
     loading: 'Chargement…'
@@ -4378,6 +4385,8 @@ settings:
         field:
             base_url: 'Adresse du serveur'
             base_url_fixed: 'Connexion à %url%, définie par votre administrateur.'
+            base_url_help:
+                webdav: "L’adresse complète du dossier à ouvrir, chemin compris — sur FileBrowser Quantum, https://hote/dav/<source>/."
             name: Nom
             name_help: 'Visible de vous seul, pour distinguer deux connexions.'
             permissions:
@@ -4393,6 +4402,7 @@ settings:
                 oneDrive: 'Jeton d’accès'
                 openCloud: 'Jeton d’application'
                 paperless: 'Jeton d’API'
+                webdav: "Mot de passe ou jeton"
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -4402,6 +4412,7 @@ settings:
                 oneDrive: ''
                 openCloud: 'Créez-en un dans OpenCloud sous Paramètres du compte → Jetons d’application et choisissez une longue durée : un jeton expiré ne fonctionne plus. Avec l’authentification unique, le nom d’utilisateur peut être l’identifiant affiché dans les préférences.'
                 paperless: 'Copiez-le depuis Paperless sous Mon profil → Jeton d’authentification API.'
+                webdav: "Pour FileBrowser Quantum, créez un jeton d’API et collez-le ici ; le nom d’utilisateur peut rester vide. Un jeton expiré cesse de fonctionner."
             secret_unchanged: 'Laissez vide pour conserver l’identifiant enregistré'
             username: Nom d’utilisateur
         heading: Intégrations

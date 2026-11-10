@@ -43,6 +43,7 @@ test.beforeAll(() => {
 const PROVIDER_IDS: Record<string, string> = {
     Nextcloud: "nextcloud",
     OpenCloud: "openCloud",
+    WebDAV: "webdav",
     Immich: "immich",
     "Google Drive": "googleDrive",
     "Google Photos": "googlePhotos",

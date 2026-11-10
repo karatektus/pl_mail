@@ -760,6 +760,13 @@ admin:
                 step_base_url: 'Optional die Serveradresse festlegen, etwa https://paperless.example.com.'
                 step_enable: 'Oben „Diesen Dienst anbieten“ einschalten.'
                 step_token: 'Jede Person kopiert ihr API-Token in Paperless unter My Profile → API Auth Token und trägt es in ihren eigenen Integrationseinstellungen ein.'
+            webdav:
+                intro: "WebDAV deckt jeden Dateiserver ab, der es spricht — FileBrowser Quantum, ein Synology-NAS, rclone serve webdav, Apache mod_dav. Jede Person verbindet sich mit eigenem Passwort oder Token, hier ist also nichts zu registrieren."
+                no_links: "WebDAV kennt keine öffentlichen Links, keine Vorschauen und keine Suche. Dateien über der Anhangsgrenze lassen sich nicht anhängen, und die Auswahl zeigt ein Datei-Symbol statt eines Vorschaubilds."
+                security: "Ein Server in einem privaten Netz, etwa ein NAS zu Hause, wird erst erreicht, wenn sein Host in INTEGRATIONS_ALLOWED_HOSTS steht."
+                step_base_url: "Optional die Adresse festlegen, etwa https://files.example.com/dav/files/. Gemeint ist die volle Adresse des Ordners samt Pfad: bei FileBrowser Quantum /dav/ und dahinter der Name der Quelle."
+                step_enable: 'Oben „Diesen Dienst anbieten“ einschalten.'
+                step_user: "Jede Person trägt diese Adresse ein, einen Benutzernamen, falls der Server einen will, und ein Passwort oder API-Token. FileBrowser Quantum nimmt ein API-Token als Passwort und ignoriert den Benutzernamen."
         tutorial_heading: 'Einrichtung'
         unimplemented_notice: 'plMail kann diesen Dienst noch nicht ansprechen. Die Zugangsdaten können jetzt hinterlegt werden — sie greifen, sobald die Unterstützung erscheint.'
     loading: 'Wird geladen…'
@@ -4341,6 +4348,8 @@ settings:
         field:
             base_url: 'Serveradresse'
             base_url_fixed: 'Verbindung zu %url%, von der Administration festgelegt.'
+            base_url_help:
+                webdav: "Die volle Adresse des Ordners samt Pfad — bei FileBrowser Quantum https://host/dav/<quelle>/."
             name: Name
             name_help: 'Nur für dich sichtbar, um zwei Verbindungen auseinanderzuhalten.'
             permissions:
@@ -4356,6 +4365,7 @@ settings:
                 oneDrive: 'Zugriffstoken'
                 openCloud: 'App-Token'
                 paperless: 'API-Token'
+                webdav: "Passwort oder Token"
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -4365,6 +4375,7 @@ settings:
                 oneDrive: ''
                 openCloud: 'Erstelle eines in OpenCloud unter Kontoeinstellungen → App-Tokens und wähl eine lange Laufzeit: Ein abgelaufenes Token funktioniert nicht mehr. Mit Single Sign-on ist der Benutzername eventuell die ID unter Einstellungen.'
                 paperless: 'In Paperless unter My Profile → API Auth Token kopieren.'
+                webdav: "Bei FileBrowser Quantum ein API-Token anlegen und hier einfügen; den Benutzernamen kannst du leer lassen. Ein abgelaufenes Token funktioniert nicht mehr."
             secret_unchanged: 'Leer lassen, um die gespeicherten Zugangsdaten zu behalten'
             username: Benutzername
         heading: Integrationen

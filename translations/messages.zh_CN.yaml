@@ -653,6 +653,13 @@ admin:
                 step_base_url: '可选填固定服务器地址，例如 https://paperless.example.com。'
                 step_enable: 开启上方的“向用户提供此服务”。
                 step_token: '每位用户从 Paperless 的 My Profile → API Auth Token 复制 API 令牌，然后粘贴到自己的集成设置中。'
+            webdav:
+                intro: "WebDAV 适用于任何支持该协议的文件服务器——FileBrowser Quantum、群晖 NAS、rclone serve webdav、Apache mod_dav。每位用户使用自己的密码或令牌连接，因此这里无需注册任何内容。"
+                no_links: "WebDAV 不支持公开链接、预览和搜索。超过附件大小上限的文件无法附加，选择器会显示文件图标而不是缩略图。"
+                security: "位于私有网络中的服务器（例如家中的 NAS）只有在其主机列入 INTEGRATIONS_ALLOWED_HOSTS 后才能访问。"
+                step_base_url: "可选：固定地址，例如 https://files.example.com/dav/files/。这是要打开的文件夹的完整地址，包含路径：在 FileBrowser Quantum 上是 /dav/ 加上数据源名称。"
+                step_enable: 开启上方的“向用户提供此服务”。
+                step_user: "每位用户输入该地址、服务器要求时的用户名，以及密码或 API 令牌。FileBrowser Quantum 将 API 令牌用作密码，并忽略用户名。"
         tutorial_heading: 设置步骤
         unimplemented_notice: 'plMail 暂不支持连接此服务。可以先注册凭据，支持发布后即可使用。'
     loading: 加载中…
@@ -3719,6 +3726,8 @@ settings:
         field:
             base_url: '服务器地址'
             base_url_fixed: '正在连接管理员指定的 %url%。'
+            base_url_help:
+                webdav: "要打开的文件夹的完整地址，包含路径——在 FileBrowser Quantum 上为 https://host/dav/<source>/。"
             name: '名称'
             name_help: '仅你可见，用于区分不同连接。'
             permissions:
@@ -3734,6 +3743,7 @@ settings:
                 oneDrive: '访问令牌'
                 openCloud: '应用令牌'
                 paperless: 'API 令牌'
+                webdav: "密码或令牌"
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -3743,6 +3753,7 @@ settings:
                 oneDrive: ''
                 openCloud: '在 OpenCloud 的账户设置 → 应用令牌中创建，并选择较长的有效期：令牌过期后将无法使用。使用单点登录时，用户名可能是偏好设置中显示的 ID。'
                 paperless: '从 Paperless 的 My Profile → API Auth Token 中复制。'
+                webdav: "对于 FileBrowser Quantum，请创建 API 令牌并粘贴到这里；用户名可以留空。令牌过期后将无法使用。"
             secret_unchanged: '留空以保留已保存的凭据'
             username: '用户名'
         heading: '集成'
