@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:b293d951b77d4bb00035776790dd9e8bf7517a7e -->
+<!-- translated-from: features/calendar.md sha1:6a834666589981c128db13991e3fe51a4426e6f2 -->
 
 # Kalender
 
