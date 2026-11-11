@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:0a2468731566d2573a78c92a988da5b3de1133d7 -->
+<!-- translated-from: features/mail.md sha1:35b279e8212938c53c6940c8e40d8a1c0f937cee -->
 
 # Mail
 
@@ -1287,6 +1287,31 @@ Klickst du einen Link an, der schon im Editor steht, zeigt dasselbe Feld sein an
 Adresse sowie **Öffnen**, **Ändern** und **Entfernen**. Es schließt sich mit Escape, bei einem
 Klick daneben und sobald der Cursor den Link verlässt.
 
+### E-Mail-Links
+
+Ein `mailto:`-Link öffnet das Verfassen-Fenster von plMail, mit allem, was der Link mitbringt: die
+Empfänger in **An**, **Cc** und **Bcc**, den **Betreff** und den **Text** über deiner Signatur.
+Gespeichert wird erst, wenn du tippst, wie bei jeder neuen Nachricht, also hinterlässt ein
+versehentlich geöffneter Link keinen Entwurf. Will ein Link etwas anderes festlegen, etwa den
+Absender oder die Unterhaltung, auf die er antwortet, wird er ohne das geöffnet.
+
+- **In einer Mail, die du liest**, öffnet ein Klick auf einen `mailto:`-Link das Fenster unten
+  rechts statt des Mailprogramms deines Rechners. Strg- oder ⌘-Klick oder das Menü des Links tun
+  weiterhin, was der Browser tut.
+- **Auf anderen Websites** landen Links bei plMail, sobald dieser Browser sie dorthin schicken soll:
+  **Einstellungen → Lesen & Schreiben → Verfassen → E-Mail-Links → plMail verwenden**. Der Browser fragt an
+  der Adresszeile nach, und plMail erfährt nicht, ob du zugestimmt hast. Jeder Browser und jedes
+  Gerät wird für sich eingestellt, und rückgängig machst du es in den Einstellungen des Browsers (in
+  Chrome unter `chrome://settings/handlers`, in Firefox unter **Einstellungen → Anwendungen →
+  mailto**).
+- **Als App installiert** bietet sich plMail in Chrome oder Edge ohne diesen Knopf für E-Mail-Links
+  an. Welches Programm sie bekommt, entscheidet dann die Einstellung des Systems für das
+  Standard-Mailprogramm.
+- **Die Apps für Android und iOS** nehmen E-Mail-Links an wie jede Mail-App; siehe
+  [Clients](clients.md).
+
+Bist du abgemeldet, führt der Link über die Anmeldung, und das Fenster öffnet sich danach.
+
 ### Signatur
 
 Signaturen wohnen unter **Einstellungen → Signaturen**. Jedes Konto hat eine, und jede seiner
@@ -1554,6 +1579,13 @@ nicht raus.
 - [JMAP](../internals/jmap.md) — dieselben Operationen, wie ein Client sie sieht.
 
 ## Fallstricke
+
+**„plMail verwenden“ für E-Mail-Links braucht HTTPS und einen Browser, der es erlaubt.** Browser
+lassen eine Web-App `mailto:`-Links nur über HTTPS (oder auf `localhost`) übernehmen, also ist der
+Knopf bei einer Installation über einfaches HTTP ausgeschaltet und sagt, warum. Safari und jeder
+Browser unter iOS können E-Mail-Links gar nicht an eine Web-App geben; die plMail-App für iOS kann
+es. Hat der Browser gefragt und du hast „Nein“ gesagt, sieht plMail das nicht: ein weiterer Druck
+auf den Knopf fragt noch einmal.
 
 **Der Abbruch verschwindet zwei Sekunden vor der Nachricht.** Der Sendeauftrag wird zehn Sekunden
 zurückgehalten, das Fenster bietet *zum Abbrechen klicken* aber nur acht Sekunden lang an und

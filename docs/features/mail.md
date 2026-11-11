@@ -1172,6 +1172,29 @@ Clicking a link already in the editor shows the panel's other face: the address,
 **Change** and **Remove**. It dismisses on Escape, on a click outside, and as soon as the caret
 moves off the link.
 
+### Email links
+
+A `mailto:` link opens plMail's own compose window, with whatever the link carries: the recipients
+in **To**, **Cc** and **Bcc**, the **subject**, and the **body** above your signature. Nothing is
+saved until you type, as with any new message, so a link opened by mistake leaves no draft behind.
+A link that tries to set anything else, such as the sender or the conversation it answers, is
+opened without it.
+
+- **In a mail you are reading**, clicking a `mailto:` link opens the window in the dock instead of
+  your computer's mail program. Ctrl- or ⌘-click, or the link's own menu, still does what the
+  browser does.
+- **On other websites**, links go to plMail once this browser is told to send them there:
+  **Settings → Reading & writing → Compose → Email links → Use plMail**. The browser asks you to confirm,
+  by the address bar, and plMail is not told whether you said yes. Each browser and each device is
+  set on its own, and the browser's own settings are where it is undone (in Chrome,
+  `chrome://settings/handlers`; in Firefox, **Settings → Applications → mailto**).
+- **plMail installed as an app** in Chrome or Edge offers itself for email links without that
+  button. The system's own setting for the default mail program decides between them.
+- **The Android and iOS apps** take email links as any mail app does; see
+  [Clients](clients.md).
+
+If you are signed out, the link goes through the sign-in and the window opens afterwards.
+
 ### Signature
 
 Signatures live in **Settings → Signatures**. Each account has one, and any of its sending addresses
@@ -1408,6 +1431,12 @@ or deleted. Editing it does not lift the mark, because the mail has still not go
 - [JMAP](../internals/jmap.md) — the same operations as a client sees them.
 
 ## Things that bite
+
+**"Use plMail" for email links needs HTTPS and a browser that allows it.** Browsers only let a web
+app take `mailto:` links over HTTPS (or on `localhost`), so an install reached over plain HTTP shows
+the button switched off and says why. Safari, and every browser on iOS, cannot hand email links to a
+web app at all; the plMail app for iOS can. A browser asked and answered "no" is not something
+plMail can see: pressing the button again asks again.
 
 **The cancel disappears two seconds before the message does.** The send job is held for ten seconds,
 but the composer stops offering *click to cancel* after eight and closes itself. Nothing is wrong

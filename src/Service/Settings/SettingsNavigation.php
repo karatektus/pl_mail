@@ -164,7 +164,7 @@ final class SettingsNavigation
                 ['card-images', 'settings.images.heading', 'settings.search.keywords.images'],
             ],
             'compose' => [
-                ['card-compose-behaviour', 'settings.compose_behavior.heading', null],
+                ['card-compose-behaviour', 'settings.compose_behavior.heading', 'settings.search.keywords.compose_behaviour'],
                 ['card-read-receipts', 'settings.compose_defaults.heading', 'settings.search.keywords.read_receipts'],
             ],
             'signature' => [

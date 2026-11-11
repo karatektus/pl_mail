@@ -556,8 +556,12 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             {% endif %}
 
             {# ── Cc ───────────────────────────────────────────────── #}
+            {# Folded away until asked for — unless the draft already has a
+               Cc, as a mailto: link with `cc=` or a reopened draft does. A row
+               hidden over addresses that WILL be sent to is a recipient the
+               sender never saw. The same for Bcc, where it matters more. #}
             <div data-compose--compose-target="ccField"
-                 class="flex hidden items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
+                 class="flex {{ form.ccAddresses.vars.value is empty ? 'hidden' }} items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
                 <label for="{{ form.ccAddresses.vars.id }}"
                        id="{{ form.ccAddresses.vars.id }}_label"
                        class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">{{ 'compose.cc'|trans }}</label>
@@ -568,7 +572,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
 
             {# ── Bcc ──────────────────────────────────────────────── #}
             <div data-compose--compose-target="bccField"
-                 class="flex hidden items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
+                 class="flex {{ form.bccAddresses.vars.value is empty ? 'hidden' }} items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
                 <label for="{{ form.bccAddresses.vars.id }}"
                        id="{{ form.bccAddresses.vars.id }}_label"
                        class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">{{ 'compose.bcc'|trans }}</label>

@@ -261,9 +261,14 @@ final class SeedRenderingCommand extends Command
             . '<h2>Your weekly digest</h2>%s'
             . '<img src="https://%s/open.gif" width="526" height="5" alt="">'
             . '<p><a href="https://%s/unsubscribe">Unsubscribe</a></p>'
+            // A mailto: with a Cc and an encoded subject, for the spec that
+            // clicks it and expects plMail's composer rather than the system's.
+            . '<p><a href="mailto:digest@%s?cc=editor@%s&amp;subject=A%%20question%%20about%%20the%%20digest">Write to us</a></p>'
             . '</div>',
             self::REMOTE_HOST,
             $images,
+            self::REMOTE_HOST,
+            self::REMOTE_HOST,
             self::REMOTE_HOST,
             self::REMOTE_HOST,
         );
