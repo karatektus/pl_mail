@@ -32,8 +32,8 @@ use Symfony\Contracts\Service\ResetInterface;
  * well-known path that is allowed to redirect, and the session itself then
  * names further URLs — three chances for a server to point plMail at the
  * container network. UserUrlHttpClient re-checks every hop. A JMAP server on
- * the LAN is therefore reached only once an administrator lists it in
- * INTEGRATIONS_ALLOWED_HOSTS, as a LAN CalDAV server is; IMAP needs no such
+ * the LAN is therefore reached only once an administrator allows it under
+ * Admin → Integrations, as a LAN CalDAV server is; IMAP needs no such
  * entry because a socket that speaks IMAP cannot be talked into fetching
  * anything else.
  *

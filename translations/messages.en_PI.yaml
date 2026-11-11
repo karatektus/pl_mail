@@ -79,7 +79,7 @@ account:
             missing_fields: 'Give us an email address an'' an IMAP host first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored one, which the test can only use once the ship be saved.'
             pop3_ok: 'Aye, connected — %count% messages in the hold.'
-            private_network: 'This server lies in private waters. The captain must allow its host in INTEGRATIONS_ALLOWED_HOSTS afore plMail may sail to it.'
+            private_network: 'This server lies in private waters. Th'' captain must let it aboard under Admin → Friendly ports → Holds in private waters afore plMail may sail to it.'
             smtp_none: 'No SMTP host charted — this ship sends no letters.'
             smtp_ok: 'Aboard an'' signed in.'
             timeout: 'The server kept its silence too long. Check the host an'' port, an'' whether a firewall blocks the channel.'
@@ -547,7 +547,7 @@ admin:
         base_url_per_user: 'Every hand names their own port.'
         base_url_pinned: 'set fast for all hands'
         calendar:
-            connected_warning: 'Hands already moored: %count%. A changed or cleared bearin'' applies to each of ''em th'' next time their calendars be sought, so a hand moored at another port, iCloud say, gets hailed about this one with their own password. Calendars already copied keep th'' bearin'' they were found at; if a cleared bearin'' lay in private waters, they stop syncin'' till its host be in INTEGRATIONS_ALLOWED_HOSTS.'
+            connected_warning: 'Hands already moored: %count%. A changed or cleared bearin'' applies to each of ''em th'' next time their calendars be sought, so a hand moored at another port, iCloud say, gets hailed about this one with their own password. Calendars already copied keep th'' bearin'' they were found at; if a cleared bearin'' lay in private waters, they stop syncin'' till it be let aboard under Holds in private waters below.'
             heading: 'Calendars'
             intro: 'Ports an'' feeds th'' crew copy their calendars from, under Settings → Calendars. Both be open to every hand; what can be set here be one port for all. Nextcloud be rigged with th'' cargo holds above, an'' its calendars sail with it.'
         clear_secret: 'Throw the stored secret overboard'
@@ -624,6 +624,25 @@ admin:
             enabled: 'Open'
             incomplete: 'Wants papers'
             unimplemented: 'Not yet charted'
+        trusted:
+            add: 'Let a hold aboard'
+            allow: 'Let aboard'
+            allow_http: 'Let plain http aboard'
+            empty: 'None yet. A hold that lies in private waters be turned away till it be listed here.'
+            field:
+                allow_http: 'This hold has no certificate: let plain http aboard'
+                allow_http_help: 'Only for a hold in yer own waters. Ship''s keys sent to it cross those waters in the clear.'
+                host: 'Hold'
+                host_help: 'Its host name or IP address, as in th'' bearin'' hands type: dav.home.example.com, 192.168.1.20. A whole bearin'' works too; only its host be kept.'
+            form_intro: 'Hands aboard can then moor plMail at this hold though it lies in private waters. Any of ''em can send plMail hailin'' every hold listed here, so list th'' holds hands truly use, not every ship in th'' harbour.'
+            heading: 'Holds in private waters'
+            http_allowed: 'Plain http let aboard'
+            intro: 'plMail turns away a bearin'' that points into private waters, so nobody can use it to reach this ship or th'' ones moored beside it. Th'' holds listed here be let through anyway: a CalDAV, CardDAV or file hold at home, a calendar feed in yer own harbour.'
+            remove: 'Stop lettin'' %host% aboard'
+            remove_confirm: 'Stop lettin'' %host% aboard? Hands moored there stop workin'' on their next sync.'
+            removed: 'Hold struck off'
+            require_https: 'Demand https'
+            saved: 'Hold let aboard'
         tutorial:
             caldav:
                 intro: 'CalDAV signs on with a ship''s key per hand, against each hand''s own port — there be naught to register here.'
@@ -695,7 +714,7 @@ admin:
             webdav:
                 intro: "WebDAV covers any file hold that speaks it — FileBrowser Quantum, a Synology NAS, rclone serve webdav, Apache mod_dav. Each hand boards with their own password or token, so there be nothin' to register here."
                 no_links: "WebDAV has no public links, no previews an' no search. Files heavier than th' attachment limit can't come aboard, an' the picker shows a file mark instead o' a likeness."
-                security: "A hold in private waters, like a NAS at home, is only reached once its host be listed in INTEGRATIONS_ALLOWED_HOSTS."
+                security: "A hold in private waters, like a NAS at home, is only reached once it be listed under Holds in private waters below."
                 step_base_url: "Optionally nail down the address, like https://files.example.com/dav/files/. It be the full bearin' o' the folder to open, path an' all: on FileBrowser Quantum that be /dav/ followed by the source name."
                 step_enable: 'Hoist "Offer this port to th'' crew" above.'
                 step_user: "Each hand enters that address, a username if the hold asks for one, an' a password or API token. FileBrowser Quantum takes an API token as the password an' pays the username no mind."

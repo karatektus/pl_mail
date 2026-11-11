@@ -4,6 +4,7 @@ account.host_invalid: Saisissez uniquement un nom d’hôte ou une adresse IP �
 admin.ai.keep_alive_invalid: Utilisez une durée comme 5m, 30m ou 4h, un nombre de secondes, ou -1 pour garder le modèle chargé en permanence — laissez vide pour utiliser le réglage de l’hôte.
 admin.integrations.client_id_missing: Saisissez l’ID client qui va avec ce secret.
 admin.integrations.secret_missing: Saisissez aussi le secret client — un ID client seul ne permet à personne de se connecter.
+admin.integrations.trusted.host_invalid: 'Saisissez un nom d’hôte ou une adresse IP, comme dav.home.example.com ou 192.168.1.20, ou une adresse complète qui en contient un.'
 admin.sso.error.client_id_missing: 'Un ID client est nécessaire avec l’émetteur et le secret. Les trois, ou aucun.'
 admin.sso.error.issuer_missing: 'Un émetteur est nécessaire avec l’ID client et le secret. Les trois, ou aucun.'
 admin.sso.error.issuer_not_https: 'L’émetteur doit commencer par https://. plMail fait confiance au fournisseur grâce à la connexion TLS vers lui.'

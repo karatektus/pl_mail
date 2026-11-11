@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:cc95c3d92571ad7d76e27eb1097a0d46b57fa22c -->
+<!-- translated-from: internals/security-model.md sha1:65c64026c3ca1439050ff899b14a4c0fc2f5fdb8 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -942,13 +942,18 @@ den Workern.
    Angriffsfläche vollständig weg.** `resolve()` ignoriert den Wert der Nutzerin, sobald einer
    festgenagelt ist, sodass auch eine alte Zeile von vor dem Festnageln nicht weiter anderswohin
    greifen kann.
-2. **`http://` wird abgelehnt, sofern `INTEGRATIONS_ALLOW_HTTP` nicht an ist.** Selbsthosting im
-   LAN ist bei Nextcloud, Immich und Paperless-ngx der Normalfall, dieser Schalter wird also oft
-   gesetzt sein —
-   der Punkt ist, dass Klartext-Anmeldedaten auf der Leitung damit zu einer bewussten
-   Admin-Entscheidung werden statt zu einer stillen Voreinstellung.
-3. **Loopback-, Link-Local- und private Bereiche werden abgelehnt**, sofern der Host nicht in
-   `INTEGRATIONS_ALLOWED_HOSTS` steht. Der Host wird **aufgelöst**, und jede Adresse, auf die er
+2. **`http://` wird abgelehnt, sofern eine Admin-Person es für diesen Host nicht erlaubt hat**
+   (Admin → Integrationen → Server in privaten Netzen, eine `TrustedHost`-Zeile) oder dort eine
+   `http://`-Adresse festgenagelt hat. Selbsthosting im LAN ist bei Nextcloud, Immich und
+   Paperless-ngx der Normalfall, der Haken wird für einen Server dort also oft gesetzt sein — der
+   Punkt ist, dass Klartext-Anmeldedaten auf der Leitung eine Admin-Entscheidung über einen Server
+   sind statt einer Voreinstellung für jeden Server im Internet. Bis v0.4.3 war das der
+   installationsweite Schalter `INTEGRATIONS_ALLOW_HTTP`.
+3. **Loopback-, Link-Local- und private Bereiche werden abgelehnt**, sofern eine Admin-Person den
+   Host nicht auf derselben Seite erlaubt hat. Bis v0.4.3 war die Liste `INTEGRATIONS_ALLOWED_HOSTS`,
+   die eine Docker-Compose-Installation nicht setzen konnte, weil `compose.yaml` sie nie in die
+   Container durchreichte (#564); als Zeilen wird sie bei jeder Prüfung gefragt und ändert sich ohne
+   Neustart. Der Host wird **aufgelöst**, und jede Adresse, auf die er
    auflöst, wird gegen `IpUtils::PRIVATE_SUBNETS` geprüft — Loopback, RFC1918, Link-Local
    (einschließlich des Cloud-Metadaten-Endpunkts unter 169.254.169.254), Carrier-Grade-NAT, die
    reservierten Bereiche und IPv4-gemappte IPv6-Adressen wie `::ffff:127.0.0.1`. Eine
@@ -965,8 +970,8 @@ der Symfonys `NoPrivateNetworkHttpClient` umhüllt: Er löst den Host selbst auf
 Adresse mit der Option `resolve` fest und prüft jeden Weiterleitungsschritt neu. Das schließt die
 beiden Lücken, die der Validator allein offen ließ — DNS-Rebinding zwischen Prüfung und Verbindung,
 und Weiterleitungen, denen die Treiber für Nextcloud, Paperless-ngx und Immich bisher zwanzig Stufen
-tief ungeprüft gefolgt sind. Die Ausnahme kommt aus derselben Quelle wie beim Validator: Ein Host in
-`INTEGRATIONS_ALLOWED_HOSTS` oder der Host einer von einer Admin-Person festgenagelten
+tief ungeprüft gefolgt sind. Die Ausnahme kommt aus derselben Quelle wie beim Validator: Ein von einer
+Admin-Person erlaubter Host oder der Host einer von einer Admin-Person festgenagelten
 Serveradresse darf für diese Anfrage auf seinen eigenen Adressen erreicht werden, sonst nichts
 Privates.
 

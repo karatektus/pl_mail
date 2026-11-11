@@ -1,4 +1,4 @@
-<!-- translated-from: features/integrations.md sha1:ce0d2ad0d34f0d34be8d2cfb3ea45b94fb5f1afc -->
+<!-- translated-from: features/integrations.md sha1:e90cca4807a8da8e9f5f61d4e04a0ab6fde6467b -->
 
 # Dateien und Integrationen
 
@@ -231,14 +231,14 @@ Ein Filter kann dasselbe automatisch tun, mit der Aktion **Anhänge speichern in
 Erlaubnisliste steht.** Selbst gehostete Dienste liegen auf Adressen, auf die eine angemeldete
 Person plMails ausgehenden HTTP-Client sonst richten könnte — darunter `localhost:5432` und der
 Cloud-Metadaten-Endpunkt unter `169.254.169.254`. Loopback, Link-Local, RFC1918 und die Bereiche
-für Carrier-Grade NAT sind alle gesperrt, solange der Host nicht in
-`INTEGRATIONS_ALLOWED_HOSTS` steht. In einem Heimnetz ist das die Einstellung, die Nextcloud,
-OpenCloud, Immich, Paperless-ngx und einen WebDAV-Server überhaupt erreichbar macht.
+für Carrier-Grade NAT sind alle gesperrt, solange eine Admin-Person den Host nicht unter
+[Admin → Integrationen → Server in privaten Netzen](../features/admin.md#server-in-privaten-netzen) erlaubt hat. In einem Heimnetz ist diese Liste das, was Nextcloud, OpenCloud, Immich,
+Paperless-ngx und einen WebDAV-Server überhaupt erreichbar macht.
 
-**`http://` wird abgelehnt, solange `INTEGRATIONS_ALLOW_HTTP` nicht an ist.** Selbst hosten im
-LAN ohne TLS ist eine ganz gewöhnliche Lage, diese Option wird also oft gesetzt sein — der Punkt
-ist, dass Zugangsdaten im Klartext zu verschicken eine bewusste Entscheidung wird und keine
-stille Voreinstellung.
+**`http://` wird abgelehnt, solange eine Admin-Person es für diesen Host nicht erlaubt hat.** Selbst
+hosten im LAN ohne TLS ist eine ganz gewöhnliche Lage, der Haken wird für einen Server dort also oft
+gesetzt sein — der Punkt ist, dass Zugangsdaten im Klartext zu verschicken eine Entscheidung über
+einen Server ist und keine stille Voreinstellung für alle.
 
 **Eine Datei über der Anhangsgrenze lässt sich aus Immich, Google Photos, Paperless-ngx oder WebDAV
 überhaupt nicht anhängen.** WebDAV kennt öffentliche Links gar nicht erst. Die Fotobibliotheken können für ein einzelnes Objekt keine

@@ -856,12 +856,16 @@ runs in a container network alongside Postgres, Mercure and the workers.
 1. **An admin who pins `baseUrl` on the provider config removes the surface entirely.**
    `resolve()` ignores the user's value when one is pinned, so a stale row from before the pin
    cannot keep reaching elsewhere.
-2. **`http://` is refused unless `INTEGRATIONS_ALLOW_HTTP` is on.** Self-hosting on a LAN is
-   the normal case for Nextcloud, Immich and Paperless-ngx, so this flag will often be set — the
-   point is that plaintext credentials over the wire become a deliberate admin decision rather
-   than a silent default.
-3. **Loopback, link-local and private ranges are refused** unless the host appears in
-   `INTEGRATIONS_ALLOWED_HOSTS`. The host is **resolved**, and every address it resolves to is
+2. **`http://` is refused unless an administrator allowed it for that host** (Admin →
+   Integrations → Servers on a private network, a `TrustedHost` row), or pinned an `http://`
+   address on it. Self-hosting on a LAN is the normal case for Nextcloud, Immich and
+   Paperless-ngx, so it will often be ticked for a server there — the point is that plaintext
+   credentials over the wire are an admin decision about one server rather than a default for
+   every server on the internet. It was the install-wide `INTEGRATIONS_ALLOW_HTTP` until v0.4.3.
+3. **Loopback, link-local and private ranges are refused** unless an administrator allowed the
+   host on the same page. The list was `INTEGRATIONS_ALLOWED_HOSTS` until v0.4.3, which a Docker
+   Compose install could not set because `compose.yaml` never passed it into the containers
+   (#564); as rows it is asked on every check and changes without a restart. The host is **resolved**, and every address it resolves to is
    checked against `IpUtils::PRIVATE_SUBNETS` — loopback, RFC1918, link-local (including the
    cloud metadata endpoint at 169.254.169.254), carrier-grade NAT, the reserved ranges, and
    IPv4-mapped IPv6 such as `::ffff:127.0.0.1`. A string check could not see container names
@@ -877,8 +881,8 @@ Symfony's `NoPrivateNetworkHttpClient`: it resolves the host itself, pins the ad
 with the `resolve` option, and re-checks every redirect hop. That closes the two holes the
 validator alone left — DNS rebinding between the check and the connection, and redirects, which
 the Nextcloud, Paperless-ngx and Immich drivers used to follow twenty deep without looking. The
-exemption comes from the same place as the validator's: a host in `INTEGRATIONS_ALLOWED_HOSTS`,
-or the host of a server address an admin pinned, may be reached on its own addresses for that
+exemption comes from the same place as the validator's: a host an administrator allowed, or the
+host of a server address an admin pinned, may be reached on its own addresses for that
 request, and nothing else private may be.
 
 Push endpoints go through a second instance of the same client with its own exemption list,

@@ -1,4 +1,4 @@
-<!-- translated-from: providers/carddav.md sha1:bc3ce68500077b393156115361373684803ffdbc -->
+<!-- translated-from: providers/carddav.md sha1:55139e9b9e578557a419996c190c78a217a31890 -->
 # CardDAV
 
 CardDAV ist das Standardprotokoll für Adressbücher auf einem Server, und plMail spricht es mit jedem
@@ -52,8 +52,8 @@ desselben Servers tauchen nie in der Liste der Adressbücher auf. Siehe
 [Die Suche, und der `.well-known`-Tanz](caldav.md#die-suche-und-der-well-known-tanz).
 
 Es gelten dieselben [abgelehnten Adressen](caldav.md#adressen-die-plmail-ablehnt): Ein Server in
-deinem LAN braucht seinen Host in `INTEGRATIONS_ALLOWED_HOSTS`, und reines `http://` braucht
-`INTEGRATIONS_ALLOW_HTTP`.
+deinem LAN muss unter [Admin → Integrationen → Server in privaten Netzen](../features/admin.md#server-in-privaten-netzen) erlaubt sein, und reines `http://` braucht dort den Haken
+dafür.
 
 ## Synchronisation
 
@@ -142,8 +142,8 @@ und dem nächsten Lauf des Workers, meist Sekunden.
 Die Kopien hier verschwinden, mit jedem Foto, das du hier zu ihnen hochgeladen hast; der Server
 behält seine eigenen. Zeigt ein Kontakt die Uhr, warte, bis sie verschwindet.
 
-**Ein Server im LAN wird standardmäßig abgelehnt**, wie bei CalDAV. Trag den Host in
-`INTEGRATIONS_ALLOWED_HOSTS` ein.
+**Ein Server im LAN wird standardmäßig abgelehnt**, wie bei CalDAV. Eine Admin-Person erlaubt ihn
+unter [Admin → Integrationen → Server in privaten Netzen](../features/admin.md#server-in-privaten-netzen).
 
 **Einen Kontakt zwischen Adressbüchern zu verschieben wird nicht angeboten.** Auf dem Server ist
 das eine Löschung in einer Sammlung und eine Neuanlage in einer anderen; mach es in der Oberfläche

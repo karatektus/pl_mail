@@ -79,7 +79,7 @@ account:
             missing_fields: 'Gib zuerst mindestens eine E-Mail-Adresse und einen IMAP-Host ein.'
             missing_password: 'Kein Passwort zum Testen. Gib oben eins ein — beim Bearbeiten behält ein leeres Feld das gespeicherte Passwort, und das kann der Test erst nutzen, wenn das Konto gespeichert ist.'
             pop3_ok: 'Verbunden — %count% Nachrichten im Postfach.'
-            private_network: 'Dieser Server liegt in einem privaten Netz. Eine Administratorin oder ein Administrator muss seinen Host erst in INTEGRATIONS_ALLOWED_HOSTS freigeben, bevor plMail sich verbinden darf.'
+            private_network: 'Dieser Server liegt in einem privaten Netz. Eine Administratorin oder ein Administrator muss ihn erst unter Admin → Integrationen → Server in privaten Netzen erlauben, bevor plMail sich verbinden darf.'
             smtp_none: 'Kein SMTP-Host eingetragen — Senden ist für dieses Konto aus.'
             smtp_ok: 'Verbunden und angemeldet.'
             timeout: 'Der Server hat nicht rechtzeitig geantwortet. Prüf Host und Port und ob eine Firewall dazwischen ist.'
@@ -614,7 +614,7 @@ admin:
         base_url_per_user: 'Jede Person gibt ihre eigene Serveradresse ein.'
         base_url_pinned: 'für alle festgelegt'
         calendar:
-            connected_warning: 'Bereits verbunden: %count%. Eine geänderte oder entfernte Adresse gilt für jede dieser Verbindungen, sobald ihre Kalender das nächste Mal gesucht werden. Wer mit einem anderen Server verbunden ist, etwa iCloud, wird dann mit dem eigenen Passwort bei diesem angefragt. Bereits gespiegelte Kalender behalten die Adresse, unter der sie gefunden wurden; lag eine entfernte Adresse in einem privaten Netz, synchronisieren sie nicht mehr, bis ihr Host in INTEGRATIONS_ALLOWED_HOSTS steht.'
+            connected_warning: 'Bereits verbunden: %count%. Eine geänderte oder entfernte Adresse gilt für jede dieser Verbindungen, sobald ihre Kalender das nächste Mal gesucht werden. Wer mit einem anderen Server verbunden ist, etwa iCloud, wird dann mit dem eigenen Passwort bei diesem angefragt. Bereits gespiegelte Kalender behalten die Adresse, unter der sie gefunden wurden; lag eine entfernte Adresse in einem privaten Netz, synchronisieren sie nicht mehr, bis er unten unter Server in privaten Netzen erlaubt ist.'
             heading: 'Kalender'
             intro: 'Server und Feeds, aus denen unter Einstellungen → Kalender Kalender gespiegelt werden. Beide stehen allen zur Verfügung; hier lässt sich eine Serveradresse für alle festlegen. Nextcloud wird oben bei den Dateidiensten eingerichtet, seine Kalender kommen mit.'
         clear_secret: 'Gespeichertes Client-Secret entfernen'
@@ -692,6 +692,25 @@ admin:
             enabled: 'Aktiviert'
             incomplete: 'Zugangsdaten fehlen'
             unimplemented: 'Noch nicht verfügbar'
+        trusted:
+            add: 'Server erlauben'
+            allow: 'Erlauben'
+            allow_http: 'Unverschlüsseltes http erlauben'
+            empty: 'Noch keiner. Ein Server, der auf eine private Adresse zeigt, wird abgelehnt, bis er hier steht.'
+            field:
+                allow_http: 'Dieser Server hat kein Zertifikat: unverschlüsseltes http erlauben'
+                allow_http_help: 'Nur für einen Server in deinem eigenen Netz. App-Passwörter gehen dann unverschlüsselt durch dieses Netz.'
+                host: 'Server'
+                host_help: 'Sein Hostname oder seine IP-Adresse, wie in der Adresse, die eingetippt wird: dav.home.example.com, 192.168.1.20. Eine ganze Adresse geht auch; nur ihr Host wird übernommen.'
+            form_intro: 'Angemeldete Nutzerinnen und Nutzer können plMail dann mit diesem Server verbinden, obwohl er auf eine private Adresse zeigt. Jede und jeder von ihnen kann plMail an jeden Server hier Anfragen schicken lassen. Trag also die Server ein, die wirklich genutzt werden, nicht jeden Rechner im Netz.'
+            heading: 'Server in privaten Netzen'
+            http_allowed: 'Unverschlüsseltes http erlaubt'
+            intro: 'plMail lehnt eine Serveradresse ab, die in ein privates Netz zeigt, damit niemand darüber diesen Rechner oder andere daneben erreicht. Die Server hier sind trotzdem erlaubt: ein CalDAV-, CardDAV- oder Dateiserver zu Hause, ein Kalender-Feed im LAN.'
+            remove: '%host% nicht mehr erlauben'
+            remove_confirm: '%host% nicht mehr erlauben? Verbindungen dorthin funktionieren ab ihrer nächsten Synchronisierung nicht mehr.'
+            removed: 'Server entfernt'
+            require_https: 'https verlangen'
+            saved: 'Server erlaubt'
         tutorial:
             caldav:
                 intro: 'CalDAV meldet sich mit einem App-Passwort pro Person am eigenen Server an — hier ist nichts zu registrieren.'
@@ -763,7 +782,7 @@ admin:
             webdav:
                 intro: "WebDAV deckt jeden Dateiserver ab, der es spricht — FileBrowser Quantum, ein Synology-NAS, rclone serve webdav, Apache mod_dav. Jede Person verbindet sich mit eigenem Passwort oder Token, hier ist also nichts zu registrieren."
                 no_links: "WebDAV kennt keine öffentlichen Links, keine Vorschauen und keine Suche. Dateien über der Anhangsgrenze lassen sich nicht anhängen, und die Auswahl zeigt ein Datei-Symbol statt eines Vorschaubilds."
-                security: "Ein Server in einem privaten Netz, etwa ein NAS zu Hause, wird erst erreicht, wenn sein Host in INTEGRATIONS_ALLOWED_HOSTS steht."
+                security: "Ein Server in einem privaten Netz, etwa ein NAS zu Hause, wird erst erreicht, wenn er unten unter Server in privaten Netzen steht."
                 step_base_url: "Optional die Adresse festlegen, etwa https://files.example.com/dav/files/. Gemeint ist die volle Adresse des Ordners samt Pfad: bei FileBrowser Quantum /dav/ und dahinter der Name der Quelle."
                 step_enable: 'Oben „Diesen Dienst anbieten“ einschalten.'
                 step_user: "Jede Person trägt diese Adresse ein, einen Benutzernamen, falls der Server einen will, und ein Passwort oder API-Token. FileBrowser Quantum nimmt ein API-Token als Passwort und ignoriert den Benutzernamen."

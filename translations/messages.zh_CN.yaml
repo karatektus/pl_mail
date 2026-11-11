@@ -79,7 +79,7 @@ account:
             missing_fields: '请先至少输入电子邮件地址和 IMAP 主机。'
             missing_password: 没有可用于测试的密码。请在上方输入密码；编辑表单中留空会保留已保存的密码，但需先保存账户，测试才能使用该密码。
             pop3_ok: '已连接，邮箱中有 %count% 封邮件。'
-            private_network: '该服务器位于私有网络中。必须先由管理员在 INTEGRATIONS_ALLOWED_HOSTS 中允许其主机，plMail 才能连接。'
+            private_network: '该服务器位于私有网络中。必须先由管理员在“管理 → 集成 → 私有网络中的服务器”中允许它，plMail 才能连接。'
             smtp_none: '未配置 SMTP 主机，此账户无法发送邮件。'
             smtp_ok: 已连接并登录。
             timeout: 服务器未及时响应，请检查主机、端口以及是否受到防火墙阻拦。
@@ -528,7 +528,7 @@ admin:
         base_url_per_user: 每位用户自行输入服务器地址。
         base_url_pinned: 所有用户固定使用此地址
         calendar:
-            connected_warning: "已有连接：%count%。修改或清空地址后，每个连接下次查找日历时都会使用新设置，因此原本连接其他服务器（如 iCloud）的用户会被要求使用自己的密码连接此服务器。已镜像的日历保留发现时的地址；如果清空的地址属于私有网络，则这些日历会停止同步，直到其主机被加入 INTEGRATIONS_ALLOWED_HOSTS。"
+            connected_warning: "已有连接：%count%。修改或清空地址后，每个连接下次查找日历时都会使用新设置，因此原本连接其他服务器（如 iCloud）的用户会被要求使用自己的密码连接此服务器。已镜像的日历保留发现时的地址；如果清空的地址属于私有网络，则这些日历会停止同步，直到它在下方“私有网络中的服务器”中被允许。"
             heading: "日历"
             intro: "用户在“设置 → 日历”中镜像日历的服务器和订阅源。两者均向所有人提供；此处可以为所有人设置统一的服务器地址。Nextcloud 在上方的文件服务中设置，连接后也会带入其日历。"
         clear_secret: 移除已保存的客户端密钥
@@ -585,6 +585,25 @@ admin:
             enabled: 已启用
             incomplete: 需要凭据
             unimplemented: 暂不可用
+        trusted:
+            add: '允许服务器'
+            allow: '允许'
+            allow_http: '允许未加密的 http'
+            empty: '暂无。解析到私有地址的服务器在列入此处之前会被拒绝。'
+            field:
+                allow_http: '此服务器没有证书：允许未加密的 http'
+                allow_http_help: '仅适用于你自己网络中的服务器。发送给它的应用密码将以明文穿过该网络。'
+                host: '服务器'
+                host_help: '其主机名或 IP 地址，与用户输入的地址中一致：dav.home.example.com、192.168.1.20。也可以填写完整地址，只会保留其中的主机。'
+            form_intro: '之后，已登录的用户即可将 plMail 连接到此服务器，即使它解析到私有地址。他们中的任何人都能让 plMail 向此处列出的每台服务器发送请求，因此只列出实际使用的服务器，而不是网络中的每台机器。'
+            heading: '私有网络中的服务器'
+            http_allowed: '已允许未加密的 http'
+            intro: 'plMail 会拒绝指向私有网络的服务器地址，以免有人借此访问本机或其旁边的其他机器。此处列出的服务器例外：家中的 CalDAV、CardDAV 或文件服务器，局域网中的日历订阅源。'
+            remove: '不再允许 %host%'
+            remove_confirm: '不再允许 %host%？指向它的连接将在下次同步时停止工作。'
+            removed: '服务器已移除'
+            require_https: '要求 https'
+            saved: '服务器已允许'
         tutorial:
             caldav:
                 intro: 'CalDAV 使用每位用户的应用密码，向用户自己的服务器进行验证，因此此处无需注册。'
@@ -656,7 +675,7 @@ admin:
             webdav:
                 intro: "WebDAV 适用于任何支持该协议的文件服务器——FileBrowser Quantum、群晖 NAS、rclone serve webdav、Apache mod_dav。每位用户使用自己的密码或令牌连接，因此这里无需注册任何内容。"
                 no_links: "WebDAV 不支持公开链接、预览和搜索。超过附件大小上限的文件无法附加，选择器会显示文件图标而不是缩略图。"
-                security: "位于私有网络中的服务器（例如家中的 NAS）只有在其主机列入 INTEGRATIONS_ALLOWED_HOSTS 后才能访问。"
+                security: "位于私有网络中的服务器（例如家中的 NAS）只有在列入下方“私有网络中的服务器”后才能访问。"
                 step_base_url: "可选：固定地址，例如 https://files.example.com/dav/files/。这是要打开的文件夹的完整地址，包含路径：在 FileBrowser Quantum 上是 /dav/ 加上数据源名称。"
                 step_enable: 开启上方的“向用户提供此服务”。
                 step_user: "每位用户输入该地址、服务器要求时的用户名，以及密码或 API 令牌。FileBrowser Quantum 将 API 令牌用作密码，并忽略用户名。"
