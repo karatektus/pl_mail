@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:b3af01248a0301e66b21fc4393d407d9c1747fde -->
+<!-- translated-from: features/mail.md sha1:35b279e8212938c53c6940c8e40d8a1c0f937cee -->
 
 # Mail
 
@@ -1299,7 +1299,7 @@ Absender oder die Unterhaltung, auf die er antwortet, wird er ohne das geöffnet
   rechts statt des Mailprogramms deines Rechners. Strg- oder ⌘-Klick oder das Menü des Links tun
   weiterhin, was der Browser tut.
 - **Auf anderen Websites** landen Links bei plMail, sobald dieser Browser sie dorthin schicken soll:
-  **Einstellungen → Allgemein → Verfassen → E-Mail-Links → plMail verwenden**. Der Browser fragt an
+  **Einstellungen → Lesen & Schreiben → Verfassen → E-Mail-Links → plMail verwenden**. Der Browser fragt an
   der Adresszeile nach, und plMail erfährt nicht, ob du zugestimmt hast. Jeder Browser und jedes
   Gerät wird für sich eingestellt, und rückgängig machst du es in den Einstellungen des Browsers (in
   Chrome unter `chrome://settings/handlers`, in Firefox unter **Einstellungen → Anwendungen →

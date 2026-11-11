@@ -4067,6 +4067,7 @@ settings:
             app_passwords: "imap smtp 客户端 thunderbird 令牌 api jmap"
             calendars: "caldav ics 订阅"
             clock: "12 24 小时 时间 格式"
+            compose_behaviour: "mailto 邮件链接 默认邮件程序 转发 引用 发送"
             contacts: "carddav 通讯录"
             disposal: "删除 回收站 彻底 清空"
             encryption: "pgp openpgp gpg 密钥"

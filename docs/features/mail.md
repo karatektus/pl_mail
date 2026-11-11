@@ -1184,7 +1184,7 @@ opened without it.
   your computer's mail program. Ctrl- or ⌘-click, or the link's own menu, still does what the
   browser does.
 - **On other websites**, links go to plMail once this browser is told to send them there:
-  **Settings → General → Composing → Email links → Use plMail**. The browser asks you to confirm,
+  **Settings → Reading & writing → Compose → Email links → Use plMail**. The browser asks you to confirm,
   by the address bar, and plMail is not told whether you said yes. Each browser and each device is
   set on its own, and the browser's own settings are where it is undone (in Chrome,
   `chrome://settings/handlers`; in Firefox, **Settings → Applications → mailto**).

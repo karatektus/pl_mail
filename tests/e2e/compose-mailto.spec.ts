@@ -56,7 +56,7 @@ test("the settings button asks the browser to hand mailto: links to plMail", asy
         };
     });
 
-    await page.goto("/settings?section=general");
+    await page.goto("/settings/compose");
     await page.getByRole("button", { name: "Use plMail" }).click();
 
     await expect(page.getByRole("status").filter({ hasText: "asks you to confirm" })).toBeVisible();

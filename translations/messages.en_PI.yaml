@@ -4543,6 +4543,7 @@ settings:
             app_passwords: "imap smtp client thunderbird token api jmap"
             calendars: "caldav ics subscribe feed"
             clock: "12 24 hour am pm time format"
+            compose_behaviour: "mailto email links default mail program forward quote send"
             contacts: "carddav address book"
             disposal: "delete trash bin forever empty"
             encryption: "pgp openpgp gpg key"

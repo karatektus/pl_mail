@@ -4755,6 +4755,7 @@ settings:
             app_passwords: "imap smtp programm thunderbird token api jmap"
             calendars: "caldav ics abonnieren feed"
             clock: "12 24 stunden uhrzeit format am pm"
+            compose_behaviour: "mailto e-mail-links standard-mailprogramm weiterleiten zitat senden"
             contacts: "carddav adressbuch"
             disposal: "löschen papierkorb endgültig leeren"
             encryption: "pgp openpgp gpg schlüssel"

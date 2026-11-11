@@ -4792,6 +4792,7 @@ settings:
             app_passwords: "imap smtp client thunderbird jeton api jmap"
             calendars: "caldav ics abonner flux"
             clock: "12 24 heures format am pm"
+            compose_behaviour: "mailto liens e-mail messagerie par défaut transférer citation envoyer"
             contacts: "carddav carnet adresses"
             disposal: "supprimer corbeille définitivement vider"
             encryption: "pgp openpgp gpg clé"
