@@ -415,6 +415,23 @@ final class ImapMailboxImporterTest extends KernelTestCase
         self::assertSame(0, (int) $this->row()['import_floor_uid']);
     }
 
+    /**
+     * A floor of 1 has nothing below it. Asking anyway is `UID SEARCH UID 1:0`,
+     * which Dovecot answers with BAD (UID 0 does not exist), and the folder
+     * used to sit waiting on that answer, asked again every minute.
+     */
+    public function testAFloorOfOneIsFinishedWithoutAskingTheServer(): void
+    {
+        $this->connection->executeStatement('UPDATE mailbox SET import_floor_uid = 1 WHERE id = ?', [$this->mailboxId]);
+        $this->em->clear();
+
+        $server = $this->server([]);
+
+        self::assertSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, $this->session($server)));
+        self::assertSame(0, (int) $this->row()['import_floor_uid']);
+        self::assertSame([], $server->received('UID SEARCH'), 'no search for a range that cannot exist');
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /**
