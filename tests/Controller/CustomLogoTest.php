@@ -108,7 +108,7 @@ final class CustomLogoTest extends WebTestCase
         $user = $this->reload($user);
         $hash = (string) $user->appearance->logoCustom;
 
-        $crawler = $this->client->request('GET', '/settings?section=appearance');
+        $crawler = $this->client->request('GET', '/settings/appearance');
         self::assertResponseIsSuccessful();
 
         self::assertStringContainsString('/branding/favicon/custom/' . $hash . '.svg', (string) $crawler->filter('link[rel="icon"]')->attr('href'));
@@ -258,7 +258,7 @@ final class CustomLogoTest extends WebTestCase
     /** The layout's `ajax` token, as the page sends it. */
     private function token(): string
     {
-        return (string) $this->client->request('GET', '/settings?section=appearance')
+        return (string) $this->client->request('GET', '/settings/appearance')
             ->filter('meta[name="csrf-token"]')->attr('content');
     }
 

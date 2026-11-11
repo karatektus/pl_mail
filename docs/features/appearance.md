@@ -277,9 +277,31 @@ not a value plMail recognises is ignored rather than stored, and a layout in the
 before the individual numbers, so an export written before a control existed still lands somewhere
 sensible.
 
+## Finding a setting
+
+Settings is a tree of eight areas — Account, General, Mail accounts, Inbox, Reading & writing,
+Calendar & contacts, Assistant & automation and Integrations — each with a few pages. The area of
+the page you are on is open; the others fold away until you open them.
+
+The field above the tree searches every page and every card on it. It matches headings and also
+the words people use for a thing without knowing its name: **dark** finds **Theme**, **2fa** finds
+two-factor authentication, **imap** finds app passwords and accounts. Case and accents do not
+matter. A card found by such a word says which word it was.
+
+**⌘K** on a Mac, **Ctrl+K** elsewhere, opens the same search from anywhere in plMail. **↑** and
+**↓** move through the results and **Enter** opens one: the page loads and the card is outlined
+for a moment so you can see where it is. While you are typing in a mail or a text box the
+shortcut is left to the editor and the browser, so press it from anywhere else.
+
+On a phone the tree sits behind one button at the top of Settings, which names the page you are
+on; tap it to open the tree and the search.
+
+Every page has an address of its own, `/settings/<page>`, so a page can be bookmarked or sent to
+someone. Links to the older `/settings?section=…` addresses open the first page of Settings.
+
 ## Language
 
-**Settings → General → Language** sets the language the interface is shown in. Your mail is left
+**Settings → General → Language & region** sets the language the interface is shown in. Your mail is left
 exactly as it was written — nothing is translated, and nothing is rewritten.
 
 plMail ships **English**, **Deutsch**, **Français**, **简体中文** (Simplified Chinese) and **Pirate English**.

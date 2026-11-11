@@ -25,14 +25,14 @@ const cssVar = (page: Page, name: string) =>
 
 test.describe("density", () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         // Land on a known value whatever an earlier test left behind.
         await densityTile(page, "comfortable").click();
         await page.waitForTimeout(700);
     });
 
     test.afterEach(async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await densityTile(page, "comfortable").click();
         await page.waitForTimeout(700);
     });
@@ -187,7 +187,7 @@ test.describe("density", () => {
         const count = await rows.count();
         expect(count).toBeGreaterThan(0);
 
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await densityTile(page, "comfortable").click();
         await expect.poll(() => cssVar(page, "--density-row-y")).toBe("0.5rem");
     });
@@ -231,12 +231,12 @@ test.describe("density", () => {
         const comfortable = await rows();
         expect(comfortable).toEqual({ system: 36, heading: 48, compose: 36 });
 
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await densityTile(page, "cosy").click();
         await page.waitForTimeout(700);
         expect(await rows()).toEqual({ system: 32, heading: 44, compose: 32 });
 
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await densityTile(page, "compact").click();
         await page.waitForTimeout(700);
 
@@ -268,7 +268,7 @@ test.describe("density", () => {
 
         const comfortable = await navHeight();
 
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await densityTile(page, "compact").click();
         await page.waitForTimeout(700);
 

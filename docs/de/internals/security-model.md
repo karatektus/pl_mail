@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:65c64026c3ca1439050ff899b14a4c0fc2f5fdb8 -->
+<!-- translated-from: internals/security-model.md sha1:cae28a62c202f63393469aa265cf8775b06adfc1 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -1289,7 +1289,7 @@ Label mit der Rolle Spam. Eine vertraute Absenderin bekommt im Spam **keine** Bi
 Positivliste hält eine Überzeugung über eine Absenderin fest, und eine Nachricht im Spam ist der
 Widerspruch der Anbieterin dagegen, dass dies wirklich jene Absenderin ist.
 
-**Einstellungen → Mail → Bilder** kann die Positivliste auf alle Absender ausweiten
+**Einstellungen → Lesen & Schreiben → Lesen** kann die Positivliste auf alle Absender ausweiten
 (`images.always_show` in den Einstellungen der Person, aus, bis es eingeschaltet wird, #124). Es
 wird in `MessageRenderer` neben der Positivliste gelesen und endet, wo sie endet: Spam gewinnt
 weiterhin, und Bilder laufen weiterhin über den Proxy, sodass eine Absenderin erfährt, dass eine

@@ -122,7 +122,7 @@ Variables:
 
         {# Opens Settings → Filters with the editor already holding this
            message's sender; the reader chooses what the filter does. #}
-        <a href="{{ path('app_settings_index', { section: 'filters', from_message: message.id }) }}"
+        <a href="{{ path('app_settings_page', { page: 'filters', from_message: message.id }) }}"
            data-turbo-frame="_top"
            data-action="click->mail--message-actions#dismiss"
            class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">

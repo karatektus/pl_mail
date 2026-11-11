@@ -69,12 +69,12 @@ async function createSender(page: Page): Promise<void> {
 /**
  * Settings → Contacts → Behaviour, which the page saves on change.
  *
- * Waits for the save itself. The address was already section=contacts before the change, so
+ * Waits for the save itself. The address was already /settings/contacts before the change, so
  * waiting on it waited for nothing, and the next page could be asked for before the setting
  * had been written: "with full width skipped" then opened an inbox still on all three steps.
  */
 async function chooseSteps(page: Page, option: string): Promise<void> {
-    await page.goto("/settings?section=contacts");
+    await page.goto("/settings/contacts");
     const group = page.getByRole("radiogroup", { name: "Contacts button" });
 
     // Already chosen (a test that failed before its finally): a click changes nothing and saves nothing.
@@ -86,7 +86,7 @@ async function chooseSteps(page: Page, option: string): Promise<void> {
         "POST" === response.request().method() && new URL(response.url()).pathname === "/settings/contacts-behaviour");
     await group.getByText(option).click();
     await saved;
-    await expect(page).toHaveURL(/section=contacts/);
+    await expect(page).toHaveURL(/\/settings\/contacts/);
     await expect(page.getByRole("radiogroup", { name: "Contacts button" }).getByRole("radio", { name: option })).toBeChecked();
 }
 

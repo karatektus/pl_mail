@@ -315,7 +315,8 @@
     {# What `?` presses. A real trigger for the shared dialog rather than a
        dialog of its own, so the list of shortcuts opens, traps focus and
        closes the way every other dialog here does. Hidden from everything but
-       the script: the same list is one click away in Settings → General. #}
+       the script: the same list is one click away in Settings → General →
+       Layout & controls. #}
     {% if _shortcuts %}
         <button type="button" hidden tabindex="-1" aria-hidden="true"
                 data-shortcut="help"
@@ -332,6 +333,9 @@
         {# After an update, What's new — never on an install, and never on top
            of the setup wizard above (WhatsNewGlobal::opensByItself). #}
         {% include 'whats_new/_boot.html.twig' %}
+        {# ⌘K / Ctrl+K: Settings search from any page (#569). Signed-in only —
+           the index it fetches is the reader's own, in their language. #}
+        {% include 'settings/_palette.html.twig' %}
     {% endif %}
     {# The demo strip, for a signed-in visitor on an install that is a demo.
        Inside the app.user check for the same reason the session-expired bar is:

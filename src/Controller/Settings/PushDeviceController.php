@@ -93,6 +93,6 @@ final class PushDeviceController extends AbstractController
             ]);
         }
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'notifications']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'notifications']);
     }
 }

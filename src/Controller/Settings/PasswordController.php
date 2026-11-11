@@ -110,6 +110,6 @@ final class PasswordController extends AbstractController
             ], new Response(status: 'error' === $toastType ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK));
         }
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'security']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'security']);
     }
 }

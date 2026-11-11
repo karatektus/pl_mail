@@ -35,7 +35,7 @@ function customPngUpload(page: Page) {
 
 /** No uploaded logo, and the default motif: where every test starts and ends. */
 async function reset(page: Page): Promise<void> {
-    await page.goto("/settings?section=appearance");
+    await page.goto("/settings/appearance");
     await ajaxPost(page, "/settings/appearance/logo/remove", {});
     await page.locator(PANEL).getByRole("button", { name: /reset/i }).first().click();
     await page.waitForResponse((r) => r.url().includes("/appearance/reset")).catch(() => {});
@@ -46,7 +46,7 @@ test.describe("appearance — a logo of your own", () => {
     test.afterEach(async ({ page }) => reset(page));
 
     test("an uploaded SVG is worn everywhere, and the app icons are drawn from it", async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await expect(page.locator(PANEL)).toBeVisible();
 
         const pngs = customPngUpload(page);
@@ -71,7 +71,7 @@ test.describe("appearance — a logo of your own", () => {
     });
 
     test("going back to a motif keeps the upload to return to", async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await page.locator(INPUT).setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: Buffer.from(LOGO) });
         await expect(page.locator(`${PANEL} [data-logo-motif="custom"]`)).toHaveAttribute("aria-pressed", "true");
 
@@ -88,7 +88,7 @@ test.describe("appearance — a logo of your own", () => {
     });
 
     test("a file that is not an SVG logo is refused with a reason", async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
 
         await page.locator(INPUT).setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: Buffer.from("<html>no</html>") });
 

@@ -90,7 +90,7 @@ final class UnreadViewTest extends WebTestCase
 
         // Opening label settings is what creates the label — hidden, so the
         // row stays away until it is switched on.
-        $this->client->request('GET', '/settings?section=labels');
+        $this->client->request('GET', '/settings/labels');
 
         $unread = $this->unreadLabel();
 

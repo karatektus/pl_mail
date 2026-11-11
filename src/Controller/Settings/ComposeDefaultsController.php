@@ -133,6 +133,9 @@ final class ComposeDefaultsController extends AbstractController
             ]);
         }
 
-        return $this->redirectToRoute('app_settings_index');
+        // The Compose page, where the read-receipt card lives. This used to be
+        // bare /settings, which opened Profile — the no-script fallback landed
+        // somebody on a page without the setting they had just changed.
+        return $this->redirectToRoute('app_settings_page', ['page' => 'compose']);
     }
 }

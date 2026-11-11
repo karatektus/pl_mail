@@ -16,6 +16,7 @@ find.
 <div class="space-y-4">
 
 {% embed 'settings/_card.html.twig' with {
+    id:         'card-profile',
     heading:    'settings.profile.heading'|trans,
     subheading: 'settings.profile.subheading'|trans,
     padded:     true,
@@ -62,6 +63,7 @@ of text appended to outgoing mail, and the two have nothing to do with each
 other. This lives beside the avatar, which is what it is: a picture of you.
 #}
 {% embed 'settings/_card.html.twig' with {
+    id:         'card-handwriting',
     heading:    'settings.handwriting.heading'|trans,
     subheading: 'settings.handwriting.subheading'|trans,
     padded:     true,

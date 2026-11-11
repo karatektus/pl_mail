@@ -15,7 +15,7 @@ import { saveSetting } from "./support/settings";
 const STRIP = 'nav a[href*="tab="]';
 
 async function setTabs(page: Page, option: "Tabs" | "One list"): Promise<void> {
-    await page.goto("/settings?section=categories");
+    await page.goto("/settings/categories");
 
     const group = page.getByRole("radiogroup", { name: "Inbox tabs" });
 

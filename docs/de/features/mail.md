@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:eaffa68fb9577faff3047213dfeaa922cf5c9dd3 -->
+<!-- translated-from: features/mail.md sha1:0a2468731566d2573a78c92a988da5b3de1133d7 -->
 
 # Mail
 
@@ -32,7 +32,7 @@ der Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort
 **Alle E-Mails** beginnen ausgeschaltet.
 
 **Zurückgestellt**, **Archiv**, **Spam** und **Papierkorb** warten hinter einer Zeile **Mehr**, und
-unter **Einstellungen → Allgemein → Seitenleiste** legst du fest, welche Zeilen das sind: Haken
+unter **Einstellungen → Allgemein → Layout & Bedienung** legst du fest, welche Zeilen das sind: Haken
 setzen, und der Ordner rutscht hinter „Mehr“; Haken entfernen, und er kommt zurück in die
 Seitenleiste selbst. Der **Posteingang** bleibt immer oben, ebenso **Alle E-Mails**, das nicht zur
 Wahl steht. Die übrigen Zeilen behalten auf beiden Seiten die Reihenfolge der Seitenleiste, und ohne
@@ -143,7 +143,7 @@ die ohnehin schon gespeichert sind — darum braucht eine Neukategorisierung nie
 Synchronisierung.
 
 Die Tabs gibt es im Posteingang ganz oben, und du kannst sie auch im **Posteingang eines einzelnen
-Kontos** haben (Klick auf das Konto in der Seitenleiste): **Einstellungen → Mail → Kategorien**,
+Kontos** haben (Klick auf das Konto in der Seitenleiste): **Einstellungen → Posteingang → Kategorien & Sortierung**,
 **Tabs in jedem Konto**. Es ist aus, bis du es einschaltest; dann hat ein Outlook-Konto oder jedes
 andere sie auch, [eigene Tabs](#eigene-tabs) eingeschlossen. Ist es aus, zeigt die Seite eines Kontos
 seinen ganzen Posteingang als eine Liste. Den Schalter gibt es nur, solange **Tabs im Posteingang**
@@ -383,7 +383,7 @@ einen Link in den eigenen Tracker und nirgends eine Sendungsnummer — genau das
 Und ein Liefertag, der in Worten statt in Ziffern steht ("Arriving today", "Ankunft Montag"), wird
 gegen den Eingang der Mail aufgelöst und nie gegen die Uhr: Wer eine alte Mail noch einmal liest,
 landet auf demselben Tag wie beim ersten Mal. "Heute" ist der Tag, der in deinem Kalender stand, als
-die Mail ankam, in der Zeitzone aus **Einstellungen → Allgemein** (oder der Vorgabe der Installation, wenn du
+die Mail ankam, in der Zeitzone aus **Einstellungen → Allgemein → Sprache & Region** (oder der Vorgabe der Installation, wenn du
 nie eine gewählt hast). Eine Mail, die früh morgens in Sydney oder abends in Los Angeles ankommt,
 landet so nicht einen Tag daneben. Gelesen werden die Amazon-Shops amazon.de, amazon.com, amazon.fr,
 amazon.co.uk, amazon.ca, amazon.com.au, amazon.in und amazon.sg, und der Button einer Karte öffnet
@@ -823,7 +823,7 @@ Meldung zur Synchronisierung sagt, wann ein Lauf beginnt und endet.
 Auf dem Telefon lässt sich eine Zeile auch wischen. Zieh sie nach rechts, und geschieht, was die
 Richtung rechts eingestellt hat; standardmäßig wird sie als gelesen markiert, oder als ungelesen,
 wenn sie schon gelesen ist. Zieh sie nach links, und standardmäßig wird sie archiviert. Was jede Richtung
-tut, stellst du unter **Einstellungen → E-Mail → Wischgesten** ein (siehe unten). Über ein Drittel der Zeilenbreite wartet die Aktion hinter der Zeile, und Drücken führt
+tut, stellst du unter **Einstellungen → Allgemein → Layout & Bedienung** ein (siehe unten). Über ein Drittel der Zeilenbreite wartet die Aktion hinter der Zeile, und Drücken führt
 sie aus. Über zwei Drittel, oder ein schneller Wisch über das erste Drittel, geschieht sie beim
 Loslassen. Ein Tippen irgendwo anders schließt eine offene Zeile, und dieses Tippen tut sonst nichts.
 Gelesen / ungelesen und Archivieren gibt es nur bei normalen Mails: nie bei einem Entwurf und nie im
@@ -832,7 +832,7 @@ Archiv, im Papierkorb oder bei Spam, aber auch bei einem Entwurf. Stern gibt es 
 Kontrollkästchen der Zeile (ihr Avatar) und die Leiste dieselbe Arbeit, **Archivieren** und **Mehr**
 für eine Auswahl eingeschlossen.
 
-Jede Richtung hat ihre eigene Einstellung unter **Einstellungen → E-Mail → Wischgesten**, je eine
+Jede Richtung hat ihre eigene Einstellung unter **Einstellungen → Allgemein → Layout & Bedienung**, je eine
 Auswahl für rechts und für links. Zur Wahl stehen Gelesen / ungelesen, Archivieren, Stern, Löschen und
 Nichts. Beide Richtungen dürfen auf dasselbe gesetzt sein. Löschen verschiebt die Unterhaltung in den
 Papierkorb, endgültig gelöscht wird dabei nichts, und seine Fläche ist auf beiden Seiten rot. Ein Stern
@@ -843,7 +843,7 @@ Auf dem Telefon öffnet auch ein längeres Drücken einer Zeile ihre Aktionen. H
 halbe Sekunde still, und von unten erscheint ein Aktionsblatt mit allem, was die Zeile anbietet:
 auswählen, als gelesen oder ungelesen markieren, archivieren, markieren, verschieben (nur eine
 Unterhaltung, nicht eine einzelne Nachricht), mit Labels versehen, auf später legen, als Spam markieren, löschen und, im Papierkorb oder im Spam, in den
-Posteingang zurückholen und, wenn du unter **Einstellungen → E-Mail → Entsorgen → Knöpfe zum sofortigen
+Posteingang zurückholen und, wenn du unter **Einstellungen → Posteingang → Entsorgen → Knöpfe zum sofortigen
 Löschen** eingeschaltet hast, endgültig löschen. Die Einträge sind die, die auch die eigenen Knöpfe der
 Zeile anbieten, an denselben Stellen, und jeder tut, was sein Knopf tut. **Verschieben**, **Labels** und
 **Später** öffnen ihre Auswahl über dem Blatt, wie in der Leiste. Das Blatt schließt sich bei einem
@@ -883,7 +883,7 @@ nichts, wo es diesen Knopf nicht gibt: Im Papierkorb gibt es kein Archivieren, a
 stumm. Tasten werden in Ruhe gelassen, solange du irgendwo tippst, solange ein Dialog oder ein Menü
 offen ist und immer dann, wenn Strg, Alt oder ⌘ gedrückt ist.
 
-Sie sind für alle eingeschaltet. Unter **Einstellungen → Tastenkürzel** schaltest du sie
+Sie sind für alle eingeschaltet. Unter **Einstellungen → Allgemein → Layout & Bedienung** schaltest du sie
 für dich aus.
 
 ### Als Spam markieren
@@ -929,7 +929,7 @@ der Anbieter. Ein Filter ist der Weg, es hier dauerhaft zu machen.
 
 Mail im Spam und im Papierkorb lässt sich endgültig löschen — das einzige Löschen in plMail, das
 kein Verschieben ist. Es gibt kein Rückgängig, deshalb sind die Knöpfe dafür **aus, bis du sie
-einschaltest**: **Einstellungen → E-Mail → Entsorgen**, **Knöpfe zum sofortigen Löschen**. Das ist
+einschaltest**: **Einstellungen → Posteingang → Entsorgen**, **Knöpfe zum sofortigen Löschen**. Das ist
 eine Entscheidung für dein eigenes Konto, und eine Konfigurationssicherung enthält sie.
 
 Ist sie an, hat jede Zeile im Spam und im Papierkorb neben **In den Posteingang** einen Knopf
@@ -968,7 +968,7 @@ Papierkorb nichts, der kein **Löschen** hat.
 
 ## Der Lesebereich
 
-**Einstellungen → Lesebereich** legt fest, wohin die Nachricht kommt, die du öffnest: **Aus** oder
+**Einstellungen → Lesen & Schreiben → Lesen** legt fest, wohin die Nachricht kommt, die du öffnest: **Aus** oder
 **Rechts**. Aus
 ist, wie plMail immer funktioniert hat — Liste und geöffnete Nachricht wechseln sich auf derselben
 Fläche ab, und der Zurück-Pfeil bringt dich zur Liste. Rechts stellt die Nachricht neben die Liste,
@@ -1047,7 +1047,7 @@ Angezeigte Bilder kommen immer über plMail, und nur über eine verschlüsselte 
 das die Mail mit `http://` verlinkt, wird mit `https://` geholt. Der seltene Server, der so nicht
 antwortet, hinterlässt ein leeres Feld.
 
-**Einstellungen → Mail → Bilder**, **Externe Bilder immer anzeigen**, schaltet die Nachfrage für
+**Einstellungen → Lesen & Schreiben → Lesen**, **Externe Bilder immer anzeigen**, schaltet die Nachfrage für
 alle Absender ab. Es ist aus, bis du es einschaltest. Absender können dann sehen, dass du ihre Mail
 geöffnet hast, aber nicht deine Adresse: Die Bilder holt plMail und reicht sie an dich weiter, nie
 dein Browser. Die Absender, denen du einzeln vertraut hast, bleiben so oder so erhalten; schaltest
@@ -1343,7 +1343,7 @@ Eine Weiterleitung nimmt die Anhänge des Originals mit, schon angehängt und wi
 entfernbar; Bilder, die zum Text gehören, bleiben im Zitat. Eine Antwort nimmt sie nicht mit.
 
 Eine Weiterleitung öffnet mit dem Original hinter der Kapsel **Zitierten Text anzeigen**. Wenn du
-es lieber gleich ausgeklappt siehst: Der Schalter steht unter **Einstellungen → Allgemein →
+es lieber gleich ausgeklappt siehst: Der Schalter steht unter **Einstellungen → Lesen & Schreiben →
 Verfassen** — eingeklappt bleibt die Vorgabe. So oder so zählt das Zitat als Inhalt der Nachricht:
 Eine Weiterleitung ohne ein eigenes Wort darüber wird nicht als leere Mail hinterfragt.
 
@@ -1355,7 +1355,7 @@ entfällt der dritte Eintrag, denn ein Menü, das denselben Zeitpunkt unter zwei
 ein Menü, bei dem man nachsehen muss.
 
 Jede Zeit wird auf **deiner** Uhr gelesen — Zeitzone und 12- oder 24-Stunden-Format aus
-**Einstellungen → Allgemein**, nicht aus dem Browser — und das Menü sagt, welche Zone es meint. Ein
+**Einstellungen → Allgemein → Sprache & Region**, nicht aus dem Browser — und das Menü sagt, welche Zone es meint. Ein
 Laptop, der noch auf der Zeit eines anderen Kontinents steht, verschiebt deinen Morgen nicht.
 
 Die Untergrenze ist **eine Minute**: Darunter ist „planen“ nur „senden“ mit schlechterem
@@ -1479,7 +1479,7 @@ wird.
 ## Senden rückgängig machen
 
 Auf Senden zu drücken reiht die Nachricht mit **zehn Sekunden** Verzögerung ein. Was das Fenster
-währenddessen tut, wählst du unter **Einstellungen → Allgemein → Verfassen → Beim Senden**:
+währenddessen tut, wählst du unter **Einstellungen → Lesen & Schreiben → Verfassen → Beim Senden**:
 
 - **Schließen**, die Vorgabe. Das Fenster schließt sich, sobald der Server die Nachricht hat, und
   eine Einblendung **Wird gesendet…** mit einem Knopf **Rückgängig** zählt den Abbruch herunter.
@@ -1668,7 +1668,7 @@ Aktualisierung, die die Zeile entfernt, nimmt sie von der Liste und schließt da
 Tippen davor, also geht ein Wisch, der auf Löschen gestellt ist, nur bis in den Papierkorb, und die
 Meldung danach bietet **Rückgängig** an, wie der Löschen-Knopf der Zeile und das Aktionsblatt auch.
 Endgültig löschen bleibt bei den Knöpfen im Papierkorb, wo zuerst getippt werden muss. Löschen ist
-nie der Standard einer Richtung: Unter **Einstellungen → E-Mail → Wischgesten** ist es eine Wahl, und
+nie der Standard einer Richtung: Unter **Einstellungen → Allgemein → Layout & Bedienung** ist es eine Wahl, und
 niemand bekommt es, ohne es auszuwählen.
 
 **Ein längeres Drücken öffnet das Blatt, und Zeilen werden auf dem Telefon nicht gezogen.** Unterhalb des

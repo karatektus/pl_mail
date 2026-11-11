@@ -41,7 +41,7 @@ test.afterAll(() => {
  * only trusts what a user could actually have scanned.
  */
 async function enrol(page: Page): Promise<string> {
-    await page.goto("/settings?section=security&enrol=1");
+    await page.goto("/settings/security?enrol=1");
 
     await page.getByText("Can't scan? Enter a key instead").click();
 
@@ -139,7 +139,7 @@ test.describe("two-factor authentication", () => {
     test("remembers a device, then stops the moment it is revoked", async ({ page }) => {
         const secret = await signInWithSecret(page);
 
-        await page.goto("/settings?section=security");
+        await page.goto("/settings/security");
         await expect(page.getByText("this device")).toBeVisible();
 
         await logout(page);
@@ -154,7 +154,7 @@ test.describe("two-factor authentication", () => {
 
         // Revoke it, then sign in again — the cookie is still in the browser,
         // and it must no longer be worth anything.
-        await page.goto("/settings?section=security");
+        await page.goto("/settings/security");
         await page.getByRole("button", { name: "Revoke every remembered device" }).click();
         await acceptConfirm(page);
 

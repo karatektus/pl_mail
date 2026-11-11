@@ -776,7 +776,7 @@
                         <p class="text-sm font-medium text-ink truncate">{{ app.user.email }}</p>
                     {% endif %}
                 </div>
-                <a href="{{ path('app_settings_index', { section: 'profile' }) }}"
+                <a href="{{ path('app_settings_page', { page: 'profile' }) }}"
                    id="user-menu-profile"
                    class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
                     <i class="fa-solid fa-user w-4 text-gray-400" aria-hidden="true"></i>
@@ -790,7 +790,7 @@
                     indicator that lands you on a page where you still have to
                     hunt has only moved the hunting.
                 #}
-                <a href="{{ path('app_settings_index', attention ? { section: 'health' } : {}) }}"
+                <a href="{{ attention ? path('app_settings_page', { page: 'health' }) : path('app_settings_index') }}"
                    id="user-menu-settings"
                    class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
                     <i class="fa-solid fa-gear w-4 text-gray-400" aria-hidden="true"></i>

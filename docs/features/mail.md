@@ -28,7 +28,7 @@ Labels**: switch one off and its row leaves the sidebar, switch it back on and i
 straight away. **Unread** and **All Mail** are the ones that start off.
 
 **Snoozed**, **Archive**, **Spam** and **Trash** wait behind a **More** row, and **Settings → General →
-Sidebar** chooses which rows those are: tick a folder there and it moves behind More, clear it and it
+Layout & controls** chooses which rows those are: tick a folder there and it moves behind More, clear it and it
 comes back to the sidebar proper. The **Inbox** always stays on top, and so does **All Mail**, which
 is not offered. The other rows keep the sidebar's own order whichever side of More they are on, and
 with nothing ticked there is no More at all. This decides where a row sits, never whether it exists —
@@ -124,7 +124,7 @@ For everything else it works the category out from headers that were already sto
 re-categorisation never needs a resync.
 
 The tabs are on the top-level Inbox, and you can have them on **an account's own inbox** too (click
-the account in the sidebar): **Settings → Mail → Categories**, **Tabs on each account**. It is off
+the account in the sidebar): **Settings → Inbox → Categories & sorting**, **Tabs on each account**. It is off
 until you turn it on, and then an Outlook or any other account has them, [tabs of your
 own](#tabs-of-your-own) included; off, an account's page is its whole inbox in one list. The switch
 is there only while **Inbox tabs** is on, and a config backup carries it. A tab is there while it holds mail, and on an account's page it counts only that
@@ -344,7 +344,7 @@ into its own tracker and no tracking number anywhere, so that is what the card c
 delivery day promised in words rather than digits ("arriving today", "Arriving Monday") is resolved
 against the mail's own arrival, never against the clock, so re-reading an old mail lands on the day
 it always did. "Today" is the day it was on your calendar when the mail came in, in the timezone
-from **Settings → General** (or the install's default if you never picked one), so a mail that arrives
+from **Settings → General → Language & region** (or the install's default if you never picked one), so a mail that arrives
 early in the morning in Sydney or in the evening in Los Angeles is not put a day off. The Amazon
 shops read are amazon.de, amazon.com, amazon.fr, amazon.co.uk, amazon.ca, amazon.com.au, amazon.in
 and amazon.sg, and a card's button opens the shop that sent the mail. A date written with slashes,
@@ -751,7 +751,7 @@ for a keyboard or a screen reader, and the sync toast says when the run starts a
 
 On a phone a row swipes too. Drag it to the right and it does what the right direction is set to; by
 default that marks it read, or unread if it already is. Drag it to the left and, by default, it is
-archived. What each direction does is set under **Settings → Mail → Swipe actions**, below. Past a third of
+archived. What each direction does is set under **Settings → General → Layout & controls**, below. Past a third of
 the row's width the action waits behind the row, and pressing it does the thing. Past two thirds, or a
 quick flick past the first third, it happens as you let go. Touching anything else closes an open row,
 and that touch does nothing more. Read / unread and archive are offered only on ordinary mail: never on
@@ -759,7 +759,7 @@ a draft, and never in the archive, the bin or spam. Delete is offered where the 
 is: never in the archive, the bin or spam, but on a draft too. Star is offered on every row, drafts included. Without touch, the row's checkbox (its avatar) and
 the toolbar do the same work, **Archive** and **More** on a selection included.
 
-Each direction has its own setting under **Settings → Mail → Swipe actions**, a select for right and one
+Each direction has its own setting under **Settings → General → Layout & controls**, a select for right and one
 for left. The choices are read / unread, archive, star, delete, and nothing. Both directions may be set
 to the same choice. Delete moves the conversation to the bin, never deletes it for good, and its
 panel is red whichever side it is on. A star is a toggle on the row, so a second swipe takes it off
@@ -807,7 +807,7 @@ nothing where that button is not offered — there is no Archive in the bin, so 
 Keys are left alone while you are typing into anything, while a dialog or a menu is open, and
 whenever Ctrl, Alt or ⌘ is held.
 
-They are on for everyone. **Settings → Keyboard shortcuts** switches them off for you.
+They are on for everyone. **Settings → General → Layout & controls** switches them off for you.
 
 ### Mark as spam
 
@@ -884,7 +884,7 @@ which has no **Delete**.
 
 ## The reading pane
 
-**Settings → Reading pane** decides where the message you open goes: **Off** or **Right**. Off is how plMail
+**Settings → Reading & writing → Reading** decides where the message you open goes: **Off** or **Right**. Off is how plMail
 has always worked — the list and the open message take turns on the same space, and the back arrow
 returns you to the list. Right puts the message beside the list, so you can read one conversation
 and see the rest of the mailbox at the same time. Off is the default, and nothing about your
@@ -955,7 +955,7 @@ Shown pictures always come through plMail, and only over an encrypted connection
 mail links as `http://` is fetched as `https://`. The rare host that cannot answer that way leaves
 an empty box.
 
-**Settings → Mail → Images**, **Always show remote images**, turns the question off for every
+**Settings → Reading & writing → Reading**, **Always show remote images**, turns the question off for every
 sender. It is off until you turn it on. Senders can then tell that you opened their mail, but not
 your address: the pictures are fetched by plMail and passed on to you, never by your browser. The
 senders you trusted one by one are kept either way, so switching it off again brings back exactly
@@ -1222,7 +1222,7 @@ A forward carries the original's attachments with it, already attached and remov
 other; pictures that are part of the body stay in the quote. A reply does not carry them.
 
 A forward opens with the original folded behind the **show quoted text** pill. If you would rather
-see it spread out from the start, **Settings → General → Composing** has the switch — folded stays
+see it spread out from the start, **Settings → Reading & writing → Compose** has the switch — folded stays
 the default, and either way the quote counts as the message's content: sending a forward without a
 word of your own above it is not questioned as an empty mail.
 
@@ -1233,7 +1233,7 @@ The chevron beside **Send** opens **Send later**: *Tomorrow morning* (08:00), *T
 third, because a menu offering one instant under two names is a menu you have to check.
 
 Every time is read on **your** clock — the timezone and the 12-or-24-hour format from
-**Settings → General**, not the browser's — and the menu says which zone it means. A laptop still on
+**Settings → General → Language & region**, not the browser's — and the menu says which zone it means. A laptop still on
 another continent's time does not move your morning.
 
 The floor is **one minute**: below that, "schedule" is "send" with a worse undo, and the picker
@@ -1345,7 +1345,7 @@ sent before anything is attached to anything.
 ## Undo send
 
 Pressing send queues the message with a **ten-second** delay. What the composer does meanwhile is
-yours to choose, under **Settings → General → Composing → When you press Send**:
+yours to choose, under **Settings → Reading & writing → Compose → When you press Send**:
 
 - **Close it**, the default. The composer closes as soon as the server has the message, and a
   **Sending…** toast with an **Undo** button counts the cancel down. While the server is still
@@ -1449,7 +1449,7 @@ that removes the row takes it off the list, and closes the sheet with it.
 it, so a swipe set to delete goes only as far as the bin, and the toast after it offers **Undo**, as
 the row's own delete button and the action sheet's do. Deleting for good stays with the bin's own
 buttons, where a tap comes first. Delete is never a direction's default: it is a choice under
-**Settings → Mail → Swipe actions**, and nobody gets it without picking it.
+**Settings → General → Layout & controls**, and nobody gets it without picking it.
 
 **A long press opens the sheet, and a phone's rows are not dragged.** Below the tablet breakpoint a
 thread row is not a native drag: HTML5 drag never worked from a finger, and turning it off keeps iOS

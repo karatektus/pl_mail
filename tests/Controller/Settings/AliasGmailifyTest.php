@@ -48,7 +48,7 @@ final class AliasGmailifyTest extends WebTestCase
         $gmail  = $this->account($user, 'me@gmail.test', true);
         $plain  = $this->account($user, 'me@joder.dev', false);
 
-        $crawler = $client->request('GET', '/settings?section=aliases');
+        $crawler = $client->request('GET', '/settings/aliases');
 
         $form = $crawler->filter(sprintf('[data-gmailify="%d"]', $gmail->id));
 
@@ -121,7 +121,7 @@ final class AliasGmailifyTest extends WebTestCase
 
     private function token(KernelBrowser $client, string $formAction): string
     {
-        $crawler = $client->request('GET', '/settings?section=aliases');
+        $crawler = $client->request('GET', '/settings/aliases');
 
         self::assertResponseIsSuccessful();
 

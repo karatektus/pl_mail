@@ -110,7 +110,7 @@ final class CalendarSwitchFirstPaintTest extends WebTestCase
      */
     public function testAPageWithoutTheShellDrawsTheSwitchAsMail(): void
     {
-        $switch = $this->switchOn('/settings', CalendarPaneMode::Split);
+        $switch = $this->switchOn('/settings/profile', CalendarPaneMode::Split);
 
         self::assertSame(['mail'], $this->iconsDrawn($switch, wide: false));
         self::assertSame(['mail'], $this->iconsDrawn($switch, wide: true));

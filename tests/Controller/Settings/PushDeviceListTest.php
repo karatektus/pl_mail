@@ -108,7 +108,7 @@ final class PushDeviceListTest extends WebTestCase
 
     private function notificationsPane(): string
     {
-        $crawler = $this->client->request('GET', '/settings?section=notifications');
+        $crawler = $this->client->request('GET', '/settings/notifications');
 
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
 

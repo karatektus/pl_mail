@@ -3216,7 +3216,7 @@ profile:
         name_first: First name
         name_last: Last name
 
-# The reading pane beside the message list (Settings → Reading pane turns it on).
+# The reading pane beside the message list (Settings → Reading & writing → Reading turns it on).
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
@@ -4670,41 +4670,87 @@ settings:
         show_hint: 'Off: nothing opens after an update, and the ? in the top bar shows no dot. The notes are still under ? → What''s new.'
         subheading: 'What plMail shows you after it has been updated.'
     nav:
-        accounts: Mail accounts
+        accounts: "Accounts"
         ai: 'Assistant'
         aliases: Aliases
         app_passwords: App passwords
         appearance: Appearance
-        calendar_behaviour: Behaviour
+        area:
+            account: "Account"
+            assistant: "Assistant & automation"
+            calendar_contacts: "Calendar & contacts"
+            general: "General"
+            inbox: "Inbox"
+            integrations: "Integrations"
+            mail_accounts: "Mail accounts"
+            reading_writing: "Reading & writing"
+        calendar_behaviour: "Calendar behaviour"
         calendars: Calendars
-        categories: "Categories"
+        categories: "Categories & sorting"
+        compose: "Compose"
         contacts: Contacts
         disposal: Disposal
         encryption: "Encryption"
         filters: Filters
-        general: General
-        group:
-            access: Access
-            calendar: Calendar
-            features: Features
-            mail: Mail
-            personal: Personal
         health: 'Account health'
-        images: Images
+        health_banner: "Something needs your attention — see Account health."
         inboxes: 'Unified inboxes'
         insights: Insights
         integrations: Integrations
         labels: Labels
+        layout: "Layout & controls"
         notifications: Notifications
         profile: Profile
-        read_receipts: Read receipts
-        reading_pane: Reading pane
+        reading: "Reading"
+        region: "Language & region"
         security: Security
         sharing: Sharing
-        shortcuts: Keyboard shortcuts
         signature: Signatures
-        swipe_actions: Swipe actions
         templates: 'Templates'
+        whats_new: "What's new"
+    search:
+        count: "Results: %count%"
+        empty: "Nothing found. Search looks through page names, card headings and keywords."
+        failed: "Settings search could not be loaded. Close it and try again."
+        hint_move: "to move"
+        hint_open: "to open"
+        keyword: "Keyword"
+        keywords:
+            accent: "colour color highlight"
+            accounts: "imap smtp pop3 jmap server add mailbox"
+            ai: "ai artificial intelligence summary writing help model"
+            aliases: "alias identity sender from address"
+            app_passwords: "imap smtp client thunderbird token api jmap"
+            calendars: "caldav ics subscribe feed"
+            clock: "12 24 hour am pm time format"
+            contacts: "carddav address book"
+            disposal: "delete trash bin forever empty"
+            encryption: "pgp openpgp gpg key"
+            filters: "rules sieve automatic move forward"
+            handwriting: "sign pdf draw"
+            images: "tracking pixel remote load block"
+            inbox_tabs: "tabs promotions social updates forums"
+            insights: "parcel tracking invoice flight"
+            integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            labels: "folders tags unread all mail"
+            language: "locale english german french chinese"
+            notifications: "push browser phone sound alert"
+            password: "login sign-in"
+            profile: "name avatar photo picture"
+            read_receipts: "mdn receipt confirmation"
+            reading_pane: "preview split right bottom"
+            sharing: "link public booking"
+            shortcuts: "keyboard hotkeys keys"
+            swipe_actions: "swipe gesture phone archive"
+            templates: "canned responses snippets text blocks"
+            theme: "dark light mode night colours colors"
+            two_factor: "2fa totp otp authenticator mfa"
+            typography: "font text size"
+            whats_new: "changelog update version release"
+            wkd: "web key directory publish"
+        kind_page: "Page"
+        label: "Search settings"
+        placeholder: "Search settings"
     notifications:
         devices:
             empty: >-
@@ -5090,7 +5136,7 @@ shortcuts:
         star: "Star or unstar"
         undo: "Undo the last action"
     or: "or"
-    switched_off: "Shortcuts are switched off for you. Switch them on under Settings → General."
+    switched_off: "Shortcuts are switched off for you. Switch them on under Settings → General → Layout & controls."
     then: "then"
     title: "Keyboard shortcuts"
 

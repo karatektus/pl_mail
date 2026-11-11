@@ -365,7 +365,7 @@ test.describe("dragging a conversation", () => {
     test("onto Unread marks it unread and leaves it where it was", async ({ page }) => {
         // The row is opt-in. Switched on through the eye in label settings,
         // and only when it is off, so a second run finds it already there.
-        await page.goto("/settings?section=labels");
+        await page.goto("/settings/labels");
 
         const show = page
             .locator("#settings-label-list li")

@@ -64,7 +64,7 @@ final class AccountCategoriesTest extends WebTestCase
         $account->graphDeltaLinks = ['AAMkAD-inbox' => 'https://graph.microsoft.com/v1.0/me/mailFolders/x/messages/delta?$deltatoken=old'];
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
         $button  = $crawler->filter('turbo-frame#account-categories-' . $account->id . ' button[data-account-categories]');
 
         self::assertSame('false', $button->attr('aria-pressed'), 'off by default');
@@ -99,7 +99,7 @@ final class AccountCategoriesTest extends WebTestCase
         $this->em->persist($account);
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
 
         self::assertCount(0, $crawler->filter('turbo-frame#account-categories-' . $account->id));
 

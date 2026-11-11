@@ -257,7 +257,7 @@ export async function bulkMore(page: Page, name: string): Promise<void> {
 }
 
 export async function ajaxPost(page: Page, url: string, data?: unknown): Promise<APIResponse> {
-    const html = await (await page.request.get("/settings?section=appearance")).text();
+    const html = await (await page.request.get("/settings/appearance")).text();
     const token = /<meta name="csrf-token" content="([^"]*)"/.exec(html)?.[1] ?? "";
 
     return page.request.post(url, {

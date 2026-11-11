@@ -78,7 +78,7 @@ test.describe("appearance preview pane", () => {
     test.beforeEach(async ({ page }) => {
         const reset = await ajaxPost(page, "/settings/appearance/reset");
         expect(reset.ok()).toBe(true);
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
 
         // "Reset to defaults" does NOT put the pane back, deliberately: the
         // width lives in the settings bag rather than in the Appearance
@@ -252,7 +252,7 @@ test.describe("appearance preview pane", () => {
         await page.waitForTimeout(500);
 
         await page.setViewportSize(TIGHT);
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await page.waitForTimeout(600);
 
         const here = await width(page);
@@ -264,7 +264,7 @@ test.describe("appearance preview pane", () => {
 
         // Not persisted: the big screen's choice is still the stored one.
         await page.setViewportSize(WIDE);
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await page.waitForTimeout(600);
         expect(await width(page)).toBe(PREVIEW_MAX);
     });
@@ -359,7 +359,7 @@ test.describe("appearance preview pane", () => {
     for (const viewport of [DESKTOP, TIGHT]) {
         test(`the preview is the same height as the controls at ${viewport.width}x${viewport.height}`, async ({ page }) => {
             await page.setViewportSize(viewport);
-            await page.goto("/settings?section=appearance");
+            await page.goto("/settings/appearance");
             await page.waitForTimeout(500);
 
             const measured = await page.evaluate(() => {
@@ -449,7 +449,7 @@ test.describe("appearance preview pane", () => {
         });
 
         await page.setViewportSize(DESKTOP);
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await page.waitForTimeout(400);
         const preview = await geometry();
 
@@ -685,7 +685,7 @@ for (const phone of [
             page.locator("header [data-appearance-preview-toggle]");
 
         test.beforeEach(async ({ page }) => {
-            await page.goto("/settings?section=appearance");
+            await page.goto("/settings/appearance");
             await expect(page.locator('[data-controller="settings--appearance"]')).toBeVisible();
         });
 

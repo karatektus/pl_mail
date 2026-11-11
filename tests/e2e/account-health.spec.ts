@@ -90,14 +90,14 @@ function restoreTheAccount(): void {
 }
 
 /** The settings nav entry that leads here. */
-const NAV_ENTRY = 'nav a[href*="section=health"]';
+const NAV_ENTRY = 'nav a[href$="/settings/health"]';
 
 test.describe("account health", () => {
     test.beforeAll(breakTheAccount);
     test.afterAll(restoreTheAccount);
 
     test.beforeEach(async ({ page }) => {
-        await page.goto("/settings?section=health");
+        await page.goto("/settings/health");
     });
 
     test("surfaces the dead sign-in with a repair, in the user's words", async ({
@@ -168,7 +168,7 @@ test.describe("account health", () => {
         await page.locator("#user-menu-btn").click();
         await page.locator("#user-menu-settings").click();
 
-        await expect(page).toHaveURL(/section=health/);
+        await expect(page).toHaveURL(/\/settings\/health/);
         await expect(
             page.locator('[data-health-kind="account_reconnect"]'),
         ).toBeVisible();
@@ -180,7 +180,7 @@ test.describe("account health", () => {
      * did not happen to notice the topbar dot.
      */
     test("puts an entry in the settings nav, badged", async ({ page }) => {
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
 
         const entry = page.locator(NAV_ENTRY);
 
@@ -189,32 +189,32 @@ test.describe("account health", () => {
 
         await entry.click();
 
-        await expect(page).toHaveURL(/section=health/);
+        await expect(page).toHaveURL(/\/settings\/health/);
         await expect(page.locator("#settings-health")).toBeVisible();
     });
 
     /**
-     * The nav is a wrapping horizontal strip on a phone rather than a column,
-     * so an entry that comes and goes changes that layout. Here it is present:
-     * it has to sit IN the strip, not above it, and not push the page sideways.
+     * On a phone the tree sits behind the "Area › Page" button (#569). Opened,
+     * the entry is in it under Mail accounts, and neither the tree nor the
+     * banner above it pushes the page sideways.
      */
-    test("the nav entry joins the wrapping strip at 414px", async ({ page }) => {
+    test("the nav entry is in the tree at 414px", async ({ page }) => {
         await page.setViewportSize({ width: 414, height: 851 });
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
+        await page.locator("button[aria-controls='settings-tree']").click();
 
         const entry = page.locator(NAV_ENTRY);
 
         await expect(entry).toBeVisible();
 
-        // Same row as the first group's first link, or wrapped from it — either
-        // way it is inside the strip, which is what `.contents` on the <ul>
-        // buys. A box wider than the pane would mean it broke out of the flex.
-        // `has:` re-roots its selector inside the candidate, so it is spelled
-        // WITHOUT the leading `nav` — passing the NAV_ENTRY locator here would
-        // ask for `nav nav a[…]` and match nothing.
+        // Inside the tree's own width: a box wider than the nav would mean the
+        // badge or the label broke out of the row. `has:` re-roots its selector
+        // inside the candidate, so it is spelled WITHOUT the leading `nav` —
+        // passing the NAV_ENTRY locator here would ask for `nav nav a[…]` and
+        // match nothing.
         const strip = page
             .locator("nav")
-            .filter({ has: page.locator('a[href*="section=health"]') });
+            .filter({ has: page.locator('a[href$="/settings/health"]') });
         const stripBox = (await strip.boundingBox())!;
         const entryBox = (await entry.boundingBox())!;
 
@@ -231,7 +231,7 @@ test.describe("account health", () => {
 
     test("reads at 393px", async ({ page }) => {
         await page.setViewportSize({ width: 393, height: 850 });
-        await page.goto("/settings?section=health");
+        await page.goto("/settings/health");
 
         const card = page.locator('[data-health-kind="account_reconnect"]');
 
@@ -311,9 +311,9 @@ test.describe("account health, when there is none to report", () => {
     });
 
     test("keeps the entry out of the settings nav", async ({ page }) => {
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
 
-        await expect(page.locator("nav a[href*='section=accounts']")).toHaveCount(
+        await expect(page.locator("nav a[href$='/settings/accounts']")).toHaveCount(
             1,
             // Proves the nav rendered at all — `toHaveCount(0)` on the health
             // entry passes just as well against a blank page.
@@ -331,12 +331,12 @@ test.describe("account health, when there is none to report", () => {
      * somebody who followed a dot here after fixing something has to be TOLD it
      * is fixed, and a silent bounce to `accounts` reads as a broken link.
      */
-    test("still answers a bookmarked ?section=health with the all-clear", async ({
+    test("still answers a bookmarked /settings/health with the all-clear", async ({
         page,
     }) => {
-        await page.goto("/settings?section=health");
+        await page.goto("/settings/health");
 
-        await expect(page).toHaveURL(/section=health/);
+        await expect(page).toHaveURL(/\/settings\/health/);
         await expect(page.locator("[data-health-empty]")).toBeVisible();
 
         // The entry shows itself while you are standing on it, so the strip has
@@ -350,7 +350,7 @@ test.describe("account health, when there is none to report", () => {
 
     /**
      * The topbar still leads somewhere useful with nothing wrong: the menu's
-     * Settings entry drops its `?section=health` and lands on settings-in-
+     * Settings entry drops its `/health` and lands on settings-in-
      * general, rather than on a page whose only content is "nothing to report".
      */
     test("the topbar menu leads to settings, not to an empty health page", async ({
@@ -362,7 +362,7 @@ test.describe("account health, when there is none to report", () => {
         await page.locator("#user-menu-settings").click();
 
         await expect(page).toHaveURL(/\/settings/);
-        await expect(page).not.toHaveURL(/section=health/);
+        await expect(page).not.toHaveURL(/\/settings\/health/);
         await expect(page.locator("#settings-health")).toHaveCount(0);
     });
 
@@ -376,19 +376,24 @@ test.describe("account health, when there is none to report", () => {
             page,
         }, testInfo) => {
             await page.setViewportSize({ width: 414, height: 851 });
-            await page.goto("/settings?section=accounts");
+            await page.goto("/settings/accounts");
 
             await page.evaluate(
                 (t) => document.documentElement.setAttribute("data-theme", t),
                 theme,
             );
 
-            // The strip is intact: every other entry is still there and still
-            // in one flex container, and the first link has not been left
-            // stranded on a row of its own where health used to sit.
-            const links = page.locator("nav a[href*='section=']");
+            // The tree is intact: every other entry is still there. On a
+            // phone it sits behind the "Area › Page" button (#569), so that is
+            // opened first — the links are in the page either way, but only
+            // visible once it is.
+            await page.locator("button[aria-controls='settings-tree']").click();
 
-            await expect(links.first()).toBeVisible();
+            const links = page.locator("nav a[href*='/settings/']");
+
+            // The current page's link: the other areas are folded, so their
+            // links are in the page but not on screen.
+            await expect(page.locator("nav a[aria-current='page']")).toBeVisible();
             expect(await links.count()).toBeGreaterThan(10);
 
             const overflow = await page.evaluate(

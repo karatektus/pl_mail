@@ -62,6 +62,7 @@
    inset it and sat flush against the border. In the header band it is inset by
    the band's own px-4, like every other section. #}
 {% embed 'settings/_card.html.twig' with {
+    id:         'card-two-factor',
     heading:    'settings.security.heading'|trans,
     subheading: 'settings.security.subheading'|trans,
 } %}
@@ -319,7 +320,7 @@
                     </div>
                 </div>
 
-                <a href="{{ path('app_settings_index', { section: 'security', enrol: 1 }) }}"
+                <a href="{{ path('app_settings_page', { page: 'security', enrol: 1 }) }}"
                    class="inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
                           bg-accent hover:bg-accent-strong text-accent-ink transition-colors">
                     <i class="fa-solid fa-shield-halved text-xs" aria-hidden="true"></i>

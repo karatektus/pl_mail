@@ -327,6 +327,8 @@ final class AliasController extends AbstractController
             ]);
         }
 
-        return $this->redirectToRoute('app_settings_index');
+        // The Aliases page. This used to be bare /settings, which opened
+        // Profile — the no-script fallback lost the list just changed.
+        return $this->redirectToRoute('app_settings_page', ['page' => 'aliases']);
     }
 }

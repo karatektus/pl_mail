@@ -54,7 +54,7 @@ const handle = (page: Page) => page.locator("[data-reading-handle]");
  * real one comes from.
  */
 const store = async (page: Page, fields: Record<string, string>) => {
-    const html = await (await page.request.get("/settings?section=reading-pane")).text();
+    const html = await (await page.request.get("/settings/reading")).text();
     const token = /data-settings--reading-pane-token-value="([^"]*)"/.exec(html)?.[1] ?? "";
 
     const response = await page.request.post("/settings/appearance/reading-pane", {

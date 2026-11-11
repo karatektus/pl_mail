@@ -79,7 +79,7 @@ final class DevicePairingController extends AbstractController
             ]);
         }
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'app-passwords']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'app-passwords']);
     }
 
     /**

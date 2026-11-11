@@ -16,7 +16,7 @@ const PANEL = '[data-controller="settings--appearance"]';
 const OUT = "var/shots";
 
 const setCorner = async (page: Page, on: boolean) => {
-    await page.goto("/settings?section=appearance");
+    await page.goto("/settings/appearance");
     await expect(page.locator(PANEL)).toBeVisible();
 
     const segment = page.locator(

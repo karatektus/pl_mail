@@ -182,6 +182,6 @@ final class TwoFactorController extends AbstractController
      */
     private function redirectToSection(array $extra = []): Response
     {
-        return $this->redirectToRoute('app_settings_index', ['section' => 'security', ...$extra]);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'security', ...$extra]);
     }
 }

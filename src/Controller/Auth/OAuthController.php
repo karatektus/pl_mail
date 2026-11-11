@@ -219,7 +219,7 @@ class OAuthController extends AbstractController
                 '%actual%'   => $e->actual,
             ]));
 
-            return $this->redirectToRoute('app_settings_index', ['section' => 'health']);
+            return $this->redirectToRoute('app_settings_page', ['page' => 'health']);
         }
 
         $this->addFlash('success', $this->translator->trans('settings.health.reconnect.done', [
@@ -228,7 +228,7 @@ class OAuthController extends AbstractController
 
         $this->warnIfCalendarWasDeclined($mailProvider, $token);
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'health']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'health']);
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

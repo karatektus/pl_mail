@@ -127,7 +127,7 @@ final class PushRepairGuardsTest extends WebTestCase
 
         self::assertResponseRedirects();
         self::assertStringContainsString(
-            'section=health',
+            '/settings/health',
             (string) $client->getResponse()->headers->get('Location'),
             'back to the page the button was pressed on',
         );
@@ -186,7 +186,7 @@ final class PushRepairGuardsTest extends WebTestCase
      */
     private function token(KernelBrowser $client, string $id): string
     {
-        $client->request('GET', '/settings?section=accounts');
+        $client->request('GET', '/settings/accounts');
 
         $stack   = static::getContainer()->get('request_stack');
         $carrier = new Request();

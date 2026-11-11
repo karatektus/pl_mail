@@ -151,7 +151,7 @@ final class SwipeActionSettingTest extends WebTestCase
 
     public function testEachSelectOffersExactlyTheFiveChoicesAndNoPurge(): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=swipe-actions');
+        $crawler = $this->client->request('GET', '/settings/layout');
 
         self::assertResponseIsSuccessful();
 
@@ -167,7 +167,7 @@ final class SwipeActionSettingTest extends WebTestCase
     {
         $this->storeChoices(SwipeAction::Star, SwipeAction::None);
 
-        $crawler = $this->client->request('GET', '/settings?section=swipe-actions');
+        $crawler = $this->client->request('GET', '/settings/layout');
 
         self::assertSame('star', $crawler->filter('select[name="swipeRight"] option[selected]')->attr('value'));
         self::assertSame('none', $crawler->filter('select[name="swipeLeft"] option[selected]')->attr('value'));
@@ -175,18 +175,18 @@ final class SwipeActionSettingTest extends WebTestCase
 
     public function testTheNavigationListsSwipeActionsUnderMail(): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=swipe-actions');
+        $crawler = $this->client->request('GET', '/settings/layout');
 
         self::assertSame(
             1,
-            $crawler->filter('a[href*="section=swipe-actions"][aria-current="page"]')->count(),
+            $crawler->filter('a[href$="/settings/layout"][aria-current="page"]')->count(),
             'Swipe actions is a section of its own, and is the one marked as current',
         );
     }
 
     private function tokenFromPage(): string
     {
-        $crawler = $this->client->request('GET', '/settings?section=swipe-actions');
+        $crawler = $this->client->request('GET', '/settings/layout');
 
         return (string) $crawler->filter('form[action="/settings/swipe-actions"] input[name="_token"]')->first()->attr('value');
     }

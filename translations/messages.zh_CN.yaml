@@ -4007,41 +4007,87 @@ settings:
         show_hint: '关闭后，更新完成时不会自动打开任何内容，顶栏的 ? 也不会显示圆点。仍可通过 ? → 更新内容查看。'
         subheading: 'plMail 更新后向你显示的内容。'
     nav:
-        accounts: '邮件账户'
+        accounts: "账户"
         ai: '助手'
         aliases: '别名'
         app_passwords: '应用密码'
         appearance: '外观'
-        calendar_behaviour: '行为'
+        area:
+            account: "账户与安全"
+            assistant: "助手与自动化"
+            calendar_contacts: "日历与联系人"
+            general: "常规"
+            inbox: "收件箱"
+            integrations: "集成"
+            mail_accounts: "邮件账户"
+            reading_writing: "阅读与撰写"
+        calendar_behaviour: "日历行为"
         calendars: '日历'
-        categories: '分类'
+        categories: "分类与排序"
+        compose: "撰写"
         contacts: "联系人"
         disposal: '彻底删除'
         encryption: "加密"
         filters: '过滤器'
-        general: '常规'
-        group:
-            access: '访问'
-            calendar: '日历'
-            features: '功能'
-            mail: '邮件'
-            personal: '个人'
         health: '账户健康状况'
-        images: '图片'
+        health_banner: "有问题需要你处理：请查看账户健康状况。"
         inboxes: '统一收件箱'
         insights: '邮件要点'
         integrations: '集成'
         labels: '标签'
+        layout: "布局与操作"
         notifications: '通知'
         profile: '个人资料'
-        read_receipts: '已读回执'
-        reading_pane: '阅读面板'
+        reading: "阅读"
+        region: "语言与地区"
         security: '安全'
         sharing: '共享'
-        shortcuts: '键盘快捷键'
         signature: '签名'
-        swipe_actions: "滑动操作"
         templates: '模板'
+        whats_new: "新功能"
+    search:
+        count: "结果：%count%"
+        empty: "未找到。搜索范围包括页面名称、卡片标题和关键词。"
+        failed: "无法加载设置搜索。请关闭后重试。"
+        hint_move: "选择"
+        hint_open: "打开"
+        keyword: "关键词"
+        keywords:
+            accent: "颜色 强调色 高亮 color"
+            accounts: "imap smtp pop3 jmap 服务器 添加 邮箱"
+            ai: "ai 人工智能 摘要 写作 帮助 模型"
+            aliases: "别名 身份 发件人 地址"
+            app_passwords: "imap smtp 客户端 thunderbird 令牌 api jmap"
+            calendars: "caldav ics 订阅"
+            clock: "12 24 小时 时间 格式"
+            contacts: "carddav 通讯录"
+            disposal: "删除 回收站 彻底 清空"
+            encryption: "pgp openpgp gpg 密钥"
+            filters: "规则 sieve 自动 移动 转发"
+            handwriting: "签名 pdf 手写"
+            images: "跟踪 像素 远程 加载 阻止"
+            inbox_tabs: "标签页 推广 社交 动态 论坛"
+            insights: "包裹 物流 发票 航班"
+            integrations: "nextcloud dropbox drive onedrive immich paperless 云 webdav"
+            labels: "文件夹 标签 未读 所有邮件"
+            language: "语言 中文 英语 德语 法语"
+            notifications: "推送 浏览器 手机 声音 提醒"
+            password: "密码 登录"
+            profile: "姓名 头像 照片"
+            read_receipts: "mdn 已读回执 确认"
+            reading_pane: "预览 分栏 右侧 下方"
+            sharing: "链接 公开 预约"
+            shortcuts: "键盘 按键 快捷键"
+            swipe_actions: "滑动 手势 手机 归档"
+            templates: "模板 快速回复 片段"
+            theme: "深色 浅色 模式 夜间 颜色 dark"
+            two_factor: "2fa totp otp 验证器 双重验证"
+            typography: "字体 文字 大小"
+            whats_new: "更新 版本 更新日志"
+            wkd: "web key directory 发布"
+        kind_page: "页面"
+        label: "搜索设置"
+        placeholder: "搜索设置"
     notifications:
         devices:
             empty: '尚未注册任何设备。开启上方通知会注册此浏览器；手机应用会自行注册。'
@@ -4383,7 +4429,7 @@ shortcuts:
         star: '添加或移除星标'
         undo: '撤销上一步操作'
     or: '或'
-    switched_off: '你已关闭快捷键。可在设置 → 常规中开启。'
+    switched_off: "你已关闭快捷键。可在设置 → 常规 → 布局与操作中开启。"
     then: '然后'
     title: '键盘快捷键'
 sidebar:

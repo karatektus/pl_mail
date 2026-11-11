@@ -110,12 +110,12 @@ async function person(page: Page): Promise<string> {
     consoleCommand(`app:test:seed-mail --email=${email} --sendable`);
 
     await login(page, email, PASSWORD);
-    await page.goto("/settings?section=encryption");
+    await page.goto("/settings/encryption");
     await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });
 
     // Through the settings editor, as a person pastes one in: the input event
     // is what mirrors the editor into the field the form posts.
-    await page.goto("/settings?section=signature");
+    await page.goto("/settings/signature");
 
     const form = page.locator('form[action$="/signature"]').first();
 

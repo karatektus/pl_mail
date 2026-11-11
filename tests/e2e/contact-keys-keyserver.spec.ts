@@ -112,7 +112,7 @@ test.describe("contacts' keys from key servers", () => {
         // Every recipient has a key now, so the message is encrypted by itself.
         await expect(dock.locator("[data-compose--encryption-target=encryptButton]")).toHaveAttribute("aria-pressed", "true", { timeout: 15000 });
 
-        await page.goto("/settings?section=encryption");
+        await page.goto("/settings/encryption");
         await expect(page.locator("turbo-frame#contact-keys").getByTestId("contact-key-fingerprint")).toHaveText(grouped(key.fingerprint));
         await expect(page.locator("turbo-frame#contact-keys").getByTestId("contact-key-origin")).toHaveText("From the key server keys.openpgp.org");
     });
@@ -126,7 +126,7 @@ async function person(page: Page): Promise<void> {
     consoleCommand(`app:test:seed-mail --email=${email}`);
 
     await login(page, email, PASSWORD);
-    await page.goto("/settings?section=encryption");
+    await page.goto("/settings/encryption");
     await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });
 }
 

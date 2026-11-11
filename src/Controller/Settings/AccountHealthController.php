@@ -171,6 +171,6 @@ final class AccountHealthController extends AbstractController
 
     private function back(): RedirectResponse
     {
-        return $this->redirectToRoute('app_settings_index', ['section' => 'health']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'health']);
     }
 }

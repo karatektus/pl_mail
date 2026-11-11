@@ -16,7 +16,7 @@ import { saveSetting } from "./support/settings";
 const NAME = "Shipping e2e";
 
 async function open(page: Page): Promise<void> {
-    await page.goto("/settings?section=categories");
+    await page.goto("/settings/categories");
     await expect(page.locator("[data-tab-fixed='primary']")).toBeVisible();
 }
 

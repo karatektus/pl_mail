@@ -131,7 +131,7 @@ final class AppearancePaneStateTest extends WebTestCase
 
         // …and that is the number the panel is rendered with, rather than the
         // stored one reaching the stylesheet by another route.
-        $crawler = $client->request('GET', '/settings?section=appearance');
+        $crawler = $client->request('GET', '/settings/appearance');
 
         self::assertStringContainsString(
             "--appearance-preview-width: {$expected}px",
@@ -157,7 +157,7 @@ final class AppearancePaneStateTest extends WebTestCase
     public function testThePreviewOffersEveryPartItClaimsTo(): void
     {
         [$client] = $this->signedIn();
-        $crawler  = $client->request('GET', '/settings?section=appearance');
+        $crawler  = $client->request('GET', '/settings/appearance');
 
         self::assertResponseIsSuccessful();
 
@@ -214,7 +214,7 @@ final class AppearancePaneStateTest extends WebTestCase
      */
     private function token(KernelBrowser $client): string
     {
-        $crawler = $client->request('GET', '/settings?section=appearance');
+        $crawler = $client->request('GET', '/settings/appearance');
 
         return (string) $crawler
             ->filter('[data-ui--split-token-value]')

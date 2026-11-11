@@ -23,7 +23,7 @@ const PORT = 'input[name="account[imapPort]"]';
 const DELETE_MODE = 'select[name="account[pop3DeleteMode]"]';
 
 async function openAddForm(page: Page): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     await page
         .locator("section")
@@ -66,7 +66,7 @@ async function chooseDeleteMode(page: Page, option: string): Promise<void> {
 }
 
 async function removeAccount(page: Page, label: string): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     const row = page.locator("#settings-account-list li").filter({ hasText: new RegExp(label, "i") });
 

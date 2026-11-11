@@ -223,7 +223,7 @@ final class AccountColourTest extends WebTestCase
         $imap  = $this->account($this->user, $this->address(), colorIndex: 4);
         $oauth = $this->oauthAccount($this->user, $this->address(), colorIndex: 6);
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
         self::assertResponseIsSuccessful();
 
         foreach ([[$imap, 4], [$oauth, 6]] as [$account, $current]) {
@@ -281,7 +281,7 @@ final class AccountColourTest extends WebTestCase
      */
     private function csrfToken(Account $account): string
     {
-        $this->client->request('GET', '/settings?section=accounts');
+        $this->client->request('GET', '/settings/accounts');
 
         $stack   = static::getContainer()->get('request_stack');
         $carrier = new Request();
@@ -316,7 +316,7 @@ final class AccountColourTest extends WebTestCase
      */
     private function sidebarDotClasses(Account $account): array
     {
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
         $dots    = $crawler->filter(sprintf('span[role="img"][aria-label*="%s"]', $account->email));
 
         self::assertGreaterThanOrEqual(1, count($dots), 'the account has a sidebar dot to read');

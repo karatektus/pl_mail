@@ -3171,11 +3171,13 @@ li[data-selected="true"] {
         min-height: 0;
     }
 
-    /* The settings nav is the other child of the host grid and is not a card
-       — nothing inside it scrolls. On a short window its thirteen links are
-       taller than the row, and left alone they would overflow the port and
-       give the page the second scrollbar this arrangement exists to remove. */
-    .pane-fill-host > nav {
+    /* The settings tree is the other child of the host grid and is not a card
+       — nothing inside it scrolls. On a short window an opened area or a
+       filter's results are taller than the row, and left alone they would
+       overflow the port and give the page the second scrollbar this
+       arrangement exists to remove. Its wrapper rather than the <nav> inside
+       it since #569: the filter above the tree scrolls with it. */
+    .pane-fill-host > .settings-nav {
         overflow-y: auto;
     }
 
@@ -5147,6 +5149,20 @@ emoji-picker {
     overflow-y: auto;
 }
 
+/* The Settings search palette (#569): the same repair and the same dim, wider
+   for a list of results, and held near the top rather than centred — a list
+   that grows and shrinks with every key would otherwise move its own input up
+   and down under the reader's eyes. */
+#settings-palette {
+    position: fixed;
+    inset: 0;
+    margin: 12vh auto auto;
+    width: min(40rem, calc(100vw - 2rem));
+    max-height: calc(100dvh - 24vh);
+    padding: 0;
+    overflow: hidden;
+}
+
 /* The picture crop dialog (compose/image_editor.js, #515): the same repair
    and the same dim, but as wide as the picture in it rather than a column of
    text's width. */
@@ -5163,6 +5179,7 @@ dialog[data-image-crop-dialog] {
 
 #confirm-dialog::backdrop,
 #keyring-unlock-dialog::backdrop,
+#settings-palette::backdrop,
 dialog[data-image-crop-dialog]::backdrop {
     background-color: rgb(0 0 0 / 0.5);
     backdrop-filter: blur(4px);
@@ -6176,4 +6193,17 @@ li[data-swipe-side] > [data-swipe-content] {
 [data-sheet-picker-scope] [data-mail--label-menu-target="panel"],
 [data-sheet-picker-scope] [data-ui--dropdown-target="menu"] {
     pointer-events: auto;
+}
+
+/* ═══ Settings search: the card a result opened (#569) ═════════════════════
+   A ring, not a background tint: cards carry their own surface colour per
+   theme, and a tint over it would read differently on every one of them.
+   Drawn as an outline so it takes no layout — a border would shift the card's
+   content by its width for two seconds. Added and removed by
+   assets/settings_search.js flashCard().
+   ═══════════════════════════════════════════════════════════════════════════ */
+.settings-card-flash {
+    outline:        2px solid rgb(var(--rgb-accent));
+    outline-offset: 2px;
+    border-radius:  var(--app-radius);
 }

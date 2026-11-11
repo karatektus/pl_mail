@@ -80,7 +80,7 @@ final class CalendarZoneFollowTest extends WebTestCase
     {
         $client = $this->signIn();
 
-        $crawler = $client->request('GET', '/settings?section=calendars');
+        $crawler = $client->request('GET', '/settings/calendars');
 
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('Follows plMail', $crawler->filter('body')->text());

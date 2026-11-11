@@ -51,7 +51,7 @@ final class RememberMeSignOutTest extends WebTestCase
 
         // The copy alone, as a request with no session would carry it.
         $this->onlyWith($client, $cookie);
-        $client->request('GET', '/settings');
+        $client->request('GET', '/settings/profile');
 
         self::assertResponseIsSuccessful('the remember-me cookie does not sign in at all, so the test below proves nothing');
     }
@@ -61,13 +61,13 @@ final class RememberMeSignOutTest extends WebTestCase
         $client = $this->boot();
         $cookie = $this->signIn($client);
 
-        $crawler = $client->request('GET', '/settings');
+        $crawler = $client->request('GET', '/settings/profile');
         $token   = $crawler->filter('form[action="/logout"] input[name="_csrf_token"]')->attr('value');
 
         $client->request('POST', '/logout', ['_csrf_token' => $token], server: ['HTTP_ORIGIN' => 'http://localhost']);
 
         $this->onlyWith($client, $cookie);
-        $client->request('GET', '/settings');
+        $client->request('GET', '/settings/profile');
 
         self::assertResponseRedirects();
         self::assertStringContainsString('/login', (string) $client->getResponse()->headers->get('Location'));
@@ -91,7 +91,7 @@ final class RememberMeSignOutTest extends WebTestCase
         $em->flush();
 
         $this->onlyWith($client, $cookie);
-        $client->request('GET', '/settings');
+        $client->request('GET', '/settings/profile');
 
         self::assertResponseRedirects();
         self::assertStringContainsString('/login', (string) $client->getResponse()->headers->get('Location'));

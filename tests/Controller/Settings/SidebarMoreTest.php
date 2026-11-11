@@ -546,7 +546,7 @@ final class SidebarMoreTest extends WebTestCase
 
     private function settings(): Crawler
     {
-        return $this->client->request('GET', '/settings?section=general');
+        return $this->client->request('GET', '/settings/layout');
     }
 
     private function reread(): User

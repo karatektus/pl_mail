@@ -64,10 +64,10 @@ final class CalendarBehaviourSettingsTest extends WebTestCase
     {
         $crawler = $this->pane();
 
-        $link = $crawler->filter('a[href*="section=calendar-behaviour"]');
+        $link = $crawler->filter('a[href$="/settings/calendar-behaviour"]');
 
         self::assertCount(1, $link);
-        self::assertSame('Behaviour', trim($link->text()));
+        self::assertSame('Calendar behaviour', trim($link->text()));
         self::assertSame('page', $link->attr('aria-current'), 'and it is the section that is open');
     }
 
@@ -145,7 +145,7 @@ final class CalendarBehaviourSettingsTest extends WebTestCase
 
     private function pane(): Crawler
     {
-        $crawler = $this->client->request('GET', '/settings?section=calendar-behaviour');
+        $crawler = $this->client->request('GET', '/settings/calendar-behaviour');
 
         self::assertResponseIsSuccessful();
 
@@ -179,7 +179,7 @@ final class CalendarBehaviourSettingsTest extends WebTestCase
             'skip'   => $skip,
         ]);
 
-        self::assertResponseRedirects('/settings?section=calendar-behaviour');
+        self::assertResponseRedirects('/settings/calendar-behaviour');
     }
 
     private function stored(): User
