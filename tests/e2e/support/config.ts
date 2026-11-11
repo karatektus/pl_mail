@@ -31,7 +31,7 @@ import { execSync } from "node:child_process";
  * Exported so it has exactly one definition. playwright.config.ts puts this on
  * `use.baseURL`, which covers the page fixture — but NOT a context a spec
  * builds itself with `browser.newContext()`, and those have to be handed the
- * value. preview-pane.spec.ts did that by reading `process.env.E2E_BASE_URL`
+ * value. A spec once did that by reading `process.env.E2E_BASE_URL`
  * raw, without the fallback the config applies, so the whole spec failed with
  * "Cannot navigate to invalid URL" for anyone who had not exported that
  * variable — `npx playwright test` on a stock checkout, in other words, where

@@ -38,9 +38,10 @@ import { Controller } from "@hotwired/stimulus";
  *
  * ── A boundary WITHOUT the three positions ────────────────────────────────
  *
- * The appearance settings' live preview is the second thing in the app that is
- * a resizable pane, and it is only that: it has no switch, no fullscreen, no
- * mail to get out of the way of. `modes-value="false"` turns the whole
+ * Not every boundary is the calendar's. The address book beside the mail is
+ * a resizable pane with no three-way switch of its own (it snaps instead — see
+ * `snap-value`), and the appearance settings had one with nothing at all
+ * until its preview was removed. `modes-value="false"` turns the whole
  * position machinery off — no handoff, no demotion listener, no data-calendar-
  * mode attribute — and what is left is the part both boundaries actually share:
  * the drag, the rubber-free clamp against what the two panes have between them,
@@ -447,8 +448,9 @@ export default class extends Controller {
 
         // A pane that is not laid out has no width to re-clamp, and clamping
         // its zero up to the minimum would throw away the stored width for the
-        // rest of the session. The appearance preview is `display: none` below
-        // its container query, so this is the case that needs it.
+        // rest of the session. A pane its layout hides — `display: none` below
+        // a breakpoint, as the appearance preview was — is the case that needs
+        // it.
         if (null === this.paneTarget.offsetParent && "fixed" !== getComputedStyle(this.paneTarget).position) {
             return;
         }
@@ -837,7 +839,7 @@ export default class extends Controller {
         // not about the pane: it says "you are pushing past the end" on a
         // control two pixels wide, and that is worth saying whether or not
         // there is somewhere to land. Held back from the modeless boundary, it
-        // left the appearance preview stopping dead under a pointer still
+        // left a pane (the appearance preview, then) stopping dead under a pointer still
         // moving, with nothing on screen acknowledging it — which reads as a
         // drag that broke rather than one that arrived.
         if (true === this._dragging) {

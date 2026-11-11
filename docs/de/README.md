@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:13a03ab279db5393cc1c720b3fbc05e5a7d7126b -->
+<!-- translated-from: README.md sha1:5511cddb3442cfdf4bab517a0c3e4f7e7dd4f58a -->
 
 # plMail-Dokumentation
 
@@ -42,7 +42,7 @@ wo der Mechanismus dahinter steht.
 | [Sicherheit](features/security.md) | Dein Passwort ändern, Zwei-Faktor-Authentifizierung, Wiederherstellungscodes, gemerkte Geräte, App-Passwörter, Sitzungen |
 | [Verschlüsselung](features/encryption.md) | Deine OpenPGP-Schlüssel, die Recovery-Phrase, bekannte Geräte, Schlüssel importieren und exportieren, was ein Passwort-Reset mit ihnen macht |
 | [Andere Clients](features/clients.md) | Einen JMAP-Client verbinden, Passwörter pro App, die PWA und Browser-Benachrichtigungen |
-| [Darstellung](features/appearance.md) | Themes, eigene Farben und Hintergrund, die Live-Vorschau, was eine Listenzeile zeigt, Schriftart und Textgröße, Dichte je Bereich, Import und Export, Sprache |
+| [Darstellung](features/appearance.md) | Themes, eigene Farben und Hintergrund, was eine Listenzeile zeigt, Schriftart und Textgröße, Dichte je Bereich, Import und Export, Sprache |
 | [Administration](features/admin.md) | Benutzer und Rollen, ein Konto abschalten, Integrationen freischalten, Monitoring, Warteschlangen und der Versions-Chip |
 
 ## Installieren und betreiben

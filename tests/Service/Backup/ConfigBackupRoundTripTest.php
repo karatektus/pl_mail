@@ -249,7 +249,6 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('setting insights.pane_dismissed_at', '2026-08-01T00:00:00+00:00', $user->getSetting(User::SETTING_INSIGHT_PANE_DISMISSED_AT));
         $this->check('setting compose.forward_quote_collapsed', false, $user->getSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED));
         $this->check('setting compose.send_feedback', User::SEND_FEEDBACK_HOLD, $user->getSetting(User::SETTING_COMPOSE_SEND_FEEDBACK));
-        $this->check('setting appearance.preview_width', 480, $user->getSetting(User::SETTING_APPEARANCE_PREVIEW_WIDTH));
         $this->check('setting crypto.key_servers', false, $user->lookUpKeyServers);
 
         // ── The account ───────────────────────────────────────────────────
@@ -485,7 +484,6 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $user->setSetting(User::SETTING_INSIGHT_PANE_DISMISSED_AT, '2026-08-01T00:00:00+00:00');
         $user->setSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED, false);
         $user->setSetting(User::SETTING_COMPOSE_SEND_FEEDBACK, User::SEND_FEEDBACK_HOLD);
-        $user->setSetting(User::SETTING_APPEARANCE_PREVIEW_WIDTH, 480);
         $user->lookUpKeyServers = false;
 
         $this->entityManager->persist($user);

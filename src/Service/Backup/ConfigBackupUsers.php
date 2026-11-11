@@ -186,13 +186,12 @@ final readonly class ConfigBackupUsers
         User::SETTING_ONBOARDING_STEP,
         User::SETTING_ONBOARDING_SKIPPED,
         User::SETTING_ONBOARDING_DONE_STEPS,
-        // All five shipped after this list was written and none of them was
+        // All four shipped after this list was written and none of them was
         // added to it, which is what the completeness test below now prevents
         // rather than what this comment apologises for. Every one is a choice
         // somebody made about their own screen, holds no id, and means the same
         // thing on any install — so there was never an argument for leaving
         // them out, only an absence of one.
-        User::SETTING_APPEARANCE_PREVIEW_WIDTH,
         // Whether the open message sits beside the list, and how much of the mail
         // card it takes. In the backup for the reason the calendar pane's mode
         // and width are: it is a preference somebody set about their own screen,

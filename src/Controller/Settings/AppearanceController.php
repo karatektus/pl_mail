@@ -67,39 +67,6 @@ final class AppearanceController extends AbstractController
     }
 
     /**
-     * Remembers how wide the live preview pane is.
-     *
-     * Its own endpoint rather than a field on the appearance payload, for the
-     * same reason the calendar's is its own: the drag handle writes on release
-     * and this is a layout preference, not part of the theme — it must not turn
-     * up in an exported theme file or be applied by importing somebody else's.
-     *
-     * Its own token id rather than the layout's `ajax` one, because the drag
-     * handle posts a form body. The width itself is clamped server-side too —
-     * the client's bounds are a convenience, and a stored 40000 would wedge the
-     * settings page.
-     */
-    #[Route('/pane-state', name: 'pane_state', methods: ['POST'])]
-    public function paneState(Request $request): JsonResponse
-    {
-        $this->assertCsrf($request, 'appearance_pane_state');
-
-        /** @var User $user */
-        $user = $this->getUser();
-
-        if (true === $request->request->has('width')) {
-            $user->setSetting(User::SETTING_APPEARANCE_PREVIEW_WIDTH, max(
-                User::APPEARANCE_PREVIEW_MIN_WIDTH,
-                min(User::APPEARANCE_PREVIEW_MAX_WIDTH, $request->request->getInt('width')),
-            ));
-
-            $this->entityManager->flush();
-        }
-
-        return $this->json(['width' => $user->appearancePreviewWidth]);
-    }
-
-    /**
      * Remembers whether the open message sits beside the list, and how much of
      * the mail card it takes.
      *

@@ -911,20 +911,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const int CONTACTS_PANE_DEFAULT_WIDTH = 420;
 
     /**
-     * How wide the live preview beside the appearance settings is.
-     *
-     * The settings bag for the same reason the calendar's width is: rendered
-     * into the first paint, and the same at every desk. It needs no migration —
-     * the bag is a JSON column, and a user who has never dragged it reads the
-     * default below.
-     *
-     * Its own key rather than sharing the calendar's: they are two boundaries
-     * on two pages with different useful ranges, and one number would mean
-     * widening the preview to read a colour narrowed the calendar next time.
-     */
-    public const string SETTING_APPEARANCE_PREVIEW_WIDTH = 'appearance.preview_width';
-
-    /**
      * Whether the open message sits beside the message list, and how much of the
      * mail card it takes — see ReadingPaneMode.
      *
@@ -1055,30 +1041,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SEND_FEEDBACK_HOLD = 'hold';
 
     /**
-     * The default is 19rem — what the column was fixed at before it could move.
-     *
-     * The maximum is the CALENDAR's maximum, deliberately the same number: both
-     * are "a pane beside the thing the page is for", and 560 was a limit
-     * inherited from the days when this was a sidebar rather than a peer card.
-     * A preview is worth widening — it is the only place on the page where the
-     * list density, the preview lines and the snippet clamp can be judged
-     * against each other at a realistic width, and at 560 the list still had to
-     * use its stacked layout to fit.
-     *
-     * What keeps this honest is that it is a ceiling and not a promise. The
-     * boundary is clamped against what the two cards actually have between
-     * them, minus the controls card's own floor (`main-min` in
-     * _appearance.html.twig), so 900 is reachable on a window with 900 to spare
-     * and the preview simply stops earlier on one without. Note that raising a
-     * maximum can only widen the range a stored width is clamped into: nobody's
-     * remembered value changes, and the pane they left is the pane they return
-     * to.
-     */
-    public const int APPEARANCE_PREVIEW_MIN_WIDTH = 240;
-    public const int APPEARANCE_PREVIEW_MAX_WIDTH = 900;
-    public const int APPEARANCE_PREVIEW_DEFAULT_WIDTH = 304;
-
-    /**
      * Virtual, so there is no column behind it — the value lives in the
      * settings bag, and Doctrine refuses to map a property whose hooks do not
      * touch a backing store.
@@ -1160,22 +1122,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
                 self::SETTING_CONTACTS_SWITCH_SKIP,
                 ContactsSwitchSkip::None === $skip ? null : $skip->value,
             );
-        }
-    }
-
-    /** Virtual, out of the settings bag — see SETTING_APPEARANCE_PREVIEW_WIDTH. */
-    public int $appearancePreviewWidth {
-        get {
-            $width = $this->getSetting(
-                self::SETTING_APPEARANCE_PREVIEW_WIDTH,
-                self::APPEARANCE_PREVIEW_DEFAULT_WIDTH,
-            );
-
-            if (false === is_int($width)) {
-                return self::APPEARANCE_PREVIEW_DEFAULT_WIDTH;
-            }
-
-            return max(self::APPEARANCE_PREVIEW_MIN_WIDTH, min(self::APPEARANCE_PREVIEW_MAX_WIDTH, $width));
         }
     }
 

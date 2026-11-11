@@ -1,10 +1,18 @@
-/* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus";
 import * as Turbo from "@hotwired/turbo";
 import { flashCard, matchingKeyword, normalise } from "../../settings_search.js";
 
 /**
  * The Settings search palette: ⌘K / Ctrl+K from anywhere in the app (#569).
+ *
+ * ## Why it is in ui/ and loads with the page
+ *
+ * It was in settings/, whose controllers are lazy (AssetDeliveryTest), and a
+ * lazy controller is fetched when its element appears — which for this one is
+ * every page, so the laziness saved nothing and cost the first keystroke: ⌘K
+ * pressed while the module was still on its way went nowhere, and the e2e
+ * spec that opens the palette straight after a page load failed on CI's slower
+ * runners. Eager, the shortcut works from the moment the page does.
  *
  * ## What it searches
  *

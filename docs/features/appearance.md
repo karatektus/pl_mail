@@ -81,25 +81,11 @@ is only the drawing. A file that is not an SVG, is larger than 256 KB, or has no
 and no width and height to make one from) is refused with a message saying which. The phone apps go
 on showing the motif you had before; only the web app and what it installs wear the upload.
 
-## The live preview
+## Seeing a change
 
-Beside the controls sits a second card showing a sample sidebar, message list and reading pane in
-whatever you have currently chosen. Every change lands in it as you make it. Nothing in it is your
-mail — the rows are invented, and the preview never loads a message.
-
-The boundary between the two cards can be dragged, from **240** to **900** pixels, and where you
-leave it is remembered against your account rather than the browser, so the page opens at your width
-on the next visit and on the next machine. Arrow keys move it too, and a double-click puts it back
-to its default of 304.
-
-The maximum is a ceiling rather than a promise. The controls card will not be squeezed below its own
-floor, so the preview widens into whatever the window has spare and stops earlier on a narrow one —
-at 1280 pixels it reaches about 374 however far you drag.
-
-On a narrow screen the preview is not shown beside the controls at all. **Show preview** in the
-settings card's header reveals it above them instead, leaving every control where it was, and
-**Hide preview** puts it away. That one is deliberately *not* remembered: it starts closed on every
-load, because it is a peek rather than a decision about how the page should be shaped.
+Every control applies to the whole app the moment you change it — the sidebar, the top bar and the
+settings page around you change with it — and is saved a moment later. To see what it does to the
+mail list or a message, open the inbox in another tab; it picks the change up on its next load.
 
 ## What a list row shows
 
@@ -268,10 +254,6 @@ settings. It deliberately does
 a custom background exports as **Theme default**. The same goes for a logo of your own: the export
 names the motif underneath it.
 
-It does not carry the preview pane's width either. That is a preference about how this settings page
-is shaped rather than part of how the app looks, so importing somebody else's theme leaves your own
-preview exactly where you left it.
-
 Import checks the version and refuses a file that is not version 1. Anything in the payload that is
 not a value plMail recognises is ignored rather than stored, and a layout in the file is applied
 before the individual numbers, so an export written before a control existed still lands somewhere
@@ -372,14 +354,6 @@ pane are one painted surface, so there is nowhere for those to differ.
 **Compact does not shrink rows on a phone.** Every pane holds its Comfortable height on a touch
 device, so the setting looks as though it did nothing there. It did — on every pointer device you
 use the same account from.
-
-**The preview will not always reach 900.** It widens into what the window has spare, and the controls
-beside it have a floor they will not go below. On a 1280-wide window the boundary stops around 374.
-Dragging it and finding it will not go further is the clamp working, not a stuck handle.
-
-**The preview's width is remembered; whether it is open on a phone is not.** The width follows your
-account to every device. **Show preview** on a narrow screen starts closed every time you open the
-page.
 
 **Follow the theme treats the logo themes and the classic themes differently.** On one of the
 thirty-two logo themes the icon wears the colourway of the same name. The seven classic themes have

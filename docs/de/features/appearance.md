@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:1dc3f4bafc1d4517ac4ace3ef2148245e78cb9a5 -->
+<!-- translated-from: features/appearance.md sha1:8abb101afb82304300c9e838bc64a796e701f31b -->
 
 # Darstellung
 
@@ -92,28 +92,12 @@ oder keine Größe hat (keine `viewBox` und weder Breite noch Höhe, aus denen s
 wird mit einer Meldung abgelehnt, die sagt, woran es liegt. Die Handy-Apps zeigen weiter das Motiv,
 das du vorher hattest; nur die Web-App und was sie installiert tragen das hochgeladene Logo.
 
-## Die Live-Vorschau
+## Eine Änderung sehen
 
-Neben den Bedienelementen steht eine zweite Karte, die eine Beispiel-Seitenleiste, eine
-Nachrichtenliste und einen Lesebereich in genau dem zeigt, was du gerade gewählt hast. Jede
-Änderung landet dort, während du sie machst. Nichts davon ist deine Post — die Zeilen sind
-erfunden, und die Vorschau lädt nie eine Nachricht.
-
-Die Grenze zwischen den beiden Karten lässt sich ziehen, von **240** bis **900** Pixeln, und wo du
-sie stehen lässt, wird an deinem Konto gemerkt und nicht am Browser. Die Seite öffnet sich beim
-nächsten Besuch und am nächsten Rechner also in deiner Breite. Auch die Pfeiltasten bewegen sie, und
-ein Doppelklick stellt sie auf ihren Standard von 304 zurück.
-
-Das Maximum ist eine Obergrenze und kein Versprechen. Die Karte mit den Bedienelementen wird nicht
-unter ihre eigene Untergrenze gedrückt, die Vorschau wächst also in das hinein, was das Fenster
-übrig hat, und hört auf einem schmalen früher auf — bei 1280 Pixeln erreicht sie etwa 374, wie weit
-du auch ziehst.
-
-Auf einem schmalen Bildschirm steht die Vorschau gar nicht erst daneben. **Vorschau anzeigen** im
-Kopf der Einstellungskarte blendet sie stattdessen darüber ein und lässt jedes Bedienelement dort,
-wo es war; **Vorschau ausblenden** räumt sie wieder weg. Dieser Zustand wird bewusst *nicht*
-gemerkt: Er startet bei jedem Laden geschlossen, denn er ist ein Blick und keine Entscheidung
-darüber, wie die Seite geformt sein soll.
+Jedes Bedienelement wirkt auf die ganze App, sobald du es änderst — die Seitenleiste, die obere
+Leiste und die Einstellungsseite um dich herum ändern sich mit — und wird einen Moment später
+gespeichert. Was es mit der Nachrichtenliste oder einer Nachricht macht, siehst du, wenn du den
+Posteingang in einem zweiten Tab öffnest; er übernimmt die Änderung beim nächsten Laden.
 
 ## Was eine Listenzeile zeigt
 
@@ -294,10 +278,6 @@ bewusst **nicht** dein hochgeladenes Hintergrundbild: Ein Dateiname bedeutet auf
 Installation von jemand anderem nichts, ein eigener Hintergrund wird also als **Theme-Standard**
 exportiert. Dasselbe gilt für ein eigenes Logo: Der Export nennt das Motiv, das darunter liegt.
 
-Die Breite der Vorschau trägt er ebenfalls nicht. Sie ist eine Vorliebe dazu, wie diese
-Einstellungsseite geformt ist, und kein Teil davon, wie die App aussieht — das Theme von jemand
-anderem zu importieren lässt deine Vorschau also genau dort, wo du sie gelassen hast.
-
 Der Import prüft die Version und lehnt eine Datei ab, die nicht Version 1 ist. Alles in den
 Daten, was plMail nicht als gültigen Wert kennt, wird ignoriert statt gespeichert, und ein
 Layout in der Datei wird vor den einzelnen Zahlen angewendet, damit ein Export, der geschrieben
@@ -410,15 +390,6 @@ sie sich unterscheiden könnten.
 **Kompakt verkleinert die Zeilen auf dem Telefon nicht.** Auf einem Berührungsgerät hält jeder
 Bereich seine komfortable Höhe, die Einstellung sieht dort also aus, als hätte sie nichts getan. Hat
 sie — auf jedem Zeigegerät, von dem aus du dasselbe Konto benutzt.
-
-**Die Vorschau erreicht nicht immer 900.** Sie wächst in das hinein, was das Fenster übrig hat, und
-die Bedienelemente daneben haben eine Untergrenze, die sie nicht unterschreiten. In einem 1280 Pixel
-breiten Fenster hört die Grenze bei etwa 374 auf. Dass sie nicht weiter geht, ist die Kappung bei der
-Arbeit und kein klemmender Griff.
-
-**Die Breite der Vorschau wird gemerkt, ob sie auf dem Telefon offen ist, nicht.** Die Breite folgt
-deinem Konto auf jedes Gerät. **Vorschau anzeigen** auf einem schmalen Bildschirm startet jedes Mal
-geschlossen, wenn du die Seite öffnest.
 
 **Dem Theme folgen behandelt die Logo-Themes und die klassischen Themes verschieden.** Auf einem der
 zweiunddreißig Logo-Themes trägt das Symbol die gleichnamige Farbstimmung. Die sieben klassischen

@@ -3814,43 +3814,6 @@ settings:
             matchGlass: Suivre l’opacité du verre
             subheading: Teinte et opacité de la zone de contenu principale, indépendamment de la barre latérale.
             tint: Teinte d’arrière-plan
-        preview:
-            body: Un court message, pour que le volet de lecture ait quelque chose à montrer. Rien de tout cela n’est du vrai courrier — l’aperçu n’en charge jamais.
-            heading: Aperçu
-            hide: Masquer l’aperçu
-            resize: Redimensionner l’aperçu
-            compose_body: Une réponse à moitié écrite, pour que l’éditeur ait quelque chose dedans. Rien n’est envoyé.
-            compose_heading: Nouveau message
-            compose_send: Envoyer
-            compose_subject: 'Re : Notes sur la machine analytique'
-            compose_to: ada@plmail.test
-            field_date: Date
-            field_from: De
-            field_subject: Objet
-            field_to: À
-            reply: Répondre
-            sender1: Ada Lovelace
-            sender2: Grace Hopper
-            sender3: Kathleen Booth
-            sender4: Margaret Hamilton
-            sender5: Barbara Liskov
-            sender6: Karen Spärck Jones
-            sender7: Radia Perlman
-            sender8: Frances Allen
-            show: Afficher l’aperçu
-            snippet: Voici à quoi ressemble une ligne d’aperçu, et combien en tient avant que la ligne manque de place.
-            subheading: Vos réglages, sur une liste d’exemple. Rien ici n’est chargé depuis votre courrier.
-            to: à vous
-            value_from: Ada Lovelace <ada@plmail.test>
-            value_to: vous@plmail.test
-            subject1: Notes sur la machine analytique
-            subject2: 'Re : le brouillon du compilateur'
-            subject3: Notes d’assembleur, comme promis
-            subject4: Logiciel de guidage — la liste des priorités
-            subject5: 'Re : l’abstraction et la hiérarchie des types'
-            subject6: La pondération des termes, et pourquoi elle compte
-            subject7: Brouillon de l’arbre couvrant à relire
-            subject8: 'Optimiser la boucle interne : résultats'
         reset: Rétablir les valeurs par défaut
         subheading: Thème, densité, police et arrière-plan — toute l’apparence de l’application, au même endroit.
         seg:

@@ -27,7 +27,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  * The setting stores DISABLED keys (see User::SETTING_INSIGHTS_DISABLED), so
  * "toggle off persists the key" and "toggle on removes it" are the two halves
  * pinned, plus the guards: unknown keys bounce with a 400 before anything is
- * written, and the token rules follow AppearancePaneStateTest — a new
+ * written, and the token rules follow StateChangingPostsNeedCsrfTest — a new
  * state-changing POST carries a token, whatever its blast radius.
  */
 final class InsightSettingsTest extends WebTestCase

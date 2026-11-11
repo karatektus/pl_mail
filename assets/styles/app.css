@@ -3097,39 +3097,27 @@ li[data-selected="true"] {
 
 /* ═══ A section that FILLS its scroll port ══════════════════════════════════
    What .main-pane does for the mail shell, for a section that lives inside
-   somebody else's scroll port: two peer cards side by side, each exactly as
-   tall as the row, each scrolling its own body. The appearance panel is the
-   only user today.
+   somebody else's scroll port: a card exactly as tall as the port, scrolling
+   its own body, so the page has one scrollbar and it is the card's. The
+   appearance panel is the only user today. It used to be two cards side by
+   side, the controls and a live preview, which is where most of the reasoning
+   below was learned; the preview is gone, the single card keeps the same
+   chain.
 
-   Why it is here and not eight `xl:` variants in the template. Three of the
-   pairs this needs are DIRECT conflicts with a utility already on the element
-   — `position: static` against `sticky`, `max-height: none` against
-   `max-h-[30svh]`, `overflow-y: auto` against `@3xl:overflow-visible` — and
-   which of two Tailwind variants wins is source order in the built stylesheet,
-   not specificity. That is the class of bug that reads as broken JavaScript
-   (see the note on `.hidden` and `.flex` in _appearance.html.twig). These rules
-   sit outside every layer, so they beat the utilities they are correcting no
-   matter which order the build emits, and the whole mechanism is one block to
-   read rather than a hunt through two templates.
+   Why it is here and not `xl:` variants in the template. Some of what this
+   corrects is a DIRECT conflict with a utility already on the element —
+   `max-height: none` against a cap, `overflow-y: auto` against a visible
+   overflow — and which of two Tailwind variants wins is source order in the
+   built stylesheet, not specificity. These rules sit outside every layer, so
+   they beat the utilities they are correcting no matter which order the build
+   emits, and the whole mechanism is one block to read.
 
    ── Why a MEDIA query when the panel itself is @container-driven ───────────
-   The panel decides "beside" versus "stacked" from its OWN width (@3xl), which
-   is right: it is narrower than the window and the mail sidebar takes from it.
-   But the HEIGHT has to come from an ancestor — a scroll port three levels up,
+   The HEIGHT has to come from an ancestor — a scroll port three levels up,
    outside the panel's container — and an element cannot query a container it
-   is not inside. So the ancestors are gated on the viewport, and the same gate
-   is used inside the panel so the two halves of the mechanism cannot disagree:
-   below it, every one of these rules is inert and the layout is exactly the
-   one that shipped, sticky preview card and all.
-
-   80rem is chosen so that `viewport >= 80rem` IMPLIES `panel >= @3xl` in both
-   hosts, which is the invariant that makes one gate legal for both. Measured:
-   the settings page crosses @3xl at a 1252px viewport and the setup wizard's
-   modal at about 914px. The band between a host's own crossover and 80rem is
-   the pre-existing layout, which is a working layout — the failure mode this
-   ordering avoids is the other one, a preview card told to fill a row nothing
-   has capped, which is the 2500px empty box this whole section exists to not
-   be.
+   is not inside. So the ancestors are gated on the viewport. Below 80rem every
+   one of these rules is inert and the panel is an ordinary block as tall as
+   its content, in the settings page and in the setup wizard's modal alike.
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (min-width: 80rem) {
     /* ── Every rule below hands height DOWN a flex chain, and not one of them
@@ -3188,21 +3176,13 @@ li[data-selected="true"] {
         min-height: 0;
     }
 
-    /* A card: header, then a body that scrolls.
-       The controls card is a grid item of the row and is stretched to it by
-       grid; the preview card is one flex hop further down (the split's pane
-       target sits between them, carrying the dragged width), and a column flex
-       container stretches its items across, not along — so the card takes the
-       rest of that column explicitly. `flex` is simply ignored on the grid item.
-       `position: static` is what retires the sticky the preview card wears
-       below this width: a card that already fills the row has nowhere to travel
-       to. */
+    /* A card: header, then a body that scrolls. The card is a grid item of the
+       row and is stretched to it by grid, so all it needs is to be a column and
+       to be allowed to be shorter than its content. */
     .pane-fill-card {
         display: flex;
         flex-direction: column;
-        flex: 1 1 auto;
         min-height: 0;
-        position: static;
     }
 
     /* The part of a card that scrolls. */
@@ -3226,20 +3206,6 @@ li[data-selected="true"] {
     .pane-fill-rest {
         flex: 1 1 auto;
         min-height: 0;
-    }
-
-    /* Grows into what is left and is never shrunk below its content — which is
-       what stops a tall card being a mostly-empty one: the miniature fills the
-       preview the way the panes it is a picture of fill the app. `min-height`
-       is deliberately left at `auto` here, the one difference from the class
-       above: on a short window the scroll on .pane-fill-scroll is the right
-       answer, not a squashed sample. */
-    .pane-fill-grow {
-        flex: 1 1 auto;
-    }
-
-    .pane-fill-keep {
-        flex: 0 0 auto;
     }
 }
 
@@ -4643,18 +4609,6 @@ html {
     #sidebar-drawer-inner [data-nav-tier="tree"] {
         min-height: calc(1lh + 0.75rem);
     }
-
-    /* The appearance panel's "show preview" control, held to the SAME floor and
-       by the same expression rather than to a pixel number of its own. It is
-       drawn at `text-xs` in the settings card header, which puts `1lh + 1rem`
-       at 32px — below the 36px the utility class already gives it, so on a
-       phone the class wins and this is the guarantee underneath rather than the
-       size in force. That is the right way round: whatever the type scale does
-       to this button (and the panel it sits in can scale the whole app's type),
-       it cannot end up smaller than a Comfortable sidebar row. */
-    [data-appearance-preview-toggle] {
-        min-height: calc(1lh + 1rem);
-    }
 }
 
 /* The trail to the selected row: a label's ancestors read as "you are in
@@ -5226,7 +5180,7 @@ dialog[data-image-crop-dialog]::backdrop {
    inline on <html>. That is not a decoration of the existing scheme, it IS the
    scheme: the appearance already travels as an inline `style` block, the
    logged-out replay in _layout/app.html.twig already restores it verbatim, and
-   the settings pane's live preview already works by setting the same
+   the appearance settings apply a change live by setting the same
    properties. A feature expressed as a variable inherits all three for free; a
    feature expressed as a class on <html> would have needed a fourth path
    through each of them.

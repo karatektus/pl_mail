@@ -14,16 +14,16 @@ pattern every combobox search uses: focus stays in the field while ↑ and ↓
 move the selection, so typing never has to be resumed by clicking back.
 #}
 <dialog id="settings-palette"
-        data-controller="settings--palette"
-        data-settings--palette-url-value="{{ path('app_settings_search') }}"
-        data-settings--palette-messages-value="{{ {
+        data-controller="ui--settings-palette"
+        data-ui--settings-palette-url-value="{{ path('app_settings_search') }}"
+        data-ui--settings-palette-messages-value="{{ {
             count:   'settings.search.count'|trans,
             empty:   'settings.search.empty'|trans,
             keyword: 'settings.search.keyword'|trans,
             failed:  'settings.search.failed'|trans,
             page:    'settings.search.kind_page'|trans,
         }|json_encode }}"
-        data-action="keydown@window->settings--palette#shortcut close->settings--palette#closed"
+        data-action="keydown@window->ui--settings-palette#shortcut close->ui--settings-palette#closed"
         aria-label="{{ 'settings.search.label'|trans }}"
         data-enter="pop"
         class="pane-flat shadow-float text-ink">
@@ -40,18 +40,18 @@ move the selection, so typing never has to be resumed by clicking back.
                    aria-autocomplete="list"
                    autocomplete="off"
                    spellcheck="false"
-                   data-settings--palette-target="input"
-                   data-action="input->settings--palette#search keydown->settings--palette#navigate">
+                   data-ui--settings-palette-target="input"
+                   data-action="input->ui--settings-palette#search keydown->ui--settings-palette#navigate">
             <kbd class="px-1.5 rounded border border-line text-[11px] text-ink-faint font-sans">esc</kbd>
         </div>
 
-        <p class="px-4 pt-3 pb-1 text-xs text-ink-faint shrink-0" data-settings--palette-target="status" aria-live="polite"></p>
+        <p class="px-4 pt-3 pb-1 text-xs text-ink-faint shrink-0" data-ui--settings-palette-target="status" aria-live="polite"></p>
 
         <ul id="settings-palette-results"
             role="listbox"
             aria-label="{{ 'settings.search.label'|trans }}"
             class="flex-1 overflow-y-auto px-2 pb-2"
-            data-settings--palette-target="list"></ul>
+            data-ui--settings-palette-target="list"></ul>
 
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 border-t border-line text-[11px] text-ink-faint shrink-0">
             <span>↑ ↓ {{ 'settings.search.hint_move'|trans }}</span>
@@ -61,7 +61,7 @@ move the selection, so typing never has to be resumed by clicking back.
 
     {# One result row, cloned per entry. A template rather than markup built in
        the controller, so the look of a row lives with the rest of the look. #}
-    <template data-settings--palette-target="row">
+    <template data-ui--settings-palette-target="row">
         <li role="option" aria-selected="false"
             class="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-accent-soft">
             <span class="flex-1 min-w-0 flex flex-col">
