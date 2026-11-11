@@ -22,7 +22,8 @@ use Doctrine\Migrations\AbstractMigration;
  * not stored here, leaving out mail plMail has deleted and the server not yet
  * (#427); on a folder with nothing missing it is one search and done. The
  * same conditions as reopenImport(), in SQL, because a migration does not
- * reach the ORM.
+ * reach the ORM — including leaving out a folder that never held mail
+ * (last_seen_uid 0), whose floor would otherwise be 1 (#578).
  *
  * It runs in the background from each account's next sync, and the topbar
  * shows it for as long as there is something to fetch.
@@ -45,7 +46,7 @@ final class Version20261110210000 extends AbstractMigration
              WHERE is_sync_enabled = true
                AND is_selectable = true
                AND missing_since IS NULL
-               AND last_seen_uid IS NOT NULL
+               AND last_seen_uid > 0
                AND import_floor_uid IS NOT NULL
             SQL);
     }

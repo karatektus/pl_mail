@@ -374,7 +374,11 @@ final class ImapMailboxImporterTest extends KernelTestCase
         self::assertSame([7, 120], $asked, 'only the two that were missing were fetched');
     }
 
-    /** Folders that are not synced, or were never planned, are left as they are. */
+    /**
+     * Folders that are not synced, were never planned, or never held mail are
+     * left as they are. The last would get a floor of 1 and be counted as
+     * importing with nothing below it to fetch.
+     */
     public function testReopeningLeavesFoldersItHasNoBusinessWith(): void
     {
         $off                 = new Mailbox();
@@ -391,8 +395,17 @@ final class ImapMailboxImporterTest extends KernelTestCase
         $unplanned->fullPath      = 'Fresh';
         $unplanned->isSyncEnabled = true;
 
+        $empty                 = new Mailbox();
+        $empty->account        = $this->account;
+        $empty->name           = 'Empty';
+        $empty->fullPath       = 'Empty';
+        $empty->isSyncEnabled  = true;
+        $empty->lastSeenUid    = 0;
+        $empty->importFloorUid = 0;
+
         $this->em->persist($off);
         $this->em->persist($unplanned);
+        $this->em->persist($empty);
         $this->connection->executeStatement('UPDATE mailbox SET import_floor_uid = 0 WHERE id = ?', [$this->mailboxId]);
         $this->em->flush();
 
@@ -406,7 +419,7 @@ final class ImapMailboxImporterTest extends KernelTestCase
         $floors = array_map(static fn (mixed $floor): ?int => null === $floor ? null : (int) $floor, $floors);
         ksort($floors);
 
-        self::assertSame(['Fresh' => null, 'INBOX' => self::TOP + 1, 'Starred' => 0], $floors, 'only INBOX');
+        self::assertSame(['Empty' => 0, 'Fresh' => null, 'INBOX' => self::TOP + 1, 'Starred' => 0], $floors, 'only INBOX');
     }
 
     public function testAnEmptyFolderIsFinishedAtOnce(): void
