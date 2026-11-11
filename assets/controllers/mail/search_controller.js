@@ -151,6 +151,15 @@ export default class extends Controller {
     /** The first list: recent searches, or operator and contact completions. */
     #suggestions = [];
 
+    /**
+     * The address the box was last made to agree with. A frame load at the
+     * same address — the list refreshing, or the folder's own frame landing a
+     * moment after the page — says nothing new about the query, and syncing on
+     * it threw away whatever the reader had typed and not yet sent once they
+     * looked away from the box.
+     */
+    #syncedUrl = null;
+
     connect() {
         this._boundOutside = this._handleOutsideClick.bind(this);
         document.addEventListener("click", this._boundOutside, { capture: true });
@@ -198,6 +207,14 @@ export default class extends Controller {
         if (document.activeElement === this.inputTarget) {
             return;
         }
+
+        const url = window.location.pathname + window.location.search;
+
+        if (url === this.#syncedUrl) {
+            return;
+        }
+
+        this.#syncedUrl = url;
 
         const query = new URLSearchParams(window.location.search).get("q") ?? "";
 
