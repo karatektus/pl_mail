@@ -14,12 +14,14 @@ use App\Domain\Enum\System\UpdateChannel;
 use App\Entity\Ai\AiSettings;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\Integration\MailProviderConfig;
+use App\Entity\Integration\TrustedHost;
 use App\Entity\Monitoring\LogSettings;
 use App\Entity\Oidc\OidcConfig;
 use App\Entity\Push\FcmConfig;
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use App\Repository\Integration\MailProviderConfig\MailProviderConfigRepository;
+use App\Repository\Integration\TrustedHost\TrustedHostRepository;
 use App\Repository\Monitoring\LogSettings\LogSettingsRepository;
 use App\Repository\Oidc\OidcConfig\OidcConfigRepository;
 use App\Repository\Push\FcmConfig\FcmConfigRepository;
@@ -96,6 +98,13 @@ final readonly class ConfigBackupDatabase
     public const string OIDC_CONFIG = 'oidcConfig';
 
     /**
+     * The servers plMail may reach on a private network — Admin → Integrations
+     * (#564). Keyed by host like the providers by name, so a restore adds the
+     * hosts the file names and leaves any other this install allowed alone.
+     */
+    public const string TRUSTED_HOSTS = 'trustedHosts';
+
+    /**
      * Every key the section carries.
      *
      * Exists so {@see \App\Tests\Service\Backup\ConfigBackupCompletenessTest}
@@ -112,6 +121,7 @@ final readonly class ConfigBackupDatabase
         self::LOG_SETTINGS,
         self::UPDATE_SETTINGS,
         self::OIDC_CONFIG,
+        self::TRUSTED_HOSTS,
     ];
 
     public function __construct(
@@ -122,6 +132,7 @@ final readonly class ConfigBackupDatabase
         private LogSettingsRepository               $logSettings,
         private UpdateCheckRepository               $updateChecks,
         private OidcConfigRepository                $oidcConfigs,
+        private TrustedHostRepository               $trustedHosts,
         private EntityManagerInterface              $entityManager,
     ) {
     }
@@ -139,6 +150,7 @@ final readonly class ConfigBackupDatabase
             self::LOG_SETTINGS          => $this->exportLogSettings(),
             self::UPDATE_SETTINGS       => $this->exportUpdateSettings(),
             self::OIDC_CONFIG           => $this->exportOidcConfig(),
+            self::TRUSTED_HOSTS         => $this->exportTrustedHosts(),
         ];
     }
 
@@ -499,6 +511,35 @@ final readonly class ConfigBackupDatabase
         if (null === $config->id) {
             $this->entityManager->persist($config);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function restoreTrustedHost(string $host, array $values): void
+    {
+        $trusted = $this->trustedHosts->findOneByHost($host);
+
+        if (null === $trusted) {
+            $trusted = new TrustedHost($host);
+            $this->entityManager->persist($trusted);
+        }
+
+        $trusted->allowHttp = true === ($values['allowHttp'] ?? false);
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function exportTrustedHosts(): array
+    {
+        $rows = [];
+
+        foreach ($this->trustedHosts->findAllOrdered() as $trusted) {
+            $rows[$trusted->host] = ['allowHttp' => $trusted->allowHttp];
+        }
+
+        return $rows;
     }
 
     private function exportFcmConfig(): ?array

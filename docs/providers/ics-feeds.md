@@ -99,23 +99,21 @@ Refused outright:
 | | |
 |---|---|
 | A scheme that is not `http` or `https` | `ftp://`, or a bare `example.com/feed.ics` with no scheme at all |
-| `http://` | unless `INTEGRATIONS_ALLOW_HTTP` is on |
+| `http://` | unless an administrator allowed plain http for that host |
 | A username or password in the URL | it would be logged wherever the URL is |
 | `localhost`, or any host ending `.localhost` | |
 | Loopback, link-local and private ranges | `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `100.64.0.0/10`, `0.0.0.0/8`, and the IPv6 equivalents `::1`, `fc00::/7`, `fe80::/10` |
 
 The private-range block is the one that catches self-hosters, and it is the check that stops
 somebody aiming plMail at its own database container or at a cloud metadata endpoint at
-`169.254.169.254`. **A feed on your own LAN is refused until you allow it**, by naming the host in
-`INTEGRATIONS_ALLOWED_HOSTS` — for example `nextcloud.lan` or `10.0.0.5` — and, if the server has no
-certificate, by also setting `INTEGRATIONS_ALLOW_HTTP`. Both are in the
-[configuration reference](../install/configuration.md).
+`169.254.169.254`. **A feed on your own LAN is refused until an administrator allows it**, by adding
+the host under [Admin → Integrations → Servers on a private network](../features/admin.md#servers-on-a-private-network) — for example `nextcloud.lan` or `10.0.0.5` — and, if the server has
+no certificate, by ticking plain http for it.
 
-Understand what each costs. `INTEGRATIONS_ALLOWED_HOSTS` exempts exactly the hosts you name and
-nothing else, which is narrow and is the right tool for one feed on one internal machine.
-`INTEGRATIONS_ALLOW_HTTP` is global: it makes every integration and every feed in the installation
-able to use plaintext, so a credential can cross your network in the clear. It is off by default so
-that sending one stays a deliberate choice rather than an accident.
+Understand what each costs. Allowing a host exempts exactly that host and nothing else, which is
+narrow and is the right tool for one feed on one internal machine. Plain http is ticked per host as
+well, so allowing it for the one server without a certificate does not let any other feed or
+integration use plaintext.
 
 **Redirects are re-checked, every hop.** plMail follows up to three, by hand, and puts every one
 back through the same validation before fetching it. Letting the HTTP client chase them would mean a
@@ -146,9 +144,9 @@ calendar page and an `.ics` behind buttons that look the same. If subscribing fa
 about the address not holding a calendar, open it in a browser: if you get a page, the `.ics` is
 somewhere else on it.
 
-**A feed on your own network is refused, and that is the SSRF guard rather than a bug.** Name the
-host in `INTEGRATIONS_ALLOWED_HOSTS`. Turning off the private-range block entirely is not an option
-on purpose, and `INTEGRATIONS_ALLOW_HTTP` is a bigger hammer than most people need.
+**A feed on your own network is refused, and that is the SSRF guard rather than a bug.** An
+administrator allows the host under [Admin → Integrations → Servers on a private network](../features/admin.md#servers-on-a-private-network). Turning off the private-range block entirely
+is not an option on purpose.
 
 **The address is the credential and is not shown again.** Anyone holding it can read the calendar.
 If a secret address leaks, regenerate it at the publisher — there is nothing to revoke on this side.

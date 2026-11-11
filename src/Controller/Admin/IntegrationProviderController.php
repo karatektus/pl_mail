@@ -11,12 +11,15 @@ use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Integration\ServiceKind;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\Integration\MailProviderConfig;
+use App\Entity\Integration\TrustedHost;
 use App\Form\Integration\IntegrationProviderConfigType;
 use App\Form\Integration\MailProviderConfigType;
+use App\Form\Integration\TrustedHostType;
 use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use App\Repository\Integration\Integration\IntegrationRepository;
 use App\Repository\Integration\MailProviderConfig\MailProviderConfigRepository;
 use App\Service\Integration\ProviderConfigWriter;
+use App\Service\Integration\TrustedHostList;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
@@ -50,6 +53,7 @@ final class IntegrationProviderController extends AbstractController
         private readonly MailProviderConfigRepository       $mailConfigRepository,
         private readonly EntityManagerInterface             $em,
         private readonly ProviderConfigWriter               $configWriter,
+        private readonly TrustedHostList                    $trustedHosts,
     ) {
     }
 
@@ -167,6 +171,57 @@ final class IntegrationProviderController extends AbstractController
         return $this->savedStream('admin.integrations.inherited');
     }
 
+    /**
+     * Allow one more server on a private network — or change whether an
+     * allowed one may use plain http, since adding a host twice is how the
+     * modal corrects its checkbox.
+     *
+     * A modal like the provider forms, so a rejected host re-renders with what
+     * was typed and the reason beside it.
+     */
+    #[Route('/trusted-hosts/new', name: 'trusted_host_new', methods: ['GET', 'POST'])]
+    public function newTrustedHost(Request $request): Response
+    {
+        $form = $this->createForm(TrustedHostType::class, ['host' => '', 'allowHttp' => false], [
+            'action' => $this->generateUrl('app_admin_integrations_trusted_host_new'),
+        ]);
+        $form->handleRequest($request);
+
+        if (true === $form->isSubmitted() && true === $form->isValid()) {
+            /** @var array{host: string, allowHttp: bool} $data */
+            $data = $form->getData();
+
+            // The form's Callback already refused text with no host in it.
+            $this->trustedHosts->allow((string) TrustedHostList::normalise($data['host']), true === $data['allowHttp']);
+
+            return $this->savedStream('admin.integrations.trusted.saved');
+        }
+
+        return $this->render('admin/integrations/_trusted_host_form.html.twig', [
+            'form' => $form,
+        ], new Response(null, true === $form->isSubmitted() ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK));
+    }
+
+    #[Route('/trusted-hosts/{id}/http', name: 'trusted_host_http', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function trustedHostHttp(TrustedHost $host, Request $request): Response
+    {
+        $this->assertCsrf($request, 'admin-trusted-host-' . $host->id);
+
+        $this->trustedHosts->setAllowHttp($host, true === $request->request->getBoolean('allowHttp'));
+
+        return $this->savedStream('admin.integrations.trusted.saved');
+    }
+
+    #[Route('/trusted-hosts/{id}/remove', name: 'trusted_host_remove', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function removeTrustedHost(TrustedHost $host, Request $request): Response
+    {
+        $this->assertCsrf($request, 'admin-trusted-host-' . $host->id);
+
+        $this->trustedHosts->remove($host);
+
+        return $this->savedStream('admin.integrations.trusted.removed');
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
@@ -239,6 +294,7 @@ final class IntegrationProviderController extends AbstractController
             // provider. Drives the "reuse" button, and stays here rather than in
             // the template so the copy endpoint validates against the same map.
             'inheritable'       => self::INHERITABLE,
+            'trustedHosts'      => $this->trustedHosts->all(),
         ];
     }
 

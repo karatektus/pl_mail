@@ -206,13 +206,14 @@ A filter can do the same thing automatically with the **Save attachments to** ac
 **A private or loopback address is refused unless it is allow-listed.** Self-hosted services live on
 addresses an authenticated user could otherwise aim plMail's outbound HTTP client at — including
 `localhost:5432` and the cloud metadata endpoint at `169.254.169.254`. Loopback, link-local, RFC1918
-and carrier-grade NAT ranges are all blocked unless the host appears in `INTEGRATIONS_ALLOWED_HOSTS`.
-On a home LAN this is the setting that makes Nextcloud, OpenCloud, Immich, Paperless-ngx and a
-WebDAV server reachable at all.
+and carrier-grade NAT ranges are all blocked unless an administrator allowed the host under
+[Admin → Integrations → Servers on a private network](../features/admin.md#servers-on-a-private-network). On a home LAN that list is what makes Nextcloud, OpenCloud, Immich, Paperless-ngx
+and a WebDAV server reachable at all.
 
-**`http://` is refused unless `INTEGRATIONS_ALLOW_HTTP` is on.** Self-hosting on a LAN without TLS is
-an ordinary situation, so this flag will often be set — the point is that sending credentials in
-plaintext becomes a deliberate decision rather than a silent default.
+**`http://` is refused unless an administrator allowed it for that host.** Self-hosting on a LAN
+without TLS is an ordinary situation, so the tick will often be set for a server there — the point is
+that sending credentials in plaintext is a decision about one server rather than a silent default for
+all of them.
 
 **A file above the attachment ceiling cannot be attached from Immich, Google Photos, Paperless-ngx or
 WebDAV at all.** WebDAV has no public links in the first place. The photo libraries cannot mint a public URL for a single item without creating a shared

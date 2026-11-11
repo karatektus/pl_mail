@@ -8,8 +8,10 @@ use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
 use App\Entity\Integration\IntegrationProviderConfig;
+use App\Entity\Integration\TrustedHost;
 use App\Entity\User\User;
 use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
+use App\Repository\Integration\TrustedHost\TrustedHostRepository;
 use App\Service\Integration\IntegrationUrlValidator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -27,7 +29,7 @@ final class IntegrationUrlValidatorTest extends TestCase
     {
         $this->expectException(IntegrationException::class);
 
-        (new IntegrationUrlValidator(allowHttp: true))->assertAllowed($url);
+        (new IntegrationUrlValidator())->assertAllowed($url);
     }
 
     /**
@@ -65,16 +67,100 @@ final class IntegrationUrlValidatorTest extends TestCase
         $this->expectException(IntegrationException::class);
         $this->expectExceptionMessageMatches('/https/');
 
-        (new IntegrationUrlValidator(allowHttp: false))->assertAllowed('http://cloud.example.com');
+        (new IntegrationUrlValidator())->assertAllowed('http://cloud.example.com');
     }
 
-    public function testAllowedHostsExemptAPrivateAddress(): void
+    public function testAnAllowedHostExemptsAPrivateAddress(): void
     {
         $this->expectNotToPerformAssertions();
 
-        // How a self-hoster reaches their own LAN server on purpose.
-        (new IntegrationUrlValidator(allowHttp: true, allowedHosts: 'nextcloud.lan, 10.0.0.5'))
-            ->assertAllowed('http://10.0.0.5:8080');
+        // How a self-hoster reaches their own LAN server on purpose (#564).
+        (new IntegrationUrlValidator($this->trustedHosts(new TrustedHost('10.0.0.5'))))
+            ->assertAllowed('https://10.0.0.5:8443/dav.php');
+    }
+
+    /**
+     * Allowing a host on the network is not allowing plain http to it. The two
+     * were separate environment variables and stay separate decisions: a
+     * server with a certificate gains nothing from http, and its app passwords
+     * would cross the network in the clear.
+     */
+    public function testAnAllowedHostStillNeedsHttpsUnlessHttpIsTickedForIt(): void
+    {
+        $validator = new IntegrationUrlValidator($this->trustedHosts(
+            new TrustedHost('10.0.0.5'),
+            new TrustedHost('10.0.0.6', allowHttp: true),
+        ));
+
+        $validator->assertAllowed('http://10.0.0.6:8080/dav.php');
+
+        $this->expectException(IntegrationException::class);
+        $this->expectExceptionMessageMatches('/https/');
+
+        $validator->assertAllowed('http://10.0.0.5:8080/dav.php');
+    }
+
+    /**
+     * Plain http is per host now, not an install-wide switch: ticking it for
+     * the NAS does not let users send passwords in the clear to the internet.
+     */
+    public function testPlainHttpForOneHostIsNotPlainHttpForAnother(): void
+    {
+        $validator = new IntegrationUrlValidator($this->trustedHosts(
+            new TrustedHost('10.0.0.6', allowHttp: true),
+        ));
+
+        $this->expectException(IntegrationException::class);
+        $this->expectExceptionMessageMatches('/https/');
+
+        $validator->assertAllowed('http://cloud.example.com/remote.php/dav');
+    }
+
+    /**
+     * The URL spells the host however the user typed it; the list stores it
+     * the one way TrustedHostList::normalise() does. Without the same
+     * normalisation on both sides `NAS.lan` stays refused after `nas.lan` was
+     * allowed, and an IPv6 host never matches at all because the URL carries
+     * it in brackets.
+     */
+    public function testTheHostMatchesHoweverTheAddressSpellsIt(): void
+    {
+        $this->expectNotToPerformAssertions();
+
+        $validator = new IntegrationUrlValidator($this->trustedHosts(
+            new TrustedHost('fd00::5'),
+            new TrustedHost('10.0.0.5'),
+        ));
+
+        $validator->assertAllowed('https://[FD00::5]/dav');
+        $validator->assertAllowed('https://10.0.0.5./dav');
+    }
+
+    /**
+     * The error is what a user reads, and it used to name an environment
+     * variable a Docker Compose install could not even set (#564). It names
+     * the admin page instead.
+     */
+    /**
+     * A LAN server nobody allowed, typed with http://, is refused for being
+     * on the LAN. Checked the other way round it was told to use https — a
+     * server without a certificate cannot, and https would not have let it
+     * through either, so the user had nothing true to pass on.
+     */
+    public function testAnUnlistedLanServerOnHttpIsRefusedForTheNetworkNotTheScheme(): void
+    {
+        $this->expectException(IntegrationException::class);
+        $this->expectExceptionMessageMatches('/private network/');
+
+        (new IntegrationUrlValidator())->assertAllowed('http://192.168.1.10/dav.php');
+    }
+
+    public function testThePrivateNetworkRefusalSaysWhereAnAdministratorAllowsIt(): void
+    {
+        $this->expectException(IntegrationException::class);
+        $this->expectExceptionMessageMatches('/Admin → Integrations/');
+
+        (new IntegrationUrlValidator())->assertAllowed('https://192.168.1.10/dav');
     }
 
     public function testAPinnedServerAddressExemptsItsHostFromThePrivateNetworkRule(): void
@@ -87,7 +173,9 @@ final class IntegrationUrlValidatorTest extends TestCase
         // resolve is not refused at all, which would pass the test vacuously.
         $config->baseUrl = 'http://10.0.0.5:8080';
 
-        $validator = new IntegrationUrlValidator(allowHttp: true, configs: $this->configs($config));
+        // http:// in the pin is the administrator allowing plain http to
+        // that host, as deliberately as ticking it would be.
+        $validator = new IntegrationUrlValidator(configs: $this->configs($config));
 
         $validator->assertAllowed('http://10.0.0.5:8080/remote.php/dav/calendars/alice/');
 
@@ -107,7 +195,7 @@ final class IntegrationUrlValidatorTest extends TestCase
     {
         $this->expectException(IntegrationException::class);
 
-        (new IntegrationUrlValidator(allowHttp: true))->assertAllowed('https://localhost./dav');
+        (new IntegrationUrlValidator())->assertAllowed('https://localhost./dav');
     }
 
     public function testAPinnedAdminUrlWinsOverTheUsersOwn(): void
@@ -143,6 +231,30 @@ final class IntegrationUrlValidatorTest extends TestCase
         $this->expectExceptionMessageMatches('/No server address/');
 
         (new IntegrationUrlValidator())->resolve(new Integration(new User(), Provider::Nextcloud, 'Home'), null);
+    }
+
+    /** A repository holding exactly these allowed hosts, with no Doctrine behind it. */
+    private function trustedHosts(TrustedHost ...$hosts): TrustedHostRepository
+    {
+        return new class (array_values($hosts)) extends TrustedHostRepository {
+            /** @param list<TrustedHost> $hosts */
+            public function __construct(private readonly array $hosts)
+            {
+                // Deliberately does not call the parent: it wants a
+                // ManagerRegistry, and findOneByHost() is all the validator asks.
+            }
+
+            public function findOneByHost(string $host): ?TrustedHost
+            {
+                foreach ($this->hosts as $trusted) {
+                    if ($trusted->host === $host) {
+                        return $trusted;
+                    }
+                }
+
+                return null;
+            }
+        };
     }
 
     /** A repository holding exactly these provider configs, with no Doctrine behind it. */

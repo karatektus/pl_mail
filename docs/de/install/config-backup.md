@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:9178bc20078dec9fb38b16f1a6cfb9b98fa25e67 -->
+<!-- translated-from: install/config-backup.md sha1:af72ef3b824b115af8e3cfa5f2a393c1a0c6c3cd -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -99,7 +99,6 @@ VAPID_SUBJECT  VAPID_PUBLIC_KEY  VAPID_PRIVATE_KEY
 GOOGLE_OAUTH_CLIENT_ID  GOOGLE_OAUTH_CLIENT_SECRET
 GMAIL_PUBSUB_TOPIC  GMAIL_PUBSUB_VERIFICATION_TOKEN
 MICROSOFT_OAUTH_CLIENT_ID  MICROSOFT_OAUTH_CLIENT_SECRET  MICROSOFT_OAUTH_TENANT
-INTEGRATIONS_ALLOW_HTTP  INTEGRATIONS_ALLOWED_HOSTS
 APP_DEFAULT_TIMEZONE  APP_DB_LOG_LEVEL  DEFAULT_URI
 ```
 

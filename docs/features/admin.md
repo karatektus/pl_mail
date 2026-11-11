@@ -338,7 +338,8 @@ among the file services, and its calendars use that address.
   address counts again. A change applies the next time calendars are found on a connection.
   Calendars already mirrored keep the address they were found at, and clearing an address in a
   private range also ends its exemption from the private-network rule, so those calendars stop
-  syncing until the host is in `INTEGRATIONS_ALLOWED_HOSTS`. Once people have connected, the form
+  syncing until the host is listed under **Servers on a private network**. Once people have
+  connected, the form
   says how many connections a change reaches. See [CalDAV](../providers/caldav.md).
 - **Calendar feed** has no server to pin, because every feed is its own address, so its row has
   nothing to configure. Only an address the setup wizard stored before is shown, with a
@@ -361,6 +362,31 @@ credentials can be registered now and are used as soon as support ships.
 Per-provider setup steps are on [Google](../providers/google.md),
 [Microsoft](../providers/microsoft.md) and, for the calendar side,
 [CalDAV](../providers/caldav.md).
+
+### Servers on a private network
+
+plMail refuses a server address a user types when it resolves to a private, loopback or link-local
+address, so nobody signed in can make it reach the database container, the cloud metadata endpoint or
+anything else on its network ([why](../internals/security-model.md)). The section at the bottom of
+**Integrations** lists the servers allowed anyway: a Baïkal or Nextcloud at home, a NAS, a calendar
+feed on the LAN. A user who meets *"Server address must not point at a private network"* is sent
+here by the message itself.
+
+- **Allow a server** takes a host name or an IP address, or the whole address from the error — only
+  its host is kept, lowercased. One host per row and no wildcards: `*.lan` would let every user reach
+  every machine on the network, which is what the rule exists to stop.
+- **Allow plain http** is a separate tick per host, for a server without a certificate. App passwords
+  sent to it cross the network unencrypted, so tick it only for the server that needs it. A server
+  allowed without it still needs `https://`.
+- **Remove** takes effect on the next request: connections to that server stop syncing with the
+  private-network error, which is the point.
+
+A change applies at once, without a restart, and the list travels in a [config backup](#backup).
+The host of a server address pinned above is allowed on its own and need not be listed here, and an
+`http://` pin allows plain http to that host too.
+
+This replaced the `INTEGRATIONS_ALLOWED_HOSTS` and `INTEGRATIONS_ALLOW_HTTP` environment variables in
+v0.4.3. Neither is read any more; the upgrade copies what they held into this list, once.
 
 ## Push
 

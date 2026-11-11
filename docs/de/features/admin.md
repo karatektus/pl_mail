@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:759bc93bc0ffbc875edde959d545889254ed9a13 -->
+<!-- translated-from: features/admin.md sha1:df7a89a84f7dcf8d97c214ba2f76584fe3e6071c -->
 
 # Administration
 
@@ -374,7 +374,7 @@ eingerichtet, und seine Kalender nutzen diese Adresse.
   auf einer Verbindung das nächste Mal Kalender gesucht werden. Bereits gespiegelte Kalender
   behalten die Adresse, unter der sie gefunden wurden, und wer eine Adresse in einem privaten Netz
   leert, beendet auch ihre Ausnahme von der Regel für private Netze — diese Kalender
-  synchronisieren dann nicht mehr, bis der Host in `INTEGRATIONS_ALLOWED_HOSTS` steht. Sobald sich
+  synchronisieren dann nicht mehr, bis der Host unter **Server in privaten Netzen** steht. Sobald sich
   jemand verbunden hat, sagt das Formular, wie viele Verbindungen eine Änderung erreicht. Siehe
   [CalDAV](../providers/caldav.md).
 - **Calendar feed**, der Kalender-Feed, hat keinen Server zum Festlegen, denn jeder Feed ist seine
@@ -401,6 +401,35 @@ Unterstützung erscheint.
 Die Einrichtungsschritte je Anbieter stehen auf [Google](../providers/google.md),
 [Microsoft](../providers/microsoft.md) und, für die Kalenderseite,
 [CalDAV](../providers/caldav.md).
+
+### Server in privaten Netzen
+
+plMail lehnt eine eingetippte Serveradresse ab, wenn sie auf eine private, Loopback- oder
+Link-Local-Adresse auflöst, damit niemand, der angemeldet ist, darüber den Datenbank-Container, den
+Cloud-Metadaten-Endpunkt oder sonst etwas in seinem Netz erreicht
+([warum](../internals/security-model.md)). Der Abschnitt ganz unten unter **Integrationen** listet
+die Server, die trotzdem erlaubt sind: ein Baïkal oder Nextcloud zu Hause, ein NAS, ein Kalender-Feed
+im LAN. Wer auf *„Server address must not point at a private network“* stößt, wird von der Meldung
+selbst hierher geschickt.
+
+- **Server erlauben** nimmt einen Hostnamen oder eine IP-Adresse, oder die ganze Adresse aus der
+  Fehlermeldung — übernommen wird nur ihr Host, kleingeschrieben. Ein Host pro Zeile und keine
+  Platzhalter: `*.lan` ließe jede angemeldete Person jeden Rechner im Netz erreichen, und genau das
+  soll die Regel verhindern.
+- **Unverschlüsseltes http erlauben** ist ein eigener Haken pro Host, für einen Server ohne
+  Zertifikat. App-Passwörter gehen dann unverschlüsselt durchs Netz, setz ihn also nur für den Server,
+  der ihn braucht. Ein Server, der ohne ihn erlaubt ist, braucht weiterhin `https://`.
+- **Entfernen** wirkt bei der nächsten Anfrage: Verbindungen zu diesem Server synchronisieren dann
+  nicht mehr und melden den Fehler für private Netze, und genau darum geht es.
+
+Eine Änderung gilt sofort, ohne Neustart, und die Liste reist in einer
+[Konfigurationssicherung](#sicherung) mit. Der Host einer oben festgelegten Serveradresse ist von
+selbst erlaubt und muss hier nicht stehen, und eine festgelegte `http://`-Adresse erlaubt diesem Host
+auch unverschlüsseltes http.
+
+Das ersetzt seit v0.4.3 die Umgebungsvariablen `INTEGRATIONS_ALLOWED_HOSTS` und
+`INTEGRATIONS_ALLOW_HTTP`. Keine von beiden wird noch gelesen; das Update übernimmt einmalig, was in
+ihnen stand, in diese Liste.
 
 ## Push
 

@@ -79,7 +79,7 @@ account:
             missing_fields: 'Enter at least an email address and an IMAP host first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored password, which the test can only use once the account is saved.'
             pop3_ok: 'Connected — %count% messages in the mailbox.'
-            private_network: 'This server is on a private network. An administrator has to allow its host in INTEGRATIONS_ALLOWED_HOSTS before plMail may connect to it.'
+            private_network: 'This server is on a private network. An administrator has to allow it under Admin → Integrations → Servers on a private network before plMail may connect to it.'
             smtp_none: 'No SMTP host configured — sending is disabled for this account.'
             smtp_ok: 'Connected and signed in.'
             timeout: 'The server did not answer in time. Check the host and port, and whether a firewall is in the way.'
@@ -603,7 +603,7 @@ admin:
         base_url_per_user: 'Each user enters their own server address.'
         base_url_pinned: 'pinned for all users'
         calendar:
-            connected_warning: 'Connections already made: %count%. A changed or cleared address applies to each of them the next time its calendars are found, so someone connected to another server, iCloud say, is then asked about this one with their own password. Calendars already mirrored keep the address they were found at; if a cleared address was in a private range, they stop syncing until its host is in INTEGRATIONS_ALLOWED_HOSTS.'
+            connected_warning: 'Connections already made: %count%. A changed or cleared address applies to each of them the next time its calendars are found, so someone connected to another server, iCloud say, is then asked about this one with their own password. Calendars already mirrored keep the address they were found at; if a cleared address was in a private range, they stop syncing until it is allowed under Servers on a private network below.'
             heading: 'Calendars'
             intro: 'Servers and feeds users mirror calendars from, under Settings → Calendars. Both are offered to everyone; what can be set here is a server address for everybody. Nextcloud is set up with the file services above, and its calendars come with it.'
         clear_secret: 'Remove the stored client secret'
@@ -681,6 +681,25 @@ admin:
             enabled: 'Enabled'
             incomplete: 'Needs credentials'
             unimplemented: 'Not available yet'
+        trusted:
+            add: 'Allow a server'
+            allow: 'Allow'
+            allow_http: 'Allow plain http'
+            empty: 'None yet. A server that resolves to a private address is refused until it is listed here.'
+            field:
+                allow_http: 'This server has no certificate: allow plain http'
+                allow_http_help: 'Only for a server on your own network. App passwords sent to it cross that network unencrypted.'
+                host: 'Server'
+                host_help: 'Its host name or IP address, as in the address people type: dav.home.example.com, 192.168.1.20. A whole address works too; only its host is kept.'
+            form_intro: 'Signed-in users can then connect plMail to this server although it resolves to a private address. Any of them can make plMail send requests to every server listed here, so list the servers people actually use, not every machine on the network.'
+            heading: 'Servers on a private network'
+            http_allowed: 'Plain http allowed'
+            intro: 'plMail refuses a server address that points at a private network, so nobody can use it to reach this machine or others beside it. The servers listed here are allowed anyway: a CalDAV, CardDAV or file server at home, a calendar feed on your LAN.'
+            remove: 'Stop allowing %host%'
+            remove_confirm: 'Stop allowing %host%? Connections to it stop working on their next sync.'
+            removed: 'Server removed'
+            require_https: 'Require https'
+            saved: 'Server allowed'
         tutorial:
             caldav:
                 intro: 'CalDAV authenticates with a per-user app password against the user''s own server, so there is nothing to register here.'
@@ -752,7 +771,7 @@ admin:
             webdav:
                 intro: "WebDAV covers any file server that speaks it — FileBrowser Quantum, a Synology NAS, rclone serve webdav, Apache mod_dav. Each user connects with their own password or token, so there is nothing to register here."
                 no_links: "WebDAV has no public links, previews or search. Files above the attachment size limit cannot be attached, and the picker shows a file icon instead of a thumbnail."
-                security: "A server on a private network, such as a NAS at home, is only reached once its host is listed in INTEGRATIONS_ALLOWED_HOSTS."
+                security: "A server on a private network, such as a NAS at home, is only reached once it is listed under Servers on a private network below."
                 step_base_url: "Optionally pin the address, for example https://files.example.com/dav/files/. It is the full address of the folder to open, path included: on FileBrowser Quantum that is /dav/ followed by the source name."
                 step_enable: 'Turn on "Offer this service to users" above.'
                 step_user: "Each user enters that address, a username if the server asks for one, and a password or API token. FileBrowser Quantum takes an API token as the password and ignores the username."

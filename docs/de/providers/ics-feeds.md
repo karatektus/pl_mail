@@ -1,4 +1,4 @@
-<!-- translated-from: providers/ics-feeds.md sha1:a1bc51892e4f1505d888be04c6e0b0feb39880d3 -->
+<!-- translated-from: providers/ics-feeds.md sha1:d139ef4ceff23cac4abb12c64ef041ba01aa39c0 -->
 
 # ICS-Feeds
 
@@ -110,7 +110,7 @@ Rundweg abgelehnt:
 | | |
 |---|---|
 | Ein Schema, das nicht `http` oder `https` ist | `ftp://`, oder ein blankes `example.com/feed.ics` ganz ohne Schema |
-| `http://` | sofern `INTEGRATIONS_ALLOW_HTTP` nicht an ist |
+| `http://` | sofern eine Admin-Person unverschlüsseltes http für diesen Host nicht erlaubt hat |
 | Ein Benutzername oder ein Passwort in der URL | es landete überall dort im Log, wo die URL landet |
 | `localhost` oder jeder Host, der auf `.localhost` endet | |
 | Loopback, Link-local und private Bereiche | `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `100.64.0.0/10`, `0.0.0.0/8`, und die IPv6-Entsprechungen `::1`, `fc00::/7`, `fe80::/10` |
@@ -118,17 +118,14 @@ Rundweg abgelehnt:
 Die Sperre privater Bereiche ist die, die Selbsthostende erwischt, und sie ist die Prüfung, die
 jemanden davon abhält, plMail auf den eigenen Datenbank-Container oder auf einen
 Cloud-Metadaten-Endpunkt unter `169.254.169.254` zu richten. **Ein Feed in deinem eigenen LAN wird
-abgelehnt, bis du ihn erlaubst**, indem du den Host in `INTEGRATIONS_ALLOWED_HOSTS` benennst — etwa
-`nextcloud.lan` oder `10.0.0.5` — und, wenn der Server kein Zertifikat hat, zusätzlich
-`INTEGRATIONS_ALLOW_HTTP` setzt. Beide stehen in der
-[Konfigurationsreferenz](../install/configuration.md).
+abgelehnt, bis eine Admin-Person ihn erlaubt**, indem sie den Host unter [Admin → Integrationen → Server in privaten Netzen](../features/admin.md#server-in-privaten-netzen) einträgt — etwa
+`nextcloud.lan` oder `10.0.0.5` — und, wenn der Server kein Zertifikat hat, den Haken für
+unverschlüsseltes http setzt.
 
-Mach dir klar, was jedes davon kostet. `INTEGRATIONS_ALLOWED_HOSTS` nimmt genau die von dir benannten
-Hosts aus und sonst nichts, was eng ist und das richtige Werkzeug für einen Feed auf einer internen
-Maschine. `INTEGRATIONS_ALLOW_HTTP` gilt global: Es befähigt jede Integration und jeden Feed der
-Installation zum Klartext, eine Zugangsberechtigung kann also im Klartext durch dein Netz gehen. Es
-ist standardmäßig aus, damit das Versenden einer solchen eine bewusste Entscheidung bleibt und kein
-Versehen.
+Mach dir klar, was jedes davon kostet. Einen Host zu erlauben nimmt genau diesen Host aus und sonst
+nichts, was eng ist und das richtige Werkzeug für einen Feed auf einer internen Maschine.
+Unverschlüsseltes http wird ebenfalls pro Host erlaubt, es für den einen Server ohne Zertifikat zu
+erlauben lässt also keinen anderen Feed und keine andere Integration im Klartext reden.
 
 **Weiterleitungen werden erneut geprüft, bei jedem Sprung.** plMail folgt bis zu drei, von Hand, und
 schickt jeden davon vor dem Abruf durch dieselbe Prüfung. Den HTTP-Client hinterherjagen zu lassen
@@ -162,9 +159,8 @@ Abonnieren mit einer Meldung, dass unter der Adresse kein Kalender liegt, öffne
 Bekommst du eine Seite, liegt die `.ics` irgendwo darauf.
 
 **Ein Feed in deinem eigenen Netz wird abgelehnt, und das ist der SSRF-Wächter und kein Fehler.**
-Benenn den Host in `INTEGRATIONS_ALLOWED_HOSTS`. Die Sperre privater Bereiche ganz abzuschalten ist
-mit Absicht keine Option, und `INTEGRATIONS_ALLOW_HTTP` ist ein größerer Hammer, als die meisten
-brauchen.
+Eine Admin-Person erlaubt den Host unter [Admin → Integrationen → Server in privaten Netzen](../features/admin.md#server-in-privaten-netzen). Die Sperre privater Bereiche ganz abzuschalten
+ist mit Absicht keine Option.
 
 **Die Adresse ist die Zugangsberechtigung und wird nicht wieder angezeigt.** Wer sie hat, kann den
 Kalender lesen. Kommt eine geheime Adresse abhanden, erzeug sie beim Anbieter neu — auf dieser Seite

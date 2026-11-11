@@ -215,7 +215,7 @@ For a hosted account whose password is an API token — Fastmail's, with
 
 The server has to be reachable from the test container by that name — on the same Docker network,
 or by an address the container can resolve. The test lets the client reach a private address,
-which the app itself refuses unless the host is in `INTEGRATIONS_ALLOWED_HOSTS`.
+which the app itself refuses unless an administrator allowed the host under Admin → Integrations.
 
 CI runs the same suites the same way — it boots this very stack from `compose.test.yaml` and then
 runs the same commands against it, so "works locally, fails in CI" no longer has a serving path to

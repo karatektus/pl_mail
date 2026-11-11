@@ -79,7 +79,7 @@ account:
             missing_fields: 'Saisissez d’abord au moins une adresse e-mail et un serveur IMAP.'
             missing_password: 'Aucun mot de passe pour le test. Saisissez-en un ci-dessus — dans le formulaire de modification, un champ vide conserve le mot de passe enregistré, que le test ne peut utiliser qu’une fois le compte enregistré.'
             pop3_ok: 'Connecté — %count% messages dans la boîte.'
-            private_network: 'Ce serveur se trouve sur un réseau privé. Un administrateur doit d''abord autoriser son hôte dans INTEGRATIONS_ALLOWED_HOSTS avant que plMail puisse s''y connecter.'
+            private_network: 'Ce serveur se trouve sur un réseau privé. Un administrateur doit d''abord l''autoriser dans Admin → Intégrations → Serveurs sur un réseau privé avant que plMail puisse s''y connecter.'
             smtp_none: 'Aucun serveur SMTP configuré — l’envoi est désactivé pour ce compte.'
             smtp_ok: 'Connecté et authentifié.'
             timeout: 'Le serveur n’a pas répondu à temps. Vérifiez le serveur et le port, et qu’aucun pare-feu ne bloque.'
@@ -608,7 +608,7 @@ admin:
         base_url_per_user: 'Chaque utilisateur saisit l’adresse de son propre serveur.'
         base_url_pinned: 'imposée à tous les utilisateurs'
         calendar:
-            connected_warning: 'Connexions déjà établies : %count%. Une adresse modifiée ou effacée s’applique à chacune d’elles la prochaine fois que ses calendriers sont recherchés : une personne connectée à un autre serveur, iCloud par exemple, est alors interrogée sur celui-ci avec son propre mot de passe. Les calendriers déjà reflétés gardent l’adresse où ils ont été trouvés ; si une adresse effacée était dans un réseau privé, ils ne se synchronisent plus tant que son hôte n’est pas dans INTEGRATIONS_ALLOWED_HOSTS.'
+            connected_warning: 'Connexions déjà établies : %count%. Une adresse modifiée ou effacée s’applique à chacune d’elles la prochaine fois que ses calendriers sont recherchés : une personne connectée à un autre serveur, iCloud par exemple, est alors interrogée sur celui-ci avec son propre mot de passe. Les calendriers déjà reflétés gardent l’adresse où ils ont été trouvés ; si une adresse effacée était dans un réseau privé, ils ne se synchronisent plus tant qu’il n’est pas autorisé sous Serveurs sur un réseau privé, plus bas.'
             heading: 'Calendriers'
             intro: 'Les serveurs et flux depuis lesquels les utilisateurs reflètent des calendriers, dans Réglages → Calendriers. Les deux sont proposés à tous ; on peut définir ici une adresse de serveur pour tout le monde. Nextcloud se configure avec les services de fichiers ci-dessus, et ses calendriers l’accompagnent.'
         clear_secret: 'Supprimer le secret client enregistré'
@@ -688,6 +688,25 @@ admin:
             enabled: 'Activé'
             incomplete: 'Identifiants manquants'
             unimplemented: 'Pas encore disponible'
+        trusted:
+            add: 'Autoriser un serveur'
+            allow: 'Autoriser'
+            allow_http: 'Autoriser le http non chiffré'
+            empty: 'Aucun pour l’instant. Un serveur dont l’adresse est privée est refusé tant qu’il ne figure pas ici.'
+            field:
+                allow_http: 'Ce serveur n’a pas de certificat : autoriser le http non chiffré'
+                allow_http_help: 'Uniquement pour un serveur de votre propre réseau. Les mots de passe d’application envoyés le traversent alors en clair.'
+                host: 'Serveur'
+                host_help: 'Son nom d’hôte ou son adresse IP, tels qu’ils figurent dans l’adresse saisie : dav.home.example.com, 192.168.1.20. Une adresse complète convient aussi ; seul son hôte est conservé.'
+            form_intro: 'Les utilisateurs connectés pourront alors relier plMail à ce serveur bien que son adresse soit privée. Chacun d’eux peut faire envoyer par plMail des requêtes à tous les serveurs listés ici : listez ceux qui sont réellement utilisés, pas toutes les machines du réseau.'
+            heading: 'Serveurs sur un réseau privé'
+            http_allowed: 'http non chiffré autorisé'
+            intro: 'plMail refuse une adresse de serveur qui pointe vers un réseau privé, afin que personne ne puisse s’en servir pour atteindre cette machine ou ses voisines. Les serveurs listés ici sont autorisés malgré tout : un serveur CalDAV, CardDAV ou de fichiers à la maison, un flux de calendrier sur votre réseau local.'
+            remove: 'Ne plus autoriser %host%'
+            remove_confirm: 'Ne plus autoriser %host% ? Les connexions vers ce serveur cesseront de fonctionner à leur prochaine synchronisation.'
+            removed: 'Serveur retiré'
+            require_https: 'Exiger https'
+            saved: 'Serveur autorisé'
         tutorial:
             caldav:
                 intro: 'CalDAV s’authentifie avec un mot de passe d’application propre à chaque utilisateur, sur son propre serveur : il n’y a rien à enregistrer ici.'
@@ -759,7 +778,7 @@ admin:
             webdav:
                 intro: "WebDAV couvre tout serveur de fichiers qui le parle — FileBrowser Quantum, un NAS Synology, rclone serve webdav, Apache mod_dav. Chaque utilisateur se connecte avec son propre mot de passe ou jeton : il n’y a rien à enregistrer ici."
                 no_links: "WebDAV n’offre ni liens publics, ni aperçus, ni recherche. Les fichiers au-delà de la taille maximale des pièces jointes ne peuvent pas être joints, et le sélecteur affiche une icône de fichier au lieu d’une miniature."
-                security: "Un serveur sur un réseau privé, comme un NAS à la maison, n’est joignable qu’une fois son hôte ajouté à INTEGRATIONS_ALLOWED_HOSTS."
+                security: "Un serveur sur un réseau privé, comme un NAS à la maison, n’est joignable qu’une fois ajouté sous Serveurs sur un réseau privé, plus bas."
                 step_base_url: "Facultatif : imposez l’adresse, par exemple https://files.example.com/dav/files/. C’est l’adresse complète du dossier à ouvrir, chemin compris : sur FileBrowser Quantum, /dav/ suivi du nom de la source."
                 step_enable: 'Activez « Proposer ce service aux utilisateurs » ci-dessus.'
                 step_user: "Chaque utilisateur saisit cette adresse, un nom d’utilisateur si le serveur en demande un, et un mot de passe ou un jeton d’API. FileBrowser Quantum prend un jeton d’API comme mot de passe et ignore le nom d’utilisateur."
