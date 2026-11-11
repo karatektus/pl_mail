@@ -93,14 +93,28 @@ final readonly class ImapMailboxImporter
             return ImapImportOutcome::Finished;
         }
 
+        // Nothing is below UID 1, and asking would be `UID SEARCH UID 1:0`:
+        // UID 0 does not exist, and Dovecot answers BAD "Invalid UID
+        // messageset" instead of an empty list. Caught below as a refusal,
+        // that left the folder waiting and asked again every minute, for good,
+        // on an empty Hetzner INBOX.
+        if (1 === $floor) {
+            $this->finish($mailbox);
+
+            return ImapImportOutcome::Finished;
+        }
+
         $path = $mailbox->serverPath();
 
         try {
             $missing = $this->missingBelow($mailbox, $session, $path, $floor);
         } catch (ImapCommandException $refused) {
-            $this->logger->warning('Import: the folder is not on the server; nothing imported', [
+            // Any refusal, not only a folder that has gone: a missing folder
+            // is one cause, a search the server will not take another.
+            $this->logger->warning('Import: the server refused the search for older mail; nothing imported', [
                 'mailboxId' => $mailboxId,
                 'mailbox'   => $path,
+                'floor'     => $floor,
                 'error'     => $refused->getMessage(),
             ]);
 
