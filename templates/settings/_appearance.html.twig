@@ -98,174 +98,31 @@
         LogoStyle::DEFAULT, read here rather than spelled in the script. #}
      data-settings--appearance-logo-default-value="{{ constant('App\\Domain\\Enum\\Theme\\LogoStyle::DEFAULT').value }}">
 
-    {# TWO PEER CARDS with the boundary between them, not one card wearing a
-       sidebar. The controls are a card and the preview is a card, each built
-       the way every other settings section builds one (`rounded-pane border
-       border-line bg-surface`, a header rule, a padded body), and the splitter
-       is the gap between the two rather than a rail inside one of them. The
-       previous shape said "the preview belongs to the controls"; it does not —
-       it is the other half of the page.
+    {# One card. There was a second beside it, a live miniature of the mail
+       list and a message wearing these settings, with a draggable boundary
+       between the two. It was taken out: the settings tree (#570) took 40px
+       from this pane, which put a 1280 window below the width the two cards
+       needed side by side, and the preview spent the rest of its life behind a
+       "Show preview" button. Every control here already applies to the whole
+       app as it changes, so the app itself is the preview.
 
-       Container query, not a viewport breakpoint, for the reason settings
-       index.html.twig gives: this pane is not as wide as the window, and at md
-       the mail sidebar appears and takes from it, so pane width and viewport
-       width do not move together.
+       `pane-fill-host` still caps the row above 80rem so the card is exactly as
+       tall as the scroll port and its body scrolls inside it (see app.css). #}
+    <div class="grid pane-fill-host">
 
-       Below @3xl the two cards STACK and the preview starts collapsed, reached
-       through the control in the settings card's header. It used to be dropped
-       from the markup outright, which was a defensible answer while it was a
-       sidebar and is not one now: a phone is where you can least afford to
-       leave the page to find out what a knob did.
-
-       The second column is `auto` rather than the width itself, and the width
-       sits on the preview INSIDE it. That is what the calendar does, and for
-       the same reason: the handle overhangs the gap by a negative margin, so a
-       column sized to the stored number would have spent 24px of the preview
-       on the handle and the miniature would have been narrower than the number
-       says. Sized to content, the preview is exactly as wide as it is stored,
-       which is also what ui--split measures when it clamps.
-
-       The splitter is mounted HERE, on the row it splits, rather than on the
-       panel above — which is also where the calendar's lives, on the row
-       holding its two panes. The panel's own `data-controller` stays exactly
-       `settings--appearance`, so the six specs that select it by that whole
-       attribute value keep working; a controller list is a poor thing to make
-       load-bearing for a selector, but it is not this change's business to
-       rewrite them all either. The mobile disclosure is an action on
-       `settings--appearance` for the same reason: a second controller on the
-       panel root would have broken all six.
-
-       The preview's width is rendered into the first paint rather than restored
-       by JavaScript — a pane that appears at the default and jumps once the
-       controller connects is worse than one that does not remember at all. It
-       sits on this element because that is the one ui--split writes to. The
-       fallback covers the theoretical unauthenticated render; both real hosts
-       are behind a login. #}
-    {% set _previewWidth = app.user ? app.user.appearancePreviewWidth
-                                    : constant('App\\Entity\\User\\User::APPEARANCE_PREVIEW_DEFAULT_WIDTH') %}
-
-    {# `@3xl:gap-gutter` — the mail shell's gutter, not this page's card spacing,
-       and that is the whole of "make the gap feel like the calendar's". The row
-       gap is half the visible space between the two cards; the handle's own
-       negative margin is the other half (see the handle below), so gutter here
-       and gutter there give a 24px channel with the grip down the middle of it,
-       pixel for pixel what sits between the message list and the calendar.
-       `gap-6` still applies BELOW @3xl, where the two cards are stacked and this
-       is vertical space between two cards rather than a boundary.
-
-       `pane-fill-host` caps the row above 80rem so both cards can be exactly as
-       tall as it is; below that it is inert. #}
-    <div class="grid gap-6 @3xl:gap-gutter @3xl:grid-cols-[minmax(0,1fr)_auto] pane-fill-host"
-         style="--appearance-preview-width: {{ _previewWidth }}px"
-         data-controller="ui--split"
-         {# The same splitter the calendar pane uses, with its three positions
-            switched off — see ui--split's docblock. There is nothing to switch
-            between here: the preview is either beside the controls or, below
-            @3xl, not rendered. What is shared is the part that matters — the
-            drag, the clamp against what the two columns have between them, the
-            arrow keys, the double-click reset and the coalesced write on
-            release.
-
-            `variable-value` is why two boundaries can exist on one page at all
-            — and they do, in the setup wizard, where this panel opens over the
-            mail shell: the controller writes the property it is handed and
-            knows no pane by name. #}
-         data-ui--split-modes-value="false"
-         data-ui--split-variable-value="--appearance-preview-width"
-         data-ui--split-state-url-value="{{ path('app_appearance_pane_state') }}"
-         data-ui--split-token-value="{{ csrf_token('appearance_pane_state') }}"
-         data-ui--split-min-value="{{ constant('App\\Entity\\User\\User::APPEARANCE_PREVIEW_MIN_WIDTH') }}"
-         data-ui--split-max-value="{{ constant('App\\Entity\\User\\User::APPEARANCE_PREVIEW_MAX_WIDTH') }}"
-         data-ui--split-default-value="{{ constant('App\\Entity\\User\\User::APPEARANCE_PREVIEW_DEFAULT_WIDTH') }}"
-         {# What the CONTROLS column is never dragged below. They are the reason
-            the page exists; the preview is the thing that can be made small.
-
-            380, and it is a measured number rather than a round one. Two things
-            inside this card set it. The segmented groups stop clipping their
-            longest label at about 316px of card — that is the same in English
-            and in German, since `auto-cols-fr` divides the row rather than
-            summing it and only the text itself can overflow. The theme tiles
-            used to want a great deal more, because their column count was a
-            query on the PANEL and the panel does not narrow when this card
-            does: six fixed columns clipped the longest German theme name at
-            every width the drag could reach. That grid is `auto-fill` now (see
-            it below), so it answers to the card it is in and the tiles set no
-            floor at all. 380 is 316 with enough left over that the card reads
-            as a column of controls rather than as the last thing that fits.
-
-            This is the bound that actually bites at 1280: the row has 754px for
-            the two cards there, so the preview stops at 374 however far the
-            max below would let it go. That is the point of it — 900 is what the
-            boundary can reach on a screen with 900 to spare, not a promise that
-            the controls will be squeezed to make room for it. #}
-         data-ui--split-main-min-value="380"
-         data-ui--split-step-value="16">
-
-        {# ── Card one: the controls ───────────────────────────────────────
-           A real card, so the two halves of this page are peers. `min-w-0`
-           because it is the `1fr` column and its segmented groups would
-           otherwise refuse to shrink below their content. #}
-        {# `pane-fill-card` above 80rem: header, then a body that scrolls inside
-           the card. This is the half that stops the preview beside it being a
-           2500px box with 500px of miniature at the top — the row is no longer
-           2500px, because this card no longer sets its own height. It is what
-           .main-pane does for the message list, for the same reason. #}
         {# Shell and band come from _partials/_card_chrome.html.twig, the same
            strings settings/_card.html.twig uses. This section keeps its own
            markup rather than embedding that card — it is also the setup
            wizard's appearance step, it owns the @container the groups query,
-           it is half of a resizable split pair, and its body scrolls inside the
-           card via pane-fill-scroll. None of that survives the generic body. #}
-        <section class="min-w-0 {{ chrome.shell() }} pane-fill-card"
-                 data-ui--split-target="main">
+           and its body scrolls inside the card via pane-fill-scroll. None of
+           that survives the generic body. #}
+        <section class="min-w-0 {{ chrome.shell() }} pane-fill-card">
 
-            {# The card header, and the one place the preview can be reached on
-               a phone.
-
-               DISCLOSURE, not a dialog and not a replacement: pressing it
-               reveals the preview card above the controls and leaves every
-               control where it was. A modal would have hidden the controls the
-               preview exists to explain, and swapping one for the other would
-               have made "change a setting and watch" impossible — which is the
-               entire reason to want a preview on a small screen.
-
-               NOT PERSISTED, and that is a deliberate difference from the pane
-               WIDTH beside it. A width is a considered choice about how this
-               page should be shaped and is worth carrying to the next visit;
-               this is a peek. Persisted, it would cost a returning phone user a
-               third of a 568px screen for a glance they took once and forgot,
-               and it would need a second settings-bag key and a second CSRF'd
-               endpoint to do it. It starts closed on every load.
-
-               `@3xl:hidden` because above that width the preview is simply
-               there and a control to reveal what is already visible is noise.
-               `aria-controls` names the region and `aria-expanded` carries the
-               state; the label itself changes with it, so the control is
-               readable without either. #}
             <header class="shrink-0 flex items-center justify-between gap-3 {{ chrome.band() }}">
                 <div class="min-w-0">
                     <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.heading'|trans }}</h2>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.subheading'|trans }}</p>
                 </div>
-
-                <button type="button"
-                        data-appearance-preview-toggle
-                        data-settings--appearance-target="previewToggle"
-                        data-action="click->settings--appearance#togglePreview"
-                        aria-expanded="false"
-                        aria-controls="appearance-preview-region"
-                        data-show-label="{{ 'settings.appearance.preview.show'|trans }}"
-                        data-hide-label="{{ 'settings.appearance.preview.hide'|trans }}"
-                        class="@3xl:hidden shrink-0 inline-flex items-center gap-2 px-3 min-h-9 rounded-pane
-                               border border-line text-xs font-medium text-ink-muted
-                               hover:bg-hover cursor-pointer transition-colors
-                               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                    <i class="fa-solid fa-eye text-[11px]" aria-hidden="true"
-                       data-settings--appearance-target="previewToggleIcon"></i>
-                    <span data-settings--appearance-target="previewToggleLabel">
-                        {{ 'settings.appearance.preview.show'|trans }}
-                    </span>
-                </button>
             </header>
 
             {# The card's scrolling body — the ONE scrollbar this section gains,
@@ -281,11 +138,10 @@
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.theme.subheading'|trans }}</p>
                 </div>
 
-                {# AUTO-FILL rather than three container-query breakpoints, and
-                   the split is what forced it. The queries were on the PANEL,
-                   and the panel's width no longer says anything about this
-                   card's: drag the preview wider and the card narrows while the
-                   panel does not, so a card dragged to 360px was still being
+                {# AUTO-FILL rather than three container-query breakpoints. The
+                   queries were on the PANEL, and the panel and this card were
+                   not always the same width — a preview card used to sit
+                   beside it and narrow it — so a card at 360px was still being
                    told to draw six columns. Measured with the German
                    catalogue's labels, six columns overflowed "Dämmerung" by
                    18px in a 336px card and still by 10px in a 416px one — into
@@ -608,8 +464,8 @@
                        rather than repeated. An `sr-only` span inside the
                        radiogroup would say the same word twice to a screen
                        reader, and it is also 1px-clipped by definition, which
-                       preview-pane.spec.ts reads as 53px of overflow when it
-                       checks that nothing in the controls column is cut off. #}
+                       reads as overflow to anything checking that nothing in
+                       this card is cut off. #}
                     <h3 class="text-sm font-semibold text-ink" id="motion-label">{{ 'settings.appearance.motion.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.motion.subheading'|trans }}</p>
                 </div>
@@ -1359,111 +1215,5 @@
             {% endif %}
             </div>
         </section>
-
-        {# ── Card two: the live preview ────────────────────────────────────
-           A mail list and a message, in miniature, wearing the settings on this
-           page. In its own column so it stays on screen while the controls that
-           drive it scroll past — the whole point is that nobody has to leave for
-           the inbox and come back to find out what a knob did.
-
-           SELF-CONTAINED by construction: not one line of it is fetched, and the
-           sample below is literal text, not a real thread. A preview that read
-           the inbox would be a second renderer of the mail list to keep in step
-           with the first, and it would put somebody's actual correspondence on a
-           settings page that a support screenshot is likely to capture.
-
-           It is styled by the SAME rules as the real list — data-surface="list",
-           data-account-corner, data-row-snippet, row-unread, list-row-y are the
-           real hooks from app.css, not a copy — so a preview that looks right
-           and a list that does not is a failure mode this cannot have.
-
-           `hidden @3xl:flex` is the state the SERVER renders, and above @3xl
-           it is the whole story: the preview is beside the controls and the
-           handle, which lives inside this element, comes with it. Below @3xl
-           the class is toggled by togglePreview() — removed to show, added back
-           to hide — rather than a `flex` being switched on over the top of it,
-           because `.hidden` out-orders `.flex` in the built stylesheet and a
-           toggle written that way looks exactly like broken JavaScript.
-
-           The HANDLE carries its own `hidden @3xl:flex` now that this wrapper
-           no longer does. Left behind when the layout stacks it would be a grab
-           target for a boundary that has no second side.
-
-           ORDER-FIRST below @3xl, and sticky with it. Stacked in DOM order the
-           preview would appear some 2700px below the control that revealed it,
-           which is a disclosure that discloses nothing; first in the stack and
-           pinned to the top of the scroll port, it stays on screen while the
-           controls it explains scroll underneath. Above @3xl neither applies:
-           the columns are side by side.
-
-           BETWEEN @3xl and 80rem the card inside is still `sticky`, because the
-           row is still as tall as the controls card and something has to keep
-           the miniature on screen. At 80rem and up the row is capped instead
-           and the card simply fills it — `pane-fill-card` retires the sticky,
-           since a card that is already the height of the row has nowhere left
-           to travel. #}
-        <aside id="appearance-preview-region"
-               data-settings--appearance-target="previewRegion"
-               class="hidden @3xl:flex min-w-0
-                      order-first sticky top-0 z-10
-                      @3xl:order-none @3xl:static @3xl:z-auto">
-            {# The handle, and it is now the calendar's handle down to the
-               pixel: `-ml-gutter w-[calc(var(--spacing-gutter)*2)]`, the same
-               expression _calendar_pane.html.twig carries and for the reason
-               its comment gives. Two gutters wide and pulled left by one, so
-               the grip lands in the MIDDLE of the space between the two cards
-               rather than to one side of it — the row's own `gap-gutter` falls
-               to this handle's left, so a handle merely one gutter wide would
-               put its grip one and a half gutters from the controls and half a
-               gutter from the preview.
-
-               It used to be `-ml-6 w-12` against a `gap-6` row. That is the
-               same formula at twice the scale and it was centred too; what it
-               was not was the mail shell's channel. Written in the gutter
-               token, this boundary and the one between the message list and the
-               calendar are the same 24px with the same two-pixel grip down the
-               middle, and they stay that way if the token ever moves.
-
-               role=separator with an orientation is what makes a boundary
-               reachable and meaningful without a mouse; arrow keys nudge it and
-               a double-click puts it back to the default, both the same actions
-               on the same controller. #}
-            <div
-                data-ui--split-target="handle"
-                data-action="pointerdown->ui--split#start keydown->ui--split#nudge dblclick->ui--split#reset"
-                role="separator"
-                aria-orientation="vertical"
-                aria-label="{{ 'settings.appearance.preview.resize'|trans }}"
-                tabindex="0"
-                class="group relative -ml-gutter w-[calc(var(--spacing-gutter)*2)] shrink-0
-                       cursor-col-resize
-                       hidden @3xl:flex items-center justify-center
-                       focus:outline-none"
-            >
-                {# CENTRED, like the calendar's, which is a change this became
-                   able to make rather than a preference. The grip used to be
-                   `sticky top-24` because the handle was as tall as the
-                   controls card — some 2700px — and a centred grip sat 1300px
-                   below the fold. The row is capped to the scroll port now, so
-                   the centre of the handle is on screen by construction and the
-                   workaround is exactly what it looked like.
-
-                   `.split-grip` is also what the strain state in app.css hooks,
-                   and the controller drives it here too: dragging past either
-                   limit flares the grip, which is the one thing that says "that
-                   is the end" on a control two pixels wide. #}
-                <span class="split-grip w-0.5 h-8 rounded-full bg-line
-                             group-hover:bg-accent group-focus-visible:bg-accent" aria-hidden="true"></span>
-            </div>
-
-            {# `w-full` below @3xl: stacked, the preview card is as wide as the
-               settings card, not 304px of a 320px screen. The stored width only
-               describes a boundary, and below @3xl there is no boundary. #}
-            <div data-ui--split-target="pane"
-                 class="min-w-0 w-full @3xl:w-[var(--appearance-preview-width)]
-                        pane-fill-stack">
-                {% include 'settings/_appearance_preview.html.twig' %}
-            </div>
-        </aside>
     </div>
 </div>

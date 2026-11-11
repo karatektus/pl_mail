@@ -18,10 +18,10 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  *
  * Three promises, kept apart because each fails differently.
  *
- * A token is required, for the reason AppearancePaneStateTest gives about its
- * own endpoint: a forged request can only rearrange the victim's own mailbox,
- * which is an argument for leaving old endpoints alone and not for minting new
- * ones without a check.
+ * A token is required. A forged request can only rearrange the victim's own
+ * mailbox, which is an argument for leaving old endpoints alone and not for
+ * minting new ones without a check — StateChangingPostsNeedCsrfTest exists
+ * because that reasoning ran out once already.
  *
  * The clamp and the mode check are the SERVER's. The drag handle bounds what it
  * sends, but a stored share of 4000 would draw a list nobody can see, and a

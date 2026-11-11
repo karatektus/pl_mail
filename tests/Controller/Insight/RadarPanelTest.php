@@ -476,8 +476,7 @@ final class RadarPanelTest extends WebTestCase
 
     /**
      * The per-action token, read off the rendered radar — which is also the
-     * only place the real button gets it from (AppearancePaneStateTest reads
-     * its token the same way).
+     * only place the real button gets it from.
      */
     private function token(KernelBrowser $client): string
     {

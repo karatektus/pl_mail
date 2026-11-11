@@ -40,7 +40,7 @@ mechanism behind it.
 | [Security](features/security.md) | Changing your password, two-factor authentication, recovery codes, remembered devices, app passwords, sessions |
 | [Encryption](features/encryption.md) | Your OpenPGP keys, the recovery phrase, known devices, importing and exporting keys, what a password reset does to them |
 | [Other clients](features/clients.md) | Connecting a JMAP client, per-app passwords, the PWA and browser notifications |
-| [Appearance](features/appearance.md) | Themes, custom colours and background, the live preview, what a list row shows, typeface and text size, per-pane density, import and export, language |
+| [Appearance](features/appearance.md) | Themes, custom colours and background, what a list row shows, typeface and text size, per-pane density, import and export, language |
 | [Administration](features/admin.md) | Users and roles, switching an account off, enabling integrations, monitoring, queues and the version chip |
 
 ## Installing and running

@@ -571,7 +571,9 @@ test.describe("compose safety", () => {
  * hook, where the test may have failed before it ever changed anything.
  */
 async function useLocale(page: Page, locale: string): Promise<void> {
-    await page.goto("/settings/compose");
+    // Language & region, where the language buttons are since the settings
+    // tree (#570) — and where LocaleController sends the save back to.
+    await page.goto("/settings/region");
 
     const button = page
         .locator(`form[action*='locale']:has(input[value='${locale}']) button`)
@@ -582,7 +584,7 @@ async function useLocale(page: Page, locale: string): Promise<void> {
     }
 
     await button.click();
-    await expect(page).toHaveURL(/\/settings\/compose/);
+    await expect(page).toHaveURL(/\/settings\/region/);
 }
 
 test.describe("compose localization", () => {

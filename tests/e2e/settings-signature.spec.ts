@@ -105,7 +105,17 @@ test.describe("signature settings", () => {
     test("is its own section, reachable from the nav", async ({ page }) => {
         await page.goto("/settings/accounts");
 
-        await page.getByRole("link", { name: "Signatures" }).click();
+        // Through the tree as a reader goes: the tree opens only the area of
+        // the page you are on (#570), so from Mail accounts the Signatures row
+        // sits inside a folded Reading & writing. Clicking the row straight
+        // away is clicking something not on screen, which is what this test
+        // did until the tree arrived — and then timed out.
+        const tree = page.locator("#settings-tree");
+        const signatures = tree.getByRole("link", { name: "Signatures" });
+
+        await expect(signatures).toBeHidden();
+        await tree.locator("summary", { hasText: "Reading & writing" }).click();
+        await signatures.click();
 
         await expect(page).toHaveURL(/\/settings\/signature/);
         await expect(
