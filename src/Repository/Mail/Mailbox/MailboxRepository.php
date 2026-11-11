@@ -176,7 +176,10 @@ class MailboxRepository extends ServiceEntityRepository
      *
      * Folders that are synced, the server still lists, and whose import was
      * planned once: an unplanned one is planned by its next sync anyway, and
-     * one with no lastSeenUid has nothing to stand the floor on.
+     * one with no lastSeenUid has nothing to stand the floor on. Nor one whose
+     * lastSeenUid is 0: a folder that never held mail has no gaps, and its
+     * floor would be 1, which has nothing below it — counted here and shown
+     * as importing for a folder that cannot have anything to fetch.
      *
      * @return int how many folders will be looked through
      */
@@ -191,7 +194,7 @@ class MailboxRepository extends ServiceEntityRepository
             ->where('mailbox.isSyncEnabled = true')
             ->andWhere('mailbox.isSelectable = true')
             ->andWhere('mailbox.missingSince IS NULL')
-            ->andWhere('mailbox.lastSeenUid IS NOT NULL')
+            ->andWhere('mailbox.lastSeenUid > 0')
             ->andWhere('mailbox.importFloorUid IS NOT NULL');
 
         if (null !== $account) {
