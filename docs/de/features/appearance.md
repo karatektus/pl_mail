@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:c3dae4655eb02b9e560eb412c9f40ff795c8effc -->
+<!-- translated-from: features/appearance.md sha1:1dc3f4bafc1d4517ac4ace3ef2148245e78cb9a5 -->
 
 # Darstellung
 
@@ -303,9 +303,34 @@ Daten, was plMail nicht als gültigen Wert kennt, wird ignoriert statt gespeiche
 Layout in der Datei wird vor den einzelnen Zahlen angewendet, damit ein Export, der geschrieben
 wurde, bevor es ein bestimmtes Bedienelement gab, trotzdem irgendwo Sinnvollem landet.
 
+## Eine Einstellung finden
+
+Die Einstellungen sind ein Baum aus acht Bereichen — Konto, Allgemein, E-Mail-Konten,
+Posteingang, Lesen & Schreiben, Kalender & Kontakte, Assistent & Automatik und Integrationen —
+mit jeweils ein paar Seiten. Der Bereich der Seite, auf der du bist, ist aufgeklappt; die anderen
+klappen zu, bis du sie öffnest.
+
+Das Feld über dem Baum durchsucht jede Seite und jede Karte darauf. Es findet Überschriften und
+auch die Wörter, mit denen man etwas sucht, ohne seinen Namen zu kennen: **dunkel** findet
+**Theme**, **2fa** findet die Zwei-Faktor-Authentifizierung, **imap** findet App-Passwörter und Konten.
+Groß- und Kleinschreibung und Akzente spielen keine Rolle. Eine Karte, die über so ein Wort
+gefunden wurde, nennt das Wort.
+
+**⌘K** auf dem Mac, sonst **Strg+K**, öffnet dieselbe Suche von überall in plMail. **↑** und
+**↓** wechseln zwischen den Treffern, **Enter** öffnet einen: Die Seite lädt, und die Karte wird
+kurz umrandet, damit du siehst, wo sie ist. Während du in einer Mail oder einem Textfeld
+schreibst, bleibt das Kürzel dem Editor und dem Browser — drück es also von anderswo.
+
+Auf dem Handy liegt der Baum hinter einem Knopf oben in den Einstellungen, der die aktuelle Seite
+nennt; tipp darauf, um Baum und Suche zu öffnen.
+
+Jede Seite hat ihre eigene Adresse, `/settings/<seite>`, sodass du sie als Lesezeichen speichern
+oder weitergeben kannst. Links auf die älteren Adressen `/settings?section=…` öffnen die erste
+Seite der Einstellungen.
+
 ## Sprache
 
-**Einstellungen → Allgemein → Sprache** legt fest, in welcher Sprache die Oberfläche angezeigt
+**Einstellungen → Allgemein → Sprache & Region** legt fest, in welcher Sprache die Oberfläche angezeigt
 wird. Deine Mail bleibt genau so, wie sie geschrieben wurde — es wird nichts übersetzt und
 nichts umgeschrieben.
 

@@ -9,7 +9,7 @@ import { expect, type Page } from "@playwright/test";
  * runs next, so such a spec puts the direction back in an afterEach.
  */
 export async function setSwipeAction(page: Page, direction: "Swipe right" | "Swipe left", option: string): Promise<void> {
-    await page.goto("/settings?section=swipe-actions");
+    await page.goto("/settings/layout");
 
     const field = direction === "Swipe right" ? "swipeRight" : "swipeLeft";
 
@@ -24,7 +24,7 @@ export async function setSwipeAction(page: Page, direction: "Swipe right" | "Swi
     const saved = page.waitForResponse(
         (response) =>
             "GET" === response.request().method() &&
-            response.url().includes("section=swipe-actions") &&
+            response.url().includes("/settings/layout") &&
             null !== response.request().redirectedFrom(),
     );
 

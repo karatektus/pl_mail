@@ -1,0 +1,74 @@
+{#
+The Settings search palette: ⌘K / Ctrl+K anywhere in the app (#569).
+
+Included once by _layout/app.html.twig for a signed-in user. Takes no
+variables; its entries come from GET /settings/search the first time it opens
+(see SettingsSearchIndex for why they are fetched rather than rendered here).
+
+A <dialog>, for what the confirm dialog's header lists: the top layer, focus
+trapping, Escape, and the page behind going inert, none of it hand-written.
+The geometry and the dim are in app.css under #settings-palette.
+
+The results are a listbox the input controls (aria-activedescendant), the
+pattern every combobox search uses: focus stays in the field while ↑ and ↓
+move the selection, so typing never has to be resumed by clicking back.
+#}
+<dialog id="settings-palette"
+        data-controller="settings--palette"
+        data-settings--palette-url-value="{{ path('app_settings_search') }}"
+        data-settings--palette-messages-value="{{ {
+            count:   'settings.search.count'|trans,
+            empty:   'settings.search.empty'|trans,
+            keyword: 'settings.search.keyword'|trans,
+            failed:  'settings.search.failed'|trans,
+            page:    'settings.search.kind_page'|trans,
+        }|json_encode }}"
+        data-action="keydown@window->settings--palette#shortcut close->settings--palette#closed"
+        aria-label="{{ 'settings.search.label'|trans }}"
+        data-enter="pop"
+        class="pane-flat shadow-float text-ink">
+    <div class="flex flex-col max-h-[inherit]">
+        <div class="flex items-center gap-3 px-4 h-14 border-b border-line shrink-0">
+            <i class="fa-solid fa-magnifying-glass text-ink-faint" aria-hidden="true"></i>
+            <input type="search"
+                   class="flex-1 min-w-0 h-full bg-transparent text-base text-ink placeholder:text-ink-faint focus:outline-none"
+                   placeholder="{{ 'settings.search.placeholder'|trans }}"
+                   aria-label="{{ 'settings.search.label'|trans }}"
+                   role="combobox"
+                   aria-expanded="true"
+                   aria-controls="settings-palette-results"
+                   aria-autocomplete="list"
+                   autocomplete="off"
+                   spellcheck="false"
+                   data-settings--palette-target="input"
+                   data-action="input->settings--palette#search keydown->settings--palette#navigate">
+            <kbd class="px-1.5 rounded border border-line text-[11px] text-ink-faint font-sans">esc</kbd>
+        </div>
+
+        <p class="px-4 pt-3 pb-1 text-xs text-ink-faint shrink-0" data-settings--palette-target="status" aria-live="polite"></p>
+
+        <ul id="settings-palette-results"
+            role="listbox"
+            aria-label="{{ 'settings.search.label'|trans }}"
+            class="flex-1 overflow-y-auto px-2 pb-2"
+            data-settings--palette-target="list"></ul>
+
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 border-t border-line text-[11px] text-ink-faint shrink-0">
+            <span>↑ ↓ {{ 'settings.search.hint_move'|trans }}</span>
+            <span>↵ {{ 'settings.search.hint_open'|trans }}</span>
+        </div>
+    </div>
+
+    {# One result row, cloned per entry. A template rather than markup built in
+       the controller, so the look of a row lives with the rest of the look. #}
+    <template data-settings--palette-target="row">
+        <li role="option" aria-selected="false"
+            class="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-accent-soft">
+            <span class="flex-1 min-w-0 flex flex-col">
+                <span class="text-sm font-medium text-ink truncate" data-part="title"></span>
+                <span class="text-xs text-ink-faint truncate" data-part="crumb"></span>
+            </span>
+            <span class="shrink-0 text-[11px] text-ink-muted" data-part="via"></span>
+        </li>
+    </template>
+</dialog>

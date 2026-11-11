@@ -198,7 +198,7 @@ final class WebPushSubscribeArrivalsTest extends WebTestCase
      */
     private function csrfToken(string $tokenId): string
     {
-        $this->client->request('GET', '/settings?section=notifications');
+        $this->client->request('GET', '/settings/notifications');
 
         $stack   = static::getContainer()->get('request_stack');
         $carrier = new Request();

@@ -134,7 +134,7 @@ final class ComposeBehaviorTest extends WebTestCase
 
     private function token(KernelBrowser $client): string
     {
-        $crawler = $client->request('GET', '/settings?section=general');
+        $crawler = $client->request('GET', '/settings/compose');
 
         return (string) $crawler
             ->filter('form[action$="/settings/compose-behavior"] input[name="_token"]')

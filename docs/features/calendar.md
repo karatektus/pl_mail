@@ -29,7 +29,7 @@ so the two are side by side from the first visit. Close it and plMail remembers 
 ### The calendar button
 
 By default the button is a three-way switch: mail, then the calendar beside the mail, then the
-calendar full width, and round again. **Settings → Calendar → Behaviour** has one choice,
+calendar full width, and round again. **Settings → Calendar & contacts → Calendar behaviour** has one choice,
 **Calendar button**, that can turn it into a two-way one:
 
 - **All three**: the three-way switch, which is the default.
@@ -148,7 +148,7 @@ all move to the new day — so a calendar left open beside the mail stays true.
 
 **The grid is drawn on your clock.** The hours down the side, where the red current-time line sits,
 and the time a new event is proposed at when you double-click empty space all follow the timezone in
-**Settings → General**. That is the same zone every other timestamp in the app is read against,
+**Settings → General → Language & region**. That is the same zone every other timestamp in the app is read against,
 and the header clock, so the two always agree. Every event shows at the moment it actually happens
 for you: a 15:00 meeting in a Tokyo calendar, read in Berlin, is on the 07:00 line. Change your
 timezone and the calendar moves with it. Until plMail 0.4.0 the grid followed your default

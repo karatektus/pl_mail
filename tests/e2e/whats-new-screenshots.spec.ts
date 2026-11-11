@@ -51,7 +51,7 @@ async function capture(page: Page, name: string, of: Locator, maxHeight?: number
 
 /** The settings card with this heading. */
 async function card(page: Page, section: string, heading: string): Promise<Locator> {
-    await page.goto(`/settings?section=${section}`);
+    await page.goto(`/settings/${section}`);
 
     const found = page.locator("section", { has: page.locator("h2", { hasText: heading }) }).first();
     await expect(found).toBeVisible();
@@ -134,7 +134,7 @@ test.describe("What's new screenshots", () => {
     /** The pane beside the list, with a conversation open in it; put back to off afterwards. */
     test("reading-pane", async ({ page }) => {
         const pane = async (mode: "right" | "off"): Promise<void> => {
-            await page.goto("/settings?section=reading-pane");
+            await page.goto("/settings/reading");
             const option = page.locator(`input[name="readingPane"][value="${mode}"]`);
 
             await page.locator("label", { has: option }).click();
@@ -177,7 +177,7 @@ test.describe("What's new screenshots, v0.4.0", () => {
         // delete choice away under its own footer.
         await page.setViewportSize({ width: 1200, height: 1400 });
         await login(page, TEST_DEMO.email, TEST_DEMO.password);
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
         await page.locator("section").filter({ has: page.locator("#settings-account-list") })
             .getByRole("button", { name: "Add account" }).click();
 
@@ -211,7 +211,7 @@ test.describe("What's new screenshots, v0.4.0", () => {
     /** Settings → Appearance → Logo with an upload worn: the "Your own" tile, and the top bar wearing it. */
     test("custom-logo", async ({ page }) => {
         await login(page, TEST_DEMO.email, TEST_DEMO.password);
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
 
         const panel = page.locator('[data-controller="settings--appearance"]');
         await expect(panel).toBeVisible();
@@ -240,12 +240,12 @@ test.describe("What's new screenshots, v0.4.0", () => {
      */
     test("simplified-chinese", async ({ page }) => {
         const useLocale = async (locale: string): Promise<void> => {
-            await page.goto("/settings?section=general");
+            await page.goto("/settings/region");
             const button = page.locator(`form[action*='locale']:has(input[value='${locale}']) button`).first();
 
             if (false === (await button.isDisabled())) {
                 await button.click();
-                await expect(page).toHaveURL(/section=general/);
+                await expect(page).toHaveURL(/\/settings\/region/);
             }
         };
 
@@ -339,7 +339,7 @@ test.describe("What's new screenshots, v0.4.1", () => {
     /** The account form under JMAP with Fastmail chosen: one host, one token, no SMTP. */
     test("jmap-accounts", async ({ page }) => {
         await page.setViewportSize({ width: 1200, height: 1400 });
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
         await page.locator("section").filter({ has: page.locator("#settings-account-list") })
             .getByRole("button", { name: "Add account" }).click();
 
@@ -428,7 +428,7 @@ test.describe("What's new screenshots, v0.4.1", () => {
         const forget = (): void => consoleCommand(`dbal:run-sql "DELETE FROM mail_rule WHERE name IN ('${names.join("', '")}')"`);
 
         const saveFilter = async (name: string, subject: string): Promise<void> => {
-            await page.goto("/settings?section=filters");
+            await page.goto("/settings/filters");
             const list = page.locator("#settings-filter-list");
 
             await list.getByRole("link", { name: "New filter" }).click();
@@ -462,7 +462,7 @@ test.describe("What's new screenshots, v0.4.1", () => {
 
         try {
             await page.setViewportSize({ width: 1200, height: 900 });
-            await page.goto("/settings?section=accounts");
+            await page.goto("/settings/accounts");
             await page.locator("#settings-account-list li").first()
                 .getByRole("button", { name: "Folders", exact: true }).click();
 
@@ -477,7 +477,7 @@ test.describe("What's new screenshots, v0.4.1", () => {
 
     /** Settings → App passwords, from the Play badge down to Pair a device. */
     test("android-app", async ({ page }) => {
-        await page.goto("/settings?section=app-passwords");
+        await page.goto("/settings/app-passwords");
         await expect(page.getByTestId("native-apps-play")).toBeVisible();
 
         const card = page.locator("section", { has: page.getByTestId("native-apps-play") }).first();
@@ -507,7 +507,7 @@ test.describe("What's new screenshots, encryption", () => {
         consoleCommand(`app:test:seed-demo --email=${email}`);
 
         await login(page, email, password);
-        await page.goto("/settings?section=encryption");
+        await page.goto("/settings/encryption");
         await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 20000 });
 
         await page.goto("/mail/inbox");
@@ -754,7 +754,7 @@ async function enableProvider(page: Page, id: string, baseUrl: string): Promise<
 
 /** The connect dialog of one service, opened from Settings → Integrations. */
 async function connectDialog(page: Page, service: string): Promise<Locator> {
-    await page.goto("/settings?section=integrations");
+    await page.goto("/settings/integrations");
     const frame = page.locator("#settings-integrations-frame");
     await frame.getByRole("button", { name: service, exact: true }).click();
 

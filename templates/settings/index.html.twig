@@ -15,7 +15,7 @@ dropped the reader back at the top of a long section.
 
 Morph rather than a Turbo Stream per control: one rule for all thirty-odd
 forms, and a form added later gets it for nothing. A control whose effect is
-somewhere the server renders — the sidebar for Settings → General → Sidebar,
+somewhere the server renders — the sidebar for Settings → General → Layout & controls,
 the times for the clock — is right after the redirect because the whole page
 was rendered again; a stream would have to know every place it shows.
 
@@ -92,216 +92,14 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                included template ask for it, because it is this
                                element's height that is being given away and this is
                                where a reader looks for what happened to it. #}
-                            <div class="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 px-6 py-6
+                            <div class="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 px-6 py-6
                                         {{ 'appearance' == section ? 'pane-fill-host' : '' }}">
 
-                                {# Grouped by what the setting is about, not by when it was
-                                   added — thirteen equal-weight links in one column is a list
-                                   nobody reads, they scan it for a word they already have in
-                                   mind. Five groups, in the order someone new meets them:
-                                   themselves, their mail, their calendar, the ways of
-                                   working that can be switched on or off, and finally what
-                                   else can reach the account. Security closes the list rather
-                                   than sitting third: it is the section people arrive at
-                                   deliberately, and it has the two neighbours it belongs with
-                                   — app passwords and integrations are the other two ways in.
-
-                                   Features is for what the app DOES differently when asked,
-                                   as opposed to how it looks or whose mail it reads: the
-                                   reading pane beside the list, the keyboard shortcuts. Each
-                                   gets a page of its own although it is one card, because
-                                   that is what makes it findable — the reading pane began as
-                                   the last control on Appearance and the shortcuts as the
-                                   fifth card on General, and neither was where anybody
-                                   looked.
-
-                                   Sharing stays next to Calendars rather than moving to that
-                                   last group: a shared link and a booking page are calendar
-                                   features first, and somebody looking for "who can see my
-                                   calendar" starts at the calendar.
-
-                                   A loop rather than thirteen hand-written anchors, because
-                                   the previous copy-paste had already drifted — two sections
-                                   shared one icon and one of them highlighted it a different
-                                   colour when active. #}
-                                {#
-                                    Health leads, above the group headings rather than
-                                    inside one. It is not a category of setting — it is
-                                    the page that tells you something is broken — and
-                                    filing it under "Mail" or "Personal" would bury the
-                                    one entry that is time-sensitive.
-
-                                    It appears only when there is something to say —
-                                    see the note on the entry itself.
-                                #}
-                                {# One read, memoised for the whole request by
-                                   AccountHealthGlobal, and the topbar has already
-                                   asked for it by the time this renders. Deciding
-                                   whether to show the entry therefore costs nothing
-                                   this page was not already paying. #}
-                                {% set attention = accountHealth.attention %}
-
-                                {# THE ASSISTANT ENTRY IS CONDITIONAL, and merged into
-                                   the mail group below rather than branching the whole
-                                   array in two.
-
-                                   It appears only where there is something to configure:
-                                   an installation whose administrator has switched none
-                                   of the three AI features on has no assistant, and a nav
-                                   entry leading to three rows that all say "ask your
-                                   administrator" is a page nobody wanted.
-
-                                   The second half of the condition, section == 'ai', is
-                                   the same not-a-nicety the Health entry documents below:
-                                   the page is still reachable directly, and it must not
-                                   vanish out from under somebody who has it open when an
-                                   administrator flips the switch mid-session — a nav with
-                                   no entry for the page you are looking at has nothing to
-                                   mark aria-current on.
-
-                                   ai_settings_available() asks the ADMINISTRATOR'S
-                                   switches only. If it asked this person's as well,
-                                   somebody who had switched all three of theirs off would
-                                   lose the page that switches them back on.
-
-                                   It sits after insights, its nearest neighbour: both are
-                                   per-user switches over what plMail does to mail on the
-                                   way past. #}
-                                {% set navGroups = [
-                                    { label: 'settings.nav.group.personal', items: [
-                                        { section: 'profile',       icon: 'fa-solid fa-user' },
-                                        { section: 'general',       icon: 'fa-solid fa-sliders' },
-                                        { section: 'appearance',    icon: 'fa-solid fa-palette' },
-                                    ] },
-                                    { label: 'settings.nav.group.mail', items: [
-                                        { section: 'accounts',      icon: 'fa-solid fa-at',    label: 'settings.nav.accounts' },
-                                        { section: 'aliases',       icon: 'fa-solid fa-user-tag' },
-                                        { section: 'contacts',      icon: 'fa-solid fa-address-book' },
-                                        { section: 'read-receipts', icon: 'fa-solid fa-envelope-open-text', label: 'settings.nav.read_receipts' },
-                                        { section: 'signature',     icon: 'fa-solid fa-signature' },
-                                        { section: 'templates',     icon: 'fa-regular fa-file-lines' },
-                                        { section: 'inboxes',       icon: 'fa-solid fa-boxes-stacked' },
-                                        { section: 'categories',    icon: 'fa-solid fa-inbox' },
-                                        { section: 'labels',        icon: 'fa-solid fa-tag' },
-                                        { section: 'filters',       icon: 'fa-solid fa-filter' },
-                                        { section: 'disposal',      icon: 'fa-solid fa-trash-can' },
-                                        { section: 'images',        icon: 'fa-regular fa-image' },
-                                        { section: 'swipe-actions', icon: 'fa-solid fa-hand-pointer', label: 'settings.nav.swipe_actions' },
-                                        { section: 'insights',      icon: 'fa-solid fa-satellite-dish' },
-                                    ]|merge(ai_settings_available() or section == 'ai'
-                                            ? [{ section: 'ai', icon: 'fa-solid fa-wand-magic-sparkles' }]
-                                            : [])|merge([
-                                        { section: 'notifications', icon: 'fa-solid fa-bell' },
-                                    ]) },
-                                    { label: 'settings.nav.group.calendar', items: [
-                                        { section: 'calendars',     icon: 'fa-regular fa-calendar' },
-                                        { section: 'calendar-behaviour', icon: 'fa-solid fa-arrows-left-right', label: 'settings.nav.calendar_behaviour' },
-                                        { section: 'sharing',       icon: 'fa-solid fa-share-nodes' },
-                                    ] },
-                                    { label: 'settings.nav.group.features', items: [
-                                        { section: 'reading-pane',  icon: 'fa-solid fa-table-columns', label: 'settings.nav.reading_pane' },
-                                        { section: 'shortcuts',     icon: 'fa-regular fa-keyboard' },
-                                    ] },
-                                    { label: 'settings.nav.group.access', items: [
-                                        { section: 'integrations',  icon: 'fa-solid fa-plug' },
-                                        { section: 'app-passwords', icon: 'fa-solid fa-key',   label: 'settings.nav.app_passwords' },
-                                        { section: 'security',      icon: 'fa-solid fa-shield-halved' },
-                                        { section: 'encryption',    icon: 'fa-solid fa-lock' },
-                                    ] },
-                                ] %}
-
-                                {# Not a <nav> per group: it is one navigation with five
-                                   labelled parts, and five landmarks would be read out as
-                                   five separate menus. The headings are presentational —
-                                   aria-hidden, with the same word given to the list it
-                                   labels — so a screen reader hears "Mail, list, 5 items"
-                                   once instead of the word twice. #}
-                                {# `md:flex-nowrap` because `flex-wrap` belongs to the
-                                   MOBILE shape only. Below md this is a horizontal row
-                                   of pills that has to wrap; at md it is a column, and a
-                                   wrapping column breaks into a SECOND COLUMN the moment
-                                   anything constrains its height — thirteen links laid
-                                   out as seven and six, the second lot half-clipped by
-                                   the 180px track. Nothing constrained it while every
-                                   section grew this page as long as it liked; Appearance
-                                   fills the scroll port instead (see `pane-fill-host`
-                                   above), which is what turned a latent wrap into a
-                                   visible one. #}
-                                <nav class="flex md:flex-col gap-1 flex-wrap md:flex-nowrap md:gap-0">
-                                    {% set navActive   = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium bg-raised text-ink' %}
-                                    {% set navInactive = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors' %}
-
-                                    {#
-                                        Health leads, and sits outside the groups rather
-                                        than inside one. It is not a category of setting
-                                        — it is the page that says something is broken —
-                                        and filing it under "Mail" or "Personal" would
-                                        bury the one entry that is time-sensitive.
-
-                                        Inside the <nav> and not above it, so it joins the
-                                        wrapping strip this becomes on mobile. Lifted out
-                                        to a sibling it would have needed `hidden md:block`
-                                        like the group headings do, and the phone would
-                                        have had no way to reach the page at all.
-
-                                        Present only when there is something to say. This
-                                        reverses the original choice — the entry used to be
-                                        permanent with only the badge changing, on the
-                                        reasoning that an item which comes and goes cannot
-                                        be learned. A settings list that carries a
-                                        standing "Account health, everything is fine" row
-                                        spends a permanent slot on a permanent
-                                        non-answer, and the entry appearing IS the signal.
-
-                                        `or section == 'health'` is not a nicety: the page
-                                        is still reachable directly — bookmarks, the
-                                        topbar menu, the OAuth reconnect return — and a
-                                        nav with no entry for the page you are looking at
-                                        has nothing to mark aria-current on, so the strip
-                                        would read as though some other section were open.
-                                        The entry shows itself while you stand on it.
-                                    #}
-                                    {% if attention or section == 'health' %}
-                                    <a href="{{ path('app_settings_index', { section: 'health' }) }}"
-                                       class="{{ section == 'health' ? navActive : navInactive }} md:mb-1"
-                                       {{ section == 'health' ? 'aria-current="page"' : '' }}>
-                                        <i class="fa-solid fa-heart-pulse w-4 {{ attention ? (attention.tone == 'danger' ? 'text-red-500' : 'text-amber-500') : (section == 'health' ? 'text-ink-faint' : '') }}"
-                                           aria-hidden="true"></i>
-                                        {{ 'settings.nav.health'|trans }}
-                                        {% if attention %}
-                                            {# The number is root causes, not symptoms —
-                                               see HealthReport::indicatorCount(). #}
-                                            <span class="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[11px] font-semibold text-white
-                                                         {{ attention.tone == 'danger' ? 'bg-red-500' : 'bg-amber-500' }}">
-                                                {{ attention.count }}
-                                            </span>
-                                        {% endif %}
-                                    </a>
-                                    {% endif %}
-
-                                    {% for group in navGroups %}
-                                        {# Wraps into a row on mobile, where the nav is a
-                                           horizontal strip and a heading per group would cost
-                                           more width than the links it introduces. #}
-                                        <div class="hidden md:block px-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint {{ loop.first ? 'pb-1.5' : 'pt-4 pb-1.5' }}"
-                                             aria-hidden="true">
-                                            {{ group.label|trans }}
-                                        </div>
-
-                                        <ul class="contents md:block md:space-y-1" aria-label="{{ group.label|trans }}">
-                                            {% for item in group.items %}
-                                                <li class="contents md:block">
-                                                    <a href="{{ path('app_settings_index', { section: item.section }) }}"
-                                                       class="{{ section == item.section ? navActive : navInactive }}"
-                                                       {{ section == item.section ? 'aria-current="page"' : '' }}>
-                                                        <i class="{{ item.icon }} w-4 {{ section == item.section ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
-                                                        {{ (item.label|default('settings.nav.' ~ item.section))|trans }}
-                                                    </a>
-                                                </li>
-                                            {% endfor %}
-                                        </ul>
-                                    {% endfor %}
-                                </nav>
+                                {# The tree — areas, pages and a filter over every card
+                                   (#569). It replaced five groups over twenty-nine flat
+                                   links; settings/_nav.html.twig says why, and
+                                   SettingsNavigation holds the table it draws. #}
+                                {% include 'settings/_nav.html.twig' %}
 
                                 {# Single content wrapper — second (and last) grid child.
 
@@ -367,8 +165,12 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                             </div>
                                             {% include 'settings/_security.html.twig' %}
                                         </div>
-                                    {% elseif section == 'general' %}
-                                        {# Three peer cards, not one card with three bands:
+                                    {% elseif section == 'region' %}
+                                        {# Language & region: what used to open the General page,
+                                           without the compose, sidebar and what's-new cards that
+                                           had nowhere better to go and now do (#569).
+
+                                           Three peer cards, not one card with three bands:
                                            language, zone and clock are each a section-grade
                                            subject with its own heading AND subheading in the
                                            catalogue. That is the rule this page follows —
@@ -376,6 +178,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                            stay inside a single card as h3 bands. #}
                                         <div class="space-y-4">
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-language',
                                                 heading:    'settings.language.heading'|trans,
                                                 subheading: 'settings.language.subheading'|trans,
                                             } %}
@@ -388,6 +191,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                             {% endembed %}
 
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-timezone',
                                                 heading:    'settings.timezone.heading'|trans,
                                                 subheading: 'settings.timezone.subheading'|trans,
                                             } %}
@@ -406,6 +210,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                written", and somebody fixing one has usually come to
                                                fix the other. #}
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-clock',
                                                 heading:    'settings.clock.heading'|trans,
                                                 subheading: 'settings.clock.subheading'|trans,
                                             } %}
@@ -419,8 +224,100 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                     } %}
                                                 {% endblock %}
                                             {% endembed %}
+                                        </div>
+                                    {% elseif section == 'whats-new' %}
+                                        {# Its own page: the way back from "Don't show this after
+                                           updates" in the dialog itself (#165), and a link the dialog
+                                           can name without sending people to the bottom of General. #}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-whats-new',
+                                            heading:    'settings.whats_new.heading'|trans,
+                                            subheading: 'settings.whats_new.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_whats_new.html.twig' with {
+                                                    show: not app.user.whatsNewQuiet,
+                                                } %}
+                                            {% endblock %}
+                                        {% endembed %}
+                                    {% elseif section == 'layout' %}
+                                        {# How the app is driven rather than how it looks: which
+                                           folders the sidebar shows, what a swipe does, and the
+                                           keyboard. Each was a page or a stray card of its own. #}
+                                        <div class="space-y-4">
+                                            {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-sidebar',
+                                                heading:    'settings.sidebar.heading'|trans,
+                                                subheading: 'settings.sidebar.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_sidebar_more.html.twig' %}
+                                                {% endblock %}
+                                            {% endembed %}
 
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-swipe-actions',
+                                                heading:    'settings.swipe_actions.heading'|trans,
+                                                subheading: 'settings.swipe_actions.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_swipe_actions.html.twig' with {
+                                                        choices: swipeChoices,
+                                                        right:   app.user.swipeRightAction,
+                                                        left:    app.user.swipeLeftAction,
+                                                    } only %}
+                                                {% endblock %}
+                                            {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-shortcuts',
+                                                heading:    'settings.shortcuts.heading'|trans,
+                                                subheading: 'settings.shortcuts.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_shortcuts.html.twig' with {
+                                                        enabled: app.user.keyboardShortcuts,
+                                                    } only %}
+                                                {% endblock %}
+                                            {% endembed %}
+                                        </div>
+                                    {% elseif section == 'reading' %}
+                                        {# What happens when a mail is opened: where it opens, and
+                                           whether its remote images load. Two one-card pages before. #}
+                                        <div class="space-y-4">
+                                            {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-reading-pane',
+                                                heading:    'settings.reading_pane.heading'|trans,
+                                                subheading: 'settings.reading_pane.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_reading_pane.html.twig' with {
+                                                        mode: app.user.readingPaneMode,
+                                                    } only %}
+                                                {% endblock %}
+                                            {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-images',
+                                                heading:    'settings.images.heading'|trans,
+                                                subheading: 'settings.images.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_images.html.twig' with {
+                                                        alwaysShow: app.user.alwaysShowImages,
+                                                    } only %}
+                                                {% endblock %}
+                                            {% endembed %}
+                                        </div>
+                                    {% elseif section == 'compose' %}
+                                        {# What happens when a mail is written. Compose behaviour came
+                                           from General; read receipts were a page of their own, named
+                                           after the thing they configure, and still are a card of
+                                           their own here — per alias, because a receipt policy is a
+                                           property of the address you send from. #}
+                                        <div class="space-y-4">
+                                            {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-compose-behaviour',
                                                 heading:    'settings.compose_behavior.heading'|trans,
                                                 subheading: 'settings.compose_behavior.subheading'|trans,
                                             } %}
@@ -432,27 +329,18 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                             {% endembed %}
 
                                             {% embed 'settings/_card.html.twig' with {
-                                                heading:    'settings.sidebar.heading'|trans,
-                                                subheading: 'settings.sidebar.subheading'|trans,
+                                                id:         'card-read-receipts',
+                                                heading:    'settings.compose_defaults.heading'|trans,
+                                                subheading: 'settings.compose_defaults.subheading'|trans,
                                             } %}
                                                 {% block body %}
-                                                    {% include 'settings/_sidebar_more.html.twig' %}
+                                                    <div id="settings-compose-defaults">
+                                                        {% include 'settings/_compose_defaults.html.twig' with {
+                                                            manageableAccounts: manageableAccounts,
+                                                        } %}
+                                                    </div>
                                                 {% endblock %}
                                             {% endembed %}
-
-                                            {# Last on the page: the way back from "Don't show
-                                               this after updates" in the dialog itself (#165). #}
-                                            {% embed 'settings/_card.html.twig' with {
-                                                heading:    'settings.whats_new.heading'|trans,
-                                                subheading: 'settings.whats_new.subheading'|trans,
-                                            } %}
-                                                {% block body %}
-                                                    {% include 'settings/_whats_new.html.twig' with {
-                                                        show: not app.user.whatsNewQuiet,
-                                                    } %}
-                                                {% endblock %}
-                                            {% endembed %}
-
                                         </div>
                                     {% elseif section == 'categories' %}
                                         {# Everything about the inbox tabs on one page: what sorts
@@ -462,6 +350,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                            tabs it sorts into were a second card beside it. #}
                                         <div class="space-y-4">
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-sorting',
                                                 heading:    'settings.sorting.heading'|trans,
                                                 subheading: 'settings.sorting.subheading'|trans,
                                             } %}
@@ -477,6 +366,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                             {% endembed %}
 
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-inbox-tabs',
                                                 heading:    'settings.categories.heading'|trans,
                                                 subheading: 'settings.categories.subheading'|trans,
                                             } %}
@@ -493,6 +383,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                            then which one each account is listed in. #}
                                         <div class="space-y-4">
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-unified-inboxes',
                                                 heading:    'settings.unified_inboxes.heading'|trans,
                                                 subheading: 'settings.unified_inboxes.subheading'|trans,
                                             } %}
@@ -504,6 +395,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                             {% endembed %}
 
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-unified-inbox-accounts',
                                                 heading:    'settings.unified_inboxes.accounts_heading'|trans,
                                                 subheading: 'settings.unified_inboxes.accounts_subheading'|trans,
                                             } %}
@@ -516,22 +408,12 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                 {% endblock %}
                                             {% endembed %}
                                         </div>
-                                    {% elseif section == 'reading-pane' %}
-                                        {% embed 'settings/_card.html.twig' with {
-                                            heading:    'settings.reading_pane.heading'|trans,
-                                            subheading: 'settings.reading_pane.subheading'|trans,
-                                        } %}
-                                            {% block body %}
-                                                {% include 'settings/_reading_pane.html.twig' with {
-                                                    mode: app.user.readingPaneMode,
-                                                } only %}
-                                            {% endblock %}
-                                        {% endembed %}
                                     {% elseif section == 'encryption' %}
                                         {# Its own cards, like security: four subjects, not one. #}
                                         {% include 'settings/_encryption.html.twig' %}
                                     {% elseif section == 'calendar-behaviour' %}
                                         {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-calendar-behaviour',
                                             heading:    'settings.calendar_behaviour.heading'|trans,
                                             subheading: 'settings.calendar_behaviour.subheading'|trans,
                                         } %}
@@ -543,6 +425,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                         {% endembed %}
                                     {% elseif section == 'disposal' %}
                                         {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-disposal',
                                             heading:    'settings.disposal.heading'|trans,
                                             subheading: 'settings.disposal.subheading'|trans,
                                         } %}
@@ -552,44 +435,10 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                 } only %}
                                             {% endblock %}
                                         {% endembed %}
-                                    {% elseif section == 'swipe-actions' %}
-                                        {% embed 'settings/_card.html.twig' with {
-                                            heading:    'settings.swipe_actions.heading'|trans,
-                                            subheading: 'settings.swipe_actions.subheading'|trans,
-                                        } %}
-                                            {% block body %}
-                                                {% include 'settings/_swipe_actions.html.twig' with {
-                                                    choices: swipeChoices,
-                                                    right:   app.user.swipeRightAction,
-                                                    left:    app.user.swipeLeftAction,
-                                                } only %}
-                                            {% endblock %}
-                                        {% endembed %}
-                                    {% elseif section == 'images' %}
-                                        {% embed 'settings/_card.html.twig' with {
-                                            heading:    'settings.images.heading'|trans,
-                                            subheading: 'settings.images.subheading'|trans,
-                                        } %}
-                                            {% block body %}
-                                                {% include 'settings/_images.html.twig' with {
-                                                    alwaysShow: app.user.alwaysShowImages,
-                                                } only %}
-                                            {% endblock %}
-                                        {% endembed %}
-                                    {% elseif section == 'shortcuts' %}
-                                        {% embed 'settings/_card.html.twig' with {
-                                            heading:    'settings.shortcuts.heading'|trans,
-                                            subheading: 'settings.shortcuts.subheading'|trans,
-                                        } %}
-                                            {% block body %}
-                                                {% include 'settings/_shortcuts.html.twig' with {
-                                                    enabled: app.user.keyboardShortcuts,
-                                                } only %}
-                                            {% endblock %}
-                                        {% endembed %}
                                     {% elseif section == 'aliases' %}
                                         <div class="space-y-4">
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-aliases',
                                                 heading:    'settings.aliases.heading'|trans,
                                                 subheading: 'settings.aliases.subheading'|trans,
                                             } %}
@@ -604,29 +453,9 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                             {% endembed %}
 
                                         </div>
-                                    {% elseif section == 'read-receipts' %}
-                                        {# Its own section, following signatures out of the alias
-                                           tab for the same two reasons: it is not what anyone
-                                           opens "Aliases" to find, and it is captioned by
-                                           addresses rather than being about them. The card is
-                                           still per-alias — a receipt policy is a property of
-                                           the address you send from — but the tab is now named
-                                           after the thing it configures, which is what people
-                                           look for. #}
-                                        {% embed 'settings/_card.html.twig' with {
-                                            heading:    'settings.compose_defaults.heading'|trans,
-                                            subheading: 'settings.compose_defaults.subheading'|trans,
-                                        } %}
-                                            {% block body %}
-                                                <div id="settings-compose-defaults">
-                                                    {% include 'settings/_compose_defaults.html.twig' with {
-                                                        manageableAccounts: manageableAccounts,
-                                                    } %}
-                                                </div>
-                                            {% endblock %}
-                                        {% endembed %}
                                     {% elseif section == 'signature' %}
                                         {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-signature',
                                             heading:    'settings.signature.heading'|trans,
                                             subheading: 'settings.signature.subheading'|trans,
                                         } %}
@@ -645,6 +474,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                            written, and a tree beside the page being written is
                                            how every editor with folders looks. #}
                                         {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-templates',
                                             heading:    'settings.templates.heading'|trans,
                                             subheading: 'settings.templates.subheading'|trans,
                                         } %}
@@ -654,6 +484,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                         {% endembed %}
                                     {% elseif section == 'filters' %}
                                         {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-filters',
                                             heading:    'settings.filters.heading'|trans,
                                             subheading: 'settings.filters.subheading'|trans,
                                         } %}
@@ -693,6 +524,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                            browser has produced across every device. The
                                            toggle registers, the list below reports. #}
                                         {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-notifications',
                                             heading:    'settings.notifications.heading'|trans,
                                             subheading: 'settings.notifications.subheading'|trans,
                                         } %}
@@ -723,6 +555,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                     {% elseif section == 'app-passwords' %}
                                         <div class="space-y-4">
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-app-passwords',
                                                 heading:    'settings.app_passwords.heading'|trans,
                                                 subheading: 'settings.app_passwords.subheading'|trans,
                                             } %}
@@ -742,6 +575,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                exist", and it has its own heading in the
                                                catalogue. Padded — it is prose, not a list. #}
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-app-setup',
                                                 heading: 'settings.app_passwords.setup_heading'|trans,
                                                 padded:  true,
                                             } %}
@@ -760,6 +594,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                            three subjects — so they are h3 bands inside the
                                            body rather than three peer cards. #}
                                         {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-integrations',
                                             heading:    'settings.integrations.heading'|trans,
                                             subheading: 'settings.integrations.subheading'|trans,
                                         } %}
@@ -792,6 +627,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
 
                                     {% elseif section == 'insights' %}
                                         {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-insights',
                                             heading:    'settings.insights.heading'|trans,
                                             subheading: 'settings.insights.subheading'|trans,
                                         } %}
@@ -804,6 +640,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
 
                                     {% elseif section == 'labels' %}
                                         {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-labels',
                                             heading:    'settings.labels.heading'|trans,
                                             subheading: 'settings.labels.subheading'|trans,
                                         } %}
@@ -816,6 +653,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
 
                                     {% elseif section == 'sharing' %}
                                         {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-sharing',
                                             heading:    'settings.sharing.heading'|trans,
                                             subheading: 'settings.sharing.subheading'|trans,
                                         } %}
@@ -841,6 +679,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                         {# Two cards, so the gap between them, as every two-card section has. #}
                                         <div class="space-y-4">
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-contacts',
                                                 heading:    'settings.contacts.heading'|trans,
                                                 subheading: 'settings.contacts.subheading'|trans,
                                             } %}
@@ -864,6 +703,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                own like the calendar's: one choice did not earn
                                                a row in the nav. #}
                                             {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-contacts-behaviour',
                                                 heading:    'settings.contacts_behaviour.heading'|trans,
                                                 subheading: 'settings.contacts_behaviour.subheading'|trans,
                                             } %}
@@ -877,6 +717,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
 
                                     {% elseif section == 'calendars' %}
                                         {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-calendars',
                                             heading:    'settings.calendars.heading'|trans,
                                             subheading: 'settings.calendars.subheading'|trans,
                                         } %}
@@ -900,6 +741,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                            card's `actions` block — the reason this is an
                                            embed and not a macro. #}
                                         {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-accounts',
                                             heading:    'settings.accounts.heading'|trans,
                                             subheading: 'settings.accounts.subheading'|trans,
                                         } %}

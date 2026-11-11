@@ -3235,7 +3235,7 @@ profile:
         name_first: Prénom
         name_last: Nom
 
-# The reading pane beside the message list (Settings → Reading pane turns it on).
+# The reading pane beside the message list (Settings → Reading & writing → Reading turns it on).
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
@@ -4732,41 +4732,87 @@ settings:
         show_hint: 'Désactivé : rien ne s’ouvre après une mise à jour, et le ? de la barre du haut n’affiche aucun point. Les notes restent sous ? → Nouveautés.'
         subheading: 'Ce que plMail vous montre après une mise à jour.'
     nav:
-        accounts: Comptes mail
+        accounts: "Comptes"
         ai: 'Assistant'
         aliases: Alias
         app_passwords: Mots de passe d’application
         appearance: Apparence
-        calendar_behaviour: Comportement
+        area:
+            account: "Compte"
+            assistant: "Assistant et automatisation"
+            calendar_contacts: "Agenda et contacts"
+            general: "Général"
+            inbox: "Boîte de réception"
+            integrations: "Intégrations"
+            mail_accounts: "Comptes mail"
+            reading_writing: "Lecture et rédaction"
+        calendar_behaviour: "Comportement de l’agenda"
         calendars: Agendas
-        categories: "Catégories"
+        categories: "Catégories et tri"
+        compose: "Rédaction"
         contacts: Contacts
         disposal: Suppression
         encryption: Chiffrement
         filters: Filtres
-        general: Général
-        group:
-            access: Accès
-            calendar: Agenda
-            features: Fonctions
-            mail: Courrier
-            personal: Personnel
         health: 'Santé des comptes'
-        images: Images
+        health_banner: "Quelque chose demande votre attention — voir Santé des comptes."
         inboxes: 'Boîtes de réception unifiées'
         insights: Aperçus
         integrations: Intégrations
         labels: Libellés
+        layout: "Disposition et commandes"
         notifications: Notifications
         profile: Profil
-        read_receipts: Accusés de lecture
-        reading_pane: Volet de lecture
+        reading: "Lecture"
+        region: "Langue et région"
         security: Sécurité
         sharing: Partage
-        shortcuts: Raccourcis clavier
         signature: Signatures
-        swipe_actions: Balayage des lignes
         templates: 'Modèles'
+        whats_new: "Nouveautés"
+    search:
+        count: "Résultats : %count%"
+        empty: "Aucun résultat. La recherche porte sur les noms de pages, les titres des cartes et les mots-clés."
+        failed: "La recherche dans les réglages n’a pas pu être chargée. Fermez-la et réessayez."
+        hint_move: "pour choisir"
+        hint_open: "pour ouvrir"
+        keyword: "Mot-clé"
+        keywords:
+            accent: "couleur accent surbrillance"
+            accounts: "imap smtp pop3 jmap serveur ajouter boîte"
+            ai: "ia intelligence artificielle résumé aide rédaction modèle ai"
+            aliases: "alias identité expéditeur adresse"
+            app_passwords: "imap smtp client thunderbird jeton api jmap"
+            calendars: "caldav ics abonner flux"
+            clock: "12 24 heures format am pm"
+            contacts: "carddav carnet adresses"
+            disposal: "supprimer corbeille définitivement vider"
+            encryption: "pgp openpgp gpg clé"
+            filters: "règles sieve automatique déplacer transférer"
+            handwriting: "signer pdf dessiner"
+            images: "pistage pixel distant charger bloquer"
+            inbox_tabs: "onglets promotions réseaux notifications forums"
+            insights: "colis suivi facture vol"
+            integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            labels: "dossiers étiquettes non lus tous"
+            language: "langue anglais allemand français chinois"
+            notifications: "push navigateur téléphone son alerte"
+            password: "connexion identifiant"
+            profile: "nom avatar photo image"
+            read_receipts: "mdn accusé réception confirmation"
+            reading_pane: "aperçu partagé droite bas"
+            sharing: "lien public réservation"
+            shortcuts: "clavier touches raccourcis"
+            swipe_actions: "balayer geste téléphone archiver"
+            templates: "réponses types extraits"
+            theme: "sombre clair mode nuit couleurs dark"
+            two_factor: "2fa totp otp authentificateur double facteur"
+            typography: "police texte taille"
+            whats_new: "changements mise à jour version"
+            wkd: "web key directory publier"
+        kind_page: "Page"
+        label: "Rechercher dans les réglages"
+        placeholder: "Rechercher dans les réglages"
     notifications:
         devices:
             empty: >-
@@ -5128,7 +5174,7 @@ shortcuts:
         star: "Suivre ou ne plus suivre"
         undo: "Annuler la dernière action"
     or: "ou"
-    switched_off: "Les raccourcis sont désactivés pour vous. Activez-les dans Réglages → Général."
+    switched_off: "Les raccourcis sont désactivés pour vous. Activez-les dans Réglages → Général → Disposition et commandes."
     then: "puis"
     title: "Raccourcis clavier"
 

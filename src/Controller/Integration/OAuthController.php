@@ -124,7 +124,7 @@ final class OAuthController extends AbstractController
     {
         $this->addFlash($isError ? 'error' : 'success', $message);
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'integrations']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'integrations']);
     }
 
     /**
@@ -135,7 +135,7 @@ final class OAuthController extends AbstractController
     {
         $this->addFlash('error', $message);
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'integrations']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'integrations']);
     }
 
     private function user(): User

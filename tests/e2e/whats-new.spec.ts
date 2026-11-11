@@ -13,7 +13,7 @@ import { test, expect } from "./support/test";
  */
 test.describe("What's new", () => {
     test("opens from the ? and moves between releases inside the dialog", async ({ page }) => {
-        await page.goto("/settings?section=general");
+        await page.goto("/settings/whats-new");
 
         await page.locator("[data-whats-new-menu] > button").click();
         await page.getByRole("menuitem", { name: "What's new" }).click();
@@ -40,7 +40,7 @@ test.describe("What's new", () => {
     });
 
     test("the footer's checkbox keeps the dialog open, and Done closes it", async ({ page }) => {
-        await page.goto("/settings?section=general");
+        await page.goto("/settings/whats-new");
 
         await page.locator("[data-whats-new-menu] > button").click();
         await page.getByRole("menuitem", { name: "What's new" }).click();
@@ -71,7 +71,7 @@ test.describe("What's new", () => {
      * screenshots.
      */
     test("a screenshot fills the dialog, and X, Escape and Back put it back", async ({ page, context }) => {
-        await page.goto("/settings?section=general");
+        await page.goto("/settings/whats-new");
 
         await page.locator("[data-whats-new-menu] > button").click();
         await page.getByRole("menuitem", { name: "What's new" }).click();
@@ -149,7 +149,7 @@ test.describe("What's new", () => {
      * What's new (#187).
      */
     test("the modal's X puts a screenshot back first, then closes What's new", async ({ page }) => {
-        await page.goto("/settings?section=general");
+        await page.goto("/settings/whats-new");
 
         await page.locator("[data-whats-new-menu] > button").click();
         await page.getByRole("menuitem", { name: "What's new" }).click();
@@ -215,7 +215,7 @@ test.describe("What's new", () => {
             body: "<html><body><h1>413 Request Entity Too Large</h1></body></html>",
         }));
 
-        await page.goto("/settings?section=general");
+        await page.goto("/settings/whats-new");
         await page.locator("[data-whats-new-menu] > button").click();
 
         const feedback = page.getByRole("menuitem", { name: "Send feedback" });

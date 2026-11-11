@@ -174,7 +174,7 @@ async function person(page: Page): Promise<string> {
     consoleCommand(`app:test:seed-mail --email=${email}`);
 
     await login(page, email, PASSWORD);
-    await page.goto("/settings?section=encryption");
+    await page.goto("/settings/encryption");
     await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });
 
     return email;

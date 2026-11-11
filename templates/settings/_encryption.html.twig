@@ -139,6 +139,7 @@ Accepts nothing: what it needs is the signed-in user and the routes.
 
     {# ── Status ──────────────────────────────────────────────────────────── #}
     {% embed 'settings/_card.html.twig' with {
+        id:         'card-encryption-status',
         heading:    'encryption.status.heading'|trans,
         subheading: 'encryption.status.subheading'|trans,
         padded:     true,
@@ -260,6 +261,7 @@ Accepts nothing: what it needs is the signed-in user and the routes.
 
     {# ── Keys ────────────────────────────────────────────────────────────── #}
     {% embed 'settings/_card.html.twig' with {
+        id:         'card-encryption-keys',
         heading:    'encryption.keys.heading'|trans,
         subheading: 'encryption.keys.subheading'|trans,
         padded:     true,
@@ -308,6 +310,7 @@ Accepts nothing: what it needs is the signed-in user and the routes.
        (crypto/smime.js), the key wrapped under the user key there; the list
        is the keyring's, so it is drawn by the script like the keys above. #}
     {% embed 'settings/_card.html.twig' with {
+        id:         'card-smime',
         heading:    'encryption.smime.heading'|trans,
         subheading: 'encryption.smime.subheading'|trans,
         padded:     true,
@@ -351,6 +354,7 @@ Accepts nothing: what it needs is the signed-in user and the routes.
        a link target from the reading banner, and a lazy frame below the fold
        had nothing in it to scroll to. #}
     {% embed 'settings/_card.html.twig' with {
+        id:         'card-contact-keys',
         heading:    'contact_keys.heading'|trans,
         subheading: 'contact_keys.subheading'|trans,
         padded:     true,
@@ -365,6 +369,7 @@ Accepts nothing: what it needs is the signed-in user and the routes.
     {# ── Decrypted mail on this server ───────────────────────────────────── #}
     {# Phase 3b of #28: off unless chosen, per account. See DecryptedMail. #}
     {% embed 'settings/_card.html.twig' with {
+        id:         'card-decrypted-mail',
         heading:    'encryption.decrypted.heading'|trans,
         subheading: 'encryption.decrypted.subheading'|trans,
         padded:     true,
@@ -376,6 +381,7 @@ Accepts nothing: what it needs is the signed-in user and the routes.
 
     {# ── Sending ─────────────────────────────────────────────────────────── #}
     {% embed 'settings/_card.html.twig' with {
+        id:         'card-encrypted-sending',
         heading:    'encryption.sending.heading'|trans,
         subheading: 'encryption.sending.subheading'|trans,
         padded:     true,
@@ -389,6 +395,7 @@ Accepts nothing: what it needs is the signed-in user and the routes.
     {# Phase 6d of #28: the person's key, published under the installation's
        own domains for mail programs to find. See WkdDirectory. #}
     {% embed 'settings/_card.html.twig' with {
+        id:         'card-wkd',
         heading:    'encryption.wkd.heading'|trans,
         subheading: 'encryption.wkd.subheading'|trans,
         padded:     true,

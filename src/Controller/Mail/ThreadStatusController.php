@@ -150,14 +150,14 @@ class ThreadStatusController extends AbstractController
     #[Route('/purge', name: 'purge', methods: ['POST'])]
     public function purge(Request $request, string $type, int $id): Response
     {
-        // The user's switch (Settings → Mail → Disposal), enforced here and not
+        // The user's switch (Settings → Inbox → Disposal), enforced here and not
         // only by the templates that draw the button: a switch that merely hid
         // the flame would leave this route answering a hand-made POST.
         /** @var User $user */
         $user = $this->getUser();
 
         if (false === $user->deleteNowButtons) {
-            throw $this->createAccessDeniedException('Deleting for good is switched off in Settings → Mail → Disposal.');
+            throw $this->createAccessDeniedException('Deleting for good is switched off in Settings → Inbox → Disposal.');
         }
 
         $messages  = $this->resolveMessages($request, $type, $id);

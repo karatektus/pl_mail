@@ -3205,7 +3205,7 @@ profile:
         name_first: Vorname
         name_last: Nachname
 
-# The reading pane beside the message list (Settings → Reading pane turns it on).
+# The reading pane beside the message list (Settings → Reading & writing → Reading turns it on).
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
@@ -4695,41 +4695,87 @@ settings:
         show_hint: 'Aus: Nach einem Update öffnet sich nichts, und das ? oben zeigt keinen Punkt. Die Hinweise findest du weiter unter ? → Was ist neu.'
         subheading: 'Was plMail dir zeigt, nachdem es aktualisiert wurde.'
     nav:
-        accounts: E-Mail-Konten
+        accounts: "Konten"
         ai: 'Assistent'
         aliases: Aliase
         app_passwords: App-Passwörter
         appearance: Darstellung
-        calendar_behaviour: Verhalten
+        area:
+            account: "Konto"
+            assistant: "Assistent & Automatik"
+            calendar_contacts: "Kalender & Kontakte"
+            general: "Allgemein"
+            inbox: "Posteingang"
+            integrations: "Integrationen"
+            mail_accounts: "E-Mail-Konten"
+            reading_writing: "Lesen & Schreiben"
+        calendar_behaviour: "Kalenderverhalten"
         calendars: Kalender
-        categories: "Kategorien"
+        categories: "Kategorien & Sortierung"
+        compose: "Verfassen"
         contacts: Kontakte
         disposal: Entsorgen
         encryption: "Verschlüsselung"
         filters: Filter
-        general: Allgemein
-        group:
-            access: Zugriff
-            calendar: Kalender
-            features: Funktionen
-            mail: E-Mail
-            personal: Persönlich
         health: 'Zustand der Konten'
-        images: Bilder
+        health_banner: "Etwas braucht deine Aufmerksamkeit — siehe Zustand der Konten."
         inboxes: 'Sammel-Posteingänge'
         insights: Insights
         integrations: Integrationen
         labels: Labels
+        layout: "Layout & Bedienung"
         notifications: Benachrichtigungen
         profile: Profil
-        read_receipts: Lesebestätigungen
-        reading_pane: Lesebereich
+        reading: "Lesen"
+        region: "Sprache & Region"
         security: Sicherheit
         sharing: Teilen
-        shortcuts: Tastenkürzel
         signature: Signaturen
-        swipe_actions: Wischgesten
         templates: 'Vorlagen'
+        whats_new: "Neuigkeiten"
+    search:
+        count: "Treffer: %count%"
+        empty: "Nichts gefunden. Die Suche durchsucht Seitennamen, Kartenüberschriften und Stichwörter."
+        failed: "Die Einstellungssuche konnte nicht geladen werden. Schließe sie und versuche es noch einmal."
+        hint_move: "auswählen"
+        hint_open: "öffnen"
+        keyword: "Stichwort"
+        keywords:
+            accent: "farbe akzent hervorhebung color"
+            accounts: "imap smtp pop3 jmap server hinzufügen postfach"
+            ai: "ki künstliche intelligenz zusammenfassung schreibhilfe modell ai"
+            aliases: "alias identität absender von adresse"
+            app_passwords: "imap smtp programm thunderbird token api jmap"
+            calendars: "caldav ics abonnieren feed"
+            clock: "12 24 stunden uhrzeit format am pm"
+            contacts: "carddav adressbuch"
+            disposal: "löschen papierkorb endgültig leeren"
+            encryption: "pgp openpgp gpg schlüssel"
+            filters: "regeln sieve automatisch verschieben weiterleiten"
+            handwriting: "unterschreiben pdf zeichnen"
+            images: "tracking pixel extern laden blockieren"
+            inbox_tabs: "tabs werbung sozial benachrichtigungen foren"
+            insights: "paket sendungsverfolgung rechnung flug"
+            integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            labels: "ordner tags ungelesen alle e-mails"
+            language: "sprache deutsch englisch französisch chinesisch"
+            notifications: "push browser handy ton hinweis"
+            password: "kennwort anmeldung login"
+            profile: "name avatar foto bild"
+            read_receipts: "mdn empfangsbestätigung bestätigung"
+            reading_pane: "vorschau geteilt rechts unten"
+            sharing: "link öffentlich buchung"
+            shortcuts: "tastatur tasten kürzel hotkeys"
+            swipe_actions: "wischen geste handy archivieren"
+            templates: "textbausteine antworten vorlagen"
+            theme: "dunkel hell modus nacht farben dark"
+            two_factor: "2fa totp otp authenticator zwei faktor"
+            typography: "schrift schriftart text größe"
+            whats_new: "änderungen update version release"
+            wkd: "web key directory veröffentlichen"
+        kind_page: "Seite"
+        label: "Einstellungen durchsuchen"
+        placeholder: "Einstellungen durchsuchen"
     notifications:
         devices:
             empty: >-
@@ -5121,7 +5167,7 @@ shortcuts:
         star: "Markieren oder Markierung entfernen"
         undo: "Letzte Aktion rückgängig machen"
     or: "oder"
-    switched_off: "Die Kürzel sind für dich ausgeschaltet. Schalte sie unter Einstellungen → Allgemein ein."
+    switched_off: "Die Kürzel sind für dich ausgeschaltet. Schalte sie unter Einstellungen → Allgemein → Layout & Bedienung ein."
     then: "dann"
     title: "Tastenkürzel"
 

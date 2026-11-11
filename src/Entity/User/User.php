@@ -1385,7 +1385,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * the key is absent for nearly everybody, and routes that delete for good
      * refuse with a 403 while it is, not only the templates that draw the
      * button: a switch that only hid the flame would leave a hand-made POST
-     * working. Per USER, like every setting in this bag — Settings → Mail →
+     * working. Per USER, like every setting in this bag — Settings → Inbox →
      * Disposal.
      */
     public const string SETTING_DISPOSAL_DELETE_NOW = 'disposal.delete_now';
@@ -1631,7 +1631,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * Spam as the provider disputing who sent it, and no standing permission
      * outranks that. Images still come through the proxy, so a sender learns
      * that the message was opened but not the reader's address. Per USER, like
-     * the allowlist it widens — Settings → Mail → Images.
+     * the allowlist it widens — Settings → Reading & writing → Reading.
      */
     public const string SETTING_IMAGES_ALWAYS_SHOW = 'images.always_show';
 
@@ -1657,7 +1657,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * Only read while the inbox tabs are on at all (CategorySorting::$tabs):
      * somebody who chose One list gets one list everywhere, whatever this says.
      * Only a stored true is on, so the key is absent for nearly everybody.
-     * Per USER — Settings → Mail → Categories.
+     * Per USER — Settings → Inbox → Categories & sorting.
      */
     public const string SETTING_ACCOUNT_INBOX_TABS = 'categories.account_tabs';
 

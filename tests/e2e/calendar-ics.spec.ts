@@ -85,14 +85,14 @@ test.describe("calendar files and feeds", () => {
     test.beforeAll(provisionCalendars);
 
     test.beforeEach(async ({ page }) => {
-        await page.goto("/settings?section=calendars");
+        await page.goto("/settings/calendars");
     });
 
     test.afterEach(async ({ page }) => {
         // The calendar goes and its events go with it, by the cascade on the
         // join column — which is also what makes this cleanup complete rather
         // than a best effort at finding rows the run created.
-        await page.goto("/settings?section=calendars");
+        await page.goto("/settings/calendars");
 
         const remove = page.getByRole("button", { name: `Delete calendar "${CALENDAR}"` });
 
@@ -285,7 +285,7 @@ test.describe("calendar files and feeds", () => {
 
         await expect(modal.getByRole("alert")).toBeVisible();
 
-        await page.goto("/settings?section=calendars");
+        await page.goto("/settings/calendars");
         await expect(page.getByText("e2e-nothing-here", { exact: false })).toHaveCount(0);
     });
 });

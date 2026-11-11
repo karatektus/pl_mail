@@ -82,7 +82,7 @@ async function painted(page: Page, names: string[]): Promise<Record<string, stri
 }
 
 async function open(page: Page): Promise<void> {
-    await page.goto("/settings?section=appearance");
+    await page.goto("/settings/appearance");
     await expect(page.locator(PANEL)).toBeVisible();
 }
 

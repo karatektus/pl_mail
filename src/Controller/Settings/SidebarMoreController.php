@@ -46,7 +46,7 @@ final class SidebarMoreController extends AbstractController
 
         $em->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'general']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'layout']);
     }
 
     /**

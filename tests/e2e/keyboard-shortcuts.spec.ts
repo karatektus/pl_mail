@@ -18,7 +18,7 @@ const CURSOR = `${ROWS}[data-kbd-cursor]`;
 const COUNT = '[data-mail--list-toolbar-target="selectionCount"]';
 
 async function setShortcuts(page: Page, option: "On" | "Off"): Promise<void> {
-    await page.goto("/settings?section=shortcuts");
+    await page.goto("/settings/layout");
 
     const group = page.getByRole("radiogroup", { name: "Shortcuts" });
 

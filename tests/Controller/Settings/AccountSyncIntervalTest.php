@@ -142,7 +142,7 @@ final class AccountSyncIntervalTest extends WebTestCase
         $oauth->syncIntervalMinutes = 30;
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
         self::assertResponseIsSuccessful();
 
         foreach ([[$imap, 15], [$oauth, 30]] as [$account, $current]) {
@@ -181,7 +181,7 @@ final class AccountSyncIntervalTest extends WebTestCase
     /** Fetched through the page and its session saved; see AccountColourTest. */
     private function csrfToken(Account $account): string
     {
-        $this->client->request('GET', '/settings?section=accounts');
+        $this->client->request('GET', '/settings/accounts');
 
         $stack   = static::getContainer()->get('request_stack');
         $carrier = new Request();

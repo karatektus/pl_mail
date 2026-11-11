@@ -109,7 +109,7 @@ final class MailRuleControllerTest extends WebTestCase
         $client  = $this->signIn();
         $message = $this->seedMessage($this->user, 'Cyber Lettre', 'cyberveille@cyberveille.eu');
 
-        $crawler = $client->request('GET', '/settings?section=filters&from_message=' . $message->id);
+        $crawler = $client->request('GET', '/settings/filters?from_message=' . $message->id);
 
         self::assertResponseIsSuccessful();
         self::assertSame(
@@ -320,7 +320,7 @@ final class MailRuleControllerTest extends WebTestCase
     /** A row's own token, from the list where that row's button lives. */
     private function rowToken(KernelBrowser $client, int $ruleId, string $action): string
     {
-        $crawler = $client->request('GET', '/settings?section=filters');
+        $crawler = $client->request('GET', '/settings/filters');
 
         return (string) $crawler
             ->filter(sprintf('form[action="/settings/filters/%d/%s"] input[name="_token"]', $ruleId, $action))

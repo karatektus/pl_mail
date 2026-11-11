@@ -333,7 +333,7 @@ test.describe("user integrations", () => {
         await page.locator("#modal").getByRole("button", { name: "Save" }).click();
         await expect(row.getByText("Enabled")).toBeVisible();
 
-        await page.goto("/settings?section=integrations");
+        await page.goto("/settings/integrations");
         await expect(page.locator("#settings-integrations-frame")).toBeVisible();
     });
 
@@ -449,7 +449,7 @@ test.describe("compose integration picker", () => {
         // the second login can happen.
         await page.context().clearCookies();
         await login(page);
-        await page.goto("/settings?section=integrations");
+        await page.goto("/settings/integrations");
 
         const frame = page.locator("#settings-integrations-frame");
         await frame.getByRole("button", { name: "Nextcloud" }).click();
@@ -467,7 +467,7 @@ test.describe("compose integration picker", () => {
         // this file's other tests connect a service, so on a re-run against a
         // dirty database the button would legitimately be there and the failure
         // would say nothing about the behaviour under test.
-        await page.goto("/settings?section=integrations");
+        await page.goto("/settings/integrations");
         const frame = page.locator("#settings-integrations-frame");
 
         // Wait for the frame's *content*, not the frame: it loads lazily and the
@@ -545,7 +545,7 @@ test.describe("compose integration picker", () => {
         await enableNextcloudAsAdmin(page);
         await connectAsMailUser(page, "Picture cloud");
 
-        await page.goto("/settings?section=profile");
+        await page.goto("/settings/profile");
 
         const browse = page.waitForRequest((request) =>
             /\/integrations\/\d+\/browse\?mode=avatar$/.test(request.url()),

@@ -20,14 +20,14 @@ const OUT = "var/shots";
 const enabled = process.env.E2E_SHOTS === "1";
 
 const pickTheme = async (page: Page, theme: string) => {
-    await page.goto("/settings?section=appearance");
+    await page.goto("/settings/appearance");
     await expect(page.locator(PANEL)).toBeVisible();
     await page.locator(`${PANEL} [data-theme-name="${theme}"]`).click();
     await page.waitForTimeout(700);
 };
 
 const setScale = async (page: Page, value: string) => {
-    await page.goto("/settings?section=appearance");
+    await page.goto("/settings/appearance");
     const slider = page.locator(`${PANEL} input[data-css-variable="--app-font-scale"]`);
     await slider.fill(value);
     await slider.dispatchEvent("input");
@@ -145,7 +145,7 @@ test.describe("appearance — screenshots and contrast", () => {
     test.skip(!enabled, "set E2E_SHOTS=1");
 
     test.afterEach(async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await page.locator(PANEL).getByRole("button", { name: /reset|zurück/i }).first().click();
         await page.waitForResponse((r) => r.url().includes("/appearance/reset")).catch(() => {});
     });
@@ -342,7 +342,7 @@ test.describe("appearance — screenshots and contrast", () => {
                 ] as const) {
                     await setScale(page, scale);
 
-                    await page.goto("/settings?section=appearance");
+                    await page.goto("/settings/appearance");
                     await expect(page.locator(PANEL)).toBeVisible();
                     await page.screenshot({
                         path: `${OUT}/${label}-${theme}-settings-${name}.png`,
@@ -382,7 +382,7 @@ test.describe("appearance — screenshots and contrast", () => {
                 }
 
                 // And the list wearing the settings the user asked about.
-                await page.goto("/settings?section=appearance");
+                await page.goto("/settings/appearance");
                 await page
                     .locator(`${PANEL} input[type="radio"][data-toggles="accountCorner"][value="0"]`)
                     .check({ force: true });

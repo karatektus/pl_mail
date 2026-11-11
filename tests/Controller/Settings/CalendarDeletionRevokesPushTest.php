@@ -109,7 +109,7 @@ final class CalendarDeletionRevokesPushTest extends WebTestCase
      */
     private function token(KernelBrowser $client, string $id): string
     {
-        $client->request('GET', '/settings?section=calendars');
+        $client->request('GET', '/settings/calendars');
 
         $stack   = static::getContainer()->get('request_stack');
         $carrier = new Request();

@@ -276,7 +276,7 @@
 
             {# ── Theme ─────────────────────────────────────────────────── #}
             <section>
-                <div class="mb-4">
+                <div id="card-theme" class="mb-4 scroll-mt-4">
                     <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.theme.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.theme.subheading'|trans }}</p>
                 </div>
@@ -396,7 +396,7 @@
                edge — a pale icon on a pale card has no other edge to read. #}
             {% set _iconImage = 'size-12 rounded-[22%] ring-1 ring-line' %}
             <section>
-                <div class="mb-4">
+                <div id="card-logo" class="mb-4 scroll-mt-4">
                     <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.logo.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.logo.subheading'|trans }}</p>
                 </div>
@@ -603,7 +603,7 @@
                exactly where a reload would, and the enum is the one place the
                values live. See App\Domain\Enum\Theme\MotionLevel. #}
             <section>
-                <div class="mb-4">
+                <div id="card-motion" class="mb-4 scroll-mt-4">
                     {# The heading IS the group's accessible name — pointed at
                        rather than repeated. An `sr-only` span inside the
                        radiogroup would say the same word twice to a screen
@@ -645,7 +645,7 @@
 
             {# ── Density ───────────────────────────────────────────────── #}
             <section>
-                <div class="mb-4">
+                <div id="card-density" class="mb-4 scroll-mt-4">
                     <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.density.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.density.subheading'|trans }}</p>
                 </div>
@@ -921,7 +921,7 @@
                so composing at 1.25 still shows the size that will be sent. The
                hint below says so, because nothing on screen otherwise would. #}
             <section>
-                <div class="mb-4">
+                <div id="card-typography" class="mb-4 scroll-mt-4">
                     <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.typography.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.typography.subheading'|trans }}</p>
                 </div>
@@ -978,7 +978,7 @@
 
             {# ── Accent ────────────────────────────────────────────────── #}
             <section>
-                <div class="mb-4">
+                <div id="card-accent" class="mb-4 scroll-mt-4">
                     <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.accent.heading'|trans }}</h3>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
@@ -1075,7 +1075,7 @@
 
             {# ── Glass ─────────────────────────────────────────────────── #}
             <section>
-                <div class="mb-4">
+                <div id="card-glass" class="mb-4 scroll-mt-4">
                     <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.glass.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.glass.subheading'|trans }}</p>
                 </div>
@@ -1197,7 +1197,7 @@
 
             {# ── Background ────────────────────────────────────────────── #}
             <section>
-                <div class="mb-4">
+                <div id="card-background" class="mb-4 scroll-mt-4">
                     <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.background.heading'|trans }}</h3>
                 </div>
 

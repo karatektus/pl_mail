@@ -57,7 +57,7 @@ async function insertVariable(page: Page, label: string): Promise<void> {
 
 test.describe("templates", () => {
     test("the editor stores variables as tokens and shows them as chips", async ({ page }) => {
-        await page.goto("/settings?section=templates");
+        await page.goto("/settings/templates");
         await page.getByRole("link", { name: "New template", exact: true }).click();
 
         const editor = page.locator("turbo-frame#template-editor");
@@ -220,7 +220,7 @@ test.describe("templates", () => {
     });
 
     test("the template is deleted from its editor", async ({ page }) => {
-        await page.goto("/settings?section=templates");
+        await page.goto("/settings/templates");
         await page.locator("#settings-template-tree").getByRole("link", { name: NAME }).click();
         await page.locator("turbo-frame#template-editor").getByRole("button", { name: "Delete" }).click();
         await acceptConfirm(page);

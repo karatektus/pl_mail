@@ -85,7 +85,7 @@ final class AccountHealthRepairFeedbackTest extends WebTestCase
         $calendar->recordSyncFailure('The calendar service refused the request.');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $button  = $crawler->filter(
             '[data-health-issue="calendar-' . $calendar->id . '"] form[action*="/resync"] button[type=submit]',
         );
@@ -119,7 +119,7 @@ final class AccountHealthRepairFeedbackTest extends WebTestCase
         $calendar->recordSyncFailure('nope');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $form    = $crawler->filter('[data-health-issue="calendar-' . $calendar->id . '"] form[action*="/resync"]');
 
         self::assertNull(
@@ -144,7 +144,7 @@ final class AccountHealthRepairFeedbackTest extends WebTestCase
         $this->boot($client);
         $this->abandonOneJob();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="queue-abandoned"]');
 
         self::assertSame(1, $card->count(), 'the abandoned job is reported');
@@ -188,7 +188,7 @@ final class AccountHealthRepairFeedbackTest extends WebTestCase
         $account->oauthLastRefreshError = 'invalid_grant';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $link    = $crawler->filter('[data-health-issue="account-' . $account->id . '"] a[href*="/reconnect/"]');
 
         self::assertSame(1, $link->count());
@@ -214,7 +214,7 @@ final class AccountHealthRepairFeedbackTest extends WebTestCase
         $client = static::createClient();
         $this->boot($client);
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $section = $crawler->filter('#settings-health[data-controller="ui--health-repair"]');
 
         self::assertSame(1, $section->count());
@@ -256,14 +256,14 @@ final class AccountHealthRepairFeedbackTest extends WebTestCase
         $calendar->recordSyncFailure('The calendar service refused the request.');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $form    = $crawler->filter('[data-health-issue="calendar-' . $calendar->id . '"] form[action*="/resync"]');
 
         $client->request('POST', (string) $form->attr('action'), [
             '_token' => (string) $form->filter('input[name="_token"]')->attr('value'),
         ]);
 
-        self::assertResponseRedirects('/settings?section=health');
+        self::assertResponseRedirects('/settings/health');
 
         $crawler = $client->followRedirect();
         $card    = $crawler->filter('[data-health-issue="calendar-' . $calendar->id . '"]');
@@ -307,7 +307,7 @@ final class AccountHealthRepairFeedbackTest extends WebTestCase
         );
 
         // And a reload lands on the same answer rather than flipping back.
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             1,
@@ -341,7 +341,7 @@ final class AccountHealthRepairFeedbackTest extends WebTestCase
         $calendar->recordSyncFailure('The calendar no longer exists at the remote.');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="calendar-' . $calendar->id . '"]');
 
         self::assertSame(0, $card->filter('[data-health-awaiting]')->count(), 'it is no longer waiting');
@@ -369,14 +369,14 @@ final class AccountHealthRepairFeedbackTest extends WebTestCase
         $calendar->clearSyncBackoff();
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="calendar-' . $calendar->id . '"]')->count());
 
         $calendar->recordSyncSuccess();
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             0,
@@ -405,7 +405,7 @@ final class AccountHealthRepairFeedbackTest extends WebTestCase
 
         self::assertFalse($calendar->isAwaitingRequestedSync());
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="calendar-' . $calendar->id . '"]');
 
         self::assertSame(0, $card->filter('[data-health-awaiting]')->count());
@@ -432,7 +432,7 @@ final class AccountHealthRepairFeedbackTest extends WebTestCase
 
         self::assertTrue($calendar->isAwaitingRequestedSync(), 'the columns say waiting');
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="calendar-' . $calendar->id . '"]');
 
         self::assertSame(1, $card->count());

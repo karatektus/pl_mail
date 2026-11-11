@@ -1168,7 +1168,7 @@ role is Spam. A trusted sender does **not** get images inside Spam — the allow
 belief about a sender, and a message in Spam is the provider disagreeing about whether this is
 really that sender.
 
-**Settings → Mail → Images** can widen the allowlist to every sender (`images.always_show` in the
+**Settings → Reading & writing → Reading** can widen the allowlist to every sender (`images.always_show` in the
 user's settings, off unless switched on, #124). It is read in `MessageRenderer` beside the
 allowlist and stops where the allowlist stops: Spam still wins, and images still go through the
 proxy, so a sender learns that a message was opened but not the reader's address. It is kept

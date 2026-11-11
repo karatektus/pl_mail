@@ -82,7 +82,7 @@ test.describe("push health", () => {
         page,
     }) => {
         makeLapsed();
-        await page.goto("/settings?section=health");
+        await page.goto("/settings/health");
 
         const card = page.locator('[data-health-kind="push_lapsed"]');
 
@@ -113,7 +113,7 @@ test.describe("push health", () => {
         page,
     }) => {
         makeSilent();
-        await page.goto("/settings?section=health");
+        await page.goto("/settings/health");
 
         const card = page.locator('[data-health-kind="push_degraded"]');
 
@@ -185,7 +185,7 @@ test.describe("push health", () => {
         page,
     }) => {
         makeLapsed();
-        await page.goto("/settings?section=health");
+        await page.goto("/settings/health");
 
         const button = page.locator(
             '[data-health-kind="push_lapsed"] form[action*="/push/repair"] button',
@@ -210,7 +210,7 @@ test.describe("push health", () => {
     test("reads at 414px", async ({ page }) => {
         makeLapsed();
         await page.setViewportSize({ width: 414, height: 851 });
-        await page.goto("/settings?section=health");
+        await page.goto("/settings/health");
 
         await expect(
             page.locator('[data-health-kind="push_lapsed"]'),
@@ -238,7 +238,7 @@ test.describe("push health", () => {
             }) => {
                 makeLapsed();
                 await page.setViewportSize({ width, height });
-                await page.goto("/settings?section=health");
+                await page.goto("/settings/health");
 
                 await page.evaluate(
                     (t) =>

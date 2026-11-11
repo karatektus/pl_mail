@@ -3079,7 +3079,7 @@ profile:
         name_first: First name
         name_last: Family name
 
-# The reading pane beside the message list (Settings → Reading pane turns it on).
+# The reading pane beside the message list (Settings → Reading & writing → Reading turns it on).
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
@@ -4483,41 +4483,87 @@ settings:
         show_hint: 'Off: nothin'' opens after a refit, an'' the ? up top shows no dot. The log be still under ? → What''s new aboard.'
         subheading: 'What plMail shows ye after she''s been refitted.'
     nav:
-        accounts: Th' crew
+        accounts: "Th' crew"
         ai: "Ship's Oracle"
         aliases: Aliases
         app_passwords: Spare keys
         appearance: Look o' the ship
-        calendar_behaviour: Behaviour
+        area:
+            account: "Yerself"
+            assistant: "Oracle an' automata"
+            calendar_contacts: "Almanac an' hands"
+            general: "General"
+            inbox: "Th' hold"
+            integrations: "Friendly ports"
+            mail_accounts: "Mail crews"
+            reading_writing: "Readin' an' scribblin'"
+        calendar_behaviour: "Almanac's habits"
         calendars: Almanacs
-        categories: "Holds"
+        categories: "Holds an' sortin'"
+        compose: "Scribblin'"
         contacts: Rolls o' hands
         disposal: Disposal
         encryption: "Sealed letters"
         filters: Sieves
-        general: General
-        group:
-            access: "Boardin' rights"
-            calendar: "Th' almanac"
-            features: 'Riggin'''
-            mail: "Th' post"
-            personal: Yerself
         health: "State o' yer crew"
-        images: Pictures
+        health_banner: "Somethin' needs yer eye — see State o' yer crew."
         inboxes: 'Gathered holds'
         insights: The spyglass
         integrations: 'Friendly ports'
         labels: Flags
+        layout: "Riggin' an' helm"
         notifications: Word from the crow's nest
         profile: Yer colours
-        read_receipts: Read-marks
-        reading_pane: Spyglass deck
+        reading: "Readin'"
+        region: "Tongue an' waters"
         security: The ship's lock
         sharing: Sharing
-        shortcuts: Keyboard shortcuts
         signature: Yer marks
-        swipe_actions: "Swipe deeds"
         templates: 'Form letters'
+        whats_new: "What's new aboard"
+    search:
+        count: "Finds: %count%"
+        empty: "Nothin' found. Th' search reads page names, card headin's an' keywords."
+        failed: "Th' settin's search could not be hauled in. Close it an' try again."
+        hint_move: "to steer"
+        hint_open: "to board"
+        keyword: "Keyword"
+        keywords:
+            accent: "colour color highlight"
+            accounts: "imap smtp pop3 jmap server add mailbox"
+            ai: "ai artificial intelligence summary writing help model"
+            aliases: "alias identity sender from address"
+            app_passwords: "imap smtp client thunderbird token api jmap"
+            calendars: "caldav ics subscribe feed"
+            clock: "12 24 hour am pm time format"
+            contacts: "carddav address book"
+            disposal: "delete trash bin forever empty"
+            encryption: "pgp openpgp gpg key"
+            filters: "rules sieve automatic move forward"
+            handwriting: "sign pdf draw"
+            images: "tracking pixel remote load block"
+            inbox_tabs: "tabs promotions social updates forums"
+            insights: "parcel tracking invoice flight"
+            integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            labels: "folders tags unread all mail"
+            language: "locale english german french chinese"
+            notifications: "push browser phone sound alert"
+            password: "login sign-in"
+            profile: "name avatar photo picture"
+            read_receipts: "mdn receipt confirmation"
+            reading_pane: "preview split right bottom"
+            sharing: "link public booking"
+            shortcuts: "keyboard hotkeys keys"
+            swipe_actions: "swipe gesture phone archive"
+            templates: "canned responses snippets text blocks"
+            theme: "dark light mode night colours colors"
+            two_factor: "2fa totp otp authenticator mfa"
+            typography: "font text size"
+            whats_new: "changelog update version release"
+            wkd: "web key directory publish"
+        kind_page: "Page"
+        label: "Search th' settin's"
+        placeholder: "Search th' settin's"
     notifications:
         devices:
             empty: "No device be signed on yet. Turnin' notifications on above signs on this browser; a phone app signs itself on."
@@ -4892,7 +4938,7 @@ shortcuts:
         star: "Mark or unmark"
         undo: "Undo the last deed"
     or: "or"
-    switched_off: "Shortcuts be struck fer ye. Raise 'em under Settings → General."
+    switched_off: "Shortcuts be struck fer ye. Raise 'em under Settings → General → Riggin' an' helm."
     then: "then"
     title: "Keyboard shortcuts"
 

@@ -200,7 +200,7 @@ test("enrols in two-factor authentication without leaving the wizard", async ({ 
     await expect(page.locator("#onboarding-2fa-codes")).toBeVisible();
 
     // And it actually took, rather than the wizard merely looking pleased.
-    await page.goto("/settings?section=security");
+    await page.goto("/settings/security");
     // exact, because the success toast now says almost the same thing. The
     // flash used to reach the page as the raw key "two_factor.flash.enabled" —
     // nothing translated it — so this locator matched the panel heading alone

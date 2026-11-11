@@ -85,11 +85,11 @@ async function scrollOf(page: Page): Promise<number> {
 }
 
 test.beforeEach(async ({ page }) => {
-    await page.goto("/settings?section=general");
+    await page.goto("/settings/layout");
 });
 
 test.afterEach(async ({ page }) => {
-    await page.goto("/settings?section=general");
+    await page.goto("/settings/layout");
 
     for (const label of OFFERED) {
         await setBehindMore(page, label, DEFAULT_BEHIND_MORE.includes(label));
@@ -218,7 +218,7 @@ test.describe("sidebar: what waits behind More (desktop)", () => {
         await expect(page.locator("#sidebar [data-sidebar-more]")).not.toHaveAttribute("open", "");
 
         // Archive is not behind More any more, so being on it opens nothing.
-        await page.goto("/settings?section=general");
+        await page.goto("/settings/layout");
         await setBehindMore(page, "Archive", false);
         await page.goto("/mail/archive");
         await expect(page.locator("#sidebar [data-sidebar-more]")).not.toHaveAttribute("open", "");

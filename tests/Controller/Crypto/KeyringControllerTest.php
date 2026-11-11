@@ -282,7 +282,7 @@ final class KeyringControllerTest extends WebTestCase
 
     private function csrf(): string
     {
-        $crawler = $this->client->request('GET', '/settings?section=encryption');
+        $crawler = $this->client->request('GET', '/settings/encryption');
 
         return (string) $crawler->filter('[data-crypto--keyring-csrf-value]')->attr('data-crypto--keyring-csrf-value');
     }
@@ -295,7 +295,7 @@ final class KeyringControllerTest extends WebTestCase
      */
     private function changePassword(array $rewrapped): void
     {
-        $crawler    = $this->client->request('GET', '/settings?section=security');
+        $crawler    = $this->client->request('GET', '/settings/security');
         $form       = $crawler->filter('#settings-password form')->form();
         $iterations = (int) $form->get('change_password[new][iterations]')->getValue();
         $salt       = base64_encode(random_bytes(PasswordKdf::SALT_BYTES));

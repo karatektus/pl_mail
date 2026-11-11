@@ -30,12 +30,12 @@ const pick = async (page: Page, value: string) => {
 
 test.describe("action button style", () => {
     test.afterEach(async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await pick(page, "icons");
     });
 
     test("shows icons, both or words, and keeps the choice", async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         const button = page.locator(SAMPLE).first();
 
         await pick(page, "icons");
@@ -58,7 +58,7 @@ test.describe("action button style", () => {
 
     test("puts the words on the conversation's own toolbar, and it still fits a phone", async ({ page }) => {
         seed("seed-mail");
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await pick(page, "text");
 
         await page.setViewportSize({ width: 375, height: 700 });

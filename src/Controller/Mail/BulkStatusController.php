@@ -124,11 +124,11 @@ final class BulkStatusController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        // Delete forever is the user's switch (Settings → Mail → Disposal),
+        // Delete forever is the user's switch (Settings → Inbox → Disposal),
         // enforced here and not only by the toolbar that draws the button: the
         // same rule ThreadStatusController::purge keeps for a single row.
         if ('purge' === $action && false === $user->deleteNowButtons) {
-            throw $this->createAccessDeniedException('Deleting for good is switched off in Settings → Mail → Disposal.');
+            throw $this->createAccessDeniedException('Deleting for good is switched off in Settings → Inbox → Disposal.');
         }
 
         $body = json_decode($request->getContent(), true);

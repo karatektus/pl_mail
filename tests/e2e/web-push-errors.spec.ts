@@ -66,7 +66,7 @@ async function stubPush(page: Page, failure: Failure): Promise<void> {
 }
 
 async function enable(page: Page) {
-    await page.goto("/settings?section=notifications");
+    await page.goto("/settings/notifications");
 
     const toggle = page.getByRole("button", { name: "Enable notifications" });
     await expect(toggle).toBeEnabled();

@@ -188,6 +188,6 @@ final class SignatureController extends AbstractController
             ]);
         }
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'signature']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'signature']);
     }
 }

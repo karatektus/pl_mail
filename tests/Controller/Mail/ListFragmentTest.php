@@ -304,7 +304,7 @@ final class ListFragmentTest extends WebTestCase
     {
         $client = $this->signedIn();
 
-        foreach (['/admin', '/calendar', '/settings'] as $uri) {
+        foreach (['/admin', '/calendar', '/settings/profile'] as $uri) {
             $client->request('GET', $uri);
 
             self::assertResponseIsSuccessful(sprintf('%s did not render', $uri));

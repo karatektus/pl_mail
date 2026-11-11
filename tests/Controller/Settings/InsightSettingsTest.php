@@ -138,7 +138,7 @@ final class InsightSettingsTest extends WebTestCase
         [$client] = $this->signedIn();
 
         $extractors = $this->registry()->all();
-        $crawler = $client->request('GET', '/settings?section=insights');
+        $crawler = $client->request('GET', '/settings/insights');
 
         self::assertSame(200, $client->getResponse()->getStatusCode());
         self::assertCount(
@@ -197,7 +197,7 @@ final class InsightSettingsTest extends WebTestCase
      */
     private function token(KernelBrowser $client): string
     {
-        $crawler = $client->request('GET', '/settings?section=insights');
+        $crawler = $client->request('GET', '/settings/insights');
 
         return (string) $crawler
             ->filter('[data-settings--insights-token-value]')

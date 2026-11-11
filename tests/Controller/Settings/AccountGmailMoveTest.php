@@ -62,7 +62,7 @@ final class AccountGmailMoveTest extends WebTestCase
     {
         $account = $this->gmailAccount();
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
         $button  = $crawler->filter('turbo-frame#account-gmail-move-' . $account->id . ' button[data-account-gmail-move]');
 
         self::assertSame('false', $button->attr('aria-pressed'), 'off by default');
@@ -100,7 +100,7 @@ final class AccountGmailMoveTest extends WebTestCase
         $this->em->persist($account);
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
 
         self::assertCount(0, $crawler->filter('turbo-frame#account-gmail-move-' . $account->id));
 

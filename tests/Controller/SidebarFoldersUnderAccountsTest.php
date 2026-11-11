@@ -80,7 +80,7 @@ final class SidebarFoldersUnderAccountsTest extends WebTestCase
         $this->folder('Projects');
         $this->tag('Later');
 
-        $crawler = $this->client->request('GET', '/settings?section=labels');
+        $crawler = $this->client->request('GET', '/settings/labels');
         $button  = $crawler->filter('turbo-frame#labels-folders-in-labels button[data-folders-in-labels]');
 
         self::assertSame('false', $button->attr('aria-pressed'), 'off by default');

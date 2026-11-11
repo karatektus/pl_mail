@@ -56,7 +56,7 @@ final class UnifiedInboxSettingsTest extends WebTestCase
 
     public function testThePageDrawsTheInboxesAndTheAccounts(): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=inboxes');
+        $crawler = $this->client->request('GET', '/settings/inboxes');
 
         self::assertResponseIsSuccessful();
         self::assertCount(2, $crawler->filter('[data-unified-inbox]'), 'the first inbox and Other');
@@ -66,11 +66,11 @@ final class UnifiedInboxSettingsTest extends WebTestCase
 
     public function testCreateRenameAssignAndDelete(): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=inboxes');
+        $crawler = $this->client->request('GET', '/settings/inboxes');
         $token   = (string) $crawler->filter('form[action="/settings/inboxes"] input[name="_token"]')->attr('value');
 
         $this->client->request('POST', '/settings/inboxes', ['_token' => $token, 'name' => 'Work', 'icon' => 'briefcase']);
-        self::assertResponseRedirects('/settings?section=inboxes');
+        self::assertResponseRedirects('/settings/inboxes');
 
         $work = $this->named('Work');
 
@@ -92,7 +92,7 @@ final class UnifiedInboxSettingsTest extends WebTestCase
 
     public function testTheOrderIsWrittenAsOneList(): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=inboxes');
+        $crawler = $this->client->request('GET', '/settings/inboxes');
         $token   = (string) $crawler->filter('[data-settings--tab-order-csrf-value]')->attr('data-settings--tab-order-csrf-value');
         $ids     = array_map(static fn (UnifiedInbox $inbox): int => (int) $inbox->id, $this->inboxes->all($this->user));
 
@@ -118,7 +118,7 @@ final class UnifiedInboxSettingsTest extends WebTestCase
 
     public function testAnotherReadersInboxIsNotFound(): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=inboxes');
+        $crawler = $this->client->request('GET', '/settings/inboxes');
         $token   = (string) $crawler->filter('form[action="/settings/inboxes"] input[name="_token"]')->attr('value');
 
         $this->client->request('POST', '/settings/inboxes/999999999', ['_token' => $token, 'name' => 'Mine now', 'icon' => 'inbox']);

@@ -135,7 +135,7 @@ final class WhatsNewController extends AbstractController
 
         $this->em->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'general']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'whats-new']);
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

@@ -175,7 +175,7 @@ final class PushDeviceRemovalTest extends WebTestCase
      */
     private function csrfToken(int $id): string
     {
-        $this->client->request('GET', '/settings?section=notifications');
+        $this->client->request('GET', '/settings/notifications');
 
         $stack   = static::getContainer()->get('request_stack');
         $carrier = new Request();

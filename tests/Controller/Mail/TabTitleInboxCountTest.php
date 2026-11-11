@@ -71,7 +71,7 @@ final class TabTitleInboxCountTest extends WebTestCase
      */
     public static function nonMailPages(): iterable
     {
-        yield 'settings' => ['/settings'];
+        yield 'settings' => ['/settings/profile'];
         yield 'calendar' => ['/calendar'];
     }
 

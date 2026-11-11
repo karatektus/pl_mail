@@ -48,7 +48,7 @@ async function openCompose(page: Page): Promise<void> {
  * found four extra lines of sign-off.
  */
 async function setAccountSignature(page: Page, text: string): Promise<void> {
-    await page.goto("/settings?section=signature");
+    await page.goto("/settings/signature");
 
     // The account editor, which is the only one on the page until an address
     // is given a signature of its own.
@@ -74,7 +74,7 @@ async function setAccountSignature(page: Page, text: string): Promise<void> {
  * freshly seeded account is in.
  */
 async function clearAccountSignature(page: Page): Promise<void> {
-    await page.goto("/settings?section=signature");
+    await page.goto("/settings/signature");
 
     const form = page.locator('form[action$="/signature"]').first();
     const editor = form.locator('[contenteditable="true"]');

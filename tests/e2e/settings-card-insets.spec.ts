@@ -33,13 +33,13 @@ import { TEST_USER, consoleCommand } from "./support/config";
  *
  * FOUR THINGS THIS FILE DOES THAT THE ADMIN ONE DOES NOT:
  *
- *   1. Sections are NAVIGATIONS, not turbo-frames. /settings?section=x is a full
+ *   1. Sections are NAVIGATIONS, not turbo-frames. /settings/x is a full
  *      page load and the nav is a set of ordinary links, so there is no frame id
  *      to wait on. What replaces it is the check that the section actually
- *      ARRIVED — see `openSection`. An unknown `section` falls back to `profile`
- *      server-side exactly as an unknown admin one falls back to `system`, so
- *      without that check a section renamed out from under this spec would
- *      measure the profile page eighteen times and pass.
+ *      ARRIVED — see `openSection`. An unknown page answers 404 since #569, but
+ *      a page that fell back or a session that went still returns a 200 that
+ *      is not the page asked for, and without that check this spec would
+ *      measure it and pass.
  *
  *   2. A CARD IS `chrome.shell()` AND NOTHING ELSE, spelled here as
  *      `.rounded-pane.overflow-hidden.bg-surface`. The admin spec can say
@@ -85,48 +85,48 @@ import { TEST_USER, consoleCommand } from "./support/config";
  */
 
 /**
- * Every settings section.
+ * Every settings page.
  *
- * Mirrors SettingsController::SECTIONS, in its order. Health leads there and
- * leads here for the same reason it is worth measuring at all — it is the one
- * section that is not built from settings/_card.html.twig.
+ * Mirrors SettingsNavigation::PAGE_REQUIREMENT, in its order (#569) — the
+ * tree's order. Health is measured like the rest and is worth measuring for
+ * one reason of its own: it is the one page not built from
+ * settings/_card.html.twig.
  *
- * It used to name eighteen of them and the controller had twenty-six: the
+ * It used to name eighteen sections when the controller had twenty-six: the
  * eight it missed included Encryption, whose last three cards sat flush on
  * each other and went unseen by a guard written for exactly that (check D).
- * So the list is now held to the controller — see the first test below — and
- * a section added there fails here until it is measured too.
+ * So the list is held to the navigation — see the first test below — and a
+ * page added there fails here until it is measured too.
  */
 const SECTIONS = [
-    "health",
-    "accounts",
     "profile",
     "security",
-    "labels",
-    "calendars",
-    "sharing",
-    "filters",
-    "insights",
-    "ai",
-    "integrations",
-    "appearance",
-    "aliases",
-    "read-receipts",
-    "signature",
-    "templates",
     "app-passwords",
     "encryption",
+    "region",
+    "appearance",
+    "layout",
     "notifications",
-    "general",
-    "categories",
+    "whats-new",
+    "accounts",
+    "aliases",
+    "health",
     "inboxes",
-    "reading-pane",
-    "shortcuts",
+    "categories",
+    "labels",
+    "filters",
     "disposal",
-    "images",
-    "swipe-actions",
+    "reading",
+    "compose",
+    "signature",
+    "templates",
+    "calendars",
     "calendar-behaviour",
+    "sharing",
     "contacts",
+    "ai",
+    "insights",
+    "integrations",
 ] as const;
 
 /**
@@ -234,11 +234,10 @@ const TOLERANCE = {
  *
  * Two ways this navigation can look like it worked and not have:
  *
- *   - The section fell back. `SettingsController::index` maps an unknown
- *     `?section=` to `profile` rather than 404ing, so a renamed section returns
- *     200 with a perfectly good page that is not the one asked for. The nav
- *     marks the live section with `aria-current="page"`, so reading the href off
- *     that link is the cheap way to ask the server what it thinks it rendered.
+ *   - The wrong page rendered. An unknown page is a 404 now (#569), but the
+ *     nav still marks the live page with `aria-current="page"`, and reading the
+ *     href off that link is the cheap way to ask the server what it thinks it
+ *     rendered.
  *
  *   - The session went. This is not hypothetical and it is not a flake: another
  *     Playwright run re-seeding this worker's user re-hashes the password,
@@ -250,11 +249,11 @@ const TOLERANCE = {
  *     column exists turns a silent pass into a named failure.
  */
 async function openSection(page: Page, section: string): Promise<void> {
-    await page.goto(`/settings?section=${section}`);
+    await page.goto(`/settings/${section}`);
 
     await expect(
         page.locator(WRAPPER),
-        `the settings content column is missing on ?section=${section} — ` +
+        `the settings content column is missing on /settings/${section} — ` +
             `if this is every section, the session was dropped and this ran against /login`,
     ).toBeAttached();
 
@@ -263,7 +262,7 @@ async function openSection(page: Page, section: string): Promise<void> {
     if (undefined !== container) {
         await expect(
             page.locator(container).first(),
-            `?section=${section} rendered, but not the state worth measuring (${container})`,
+            `/settings/${section} rendered, but not the state worth measuring (${container})`,
         ).toBeVisible();
 
         return;
@@ -271,8 +270,8 @@ async function openSection(page: Page, section: string): Promise<void> {
 
     await expect(
         page.locator('nav a[aria-current="page"]'),
-        `?section=${section} did not render that section — an unknown section falls back to profile`,
-    ).toHaveAttribute("href", new RegExp(`section=${section}$`));
+        `/settings/${section} did not render that page`,
+    ).toHaveAttribute("href", new RegExp(`/settings/${section}$`));
 }
 
 /**
@@ -582,12 +581,12 @@ async function measure(page: Page, section: string): Promise<Measurement> {
     );
 }
 
-test("measures every section the controller serves", () => {
-    const controller = readFileSync("src/Controller/Settings/SettingsController.php", "utf8");
-    const declared = /const array SECTIONS = \[([^\]]*)\]/.exec(controller)?.[1] ?? "";
-    const served = Array.from(declared.matchAll(/'([a-z-]+)'/g), (match) => match[1]);
+test("measures every page the navigation serves", () => {
+    const navigation = readFileSync("src/Service/Settings/SettingsNavigation.php", "utf8");
+    const declared = /const string PAGE_REQUIREMENT = ([^;]*);/.exec(navigation)?.[1] ?? "";
+    const served = Array.from(declared.matchAll(/'([^']*)'/g), (match) => match[1]).join("").split("|").filter(Boolean);
 
-    expect(served.length, "SettingsController::SECTIONS was not found — has it moved?").toBeGreaterThan(20);
+    expect(served.length, "SettingsNavigation::PAGE_REQUIREMENT was not found — has it moved?").toBeGreaterThan(20);
     expect([...SECTIONS]).toEqual(served);
 });
 

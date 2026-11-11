@@ -77,7 +77,7 @@ final class DevicePairingEndpointTest extends WebTestCase
         $client = $this->boot();
         $client->loginUser($this->seedUser());
 
-        $crawler = $client->request('GET', '/settings?section=app-passwords');
+        $crawler = $client->request('GET', '/settings/app-passwords');
 
         self::assertResponseIsSuccessful();
 
@@ -173,7 +173,7 @@ final class DevicePairingEndpointTest extends WebTestCase
 
         $client->request('POST', '/settings/pair', ['_token' => $this->token($client)]);
 
-        self::assertResponseRedirects('/settings?section=app-passwords');
+        self::assertResponseRedirects('/settings/app-passwords');
     }
 
     /** The endpoint the app calls, holding no credential at all. */
@@ -397,7 +397,7 @@ final class DevicePairingEndpointTest extends WebTestCase
     {
         // The pairing form lives in the app-passwords section, which is where
         // it belongs: pairing is how you get an app password without typing one.
-        $crawler = $client->request('GET', '/settings?section=app-passwords');
+        $crawler = $client->request('GET', '/settings/app-passwords');
 
         $field = $crawler->filter('#settings-device-pairing input[name="_token"]');
 

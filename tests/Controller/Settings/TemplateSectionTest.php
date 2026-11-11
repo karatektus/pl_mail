@@ -58,12 +58,12 @@ final class TemplateSectionTest extends WebTestCase
         $user    = $this->boot($client);
         $account = $this->account($user, 'mirror@plmail.test');
 
-        $crawler = $client->request('GET', '/settings?section=templates');
+        $crawler = $client->request('GET', '/settings/templates');
 
         self::assertResponseIsSuccessful();
         self::assertSame(
             1,
-            $crawler->filter('nav a[href*="section=templates"][aria-current="page"]')->count(),
+            $crawler->filter('nav a[href$="/settings/templates"][aria-current="page"]')->count(),
             'the nav has the section and marks it current',
         );
 
@@ -299,7 +299,7 @@ final class TemplateSectionTest extends WebTestCase
         $this->em->clear();
         self::assertSame('Bills', $this->em->find(TemplateFolder::class, $folder->id)->name);
 
-        $crawler = $client->request('GET', '/settings?section=templates');
+        $crawler = $client->request('GET', '/settings/templates');
         $delete  = $crawler->filter(sprintf('form[action$="/folder/%d/delete"]', $folder->id));
 
         self::assertSame(1, $delete->count(), 'a folder the user made can be deleted from its row');

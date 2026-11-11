@@ -28,7 +28,7 @@ const cssVar = (page: Page, name: string) =>
     );
 
 const open = async (page: Page) => {
-    await page.goto("/settings?section=appearance");
+    await page.goto("/settings/appearance");
     await expect(page.locator(PANEL)).toBeVisible();
 };
 

@@ -32,7 +32,7 @@ import { acceptConfirm } from "./support/confirm";
 
 /** Drop an account created by this spec, by the label it was given. */
 async function removeAccount(page: Page, label: string): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     // Addresses are normalised to lowercase on save, so match the label the
     // same case-insensitive way the creation test asserts it.
@@ -59,7 +59,7 @@ test.describe("mail account creation", () => {
         const host = `imap-${stamp}.example.test`;
 
         try {
-            await page.goto("/settings?section=accounts");
+            await page.goto("/settings/accounts");
 
             const accountsSection = page
                 .locator("section")
@@ -104,7 +104,7 @@ test.describe("mail account creation", () => {
     test("keeps the modal open and reports the error when required fields are missing", async ({
                                                                                                    page,
                                                                                                }) => {
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
 
         const accountsSection = page
             .locator("section")

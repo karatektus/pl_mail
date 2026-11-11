@@ -49,7 +49,7 @@ final class InboxCategoryControllerTest extends WebTestCase
         $this->user->categorySorting->switchOff([\App\Domain\Enum\Mail\MessageCategory::Forums]);
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=categories');
+        $crawler = $client->request('GET', '/settings/categories');
 
         self::assertResponseIsSuccessful();
         self::assertSame('primary', $crawler->filter('[data-tab-fixed]')->attr('data-tab-fixed'));
@@ -94,7 +94,7 @@ final class InboxCategoryControllerTest extends WebTestCase
             'on'     => '0',
         ]);
 
-        self::assertResponseRedirects('/settings?section=categories');
+        self::assertResponseRedirects('/settings/categories');
 
         $this->em->clear();
         $user = $this->em->find(User::class, $this->user->id);
@@ -161,12 +161,12 @@ final class InboxCategoryControllerTest extends WebTestCase
     public function testACategoryIsCreatedThroughTheRealForm(): void
     {
         $client  = $this->signIn();
-        $crawler = $client->request('GET', '/settings?section=categories');
+        $crawler = $client->request('GET', '/settings/categories');
 
         $form = $crawler->filter('form[action$="/settings/categories"]')->form(['name' => '  Shipping ']);
         $client->submit($form);
 
-        self::assertResponseRedirects('/settings?section=categories');
+        self::assertResponseRedirects('/settings/categories');
 
         $rows = $this->connection->fetchFirstColumn('SELECT name FROM inbox_category WHERE usr_id = :id', ['id' => $this->user->id]);
         self::assertSame(['Shipping'], $rows);
@@ -181,10 +181,10 @@ final class InboxCategoryControllerTest extends WebTestCase
         $client = $this->signIn();
         $this->category($this->user, 'Shipping');
 
-        $crawler = $client->request('GET', '/settings?section=categories');
+        $crawler = $client->request('GET', '/settings/categories');
         $client->submit($crawler->filter('form[action$="/settings/categories"]')->form(['name' => 'shipping']));
 
-        self::assertResponseRedirects('/settings?section=categories');
+        self::assertResponseRedirects('/settings/categories');
         $client->followRedirect();
 
         self::assertStringContainsString('You already have a category with that name', (string) $client->getResponse()->getContent());
@@ -199,13 +199,13 @@ final class InboxCategoryControllerTest extends WebTestCase
         $client   = $this->signIn();
         $shipping = $this->category($this->user, 'Shipping');
 
-        $crawler = $client->request('GET', '/settings?section=categories');
+        $crawler = $client->request('GET', '/settings/categories');
         $client->submit($crawler->filter('form[action$="/settings/categories/' . $shipping->id . '/rename"]')->form(['name' => 'Parcels']));
 
         self::assertResponseRedirects();
         self::assertSame('Parcels', $this->connection->fetchOne('SELECT name FROM inbox_category WHERE id = :id', ['id' => $shipping->id]));
 
-        $crawler = $client->request('GET', '/settings?section=categories');
+        $crawler = $client->request('GET', '/settings/categories');
         $client->submit($crawler->filter('form[action$="/settings/categories/' . $shipping->id . '/delete"]')->form());
 
         self::assertResponseRedirects();
@@ -235,7 +235,7 @@ final class InboxCategoryControllerTest extends WebTestCase
     public function testAWriteWithoutTheTokenIsRefused(): void
     {
         $client = $this->signIn();
-        $client->request('GET', '/settings?section=categories');
+        $client->request('GET', '/settings/categories');
 
         $client->request('POST', '/settings/categories', ['name' => 'Sneaky']);
 
@@ -260,13 +260,13 @@ final class InboxCategoryControllerTest extends WebTestCase
         $this->em->persist($rule);
         $this->em->flush();
 
-        $client->request('GET', '/settings?section=filters');
+        $client->request('GET', '/settings/filters');
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('Shipping', (string) $client->getResponse()->getContent());
 
         $this->connection->executeStatement('DELETE FROM inbox_category WHERE id = :id', ['id' => $shipping->id]);
 
-        $client->request('GET', '/settings?section=filters');
+        $client->request('GET', '/settings/filters');
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('(deleted category)', (string) $client->getResponse()->getContent());
     }
@@ -291,7 +291,7 @@ final class InboxCategoryControllerTest extends WebTestCase
 
     private function token(KernelBrowser $client): string
     {
-        $crawler = $client->request('GET', '/settings?section=categories');
+        $crawler = $client->request('GET', '/settings/categories');
 
         return (string) $crawler->filter('input[name="_token"][value]')->last()->attr('value');
     }

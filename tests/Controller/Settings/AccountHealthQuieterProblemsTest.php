@@ -73,7 +73,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->pushEnabled = false;
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="push-' . $account->id . '"]')->count());
     }
@@ -94,7 +94,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthLastRefreshError  = 'invalid_grant';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-' . $account->id . '"]')->count());
         self::assertSame(
@@ -124,7 +124,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthGrantedScopes = 'https://mail.google.com/';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]');
 
         self::assertSame(1, $card->count(), 'the missing permission is not reported');
@@ -152,7 +152,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthGrantedScopes = implode(' ', array_diff(MailProvider::Google->scopes(), MailProvider::Google->contactScopes()));
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="account-contacts-scope-' . $account->id . '"]');
 
         self::assertSame(1, $card->count(), 'the missing contacts permission is not mentioned');
@@ -170,7 +170,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthGrantedScopes = 'https://mail.google.com/';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count());
         self::assertSame(0, $crawler->filter('[data-health-issue="account-contacts-scope-' . $account->id . '"]')->count());
@@ -189,7 +189,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthGrantedScopes = implode(' ', MailProvider::Google->scopes());
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count());
     }
@@ -209,7 +209,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
 
         self::assertNull($account->oauthGrantedScopes);
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count());
     }
@@ -232,7 +232,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthLastRefreshError = 'invalid_grant';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-' . $account->id . '"]')->count());
         self::assertSame(
@@ -266,7 +266,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->exportRefusedReason = 'Gmail messages.batchModify failed with 403 (insufficientPermissions)';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             1,
@@ -293,7 +293,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->recordSyncFailure('IMAP: connection refused');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             0,
@@ -305,7 +305,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->recordSyncFailure('IMAP: connection refused');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             1,
@@ -331,7 +331,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         self::assertSame(0, $account->syncFailureCount);
         self::assertNotNull($account->lastSyncedAt, 'a success should record when it happened');
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]')->count());
     }
@@ -354,7 +354,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->recordSyncFailure('Gmail: 401');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-' . $account->id . '"]')->count());
         self::assertSame(
@@ -392,7 +392,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->exportRefusedReason = 'Gmail messages.batchModify failed with 403 (insufficientPermissions)';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             0,
@@ -419,7 +419,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthGrantedScopes = 'Mail.ReadWrite Mail.Send MailboxSettings.ReadWrite Calendars.ReadWrite User.Read';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             0,
@@ -450,7 +450,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $this->em->persist($integration);
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="integration-scope-' . $integration->id . '"]');
 
         self::assertSame(1, $card->count(), 'a partial grant on a connection is not reported');
@@ -470,7 +470,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $this->em->persist($integration);
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="integration-scope-' . $integration->id . '"]')->count());
     }
@@ -494,7 +494,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
 
         self::assertNull($integration->oauthGrantedScopes);
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="integration-scope-' . $integration->id . '"]')->count());
     }
@@ -520,7 +520,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->imapServerAlert = 'Quota exceeded (mailbox for user is full)';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="server-alert-' . $account->id . '"]');
 
         self::assertSame(1, $card->count(), 'the server said something and nobody was told');
@@ -563,7 +563,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->recordFullResync();
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]');
 
         self::assertSame(1, $card->count());
@@ -582,7 +582,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->recordSyncFailure('IMAP: connection refused');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]');
 
         self::assertSame(1, $card->count());
@@ -618,7 +618,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->lastPolledAt        = new DateTimeImmutable('-5 minutes');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-sync-behind-' . $account->id . '"]')->count());
     }
@@ -634,7 +634,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->lastSyncedAt        = new DateTimeImmutable('-20 minutes');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="account-sync-behind-' . $account->id . '"]')->count());
     }
@@ -651,7 +651,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->syncFailureCount = 3;
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]')->count());
         self::assertSame(0, $crawler->filter('[data-health-issue="account-sync-behind-' . $account->id . '"]')->count());
@@ -675,7 +675,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $this->em->persist($integration);
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="integration-' . $integration->id . '"]');
 
         self::assertSame(1, $card->count());
@@ -702,7 +702,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $this->em->persist($integration);
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="integration-' . $integration->id . '"]')->count());
     }
@@ -723,7 +723,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $plain = $this->plainUser();
         $client->loginUser($plain);
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertResponseIsSuccessful();
         self::assertSame(

@@ -53,7 +53,7 @@ Variables:
 {% set notice_parameters = notice_parameters|default({}) %}
 {% set notice_tone = notice_tone|default('success') %}
 {% set actions = not encrypted and pgp and state in ['unknown_key', 'untrusted', 'key_changed'] %}
-{% set settings_url = path('app_settings_index', { section: 'encryption' }) ~ '#contact-keys' %}
+{% set settings_url = path('app_settings_page', { page: 'encryption' }) ~ '#card-contact-keys' %}
 {% set csrf = csrf_token('message-key-' ~ message.id) %}
 {% set button = 'inline-flex items-center gap-1.5 px-2.5 h-7 rounded-md text-xs font-medium bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer' %}
 

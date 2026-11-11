@@ -212,6 +212,6 @@ final class InboxCategoryController extends AbstractController
 
     private function back(): Response
     {
-        return $this->redirectToRoute('app_settings_index', ['section' => 'categories']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'categories']);
     }
 }

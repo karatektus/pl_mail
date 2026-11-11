@@ -118,6 +118,6 @@ final class DecryptedMailSettingsController extends AbstractController
 
     private function back(): Response
     {
-        return $this->redirectToRoute('app_settings_index', ['section' => 'encryption'], Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'encryption'], Response::HTTP_SEE_OTHER);
     }
 }

@@ -33,7 +33,7 @@ final class ProfileSaveRefusedTest extends WebTestCase
         $before = $user->nameFirst;
         $client->loginUser($user);
 
-        $crawler = $client->request('GET', '/settings?section=profile');
+        $crawler = $client->request('GET', '/settings/profile');
         $form    = $crawler->filter('form[action$="/settings/profile"]')->form();
         $form['profile[nameFirst]'] = '';
 

@@ -341,7 +341,7 @@ final class AccountFolderSyncTest extends WebTestCase
         $gmail->oauthProvider = 'google';
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
 
         self::assertResponseIsSuccessful();
 
@@ -519,7 +519,7 @@ final class AccountFolderSyncTest extends WebTestCase
      */
     private function csrfToken(int $mailboxId, string $intention = 'account_folder_sync_'): string
     {
-        $this->client->request('GET', '/settings?section=accounts');
+        $this->client->request('GET', '/settings/accounts');
 
         $stack   = static::getContainer()->get('request_stack');
         $carrier = new Request();
