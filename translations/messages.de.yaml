@@ -4302,6 +4302,13 @@ settings:
         send_optimistic: Schließen
         send_hold: Offen lassen
         heading: 'Verfassen'
+        mailto: 'E-Mail-Links'
+        mailto_asked: 'Dein Browser fragt nach — schau in oder neben der Adresszeile.'
+        mailto_button: 'plMail verwenden'
+        mailto_failed: 'Dieser Browser hat die Anfrage abgelehnt.'
+        mailto_hint: 'mailto:-Links von anderen Seiten in plMail öffnen, in diesem Browser. Jeder Browser und jedes Gerät entscheidet für sich.'
+        mailto_insecure: 'Browser erlauben das nur über HTTPS, und plMail läuft hier über einfaches HTTP.'
+        mailto_unsupported: 'Dieser Browser kann E-Mail-Links nicht an eine Web-App geben. Die plMail-Apps für Android und iOS können das.'
         open: 'Ausgeklappt'
         subheading: 'Wie sich das Verfassen-Fenster für dich verhält, über alle Konten.'
     insights:

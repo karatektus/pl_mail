@@ -7,6 +7,7 @@ namespace App\Controller\Mail;
 use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Domain\DTO\Mail\ComposeContext;
+use App\Domain\DTO\Mail\MailtoLink;
 use App\Domain\Exception\SealRefused;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Account;
@@ -140,7 +141,20 @@ class ComposeController extends AbstractController
             // reason.
             $message->bodyHtml = $this->window->signatureSeed($account);
 
-            $message->toAddresses = $this->addressedTo();
+            $link = $this->mailtoLink();
+
+            if (null === $link) {
+                $message->toAddresses = $this->addressedTo();
+            } else {
+                // Above the signature, as a person would have typed it. Not a
+                // draft yet: nothing is saved until the first autosave, so a
+                // link opened by mistake leaves nothing behind but the window.
+                $message->toAddresses  = [] === $link->to ? null : $link->to;
+                $message->ccAddresses  = [] === $link->cc ? null : $link->cc;
+                $message->bccAddresses = [] === $link->bcc ? null : $link->bcc;
+                $message->subject      = '' === $link->subject ? null : $link->subject;
+                $message->bodyHtml     = $link->bodyHtml() . $message->bodyHtml;
+            }
         } else {
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
             $this->assertEditableDraft($message);
@@ -152,6 +166,25 @@ class ComposeController extends AbstractController
         $this->addressFields->hydrate($form, $message, $this->getUser());
 
         return $this->renderWindow($form, $message, $ctx);
+    }
+
+    /**
+     * The message a `mailto:` link asked for: `?mailto=`, which is where the
+     * browser puts the whole link when plMail is its handler for the scheme
+     * (registerProtocolHandler and the manifest's protocol_handlers both name
+     * /compose/new?mailto=%s), and where a mailto: clicked inside a message is
+     * sent. Null when there is none, or when it is not a mailto: at all.
+     *
+     * The same parameter for both on purpose: a page-level visit to this URL is
+     * redirected into the dock with its query intact (see renderWindow), so the
+     * browser handler needs no route of its own, and login sends a signed-out
+     * reader back to it like any other page.
+     */
+    private function mailtoLink(): ?MailtoLink
+    {
+        $query = $this->requestStack->getCurrentRequest()?->query;
+
+        return MailtoLink::parse((string) $query?->get('mailto', ''));
     }
 
     /**

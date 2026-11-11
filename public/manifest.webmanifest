@@ -7,6 +7,12 @@
     "display": "standalone",
     "background_color": "#faf7f2",
     "theme_color": "#a21caf",
+    "protocol_handlers": [
+        {
+            "protocol": "mailto",
+            "url": "/compose/new?mailto=%s"
+        }
+    ],
     "icons": [
         {
             "src": "/icons/icon-192.png",

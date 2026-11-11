@@ -4286,6 +4286,13 @@ settings:
         send_optimistic: Close it
         send_hold: Keep it open
         heading: 'Composing'
+        mailto: 'Email links'
+        mailto_asked: 'Your browser asks you to confirm — look for its prompt at the address bar.'
+        mailto_button: 'Use plMail'
+        mailto_failed: 'This browser turned the request down.'
+        mailto_hint: 'Open mailto: links from other sites in plMail, in this browser. Each browser and device decides for itself.'
+        mailto_insecure: 'Browsers only allow this over HTTPS, and plMail is reached over plain HTTP here.'
+        mailto_unsupported: 'This browser cannot hand email links to a web app. The plMail apps for Android and iOS can.'
         open: 'Open'
         subheading: 'How the compose window behaves for you, on every account.'
     insights:

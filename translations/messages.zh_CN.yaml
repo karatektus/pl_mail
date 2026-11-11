@@ -3689,6 +3689,13 @@ settings:
         send_optimistic: '关闭窗口'
         send_hold: '保持打开'
         heading: '撰写'
+        mailto: '邮件链接'
+        mailto_asked: '浏览器会请你确认——请留意地址栏旁的提示。'
+        mailto_button: '使用 plMail'
+        mailto_failed: '此浏览器拒绝了该请求。'
+        mailto_hint: '在此浏览器中用 plMail 打开其他网站上的 mailto: 链接。每个浏览器和设备需分别设置。'
+        mailto_insecure: '浏览器只允许通过 HTTPS 进行此设置，而此处的 plMail 使用的是普通 HTTP。'
+        mailto_unsupported: '此浏览器无法将邮件链接交给网页应用。Android 和 iOS 版 plMail 应用可以。'
         open: '展开'
         subheading: '所有账户的撰写窗口行为。'
     insights:

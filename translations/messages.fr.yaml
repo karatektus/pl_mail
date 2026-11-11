@@ -4340,6 +4340,13 @@ settings:
         send_optimistic: La fermer
         send_hold: La garder ouverte
         heading: 'Rédaction'
+        mailto: 'Liens e-mail'
+        mailto_asked: 'Votre navigateur demande confirmation — regardez près de la barre d''adresse.'
+        mailto_button: 'Utiliser plMail'
+        mailto_failed: 'Ce navigateur a refusé la demande.'
+        mailto_hint: 'Ouvrir dans plMail les liens mailto: des autres sites, dans ce navigateur. Chaque navigateur et chaque appareil décide pour lui-même.'
+        mailto_insecure: 'Les navigateurs ne l''autorisent qu''en HTTPS, et plMail est joint ici en HTTP simple.'
+        mailto_unsupported: 'Ce navigateur ne peut pas confier les liens e-mail à une application web. Les applications plMail pour Android et iOS le peuvent.'
         open: 'Ouvert'
         subheading: 'Le comportement de la fenêtre de rédaction pour vous, sur tous vos comptes.'
     insights:

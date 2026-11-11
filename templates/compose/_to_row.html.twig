@@ -67,14 +67,16 @@ Variables: form, compact (default false)
                        it, leaving the visible label and the spoken one
                        saying different things (WCAG 2.5.3). #}
                     title="{{ 'compose.add_cc'|trans }}"
-                    class="text-xs text-ink-faint hover:text-accent transition-colors">
+                    {# Gone once the row it opens is already open, as
+                       compose--compose#showCc leaves it. #}
+                    class="text-xs text-ink-faint hover:text-accent transition-colors {{ form.ccAddresses.vars.value is not empty ? 'hidden' }}">
                 {{ 'compose.cc'|trans }}
             </button>
             <button type="button"
                     data-compose--compose-target="bccBtn"
                     data-action="click->compose--compose#showBcc"
                     title="{{ 'compose.add_bcc'|trans }}"
-                    class="text-xs text-ink-faint hover:text-accent transition-colors">
+                    class="text-xs text-ink-faint hover:text-accent transition-colors {{ form.bccAddresses.vars.value is not empty ? 'hidden' }}">
                 {{ 'compose.bcc'|trans }}
             </button>
         </div>
