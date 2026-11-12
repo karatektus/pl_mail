@@ -212,6 +212,24 @@
                 document.documentElement.style.setProperty('--compose-h', Math.max(360, Math.min(4000, Math.round(composeSize.h))) + 'px');
             }
         } catch (e) {}
+
+        // The installed app with its title bar hidden (#589). The manifest asks
+        // for `window-controls-overlay`, and when the reader hides Chrome's
+        // title bar the page reaches the top of the window, with the window's
+        // own buttons drawn over it. `app-titlebar` (app.css) then turns the
+        // topbar into the title bar. A class rather than the media query
+        // itself, so the rules can be seen and tested outside an installed
+        // app; set before first paint, and again whenever the reader shows or
+        // hides the title bar, which changes the display mode in place.
+        try {
+            var overlay = window.matchMedia('(display-mode: window-controls-overlay)');
+            var titlebar = function () {
+                document.documentElement.classList.toggle('app-titlebar', overlay.matches);
+            };
+
+            titlebar();
+            overlay.addEventListener('change', titlebar);
+        } catch (e) {}
     </script>
 
     {% block stylesheets %}
