@@ -12,7 +12,7 @@ use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Label\LabelKinds;
 use App\Service\Mail\SidebarCounts;
 use App\Service\Mail\UserAccounts;

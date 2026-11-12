@@ -14,7 +14,7 @@ final class Version20260717095340 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Store the Gmail id of a message';
     }
 
     public function up(Schema $schema): void

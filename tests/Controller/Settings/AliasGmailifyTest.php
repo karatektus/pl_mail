@@ -10,7 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SeverGmailifyLinksMessage;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -48,7 +48,7 @@ final class AliasGmailifyTest extends WebTestCase
         $gmail  = $this->account($user, 'me@gmail.test', true);
         $plain  = $this->account($user, 'me@joder.dev', false);
 
-        $crawler = $client->request('GET', '/settings?section=aliases');
+        $crawler = $client->request('GET', '/settings/aliases');
 
         $form = $crawler->filter(sprintf('[data-gmailify="%d"]', $gmail->id));
 
@@ -121,7 +121,7 @@ final class AliasGmailifyTest extends WebTestCase
 
     private function token(KernelBrowser $client, string $formAction): string
     {
-        $crawler = $client->request('GET', '/settings?section=aliases');
+        $crawler = $client->request('GET', '/settings/aliases');
 
         self::assertResponseIsSuccessful();
 
@@ -157,7 +157,7 @@ final class AliasGmailifyTest extends WebTestCase
         $this->connection->beginTransaction();
 
         $this->em->createQuery(
-            'UPDATE ' . Account::class . ' a SET a.isActive = false WHERE a.usr = :usr',
+            'UPDATE ' . Account::class . ' a SET a.mailEnabled = false WHERE a.usr = :usr',
         )->setParameter('usr', $user)->execute();
 
         $this->em->clear();
@@ -174,7 +174,7 @@ final class AliasGmailifyTest extends WebTestCase
         $account->username  = $email;
         $account->email     = $email;
         $account->authType  = true === $gmail ? 'oauth2' : 'password';
-        $account->isActive  = true;
+        $account->mailEnabled = true;
         $account->isPrimary = false;
         $account->sortOrder = 0;
         $account->imapHost  = 'imap.example.test';

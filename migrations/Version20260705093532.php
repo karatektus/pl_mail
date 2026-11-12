@@ -14,7 +14,7 @@ final class Version20260705093532 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Require message flags';
     }
 
     public function up(Schema $schema): void

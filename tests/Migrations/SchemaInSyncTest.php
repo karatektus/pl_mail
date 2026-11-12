@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Migrations;
 
-use App\Repository\Maintenance\DataResetRepository;
-use App\Repository\Monitoring\PostgresStatusRepository;
+use App\Repository\Maintenance\DataReset\DataResetRepository;
+use App\Repository\Monitoring\PostgresStatus\PostgresStatusRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\Attributes\DataProvider;

@@ -34,10 +34,39 @@ use App\Infrastructure\ImapClient\Exception\ImapTimeoutException;
  * timeout, a protocol error or a closed socket leaves it closed: once an
  * answer is missing or unreadable, the two sides no longer agree on where the
  * conversation is, and nothing said after that can be trusted.
+ *
+ * HOW LONG A COMMAND MAY TAKE
+ * ───────────────────────────
+ * As long as the server keeps talking. The timeout is how long it may go
+ * quiet, not how long the whole command may last: every byte that arrives,
+ * and every piece of a literal that leaves, starts the wait again.
+ *
+ * It was a total at first, and that stopped imports for good (#565). An
+ * import page is one UID FETCH of fifty whole messages, and on a NAS behind a
+ * slow line fifty messages with their attachments do not arrive in thirty
+ * seconds, however steadily they come. The fetch was cut, nothing of the page
+ * was stored, and the retry asked for the same fifty messages and was cut at
+ * the same place — for every folder whose newest mail was large enough.
+ *
+ * A server that keeps a command alive with a trickle is not this class's to
+ * stop. ImapDeadline is: it measures the whole job, and it was written for a
+ * per-read timeout like this one.
+ *
+ * Opening the connection and logging out keep a total. Nothing large crosses
+ * either, and a greeting or a goodbye that dribbles in is not worth waiting
+ * for.
  */
 final class ImapConnection implements DeadlineClosable
 {
+    /** How long a command may wait without hearing from the server. */
     public const float DEFAULT_TIMEOUT_SECONDS = 30.0;
+
+    /**
+     * How much of a literal is written before the wait starts again. Small
+     * enough that a slow line moves a piece well inside the timeout, large
+     * enough that a message of megabytes is not thousands of writes.
+     */
+    private const int SEND_PIECE_BYTES = 65536;
 
     /** How long a LOGOUT is given on the way out. Not worth waiting longer for. */
     private const float LOGOUT_SECONDS = 2.0;
@@ -140,7 +169,7 @@ final class ImapConnection implements DeadlineClosable
      */
     public function command(string $name, ImapArgument ...$arguments): ImapResult
     {
-        return $this->execute($name, $arguments, null, microtime(true) + $this->timeoutSeconds);
+        return $this->execute($name, $arguments, null, microtime(true) + $this->timeoutSeconds, $this->timeoutSeconds);
     }
 
     /** Open a folder, read-write, or read-only with $readOnly (EXAMINE). */
@@ -237,33 +266,7 @@ final class ImapConnection implements DeadlineClosable
      */
     public function readResponse(float $deadline): ?ImapResponse
     {
-        while (true) {
-            $response = $this->reader->next();
-
-            if (null !== $response) {
-                if ('BYE' === $response->status && ImapResponseKind::Untagged === $response->kind) {
-                    $this->farewell = $response->text;
-                }
-
-                return $response;
-            }
-
-            try {
-                $bytes = $this->socket->read($deadline);
-            } catch (ImapConnectionException $e) {
-                $this->close();
-
-                throw null === $this->farewell
-                    ? $e
-                    : new ImapConnectionException(sprintf('%s said goodbye: %s', $this->endpoint->host, $this->farewell), 0, $e);
-            }
-
-            if ('' === $bytes) {
-                return null;
-            }
-
-            $this->reader->feed($bytes);
-        }
+        return $this->nextResponse($deadline, 0.0);
     }
 
     /**
@@ -295,6 +298,67 @@ final class ImapConnection implements DeadlineClosable
     }
 
     // ---------------------------------------------------------------- the conversation
+
+    /**
+     * The next response, waiting until $deadline for it — and with
+     * $quietSeconds above zero, moving $deadline that far past every read
+     * that brought something (see the class docblock).
+     *
+     * @return ImapResponse|null null when the deadline passed first
+     */
+    private function nextResponse(float &$deadline, float $quietSeconds): ?ImapResponse
+    {
+        while (true) {
+            $response = $this->reader->next();
+
+            if (null !== $response) {
+                if ('BYE' === $response->status && ImapResponseKind::Untagged === $response->kind) {
+                    $this->farewell = $response->text;
+                }
+
+                return $response;
+            }
+
+            try {
+                $bytes = $this->socket->read($deadline);
+            } catch (ImapConnectionException $e) {
+                $this->close();
+
+                throw null === $this->farewell
+                    ? $e
+                    : new ImapConnectionException(sprintf('%s said goodbye: %s', $this->endpoint->host, $this->farewell), 0, $e);
+            }
+
+            if ('' === $bytes) {
+                return null;
+            }
+
+            $this->reader->feed($bytes);
+
+            if (0.0 < $quietSeconds) {
+                $deadline = max($deadline, microtime(true) + $quietSeconds);
+            }
+        }
+    }
+
+    /**
+     * Send $bytes, with $quietSeconds above zero a piece at a time, moving
+     * $deadline that far past each piece the socket took.
+     */
+    private function send(string $bytes, float &$deadline, float $quietSeconds): void
+    {
+        if (0.0 >= $quietSeconds) {
+            $this->write($bytes, $deadline);
+
+            return;
+        }
+
+        foreach (str_split($bytes, self::SEND_PIECE_BYTES) as $piece) {
+            $this->write($piece, $deadline);
+
+            $deadline = max($deadline, microtime(true) + $quietSeconds);
+        }
+    }
 
     private function greet(float $deadline): void
     {
@@ -377,6 +441,7 @@ final class ImapConnection implements DeadlineClosable
                 return '';
             },
             microtime(true) + $this->timeoutSeconds,
+            $this->timeoutSeconds,
         );
     }
 
@@ -394,8 +459,11 @@ final class ImapConnection implements DeadlineClosable
      * @param list<ImapArgument>                $arguments
      * @param (callable(ImapResponse): string)|null $onContinuation the line to send when
      *                                                              the server asks for more
+     * @param float                                 $quietSeconds   above zero, how far each sign of
+     *                                                              life moves $deadline on; zero
+     *                                                              keeps it a total
      */
-    private function execute(string $name, array $arguments, ?callable $onContinuation, float $deadline): ImapResult
+    private function execute(string $name, array $arguments, ?callable $onContinuation, float $deadline, float $quietSeconds = 0.0): ImapResult
     {
         $this->claim();
 
@@ -413,7 +481,7 @@ final class ImapConnection implements DeadlineClosable
             $untagged = [];
 
             foreach ($pieces as $index => $piece) {
-                $this->write($piece, $deadline);
+                $this->send($piece, $deadline, $quietSeconds);
 
                 if ($index === array_key_last($pieces)) {
                     break;
@@ -421,7 +489,7 @@ final class ImapConnection implements DeadlineClosable
 
                 // A synchronising literal: the rest waits for the server's go.
                 while (true) {
-                    $response = $this->awaitResponse($deadline, $name);
+                    $response = $this->awaitResponse($deadline, $name, $quietSeconds);
 
                     if (ImapResponseKind::Continuation === $response->kind) {
                         break;
@@ -436,7 +504,7 @@ final class ImapConnection implements DeadlineClosable
             }
 
             while (true) {
-                $response = $this->awaitResponse($deadline, $name);
+                $response = $this->awaitResponse($deadline, $name, $quietSeconds);
 
                 if (true === $response->completes($tag)) {
                     return $this->finish($name, $response, $untagged);
@@ -447,7 +515,7 @@ final class ImapConnection implements DeadlineClosable
                         throw new ImapProtocolException(sprintf('%s asked for more of a %s command.', $this->endpoint->host, $name));
                     }
 
-                    $this->write($onContinuation($response) . "\r\n", $deadline);
+                    $this->send($onContinuation($response) . "\r\n", $deadline, $quietSeconds);
 
                     continue;
                 }
@@ -476,10 +544,10 @@ final class ImapConnection implements DeadlineClosable
     }
 
     /** A response, or the connection is given up: see the class docblock. */
-    private function awaitResponse(float $deadline, string $waitingFor): ImapResponse
+    private function awaitResponse(float &$deadline, string $waitingFor, float $quietSeconds = 0.0): ImapResponse
     {
         try {
-            $response = $this->readResponse($deadline);
+            $response = $this->nextResponse($deadline, $quietSeconds);
         } catch (ImapProtocolException $e) {
             $this->close();
 

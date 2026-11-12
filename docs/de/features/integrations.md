@@ -1,11 +1,12 @@
-<!-- translated-from: features/integrations.md sha1:2ee2168a97ba2ad514b6156b906a5432db2e0eab -->
+<!-- translated-from: features/integrations.md sha1:e90cca4807a8da8e9f5f61d4e04a0ab6fde6467b -->
 
 # Dateien und Integrationen
 
 plMail kann eine Datei aus einem Dienst holen, den du ohnehin benutzt, und sie an eine
 Nachricht hängen — und einen Anhang in die andere Richtung in diesen Dienst schieben.
-Unterstützt werden acht Dienste: **Nextcloud**, **OpenCloud**, **Immich**, **Paperless-ngx**,
-**Google Drive**, **Google Photos**, **OneDrive** und **Dropbox**.
+Unterstützt werden neun Dienste: **Nextcloud**, **OpenCloud**, **Immich**, **Paperless-ngx**,
+**Google Drive**, **Google Photos**, **OneDrive**, **Dropbox** und jeder einfache **WebDAV**-Server —
+FileBrowser Quantum, ein Synology-NAS, `rclone serve webdav`, Apache mod_dav.
 
 Verbindungen gehören einer Person und lassen sich einzeln widerrufen. Welche Dienste überhaupt
 angeboten werden, entscheidet die Administration — siehe [Administration](admin.md).
@@ -30,6 +31,7 @@ Wie du dich verbindest, hängt vom Dienst ab:
 | Google Photos | Anmeldung | Nichts — die Zustimmungsseite |
 | OneDrive | Anmeldung | Nichts — die Zustimmungsseite |
 | Dropbox | Anmeldung | Nichts — die Zustimmungsseite |
+| WebDAV | Passwort oder Token | Volle Ordneradresse, Benutzername, falls der Server einen will, Passwort oder Token |
 
 Die Dienste mit App-Passwort nehmen zusätzlich einen **Namen**, der nur dir angezeigt wird und
 dafür da ist, zwei Verbindungen auseinanderzuhalten. Das ist keine Zierde: Du kannst
@@ -44,7 +46,8 @@ Lege bei den selbst gehosteten Diensten Zugangsdaten auf dem Dienst an, statt de
 Anmeldepasswort zu verwenden. Nextcloud führt App-Passwörter unter **Einstellungen → Sicherheit
 → Geräte & Sitzungen**; OpenCloud führt App-Tokens in deinen Kontoeinstellungen unter
 **App-Tokens**; Immich führt API-Schlüssel unter **Account Settings → API Keys**;
-Paperless-ngx zeigt ein API-Token unter **My Profile → API Auth Token**. Ein App-Passwort oder
+Paperless-ngx zeigt ein API-Token unter **My Profile → API Auth Token**; FileBrowser Quantum legt
+API-Tokens für WebDAV an. Ein App-Passwort oder
 Token lässt sich einzeln widerrufen und funktioniert neben der Zwei-Faktor-Authentifizierung;
 ein Anmeldepasswort kann beides nicht.
 
@@ -106,6 +109,7 @@ also an genau einer Stelle.
 | Paperless-ngx | ja | ja | ja | — | ja | ja | — |
 | Immich | ja | ja | ja | — | ja | ja | ja |
 | Google Photos | ja | ja | ja | — | ja | — | — |
+| WebDAV | ja | ja | ja | — | — | — | — |
 
 ¹ Nur wenn die OpenCloud-Administration öffentliche Links ohne Passwort erlaubt; siehe unten.
 
@@ -138,6 +142,24 @@ trifft irgendwo im Dateinamen, wie bei Nextcloud; eine Suche in einem Ordner ble
 
 Hinter einer OpenCloud-Verbindung stehen keine Kalender und keine Kontakte. Hat dein Server einen
 Kalenderserver daneben, verbinde ihn als CalDAV.
+
+## Einfaches WebDAV
+
+Für einen Dateiserver, der weder Nextcloud noch OpenCloud ist. Die Adresse ist die **volle Adresse
+des Ordners**, den plMail öffnen soll, samt Pfad, nicht nur der Host: Bei FileBrowser Quantum ist
+das `/dav/` und dahinter der Name der Quelle, etwa `https://files.example.com:8080/dav/cargobay/`.
+plMail öffnet genau diesen Ordner und alles darunter, und nichts darüber.
+
+Der Benutzername ist optional. FileBrowser Quantum nimmt ein API-Token als Passwort und ignoriert
+den Benutzernamen; andere Server wollen beides. Beim Verbinden prüft plMail die Adresse sofort: Ein
+falscher Pfad wird als solcher gemeldet, und ein abgelehntes Passwort oder Token liest sich als
+abgelaufen oder widerrufen, weil das der übliche Grund ist.
+
+WebDAV kennt keine öffentlichen Links, keine Vorschauen und keine Suche. Die Dateiauswahl zeigt
+deshalb ein Datei-Symbol statt eines Vorschaubilds, hat kein Suchfeld und hängt nur Kopien an. In
+einen Ordner speichern und neue Ordner anlegen funktioniert wie bei Nextcloud. plMail verwendet nur
+die grundlegenden WebDAV-Methoden — auflisten, herunterladen, hochladen, Ordner anlegen —, also
+funktioniert auch ein Server, der Sperren ablehnt, wie FileBrowser Quantum.
 
 ## Paperless-ngx, das keine Ordner hat
 
@@ -209,21 +231,21 @@ Ein Filter kann dasselbe automatisch tun, mit der Aktion **Anhänge speichern in
 Erlaubnisliste steht.** Selbst gehostete Dienste liegen auf Adressen, auf die eine angemeldete
 Person plMails ausgehenden HTTP-Client sonst richten könnte — darunter `localhost:5432` und der
 Cloud-Metadaten-Endpunkt unter `169.254.169.254`. Loopback, Link-Local, RFC1918 und die Bereiche
-für Carrier-Grade NAT sind alle gesperrt, solange der Host nicht in
-`INTEGRATIONS_ALLOWED_HOSTS` steht. In einem Heimnetz ist das die Einstellung, die Nextcloud,
-OpenCloud, Immich und Paperless-ngx überhaupt erreichbar macht.
+für Carrier-Grade NAT sind alle gesperrt, solange eine Admin-Person den Host nicht unter
+[Admin → Integrationen → Server in privaten Netzen](../features/admin.md#server-in-privaten-netzen) erlaubt hat. In einem Heimnetz ist diese Liste das, was Nextcloud, OpenCloud, Immich,
+Paperless-ngx und einen WebDAV-Server überhaupt erreichbar macht.
 
-**`http://` wird abgelehnt, solange `INTEGRATIONS_ALLOW_HTTP` nicht an ist.** Selbst hosten im
-LAN ohne TLS ist eine ganz gewöhnliche Lage, diese Option wird also oft gesetzt sein — der Punkt
-ist, dass Zugangsdaten im Klartext zu verschicken eine bewusste Entscheidung wird und keine
-stille Voreinstellung.
+**`http://` wird abgelehnt, solange eine Admin-Person es für diesen Host nicht erlaubt hat.** Selbst
+hosten im LAN ohne TLS ist eine ganz gewöhnliche Lage, der Haken wird für einen Server dort also oft
+gesetzt sein — der Punkt ist, dass Zugangsdaten im Klartext zu verschicken eine Entscheidung über
+einen Server ist und keine stille Voreinstellung für alle.
 
-**Eine Datei über der Anhangsgrenze lässt sich aus Immich, Google Photos oder Paperless-ngx
-überhaupt nicht anhängen.** Die Fotobibliotheken können für ein einzelnes Objekt keine
+**Eine Datei über der Anhangsgrenze lässt sich aus Immich, Google Photos, Paperless-ngx oder WebDAV
+überhaupt nicht anhängen.** WebDAV kennt öffentliche Links gar nicht erst. Die Fotobibliotheken können für ein einzelnes Objekt keine
 öffentliche URL erzeugen, ohne ein geteiltes Album anzulegen; Paperless kann ein Dokument teilen,
 aber nur über eine rechtegesteuerte Funktion mit eigenem Ablaufdatum, und ein abgelegtes Dokument
 zu veröffentlichen ist eine schwerere Nebenwirkung, als das Anhängen einer Datei haben sollte. Es
-gibt deshalb bei keinem der drei einen Rückfall auf einen Link: über 25 MB lautet die Antwort
+gibt deshalb bei keinem der vier einen Rückfall auf einen Link: über 25 MB lautet die Antwort
 nein.
 
 **OpenCloud lehnt öffentliche Links ohne Passwort ab, solange die Administration sie nicht

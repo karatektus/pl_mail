@@ -11,8 +11,8 @@ use App\Entity\Mail\Account;
 use App\Entity\Template\MailTemplate;
 use App\Entity\Template\TemplateFolder;
 use App\Entity\User\User;
-use App\Repository\Template\MailTemplateRepository;
-use App\Repository\Template\TemplateFolderRepository;
+use App\Repository\Template\MailTemplate\MailTemplateRepository;
+use App\Repository\Template\TemplateFolder\TemplateFolderRepository;
 use App\Service\Mail\UserAccounts;
 use Doctrine\ORM\EntityManagerInterface;
 

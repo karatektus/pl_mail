@@ -14,7 +14,7 @@ use App\Domain\Enum\Crypto\RecipientPolicy;
 use App\Domain\Exception\ContactKeyRefused;
 use App\Entity\Crypto\ContactKey;
 use App\Entity\User\User;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
 

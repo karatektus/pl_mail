@@ -6,7 +6,7 @@ namespace App\Form;
 
 use App\Domain\Enum\Mail\LabelColor;
 use App\Entity\Label\Label;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Label\Label\LabelRepository;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;

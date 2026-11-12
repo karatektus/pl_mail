@@ -8,7 +8,7 @@ use App\Controller\ChecksCsrf;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
 use App\Form\ApiTokenType;
-use App\Repository\User\ApiTokenRepository;
+use App\Repository\User\ApiToken\ApiTokenRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -99,6 +99,6 @@ final class ApiTokenController extends AbstractController
             ]);
         }
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'app-passwords']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'app-passwords']);
     }
 }

@@ -149,6 +149,36 @@ final class SearchSemanticFeedbackTest extends WebTestCase
         self::assertSame('indexing', $this->noticeState($crawler));
     }
 
+    /**
+     * The administrator's way from "still indexing" to the page that shows how
+     * far. It used to point at /admin/ai, the AI section's frame on its own,
+     * and from inside the list's frame: clicking it opened a page with no
+     * layout and no styles. It has to name the whole admin page and leave the
+     * frame.
+     */
+    public function testTheIndexingLinkOpensTheAdminPageOutsideTheListFrame(): void
+    {
+        $client = $this->signIn(['ROLE_USER', 'ROLE_ADMIN']);
+        $this->enableSearchAi();
+        $this->useModel(static fn (): MockResponse => new MockResponse(json_encode(['embeddings' => [[1.0, 0.0, 0.0]]])));
+
+        $meaning = $this->seedThread('Notes from the standup', 'Who is doing what this week.');
+        $this->seedThread('Holiday photos', 'Nothing to do with anything.');
+
+        static::getContainer()->get(EmbeddingStore::class)
+            ->store($this->messageIdOf($meaning), [1.0, 0.0, 0.0], 'test-model');
+
+        $crawler = $client->request('GET', '/mail/search?q=pelican');
+
+        self::assertSame('indexing', $this->noticeState($crawler));
+
+        $link = $crawler->filter('[data-semantic-notice] [data-semantic-admin-link]');
+
+        self::assertCount(1, $link);
+        self::assertSame('/admin?section=ai', $link->attr('href'));
+        self::assertSame('_top', $link->attr('data-turbo-frame'));
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     private function noticeState(Crawler $crawler): ?string
@@ -240,7 +270,8 @@ final class SearchSemanticFeedbackTest extends WebTestCase
         return (int) $thread->id;
     }
 
-    private function signIn(): KernelBrowser
+    /** @param list<string> $roles */
+    private function signIn(array $roles = ['ROLE_USER']): KernelBrowser
     {
         $client = static::createClient();
 
@@ -266,7 +297,7 @@ final class SearchSemanticFeedbackTest extends WebTestCase
         $this->user->email     = 'semantic-' . uniqid('', true) . '@example.test';
         $this->user->nameFirst = 'Semantic';
         $this->user->nameLast  = 'Fixture';
-        $this->user->roles     = ['ROLE_USER'];
+        $this->user->roles     = $roles;
         $this->user->password  = 'x';
         $this->em->persist($this->user);
         $this->em->flush();
@@ -282,7 +313,7 @@ final class SearchSemanticFeedbackTest extends WebTestCase
         $this->account->imapPort       = 993;
         $this->account->imapEncryption = 'ssl';
         $this->account->authType       = 'password';
-        $this->account->isActive       = true;
+        $this->account->mailEnabled    = true;
         $this->em->persist($this->account);
         $this->em->flush();
 

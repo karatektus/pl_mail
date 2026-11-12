@@ -8,7 +8,7 @@ use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Entity\User\User;
-use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationOAuthProviderFactory;
 use App\Service\Integration\IntegrationTokenManager;
 use App\Service\OAuth\OAuthStateStore;
@@ -124,7 +124,7 @@ final class OAuthController extends AbstractController
     {
         $this->addFlash($isError ? 'error' : 'success', $message);
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'integrations']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'integrations']);
     }
 
     /**
@@ -135,7 +135,7 @@ final class OAuthController extends AbstractController
     {
         $this->addFlash('error', $message);
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'integrations']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'integrations']);
     }
 
     private function user(): User

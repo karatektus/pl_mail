@@ -6,8 +6,8 @@ namespace App\Tests\Controller\Admin;
 
 use App\Entity\Demo\DemoVisit;
 use App\Entity\User\User;
-use App\Repository\Demo\DemoVisitRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Demo\DemoVisit\DemoVisitRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Demo\DemoMode;
 use App\Service\Demo\DemoUserEraser;
 use App\Service\Demo\DemoVisitorFingerprint;

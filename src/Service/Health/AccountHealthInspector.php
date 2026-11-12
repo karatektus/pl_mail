@@ -19,9 +19,9 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarRepository;
-use App\Repository\Integration\IntegrationRepository;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Calendar\UserCalendars;
 use App\Service\Mail\UserAccounts;
 use App\Service\Monitoring\QueueMonitor;
@@ -566,7 +566,7 @@ final readonly class AccountHealthInspector
         // accounts connected afterwards, and waiting for a refusal only helps
         // if something tries to write. Somebody looking at three broken
         // calendars right now had the evidence on screen and nothing read it.
-        $missing = $provider->missingScopes($account->oauthGrantedScopes);
+        $missing = $provider->missingScopes($account->oauthGrantedScopes, $account->services);
 
         // Contacts were added to the grant after these accounts existed (see
         // MailProvider::contactScopes()). A grant missing only those has not
@@ -677,7 +677,7 @@ final readonly class AccountHealthInspector
      */
     private function mailboxSync(Account $account): ?HealthIssue
     {
-        if (true !== $account->isActive) {
+        if (true !== $account->mailEnabled) {
             return null;
         }
 
@@ -724,7 +724,7 @@ final readonly class AccountHealthInspector
      */
     private function mailboxBehind(Account $account): ?HealthIssue
     {
-        if (true !== $account->isActive) {
+        if (true !== $account->mailEnabled) {
             return null;
         }
 

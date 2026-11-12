@@ -10,7 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Mail\SenderResolver;
 use PHPUnit\Framework\TestCase;
 
@@ -83,7 +83,7 @@ final class SenderResolverTest extends TestCase
     public function testADeactivatedAccountIsRefused(): void
     {
         $account           = $this->account();
-        $account->isActive = false;
+        $account->mailEnabled = false;
 
         self::assertNull($this->resolver->accountFor('7|alias@example.test', $this->user));
     }
@@ -188,7 +188,7 @@ final class SenderResolverTest extends TestCase
         $account           = new Account();
         $account->usr      = $this->user;
         $account->email    = 'me@example.test';
-        $account->isActive = true;
+        $account->mailEnabled = true;
 
         $this->stored = $account;
 

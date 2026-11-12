@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Repository\Monitoring\PostgresStatusRepository;
+use App\Repository\Monitoring\PostgresStatus\PostgresStatusRepository;
 use App\Service\Monitoring\AdminMonitoringService;
 use App\Service\Monitoring\QueueMonitor;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

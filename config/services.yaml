@@ -322,9 +322,9 @@ services:
 
     # The HTTP clients for URLs a user typed in — see UserUrlHttpClient for
     # what they refuse. Two, because the exemption differs: an integration may
-    # reach a LAN host an admin allow-listed (INTEGRATIONS_ALLOWED_HOSTS) or
-    # pinned as a provider's server address; a push endpoint only a host named
-    # in PUSH_ALLOWED_HOSTS, which is there for a self-hosted ntfy.
+    # reach a LAN host an admin allowed under Admin → Integrations or pinned as
+    # a provider's server address; a push endpoint only a host named in
+    # PUSH_ALLOWED_HOSTS, which is there for a self-hosted ntfy.
     app.http_client.integration:
         class: App\Infrastructure\Http\UserUrlHttpClient
         arguments:
@@ -347,6 +347,9 @@ services:
         arguments:
             $httpClient: '@app.http_client.integration'
     App\Service\Integration\Driver\OpenCloudDriver:
+        arguments:
+            $httpClient: '@app.http_client.integration'
+    App\Service\Integration\Driver\WebDavDriver:
         arguments:
             $httpClient: '@app.http_client.integration'
     App\Service\Integration\Driver\PaperlessDriver:

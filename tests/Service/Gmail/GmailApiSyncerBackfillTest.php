@@ -7,8 +7,10 @@ namespace App\Tests\Service\Gmail;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
-use App\Repository\Mail\GmailSkippedMessageRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\MessageEraser;
@@ -40,6 +42,8 @@ final class GmailApiSyncerBackfillTest extends TestCase
 {
     private MessageRepository&\PHPUnit\Framework\MockObject\Stub $messageRepository;
 
+    private MessageProviderIdRepository&\PHPUnit\Framework\MockObject\Stub $messageProviderIds;
+
     /** A stub by default; tests that assert on dispatching swap in a mock. */
     private MessageBusInterface $bus;
 
@@ -50,7 +54,8 @@ final class GmailApiSyncerBackfillTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->messageRepository = $this->createStub(MessageRepository::class);
+        $this->messageRepository  = $this->createStub(MessageRepository::class);
+        $this->messageProviderIds = $this->createStub(MessageProviderIdRepository::class);
         $this->skipped           = $this->createStub(GmailSkippedMessageRepository::class);
         $this->bus               = $this->createStub(MessageBusInterface::class);
         $this->requests          = [];
@@ -243,7 +248,7 @@ final class GmailApiSyncerBackfillTest extends TestCase
         $account = $this->account();
         $asked   = [];
 
-        $this->messageRepository
+        $this->messageProviderIds
             ->method('findStoredGmailIdsForUser')
             ->willReturnCallback(static function (User $user, array $ids) use (&$asked): array {
                 $asked[] = $ids;
@@ -326,6 +331,7 @@ final class GmailApiSyncerBackfillTest extends TestCase
         return new GmailApiSyncer(
             new GmailApiClient($client, $tokenManager, new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock())),
             $this->messageRepository,
+            $this->messageProviderIds,
             $this->createStub(EntityManagerInterface::class),
             $this->bus,
             new NullLogger(),
@@ -333,12 +339,12 @@ final class GmailApiSyncerBackfillTest extends TestCase
             new \App\Service\Mail\SyncOrigin(),
             $this->skipped,
             new \App\Service\Gmail\GmailifyLinks(
-                $this->createStub(MessageRepository::class),
+                $this->createStub(MessageImapRepository::class),
                 new \App\Service\Gmail\GmailLabelPolicy(),
                 new \App\Service\Label\ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
                 new \App\Jmap\State\StateManager(
                     $this->createStub(EntityManagerInterface::class),
-                    new \App\Jmap\State\ChangeLogRepository($this->createStub(\Doctrine\Persistence\ManagerRegistry::class)),
+                    new \App\Repository\Jmap\ChangeLog\ChangeLogRepository($this->createStub(\Doctrine\Persistence\ManagerRegistry::class)),
                 ),
                 $this->createStub(EntityManagerInterface::class),
             ),
@@ -366,7 +372,7 @@ final class GmailApiSyncerBackfillTest extends TestCase
     {
         // Answers for the ids asked about, as the query does: the listing
         // asks only about the page in hand (#223).
-        $this->messageRepository
+        $this->messageProviderIds
             ->method('findStoredGmailIdsForUser')
             ->willReturnCallback(static fn (User $user, array $ids): array => array_values(array_intersect($gmailIds, $ids)));
     }

@@ -14,7 +14,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Mail\EmailAliasRepository;
+use App\Repository\Mail\EmailAlias\EmailAliasRepository;
 use App\Service\Mail\SignatureProvider;
 use Doctrine\ORM\EntityManagerInterface;
 

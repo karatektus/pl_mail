@@ -14,7 +14,7 @@ use App\Domain\Exception\ContactKeyRefused;
 use App\Entity\Crypto\ContactKey;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\VerifySignatureMessage;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 use App\Service\Crypto\ContactKeys;
 use App\Service\Crypto\PublicKeyReader;
 use App\Tests\Command\MailFixtures;

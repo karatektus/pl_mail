@@ -1,4 +1,4 @@
-<!-- translated-from: install/troubleshooting.md sha1:8d05f5c03497430aa6aedee8917e0165d5583f11 -->
+<!-- translated-from: install/troubleshooting.md sha1:832cf97397f70b9274c647d2a5a36ea2d8c92ad6 -->
 # Fehlersuche
 
 Was `/healthz` bedeutet, wie du eine hängende von einer leeren Warteschlange unterscheidest, wo die
@@ -208,7 +208,15 @@ docker compose exec php php bin/console app:mail:test-connection      # IMAP/SMT
 docker compose exec php php bin/console app:imap:test --account=ID    # connection and folder listing
 docker compose exec php php bin/console app:graph:diagnose            # what Graph actually permits
 docker compose exec php php bin/console app:mail:sync ACCOUNT_ID      # dispatch a sync by hand
+docker compose exec php php bin/console app:mail:fetch-missing ACCOUNT_ID  # fetch mail the sync passed over
 ```
+
+Eine Nachricht, die die Synchronisierung nicht speichern kann, wird fünfmal versucht und dann
+übergangen, mit `Failed to build message too many times; skipping it for good` im Log, und von
+selbst nicht wieder angefordert. Sobald behoben ist, was sie aufgehalten hat (meist durch ein
+Update), sieht `app:mail:fetch-missing` die Ordner des Kontos durch und holt, was der Server hat
+und plMail nicht. Mail, die in plMail gelöscht und auf dem Server noch nicht verschwunden ist,
+bleibt außen vor.
 
 Speziell für Gmail-Push zeigt das Panel **Gmail-Webhooks** im Administrationsbereich das Topic, den
 exakten Endpunkt, den Pub/Sub aufrufen muss, und warum eine Benachrichtigung abgewiesen wurde.

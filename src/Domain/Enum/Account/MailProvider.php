@@ -49,7 +49,9 @@ enum MailProvider: string
     }
 
     /**
-     * OAuth scopes requested at consent time.
+     * OAuth scopes requested at consent time for an account used for all three
+     * services — what every connection asked for before #575, and still the
+     * default. scopesFor() is the narrower question.
      *
      * Calendar is in here rather than behind a second connection, and that is a
      * product decision as much as a technical one: an administrator should have
@@ -67,28 +69,87 @@ enum MailProvider: string
      */
     public function scopes(): array
     {
+        return $this->scopesFor(AccountService::cases());
+    }
+
+    /**
+     * The scopes to ask for when the account is wanted for these services
+     * only (#575): the sign-in set, and each service's own.
+     *
+     * The point is the one a person connecting Gmail for its calendar cares
+     * about: `https://mail.google.com/` is full access to every message, and
+     * it is not asked for unless mail is. A grant is only ever as wide as what
+     * the account is used for.
+     *
+     * Sign-in first, then the services in AccountService order. The order is
+     * cosmetic — a provider treats the list as a set — but a stable one keeps
+     * the authorization URL comparable from one connect to the next.
+     *
+     * @param list<AccountService> $services
+     *
+     * @return list<string>
+     */
+    public function scopesFor(array $services): array
+    {
+        $wanted = $this->signInScopes();
+
+        foreach (AccountService::cases() as $service) {
+            if (true === in_array($service, $services, true)) {
+                $wanted = array_merge($wanted, $this->serviceScopes($service));
+            }
+        }
+
+        return array_values(array_unique($wanted));
+    }
+
+    /**
+     * What one service needs from the grant.
+     *
+     * @return list<string>
+     */
+    public function serviceScopes(AccountService $service): array
+    {
+        return match ($service) {
+            AccountService::Mail     => $this->mailScopes(),
+            AccountService::Calendar => $this->calendarScopes(),
+            AccountService::Contacts => $this->contactScopes(),
+        };
+    }
+
+    /**
+     * Requested on every grant, whatever the account is for: who the person
+     * is, and a refresh token. Microsoft's User.Read is here rather than with
+     * mail because the resource owner lookup that names the account (/me)
+     * needs it on a calendar-only grant just the same.
+     *
+     * @return list<string>
+     */
+    private function signInScopes(): array
+    {
         return match ($this) {
-            MailProvider::Google => [
-                'https://mail.google.com/',
-                // Read-write, not calendar.readonly: subscribing is only half
-                // the feature — an event edited here is written back, which
-                // means creating, updating and deleting on the remote.
-                'https://www.googleapis.com/auth/calendar',
-                // Read-write for the calendar's reason: an edit to a contact
-                // here is written back. Same grant, so a Google account brings
-                // its contacts with its mail. An account connected before this
-                // holds a grant without it and is asked, once, to reconnect —
-                // see contactScopes() and AccountHealthInspector.
-                'https://www.googleapis.com/auth/contacts',
-                'openid',
-                'email',
-            ],
+            MailProvider::Google => ['openid', 'email'],
             MailProvider::Microsoft => [
                 'offline_access',
                 'openid',
                 'email',
                 'profile',
                 'https://graph.microsoft.com/User.Read',
+            ],
+        };
+    }
+
+    /**
+     * The mailbox itself.
+     *
+     * @return list<string>
+     */
+    private function mailScopes(): array
+    {
+        return match ($this) {
+            MailProvider::Google => [
+                'https://mail.google.com/',
+            ],
+            MailProvider::Microsoft => [
                 'https://graph.microsoft.com/Mail.ReadWrite',
                 'https://graph.microsoft.com/Mail.Send',
                 // Master categories live under the Outlook user-settings
@@ -97,12 +158,6 @@ enum MailProvider: string
                 // Read because GraphCategorySyncer and ApplyGraphChangesHandler
                 // both create category definitions.
                 'https://graph.microsoft.com/MailboxSettings.ReadWrite',
-                // Same grant as the mail scopes above — see the note on this
-                // method. Microsoft consents to the requested set as a whole,
-                // so unlike Google there is no partial grant to handle.
-                'https://graph.microsoft.com/Calendars.ReadWrite',
-                // Outlook contacts, read and written back, on the same grant.
-                'https://graph.microsoft.com/Contacts.ReadWrite',
             ],
         };
     }
@@ -121,6 +176,10 @@ enum MailProvider: string
      */
     public function contactScopes(): array
     {
+        // Read-write for the calendar's reason: an edit to a contact here is
+        // written back. An account connected before contacts were asked for
+        // holds a grant without them and is asked, once, to reconnect — see
+        // AccountHealthInspector.
         return match ($this) {
             MailProvider::Google    => ['https://www.googleapis.com/auth/contacts'],
             MailProvider::Microsoft => ['https://graph.microsoft.com/Contacts.ReadWrite'],
@@ -187,6 +246,9 @@ enum MailProvider: string
 
     public function calendarScopes(): array
     {
+        // Read-write, not calendar.readonly: subscribing is only half the
+        // feature — an event edited here is written back, which means
+        // creating, updating and deleting on the remote.
         return match ($this) {
             MailProvider::Google    => ['https://www.googleapis.com/auth/calendar'],
             MailProvider::Microsoft => ['https://graph.microsoft.com/Calendars.ReadWrite'],
@@ -240,12 +302,19 @@ enum MailProvider: string
      * So the comparison is over what actually buys access to somebody's mail
      * and calendar. Those are echoed, by both providers, every time.
      *
+     * Measured against the services the account is used for (#575), when
+     * given: a calendar-only grant is complete without the mail scope, and
+     * reporting the mail scope as missing would put a card on the health page
+     * that asks the person for the very permission they chose not to give.
+     *
+     * @param list<AccountService>|null $services null for all of them
+     *
      * @return list<string>
      */
-    public function capabilityScopes(): array
+    public function capabilityScopes(?array $services = null): array
     {
         return array_values(array_filter(
-            $this->scopes(),
+            $this->scopesFor($services ?? AccountService::cases()),
             static fn (string $scope): bool => false === in_array($scope, self::SIGN_IN_SCOPES, true),
         ));
     }
@@ -261,12 +330,13 @@ enum MailProvider: string
      * quietly undone by the next sync. Nothing about that is visible anywhere
      * unless the granted set is compared against the requested one.
      *
-     * @param string|null $granted the `scope` value from the token response
+     * @param string|null               $granted  the `scope` value from the token response
+     * @param list<AccountService>|null $services what the grant has to cover; null for everything
      *
      * @return list<string>|null the requested scopes that were withheld, or
      *                           null when there is nothing to judge
      */
-    public function missingScopes(?string $granted): ?array
+    public function missingScopes(?string $granted, ?array $services = null): ?array
     {
         if (null === $granted || '' === trim($granted)) {
             return null;
@@ -275,7 +345,7 @@ enum MailProvider: string
         $held    = array_map($this->normaliseScope(...), explode(' ', trim($granted)));
         $missing = [];
 
-        foreach ($this->capabilityScopes() as $wanted) {
+        foreach ($this->capabilityScopes($services) as $wanted) {
             if (false === in_array($this->normaliseScope($wanted), $held, true)) {
                 $missing[] = $wanted;
             }

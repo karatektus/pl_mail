@@ -6,7 +6,7 @@ namespace App\Command\Backfill;
 
 use App\Domain\Interface\UpgradeTaskInterface;
 use App\Infrastructure\Event\Listener\ArrivalStamper;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -40,9 +40,9 @@ final readonly class MessageArrivalBackfillTask implements UpgradeTaskInterface
     private const string REACH = '-8 days';
 
     public function __construct(
-        private MessageRepository      $messages,
+        private MessageBackfillRepository $messageBackfillRepository,
         private ArrivalStamper         $stamper,
-        private EntityManagerInterface $em,
+        private EntityManagerInterface $em
     ) {}
 
     public function getName(): string
@@ -57,7 +57,7 @@ final readonly class MessageArrivalBackfillTask implements UpgradeTaskInterface
 
     public function run(SymfonyStyle $io): int
     {
-        $firstId = $this->messages->firstIdStoredSince(new DateTimeImmutable(self::REACH));
+        $firstId = $this->messageBackfillRepository->firstIdStoredSince(new DateTimeImmutable(self::REACH));
 
         if (null === $firstId) {
             $io->success('Nothing to do — no mail was stored in the last week.');
@@ -69,7 +69,7 @@ final readonly class MessageArrivalBackfillTask implements UpgradeTaskInterface
         $stamped = 0;
 
         while (true) {
-            $batch = $this->messages->findWithoutAcceptTime($lastId, self::BATCH_SIZE);
+            $batch = $this->messageBackfillRepository->findWithoutAcceptTime($lastId, self::BATCH_SIZE);
 
             if (count($batch) === 0) {
                 break;

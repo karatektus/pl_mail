@@ -564,7 +564,7 @@ final class GmailLabelMirroringTest extends KernelTestCase
         $account->password       = 'x';
         $account->authType       = AuthType::OAuth2->value;
         $account->oauthProvider  = MailProvider::Google->value;
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
 
         $this->em->persist($account);
 

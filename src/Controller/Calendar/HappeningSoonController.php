@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Calendar;
 
 use App\Entity\User\User;
-use App\Repository\Insight\MailInsightRepository;
+use App\Repository\Insight\MailInsight\MailInsightRepository;
 use App\Service\Calendar\HappeningSoonReader;
 use DateTimeImmutable;
 use DateTimeZone;

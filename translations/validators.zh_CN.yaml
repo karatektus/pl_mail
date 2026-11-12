@@ -3,6 +3,7 @@ account.host_invalid: '请仅输入主机名或 IP 地址，不要包含斜杠�
 admin.ai.keep_alive_invalid: '请输入 5m、30m、4h 等时长或秒数，输入 -1 可让模型一直保持加载。留空则使用主机自身的设置。'
 admin.integrations.client_id_missing: '请输入与此密钥对应的客户端 ID。'
 admin.integrations.secret_missing: '请同时输入客户端密钥，仅有客户端 ID 无法完成登录。'
+admin.integrations.trusted.host_invalid: '请输入主机名或 IP 地址，例如 dav.home.example.com 或 192.168.1.20，或包含主机的完整地址。'
 admin.sso.error.client_id_missing: '填写签发者和密钥时，还需要客户端 ID。这三项必须全部填写或全部留空。'
 admin.sso.error.issuer_missing: '填写客户端 ID 和密钥时，还需要签发者。这三项必须全部填写或全部留空。'
 admin.sso.error.issuer_not_https: '签发者地址必须以 https:// 开头。plMail 通过 TLS 连接确认身份提供商的可信性。'

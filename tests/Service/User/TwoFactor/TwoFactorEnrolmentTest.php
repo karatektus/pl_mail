@@ -6,7 +6,7 @@ namespace App\Tests\Service\User\TwoFactor;
 
 use App\Entity\User\TrustedDevice;
 use App\Entity\User\User;
-use App\Repository\User\TrustedDeviceRepository;
+use App\Repository\User\TrustedDevice\TrustedDeviceRepository;
 use App\Service\User\TwoFactor\TwoFactorEnrolment;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;

@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus"
 import Sortable from "sortablejs"
 import { requestFailed } from "../../request_errors.js"

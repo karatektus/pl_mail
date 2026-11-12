@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Monitoring;
 
-use App\Repository\Monitoring\ProcessHeartbeatRepository;
+use App\Repository\Monitoring\ProcessHeartbeat\ProcessHeartbeatRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

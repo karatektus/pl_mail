@@ -7,7 +7,7 @@ namespace App\Tests\Repository\Integration;
 use App\Domain\Enum\Integration\Provider;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
-use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

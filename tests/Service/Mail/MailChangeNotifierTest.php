@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Mail\MailChangeNotifier;
 use App\Tests\Support\Mercure\RecordingHub;
 use PHPUnit\Framework\TestCase;

@@ -13,10 +13,11 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\Pop3Uidl;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\Pop3UidlRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Pop3Uidl\Pop3UidlRepository;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\PostIngestPipeline;
@@ -74,7 +75,7 @@ final class Pop3AccountSyncerTest extends KernelTestCase
         $account->imapPort         = 995;
         $account->imapEncryption   = 'ssl';
         $account->authType         = 'password';
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $user->addAccount($account);
         $this->em->flush();
@@ -424,6 +425,7 @@ final class Pop3AccountSyncerTest extends KernelTestCase
             $container->get(AccountRepository::class),
             $container->get(MailboxRepository::class),
             $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageImapRepository::class),
             $container->get(Pop3UidlRepository::class),
             $container->get(LabelResolver::class),
             $container->get(PostIngestPipeline::class),

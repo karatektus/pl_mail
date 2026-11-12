@@ -13,8 +13,8 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\User\User;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Service\Crypto\AutocryptHeader;
 use App\Service\Crypto\SealedDrafts;
 use App\Service\Crypto\SealGuard;
@@ -233,7 +233,7 @@ final class SendDropsImageOriginalsTest extends KernelTestCase
         $this->account->smtpEncryption = 'starttls';
         $this->account->password       = 'x';
         $this->account->authType       = 'password';
-        $this->account->isActive       = true;
+        $this->account->mailEnabled    = true;
         $this->em->persist($this->account);
 
         $sent                = new Mailbox();

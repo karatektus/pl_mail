@@ -20,14 +20,14 @@ const OUT = "var/shots";
 const enabled = process.env.E2E_SHOTS === "1";
 
 const pickTheme = async (page: Page, theme: string) => {
-    await page.goto("/settings?section=appearance");
+    await page.goto("/settings/appearance");
     await expect(page.locator(PANEL)).toBeVisible();
     await page.locator(`${PANEL} [data-theme-name="${theme}"]`).click();
     await page.waitForTimeout(700);
 };
 
 const setScale = async (page: Page, value: string) => {
-    await page.goto("/settings?section=appearance");
+    await page.goto("/settings/appearance");
     const slider = page.locator(`${PANEL} input[data-css-variable="--app-font-scale"]`);
     await slider.fill(value);
     await slider.dispatchEvent("input");
@@ -145,7 +145,7 @@ test.describe("appearance — screenshots and contrast", () => {
     test.skip(!enabled, "set E2E_SHOTS=1");
 
     test.afterEach(async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await page.locator(PANEL).getByRole("button", { name: /reset|zurück/i }).first().click();
         await page.waitForResponse((r) => r.url().includes("/appearance/reset")).catch(() => {});
     });
@@ -215,7 +215,6 @@ test.describe("appearance — screenshots and contrast", () => {
     test("the new controls clear 4.5:1", async ({ page }) => {
         const rows: string[] = [];
         const failures: Array<string | null> = [];
-        const previewSnippet: Record<string, number> = {};
 
         for (const theme of ["light", "dark", "solar", "dusk"]) {
             await pickTheme(page, theme);
@@ -237,14 +236,6 @@ test.describe("appearance — screenshots and contrast", () => {
                     check("unread heading", document.querySelector('[id="unread-emphasis-label"]'));
                     check("surface label", document.querySelector('[id="surface-density-list"]'));
                     check(
-                        "preview sender",
-                        document.querySelector("[data-preview-row] .truncate"),
-                    );
-                    check(
-                        "preview snippet",
-                        document.querySelector("[data-preview-row] [data-row-snippet]"),
-                    );
-                    check(
                         "selected segment",
                         document.querySelector('input[name="previewLines"]:checked + span'),
                     );
@@ -259,53 +250,9 @@ test.describe("appearance — screenshots and contrast", () => {
                     `${theme.padEnd(7)} → ${what.padEnd(16)} ${ratio.toFixed(2).padStart(6)}:1  ${ink} on ${ground}  "${text}"`,
                 );
 
-                if (what === "preview snippet") {
-                    previewSnippet[theme] = ratio;
-
-                    continue;
-                }
-
                 failures.push(
                     ratio >= 4.5 ? null : `${theme}: ${what} is ${ratio.toFixed(2)}:1 (${ink} on ${ground})`,
                 );
-            }
-
-            // The same text, in the real list, on a real unread row.
-            //
-            // The preview's snippet is --rgb-ink-faint over the unread tint,
-            // and in the two darkest themes that lands at ~4.2:1 rather than
-            // the ≥4.5:1 the palette guarantees for that tier on the BARE
-            // surface (ThemeInkContrastTest). That is a property of the list
-            // this preview is a picture of, not of the preview — so the bar it
-            // is held to is the list's own number, measured here rather than
-            // asserted from memory. A preview that scored BETTER than the
-            // thing it depicts would be the actual failure: it would be
-            // showing the user something the inbox will not give them.
-            await page.goto("/mail/inbox");
-            await expect(page.locator("#message-list li").first()).toBeVisible();
-
-            const live = await page.evaluate(
-                ([contrastSrc]) => {
-                    const contrast = eval(contrastSrc);
-                    const row = document.querySelector(
-                        '#message-list li[data-unread="true"] [data-row-snippet]',
-                    ) ?? document.querySelector("#message-list li [data-row-snippet]");
-
-                    return row ? contrast(row, true) : null;
-                },
-                [CONTRAST],
-            );
-
-            if (live) {
-                rows.push(
-                    `${theme.padEnd(7)} → ${"LIVE list snippet".padEnd(16)} ${live.ratio.toFixed(2).padStart(6)}:1  ${live.ink} on ${live.ground}`,
-                );
-
-                // Within a hair of each other: same token, same tint, same row.
-                expect(
-                    Math.abs(previewSnippet[theme] - live.ratio),
-                    `${theme}: the preview's snippet does not match the list's`,
-                ).toBeLessThan(0.35);
             }
         }
 
@@ -342,7 +289,7 @@ test.describe("appearance — screenshots and contrast", () => {
                 ] as const) {
                     await setScale(page, scale);
 
-                    await page.goto("/settings?section=appearance");
+                    await page.goto("/settings/appearance");
                     await expect(page.locator(PANEL)).toBeVisible();
                     await page.screenshot({
                         path: `${OUT}/${label}-${theme}-settings-${name}.png`,
@@ -382,7 +329,7 @@ test.describe("appearance — screenshots and contrast", () => {
                 }
 
                 // And the list wearing the settings the user asked about.
-                await page.goto("/settings?section=appearance");
+                await page.goto("/settings/appearance");
                 await page
                     .locator(`${PANEL} input[type="radio"][data-toggles="accountCorner"][value="0"]`)
                     .check({ force: true });

@@ -93,7 +93,7 @@ final class SystemLabelVisibilityTest extends WebTestCase
      */
     private function toggle(Label $label): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=labels');
+        $crawler = $this->client->request('GET', '/settings/labels');
 
         $form = $crawler
             ->filter(sprintf('form[action="/labels/%d/toggle-visibility"]', $label->id))

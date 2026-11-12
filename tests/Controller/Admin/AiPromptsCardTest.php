@@ -7,7 +7,7 @@ namespace App\Tests\Controller\Admin;
 use App\Domain\Enum\Ai\PromptSlot;
 use App\Entity\Embeddable\AiPrompts;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Ai\PromptLibrary;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

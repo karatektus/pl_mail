@@ -7,7 +7,7 @@ namespace App\Entity\Label;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
-use App\Repository\Label\LabelBindingRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

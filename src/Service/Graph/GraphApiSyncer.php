@@ -12,7 +12,8 @@ use App\Entity\Mail\Message;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\GraphApiClient;
 use App\Service\Mail\MessageEraser;
@@ -93,6 +94,7 @@ final class GraphApiSyncer
         private readonly GraphFolderResolver    $folderResolver,
         private readonly GraphLabelPolicy       $labelPolicy,
         private readonly MessageRepository      $messageRepository,
+        private readonly MessageProviderIdRepository $messageProviderIdRepository,
         private readonly EntityManagerInterface $em,
         private readonly StateManager           $stateManager,
         private readonly MessageBusInterface    $bus,
@@ -554,7 +556,7 @@ final class GraphApiSyncer
     private function partition(Account $account, string $folderId, array $items): array
     {
         $known = array_flip(
-            $this->messageRepository->findSyncedGraphIdsForUser($account->usr)
+            $this->messageProviderIdRepository->findSyncedGraphIdsForUser($account->usr)
         );
 
         $needsFetch = [];

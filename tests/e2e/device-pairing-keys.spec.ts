@@ -20,7 +20,7 @@ const PASSWORD = "a-password-for-pairing";
 test("pairing a device with the keyring open hands over keys only the QR code can open", async ({ page }) => {
     await person(page);
 
-    await page.goto("/settings?section=app-passwords");
+    await page.goto("/settings/app-passwords");
     await page.getByRole("button", { name: "Pair a device" }).click();
 
     await expect(page.getByTestId("pairing-with-keys")).toBeVisible({ timeout: 15000 });
@@ -70,7 +70,7 @@ async function person(page: Page): Promise<string> {
     consoleCommand(`app:test:seed-mail --email=${email}`);
 
     await login(page, email, PASSWORD);
-    await page.goto("/settings?section=encryption");
+    await page.goto("/settings/encryption");
     await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });
 
     return email;

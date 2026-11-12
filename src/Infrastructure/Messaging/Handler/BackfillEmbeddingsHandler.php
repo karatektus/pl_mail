@@ -7,10 +7,11 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Domain\Enum\Ai\BackfillPauseReason;
 use App\Entity\Ai\AiFeature;
 use App\Infrastructure\Messaging\Message\BackfillEmbeddingsMessage;
-use App\Repository\Ai\AiBackfillStateRepository;
-use App\Repository\Ai\AiSettingsRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Ai\AiBackfillState\AiBackfillStateRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\BackfillPolicy;
@@ -74,6 +75,7 @@ final readonly class BackfillEmbeddingsHandler
     public function __construct(
         private UserRepository            $users,
         private MessageRepository         $messages,
+        private MessageBackfillRepository $messageBackfillRepository,
         private MessageEmbedder           $embedder,
         private EmbeddingStore            $store,
         private AiAssistant               $ai,
@@ -184,7 +186,7 @@ final readonly class BackfillEmbeddingsHandler
             return;
         }
 
-        $ids = $this->messages->idsForUserAfter($message->userId, $message->afterMessageId, $this->policy->batchSize);
+        $ids = $this->messageBackfillRepository->idsForUserAfter($message->userId, $message->afterMessageId, $this->policy->batchSize);
 
         if ([] === $ids) {
             $this->state->recordChunk($message->userId, $message->afterMessageId, true, 0, $now);

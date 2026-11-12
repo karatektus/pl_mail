@@ -9,7 +9,7 @@ use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -87,7 +87,7 @@ final class AliasSenderNameAndCatchAllTest extends WebTestCase
         $account = $this->account($user, 'me@joder.dev');
         $alias   = $this->alias($account, 'family@joder.dev', 'Mr and Mrs Smith');
 
-        $crawler = $client->request('GET', '/settings?section=aliases');
+        $crawler = $client->request('GET', '/settings/aliases');
         $field   = $crawler->filter(sprintf('form[action$="/alias/%d/name"] input[name="name"]', $alias->id));
 
         self::assertSame(1, $field->count());
@@ -176,7 +176,7 @@ final class AliasSenderNameAndCatchAllTest extends WebTestCase
         $account->catchAllDomains = ['shop.test', 'other.test'];
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=aliases');
+        $crawler = $client->request('GET', '/settings/aliases');
 
         self::assertStringContainsString('*@shop.test', $crawler->filter('[data-catch-all]')->text());
 
@@ -212,7 +212,7 @@ final class AliasSenderNameAndCatchAllTest extends WebTestCase
 
         self::assertTrue($gmail->isGmail(), 'the fixture is a Gmail account');
 
-        $crawler = $client->request('GET', '/settings?section=aliases');
+        $crawler = $client->request('GET', '/settings/aliases');
 
         self::assertSame(1, $crawler->filter(sprintf('[data-catch-all="%d"]', $plain->id))->count());
         self::assertSame(0, $crawler->filter(sprintf('[data-catch-all="%d"]', $gmail->id))->count());
@@ -226,7 +226,7 @@ final class AliasSenderNameAndCatchAllTest extends WebTestCase
 
     private function token(KernelBrowser $client, string $formAction): string
     {
-        $crawler = $client->request('GET', '/settings?section=aliases');
+        $crawler = $client->request('GET', '/settings/aliases');
 
         self::assertResponseIsSuccessful();
 
@@ -262,7 +262,7 @@ final class AliasSenderNameAndCatchAllTest extends WebTestCase
         $this->connection->beginTransaction();
 
         $this->em->createQuery(
-            'UPDATE ' . Account::class . ' a SET a.isActive = false WHERE a.usr = :usr',
+            'UPDATE ' . Account::class . ' a SET a.mailEnabled = false WHERE a.usr = :usr',
         )->setParameter('usr', $user)->execute();
 
         $this->em->clear();
@@ -279,7 +279,7 @@ final class AliasSenderNameAndCatchAllTest extends WebTestCase
         $account->username  = $email;
         $account->email     = $email;
         $account->authType  = 'password';
-        $account->isActive  = true;
+        $account->mailEnabled = true;
         $account->isPrimary = true;
         $account->sortOrder = 0;
         $account->imapHost  = 'imap.example.test';

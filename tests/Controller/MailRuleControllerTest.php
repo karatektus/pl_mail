@@ -11,7 +11,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
-use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -109,7 +109,7 @@ final class MailRuleControllerTest extends WebTestCase
         $client  = $this->signIn();
         $message = $this->seedMessage($this->user, 'Cyber Lettre', 'cyberveille@cyberveille.eu');
 
-        $crawler = $client->request('GET', '/settings?section=filters&from_message=' . $message->id);
+        $crawler = $client->request('GET', '/settings/filters?from_message=' . $message->id);
 
         self::assertResponseIsSuccessful();
         self::assertSame(
@@ -320,7 +320,7 @@ final class MailRuleControllerTest extends WebTestCase
     /** A row's own token, from the list where that row's button lives. */
     private function rowToken(KernelBrowser $client, int $ruleId, string $action): string
     {
-        $crawler = $client->request('GET', '/settings?section=filters');
+        $crawler = $client->request('GET', '/settings/filters');
 
         return (string) $crawler
             ->filter(sprintf('form[action="/settings/filters/%d/%s"] input[name="_token"]', $ruleId, $action))
@@ -384,7 +384,7 @@ final class MailRuleControllerTest extends WebTestCase
         $account->imapPort       = 993;
         $account->imapEncryption = 'ssl';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $thread                    = new MessageThread();

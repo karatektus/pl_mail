@@ -8,7 +8,7 @@ use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Helper\AppIconStorage;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Appearance\LogoIcons;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -298,7 +298,7 @@ final class AppIconsTest extends WebTestCase
 
         if (null === $token) {
             // The layout's `ajax` token, as the page sends it.
-            $token = (string) $this->client->request('GET', '/settings?section=appearance')
+            $token = (string) $this->client->request('GET', '/settings/appearance')
                 ->filter('meta[name="csrf-token"]')->attr('content');
         }
 

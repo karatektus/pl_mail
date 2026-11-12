@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Model;
 
 use App\Entity\User\User;
@@ -7,7 +9,7 @@ use LogicException;
 
 class UserEntityModel
 {
-    public const ROLES = [
+    public const array ROLES = [
         User::ROLE_ADMIN,
     ];
 
@@ -55,7 +57,7 @@ class UserEntityModel
     public function isDeleted(): ?bool
     {
         if (true === $this instanceof User) {
-            return $this->deletedAt !== null;
+            return null !== $this->deletedAt;
         }
 
         throw new LogicException('Not a User');

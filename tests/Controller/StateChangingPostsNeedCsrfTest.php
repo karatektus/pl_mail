@@ -8,8 +8,8 @@ use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
-use App\Repository\User\ApiTokenRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\User\ApiToken\ApiTokenRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -270,7 +270,7 @@ final class StateChangingPostsNeedCsrfTest extends WebTestCase
             $account->email    = 'csrf-fixture@joder.dev';
             $account->username = 'csrf-fixture@joder.dev';
             $account->authType = 'password';
-            $account->isActive = true;
+            $account->mailEnabled = true;
             $account->imapHost = 'imap.example.test';
             $em->persist($account);
 

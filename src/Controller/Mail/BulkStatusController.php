@@ -11,9 +11,9 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\InboxCategoryRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\AllMailView;
 use App\Service\Mail\InboxTabs;
@@ -124,11 +124,11 @@ final class BulkStatusController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        // Delete forever is the user's switch (Settings → Mail → Disposal),
+        // Delete forever is the user's switch (Settings → Inbox → Disposal),
         // enforced here and not only by the toolbar that draws the button: the
         // same rule ThreadStatusController::purge keeps for a single row.
         if ('purge' === $action && false === $user->deleteNowButtons) {
-            throw $this->createAccessDeniedException('Deleting for good is switched off in Settings → Mail → Disposal.');
+            throw $this->createAccessDeniedException('Deleting for good is switched off in Settings → Inbox → Disposal.');
         }
 
         $body = json_decode($request->getContent(), true);

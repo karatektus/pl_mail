@@ -33,7 +33,7 @@ test.describe("unlocking when needed", () => {
         await settled(page);
         await expect(unlockDialog(page)).toBeHidden();
 
-        await page.goto("/settings?section=encryption");
+        await page.goto("/settings/encryption");
         await expect(page.getByText("Not set up yet.", { exact: false })).toBeVisible({ timeout: 15000 });
         await expect(unlockDialog(page)).toBeHidden();
 
@@ -107,7 +107,7 @@ test.describe("unlocking when needed", () => {
         const subject = `Sealed after a while ${Date.now()}`;
 
         await login(page, email, PASSWORD);
-        await page.goto("/settings?section=encryption");
+        await page.goto("/settings/encryption");
         await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });
         deliver(email, subject, await encryptToOwnKey(page, "Opened with the password."));
 
@@ -142,7 +142,7 @@ test.describe("unlocking when needed", () => {
         const subject = `Not now ${Date.now()}`;
 
         await login(page, email, PASSWORD);
-        await page.goto("/settings?section=encryption");
+        await page.goto("/settings/encryption");
         await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });
         deliver(email, subject, await encryptToOwnKey(page, "Later, then."));
 

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Command\Maintenance;
 
-use App\Repository\Job\BackgroundJobRepository;
-use App\Repository\Monitoring\LogEntryRepository;
-use App\Repository\Push\PushDeliveryRepository;
-use App\Repository\User\TrustedDeviceRepository;
+use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
+use App\Repository\Monitoring\LogEntry\LogEntryRepository;
+use App\Repository\Push\PushDelivery\PushDeliveryRepository;
+use App\Repository\User\TrustedDevice\TrustedDeviceRepository;
 use App\Service\Monitoring\ProcessHeartbeatService;
 use DateTimeImmutable;
 use Symfony\Component\Console\Attribute\AsCommand;

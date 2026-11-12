@@ -6,7 +6,7 @@ namespace App\Service\Mail;
 
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Calendar\CalendarProvisioner;
 use App\Twig\SenderAvatarExtension;
 use DateTimeImmutable;
@@ -59,8 +59,7 @@ final readonly class AccountCreator
     public function create(Account $account, User $user): void
     {
         $account->authType = 'password';
-        $account->isActive = true;
-        $account->usr = $user;
+        $account->usr      = $user;
 
         // A JMAP server pushes over the connection the account already has,
         // with nothing to register first — so its push starts on, as a
@@ -158,12 +157,20 @@ final readonly class AccountCreator
      * Exactly one primary, no matter what just happened to the list.
      *
      * The invariant used to be free: position 0 always existed and was always
-     * one row. Now that the flag is chosen rather than derived, the two ways it
-     * can be lost have to be closed by hand — deleting the account that held it,
-     * and adding the very first account, which has nothing to inherit from. A
-     * list that has drifted (an import with two, a restore with none) is
-     * repaired the way the old derivation would have answered it: the
-     * lowest-ordered account wins, so nobody's From address moves.
+     * one row. Now that the flag is chosen rather than derived, the ways it can
+     * be lost have to be closed by hand — deleting the account that held it,
+     * adding the very first account, which has nothing to inherit from, and
+     * switching the primary's mail off. A list that has drifted (an import with
+     * two, a restore with none) is repaired the way the old derivation would
+     * have answered it: the lowest-ordered account wins, so nobody's From
+     * address moves.
+     *
+     * The primary is the account new mail is sent from, so it has to be one
+     * whose mail is switched on (#575) whenever there is such an account. A
+     * primary whose mail is off gives way to the first one that is on; a user
+     * whose mail is off everywhere keeps the one they had, since there is no
+     * better answer and an account with no primary at all is the state this
+     * exists to prevent.
      *
      * Caller is responsible for flushing.
      *
@@ -171,24 +178,29 @@ final readonly class AccountCreator
      */
     public function ensurePrimary(iterable $orderedAccounts): void
     {
-        $accounts = is_array($orderedAccounts) ? $orderedAccounts : iterator_to_array($orderedAccounts);
-        $primary  = null;
+        $accounts = array_values(is_array($orderedAccounts) ? $orderedAccounts : iterator_to_array($orderedAccounts));
 
-        foreach ($accounts as $account) {
-            if (true === $account->isPrimary && null === $primary) {
-                $primary = $account;
-
-                continue;
-            }
-
-            $account->isPrimary = false;
-        }
-
-        if (null !== $primary || [] === $accounts) {
+        if ([] === $accounts) {
             return;
         }
 
-        $accounts[array_key_first($accounts)]->isPrimary = true;
+        $sending = array_values(array_filter($accounts, static fn (Account $account): bool => true === $account->mailEnabled));
+        $pool    = [] === $sending ? $accounts : $sending;
+        $primary = null;
+
+        foreach ($pool as $account) {
+            if (true === $account->isPrimary) {
+                $primary = $account;
+
+                break;
+            }
+        }
+
+        $primary ??= $pool[0];
+
+        foreach ($accounts as $account) {
+            $account->isPrimary = $account === $primary;
+        }
     }
 
     /**

@@ -16,9 +16,9 @@ use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
-use App\Repository\AddressBook\AddressBookRepository;
-use App\Repository\Integration\IntegrationRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\AddressBook\AddressBook\AddressBookRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
+use App\Repository\User\User\UserRepository;
 use App\Infrastructure\Event\Listener\ContactSyncTracker;
 use App\Service\Contacts\VCardMapper;
 use Doctrine\DBAL\Connection;
@@ -102,7 +102,7 @@ final class ContactsFlowTest extends WebTestCase
 
     public function testTheSectionOffersToConnectAServer(): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=contacts');
+        $crawler = $this->client->request('GET', '/settings/contacts');
 
         self::assertResponseIsSuccessful();
         self::assertSame(
@@ -217,7 +217,7 @@ final class ContactsFlowTest extends WebTestCase
         $account->oauthGrantedScopes = 'https://mail.google.com/ https://www.googleapis.com/auth/calendar';
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=contacts');
+        $crawler = $this->client->request('GET', '/settings/contacts');
         $row     = $crawler->filter('[data-contact-account="' . $account->id . '"]');
 
         self::assertCount(1, $row);
@@ -238,7 +238,7 @@ final class ContactsFlowTest extends WebTestCase
         $google->oauthGrantedScopes    = 'https://mail.google.com/';
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=contacts');
+        $crawler = $this->client->request('GET', '/settings/contacts');
 
         self::assertCount(1, $crawler->filter('[data-contact-account="' . $microsoft->id . '"] [data-admin-consent-hint]'));
         self::assertCount(0, $crawler->filter('[data-contact-account="' . $google->id . '"] [data-admin-consent-hint]'));
@@ -252,7 +252,7 @@ final class ContactsFlowTest extends WebTestCase
         $this->em->persist($book);
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=contacts');
+        $crawler = $this->client->request('GET', '/settings/contacts');
         $row     = $crawler->filter('[data-contact-account="' . $account->id . '"]');
 
         self::assertCount(1, $row->filter('[data-address-book="' . $book->id . '"]'));
@@ -739,7 +739,7 @@ final class ContactsFlowTest extends WebTestCase
         $account->oauthProvider     = $provider->value;
         $account->oauthAccessToken  = 'access-token';
         $account->oauthRefreshToken = 'refresh-token';
-        $account->isActive          = true;
+        $account->mailEnabled       = true;
 
         $this->em->persist($account);
         $this->em->flush();

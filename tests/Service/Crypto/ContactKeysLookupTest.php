@@ -11,7 +11,7 @@ use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Entity\Crypto\ContactKey;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\VerifySignatureMessage;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 use App\Service\Crypto\ContactKeys;
 use App\Service\Crypto\KeyFetcher;
 use App\Service\Crypto\KeyServer\MailvelopeKeyServer;

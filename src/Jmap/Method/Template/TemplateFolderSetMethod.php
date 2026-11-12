@@ -9,7 +9,7 @@ use App\Jmap\Mapper\TemplateMapper;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
-use App\Repository\Template\TemplateFolderRepository;
+use App\Repository\Template\TemplateFolder\TemplateFolderRepository;
 use App\Service\Template\TemplateLibrary;
 use Doctrine\ORM\EntityManagerInterface;
 

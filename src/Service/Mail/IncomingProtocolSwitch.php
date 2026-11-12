@@ -6,10 +6,11 @@ namespace App\Service\Mail;
 
 use App\Domain\Enum\Account\IncomingProtocol;
 use App\Entity\Mail\Account;
-use App\Repository\Label\LabelBindingRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\Pop3UidlRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageJmapRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Repository\Mail\Pop3Uidl\Pop3UidlRepository;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -49,10 +50,11 @@ final readonly class IncomingProtocolSwitch
 {
     public function __construct(
         private MailboxRepository      $mailboxes,
-        private MessageRepository      $messages,
+        private MessageImapRepository $messageImapRepository,
+        private MessageJmapRepository $messageJmapRepository,
         private Pop3UidlRepository     $uidls,
         private LoggerInterface        $logger,
-        private LabelBindingRepository $bindings,
+        private LabelBindingRepository $bindings
     ) {
     }
 
@@ -73,7 +75,7 @@ final readonly class IncomingProtocolSwitch
         $unlocated = 0;
 
         foreach ($this->mailboxes->findBy(['account' => $account]) as $mailbox) {
-            $unlocated += $this->messages->unlocateAll($mailbox);
+            $unlocated += $this->messageImapRepository->unlocateAll($mailbox);
 
             $mailbox->uidValidity       = null;
             $mailbox->lastSeenUid       = 0;
@@ -141,7 +143,7 @@ final readonly class IncomingProtocolSwitch
             return;
         }
 
-        $this->messages->forgetJmapIds($account);
+        $this->messageJmapRepository->forgetJmapIds($account);
         $this->bindings->forgetJmapMailboxIds($account);
 
         $account->pushEnabled = false;

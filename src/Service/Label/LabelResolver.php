@@ -6,16 +6,16 @@ namespace App\Service\Label;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Helper\ImapUtf7Helper;
-use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
+use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
 use App\Jmap\State\JmapObjectType;
-use DateTimeImmutable;
 use App\Jmap\State\StateManager;
-use App\Repository\Label\LabelBindingRepository;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Label\Label\LabelRepository;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -106,7 +106,7 @@ final class LabelResolver
         $cachedId = $this->bindingIdCache[$cacheKey] ?? null;
 
         if (null !== $cachedId) {
-            $binding = $this->em->find(LabelBinding::class, $cachedId);
+            $binding = $this->bindingRepository->find($cachedId);
 
             if (null !== $binding) {
                 return $binding;
@@ -205,7 +205,7 @@ final class LabelResolver
         $label    = null;
 
         if (null !== $cachedId) {
-            $label = $this->em->find(Label::class, $cachedId);
+            $label = $this->labelRepository->find($cachedId);
         }
 
         if (null === $label) {
@@ -253,7 +253,7 @@ final class LabelResolver
         $cachedId = $this->pathIdCache[$userId][$fullName] ?? null;
 
         if (null !== $cachedId) {
-            $label = $this->em->find(Label::class, $cachedId);
+            $label = $this->labelRepository->find($cachedId);
 
             if (null !== $label) {
                 $this->binding($label, $account);

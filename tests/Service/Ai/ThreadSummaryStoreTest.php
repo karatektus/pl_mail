@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
+use App\Repository\Ai\ThreadSummary\ThreadSummaryRepository;
 use App\Service\Ai\ThreadSummaryStore;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -63,7 +64,7 @@ final class ThreadSummaryStoreTest extends KernelTestCase
         $container        = self::getContainer();
         $this->connection = $container->get(Connection::class);
         $this->em         = $container->get(EntityManagerInterface::class);
-        $this->store      = new ThreadSummaryStore($this->connection, new NullLogger());
+        $this->store      = new ThreadSummaryStore(new ThreadSummaryRepository($this->connection), new NullLogger());
 
         $this->connection->beginTransaction();
 
@@ -228,7 +229,7 @@ final class ThreadSummaryStoreTest extends KernelTestCase
      */
     public function testADatabaseThatWillNotAnswerReadsAsNoSummary(): void
     {
-        $broken = new ThreadSummaryStore($this->brokenConnection(), new NullLogger());
+        $broken = new ThreadSummaryStore(new ThreadSummaryRepository($this->brokenConnection()), new NullLogger());
 
         self::assertNull($broken->forThread($this->threadId, self::MODEL, self::PROMPT, 'hash-one'));
     }
@@ -242,7 +243,7 @@ final class ThreadSummaryStoreTest extends KernelTestCase
      */
     public function testAWriteThatFailsIsReportedRatherThanThrown(): void
     {
-        $broken = new ThreadSummaryStore($this->brokenConnection(), new NullLogger());
+        $broken = new ThreadSummaryStore(new ThreadSummaryRepository($this->brokenConnection()), new NullLogger());
 
         self::assertFalse($broken->save($this->threadId, 'text', 'hash', self::MODEL, self::PROMPT));
     }
@@ -289,7 +290,7 @@ final class ThreadSummaryStoreTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $thread                    = new MessageThread();

@@ -173,13 +173,13 @@ final class WhatsNewTest extends WebTestCase
         self::assertCount(0, $page->filter(self::DOT));
         self::assertCount(1, $page->filter(self::MENU_WHATS_NEW), 'What\'s new is still in the menu');
 
-        $settings = $this->client->request('GET', '/settings?section=general');
+        $settings = $this->client->request('GET', '/settings/whats-new');
 
         self::assertSame('0', $settings->filter('form[action="/settings/whats-new"] input[name="show"]:checked')->attr('value'));
 
         $this->client->submit($settings->filter('form[action="/settings/whats-new"]')->form(['show' => '1']));
 
-        self::assertResponseRedirects('/settings?section=general');
+        self::assertResponseRedirects('/settings/whats-new');
         self::assertFalse($this->reread($user)->whatsNewQuiet);
         self::assertCount(1, $this->page()->filter(self::DOT));
     }
@@ -312,7 +312,7 @@ final class WhatsNewTest extends WebTestCase
         $account->oauthProvider    = 'microsoft';
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new DateTimeImmutable('+1 day');
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
 
         $this->em->persist($account);
         $this->em->flush();
@@ -323,7 +323,7 @@ final class WhatsNewTest extends WebTestCase
     /** A page drawn in the app's layout, top bar and all. */
     private function page(): Crawler
     {
-        $page = $this->client->request('GET', '/settings?section=general');
+        $page = $this->client->request('GET', '/settings/whats-new');
 
         self::assertResponseIsSuccessful();
 

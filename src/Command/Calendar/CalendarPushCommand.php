@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Calendar;
 
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\Push\CalendarPushRegistry;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -118,6 +118,15 @@ final class CalendarPushCommand extends Command
             if (null === $manager) {
                 // CalDAV, and every local calendar. Neither has push, and
                 // neither is a problem.
+                $skipped++;
+                continue;
+            }
+
+            // Calendars switched off on their account (#575) are not renewed:
+            // a channel expires on its own within days, and nothing it would
+            // deliver is synced meanwhile. --stop still reaches them, so a
+            // channel can be handed back on purpose.
+            if (false === $stop && null !== $calendar->account && false === $calendar->account->calendarEnabled) {
                 $skipped++;
                 continue;
             }

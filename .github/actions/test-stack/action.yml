@@ -209,7 +209,13 @@ runs:
       if: inputs.playwright == 'true'
       id: playwright-version
       shell: bash
-      run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      # The runner image as well, for the system-packages cache below. Read in
+      # the shell because ImageOS and ImageVersion are the runner's own
+      # environment, which the `env` expression context does not see.
+      run: |
+        echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+        echo "image=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+        echo "os=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
 
     - name: Cache Playwright browsers
       if: inputs.playwright == 'true'
@@ -219,13 +225,89 @@ runs:
         path: ~/.cache/ms-playwright
         key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
 
+    # The browser only. Its system libraries and fonts are the next step's
+    # job, on a cache hit and a miss alike — this used to be `--with-deps`
+    # here and a bare `install-deps` below, two apt runs with nothing between
+    # them and the network.
     - name: Install Playwright browsers
       if: inputs.playwright == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
       shell: bash
-      run: npx playwright install --with-deps chromium
+      run: npx playwright install chromium
 
-    # Browsers came from cache; the apt libs they link against did not.
+    # THE BROWSER'S SYSTEM PACKAGES, KEPT FROM ONE RUN TO THE NEXT
+    # ─────────────────────────────────────────────────────────────
+    # `playwright install-deps` apt-installs what Chromium links against and the
+    # fonts it renders with, from Ubuntu's mirrors, on every job. On 2026-11-11
+    # the hosted runners could not resolve archive, security or
+    # azure.archive.ubuntu.com for the better part of an hour, every shard of
+    # #570 failed in this step twice, and not one spec ran — on a day GitHub's
+    # status page reported Actions as healthy. The libraries were already on the
+    # runner image; it was ten font packages that could not be fetched.
+    #
+    # So the .deb files apt downloaded are kept in the Actions cache and put
+    # back into apt's own archive directory before it runs. apt-get uses a .deb
+    # it finds there instead of fetching it, and its `update` only warns when
+    # the mirrors are unreachable, so with the cache present this step no
+    # longer needs the network at all.
+    #
+    # Through a directory the runner owns rather than caching
+    # /var/cache/apt/archives directly: that one is root's, and actions/cache
+    # restores as the runner user.
+    #
+    # Keyed on the runner image as well as the Playwright version. A new image
+    # can carry newer package versions, and a .deb for a version apt no longer
+    # wants is skipped rather than used; the restore key still brings back the
+    # last set, so a new image costs at most the packages that actually changed.
+    #
+    # Not the alternative of running the specs inside Microsoft's Playwright
+    # container, which has all of this baked in: the specs reach into the
+    # compose stack with `docker exec` and `docker compose` (E2E_CONSOLE,
+    # new-mail-marker.spec.ts), and from inside a container that means
+    # mounting the Docker socket and installing a CLI — more moving parts than
+    # the problem it solves.
+    - name: Restore Playwright's system packages
+      if: inputs.playwright == 'true'
+      id: playwright-apt
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.cache/playwright-apt
+        key: playwright-apt-${{ steps.playwright-version.outputs.image }}-${{ steps.playwright-version.outputs.version }}
+        restore-keys: |
+          playwright-apt-${{ steps.playwright-version.outputs.os }}-
+
+    # Three attempts, a minute apart at most. A mirror that answers again within
+    # a couple of minutes — most of what goes wrong with them — then costs a
+    # slower job instead of a red one. A longer outage still fails here, after
+    # about three minutes, rather than being waited out for the whole job.
     - name: Install Playwright system dependencies
-      if: inputs.playwright == 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
+      if: inputs.playwright == 'true'
       shell: bash
-      run: npx playwright install-deps chromium
+      run: |
+        mkdir -p ~/.cache/playwright-apt
+        if compgen -G ~/.cache/playwright-apt/'*.deb' > /dev/null; then
+            sudo cp ~/.cache/playwright-apt/*.deb /var/cache/apt/archives/
+        fi
+
+        for attempt in 1 2 3; do
+            if npx playwright install-deps chromium; then
+                break
+            fi
+
+            if [ "$attempt" = 3 ]; then
+                exit 1
+            fi
+
+            echo "::warning::playwright install-deps failed (attempt $attempt of 3), usually an Ubuntu mirror that cannot be reached; retrying in $((attempt * 30)) s"
+            sleep $((attempt * 30))
+        done
+
+        cp /var/cache/apt/archives/*.deb ~/.cache/playwright-apt/ 2>/dev/null || true
+
+    # Saved only when the exact key missed, so an unchanged set is not
+    # uploaded again by every shard of every run.
+    - name: Keep Playwright's system packages
+      if: inputs.playwright == 'true' && steps.playwright-apt.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.cache/playwright-apt
+        key: ${{ steps.playwright-apt.outputs.cache-primary-key }}

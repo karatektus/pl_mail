@@ -8,7 +8,8 @@ use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageJmapRepository;
 use App\Service\Search\SearchHighlighter;
 
 /**
@@ -90,8 +91,8 @@ final class SearchSnippetGetMethod implements JmapMethod
 
     public function __construct(
         private readonly AccountResolver $accountResolver,
-        private readonly MessageRepository $messages,
-        private readonly SearchHighlighter $highlighter,
+        private readonly MessageJmapRepository $messageJmapRepository,
+        private readonly SearchHighlighter $highlighter
     ) {
     }
 
@@ -157,7 +158,7 @@ final class SearchSnippetGetMethod implements JmapMethod
         // delimiters it converts, and the web search page asks for the same
         // ones. Two callers spelling them out separately is how one of them
         // ends up highlighting nothing.
-        $rows = $this->messages->findSearchHeadlines(
+        $rows = $this->messageJmapRepository->findSearchHeadlines(
             $accountId,
             array_map('intval', $requested),
             $text,
@@ -210,7 +211,7 @@ final class SearchSnippetGetMethod implements JmapMethod
      *
      * Only the fields `ts_headline` left unmarked are worth fetching, and the
      * two are counted separately because they cost different amounts — see the
-     * class docblock for the numbers and MessageRepository::findSearchTexts()
+     * class docblock for the numbers and MessageJmapRepository::findSearchTexts()
      * for how the body column is gated. A request whose every field came back
      * marked issues no second statement at all: `$wanted` is empty, and the
      * repository answers without touching the database.
@@ -244,7 +245,7 @@ final class SearchSnippetGetMethod implements JmapMethod
             }
         }
 
-        return $this->messages->findSearchTexts($accountId, $wanted, $withBody);
+        return $this->messageJmapRepository->findSearchTexts($accountId, $wanted, $withBody);
     }
 
     /**

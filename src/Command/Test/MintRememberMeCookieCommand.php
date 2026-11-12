@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -90,7 +90,7 @@ final class MintRememberMeCookieCommand extends Command
 
         $cookie = $request->attributes->get(ResponseListener::COOKIE_ATTR_NAME);
 
-        if (!$cookie instanceof Cookie) {
+        if (false === $cookie instanceof Cookie) {
             $io->error('The firewall made no remember-me cookie.');
 
             return Command::FAILURE;

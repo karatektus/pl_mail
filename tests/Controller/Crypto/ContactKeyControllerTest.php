@@ -11,7 +11,7 @@ use App\Domain\Enum\Crypto\SignatureState;
 use App\Entity\Crypto\ContactKey;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 use App\Service\Mail\RawMessageResolver;
 use App\Tests\Command\MailFixtures;
 use App\Tests\Support\Crypto\Gpg;

@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:c3dae4655eb02b9e560eb412c9f40ff795c8effc -->
+<!-- translated-from: features/appearance.md sha1:c076066d382f84ff4e2a1ff2ad7fe210fdff36b3 -->
 
 # Darstellung
 
@@ -92,28 +92,12 @@ oder keine Größe hat (keine `viewBox` und weder Breite noch Höhe, aus denen s
 wird mit einer Meldung abgelehnt, die sagt, woran es liegt. Die Handy-Apps zeigen weiter das Motiv,
 das du vorher hattest; nur die Web-App und was sie installiert tragen das hochgeladene Logo.
 
-## Die Live-Vorschau
+## Eine Änderung sehen
 
-Neben den Bedienelementen steht eine zweite Karte, die eine Beispiel-Seitenleiste, eine
-Nachrichtenliste und einen Lesebereich in genau dem zeigt, was du gerade gewählt hast. Jede
-Änderung landet dort, während du sie machst. Nichts davon ist deine Post — die Zeilen sind
-erfunden, und die Vorschau lädt nie eine Nachricht.
-
-Die Grenze zwischen den beiden Karten lässt sich ziehen, von **240** bis **900** Pixeln, und wo du
-sie stehen lässt, wird an deinem Konto gemerkt und nicht am Browser. Die Seite öffnet sich beim
-nächsten Besuch und am nächsten Rechner also in deiner Breite. Auch die Pfeiltasten bewegen sie, und
-ein Doppelklick stellt sie auf ihren Standard von 304 zurück.
-
-Das Maximum ist eine Obergrenze und kein Versprechen. Die Karte mit den Bedienelementen wird nicht
-unter ihre eigene Untergrenze gedrückt, die Vorschau wächst also in das hinein, was das Fenster
-übrig hat, und hört auf einem schmalen früher auf — bei 1280 Pixeln erreicht sie etwa 374, wie weit
-du auch ziehst.
-
-Auf einem schmalen Bildschirm steht die Vorschau gar nicht erst daneben. **Vorschau anzeigen** im
-Kopf der Einstellungskarte blendet sie stattdessen darüber ein und lässt jedes Bedienelement dort,
-wo es war; **Vorschau ausblenden** räumt sie wieder weg. Dieser Zustand wird bewusst *nicht*
-gemerkt: Er startet bei jedem Laden geschlossen, denn er ist ein Blick und keine Entscheidung
-darüber, wie die Seite geformt sein soll.
+Jedes Bedienelement wirkt auf die ganze App, sobald du es änderst — die Seitenleiste, die obere
+Leiste und die Einstellungsseite um dich herum ändern sich mit — und wird einen Moment später
+gespeichert. Was es mit der Nachrichtenliste oder einer Nachricht macht, siehst du, wenn du den
+Posteingang in einem zweiten Tab öffnest; er übernimmt die Änderung beim nächsten Laden.
 
 ## Was eine Listenzeile zeigt
 
@@ -294,18 +278,39 @@ bewusst **nicht** dein hochgeladenes Hintergrundbild: Ein Dateiname bedeutet auf
 Installation von jemand anderem nichts, ein eigener Hintergrund wird also als **Theme-Standard**
 exportiert. Dasselbe gilt für ein eigenes Logo: Der Export nennt das Motiv, das darunter liegt.
 
-Die Breite der Vorschau trägt er ebenfalls nicht. Sie ist eine Vorliebe dazu, wie diese
-Einstellungsseite geformt ist, und kein Teil davon, wie die App aussieht — das Theme von jemand
-anderem zu importieren lässt deine Vorschau also genau dort, wo du sie gelassen hast.
-
 Der Import prüft die Version und lehnt eine Datei ab, die nicht Version 1 ist. Alles in den
 Daten, was plMail nicht als gültigen Wert kennt, wird ignoriert statt gespeichert, und ein
 Layout in der Datei wird vor den einzelnen Zahlen angewendet, damit ein Export, der geschrieben
 wurde, bevor es ein bestimmtes Bedienelement gab, trotzdem irgendwo Sinnvollem landet.
 
+## Eine Einstellung finden
+
+Die Einstellungen sind ein Baum aus acht Bereichen — Konto, Allgemein, E-Mail-Konten,
+Posteingang, Lesen & Schreiben, Kalender & Kontakte, Assistent & Automatik und Integrationen —
+mit jeweils ein paar Seiten. Der Bereich der Seite, auf der du bist, ist aufgeklappt; die anderen
+klappen zu, bis du sie öffnest.
+
+Das Feld über dem Baum durchsucht jede Seite und jede Karte darauf. Es findet Überschriften und
+auch die Wörter, mit denen man etwas sucht, ohne seinen Namen zu kennen: **dunkel** findet
+**Theme**, **2fa** findet die Zwei-Faktor-Authentifizierung, **imap** findet App-Passwörter und Konten.
+Groß- und Kleinschreibung und Akzente spielen keine Rolle. Eine Karte, die über so ein Wort
+gefunden wurde, nennt das Wort.
+
+**⌘K** auf dem Mac, sonst **Strg+K**, öffnet dieselbe Suche von überall in plMail. **↑** und
+**↓** wechseln zwischen den Treffern, **Enter** öffnet einen: Die Seite lädt, und die Karte wird
+kurz umrandet, damit du siehst, wo sie ist. Während du in einer Mail oder einem Textfeld
+schreibst, bleibt das Kürzel dem Editor und dem Browser — drück es also von anderswo.
+
+Auf dem Handy liegt der Baum hinter einem Knopf oben in den Einstellungen, der die aktuelle Seite
+nennt; tipp darauf, um Baum und Suche zu öffnen.
+
+Jede Seite hat ihre eigene Adresse, `/settings/<seite>`, sodass du sie als Lesezeichen speichern
+oder weitergeben kannst. Links auf die älteren Adressen `/settings?section=…` öffnen die erste
+Seite der Einstellungen.
+
 ## Sprache
 
-**Einstellungen → Allgemein → Sprache** legt fest, in welcher Sprache die Oberfläche angezeigt
+**Einstellungen → Allgemein → Sprache & Region** legt fest, in welcher Sprache die Oberfläche angezeigt
 wird. Deine Mail bleibt genau so, wie sie geschrieben wurde — es wird nichts übersetzt und
 nichts umgeschrieben.
 
@@ -340,6 +345,19 @@ Darunter legt **Uhrzeit anzeigen** fest, wo du die aktuelle Uhrzeit beim Mail-Le
 - **Nirgends** — die obere Leiste wie bisher: der Demnächst-Knopf nur, wenn etwas ansteht.
 
 Die Uhrzeit läuft jede Minute von selbst weiter und folgt Zeitzone und Uhrzeitformat von oben.
+
+## Das Fenster der installierten App
+
+plMail, in Chrome oder Edge als App installiert, kommt ohne die Titelleiste des Browsers aus. Chrome
+zeigt in der Titelleiste der App einen kleinen Pfeil-Knopf (**Titelleiste ausblenden**); ein Druck
+genügt, und die Wahl bleibt. Die obere Leiste von plMail nimmt dann den Platz der Titelleiste ein:
+Sie liegt am oberen Rand des Fensters, die Fensterknöpfe sitzen darin (auf dem Mac links, unter
+Windows und Linux rechts), und an ihren leeren Stellen verschiebst du das Fenster wie an der
+Titelleiste. Der Rand um die Flächen fällt weg, sodass obere Leiste, Seitenleiste und Inhalt bis an
+die Fensterränder reichen; jede behält ihre Größe, die Abstände zwischen ihnen bleiben, und eine
+Ecke, die mitten an einem Fensterrand säße, ist eckig. Die
+Streifen hinter den Fensterknöpfen bekommen die Farbe der oberen Leiste. Derselbe Pfeil holt die
+Titelleiste zurück.
 
 ## Wo du weiterliest
 
@@ -385,15 +403,6 @@ sie sich unterscheiden könnten.
 **Kompakt verkleinert die Zeilen auf dem Telefon nicht.** Auf einem Berührungsgerät hält jeder
 Bereich seine komfortable Höhe, die Einstellung sieht dort also aus, als hätte sie nichts getan. Hat
 sie — auf jedem Zeigegerät, von dem aus du dasselbe Konto benutzt.
-
-**Die Vorschau erreicht nicht immer 900.** Sie wächst in das hinein, was das Fenster übrig hat, und
-die Bedienelemente daneben haben eine Untergrenze, die sie nicht unterschreiten. In einem 1280 Pixel
-breiten Fenster hört die Grenze bei etwa 374 auf. Dass sie nicht weiter geht, ist die Kappung bei der
-Arbeit und kein klemmender Griff.
-
-**Die Breite der Vorschau wird gemerkt, ob sie auf dem Telefon offen ist, nicht.** Die Breite folgt
-deinem Konto auf jedes Gerät. **Vorschau anzeigen** auf einem schmalen Bildschirm startet jedes Mal
-geschlossen, wenn du die Seite öffnest.
 
 **Dem Theme folgen behandelt die Logo-Themes und die klassischen Themes verschieden.** Auf einem der
 zweiunddreißig Logo-Themes trägt das Symbol die gleichnamige Farbstimmung. Die sieben klassischen

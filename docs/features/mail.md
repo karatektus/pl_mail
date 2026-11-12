@@ -28,7 +28,7 @@ Labels**: switch one off and its row leaves the sidebar, switch it back on and i
 straight away. **Unread** and **All Mail** are the ones that start off.
 
 **Snoozed**, **Archive**, **Spam** and **Trash** wait behind a **More** row, and **Settings → General →
-Sidebar** chooses which rows those are: tick a folder there and it moves behind More, clear it and it
+Layout & controls** chooses which rows those are: tick a folder there and it moves behind More, clear it and it
 comes back to the sidebar proper. The **Inbox** always stays on top, and so does **All Mail**, which
 is not offered. The other rows keep the sidebar's own order whichever side of More they are on, and
 with nothing ticked there is no More at all. This decides where a row sits, never whether it exists —
@@ -124,7 +124,7 @@ For everything else it works the category out from headers that were already sto
 re-categorisation never needs a resync.
 
 The tabs are on the top-level Inbox, and you can have them on **an account's own inbox** too (click
-the account in the sidebar): **Settings → Mail → Categories**, **Tabs on each account**. It is off
+the account in the sidebar): **Settings → Inbox → Categories & sorting**, **Tabs on each account**. It is off
 until you turn it on, and then an Outlook or any other account has them, [tabs of your
 own](#tabs-of-your-own) included; off, an account's page is its whole inbox in one list. The switch
 is there only while **Inbox tabs** is on, and a config backup carries it. A tab is there while it holds mail, and on an account's page it counts only that
@@ -344,7 +344,7 @@ into its own tracker and no tracking number anywhere, so that is what the card c
 delivery day promised in words rather than digits ("arriving today", "Arriving Monday") is resolved
 against the mail's own arrival, never against the clock, so re-reading an old mail lands on the day
 it always did. "Today" is the day it was on your calendar when the mail came in, in the timezone
-from **Settings → General** (or the install's default if you never picked one), so a mail that arrives
+from **Settings → General → Language & region** (or the install's default if you never picked one), so a mail that arrives
 early in the morning in Sydney or in the evening in Los Angeles is not put a day off. The Amazon
 shops read are amazon.de, amazon.com, amazon.fr, amazon.co.uk, amazon.ca, amazon.com.au, amazon.in
 and amazon.sg, and a card's button opens the shop that sent the mail. A date written with slashes,
@@ -751,7 +751,7 @@ for a keyboard or a screen reader, and the sync toast says when the run starts a
 
 On a phone a row swipes too. Drag it to the right and it does what the right direction is set to; by
 default that marks it read, or unread if it already is. Drag it to the left and, by default, it is
-archived. What each direction does is set under **Settings → Mail → Swipe actions**, below. Past a third of
+archived. What each direction does is set under **Settings → General → Layout & controls**, below. Past a third of
 the row's width the action waits behind the row, and pressing it does the thing. Past two thirds, or a
 quick flick past the first third, it happens as you let go. Touching anything else closes an open row,
 and that touch does nothing more. Read / unread and archive are offered only on ordinary mail: never on
@@ -759,7 +759,7 @@ a draft, and never in the archive, the bin or spam. Delete is offered where the 
 is: never in the archive, the bin or spam, but on a draft too. Star is offered on every row, drafts included. Without touch, the row's checkbox (its avatar) and
 the toolbar do the same work, **Archive** and **More** on a selection included.
 
-Each direction has its own setting under **Settings → Mail → Swipe actions**, a select for right and one
+Each direction has its own setting under **Settings → General → Layout & controls**, a select for right and one
 for left. The choices are read / unread, archive, star, delete, and nothing. Both directions may be set
 to the same choice. Delete moves the conversation to the bin, never deletes it for good, and its
 panel is red whichever side it is on. A star is a toggle on the row, so a second swipe takes it off
@@ -807,7 +807,7 @@ nothing where that button is not offered — there is no Archive in the bin, so 
 Keys are left alone while you are typing into anything, while a dialog or a menu is open, and
 whenever Ctrl, Alt or ⌘ is held.
 
-They are on for everyone. **Settings → Keyboard shortcuts** switches them off for you.
+They are on for everyone. **Settings → General → Layout & controls** switches them off for you.
 
 ### Mark as spam
 
@@ -884,7 +884,7 @@ which has no **Delete**.
 
 ## The reading pane
 
-**Settings → Reading pane** decides where the message you open goes: **Off** or **Right**. Off is how plMail
+**Settings → Reading & writing → Reading** decides where the message you open goes: **Off** or **Right**. Off is how plMail
 has always worked — the list and the open message take turns on the same space, and the back arrow
 returns you to the list. Right puts the message beside the list, so you can read one conversation
 and see the rest of the mailbox at the same time. Off is the default, and nothing about your
@@ -955,7 +955,7 @@ Shown pictures always come through plMail, and only over an encrypted connection
 mail links as `http://` is fetched as `https://`. The rare host that cannot answer that way leaves
 an empty box.
 
-**Settings → Mail → Images**, **Always show remote images**, turns the question off for every
+**Settings → Reading & writing → Reading**, **Always show remote images**, turns the question off for every
 sender. It is off until you turn it on. Senders can then tell that you opened their mail, but not
 your address: the pictures are fetched by plMail and passed on to you, never by your browser. The
 senders you trusted one by one are kept either way, so switching it off again brings back exactly
@@ -1172,6 +1172,35 @@ Clicking a link already in the editor shows the panel's other face: the address,
 **Change** and **Remove**. It dismisses on Escape, on a click outside, and as soon as the caret
 moves off the link.
 
+### Email links
+
+A `mailto:` link opens plMail's own compose window, with whatever the link carries: the recipients
+in **To**, **Cc** and **Bcc**, the **subject**, and the **body** above your signature. Nothing is
+saved until you type, as with any new message, so a link opened by mistake leaves no draft behind.
+A link that tries to set anything else, such as the sender or the conversation it answers, is
+opened without it.
+
+- **In a mail you are reading**, clicking a `mailto:` link opens the window in the dock instead of
+  your computer's mail program. Ctrl- or ⌘-click, or the link's own menu, still does what the
+  browser does.
+- **On other websites**, links go to plMail once this browser is told to send them there:
+  **Settings → Reading & writing → Compose → Email links → Use plMail**. The browser asks you to confirm,
+  by the address bar; **Allow** there also makes plMail the default, and plMail is not told whether
+  you said yes. Each browser and each device is set on its own, and the browser's own settings are
+  where it is changed or undone (in Chrome, `chrome://settings/handlers`; in Firefox,
+  **Settings → Applications → mailto**). Each link opens plMail in a new tab: a website cannot bring
+  a tab that is already open, a pinned one included, to the front.
+- **plMail installed as an app** in Chrome or Edge offers itself for email links without that
+  button. A link opens in the plMail window that is already open, in its dock, instead of in a new
+  window. Links from other programs reach the app only once it is the system's default mail
+  program, and a web app cannot ask the system for that; inside the app, **Email links** shows the
+  steps for your system in place of the button (on a Mac: Mail → **Settings → General → Default
+  email reader** → plMail; on Windows: **Settings → Apps → Default apps** → MAILTO → plMail).
+- **The Android and iOS apps** take email links as any mail app does; see
+  [Clients](clients.md).
+
+If you are signed out, the link goes through the sign-in and the window opens afterwards.
+
 ### Signature
 
 Signatures live in **Settings → Signatures**. Each account has one, and any of its sending addresses
@@ -1222,7 +1251,7 @@ A forward carries the original's attachments with it, already attached and remov
 other; pictures that are part of the body stay in the quote. A reply does not carry them.
 
 A forward opens with the original folded behind the **show quoted text** pill. If you would rather
-see it spread out from the start, **Settings → General → Composing** has the switch — folded stays
+see it spread out from the start, **Settings → Reading & writing → Compose** has the switch — folded stays
 the default, and either way the quote counts as the message's content: sending a forward without a
 word of your own above it is not questioned as an empty mail.
 
@@ -1233,7 +1262,7 @@ The chevron beside **Send** opens **Send later**: *Tomorrow morning* (08:00), *T
 third, because a menu offering one instant under two names is a menu you have to check.
 
 Every time is read on **your** clock — the timezone and the 12-or-24-hour format from
-**Settings → General**, not the browser's — and the menu says which zone it means. A laptop still on
+**Settings → General → Language & region**, not the browser's — and the menu says which zone it means. A laptop still on
 another continent's time does not move your morning.
 
 The floor is **one minute**: below that, "schedule" is "send" with a worse undo, and the picker
@@ -1345,7 +1374,7 @@ sent before anything is attached to anything.
 ## Undo send
 
 Pressing send queues the message with a **ten-second** delay. What the composer does meanwhile is
-yours to choose, under **Settings → General → Composing → When you press Send**:
+yours to choose, under **Settings → Reading & writing → Compose → When you press Send**:
 
 - **Close it**, the default. The composer closes as soon as the server has the message, and a
   **Sending…** toast with an **Undo** button counts the cancel down. While the server is still
@@ -1409,6 +1438,18 @@ or deleted. Editing it does not lift the mark, because the mail has still not go
 
 ## Things that bite
 
+**"Use plMail" for email links needs HTTPS and a browser that allows it.** Browsers only let a web
+app take `mailto:` links over HTTPS (or on `localhost`), so an install reached over plain HTTP shows
+the button switched off and says why. Safari, and every browser on iOS, cannot hand email links to a
+web app at all; the plMail app for iOS can. A browser asked and answered "no" is not something
+plMail can see.
+
+**Links still go nowhere after "Use plMail".** Chrome asks only once. If plMail is already on its
+list but not the default, pressing the button again shows no prompt, and a link from another program
+brings Chrome to the front and stops there. Open `chrome://settings/handlers` and choose
+**Set as default** in plMail's ⋮ menu. A link from another program also goes to the Chrome profile
+used last, which has to be the one plMail is set up in.
+
 **The cancel disappears two seconds before the message does.** The send job is held for ten seconds,
 but the composer stops offering *click to cancel* after eight and closes itself. Nothing is wrong
 when a message goes out after the window has gone — the offer really did expire.
@@ -1449,7 +1490,7 @@ that removes the row takes it off the list, and closes the sheet with it.
 it, so a swipe set to delete goes only as far as the bin, and the toast after it offers **Undo**, as
 the row's own delete button and the action sheet's do. Deleting for good stays with the bin's own
 buttons, where a tap comes first. Delete is never a direction's default: it is a choice under
-**Settings → Mail → Swipe actions**, and nobody gets it without picking it.
+**Settings → General → Layout & controls**, and nobody gets it without picking it.
 
 **A long press opens the sheet, and a phone's rows are not dragged.** Below the tablet breakpoint a
 thread row is not a native drag: HTML5 drag never worked from a finger, and turning it off keeps iOS

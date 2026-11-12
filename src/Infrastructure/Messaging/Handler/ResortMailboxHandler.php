@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Infrastructure\Messaging\Message\ResortMailboxMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\ContactRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Contact\ContactRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
+use App\Repository\User\User\UserRepository;
 use App\Jmap\State\StateManager;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Monitoring\ProcessHeartbeatService;
@@ -45,14 +45,14 @@ final readonly class ResortMailboxHandler
     public function __construct(
         private UserRepository          $users,
         private AccountRepository       $accounts,
-        private MessageRepository       $messages,
-        private MessageThreadRepository $threads,
+        private MessageAiRepository $messageAiRepository,
+        private MessageThreadCategoryRepository $messageThreadCategoryRepository,
         private ContactRepository       $contacts,
         private MessageCategorizer      $categorizer,
         private EntityManagerInterface  $em,
         private ProcessHeartbeatService $heartbeats,
         private LoggerInterface         $logger,
-        private StateManager            $stateManager,
+        private StateManager            $stateManager
     ) {
     }
 
@@ -68,7 +68,7 @@ final readonly class ResortMailboxHandler
         $correspondents = $this->contacts->findCorrespondentEmails($user);
         $filed          = 0;
 
-        foreach ($this->accounts->findBy(['usr' => $user, 'isActive' => true]) as $account) {
+        foreach ($this->accounts->findBy(['usr' => $user, 'mailEnabled' => true]) as $account) {
             $accountId = (int) $account->id;
             $lastId    = 0;
 
@@ -76,7 +76,7 @@ final readonly class ResortMailboxHandler
                 // `true` for includeCategorized: every message, not only the
                 // ones without a category. A re-sort that skipped the mail that
                 // already has one would re-sort nothing at all.
-                $batch = $this->messages->findPendingCategorization($accountId, true, $lastId, self::BATCH_SIZE);
+                $batch = $this->messageAiRepository->findPendingCategorization($accountId, true, $lastId, self::BATCH_SIZE);
 
                 if ([] === $batch) {
                     break;
@@ -108,7 +108,7 @@ final readonly class ResortMailboxHandler
                 // moved them silently left it drawing the old ones.
                 $this->stateManager->recordThreadsTouched(
                     $accountId,
-                    $this->threads->recomputeCategoriesForAccount($fresh),
+                    $this->messageThreadCategoryRepository->recomputeCategoriesForAccount($fresh),
                 );
                 $this->em->flush();
             }

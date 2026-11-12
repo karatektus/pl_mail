@@ -8,7 +8,7 @@ use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Trait\TimestampableTrait;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

@@ -213,7 +213,7 @@ test.describe("README screenshots", () => {
             const horn = await ajaxPost(page, "/settings/appearance", { logoMotif: "blue-horn", logoOriginal: "1" });
             expect(horn.ok()).toBe(true);
 
-            await page.goto("/settings?section=appearance");
+            await page.goto("/settings/appearance");
             await expect(page.locator('[data-logo-motif="blue-horn"]')).toHaveAttribute("aria-pressed", "true");
             await logo.scrollIntoViewIfNeeded();
             await page.waitForTimeout(600);
@@ -229,7 +229,7 @@ test.describe("README screenshots", () => {
             });
             expect(copper.ok()).toBe(true);
 
-            await page.goto("/settings?section=appearance");
+            await page.goto("/settings/appearance");
             await expect(page.locator('[data-logo-name="petrol-copper"]')).toHaveAttribute("aria-pressed", "true");
             await page.locator('[data-logo-name="petrol-copper"]').scrollIntoViewIfNeeded();
             await page.waitForTimeout(600);
@@ -247,7 +247,7 @@ test.describe("README screenshots", () => {
     test("filters", async ({ page }) => {
         // Reached through the list, not by URL: the editor renders into a
         // turbo-frame on the settings page and is a fragment on its own.
-        await page.goto("/settings?section=filters");
+        await page.goto("/settings/filters");
         await page.locator("#settings-filter-list")
             .getByRole("link", { name: "New filter" })
             .click();

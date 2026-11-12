@@ -49,7 +49,7 @@ final readonly class MercureCookieSubscriber implements EventSubscriberInterface
 
     public function onKernelResponse(ResponseEvent $event): void
     {
-        if (!$event->isMainRequest()) {
+        if (false === $event->isMainRequest()) {
             return;
         }
 
@@ -64,7 +64,7 @@ final readonly class MercureCookieSubscriber implements EventSubscriberInterface
 
         $user = $this->tokenStorage->getToken()?->getUser();
 
-        if (!$user instanceof User) {
+        if (false === $user instanceof User) {
             return;
         }
 

@@ -8,7 +8,7 @@ use App\Domain\DTO\Calendar\CalendarDelta;
 use App\Domain\Enum\Calendar\CalendarChangeKind;
 use App\Domain\Exception\CalendarStateTokenException;
 use App\Entity\Calendar\CalendarChangeLog;
-use App\Repository\Calendar\CalendarChangeLogRepository;
+use App\Repository\Calendar\CalendarChangeLog\CalendarChangeLogRepository;
 
 /**
  * Reading calendar_change_log as a state token and a delta, for both protocols.

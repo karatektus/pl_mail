@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Entity\Calendar;
 
 use App\Entity\User\User;
-use App\Repository\Calendar\EventSuppressionRepository;
+use App\Repository\Calendar\EventSuppression\EventSuppressionRepository;
 use DateTimeImmutable;
 use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;

@@ -9,7 +9,7 @@ use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Exception\GraphThrottledException;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Label\LabelBindingRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Service\Graph\GraphCategoryColorMapper;
 use App\Service\Graph\GraphCategorySyncer;
 use App\Service\Graph\GraphFolderSyncer;
@@ -313,7 +313,7 @@ final class GraphThrottleAndFolderLookupTest extends KernelTestCase
         $this->account->password       = 'x';
         $this->account->authType       = AuthType::OAuth2->value;
         $this->account->oauthProvider  = MailProvider::Microsoft->value;
-        $this->account->isActive       = true;
+        $this->account->mailEnabled    = true;
         // A token that is good for a while, or the client goes off to refresh
         // one before the first request and every assertion sees nothing.
         $this->account->oauthAccessToken = 'test-access-token';

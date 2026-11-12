@@ -11,7 +11,7 @@ use App\Infrastructure\ImapClient\ImapSession;
 use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\PurgedCopies;
 use App\Service\JmapClient\JmapMailboxSyncer;
@@ -78,6 +78,14 @@ final readonly class PurgeRemoteMessagesHandler
                 'accountId' => $message->accountId,
             ]);
 
+            return;
+        }
+
+        // Mail switched off (#575). Purging is the one write here that cannot
+        // be read back over afterwards — it deletes for good — so it is the
+        // one that matters most to hold: the messages stay on the server, and
+        // emptying the bin again once mail is on removes them there too.
+        if (false === $account->mailEnabled) {
             return;
         }
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Oidc;
 
 use App\Entity\Oidc\OidcConfig;
-use App\Repository\Oidc\OidcConfigRepository;
+use App\Repository\Oidc\OidcConfig\OidcConfigRepository;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**

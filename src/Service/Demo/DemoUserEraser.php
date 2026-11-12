@@ -8,6 +8,7 @@ use App\Domain\Helper\AppIconStorage;
 use App\Domain\Helper\AvatarStorage;
 use App\Domain\Helper\SignatureStorage;
 use App\Entity\User\User;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 
@@ -45,6 +46,7 @@ final readonly class DemoUserEraser
         private AvatarStorage          $avatars,
         private SignatureStorage       $signatures,
         private AppIconStorage         $appIcons,
+        private UserRepository $userRepository,
     ) {
     }
 
@@ -67,7 +69,7 @@ final readonly class DemoUserEraser
         }
 
         foreach ($this->ownedClasses() as $class => $field) {
-            $rows = $this->entityManager->getRepository($class)->findBy([$field => $user]);
+            $rows = $this->userRepository->findOwnedRows($class, $field, $user);
 
             foreach ($rows as $row) {
                 $this->entityManager->remove($row);

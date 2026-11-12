@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Oidc;
 
-use App\Repository\Oidc\OidcConfigRepository;
+use App\Repository\Oidc\OidcConfig\OidcConfigRepository;
 use App\Service\OAuth\OAuthStateStore;
 use App\Service\Oidc\IdTokenValidator;
 use App\Service\Oidc\OidcClient;

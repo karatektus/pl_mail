@@ -2,8 +2,6 @@ account:
     add_title: Add account
     added: Account added successfully
     colour_set: Account colour changed
-    disabled: Account disabled
-    enabled: Account enabled
     form:
         email: Email address
         encryption: Encryption
@@ -49,13 +47,27 @@ account:
             same: Use the same password for sending
             separate: Use a different password for sending
         username: Username
+    mail_purge_queued: 'Removing this account’s mail from plMail. The server keeps its copy.'
     oauth:
         calendar_declined: The account is connected, but calendar access was not granted — so its calendars will not sync. Reconnect it and tick calendar access on Google's consent screen.
         google: Continue with Google
         info: Sign in with your provider — no password stored.
         microsoft: Continue with Microsoft
+        services:
+            help: 'The next screen only asks for what you tick. You can change it later in Settings → Accounts.'
+            legend: 'Use this account for'
     primary_set: Primary account changed
     removed: Account removed
+    service:
+        calendar:
+            off: 'Calendar switched off'
+            on: 'Calendar switched on'
+        contacts:
+            off: 'Contacts switched off'
+            on: 'Contacts switched on'
+        mail:
+            off: 'Mail switched off. What is already here stays.'
+            on: 'Mail switched on'
     sync_interval_set: Sync interval changed
     tabs:
         imap: IMAP / SMTP
@@ -79,7 +91,7 @@ account:
             missing_fields: 'Enter at least an email address and an IMAP host first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored password, which the test can only use once the account is saved.'
             pop3_ok: 'Connected — %count% messages in the mailbox.'
-            private_network: 'This server is on a private network. An administrator has to allow its host in INTEGRATIONS_ALLOWED_HOSTS before plMail may connect to it.'
+            private_network: 'This server is on a private network. An administrator has to allow it under Admin → Integrations → Servers on a private network before plMail may connect to it.'
             smtp_none: 'No SMTP host configured — sending is disabled for this account.'
             smtp_ok: 'Connected and signed in.'
             timeout: 'The server did not answer in time. Check the host and port, and whether a firewall is in the way.'
@@ -603,7 +615,7 @@ admin:
         base_url_per_user: 'Each user enters their own server address.'
         base_url_pinned: 'pinned for all users'
         calendar:
-            connected_warning: 'Connections already made: %count%. A changed or cleared address applies to each of them the next time its calendars are found, so someone connected to another server, iCloud say, is then asked about this one with their own password. Calendars already mirrored keep the address they were found at; if a cleared address was in a private range, they stop syncing until its host is in INTEGRATIONS_ALLOWED_HOSTS.'
+            connected_warning: 'Connections already made: %count%. A changed or cleared address applies to each of them the next time its calendars are found, so someone connected to another server, iCloud say, is then asked about this one with their own password. Calendars already mirrored keep the address they were found at; if a cleared address was in a private range, they stop syncing until it is allowed under Servers on a private network below.'
             heading: 'Calendars'
             intro: 'Servers and feeds users mirror calendars from, under Settings → Calendars. Both are offered to everyone; what can be set here is a server address for everybody. Nextcloud is set up with the file services above, and its calendars come with it.'
         clear_secret: 'Remove the stored client secret'
@@ -681,6 +693,25 @@ admin:
             enabled: 'Enabled'
             incomplete: 'Needs credentials'
             unimplemented: 'Not available yet'
+        trusted:
+            add: 'Allow a server'
+            allow: 'Allow'
+            allow_http: 'Allow plain http'
+            empty: 'None yet. A server that resolves to a private address is refused until it is listed here.'
+            field:
+                allow_http: 'This server has no certificate: allow plain http'
+                allow_http_help: 'Only for a server on your own network. App passwords sent to it cross that network unencrypted.'
+                host: 'Server'
+                host_help: 'Its host name or IP address, as in the address people type: dav.home.example.com, 192.168.1.20. A whole address works too; only its host is kept.'
+            form_intro: 'Signed-in users can then connect plMail to this server although it resolves to a private address. Any of them can make plMail send requests to every server listed here, so list the servers people actually use, not every machine on the network.'
+            heading: 'Servers on a private network'
+            http_allowed: 'Plain http allowed'
+            intro: 'plMail refuses a server address that points at a private network, so nobody can use it to reach this machine or others beside it. The servers listed here are allowed anyway: a CalDAV, CardDAV or file server at home, a calendar feed on your LAN.'
+            remove: 'Stop allowing %host%'
+            remove_confirm: 'Stop allowing %host%? Connections to it stop working on their next sync.'
+            removed: 'Server removed'
+            require_https: 'Require https'
+            saved: 'Server allowed'
         tutorial:
             caldav:
                 intro: 'CalDAV authenticates with a per-user app password against the user''s own server, so there is nothing to register here.'
@@ -749,6 +780,13 @@ admin:
                 step_base_url: 'Optionally pin the server address, for example https://paperless.example.com.'
                 step_enable: 'Turn on "Offer this service to users" above.'
                 step_token: 'Each user copies their API token from Paperless under My Profile → API Auth Token and pastes it into their own integration settings.'
+            webdav:
+                intro: "WebDAV covers any file server that speaks it — FileBrowser Quantum, a Synology NAS, rclone serve webdav, Apache mod_dav. Each user connects with their own password or token, so there is nothing to register here."
+                no_links: "WebDAV has no public links, previews or search. Files above the attachment size limit cannot be attached, and the picker shows a file icon instead of a thumbnail."
+                security: "A server on a private network, such as a NAS at home, is only reached once it is listed under Servers on a private network below."
+                step_base_url: "Optionally pin the address, for example https://files.example.com/dav/files/. It is the full address of the folder to open, path included: on FileBrowser Quantum that is /dav/ followed by the source name."
+                step_enable: 'Turn on "Offer this service to users" above.'
+                step_user: "Each user enters that address, a username if the server asks for one, and a password or API token. FileBrowser Quantum takes an API token as the password and ignores the username."
         tutorial_heading: 'Setup'
         unimplemented_notice: 'plMail cannot talk to this service yet. You can register the credentials now — they will be used as soon as support ships.'
     loading: 'Loading…'
@@ -3190,7 +3228,7 @@ profile:
         name_first: First name
         name_last: Last name
 
-# The reading pane beside the message list (Settings → Reading pane turns it on).
+# The reading pane beside the message list (Settings → Reading & writing → Reading turns it on).
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
@@ -3393,10 +3431,8 @@ settings:
                 '7': Olive
         delete: Remove account
         delete_confirm: 'Remove %account%? This permanently deletes all synced messages for this account and cannot be undone.'
-        disable: Disable account
         edit: Edit account
         empty: No accounts yet. Add one to start syncing mail.
-        enable: Enable account
         folders:
             always_synced: The inbox is always synced
             button: Folders
@@ -3438,6 +3474,7 @@ settings:
             placeholder: 'A placeholder that only groups other folders — there is nothing in it to sync'
             refused:
                 has_children: 'This folder has folders inside it. Delete or move those first.'
+                mail_off: 'Mail is switched off for this account, so its folders cannot be changed on the server. Switch mail on first.'
                 not_empty: 'This folder still holds mail (%count%). Move it elsewhere first; deleting a folder would delete its mail.'
                 server: 'The mail server refused: %reason%'
                 special_use: 'The inbox, Sent, Drafts, Trash, Junk and Archive are never renamed or deleted from plMail: other mail apps and plMail itself rely on them.'
@@ -3514,6 +3551,25 @@ settings:
                 microsoft: New mail arrives immediately via Microsoft push notifications.
             title: Instant delivery
         reorder: Drag to reorder
+        services:
+            allow: 'Allow…'
+            allow_explained: 'Switching on %service% needs a permission %provider% has not given plMail yet. Opens %provider% to ask for it.'
+            calendar: 'Calendar'
+            calendar_help: 'Its calendars, kept in step both ways'
+            change: 'Mail, calendar and contacts for %account%'
+            close: 'Done'
+            contacts: 'Contacts'
+            contacts_help: 'Its address books, kept in step both ways'
+            intro: 'Switch off what you do not use this account for. plMail then stops talking to the server about it and keeps what is already here.'
+            mail: 'Mail'
+            mail_help: 'Syncing, sending and every change you make to its mail'
+            none: 'Everything switched off'
+            purge: 'Remove synced mail from plMail'
+            purge_confirm: 'Remove all mail plMail has synced for %account%? It stays on the server. If you switch mail back on, plMail downloads it again.'
+            purge_help: 'Only plMail’s copy is removed. Nothing is deleted on the server.'
+            turn_off: 'Switch off %service% for %account%'
+            turn_on: 'Switch on %service% for %account%'
+            used_for: 'Used for %services%'
         status:
             active: Active
             disabled: Disabled
@@ -3738,43 +3794,6 @@ settings:
             matchGlass: Match glass opacity
             subheading: Tint and opacity for the main content area, independent of the sidebar.
             tint: Background tint
-        preview:
-            body: A short message, so the reading pane has something to show. None of this is real mail — the preview never loads any.
-            heading: Preview
-            hide: Hide preview
-            resize: Resize the preview
-            compose_body: A reply, part-written, so the composer has something in it. Nothing here is sent.
-            compose_heading: New message
-            compose_send: Send
-            compose_subject: 'Re: Notes on the Analytical Engine'
-            compose_to: ada@plmail.test
-            field_date: Date
-            field_from: From
-            field_subject: Subject
-            field_to: To
-            reply: Reply
-            sender1: Ada Lovelace
-            sender2: Grace Hopper
-            sender3: Kathleen Booth
-            sender4: Margaret Hamilton
-            sender5: Barbara Liskov
-            sender6: Karen Spärck Jones
-            sender7: Radia Perlman
-            sender8: Frances Allen
-            show: Show preview
-            snippet: This is what a preview line looks like, and how much of one fits before the row runs out of room for it.
-            subheading: Your settings, on a sample list. Nothing here is loaded from your mail.
-            to: to you
-            value_from: Ada Lovelace <ada@plmail.test>
-            value_to: you@plmail.test
-            subject1: Notes on the Analytical Engine
-            subject2: 'Re: the compiler draft'
-            subject3: Assembly notes, as promised
-            subject4: Guidance software — the priority list
-            subject5: 'Re: abstraction and the type hierarchy'
-            subject6: Term weighting, and why it matters
-            subject7: Spanning tree draft for review
-            subject8: 'Optimising the inner loop: results'
         reset: Reset to defaults
         subheading: Theme, density, type and background — the whole look of the app, in one place.
         seg:
@@ -4260,6 +4279,17 @@ settings:
         send_optimistic: Close it
         send_hold: Keep it open
         heading: 'Composing'
+        mailto: 'Email links'
+        mailto_app_linux: 'plMail is running as an installed app. Links from other programs come here once it is your desktop''s default mail program: pick plMail under Default Applications in your desktop''s settings, or run xdg-settings set default-url-scheme-handler mailto with plMail''s .desktop file from ~/.local/share/applications.'
+        mailto_app_macos: 'plMail is running as an installed app. Links from other programs come here once it is your Mac''s default mail program: in Mail, open Settings → General → Default email reader and choose plMail. If it is not listed, pick Select… and find plMail in your home folder under Applications → Chrome Apps.'
+        mailto_app_other: 'plMail is running as an installed app. Links from other programs come here once it is the default mail program in your system''s settings.'
+        mailto_app_windows: 'plMail is running as an installed app. Links from other programs come here once it is your default mail program: open Settings → Apps → Default apps, search for MAILTO, and choose plMail.'
+        mailto_asked: 'Your browser asks at the address bar — choose Allow there, which also makes plMail the default. No prompt, and links still do not arrive? Then plMail is registered but not the default: in Chrome open chrome://settings/handlers and pick “Set as default” in plMail’s ⋮ menu.'
+        mailto_button: 'Use plMail'
+        mailto_failed: 'This browser turned the request down.'
+        mailto_hint: 'Open mailto: links from other sites in plMail, in this browser. Each browser and device decides for itself. Installed as an app, plMail opens them in the window that is already open.'
+        mailto_insecure: 'Browsers only allow this over HTTPS, and plMail is reached over plain HTTP here.'
+        mailto_unsupported: 'This browser cannot hand email links to a web app. The plMail apps for Android and iOS can.'
         open: 'Open'
         subheading: 'How the compose window behaves for you, on every account.'
     insights:
@@ -4323,6 +4353,8 @@ settings:
         field:
             base_url: 'Server address'
             base_url_fixed: 'Connecting to %url%, set by your administrator.'
+            base_url_help:
+                webdav: "The full address of the folder to open, path included — on FileBrowser Quantum, https://host/dav/<source>/."
             name: Name
             name_help: 'Only shown to you, so you can tell two connections apart.'
             permissions:
@@ -4338,6 +4370,7 @@ settings:
                 oneDrive: 'Access token'
                 openCloud: 'App token'
                 paperless: 'API token'
+                webdav: "Password or token"
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -4347,6 +4380,7 @@ settings:
                 oneDrive: ''
                 openCloud: 'Create one in OpenCloud under your account settings → App Tokens, and choose a long expiry: an expired token stops working. With single sign-on, the username may be the ID shown under Preferences.'
                 paperless: 'Copy it from Paperless under My Profile → API Auth Token.'
+                webdav: "For FileBrowser Quantum, create an API token and paste it here; the username can stay empty. A token that expires stops working."
             secret_unchanged: 'Leave blank to keep the stored credential'
             username: Username
         heading: Integrations
@@ -4604,7 +4638,7 @@ settings:
         subheading: What a swipe across a row does on a phone.
     unified_inboxes:
         account_label: 'Unified inbox for %account%'
-        account_off: 'Switched off — none of its mail is listed until you switch it back on.'
+        account_off: 'Mail switched off — none of its mail is listed here until you switch it back on.'
         accounts_heading: 'Accounts'
         accounts_subheading: 'Which inbox each account''s mail is listed in. A new account goes into your first inbox.'
         add: 'Add'
@@ -4640,41 +4674,88 @@ settings:
         show_hint: 'Off: nothing opens after an update, and the ? in the top bar shows no dot. The notes are still under ? → What''s new.'
         subheading: 'What plMail shows you after it has been updated.'
     nav:
-        accounts: Mail accounts
+        accounts: "Accounts"
         ai: 'Assistant'
         aliases: Aliases
         app_passwords: App passwords
         appearance: Appearance
-        calendar_behaviour: Behaviour
+        area:
+            account: "Account"
+            assistant: "Assistant & automation"
+            calendar_contacts: "Calendar & contacts"
+            general: "General"
+            inbox: "Inbox"
+            integrations: "Integrations"
+            mail_accounts: "Mail accounts"
+            reading_writing: "Reading & writing"
+        calendar_behaviour: "Calendar behaviour"
         calendars: Calendars
-        categories: "Categories"
+        categories: "Categories & sorting"
+        compose: "Compose"
         contacts: Contacts
         disposal: Disposal
         encryption: "Encryption"
         filters: Filters
-        general: General
-        group:
-            access: Access
-            calendar: Calendar
-            features: Features
-            mail: Mail
-            personal: Personal
         health: 'Account health'
-        images: Images
+        health_banner: "Something needs your attention — see Account health."
         inboxes: 'Unified inboxes'
         insights: Insights
         integrations: Integrations
         labels: Labels
+        layout: "Layout & controls"
         notifications: Notifications
         profile: Profile
-        read_receipts: Read receipts
-        reading_pane: Reading pane
+        reading: "Reading"
+        region: "Language & region"
         security: Security
         sharing: Sharing
-        shortcuts: Keyboard shortcuts
         signature: Signatures
-        swipe_actions: Swipe actions
         templates: 'Templates'
+        whats_new: "What's new"
+    search:
+        count: "Results: %count%"
+        empty: "Nothing found. Search looks through page names, card headings and keywords."
+        failed: "Settings search could not be loaded. Close it and try again."
+        hint_move: "to move"
+        hint_open: "to open"
+        keyword: "Keyword"
+        keywords:
+            accent: "colour color highlight"
+            accounts: "imap smtp pop3 jmap server add mailbox"
+            ai: "ai artificial intelligence summary writing help model"
+            aliases: "alias identity sender from address"
+            app_passwords: "imap smtp client thunderbird token api jmap"
+            calendars: "caldav ics subscribe feed"
+            clock: "12 24 hour am pm time format"
+            compose_behaviour: "mailto email links default mail program forward quote send"
+            contacts: "carddav address book"
+            disposal: "delete trash bin forever empty"
+            encryption: "pgp openpgp gpg key"
+            filters: "rules sieve automatic move forward"
+            handwriting: "sign pdf draw"
+            images: "tracking pixel remote load block"
+            inbox_tabs: "tabs promotions social updates forums"
+            insights: "parcel tracking invoice flight"
+            integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            labels: "folders tags unread all mail"
+            language: "locale english german french chinese"
+            notifications: "push browser phone sound alert"
+            password: "login sign-in"
+            profile: "name avatar photo picture"
+            read_receipts: "mdn receipt confirmation"
+            reading_pane: "preview split right bottom"
+            sharing: "link public booking"
+            shortcuts: "keyboard hotkeys keys"
+            swipe_actions: "swipe gesture phone archive"
+            templates: "canned responses snippets text blocks"
+            theme: "dark light mode night colours colors"
+            two_factor: "2fa totp otp authenticator mfa"
+            typography: "font text size"
+            whats_new: "changelog update version release"
+            wkd: "web key directory publish"
+        kind_page: "Page"
+        label: "Search settings"
+        placeholder: "Search settings"
     notifications:
         devices:
             empty: >-
@@ -5060,7 +5141,7 @@ shortcuts:
         star: "Star or unstar"
         undo: "Undo the last action"
     or: "or"
-    switched_off: "Shortcuts are switched off for you. Switch them on under Settings → General."
+    switched_off: "Shortcuts are switched off for you. Switch them on under Settings → General → Layout & controls."
     then: "then"
     title: "Keyboard shortcuts"
 
@@ -5068,7 +5149,7 @@ sidebar:
     accounts:
         add: Add account
         colour: 'Colour marking %account%'
-        colour_disabled: 'Colour marking %account%, which is switched off'
+        colour_disabled: 'Colour marking %account%, whose mail is switched off'
         folders: 'Folders…'
         heading: Accounts
         menu: 'Folders of %account%'
@@ -5183,6 +5264,7 @@ thread_row:
     no_subject: (no subject)
     send_failed:
         failed: Not sent
+        mail_off: 'Not sent: mail is switched off for this account'
         may_have_sent: 'May have been sent: check Sent before sending it again'
         rate_limited: 'Not sent: your mail provider was limiting sends'
         refused: 'Not sent: the mail server refused it'
@@ -5224,6 +5306,7 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Too late — that message had already been sent.
     send_failed: 'That message could not be sent: %subject%'
+    send_failed_mail_off: 'That message could not be sent: %subject%. Mail is switched off for its account.'
     send_failed_may_have_sent: '%subject% may have been sent, but the answer was lost. Check Sent before sending it again.'
     send_failed_rate_limited: 'That message could not be sent: %subject%. Your mail provider is limiting sends right now; try again in a few minutes.'
     send_failed_refused: 'That message could not be sent: %subject%. The mail server refused it.'

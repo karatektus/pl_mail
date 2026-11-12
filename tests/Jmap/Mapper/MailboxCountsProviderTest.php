@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Jmap\Mapper;
 
 use App\Jmap\Mapper\MailboxCountsProvider;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageLabelRepository;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -19,7 +19,7 @@ final class MailboxCountsProviderTest extends TestCase
 {
     public function testNoCountIsReadWhenNoCountPropertyIsAsked(): void
     {
-        $messages = $this->createMock(MessageRepository::class);
+        $messages = $this->createMock(MessageLabelRepository::class);
         $messages->expects(self::never())->method('countEmailsPerLabelForAccount');
         $messages->expects(self::never())->method('countThreadsPerLabelForAccount');
 
@@ -28,7 +28,7 @@ final class MailboxCountsProviderTest extends TestCase
 
     public function testOnlyTheAskedGrainIsReadAndOnlyForTheNamedLabels(): void
     {
-        $messages = $this->createMock(MessageRepository::class);
+        $messages = $this->createMock(MessageLabelRepository::class);
         $messages->expects(self::once())
             ->method('countEmailsPerLabelForAccount')
             ->with(7, [3, 4])

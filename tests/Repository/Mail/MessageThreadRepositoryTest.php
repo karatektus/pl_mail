@@ -12,7 +12,9 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
+use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\ListViewResolver;
 use DateTimeImmutable;
@@ -36,6 +38,8 @@ final class MessageThreadRepositoryTest extends KernelTestCase
     private EntityManagerInterface $em;
     private Connection $connection;
     private MessageThreadRepository $repository;
+    private MessageThreadBadgeRepository $messageThreadBadgeRepository;
+    private MessageThreadRebuildRepository $messageThreadRebuildRepository;
     private User $user;
     private Account $account;
 
@@ -47,6 +51,8 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $this->em         = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
         $this->repository = $container->get(MessageThreadRepository::class);
+        $this->messageThreadBadgeRepository = $container->get(MessageThreadBadgeRepository::class);
+        $this->messageThreadRebuildRepository = $container->get(MessageThreadRebuildRepository::class);
 
         $this->connection->beginTransaction();
 
@@ -232,7 +238,7 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         self::assertNotContains($second[0]->id, array_map(static fn ($t) => $t->id, $first));
         self::assertSame(51, $this->repository->countForAccountAllMail($this->account));
 
-        $this->account->isActive = false;
+        $this->account->mailEnabled = false;
         $first[0]->unreadCount   = 1;
         $this->em->flush();
 
@@ -258,7 +264,7 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $disabled = $this->seedAccount($this->user, 'disabled@example.test');
         $foreign  = $this->seedAccount($this->seedUser(), 'foreign@example.test');
 
-        $disabled->isActive = false;
+        $disabled->mailEnabled = false;
 
         for ($i = 0; $i < 51; ++$i) {
             $this->thread('owned-' . $i, '2026-03-01 09:00');
@@ -325,7 +331,7 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $earliest = $this->message($thread, '2026-02-01 09:00');
         $this->message($thread, '2026-03-01 09:00');
 
-        $rows = $this->repository->findCarriedOverStateForAccount((int) $this->account->id);
+        $rows = $this->messageThreadRebuildRepository->findCarriedOverStateForAccount((int) $this->account->id);
 
         self::assertCount(1, $rows);
         self::assertSame((int) $earliest->id, (int) $rows[0]['anchor']);
@@ -340,14 +346,14 @@ final class MessageThreadRepositoryTest extends KernelTestCase
     {
         $thread = $this->thread('collapsed', '2026-03-01 09:00');
 
-        $this->repository->restoreCarriedOverState(
+        $this->messageThreadRebuildRepository->restoreCarriedOverState(
             (int) $thread->id,
             '2026-02-14 08:00:00',
             null,
             MessageCategory::Primary->value,
         );
 
-        $this->repository->restoreCarriedOverState((int) $thread->id, null, null, null);
+        $this->messageThreadRebuildRepository->restoreCarriedOverState((int) $thread->id, null, null, null);
 
         $row = $this->connection->fetchAssociative(
             'SELECT starred_at, category FROM message_thread WHERE id = :id',
@@ -365,8 +371,8 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $thread = $this->thread('labelled', '2026-03-01 09:00');
         $label  = $this->seedLabel('Carried');
 
-        $this->repository->addLabelIfAbsent((int) $thread->id, (int) $label->id);
-        $this->repository->addLabelIfAbsent((int) $thread->id, (int) $label->id);
+        $this->messageThreadRebuildRepository->addLabelIfAbsent((int) $thread->id, (int) $label->id);
+        $this->messageThreadRebuildRepository->addLabelIfAbsent((int) $thread->id, (int) $label->id);
 
         self::assertSame(1, (int) $this->connection->fetchOne(
             'SELECT COUNT(*) FROM thread_label WHERE message_thread_id = :id',
@@ -379,11 +385,11 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $thread = $this->thread('labelled', '2026-03-01 09:00');
         $label  = $this->seedLabel('Carried');
 
-        $this->repository->addLabelIfAbsent((int) $thread->id, (int) $label->id);
+        $this->messageThreadRebuildRepository->addLabelIfAbsent((int) $thread->id, (int) $label->id);
 
         self::assertSame(
             [(int) $thread->id => [(int) $label->id]],
-            $this->repository->findLabelIdsByThread([(int) $thread->id]),
+            $this->messageThreadRebuildRepository->findLabelIdsByThread([(int) $thread->id]),
         );
     }
 
@@ -402,7 +408,7 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $this->message($thread, '2026-03-01 09:00', hasAttachments: true);
         $this->message($thread, '2026-03-01 10:00', hasAttachments: false);
 
-        $this->repository->recomputeAttachmentCounts();
+        $this->messageThreadRebuildRepository->recomputeAttachmentCounts();
 
         self::assertSame(1, (int) $this->connection->fetchOne(
             'SELECT attachment_count FROM message_thread WHERE id = :id',
@@ -421,7 +427,7 @@ final class MessageThreadRepositoryTest extends KernelTestCase
 
         $found = array_map(
             static fn (MessageThread $thread): int => (int) $thread->id,
-            $this->repository->findEmptyForUser($this->user),
+            $this->messageThreadRebuildRepository->findEmptyForUser($this->user),
         );
 
         self::assertContains((int) $empty->id, $found);
@@ -592,7 +598,7 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         self::assertSame(['half deleted'], $this->subjectsOf($this->repository->findForAccountInbox($this->account)));
         self::assertSame(1, $this->repository->countForAccountInbox($this->account));
         self::assertSame(['primary' => 1], $this->repository->countByCategoryForAccountInbox($this->account));
-        self::assertSame(1, $this->repository->countUnreadPerRole($this->user)[LabelRole::Inbox->value] ?? 0, 'the Inbox badge does not count the list it opens');
+        self::assertSame(1, $this->messageThreadBadgeRepository->countUnreadPerRole($this->user)[LabelRole::Inbox->value] ?? 0, 'the Inbox badge does not count the list it opens');
 
         self::assertSame(['half deleted'], $this->subjectsOf($this->repository->findForRole($this->user, LabelRole::Trash)));
     }
@@ -800,7 +806,7 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $this->thread('Quarterly report', $sameInstant);
         $later = $this->thread('Quarterly report', $sameInstant);
 
-        $found = $this->repository->findMatchingNormalizedSubjectThreadForAccount(
+        $found = $this->messageThreadRebuildRepository->findMatchingNormalizedSubjectThreadForAccount(
             'quarterly report',
             $this->account,
             new DateTimeImmutable('2026-02-01 00:00:00'),
@@ -949,7 +955,7 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $account->imapPort       = 993;
         $account->imapEncryption = 'ssl';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
 
         $this->em->persist($account);
         $this->em->flush();

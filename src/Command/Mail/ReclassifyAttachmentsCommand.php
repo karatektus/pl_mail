@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Command\Mail;
 
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessagePartRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessagePart\MessagePartRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
 use App\Service\Mail\InlineAttachmentDetector;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -38,8 +38,8 @@ final class ReclassifyAttachmentsCommand extends Command
         private readonly EntityManagerInterface   $em,
         private readonly MessageRepository        $messages,
         private readonly MessagePartRepository    $messageParts,
-        private readonly MessageThreadRepository  $threads,
-        private readonly InlineAttachmentDetector $inlineDetector,
+        private readonly MessageThreadRebuildRepository $messageThreadRebuildRepository,
+        private readonly InlineAttachmentDetector $inlineDetector
     ) {
         parent::__construct();
     }
@@ -113,7 +113,7 @@ final class ReclassifyAttachmentsCommand extends Command
         if (false === $dryRun) {
             // Thread counters are derived, so they are rebuilt from the
             // repaired messages rather than patched by deltas.
-            $this->threads->recomputeAttachmentCounts();
+            $this->messageThreadRebuildRepository->recomputeAttachmentCounts();
         }
 
         $io->success(sprintf(

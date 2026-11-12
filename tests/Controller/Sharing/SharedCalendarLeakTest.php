@@ -11,7 +11,7 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\CalendarShareLink;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarShareLinkRepository;
+use App\Repository\Calendar\CalendarShareLink\CalendarShareLinkRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\Sharing\PublicLinkToken;
 use DateTimeImmutable;

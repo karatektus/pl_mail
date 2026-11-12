@@ -8,7 +8,7 @@ use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Tests\Support\Push\ScriptedPushManager;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -127,7 +127,7 @@ final class PushRepairGuardsTest extends WebTestCase
 
         self::assertResponseRedirects();
         self::assertStringContainsString(
-            'section=health',
+            '/settings/health',
             (string) $client->getResponse()->headers->get('Location'),
             'back to the page the button was pressed on',
         );
@@ -186,7 +186,7 @@ final class PushRepairGuardsTest extends WebTestCase
      */
     private function token(KernelBrowser $client, string $id): string
     {
-        $client->request('GET', '/settings?section=accounts');
+        $client->request('GET', '/settings/accounts');
 
         $stack   = static::getContainer()->get('request_stack');
         $carrier = new Request();
@@ -235,7 +235,7 @@ final class PushRepairGuardsTest extends WebTestCase
         $account->oauthProvider     = MailProvider::Google->value;
         $account->oauthAccessToken  = 'access-token';
         $account->oauthRefreshToken = 'refresh-token';
-        $account->isActive          = true;
+        $account->mailEnabled       = true;
 
         $this->em->persist($account);
         $this->em->flush();

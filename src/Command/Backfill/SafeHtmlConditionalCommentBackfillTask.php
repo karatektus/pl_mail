@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Mail\MailBodySanitizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -34,9 +34,9 @@ final readonly class SafeHtmlConditionalCommentBackfillTask implements BackfillT
     private const int BATCH_SIZE = 100;
 
     public function __construct(
-        private MessageRepository      $messageRepository,
+        private MessageBackfillRepository $messageBackfillRepository,
         private MailBodySanitizer      $bodySanitizer,
-        private EntityManagerInterface $em,
+        private EntityManagerInterface $em
     ) {}
 
     public function getName(): string
@@ -51,7 +51,7 @@ final readonly class SafeHtmlConditionalCommentBackfillTask implements BackfillT
 
     public function run(SymfonyStyle $io): int
     {
-        $total = $this->messageRepository->countWithConditionalCommentText();
+        $total = $this->messageBackfillRepository->countWithConditionalCommentText();
 
         if (0 === $total) {
             $io->success('Nothing to repair — no stored HTML body shows a conditional comment as text.');
@@ -66,7 +66,7 @@ final readonly class SafeHtmlConditionalCommentBackfillTask implements BackfillT
         $repaired  = 0;
 
         while (true) {
-            $messages = $this->messageRepository->findWithConditionalCommentText($lastId, self::BATCH_SIZE);
+            $messages = $this->messageBackfillRepository->findWithConditionalCommentText($lastId, self::BATCH_SIZE);
 
             if (count($messages) === 0) {
                 break;

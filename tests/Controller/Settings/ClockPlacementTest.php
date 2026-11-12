@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Settings;
 
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -35,7 +35,7 @@ final class ClockPlacementTest extends WebTestCase
     {
         $client = $this->signedIn();
 
-        $crawler = $client->request('GET', '/settings?section=general');
+        $crawler = $client->request('GET', '/settings/region');
 
         self::assertCount(1, $crawler->filter('header [data-clock-placement="topbar"]'));
         self::assertCount(0, $crawler->filter('[data-clock-placement="sidebar"]'));
@@ -43,13 +43,13 @@ final class ClockPlacementTest extends WebTestCase
         $client->request('POST', self::PATH, ['placement' => 'sidebar', '_token' => $this->token($client)]);
         self::assertResponseRedirects();
 
-        $crawler = $client->request('GET', '/settings?section=general');
+        $crawler = $client->request('GET', '/settings/region');
 
         self::assertCount(0, $crawler->filter('[data-clock-placement="topbar"]'));
         self::assertGreaterThan(0, $crawler->filter('aside [data-clock-placement="sidebar"]')->count());
 
         $client->request('POST', self::PATH, ['placement' => 'off', '_token' => $this->token($client)]);
-        $crawler = $client->request('GET', '/settings?section=general');
+        $crawler = $client->request('GET', '/settings/region');
 
         self::assertCount(0, $crawler->filter('[data-clock-placement]'));
     }
@@ -82,7 +82,7 @@ final class ClockPlacementTest extends WebTestCase
 
     private function token(KernelBrowser $client): string
     {
-        return (string) $client->request('GET', '/settings?section=general')
+        return (string) $client->request('GET', '/settings/region')
             ->filter('form[action$="/settings/clock/placement"] input[name="_token"]')
             ->first()->attr('value');
     }

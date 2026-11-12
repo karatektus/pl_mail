@@ -14,7 +14,7 @@ final class Version20260724135613 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Let an account have no IMAP server';
     }
 
     public function up(Schema $schema): void

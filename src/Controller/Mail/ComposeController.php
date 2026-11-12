@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Domain\DTO\Mail\ComposeContext;
+use App\Domain\DTO\Mail\MailtoLink;
 use App\Domain\Exception\SealRefused;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Account;
@@ -12,7 +15,8 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Crypto\SealedDrafts;
 use App\Service\Label\LabelChangePropagator;
@@ -76,7 +80,7 @@ class ComposeController extends AbstractController
      * instead of one of them being accidentally safe.
      *
      * The two seconds are not the guarantee, they are the margin. The
-     * guarantee is MessageRepository::claimForSend(): a cancel that loses
+     * guarantee is MessageSendRepository::claimForSend(): a cancel that loses
      * anyway — a slow request, a busy worker — is now TOLD it lost. This is
      * what keeps that path rare enough to be an edge case.
      */
@@ -85,6 +89,7 @@ class ComposeController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface  $em,
         private readonly MessageRepository       $messageRepository,
+        private readonly MessageSendRepository $messageSendRepository,
         private readonly ComposeWindow           $window,
         private readonly ComposeFormFactory      $formFactory,
         private readonly MessageBusInterface     $bus,
@@ -136,7 +141,20 @@ class ComposeController extends AbstractController
             // reason.
             $message->bodyHtml = $this->window->signatureSeed($account);
 
-            $message->toAddresses = $this->addressedTo();
+            $link = $this->mailtoLink();
+
+            if (null === $link) {
+                $message->toAddresses = $this->addressedTo();
+            } else {
+                // Above the signature, as a person would have typed it. Not a
+                // draft yet: nothing is saved until the first autosave, so a
+                // link opened by mistake leaves nothing behind but the window.
+                $message->toAddresses  = [] === $link->to ? null : $link->to;
+                $message->ccAddresses  = [] === $link->cc ? null : $link->cc;
+                $message->bccAddresses = [] === $link->bcc ? null : $link->bcc;
+                $message->subject      = '' === $link->subject ? null : $link->subject;
+                $message->bodyHtml     = $link->bodyHtml() . $message->bodyHtml;
+            }
         } else {
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
             $this->assertEditableDraft($message);
@@ -148,6 +166,25 @@ class ComposeController extends AbstractController
         $this->addressFields->hydrate($form, $message, $this->getUser());
 
         return $this->renderWindow($form, $message, $ctx);
+    }
+
+    /**
+     * The message a `mailto:` link asked for: `?mailto=`, which is where the
+     * browser puts the whole link when plMail is its handler for the scheme
+     * (registerProtocolHandler and the manifest's protocol_handlers both name
+     * /compose/new?mailto=%s), and where a mailto: clicked inside a message is
+     * sent. Null when there is none, or when it is not a mailto: at all.
+     *
+     * The same parameter for both on purpose: a page-level visit to this URL is
+     * redirected into the dock with its query intact (see renderWindow), so the
+     * browser handler needs no route of its own, and login sends a signed-out
+     * reader back to it like any other page.
+     */
+    private function mailtoLink(): ?MailtoLink
+    {
+        $query = $this->requestStack->getCurrentRequest()?->query;
+
+        return MailtoLink::parse((string) $query?->get('mailto', ''));
     }
 
     /**
@@ -720,7 +757,7 @@ class ComposeController extends AbstractController
      *
      * Answers whether the cancel actually took. False means SendMessageHandler
      * had already claimed the message and the mail is gone or going — see
-     * MessageRepository::cancelSend(), which is where that is decided, and in
+     * MessageSendRepository::cancelSend(), which is where that is decided, and in
      * one statement so there is no window for the two to disagree.
      *
      * No longer writes through the entity, and that is the point rather than a
@@ -732,7 +769,7 @@ class ComposeController extends AbstractController
      */
     private function callOffSend(Message $message): bool
     {
-        $won = $this->messageRepository->cancelSend((int) $message->id);
+        $won = $this->messageSendRepository->cancelSend((int) $message->id);
 
         // The row moved underneath the entity either way — we won and it is
         // cancelled, or we lost and the handler is writing sentAt onto it.

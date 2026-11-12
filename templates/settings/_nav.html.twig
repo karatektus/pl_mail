@@ -1,0 +1,158 @@
+{#
+The settings tree: areas that fold open, the pages in each, and a filter above
+them that also finds the cards on every page (#569).
+
+Variables (from SettingsController::page()):
+    navigation   list<SettingsArea>, every area and page that can exist
+    currentPage  SettingsPage being shown
+    currentArea  SettingsArea it belongs to
+    section      currentPage.slug, the name the rest of index.html.twig uses
+
+THE TREE IS SERVER-RENDERED AND WORKS WITHOUT SCRIPT. Each area is a <details>,
+open when it holds the current page, so the page you are on is always in view
+and the others are one click away. settings/nav_controller.js only adds the
+filter and the phone's show/hide; with it broken the tree is still a tree.
+
+EVERY CARD IS IN THE MARKUP, hidden. The filter shows the cards that match
+under their page, which is the third level the old navigation did not have:
+somebody looking for "time zone" gets the card, not a page called "Language &
+region" they would have had to guess. Rendering them here rather than fetching
+the palette's index keeps the filter instant and gives the cards real links.
+About eighty hidden rows; cheaper than a request per keystroke and than a
+second copy of the matching rule.
+
+Two pages are conditional, as they were as flat entries:
+
+  • Account health shows while there is something wrong, or while it is open.
+    The banner above the tree says the same thing louder; the entry is how the
+    page stays reachable from the tree while you are on it — a tree with no
+    entry for the open page has nothing to mark aria-current on.
+  • Assistant shows where the administrator has switched an AI feature on
+    (ai_settings_available() asks THEIR switches only, so somebody who turned
+    all three of their own off can still find the page that turns them back
+    on), or while it is open.
+
+Every area folds the same way, Integrations included, although it holds one
+page: it was drawn as a plain link at first, and one row in eight behaving
+differently read as a different kind of thing rather than as a shortcut.
+#}
+{% set attention = accountHealth.attention %}
+{% set aiOn = ai_settings_available() %}
+{% set navActive   = 'flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm font-medium bg-raised text-ink' %}
+{% set navInactive = 'flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors' %}
+
+<div class="settings-nav min-w-0"
+     data-controller="settings--nav"
+     data-settings--nav-keyword-label-value="{{ 'settings.search.keyword'|trans }}">
+    {# Below md the tree is a panel behind this button, which names where you
+       are. The old navigation was a strip of twenty-nine wrapping pills there,
+       taller than most of the pages it led to. #}
+    <button type="button"
+            class="md:hidden w-full flex items-center gap-2 px-3 h-10 rounded-lg border border-line bg-surface text-sm text-ink"
+            aria-expanded="false"
+            aria-controls="settings-tree"
+            data-settings--nav-target="toggle"
+            data-action="settings--nav#toggle">
+        <i class="{{ currentArea.icon }} w-4 text-ink-faint" aria-hidden="true"></i>
+        <span class="min-w-0 flex-1 truncate text-left">
+            {{ currentArea.labelKey|trans }} › <span class="font-medium">{{ currentPage.labelKey|trans }}</span>
+        </span>
+        <i class="fa-solid fa-chevron-down text-xs text-ink-faint" aria-hidden="true"></i>
+    </button>
+
+    <div id="settings-tree" class="hidden md:block mt-2 md:mt-0" data-settings--nav-target="panel">
+        <div class="relative mb-3">
+            <label for="settings-filter" class="sr-only">{{ 'settings.search.label'|trans }}</label>
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-ink-faint pointer-events-none" aria-hidden="true"></i>
+            <input type="search"
+                   id="settings-filter"
+                   autocomplete="off"
+                   spellcheck="false"
+                   placeholder="{{ 'settings.search.placeholder'|trans }}"
+                   class="w-full h-9 pl-8 pr-14 rounded-lg border border-line bg-surface text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
+                   data-settings--nav-target="input"
+                   data-action="input->settings--nav#filter keydown.esc->settings--nav#clear">
+            {# The palette's shortcut, named where people look for search. The
+               controller writes ⌘K over this on a Mac. #}
+            <kbd class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 rounded border border-line text-[10px] text-ink-faint font-sans pointer-events-none"
+                 data-settings--nav-target="shortcut">Ctrl K</kbd>
+        </div>
+
+        {% if attention %}
+            <a href="{{ path('app_settings_page', { page: 'health' }) }}"
+               class="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg border text-xs
+                      {{ attention.tone == 'danger' ? 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300' : 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300' }}"
+               data-settings--nav-target="banner">
+                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                <span class="flex-1">{{ 'settings.nav.health_banner'|trans }}</span>
+                <i class="fa-solid fa-chevron-right text-[10px]" aria-hidden="true"></i>
+            </a>
+        {% endif %}
+
+        <nav aria-label="{{ 'settings.title'|trans }}">
+            <ul class="space-y-0.5">
+                {% for area in navigation %}
+                    {% set pages = area.pages|filter(p =>
+                        (p.slug != 'ai' or aiOn or section == 'ai')
+                        and (p.slug != 'health' or attention or section == 'health')
+                    ) %}
+                    {% if pages is not empty %}
+                        <li data-settings--nav-target="area">
+                            <details class="group" {{ area.key == currentArea.key ? 'open' }}>
+                                <summary class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm font-medium text-ink cursor-pointer select-none hover:bg-hover list-none [&::-webkit-details-marker]:hidden">
+                                    <i class="fa-solid fa-chevron-right w-3 text-[10px] text-ink-faint transition-transform group-open:rotate-90" aria-hidden="true"></i>
+                                    <i class="{{ area.icon }} w-4 text-ink-faint" aria-hidden="true"></i>
+                                    <span class="flex-1">{{ area.labelKey|trans }}</span>
+                                </summary>
+                                <ul class="pl-5 pt-0.5 pb-1 space-y-0.5">
+                                    {% for page in pages %}
+                                        {{ _self.page(page, section, navActive, navInactive, attention) }}
+                                    {% endfor %}
+                                </ul>
+                            </details>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </nav>
+
+        <p class="px-2.5 py-3 text-xs text-ink-muted" hidden data-settings--nav-target="empty">
+            {{ 'settings.search.empty'|trans }}
+        </p>
+    </div>
+</div>
+
+{#
+One page row and its hidden card rows. `attention` is the health report's
+summary, for the badge on the Account health row.
+#}
+{% macro page(page, section, navActive, navInactive, attention) %}
+    {% set current = section == page.slug %}
+    <li data-settings--nav-target="page" data-terms="{{ page.labelKey|trans }}">
+        <a href="{{ path('app_settings_page', { page: page.slug }) }}"
+           class="{{ current ? navActive : navInactive }}"
+           {{ current ? 'aria-current="page"' : '' }}>
+            <span class="flex-1 min-w-0 truncate" data-settings--nav-target="label">{{ page.labelKey|trans }}</span>
+            {% if page.slug == 'health' and attention %}
+                {# Root causes, not symptoms — see HealthReport::indicatorCount(). #}
+                <span class="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[11px] font-semibold text-white
+                             {{ attention.tone == 'danger' ? 'bg-red-500' : 'bg-amber-500' }}">
+                    {{ attention.count }}
+                </span>
+            {% endif %}
+        </a>
+        <ul>
+            {% for card in page.cards %}
+                <li hidden data-settings--nav-target="hit"
+                    data-terms="{{ card.headingKey|trans }}"
+                    data-keywords="{{ card.keywordsKey ? card.keywordsKey|trans : '' }}">
+                    <a href="{{ path('app_settings_page', { page: page.slug }) }}#{{ card.anchor }}"
+                       class="flex flex-col pl-6 pr-2.5 py-1 rounded-md text-xs text-ink-muted hover:bg-hover">
+                        <span data-settings--nav-target="label">{{ card.headingKey|trans }}</span>
+                        <span class="text-[11px] text-ink-faint" hidden data-settings--nav-target="via"></span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    </li>
+{% endmacro %}

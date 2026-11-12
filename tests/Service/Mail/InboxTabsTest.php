@@ -7,7 +7,7 @@ namespace App\Tests\Service\Mail;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\User\User;
-use App\Repository\Mail\InboxCategoryRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use App\Service\Mail\InboxTabs;
 use PHPUnit\Framework\TestCase;
 

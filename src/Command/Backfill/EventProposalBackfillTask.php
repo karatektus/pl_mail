@@ -6,7 +6,7 @@ namespace App\Command\Backfill;
 
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Calendar\Proposal\EventProposer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;

@@ -25,7 +25,7 @@ import { acceptConfirm } from "./support/confirm";
 
 /** Adds a password account through the settings modal, as account.spec.ts does. */
 async function addAccount(page: Page, label: string, stamp: number): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     await page
         .locator("section")
@@ -52,7 +52,7 @@ async function addAccount(page: Page, label: string, stamp: number): Promise<voi
 
 /** Drop it again — an account is durable, user-wide state the next spec sees. */
 async function removeAccount(page: Page, label: string): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     const row = page
         .locator("#settings-account-list li")
@@ -77,7 +77,7 @@ test.describe("account colour", () => {
 
         try {
             await addAccount(page, label, stamp);
-            await page.goto("/settings?section=accounts");
+            await page.goto("/settings/accounts");
 
             const row = page
                 .locator("#settings-account-list li")
@@ -127,7 +127,7 @@ test.describe("account colour", () => {
             await page.reload();
             await expect(dot).toHaveCSS("background-color", swatchColour);
 
-            await page.goto("/settings?section=accounts");
+            await page.goto("/settings/accounts");
             await row.getByRole("button", { name: /Change the colour of/ }).click();
             await expect(
                 row

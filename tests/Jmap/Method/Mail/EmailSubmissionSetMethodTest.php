@@ -15,7 +15,8 @@ use App\Jmap\Method\Mail\EmailSubmissionChangesMethod;
 use App\Jmap\Method\Mail\EmailSubmissionGetMethod;
 use App\Jmap\Method\Mail\EmailSubmissionSetMethod;
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
 use App\Tests\Jmap\JmapTestCase;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -615,12 +616,14 @@ final class EmailSubmissionSetMethodTest extends JmapTestCase
 
         $repository = self::getContainer()->get(MessageRepository::class);
 
+        $messageSendRepository = self::getContainer()->get(MessageSendRepository::class);
+
         self::assertFalse(
-            $repository->claimForSend($stale->messageId, $stale->pinsSendAt(), $stale->sendAt),
+            $messageSendRepository->claimForSend($stale->messageId, $stale->pinsSendAt(), $stale->sendAt),
             'the old schedule\'s envelope does nothing',
         );
         self::assertTrue(
-            $repository->claimForSend($current->messageId, $current->pinsSendAt(), $current->sendAt),
+            $messageSendRepository->claimForSend($current->messageId, $current->pinsSendAt(), $current->sendAt),
             'the current schedule\'s envelope still sends',
         );
     }

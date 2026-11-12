@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\MessageLocation;
 use App\Infrastructure\ImapClient\ImapFolder;
 use App\Infrastructure\ImapClient\ImapSession;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessageEraser;
 use DateTimeImmutable;
@@ -137,15 +138,21 @@ readonly class MailboxSyncer
 
     private const float MASS_MISSING_RATIO = 0.5;
 
+    /** A folder that is \All beside an Archive: every message again. */
+    public const string MIRROR_ALL = 'all';
+
+    /** A folder that is \Flagged: the starred messages again. */
+    public const string MIRROR_FLAGGED = 'flagged';
+
     public function __construct(
         private MailboxRepository      $mailboxRepository,
         private EntityManagerInterface $em,
         private ImapConnector          $connector,
         private LabelResolver          $labelResolver,
-        private MessageRepository      $messageRepository,
+        private MessageImapRepository $messageImapRepository,
         private MessageEraser          $eraser,
         private ImapCopies             $copies,
-        private LoggerInterface        $logger,
+        private LoggerInterface        $logger
     ) {}
 
     /**
@@ -201,7 +208,7 @@ readonly class MailboxSyncer
 
                 unset($existing[$folder->path]);
                 $selectable = false === isset($unselectable[$folder->path]);
-                $this->update($mailbox, $folder, $specialUses[$folder->path] ?? null, $account, $selectable, isset($mirrors[$folder->path]));
+                $this->update($mailbox, $folder, $specialUses[$folder->path] ?? null, $account, $selectable, $mirrors[$folder->path] ?? null);
                 $this->clearMissing($mailbox);
                 $result['updated']++;
             }
@@ -212,7 +219,7 @@ readonly class MailboxSyncer
             foreach ($unmatched as $folder) {
                 $specialUse = $specialUses[$folder->path] ?? null;
                 $selectable = false === isset($unselectable[$folder->path]);
-                $mirror     = isset($mirrors[$folder->path]);
+                $mirror     = $mirrors[$folder->path] ?? null;
                 $source     = $this->findRenameSource($session, $folder, $specialUse, $existing);
 
                 if (null === $source) {
@@ -302,7 +309,7 @@ readonly class MailboxSyncer
         // its primary when the folder's row and its cascade go.
         $lastCopies = [];
 
-        foreach ($this->messageRepository->findKeptIn($mailbox) as $message) {
+        foreach ($this->messageImapRepository->findKeptIn($mailbox) as $message) {
             if (count($message->locations) > count(array_filter(
                 $message->locations->toArray(),
                 static fn (MessageLocation $location): bool => $location->mailbox === $mailbox,
@@ -490,7 +497,8 @@ readonly class MailboxSyncer
      * @param list<array{folder: ImapFolder, attributes: list<string>}> $folders
      * @param array<string, MailboxSpecialUse>                       $specialUses what assignSpecialUses() made of the same listing
      *
-     * @return array<string, true> keyed by the folder's raw path
+     * @return array<string, 'all'|'flagged'> keyed by the folder's raw path: which
+     *                                        kind of mirror it is (MIRROR_ALL, MIRROR_FLAGGED)
      */
     public static function mirrorPaths(array $folders, array $specialUses): array
     {
@@ -503,8 +511,10 @@ readonly class MailboxSyncer
             $all = in_array('\\all', $attributes, true)
                 || 'all mail' === mb_strtolower(trim($folder->name()));
 
-            if (in_array('\\flagged', $attributes, true) || ($all && $hasArchive)) {
-                $paths[$folder->path] = true;
+            if ($all && $hasArchive) {
+                $paths[$folder->path] = self::MIRROR_ALL;
+            } elseif (in_array('\\flagged', $attributes, true)) {
+                $paths[$folder->path] = self::MIRROR_FLAGGED;
             }
         }
 
@@ -536,9 +546,9 @@ readonly class MailboxSyncer
         foreach ($mirrors as $mirror) {
             // Copies that are not the email's primary are locations only, and
             // go without a word: the email stays where it is primarily kept.
-            $this->messageRepository->dropSecondaryLocationsIn($mirror);
+            $this->messageImapRepository->dropSecondaryLocationsIn($mirror);
 
-            $copies = $this->messageRepository->findMirrorCopiesKeptElsewhere($mirror, self::MIRROR_ERASE_BATCH);
+            $copies = $this->messageImapRepository->findMirrorCopiesKeptElsewhere($mirror, self::MIRROR_ERASE_BATCH);
 
             if ([] === $copies) {
                 continue;
@@ -582,13 +592,14 @@ readonly class MailboxSyncer
         return self::SPECIAL_USE_NAMES[mb_strtolower(trim($folder->name()))] ?? null;
     }
 
-    private function create(Account $account, ImapFolder $folder, ?MailboxSpecialUse $specialUse, bool $selectable, bool $mirror): void
+    /** @param 'all'|'flagged'|null $mirror (MIRROR_ALL, MIRROR_FLAGGED) */
+    private function create(Account $account, ImapFolder $folder, ?MailboxSpecialUse $specialUse, bool $selectable, ?string $mirror): void
     {
         $mailbox = new Mailbox();
         $mailbox->account = $account;
-        $mailbox->isSyncEnabled = $selectable && false === $mirror;
+        $mailbox->isSyncEnabled = $selectable && null === $mirror;
         $mailbox->isSelectable  = $selectable;
-        $mailbox->mirrorsOtherFolders = $mirror;
+        $mailbox->mirrorsOtherFolders = null !== $mirror;
         // The inbox alone (#202). Junk used to be watched as well, which cost
         // an IDLE connection per account for mail nobody waits on; it is
         // polled like every other folder now, and the folders dialog switches
@@ -600,18 +611,25 @@ readonly class MailboxSyncer
         // non-nullable column is set inside hydrate() before that flush.
         $this->em->persist($mailbox);
         $this->hydrate($mailbox, $folder, $specialUse, $account);
+
+        if (null !== $mirror) {
+            $this->retireMirrorLabel($mailbox, $account, $mirror);
+        }
     }
 
-    private function update(Mailbox $mailbox, ImapFolder $folder, ?MailboxSpecialUse $specialUse, Account $account, bool $selectable, bool $mirror): void
+    /** @param 'all'|'flagged'|null $mirror (MIRROR_ALL, MIRROR_FLAGGED) */
+    private function update(Mailbox $mailbox, ImapFolder $folder, ?MailboxSpecialUse $specialUse, Account $account, bool $selectable, ?string $mirror): void
     {
         // Off when the folder is first seen to be a mirror, and only then. A
         // folder synced before this rule existed is healed on its next sync;
         // one somebody switched back on afterwards is theirs to keep on.
-        if ($mirror && false === $mailbox->mirrorsOtherFolders) {
+        $recognised = null !== $mirror && false === $mailbox->mirrorsOtherFolders;
+
+        if (true === $recognised) {
             $mailbox->isSyncEnabled = false;
         }
 
-        $mailbox->mirrorsOtherFolders = $mirror;
+        $mailbox->mirrorsOtherFolders = null !== $mirror;
 
         // Switches off, never on: a folder somebody turned off stays off, and a
         // row created enabled before this rule existed is healed here. The
@@ -628,6 +646,64 @@ readonly class MailboxSyncer
         $mailbox->isSelectable = $selectable;
 
         $this->hydrate($mailbox, $folder, $specialUse, $account);
+
+        if (true === $recognised) {
+            $this->retireMirrorLabel($mailbox, $account, (string) $mirror);
+        }
+    }
+
+    /**
+     * Take a switched-off mirror folder's label out of the sidebar, and put
+     * plMail's own All Mail there in its place (#548).
+     *
+     * A Proton account's "All Mail" folder fed an ordinary label while it was
+     * synced. Switched off, that label keeps the few copies that were no other
+     * folder's and stops there, and in the sidebar it read as the place to see
+     * everything: a September-October set with nothing recent, and the
+     * conclusion that mail was missing. The view of every conversation is the
+     * All Mail system label, a query over every folder, so that is what the
+     * sidebar shows instead. Starred's label goes the same way; the system
+     * Starred is already there.
+     *
+     * Hidden, not deleted: the mail on it stays reachable, the label stays in
+     * Settings → Labels to be shown again, and a label that another folder
+     * still feeds — the same name synced on a second account — is left alone.
+     * Once, when the folder is recognised, as its sync switch is: a person who
+     * shows it again keeps it.
+     *
+     * @param 'all'|'flagged' $mirror (MIRROR_ALL, MIRROR_FLAGGED)
+     */
+    private function retireMirrorLabel(Mailbox $mailbox, Account $account, string $mirror): void
+    {
+        $label = $mailbox->label;
+
+        if (null === $label || null !== $label->role) {
+            return;
+        }
+
+        foreach ($label->bindings as $binding) {
+            if ($binding === $mailbox->labelBinding) {
+                continue;
+            }
+
+            // A Gmail or Graph binding has no folder and is synced by its own
+            // provider; a folder binding counts while that folder is synced.
+            if (null === $binding->mailbox || true === $binding->mailbox->isSyncEnabled) {
+                return;
+            }
+        }
+
+        $label->isVisible = false;
+
+        if (self::MIRROR_ALL === $mirror && null !== $account->usr) {
+            $this->labelResolver->userSystemLabel(LabelRole::AllMail, $account->usr)->isVisible = true;
+        }
+
+        $this->logger->info('Hid the label of a mirror folder that is no longer synced', [
+            'accountId' => $account->id,
+            'folder'    => $mailbox->fullPath,
+            'label'     => $label->id,
+        ]);
     }
 
     private function hydrate(Mailbox $mailbox, ImapFolder $folder, ?MailboxSpecialUse $specialUse, Account $account): void

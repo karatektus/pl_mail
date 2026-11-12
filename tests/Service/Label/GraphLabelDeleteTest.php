@@ -13,6 +13,7 @@ use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\ApplyLabelStructureHandler;
 use App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage;
+use App\Repository\Mail\Message\MessageLabelRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\RemoteLabelRemover;
 use App\Service\Mail\GraphApiClient;
@@ -225,9 +226,9 @@ final class GraphLabelDeleteTest extends KernelTestCase
         $container = self::getContainer();
 
         return new ApplyLabelStructureHandler(
-            $container->get('App\Repository\Mail\AccountRepository'),
-            $container->get('App\Repository\Label\LabelRepository'),
-            $container->get('App\Repository\Mail\MessageRepository'),
+            $container->get('App\Repository\Mail\Account\AccountRepository'),
+            $container->get('App\Repository\Label\Label\LabelRepository'),
+            self::getContainer()->get(MessageLabelRepository::class),
             $container->get('messenger.default_bus'),
             $container->get('App\Service\Graph\GraphCategoryColorMapper'),
             $container->get('App\Service\Gmail\GmailLabelColorMapper'),
@@ -249,7 +250,7 @@ final class GraphLabelDeleteTest extends KernelTestCase
             $container->get('App\Service\Imap\ImapConnector'),
             $container->get('App\Service\Mail\GmailApiClient'),
             $this->graph(),
-            $container->get('App\Repository\Mail\MessageRepository'),
+            $container->get('App\Repository\Mail\Message\MessageRepository'),
             $container->get('App\Service\Imap\ImapFolderProvisioner'),
             $container->get(LabelResolver::class),
             $this->em,
@@ -292,7 +293,7 @@ final class GraphLabelDeleteTest extends KernelTestCase
         $account->password         = 'x';
         $account->authType         = AuthType::OAuth2->value;
         $account->oauthProvider    = MailProvider::Microsoft->value;
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         // Without a token that is good for a while, the client goes off to
         // refresh one and no request reaches the mock.
         $account->oauthAccessToken = 'test-access-token';

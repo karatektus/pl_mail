@@ -6,9 +6,9 @@ namespace App\Command\Test;
 
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -48,11 +48,11 @@ final class ClearTestDraftsCommand extends Command
         private readonly EntityManagerInterface  $entityManager,
         private readonly UserRepository          $userRepository,
         private readonly MessageRepository       $messageRepository,
-        private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageThreadRebuildRepository $messageThreadRebuildRepository,
         private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
         private readonly AttachmentStorageHelper $attachmentStorage,
         #[Autowire('%kernel.environment%')]
-        private readonly string                  $environment,
+        private readonly string                  $environment
     ) {
         parent::__construct();
     }
@@ -133,7 +133,7 @@ final class ClearTestDraftsCommand extends Command
         // outlives the messages and is exactly what makes the subject filters
         // ambiguous on a rerun. A thread with no messages left is dead weight
         // in a test database, so those go too.
-        $emptyThreads = $this->threadRepository->findEmptyForUser($user);
+        $emptyThreads = $this->messageThreadRebuildRepository->findEmptyForUser($user);
 
         foreach ($emptyThreads as $emptyThread) {
             $this->entityManager->remove($emptyThread);

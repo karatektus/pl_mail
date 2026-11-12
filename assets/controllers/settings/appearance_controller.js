@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from '@hotwired/stimulus';
 import { csrfToken, jsonCsrfHeaders } from '../../csrf.js';
 import { requestFailed } from '../../request_errors.js';
@@ -21,7 +22,6 @@ export default class extends Controller {
         'inkColor', 'inkColorField', 'inkDefault', 'inkCustom', 'inkDerived', 'inkMuted', 'inkMutedField', 'inkFaint', 'inkFaintField',
         'mainTint', 'mainTintField', 'mainTintDefault', 'mainTintCustom', 'mainAlpha', 'mainAlphaField', 'mainAlphaMatch', 'mainAlphaCustom',
         'backgroundSolid', 'backgroundSolidSwatch',
-        'previewRegion', 'previewToggle', 'previewToggleLabel', 'previewToggleIcon',
         'moreThemes', 'moreThemesButton'];
 
     connect() {
@@ -36,72 +36,6 @@ export default class extends Controller {
 
         if (this.hasInkColorFieldTarget && this.inkColorFieldTarget.value !== '') {
             this.applyInk();
-        }
-    }
-
-    /* ── The preview, on a screen too narrow to hold it beside the controls ─
-     *
-     * Above @3xl the preview card is simply there and this never runs — the
-     * button that calls it is `@3xl:hidden`. Below it, the preview card starts
-     * collapsed and this is the only way to it.
-     *
-     * The `hidden` CLASS is what moves, and it moves by being REMOVED rather
-     * than by having a `flex` switched on over the top of it. In the built
-     * stylesheet `.hidden` is ordered after `.flex`, so adding `flex` to an
-     * element that still carries `hidden` changes precisely nothing on screen
-     * while every attribute says it worked — which is the most expensive kind
-     * of bug this file can have, because it reads as JavaScript that did not
-     * run. Both classes are toggled, so the element is `flex` when shown and
-     * `hidden` when not, and the `@3xl:flex` the server rendered keeps the
-     * desktop layout right in either state.
-     *
-     * There are TWO controls for this one state — the header's "Show preview"
-     * and the pinned card's close — so the state is read off the REGION rather
-     * than off whichever button was pressed. Two buttons each holding their own
-     * idea of `aria-expanded` is how a disclosure comes to need pressing twice.
-     *
-     * Nothing is persisted. See the note on the button in _appearance.html.twig
-     * for why a peek is not a preference.
-     */
-    togglePreview() {
-        if (false === this.hasPreviewRegionTarget) {
-            return;
-        }
-
-        const region = this.previewRegionTarget;
-        const show = region.classList.contains('hidden');
-
-        region.classList.toggle('hidden', !show);
-        region.classList.toggle('flex', show);
-
-        // Every control pointing at this region, whichever one was pressed.
-        this.element
-            .querySelectorAll('[data-appearance-preview-toggle]')
-            .forEach((button) => button.setAttribute('aria-expanded', show ? 'true' : 'false'));
-
-        // The label is the accessible name and it says what the control does
-        // NEXT, which aria-expanded alone does not tell anyone reading the
-        // button. Both strings come off the markup so they are translated once,
-        // in the catalogue, rather than a second time in here.
-        if (this.hasPreviewToggleLabelTarget && this.hasPreviewToggleTarget) {
-            const { showLabel, hideLabel } = this.previewToggleTarget.dataset;
-
-            this.previewToggleLabelTarget.textContent = (show ? hideLabel : showLabel) ?? '';
-        }
-
-        if (this.hasPreviewToggleIconTarget) {
-            this.previewToggleIconTarget.classList.toggle('fa-eye', !show);
-            this.previewToggleIconTarget.classList.toggle('fa-eye-slash', show);
-        }
-
-        // Revealed, the card is the FIRST thing in the stack — above the header
-        // that revealed it. Left where they were, the reader is looking at the
-        // controls with the preview off the top of the screen until they think
-        // to scroll up, which is a disclosure that discloses nothing. Bringing
-        // it to the top of the scroll port is also exactly where it will stick,
-        // so nothing moves again afterwards.
-        if (show) {
-            region.scrollIntoView({ block: 'start', behavior: 'smooth' });
         }
     }
 
@@ -120,63 +54,6 @@ export default class extends Controller {
      * how a live preview comes to disagree with a reload. Twig writes both
      * from the same enum.
      */
-    /**
-     * Show the sample message for the row that was pressed.
-     *
-     * Every pane is in the markup already and this toggles which one is not
-     * `hidden`. The alternative — building the sample in JavaScript — would put
-     * eight senders and a body in a second place and translate them a second
-     * time, which is exactly what _appearance_preview.html.twig refuses to do
-     * about the thread row it is a miniature of.
-     *
-     * Scoped to the preview region rather than the whole controller element:
-     * the controller owns the entire appearance panel, and a stray
-     * `[data-preview-message]` anywhere else in it would be swept up by a
-     * document-wide query.
-     */
-    pickPreviewRow(event) {
-        const index = event.currentTarget?.dataset?.previewOpen;
-
-        if (undefined === index) {
-            return;
-        }
-
-        this.element.querySelectorAll('[data-preview-message]').forEach((pane) => {
-            pane.classList.toggle('hidden', pane.dataset.previewMessage !== index);
-        });
-
-        // The pressed row carries the list's selected ground. Cleared from all
-        // of them first, so two rows can never look chosen at once.
-        this.element.querySelectorAll('[data-preview-open]').forEach((row) => {
-            row.classList.toggle('bg-hover', row.dataset.previewOpen === index);
-        });
-
-        // The details block belongs to the message that was open, not to the
-        // card, so a new message starts closed the way a real one does.
-        this.element
-            .querySelectorAll('[data-preview-details]')
-            .forEach((block) => block.classList.add('hidden'));
-    }
-
-    /** The "to …" chevron on the sample message. */
-    togglePreviewDetails(event) {
-        const block = event.currentTarget
-            ?.closest('[data-preview-message]')
-            ?.querySelector('[data-preview-details]');
-
-        block?.classList.toggle('hidden');
-    }
-
-    /**
-     * The sample compose window.
-     *
-     * Outside the per-message panes on purpose — see the template — so that
-     * clicking through rows to compare densities does not keep shutting it.
-     */
-    togglePreviewCompose() {
-        this.element.querySelector('[data-preview-compose]')?.classList.toggle('hidden');
-    }
-
     applyVars(event) {
         const source = event.currentTarget.selectedOptions
             ? event.currentTarget.selectedOptions[0]

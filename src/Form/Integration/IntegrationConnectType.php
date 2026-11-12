@@ -29,13 +29,17 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 final class IntegrationConnectType extends AbstractType
 {
     /**
-     * Providers that need a username beside the credential. Immich's API key
-     * identifies the user on its own; a Nextcloud app password and an
-     * OpenCloud app token do not.
+     * Providers that ask for a username beside the credential, and whether it
+     * is required. Immich's API key identifies the user on its own; a
+     * Nextcloud app password and an OpenCloud app token do not. A plain WebDAV
+     * server (#547) may want one or not — FileBrowser Quantum takes an API
+     * token as the password and ignores the username — so the field is there
+     * and may be left blank.
      */
-    private const array NEEDS_USERNAME = [
+    private const array USERNAME_REQUIRED = [
         Provider::Nextcloud->value => true,
         Provider::OpenCloud->value => true,
+        Provider::WebDav->value    => false,
     ];
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
@@ -51,16 +55,24 @@ final class IntegrationConnectType extends AbstractType
         ]);
 
         if (true === $options['url_editable']) {
+            // A plain WebDAV address is the folder itself, path and all, which
+            // the usual bare-host example would hide.
+            $isWebDav = Provider::WebDav === $provider;
+
             $builder->add('baseUrl', UrlType::class, [
                 'label' => 'settings.integrations.field.base_url',
-                'attr'  => ['placeholder' => 'https://cloud.example.com'] + PasswordManagerIgnore::ATTR,
+                'help'  => $isWebDav ? 'settings.integrations.field.base_url_help.webdav' : null,
+                'attr'  => [
+                    'placeholder' => $isWebDav ? 'https://files.example.com/dav/files/' : 'https://cloud.example.com',
+                ] + PasswordManagerIgnore::ATTR,
             ]);
         }
 
-        if (true === isset(self::NEEDS_USERNAME[$provider->value])) {
+        if (true === isset(self::USERNAME_REQUIRED[$provider->value])) {
             $builder->add('username', TextType::class, [
-                'label' => 'settings.integrations.field.username',
-                'attr'  => ['autocomplete' => 'off'] + PasswordManagerIgnore::ATTR,
+                'label'    => 'settings.integrations.field.username',
+                'required' => self::USERNAME_REQUIRED[$provider->value],
+                'attr'     => ['autocomplete' => 'off'] + PasswordManagerIgnore::ATTR,
             ]);
         }
 

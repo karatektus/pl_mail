@@ -8,9 +8,9 @@ use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Mail\SyncTrigger;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Monitoring\MessengerQueueRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Monitoring\MessengerQueue\MessengerQueueRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -101,7 +101,7 @@ final class SyncController extends AbstractController
     {
         return array_values(array_filter(
             $this->accountRepository->findForUserOrdered($this->getUser()),
-            static fn (Account $account): bool => true === $account->isActive,
+            static fn (Account $account): bool => true === $account->mailEnabled,
         ));
     }
 }

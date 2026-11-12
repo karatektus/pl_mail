@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Mail;
 
 use App\Entity\Mail\Account;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -53,7 +53,7 @@ final class ComposeWithoutAccountTest extends WebTestCase
         // Switched off counts as none: ComposeWindow::defaultAccountFor()
         // offers only active accounts.
         $container->get('doctrine.orm.entity_manager')
-            ->createQuery('UPDATE ' . Account::class . ' a SET a.isActive = false WHERE a.usr = :usr')
+            ->createQuery('UPDATE ' . Account::class . ' a SET a.mailEnabled = false WHERE a.usr = :usr')
             ->setParameter('usr', $user)
             ->execute();
 
@@ -64,7 +64,7 @@ final class ComposeWithoutAccountTest extends WebTestCase
         self::assertCount(1, $crawler->filter('turbo-frame#compose_dock #compose-no-account-heading'));
         self::assertSame(
             '_top',
-            $crawler->filter('a[href="/settings?section=accounts"]')->attr('data-turbo-frame'),
+            $crawler->filter('a[href="/settings/accounts"]')->attr('data-turbo-frame'),
             'the way out leaves the compose slot',
         );
         self::assertCount(1, $crawler->filter('button[data-action="compose--dock#dismiss"]'));

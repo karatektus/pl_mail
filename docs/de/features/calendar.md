@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:b293d951b77d4bb00035776790dd9e8bf7517a7e -->
+<!-- translated-from: features/calendar.md sha1:0ee85291c9ff6101dd92340b09c14ae97ee8dc8e -->
 
 # Kalender
 
@@ -32,7 +32,7 @@ merkt sich plMail das.
 ### Die Kalenderschaltfläche
 
 Standardmäßig ist die Schaltfläche ein Dreifachschalter: Mail, dann der Kalender neben der Mail,
-dann der Kalender in voller Breite, und wieder von vorn. **Einstellungen → Kalender → Verhalten**
+dann der Kalender in voller Breite, und wieder von vorn. **Einstellungen → Kalender & Kontakte → Kalenderverhalten**
 hat eine Auswahl, **Kalenderschaltfläche**, die daraus einen Zweifachschalter machen kann:
 
 - **Alle drei**: der Dreifachschalter, das ist die Voreinstellung.
@@ -165,7 +165,7 @@ stimmt.
 
 **Das Raster wird auf deiner Uhr gezeichnet.** Die Stunden an der Seite, die Stelle, an der die
 Linie der aktuellen Zeit sitzt, und die Zeit, die für einen neuen Termin vorgeschlagen wird, wenn du
-auf leeren Raum doppelklickst, folgen alle der Zeitzone aus **Einstellungen → Allgemein**. Das ist
+auf leeren Raum doppelklickst, folgen alle der Zeitzone aus **Einstellungen → Allgemein → Sprache & Region**. Das ist
 dieselbe Zone, gegen die jeder andere Zeitstempel in der App gelesen wird, und die der Uhr oben,
 also sind sich beide immer einig. Jeder Termin steht zu dem Zeitpunkt da, zu dem er bei dir
 tatsächlich stattfindet: Ein Termin um 15:00 in einem Tokioter Kalender liegt, in Berlin gelesen,

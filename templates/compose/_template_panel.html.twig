@@ -137,7 +137,7 @@ Variables:
         {# _top: this fragment lives inside the compose frame, and a link
            followed in there would try to load the settings page into the
            dock. #}
-        <a href="{{ path('app_settings_index', { section: 'templates' }) }}"
+        <a href="{{ path('app_settings_page', { page: 'templates' }) }}"
            data-turbo-frame="_top"
            class="text-xs text-accent hover:underline">{{ 'compose.template.manage'|trans }}</a>
     </div>

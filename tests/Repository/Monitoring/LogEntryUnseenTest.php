@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Repository\Monitoring;
 
 use App\Entity\User\User;
-use App\Repository\Monitoring\LogEntryRepository;
+use App\Repository\Monitoring\LogEntry\LogEntryRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

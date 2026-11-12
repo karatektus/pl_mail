@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Doctrine\Logging;
 
+use App\EventSubscriber\RequestIdSubscriber;
+use App\Repository\Monitoring\LogEntry\LogEntryAppendRepository;
 use App\Service\Monitoring\LogLevelResolver;
-use Doctrine\DBAL\Connection;
 use Monolog\Handler\AbstractProcessingHandler;
-use Monolog\Processor\PsrLogMessageProcessor;
 use Monolog\Level;
 use Monolog\LogRecord;
+use Monolog\Processor\PsrLogMessageProcessor;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use App\EventSubscriber\RequestIdSubscriber;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -50,7 +50,7 @@ final class DoctrineLogHandler extends AbstractProcessingHandler
     private const int MAX_CONTEXT_DEPTH = 4;
 
     public function __construct(
-        private readonly Connection        $connection,
+        private readonly LogEntryAppendRepository $entries,
         private readonly ?RequestStack     $requests = null,
         private readonly ?LogLevelResolver $levels = null,
         #[Autowire(env: 'APP_CONTAINER_NAME')]
@@ -149,7 +149,7 @@ final class DoctrineLogHandler extends AbstractProcessingHandler
                 JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE,
             );
 
-            $this->connection->insert('log_entry', [
+            $this->entries->append([
                 'channel'    => mb_substr($record->channel, 0, 64),
                 'level'      => $record->level->value,
                 'level_name' => mb_substr($record->level->getName(), 0, 32),

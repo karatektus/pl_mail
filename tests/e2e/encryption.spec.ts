@@ -94,7 +94,7 @@ test.describe("encryption keyring", () => {
 
         const before = await keyringOf(page);
 
-        await page.goto("/settings?section=security");
+        await page.goto("/settings/security");
 
         const card = page.locator("#settings-password");
 
@@ -171,7 +171,7 @@ async function person(): Promise<string> {
 }
 
 async function openEncryptionSettings(page: Page): Promise<void> {
-    await page.goto("/settings?section=encryption");
+    await page.goto("/settings/encryption");
     await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });
 }
 

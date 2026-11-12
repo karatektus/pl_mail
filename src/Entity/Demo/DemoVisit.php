@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Entity\Demo;
 
 use App\Domain\Trait\TimestampableTrait;
-use App\Repository\Demo\DemoVisitRepository;
+use App\Repository\Demo\DemoVisit\DemoVisitRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

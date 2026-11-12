@@ -6,8 +6,8 @@ namespace App\Tests\Controller\Mail;
 
 use App\Domain\Enum\Job\JobKind;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
-use App\Repository\Job\BackgroundJobRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
+use App\Repository\User\User\UserRepository;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Messenger\Envelope;

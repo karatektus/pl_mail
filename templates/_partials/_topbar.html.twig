@@ -5,7 +5,8 @@
    the 36px buttons become 32px, and Sync now and the help menu move into the
    user menu, where they are entries rather than icons. That is 408px of bar
    brought under 320. #}
-<header class="flex items-center gap-2 px-4 h-14 flex-shrink-0 pane shell-chrome relative z-20 max-sm:gap-1 max-sm:px-2">
+<header class="shell-topbar flex items-center gap-2 px-4 h-14 flex-shrink-0 pane shell-chrome relative z-20 max-sm:gap-1 max-sm:px-2"
+        data-controller="ui--titlebar">
 
     {# Burger — opens the drawer on mobile, collapses to the icon rail on md+.
        aria-expanded is kept in step by ui--sidebar-drawer: the drawer's state
@@ -29,7 +30,7 @@
     {# Logo #}
     <a
         href="{{ path('app_mail_inbox') }}"
-        class="flex items-center gap-2 flex-shrink-0 md:w-52 no-underline"
+        class="shell-logo flex items-center gap-2 flex-shrink-0 md:w-52 no-underline"
         aria-label="{{ 'app.name'|trans }}"
     >
         {# The user's logo (Settings → Appearance → Logo). The pl mark is
@@ -776,7 +777,7 @@
                         <p class="text-sm font-medium text-ink truncate">{{ app.user.email }}</p>
                     {% endif %}
                 </div>
-                <a href="{{ path('app_settings_index', { section: 'profile' }) }}"
+                <a href="{{ path('app_settings_page', { page: 'profile' }) }}"
                    id="user-menu-profile"
                    class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
                     <i class="fa-solid fa-user w-4 text-gray-400" aria-hidden="true"></i>
@@ -790,7 +791,7 @@
                     indicator that lands you on a page where you still have to
                     hunt has only moved the hunting.
                 #}
-                <a href="{{ path('app_settings_index', attention ? { section: 'health' } : {}) }}"
+                <a href="{{ attention ? path('app_settings_page', { page: 'health' }) : path('app_settings_index') }}"
                    id="user-menu-settings"
                    class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
                     <i class="fa-solid fa-gear w-4 text-gray-400" aria-hidden="true"></i>

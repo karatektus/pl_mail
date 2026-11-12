@@ -23,9 +23,9 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Imap\MessageSendService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
@@ -474,7 +474,7 @@ final class ThreadOrderingOnSendTest extends KernelTestCase
         $this->account->smtpEncryption = 'starttls';
         $this->account->password = 'x';
         $this->account->authType = 'password';
-        $this->account->isActive = true;
+        $this->account->mailEnabled = true;
         $this->em->persist($this->account);
 
         $this->inbox = $this->mailbox('INBOX', MailboxSpecialUse::INBOX);

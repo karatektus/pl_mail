@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace App\Jmap\Method\Keys;
 
 use App\Domain\Exception\DecryptedMailRefused;
-use App\Entity\Mail\Message;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Blob\BlobId;
 use App\Jmap\Blob\BlobResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Crypto\DecryptedMail;
-use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * "DecryptedMail/store" — plMail extension, `urn:plmail:params:jmap:keys`.
@@ -35,7 +34,7 @@ final class DecryptedMailStoreMethod implements JmapMethod
         private readonly AccountResolver        $accounts,
         private readonly BlobResolver           $blobs,
         private readonly DecryptedMail          $decryptedMail,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly MessageRepository $messageRepository
     ) {
     }
 
@@ -58,7 +57,7 @@ final class DecryptedMailStoreMethod implements JmapMethod
 
         foreach ($emails as $emailId => $blobId) {
             $emailId = (string) $emailId;
-            $message = ctype_digit($emailId) ? $this->entityManager->find(Message::class, (int) $emailId) : null;
+            $message = ctype_digit($emailId) ? $this->messageRepository->find((int) $emailId) : null;
             $parsed  = is_string($blobId) ? BlobId::parse($blobId) : null;
             $blob    = null === $parsed ? null : $this->blobs->resolve($account, $parsed);
 

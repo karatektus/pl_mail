@@ -9,7 +9,7 @@ use App\Domain\Enum\Mail\GmailSkipReason;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\GmailSkippedMessage;
 use App\Entity\User\User;
-use App\Repository\Mail\GmailSkippedMessageRepository;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -54,7 +54,7 @@ final class GmailSkippedCommandTest extends KernelTestCase
         $account->username      = uniqid('gmail-', true);
         $account->authType      = AuthType::OAuth2->value;
         $account->oauthProvider = 'google';
-        $account->isActive      = true;
+        $account->mailEnabled   = true;
         $account->importTotal   = 12;
         $this->em->persist($account);
         $this->em->flush();

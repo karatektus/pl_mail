@@ -14,7 +14,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Label\LabelResolver;
 use App\Tests\Support\Mail\SendsAjaxCsrf;
 use DateTimeImmutable;
@@ -157,7 +157,7 @@ final class DiscardedDraftPropagationTest extends WebTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $mailbox = new Mailbox();

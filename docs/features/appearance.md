@@ -81,25 +81,11 @@ is only the drawing. A file that is not an SVG, is larger than 256 KB, or has no
 and no width and height to make one from) is refused with a message saying which. The phone apps go
 on showing the motif you had before; only the web app and what it installs wear the upload.
 
-## The live preview
+## Seeing a change
 
-Beside the controls sits a second card showing a sample sidebar, message list and reading pane in
-whatever you have currently chosen. Every change lands in it as you make it. Nothing in it is your
-mail — the rows are invented, and the preview never loads a message.
-
-The boundary between the two cards can be dragged, from **240** to **900** pixels, and where you
-leave it is remembered against your account rather than the browser, so the page opens at your width
-on the next visit and on the next machine. Arrow keys move it too, and a double-click puts it back
-to its default of 304.
-
-The maximum is a ceiling rather than a promise. The controls card will not be squeezed below its own
-floor, so the preview widens into whatever the window has spare and stops earlier on a narrow one —
-at 1280 pixels it reaches about 374 however far you drag.
-
-On a narrow screen the preview is not shown beside the controls at all. **Show preview** in the
-settings card's header reveals it above them instead, leaving every control where it was, and
-**Hide preview** puts it away. That one is deliberately *not* remembered: it starts closed on every
-load, because it is a peek rather than a decision about how the page should be shaped.
+Every control applies to the whole app the moment you change it — the sidebar, the top bar and the
+settings page around you change with it — and is saved a moment later. To see what it does to the
+mail list or a message, open the inbox in another tab; it picks the change up on its next load.
 
 ## What a list row shows
 
@@ -268,18 +254,36 @@ settings. It deliberately does
 a custom background exports as **Theme default**. The same goes for a logo of your own: the export
 names the motif underneath it.
 
-It does not carry the preview pane's width either. That is a preference about how this settings page
-is shaped rather than part of how the app looks, so importing somebody else's theme leaves your own
-preview exactly where you left it.
-
 Import checks the version and refuses a file that is not version 1. Anything in the payload that is
 not a value plMail recognises is ignored rather than stored, and a layout in the file is applied
 before the individual numbers, so an export written before a control existed still lands somewhere
 sensible.
 
+## Finding a setting
+
+Settings is a tree of eight areas — Account, General, Mail accounts, Inbox, Reading & writing,
+Calendar & contacts, Assistant & automation and Integrations — each with a few pages. The area of
+the page you are on is open; the others fold away until you open them.
+
+The field above the tree searches every page and every card on it. It matches headings and also
+the words people use for a thing without knowing its name: **dark** finds **Theme**, **2fa** finds
+two-factor authentication, **imap** finds app passwords and accounts. Case and accents do not
+matter. A card found by such a word says which word it was.
+
+**⌘K** on a Mac, **Ctrl+K** elsewhere, opens the same search from anywhere in plMail. **↑** and
+**↓** move through the results and **Enter** opens one: the page loads and the card is outlined
+for a moment so you can see where it is. While you are typing in a mail or a text box the
+shortcut is left to the editor and the browser, so press it from anywhere else.
+
+On a phone the tree sits behind one button at the top of Settings, which names the page you are
+on; tap it to open the tree and the search.
+
+Every page has an address of its own, `/settings/<page>`, so a page can be bookmarked or sent to
+someone. Links to the older `/settings?section=…` addresses open the first page of Settings.
+
 ## Language
 
-**Settings → General → Language** sets the language the interface is shown in. Your mail is left
+**Settings → General → Language & region** sets the language the interface is shown in. Your mail is left
 exactly as it was written — nothing is translated, and nothing is rewritten.
 
 plMail ships **English**, **Deutsch**, **Français**, **简体中文** (Simplified Chinese) and **Pirate English**.
@@ -311,6 +315,17 @@ Below that, **Show the time** puts the current time somewhere you can see it whi
 - **Nowhere** — the topbar as it was: the Happening Soon button only when something is coming up.
 
 The time moves on by itself each minute and follows the timezone and clock format above.
+
+## The installed app's window
+
+plMail installed as an app in Chrome or Edge can do without the browser's title bar. Chrome shows a
+small arrow button in the app's title bar (**Hide title bar**); press it once and the choice is kept.
+plMail's own top bar then takes the title bar's place: it runs along the window's top edge, the
+window's buttons sit inside it (on the left on a Mac, on the right on Windows and Linux), and its
+empty space moves the window as the title bar did. The margin around the panels goes, so the top
+bar, the sidebar and the content reach the window's edges; each keeps its size and the gaps between
+them stay, and a corner that would sit halfway along the window's edge is square. The strips behind the window buttons take the top bar's colour. The same arrow
+brings the title bar back.
 
 ## Where to read further
 
@@ -350,14 +365,6 @@ pane are one painted surface, so there is nowhere for those to differ.
 **Compact does not shrink rows on a phone.** Every pane holds its Comfortable height on a touch
 device, so the setting looks as though it did nothing there. It did — on every pointer device you
 use the same account from.
-
-**The preview will not always reach 900.** It widens into what the window has spare, and the controls
-beside it have a floor they will not go below. On a 1280-wide window the boundary stops around 374.
-Dragging it and finding it will not go further is the clamp working, not a stuck handle.
-
-**The preview's width is remembered; whether it is open on a phone is not.** The width follows your
-account to every device. **Show preview** on a narrow screen starts closed every time you open the
-page.
 
 **Follow the theme treats the logo themes and the classic themes differently.** On one of the
 thirty-two logo themes the icon wears the colourway of the same name. The seven classic themes have

@@ -162,7 +162,7 @@ Variables:
              data-mail--encrypted-message-sender-keys-url-value="{{ path('app_contact_keys_sender', { email: message.fromAddress }) }}"
              data-mail--encrypted-message-smime-signer-url-value="{{ message.crypto.pgp ? '' : path('app_contact_keys_message_smime_signer', { id: message.id }) }}"
              data-mail--encrypted-message-document-value="{{ frameDocument|e('html') }}"
-             data-mail--encrypted-message-settings-url-value="{{ path('app_settings_index', { section: 'encryption' }) }}"
+             data-mail--encrypted-message-settings-url-value="{{ path('app_settings_page', { page: 'encryption' }) }}"
              data-mail--encrypted-message-keyring-value="{{ {
                  stateUrl:    path('app_keyring_state'),
                  unlockUrl:   path('app_keyring_unlock_current'),

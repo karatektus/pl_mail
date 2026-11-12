@@ -10,7 +10,7 @@ use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Infrastructure\Messaging\Message\ReleaseHeldMailMessage;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\BackfillPolicy;
 use Symfony\Component\Messenger\MessageBusInterface;

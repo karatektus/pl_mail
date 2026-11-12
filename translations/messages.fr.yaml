@@ -2,8 +2,6 @@ account:
     add_title: Ajouter un compte
     added: Compte ajouté
     colour_set: Couleur du compte modifiée
-    disabled: Compte désactivé
-    enabled: Compte activé
     form:
         email: Adresse e-mail
         encryption: Chiffrement
@@ -49,13 +47,27 @@ account:
             same: Utiliser le même mot de passe pour l’envoi
             separate: Utiliser un autre mot de passe pour l’envoi
         username: Nom d’utilisateur
+    mail_purge_queued: 'Suppression du courrier de ce compte dans plMail. Le serveur garde sa copie.'
     oauth:
         calendar_declined: Le compte est connecté, mais l’accès à l’agenda n’a pas été accordé — ses agendas ne seront donc pas synchronisés. Reconnectez-le et cochez l’accès à l’agenda sur l’écran de consentement de Google.
         google: Continuer avec Google
         info: Connectez-vous chez votre fournisseur — aucun mot de passe n’est stocké.
         microsoft: Continuer avec Microsoft
+        services:
+            help: 'L’écran suivant ne demande que ce que vous cochez. Vous pourrez le changer plus tard dans Paramètres → Comptes.'
+            legend: 'Utiliser ce compte pour'
     primary_set: Compte principal modifié
     removed: Compte supprimé
+    service:
+        calendar:
+            off: 'Agenda désactivé'
+            on: 'Agenda activé'
+        contacts:
+            off: 'Contacts désactivés'
+            on: 'Contacts activés'
+        mail:
+            off: 'Courrier désactivé. Ce qui est déjà là reste.'
+            on: 'Courrier activé'
     sync_interval_set: Intervalle de synchronisation modifié
     tabs:
         imap: IMAP / SMTP
@@ -79,7 +91,7 @@ account:
             missing_fields: 'Saisissez d’abord au moins une adresse e-mail et un serveur IMAP.'
             missing_password: 'Aucun mot de passe pour le test. Saisissez-en un ci-dessus — dans le formulaire de modification, un champ vide conserve le mot de passe enregistré, que le test ne peut utiliser qu’une fois le compte enregistré.'
             pop3_ok: 'Connecté — %count% messages dans la boîte.'
-            private_network: 'Ce serveur se trouve sur un réseau privé. Un administrateur doit d''abord autoriser son hôte dans INTEGRATIONS_ALLOWED_HOSTS avant que plMail puisse s''y connecter.'
+            private_network: 'Ce serveur se trouve sur un réseau privé. Un administrateur doit d''abord l''autoriser dans Admin → Intégrations → Serveurs sur un réseau privé avant que plMail puisse s''y connecter.'
             smtp_none: 'Aucun serveur SMTP configuré — l’envoi est désactivé pour ce compte.'
             smtp_ok: 'Connecté et authentifié.'
             timeout: 'Le serveur n’a pas répondu à temps. Vérifiez le serveur et le port, et qu’aucun pare-feu ne bloque.'
@@ -608,7 +620,7 @@ admin:
         base_url_per_user: 'Chaque utilisateur saisit l’adresse de son propre serveur.'
         base_url_pinned: 'imposée à tous les utilisateurs'
         calendar:
-            connected_warning: 'Connexions déjà établies : %count%. Une adresse modifiée ou effacée s’applique à chacune d’elles la prochaine fois que ses calendriers sont recherchés : une personne connectée à un autre serveur, iCloud par exemple, est alors interrogée sur celui-ci avec son propre mot de passe. Les calendriers déjà reflétés gardent l’adresse où ils ont été trouvés ; si une adresse effacée était dans un réseau privé, ils ne se synchronisent plus tant que son hôte n’est pas dans INTEGRATIONS_ALLOWED_HOSTS.'
+            connected_warning: 'Connexions déjà établies : %count%. Une adresse modifiée ou effacée s’applique à chacune d’elles la prochaine fois que ses calendriers sont recherchés : une personne connectée à un autre serveur, iCloud par exemple, est alors interrogée sur celui-ci avec son propre mot de passe. Les calendriers déjà reflétés gardent l’adresse où ils ont été trouvés ; si une adresse effacée était dans un réseau privé, ils ne se synchronisent plus tant qu’il n’est pas autorisé sous Serveurs sur un réseau privé, plus bas.'
             heading: 'Calendriers'
             intro: 'Les serveurs et flux depuis lesquels les utilisateurs reflètent des calendriers, dans Réglages → Calendriers. Les deux sont proposés à tous ; on peut définir ici une adresse de serveur pour tout le monde. Nextcloud se configure avec les services de fichiers ci-dessus, et ses calendriers l’accompagnent.'
         clear_secret: 'Supprimer le secret client enregistré'
@@ -688,6 +700,25 @@ admin:
             enabled: 'Activé'
             incomplete: 'Identifiants manquants'
             unimplemented: 'Pas encore disponible'
+        trusted:
+            add: 'Autoriser un serveur'
+            allow: 'Autoriser'
+            allow_http: 'Autoriser le http non chiffré'
+            empty: 'Aucun pour l’instant. Un serveur dont l’adresse est privée est refusé tant qu’il ne figure pas ici.'
+            field:
+                allow_http: 'Ce serveur n’a pas de certificat : autoriser le http non chiffré'
+                allow_http_help: 'Uniquement pour un serveur de votre propre réseau. Les mots de passe d’application envoyés le traversent alors en clair.'
+                host: 'Serveur'
+                host_help: 'Son nom d’hôte ou son adresse IP, tels qu’ils figurent dans l’adresse saisie : dav.home.example.com, 192.168.1.20. Une adresse complète convient aussi ; seul son hôte est conservé.'
+            form_intro: 'Les utilisateurs connectés pourront alors relier plMail à ce serveur bien que son adresse soit privée. Chacun d’eux peut faire envoyer par plMail des requêtes à tous les serveurs listés ici : listez ceux qui sont réellement utilisés, pas toutes les machines du réseau.'
+            heading: 'Serveurs sur un réseau privé'
+            http_allowed: 'http non chiffré autorisé'
+            intro: 'plMail refuse une adresse de serveur qui pointe vers un réseau privé, afin que personne ne puisse s’en servir pour atteindre cette machine ou ses voisines. Les serveurs listés ici sont autorisés malgré tout : un serveur CalDAV, CardDAV ou de fichiers à la maison, un flux de calendrier sur votre réseau local.'
+            remove: 'Ne plus autoriser %host%'
+            remove_confirm: 'Ne plus autoriser %host% ? Les connexions vers ce serveur cesseront de fonctionner à leur prochaine synchronisation.'
+            removed: 'Serveur retiré'
+            require_https: 'Exiger https'
+            saved: 'Serveur autorisé'
         tutorial:
             caldav:
                 intro: 'CalDAV s’authentifie avec un mot de passe d’application propre à chaque utilisateur, sur son propre serveur : il n’y a rien à enregistrer ici.'
@@ -756,6 +787,13 @@ admin:
                 step_base_url: 'Facultatif : imposez l’adresse du serveur, par exemple https://paperless.example.com.'
                 step_enable: 'Activez « Proposer ce service aux utilisateurs » ci-dessus.'
                 step_token: 'Chaque utilisateur copie son jeton d’API depuis Paperless sous Mon profil → Jeton d’authentification API et le colle dans ses propres réglages d’intégration.'
+            webdav:
+                intro: "WebDAV couvre tout serveur de fichiers qui le parle — FileBrowser Quantum, un NAS Synology, rclone serve webdav, Apache mod_dav. Chaque utilisateur se connecte avec son propre mot de passe ou jeton : il n’y a rien à enregistrer ici."
+                no_links: "WebDAV n’offre ni liens publics, ni aperçus, ni recherche. Les fichiers au-delà de la taille maximale des pièces jointes ne peuvent pas être joints, et le sélecteur affiche une icône de fichier au lieu d’une miniature."
+                security: "Un serveur sur un réseau privé, comme un NAS à la maison, n’est joignable qu’une fois ajouté sous Serveurs sur un réseau privé, plus bas."
+                step_base_url: "Facultatif : imposez l’adresse, par exemple https://files.example.com/dav/files/. C’est l’adresse complète du dossier à ouvrir, chemin compris : sur FileBrowser Quantum, /dav/ suivi du nom de la source."
+                step_enable: 'Activez « Proposer ce service aux utilisateurs » ci-dessus.'
+                step_user: "Chaque utilisateur saisit cette adresse, un nom d’utilisateur si le serveur en demande un, et un mot de passe ou un jeton d’API. FileBrowser Quantum prend un jeton d’API comme mot de passe et ignore le nom d’utilisateur."
         tutorial_heading: 'Configuration'
         unimplemented_notice: 'plMail ne sait pas encore communiquer avec ce service. Vous pouvez enregistrer les identifiants dès maintenant — ils seront utilisés dès que la prise en charge arrivera.'
     loading: 'Chargement…'
@@ -3209,7 +3247,7 @@ profile:
         name_first: Prénom
         name_last: Nom
 
-# The reading pane beside the message list (Settings → Reading pane turns it on).
+# The reading pane beside the message list (Settings → Reading & writing → Reading turns it on).
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
@@ -3414,10 +3452,8 @@ settings:
                 '7': Olive
         delete: Supprimer le compte
         delete_confirm: 'Supprimer %account% ? Tous les messages synchronisés de ce compte seront définitivement supprimés, sans retour possible.'
-        disable: Désactiver le compte
         edit: Modifier le compte
         empty: Aucun compte pour l’instant. Ajoutez-en un pour commencer à synchroniser du courrier.
-        enable: Activer le compte
         folders:
             always_synced: La boîte de réception est toujours synchronisée
             button: Dossiers
@@ -3459,6 +3495,7 @@ settings:
             placeholder: 'Un dossier qui ne fait que regrouper d’autres dossiers — il n’y a rien à synchroniser dedans'
             refused:
                 has_children: 'Ce dossier contient d’autres dossiers. Supprimez-les ou déplacez-les d’abord.'
+                mail_off: 'Le courrier est désactivé pour ce compte : ses dossiers ne peuvent pas être modifiés sur le serveur. Activez d’abord le courrier.'
                 not_empty: 'Ce dossier contient encore du courrier (%count%). Déplacez-le d’abord ; supprimer un dossier supprimerait son courrier.'
                 server: 'Le serveur de messagerie a refusé : %reason%'
                 special_use: 'La boîte de réception, Envoyés, Brouillons, Corbeille, Indésirables et Archives ne sont jamais renommés ni supprimés depuis plMail : les autres applications et plMail lui-même en dépendent.'
@@ -3536,6 +3573,25 @@ settings:
                 microsoft: Le nouveau courrier arrive immédiatement via les notifications push de Microsoft.
             title: Livraison instantanée
         reorder: Faites glisser pour réorganiser
+        services:
+            allow: 'Autoriser…'
+            allow_explained: 'Activer %service% demande une autorisation que %provider% n’a pas encore donnée à plMail. Ouvre %provider% pour la demander.'
+            calendar: 'Agenda'
+            calendar_help: 'Ses agendas, tenus à jour dans les deux sens'
+            change: 'Courrier, agenda et contacts pour %account%'
+            close: 'Terminé'
+            contacts: 'Contacts'
+            contacts_help: 'Ses carnets d’adresses, tenus à jour dans les deux sens'
+            intro: 'Désactivez ce pour quoi vous n’utilisez pas ce compte. plMail cesse alors d’en parler au serveur et garde ce qui est déjà là.'
+            mail: 'Courrier'
+            mail_help: 'Synchronisation, envoi et chaque modification de son courrier'
+            none: 'Tout est désactivé'
+            purge: 'Supprimer de plMail le courrier synchronisé'
+            purge_confirm: 'Supprimer tout le courrier que plMail a synchronisé pour %account% ? Il reste sur le serveur. Si vous réactivez le courrier, plMail le télécharge à nouveau.'
+            purge_help: 'Seule la copie de plMail est supprimée. Rien n’est effacé sur le serveur.'
+            turn_off: 'Désactiver %service% pour %account%'
+            turn_on: 'Activer %service% pour %account%'
+            used_for: 'Utilisé pour %services%'
         status:
             active: Actif
             disabled: Désactivé
@@ -3788,43 +3844,6 @@ settings:
             matchGlass: Suivre l’opacité du verre
             subheading: Teinte et opacité de la zone de contenu principale, indépendamment de la barre latérale.
             tint: Teinte d’arrière-plan
-        preview:
-            body: Un court message, pour que le volet de lecture ait quelque chose à montrer. Rien de tout cela n’est du vrai courrier — l’aperçu n’en charge jamais.
-            heading: Aperçu
-            hide: Masquer l’aperçu
-            resize: Redimensionner l’aperçu
-            compose_body: Une réponse à moitié écrite, pour que l’éditeur ait quelque chose dedans. Rien n’est envoyé.
-            compose_heading: Nouveau message
-            compose_send: Envoyer
-            compose_subject: 'Re : Notes sur la machine analytique'
-            compose_to: ada@plmail.test
-            field_date: Date
-            field_from: De
-            field_subject: Objet
-            field_to: À
-            reply: Répondre
-            sender1: Ada Lovelace
-            sender2: Grace Hopper
-            sender3: Kathleen Booth
-            sender4: Margaret Hamilton
-            sender5: Barbara Liskov
-            sender6: Karen Spärck Jones
-            sender7: Radia Perlman
-            sender8: Frances Allen
-            show: Afficher l’aperçu
-            snippet: Voici à quoi ressemble une ligne d’aperçu, et combien en tient avant que la ligne manque de place.
-            subheading: Vos réglages, sur une liste d’exemple. Rien ici n’est chargé depuis votre courrier.
-            to: à vous
-            value_from: Ada Lovelace <ada@plmail.test>
-            value_to: vous@plmail.test
-            subject1: Notes sur la machine analytique
-            subject2: 'Re : le brouillon du compilateur'
-            subject3: Notes d’assembleur, comme promis
-            subject4: Logiciel de guidage — la liste des priorités
-            subject5: 'Re : l’abstraction et la hiérarchie des types'
-            subject6: La pondération des termes, et pourquoi elle compte
-            subject7: Brouillon de l’arbre couvrant à relire
-            subject8: 'Optimiser la boucle interne : résultats'
         reset: Rétablir les valeurs par défaut
         subheading: Thème, densité, police et arrière-plan — toute l’apparence de l’application, au même endroit.
         seg:
@@ -4314,6 +4333,17 @@ settings:
         send_optimistic: La fermer
         send_hold: La garder ouverte
         heading: 'Rédaction'
+        mailto: 'Liens e-mail'
+        mailto_app_linux: 'plMail fonctionne comme application installée. Les liens des autres programmes arrivent ici une fois qu''il est la messagerie par défaut de votre bureau : choisissez plMail sous Applications par défaut dans les réglages de votre bureau, ou lancez xdg-settings set default-url-scheme-handler mailto avec le fichier .desktop de plMail dans ~/.local/share/applications.'
+        mailto_app_macos: 'plMail fonctionne comme application installée. Les liens des autres programmes arrivent ici une fois qu''il est la messagerie par défaut de votre Mac : dans Mail, ouvrez Réglages → Général → Lecteur de courrier par défaut et choisissez plMail. S''il n''est pas dans la liste, choisissez Sélectionner… et trouvez plMail dans votre dossier personnel sous Applications → Chrome Apps.'
+        mailto_app_other: 'plMail fonctionne comme application installée. Les liens des autres programmes arrivent ici une fois qu''il est la messagerie par défaut dans les réglages de votre système.'
+        mailto_app_windows: 'plMail fonctionne comme application installée. Les liens des autres programmes arrivent ici une fois qu''il est votre messagerie par défaut : ouvrez Paramètres → Applications → Applications par défaut, cherchez MAILTO et choisissez plMail.'
+        mailto_asked: 'Votre navigateur demande près de la barre d''adresse — choisissez Autoriser, ce qui fait aussi de plMail le choix par défaut. Pas de demande, et les liens n''arrivent toujours pas ? plMail est alors enregistré sans être le choix par défaut : dans Chrome, ouvrez chrome://settings/handlers et choisissez « Définir par défaut » dans le menu ⋮ de plMail.'
+        mailto_button: 'Utiliser plMail'
+        mailto_failed: 'Ce navigateur a refusé la demande.'
+        mailto_hint: 'Ouvrir dans plMail les liens mailto: des autres sites, dans ce navigateur. Chaque navigateur et chaque appareil décide pour lui-même. Installé comme application, plMail les ouvre dans la fenêtre déjà ouverte.'
+        mailto_insecure: 'Les navigateurs ne l''autorisent qu''en HTTPS, et plMail est joint ici en HTTP simple.'
+        mailto_unsupported: 'Ce navigateur ne peut pas confier les liens e-mail à une application web. Les applications plMail pour Android et iOS le peuvent.'
         open: 'Ouvert'
         subheading: 'Le comportement de la fenêtre de rédaction pour vous, sur tous vos comptes.'
     insights:
@@ -4378,6 +4408,8 @@ settings:
         field:
             base_url: 'Adresse du serveur'
             base_url_fixed: 'Connexion à %url%, définie par votre administrateur.'
+            base_url_help:
+                webdav: "L’adresse complète du dossier à ouvrir, chemin compris — sur FileBrowser Quantum, https://hote/dav/<source>/."
             name: Nom
             name_help: 'Visible de vous seul, pour distinguer deux connexions.'
             permissions:
@@ -4393,6 +4425,7 @@ settings:
                 oneDrive: 'Jeton d’accès'
                 openCloud: 'Jeton d’application'
                 paperless: 'Jeton d’API'
+                webdav: "Mot de passe ou jeton"
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -4402,6 +4435,7 @@ settings:
                 oneDrive: ''
                 openCloud: 'Créez-en un dans OpenCloud sous Paramètres du compte → Jetons d’application et choisissez une longue durée : un jeton expiré ne fonctionne plus. Avec l’authentification unique, le nom d’utilisateur peut être l’identifiant affiché dans les préférences.'
                 paperless: 'Copiez-le depuis Paperless sous Mon profil → Jeton d’authentification API.'
+                webdav: "Pour FileBrowser Quantum, créez un jeton d’API et collez-le ici ; le nom d’utilisateur peut rester vide. Un jeton expiré cesse de fonctionner."
             secret_unchanged: 'Laissez vide pour conserver l’identifiant enregistré'
             username: Nom d’utilisateur
         heading: Intégrations
@@ -4666,7 +4700,7 @@ settings:
         subheading: Ce que fait un balayage sur une ligne, sur téléphone.
     unified_inboxes:
         account_label: 'Boîte unifiée pour %account%'
-        account_off: 'Désactivé — aucun de ses messages n’est affiché tant que vous ne le réactivez pas.'
+        account_off: 'Courrier désactivé — aucun de ses messages n’est affiché ici tant que vous ne le réactivez pas.'
         accounts_heading: 'Comptes'
         accounts_subheading: 'La boîte dans laquelle s’affichent les messages de chaque compte. Un nouveau compte va dans votre première boîte.'
         add: 'Ajouter'
@@ -4702,41 +4736,88 @@ settings:
         show_hint: 'Désactivé : rien ne s’ouvre après une mise à jour, et le ? de la barre du haut n’affiche aucun point. Les notes restent sous ? → Nouveautés.'
         subheading: 'Ce que plMail vous montre après une mise à jour.'
     nav:
-        accounts: Comptes mail
+        accounts: "Comptes"
         ai: 'Assistant'
         aliases: Alias
         app_passwords: Mots de passe d’application
         appearance: Apparence
-        calendar_behaviour: Comportement
+        area:
+            account: "Compte"
+            assistant: "Assistant et automatisation"
+            calendar_contacts: "Agenda et contacts"
+            general: "Général"
+            inbox: "Boîte de réception"
+            integrations: "Intégrations"
+            mail_accounts: "Comptes mail"
+            reading_writing: "Lecture et rédaction"
+        calendar_behaviour: "Comportement de l’agenda"
         calendars: Agendas
-        categories: "Catégories"
+        categories: "Catégories et tri"
+        compose: "Rédaction"
         contacts: Contacts
         disposal: Suppression
         encryption: Chiffrement
         filters: Filtres
-        general: Général
-        group:
-            access: Accès
-            calendar: Agenda
-            features: Fonctions
-            mail: Courrier
-            personal: Personnel
         health: 'Santé des comptes'
-        images: Images
+        health_banner: "Quelque chose demande votre attention — voir Santé des comptes."
         inboxes: 'Boîtes de réception unifiées'
         insights: Aperçus
         integrations: Intégrations
         labels: Libellés
+        layout: "Disposition et commandes"
         notifications: Notifications
         profile: Profil
-        read_receipts: Accusés de lecture
-        reading_pane: Volet de lecture
+        reading: "Lecture"
+        region: "Langue et région"
         security: Sécurité
         sharing: Partage
-        shortcuts: Raccourcis clavier
         signature: Signatures
-        swipe_actions: Balayage des lignes
         templates: 'Modèles'
+        whats_new: "Nouveautés"
+    search:
+        count: "Résultats : %count%"
+        empty: "Aucun résultat. La recherche porte sur les noms de pages, les titres des cartes et les mots-clés."
+        failed: "La recherche dans les réglages n’a pas pu être chargée. Fermez-la et réessayez."
+        hint_move: "pour choisir"
+        hint_open: "pour ouvrir"
+        keyword: "Mot-clé"
+        keywords:
+            accent: "couleur accent surbrillance"
+            accounts: "imap smtp pop3 jmap serveur ajouter boîte"
+            ai: "ia intelligence artificielle résumé aide rédaction modèle ai"
+            aliases: "alias identité expéditeur adresse"
+            app_passwords: "imap smtp client thunderbird jeton api jmap"
+            calendars: "caldav ics abonner flux"
+            clock: "12 24 heures format am pm"
+            compose_behaviour: "mailto liens e-mail messagerie par défaut transférer citation envoyer"
+            contacts: "carddav carnet adresses"
+            disposal: "supprimer corbeille définitivement vider"
+            encryption: "pgp openpgp gpg clé"
+            filters: "règles sieve automatique déplacer transférer"
+            handwriting: "signer pdf dessiner"
+            images: "pistage pixel distant charger bloquer"
+            inbox_tabs: "onglets promotions réseaux notifications forums"
+            insights: "colis suivi facture vol"
+            integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            labels: "dossiers étiquettes non lus tous"
+            language: "langue anglais allemand français chinois"
+            notifications: "push navigateur téléphone son alerte"
+            password: "connexion identifiant"
+            profile: "nom avatar photo image"
+            read_receipts: "mdn accusé réception confirmation"
+            reading_pane: "aperçu partagé droite bas"
+            sharing: "lien public réservation"
+            shortcuts: "clavier touches raccourcis"
+            swipe_actions: "balayer geste téléphone archiver"
+            templates: "réponses types extraits"
+            theme: "sombre clair mode nuit couleurs dark"
+            two_factor: "2fa totp otp authentificateur double facteur"
+            typography: "police texte taille"
+            whats_new: "changements mise à jour version"
+            wkd: "web key directory publier"
+        kind_page: "Page"
+        label: "Rechercher dans les réglages"
+        placeholder: "Rechercher dans les réglages"
     notifications:
         devices:
             empty: >-
@@ -5098,7 +5179,7 @@ shortcuts:
         star: "Suivre ou ne plus suivre"
         undo: "Annuler la dernière action"
     or: "ou"
-    switched_off: "Les raccourcis sont désactivés pour vous. Activez-les dans Réglages → Général."
+    switched_off: "Les raccourcis sont désactivés pour vous. Activez-les dans Réglages → Général → Disposition et commandes."
     then: "puis"
     title: "Raccourcis clavier"
 
@@ -5106,7 +5187,7 @@ sidebar:
     accounts:
         add: Ajouter un compte
         colour: 'Marquage de couleur de %account%'
-        colour_disabled: 'Marquage de couleur de %account%, qui est désactivé'
+        colour_disabled: 'Marquage de couleur de %account%, dont le courrier est désactivé'
         folders: 'Dossiers…'
         heading: Comptes
         menu: 'Dossiers de %account%'
@@ -5221,6 +5302,7 @@ thread_row:
     no_subject: (sans objet)
     send_failed:
         failed: Non envoyé
+        mail_off: 'Non envoyé : le courrier est désactivé pour ce compte'
         may_have_sent: 'Peut-être envoyé : vérifiez Envoyés avant de le renvoyer'
         rate_limited: 'Non envoyé : votre fournisseur limitait les envois'
         refused: 'Non envoyé : le serveur de messagerie l’a refusé'
@@ -5261,6 +5343,7 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Trop tard — ce message avait déjà été envoyé.
     send_failed: 'Ce message n’a pas pu être envoyé : %subject%'
+    send_failed_mail_off: 'Ce message n’a pas pu être envoyé : %subject%. Le courrier est désactivé pour son compte.'
     send_failed_may_have_sent: '%subject% a peut-être été envoyé, mais la réponse s’est perdue. Vérifiez Envoyés avant de le renvoyer.'
     send_failed_rate_limited: 'Ce message n’a pas pu être envoyé : %subject%. Votre fournisseur limite les envois en ce moment ; réessayez dans quelques minutes.'
     send_failed_refused: 'Ce message n’a pas pu être envoyé : %subject%. Le serveur de messagerie l’a refusé.'

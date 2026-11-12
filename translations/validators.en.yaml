@@ -5,6 +5,7 @@ account.host_invalid: Enter a host name or IP address only — no slashes, quest
 admin.ai.keep_alive_invalid: Use a duration like 5m, 30m or 4h, a plain number of seconds, or -1 to keep the model loaded for good — leave it empty to use the host's own setting.
 admin.integrations.client_id_missing: Enter the client ID that goes with this secret.
 admin.integrations.secret_missing: Enter the client secret too — a client ID on its own cannot sign anyone in.
+admin.integrations.trusted.host_invalid: 'Enter a host name or IP address, such as dav.home.example.com or 192.168.1.20, or a whole address that contains one.'
 admin.sso.error.client_id_missing: 'A client ID is needed with the issuer and the secret. All three, or none of them.'
 admin.sso.error.issuer_missing: 'An issuer is needed with the client ID and the secret. All three, or none of them.'
 admin.sso.error.issuer_not_https: 'The issuer has to start with https://. plMail trusts the provider because of the TLS connection to it.'

@@ -78,7 +78,7 @@ test.describe("where a login sends you", () => {
         // A protected page, requested the way a browser requests a picture:
         // page.request shares this context's cookie jar, so this is the same
         // session the login below will use.
-        await page.request.get("/settings?section=appearance", {
+        await page.request.get("/settings/appearance", {
             headers: {
                 Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
                 "Sec-Fetch-Dest": "image",
@@ -88,7 +88,7 @@ test.describe("where a login sends you", () => {
 
         await login(page, TEST_USER.email, TEST_USER.password);
 
-        await expect(page).not.toHaveURL(/section=appearance/);
+        await expect(page).not.toHaveURL(/\/settings\/appearance/);
         await expect(page.locator("#message-list")).toBeVisible({ timeout: 10_000 });
     });
 
@@ -100,13 +100,13 @@ test.describe("where a login sends you", () => {
      * empty` and is recognised by its Accept header instead.
      */
     test("a page asked for while signed out is still where the login lands", async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await expect(page).toHaveURL(/\/login/);
 
         await page.locator("#inputEmail").fill(TEST_USER.email);
         await page.locator("#password").fill(TEST_USER.password);
         await page.getByRole("button", { name: "Sign in" }).click();
 
-        await expect(page).toHaveURL(/section=appearance/, { timeout: 10_000 });
+        await expect(page).toHaveURL(/\/settings\/appearance/, { timeout: 10_000 });
     });
 });

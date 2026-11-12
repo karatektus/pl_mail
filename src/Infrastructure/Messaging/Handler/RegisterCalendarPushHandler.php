@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Infrastructure\Messaging\Message\RegisterCalendarPushMessage;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\Push\CalendarPushRegistry;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -67,6 +67,13 @@ final readonly class RegisterCalendarPushHandler
         if (false === $calendar->isSynced()) {
             // Still there, no longer bound to a remote. There is nothing to
             // watch, and asking would be asking about an id that is gone.
+            return;
+        }
+
+        if (null !== $calendar->account && false === $calendar->account->calendarEnabled) {
+            // Calendars switched off on the account (#575). A channel opened
+            // now would only deliver notifications the sync then ignores; the
+            // renewal sweep asks again once the switch is back on.
             return;
         }
 

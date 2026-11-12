@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Maintenance;
 
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadSnoozeRepository;
 use App\Service\Mail\ThreadSnoozeService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -38,9 +38,9 @@ final class WakeSnoozedCommand extends Command
     private const int BATCH = 200;
 
     public function __construct(
-        private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageThreadSnoozeRepository $messageThreadSnoozeRepository,
         private readonly ThreadSnoozeService $snoozeService,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly EntityManagerInterface $entityManager
     ) {
         parent::__construct();
     }
@@ -48,7 +48,7 @@ final class WakeSnoozedCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $due = $this->threadRepository->findDueSnoozed(new \DateTimeImmutable(), self::BATCH);
+        $due = $this->messageThreadSnoozeRepository->findDueSnoozed(new \DateTimeImmutable(), self::BATCH);
 
         if ([] === $due) {
             return Command::SUCCESS;

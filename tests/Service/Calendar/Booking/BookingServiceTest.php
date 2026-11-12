@@ -13,7 +13,7 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarBooking;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use App\Service\Calendar\Booking\BookingAvailabilityReader;
 use App\Service\Calendar\Booking\BookingService;
 use App\Service\Calendar\CalendarEventWriter;

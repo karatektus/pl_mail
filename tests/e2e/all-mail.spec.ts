@@ -34,7 +34,7 @@ test.afterEach(async ({ page }) => {
 
 /** Switch the All Mail label on or off through the eye in label settings. */
 async function setAllMail(page: Page, on: boolean): Promise<void> {
-    await page.goto("/settings?section=labels");
+    await page.goto("/settings/labels");
 
     const toggle = page
         .locator("#settings-label-list li")

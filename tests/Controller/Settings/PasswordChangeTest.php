@@ -59,7 +59,7 @@ final class PasswordChangeTest extends WebTestCase
     public function testTheSecurityPaneOffersAPasswordFormThatAsksForTheCurrentOne(): void
     {
         $client  = $this->signIn();
-        $crawler = $client->request('GET', '/settings?section=security');
+        $crawler = $client->request('GET', '/settings/security');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('#settings-password');
@@ -228,7 +228,7 @@ final class PasswordChangeTest extends WebTestCase
     public function testTheBrowserIsToldTheFloorInWords(): void
     {
         $client  = $this->signIn();
-        $crawler = $client->request('GET', '/settings?section=security');
+        $crawler = $client->request('GET', '/settings/security');
         $form    = $crawler->filter('#settings-password form');
 
         self::assertSame('12', $form->attr('data-auth--password-form-min-length-value'));
@@ -306,7 +306,7 @@ final class PasswordChangeTest extends WebTestCase
         ?string $proof = null,
         ?int $iterations = null,
     ): void {
-        $crawler = $client->request('GET', '/settings?section=security');
+        $crawler = $client->request('GET', '/settings/security');
         $form    = $crawler->filter('#settings-password form')->form();
 
         $client->request(

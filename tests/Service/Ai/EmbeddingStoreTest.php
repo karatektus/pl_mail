@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Ai;
 
+use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
-use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\User\User;
+use App\Repository\Ai\MessageEmbedding\MessageEmbeddingRepository;
 use App\Service\Ai\EmbeddingStore;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -40,7 +41,7 @@ final class EmbeddingStoreTest extends KernelTestCase
         $container        = self::getContainer();
         $this->connection = $container->get(Connection::class);
         $this->em         = $container->get(EntityManagerInterface::class);
-        $this->store      = new EmbeddingStore($this->connection, new NullLogger());
+        $this->store      = new EmbeddingStore(new MessageEmbeddingRepository($this->connection), new NullLogger());
 
         $this->connection->beginTransaction();
 
@@ -74,7 +75,7 @@ final class EmbeddingStoreTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         // In a thread, because coverageDetailFor() counts a MAILBOX and walks

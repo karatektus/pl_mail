@@ -8,10 +8,13 @@ use App\Domain\Exception\GmailApiException;
 use App\Domain\Exception\GmailPermanentException;
 use App\Domain\Exception\GmailThrottledException;
 use App\Entity\Mail\Account;
-use App\Entity\User\User;
-use App\Repository\Mail\MessageRepository;
 use App\Entity\Mail\Message;
+use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\MessageEraser;
@@ -502,11 +505,12 @@ final class GmailApiSyncerHistoryTest extends TestCase
         $tokenManager = $this->createStub(OAuthTokenManager::class);
         $tokenManager->method('getValidAccessToken')->willReturn('test-token');
 
-        $messageRepository = $this->createStub(MessageRepository::class);
-        $messageRepository->method('findStoredGmailIdsForUser')->willReturnCallback(
+        $messageRepository  = $this->createStub(MessageRepository::class);
+        $messageProviderIds = $this->createStub(MessageProviderIdRepository::class);
+        $messageProviderIds->method('findStoredGmailIdsForUser')->willReturnCallback(
             static fn (User $user, array $ids): array => array_values(array_intersect($synced, $ids)),
         );
-        $messageRepository->method('findByGmailIdsForUser')->willReturn($rows);
+        $messageProviderIds->method('findByGmailIdsForUser')->willReturn($rows);
 
         $erased     = [];
         $dispatched = [];
@@ -538,19 +542,20 @@ final class GmailApiSyncerHistoryTest extends TestCase
         return new GmailApiSyncer(
             new GmailApiClient($client, $tokenManager, new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock())),
             $messageRepository,
+            $messageProviderIds,
             $this->createStub(EntityManagerInterface::class),
             $bus,
             new NullLogger(),
             $eraser,
             new \App\Service\Mail\SyncOrigin(),
-            $this->createStub(\App\Repository\Mail\GmailSkippedMessageRepository::class),
+            $this->createStub(GmailSkippedMessageRepository::class),
             new \App\Service\Gmail\GmailifyLinks(
-                $this->createStub(MessageRepository::class),
+                $this->createStub(MessageImapRepository::class),
                 new \App\Service\Gmail\GmailLabelPolicy(),
                 new \App\Service\Label\ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
                 new \App\Jmap\State\StateManager(
                     $this->createStub(EntityManagerInterface::class),
-                    new \App\Jmap\State\ChangeLogRepository($this->createStub(\Doctrine\Persistence\ManagerRegistry::class)),
+                    new \App\Repository\Jmap\ChangeLog\ChangeLogRepository($this->createStub(\Doctrine\Persistence\ManagerRegistry::class)),
                 ),
                 $this->createStub(EntityManagerInterface::class),
             ),

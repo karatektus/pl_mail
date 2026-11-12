@@ -2,8 +2,6 @@ account:
     add_title: Sign on a new crew member
     added: Crew member signed on, arr!
     colour_set: Th' colours be changed
-    disabled: Ship's papers revoked
-    enabled: Ship's papers restored
     form:
         email: Parrot address
         encryption: Cipher
@@ -49,13 +47,27 @@ account:
             same: "Use th' same password fer sendin'"
             separate: "Use a different password fer sendin'"
         username: Name ye go by
+    mail_purge_queued: 'Heavin’ this ship’s letters out o’ plMail. The far port keeps its copy.'
     oauth:
         calendar_declined: The account be aboard, but ye never granted the almanac — so its calendars will not sync. Sign in again and tick the calendar box when Google asks.
         google: Sail on with Google
         info: Sign on with yer harbourmaster — no secret word be kept aboard.
         microsoft: Sail on with Microsoft
+        services:
+            help: 'The next screen only asks for what ye tick. Ye can change it later under Settings → Accounts.'
+            legend: 'Sail this ship for'
     primary_set: A new flagship be named
     removed: Crew member put ashore
+    service:
+        calendar:
+            off: 'Ship’s log be lashed shut'
+            on: 'Ship’s log be keepin’ time again'
+        contacts:
+            off: 'Crew roster be lashed shut'
+            on: 'Crew roster be open again'
+        mail:
+            off: 'Letters be becalmed. What’s aboard stays aboard.'
+            on: 'Letters be flowin’ again'
     sync_interval_set: Th' watch be reset
     tabs:
         imap: IMAP / SMTP
@@ -79,7 +91,7 @@ account:
             missing_fields: 'Give us an email address an'' an IMAP host first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored one, which the test can only use once the ship be saved.'
             pop3_ok: 'Aye, connected — %count% messages in the hold.'
-            private_network: 'This server lies in private waters. The captain must allow its host in INTEGRATIONS_ALLOWED_HOSTS afore plMail may sail to it.'
+            private_network: 'This server lies in private waters. Th'' captain must let it aboard under Admin → Friendly ports → Holds in private waters afore plMail may sail to it.'
             smtp_none: 'No SMTP host charted — this ship sends no letters.'
             smtp_ok: 'Aboard an'' signed in.'
             timeout: 'The server kept its silence too long. Check the host an'' port, an'' whether a firewall blocks the channel.'
@@ -547,7 +559,7 @@ admin:
         base_url_per_user: 'Every hand names their own port.'
         base_url_pinned: 'set fast for all hands'
         calendar:
-            connected_warning: 'Hands already moored: %count%. A changed or cleared bearin'' applies to each of ''em th'' next time their calendars be sought, so a hand moored at another port, iCloud say, gets hailed about this one with their own password. Calendars already copied keep th'' bearin'' they were found at; if a cleared bearin'' lay in private waters, they stop syncin'' till its host be in INTEGRATIONS_ALLOWED_HOSTS.'
+            connected_warning: 'Hands already moored: %count%. A changed or cleared bearin'' applies to each of ''em th'' next time their calendars be sought, so a hand moored at another port, iCloud say, gets hailed about this one with their own password. Calendars already copied keep th'' bearin'' they were found at; if a cleared bearin'' lay in private waters, they stop syncin'' till it be let aboard under Holds in private waters below.'
             heading: 'Calendars'
             intro: 'Ports an'' feeds th'' crew copy their calendars from, under Settings → Calendars. Both be open to every hand; what can be set here be one port for all. Nextcloud be rigged with th'' cargo holds above, an'' its calendars sail with it.'
         clear_secret: 'Throw the stored secret overboard'
@@ -624,6 +636,25 @@ admin:
             enabled: 'Open'
             incomplete: 'Wants papers'
             unimplemented: 'Not yet charted'
+        trusted:
+            add: 'Let a hold aboard'
+            allow: 'Let aboard'
+            allow_http: 'Let plain http aboard'
+            empty: 'None yet. A hold that lies in private waters be turned away till it be listed here.'
+            field:
+                allow_http: 'This hold has no certificate: let plain http aboard'
+                allow_http_help: 'Only for a hold in yer own waters. Ship''s keys sent to it cross those waters in the clear.'
+                host: 'Hold'
+                host_help: 'Its host name or IP address, as in th'' bearin'' hands type: dav.home.example.com, 192.168.1.20. A whole bearin'' works too; only its host be kept.'
+            form_intro: 'Hands aboard can then moor plMail at this hold though it lies in private waters. Any of ''em can send plMail hailin'' every hold listed here, so list th'' holds hands truly use, not every ship in th'' harbour.'
+            heading: 'Holds in private waters'
+            http_allowed: 'Plain http let aboard'
+            intro: 'plMail turns away a bearin'' that points into private waters, so nobody can use it to reach this ship or th'' ones moored beside it. Th'' holds listed here be let through anyway: a CalDAV, CardDAV or file hold at home, a calendar feed in yer own harbour.'
+            remove: 'Stop lettin'' %host% aboard'
+            remove_confirm: 'Stop lettin'' %host% aboard? Hands moored there stop workin'' on their next sync.'
+            removed: 'Hold struck off'
+            require_https: 'Demand https'
+            saved: 'Hold let aboard'
         tutorial:
             caldav:
                 intro: 'CalDAV signs on with a ship''s key per hand, against each hand''s own port — there be naught to register here.'
@@ -692,6 +723,13 @@ admin:
                 step_base_url: 'Optionally set th'' port address fast, say https://paperless.example.com.'
                 step_enable: 'Hoist "Offer this port to th'' crew" above.'
                 step_token: 'Every hand copies their API token from Paperless under My Profile → API Auth Token and stows it in their own port settings.'
+            webdav:
+                intro: "WebDAV covers any file hold that speaks it — FileBrowser Quantum, a Synology NAS, rclone serve webdav, Apache mod_dav. Each hand boards with their own password or token, so there be nothin' to register here."
+                no_links: "WebDAV has no public links, no previews an' no search. Files heavier than th' attachment limit can't come aboard, an' the picker shows a file mark instead o' a likeness."
+                security: "A hold in private waters, like a NAS at home, is only reached once it be listed under Holds in private waters below."
+                step_base_url: "Optionally nail down the address, like https://files.example.com/dav/files/. It be the full bearin' o' the folder to open, path an' all: on FileBrowser Quantum that be /dav/ followed by the source name."
+                step_enable: 'Hoist "Offer this port to th'' crew" above.'
+                step_user: "Each hand enters that address, a username if the hold asks for one, an' a password or API token. FileBrowser Quantum takes an API token as the password an' pays the username no mind."
         tutorial_heading: 'Riggin'''
         unimplemented_notice: 'plMail cannot hail this port yet. Stow th'' papers now — they be used th'' moment passage opens.'
     loading: 'Haulin'' aboard…'
@@ -3053,7 +3091,7 @@ profile:
         name_first: First name
         name_last: Family name
 
-# The reading pane beside the message list (Settings → Reading pane turns it on).
+# The reading pane beside the message list (Settings → Reading & writing → Reading turns it on).
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
@@ -3242,10 +3280,8 @@ settings:
                 '7': Olive
         delete: Put this crew member ashore
         delete_confirm: 'Put %account% ashore? Every bottle hauled aboard for this crew member goes to Davy Jones for good, and there be no gettin'' them back.'
-        disable: Revoke the papers
         edit: Amend the papers
         empty: No crew yet. Sign one on to start haulin' mail aboard.
-        enable: Restore the papers
         folders:
             always_synced: The inbox be always hauled aboard
             button: Folders
@@ -3287,6 +3323,7 @@ settings:
             placeholder: 'A marker that only herds other folders — there be nothin in it to haul aboard'
             refused:
                 has_children: 'This folder has folders inside her. Scuttle or move those first.'
+                mail_off: 'Letters be becalmed on this ship, so its holds cannot be changed at the far port. Raise letters first.'
                 not_empty: 'This folder still holds post (%count%). Move it elsewhere first; scuttlin a folder sinks its post.'
                 server: 'The mail server said nay: %reason%'
                 special_use: 'The inbox, Sent, Drafts, Trash, Junk an Archive be never renamed or scuttled from plMail: other mail apps an plMail itself lean on them.'
@@ -3362,6 +3399,25 @@ settings:
                 microsoft: New mail lands the instant Microsoft fires the cannon.
             title: Word the moment it lands
         reorder: Drag to reorder the line
+        services:
+            allow: 'Ask leave…'
+            allow_explained: 'Raisin’ %service% needs leave %provider% ain’t given plMail yet. Opens %provider% to ask for it.'
+            calendar: 'Ship’s log'
+            calendar_help: 'Its ship’s logs, kept true both ways'
+            change: 'Letters, ship’s log an’ crew roster for %account%'
+            close: 'Aye'
+            contacts: 'Crew roster'
+            contacts_help: 'Its crew rosters, kept true both ways'
+            intro: 'Furl what ye don’t sail this ship for. plMail then stops hailin’ the far port about it an’ keeps what’s already aboard.'
+            mail: 'Letters'
+            mail_help: 'Fetchin’, sendin’ an’ every change ye make to its letters'
+            none: 'All sails furled'
+            purge: 'Heave the synced letters out o’ plMail'
+            purge_confirm: 'Heave every letter plMail fetched for %account% overboard? The far port keeps them. Raise letters again an’ plMail fetches the lot anew.'
+            purge_help: 'Only plMail’s copy goes over the side. Nothin’ be sunk at the far port.'
+            turn_off: 'Furl %service% for %account%'
+            turn_on: 'Raise %service% for %account%'
+            used_for: 'Sailin’ for %services%'
         status:
             active: Sailin'
             disabled: Beached
@@ -3586,43 +3642,6 @@ settings:
             matchGlass: Match the spyglass
             subheading: Tint and opacity for the main deck, apart from the sidebar.
             tint: Backdrop tint
-        preview:
-            body: A short word, so the readin' deck has summat to show. None o' this be real post — the lookout fetches nary a letter.
-            heading: Lookout
-            hide: Stow the lookout
-            resize: Shift the lookout's width
-            compose_body: "A reply half writ, so th' writin' window has summat in it. Nowt here be sent."
-            compose_heading: "New dispatch"
-            compose_send: "Send her"
-            compose_subject: "Re: Notes on th' Analytical Engine"
-            compose_to: ada@plmail.test
-            field_date: Date
-            field_from: From
-            field_subject: Subject
-            field_to: To
-            reply: Answer
-            sender1: Ada Lovelace
-            sender2: Grace Hopper
-            sender3: Kathleen Booth
-            sender4: Margaret Hamilton
-            sender5: Barbara Liskov
-            sender6: Karen Spärck Jones
-            sender7: Radia Perlman
-            sender8: Frances Allen
-            show: Show the lookout
-            snippet: This be what a peek line looks like, an' how much o' one fits afore the row runs clean out o' deck fer it.
-            subheading: Yer settings on a make-believe manifest. Nary a thing here be hauled from yer own post.
-            to: to ye
-            value_from: Ada Lovelace <ada@plmail.test>
-            value_to: ye@plmail.test
-            subject1: Notes on the Analytical Engine
-            subject2: 'Re: the compiler draft'
-            subject3: Assembly notes, as promised
-            subject4: "Guidance software — th' priority list"
-            subject5: "Re: abstraction an' the type hierarchy"
-            subject6: "Term weightin', an' why it matters"
-            subject7: "Spannin' tree draft for review"
-            subject8: "Optimisin' th' inner loop: results"
         reset: Back to how she came
         subheading: Colours, crampedness, letterin' an' the backdrop — the whole look o' the ship, all in one spot.
         seg:
@@ -4079,6 +4098,17 @@ settings:
         send_optimistic: "Close it"
         send_hold: "Keep it open"
         heading: 'Scribblin'''
+        mailto: 'Letter links'
+        mailto_app_linux: 'plMail be sailin'' as an installed app. Letters from other ships come aboard once it be yer desktop''s default mail program: pick plMail under Default Applications in yer desktop''s settings, or run xdg-settings set default-url-scheme-handler mailto with plMail''s .desktop file from ~/.local/share/applications.'
+        mailto_app_macos: 'plMail be sailin'' as an installed app. Letters from other ships come aboard once it be yer Mac''s default mail program: in Mail, open Settings → General → Default email reader an'' choose plMail. Not on the roster? Pick Select… an'' find plMail in yer home folder under Applications → Chrome Apps.'
+        mailto_app_other: 'plMail be sailin'' as an installed app. Letters from other ships come aboard once it be the default mail program in yer system''s settings.'
+        mailto_app_windows: 'plMail be sailin'' as an installed app. Letters from other ships come aboard once it be yer default mail program: open Settings → Apps → Default apps, search fer MAILTO, an'' choose plMail.'
+        mailto_asked: 'Yer browser hails ye by the address bar — say Allow, an'' plMail be the default too. No hail, an'' still no letters come aboard? Then plMail be on the roster but not the default: in Chrome open chrome://settings/handlers an'' pick “Set as default” in plMail''s ⋮ menu.'
+        mailto_button: 'Sail with plMail'
+        mailto_failed: 'This browser sent the request to Davy Jones.'
+        mailto_hint: 'Open mailto: links from other ports in plMail, in this browser. Every browser an'' every ship be decidin'' fer itself. Installed as an app, plMail opens ''em in the window already afloat.'
+        mailto_insecure: 'Browsers only allow this over HTTPS, an'' plMail be reached over plain HTTP here.'
+        mailto_unsupported: 'This browser cannot hand letter links to a web app. The plMail apps fer Android an'' iOS can.'
         open: 'On deck'
         subheading: 'How yer scribble window behaves, whatever ship be sailin''.'
     insights:
@@ -4142,6 +4172,8 @@ settings:
         field:
             base_url: 'Port address'
             base_url_fixed: 'Sailin'' to %url%, set by th'' quartermaster.'
+            base_url_help:
+                webdav: "The full bearin' o' the folder to open, path an' all — on FileBrowser Quantum, https://host/dav/<source>/."
             name: Name
             name_help: 'Only ye see it, to tell two moorings apart.'
             permissions:
@@ -4157,6 +4189,7 @@ settings:
                 oneDrive: 'Access token'
                 openCloud: 'App token'
                 paperless: 'API token'
+                webdav: "Password or token"
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -4166,6 +4199,7 @@ settings:
                 oneDrive: ''
                 openCloud: 'Make one in OpenCloud under yer account settings → App Tokens, and pick a long life: a token past its day stops workin''. With single sign-on, th'' username may be th'' ID shown under Preferences.'
                 paperless: 'Copy it from Paperless under My Profile → API Auth Token.'
+                webdav: "For FileBrowser Quantum, forge an API token an' paste it here; the username can stay empty. A token that runs out stops workin'."
             secret_unchanged: 'Leave blank to keep th'' stored papers'
             username: Username
         heading: 'Friendly ports'
@@ -4417,7 +4451,7 @@ settings:
         subheading: "What a swipe across a bottle does on yer phone."
     unified_inboxes:
         account_label: 'Gathered hold fer %account%'
-        account_off: 'Struck — none o’ its letters be shown till ye hoist it again.'
+        account_off: 'Letters becalmed — none o’ its letters be shown here till ye raise ’em again.'
         accounts_heading: 'Ships'
         accounts_subheading: 'Which hold each ship’s letters be stowed in. A new ship goes in yer first hold.'
         add: 'Add'
@@ -4453,41 +4487,88 @@ settings:
         show_hint: 'Off: nothin'' opens after a refit, an'' the ? up top shows no dot. The log be still under ? → What''s new aboard.'
         subheading: 'What plMail shows ye after she''s been refitted.'
     nav:
-        accounts: Th' crew
+        accounts: "Th' crew"
         ai: "Ship's Oracle"
         aliases: Aliases
         app_passwords: Spare keys
         appearance: Look o' the ship
-        calendar_behaviour: Behaviour
+        area:
+            account: "Yerself"
+            assistant: "Oracle an' automata"
+            calendar_contacts: "Almanac an' hands"
+            general: "General"
+            inbox: "Th' hold"
+            integrations: "Friendly ports"
+            mail_accounts: "Mail crews"
+            reading_writing: "Readin' an' scribblin'"
+        calendar_behaviour: "Almanac's habits"
         calendars: Almanacs
-        categories: "Holds"
+        categories: "Holds an' sortin'"
+        compose: "Scribblin'"
         contacts: Rolls o' hands
         disposal: Disposal
         encryption: "Sealed letters"
         filters: Sieves
-        general: General
-        group:
-            access: "Boardin' rights"
-            calendar: "Th' almanac"
-            features: 'Riggin'''
-            mail: "Th' post"
-            personal: Yerself
         health: "State o' yer crew"
-        images: Pictures
+        health_banner: "Somethin' needs yer eye — see State o' yer crew."
         inboxes: 'Gathered holds'
         insights: The spyglass
         integrations: 'Friendly ports'
         labels: Flags
+        layout: "Riggin' an' helm"
         notifications: Word from the crow's nest
         profile: Yer colours
-        read_receipts: Read-marks
-        reading_pane: Spyglass deck
+        reading: "Readin'"
+        region: "Tongue an' waters"
         security: The ship's lock
         sharing: Sharing
-        shortcuts: Keyboard shortcuts
         signature: Yer marks
-        swipe_actions: "Swipe deeds"
         templates: 'Form letters'
+        whats_new: "What's new aboard"
+    search:
+        count: "Finds: %count%"
+        empty: "Nothin' found. Th' search reads page names, card headin's an' keywords."
+        failed: "Th' settin's search could not be hauled in. Close it an' try again."
+        hint_move: "to steer"
+        hint_open: "to board"
+        keyword: "Keyword"
+        keywords:
+            accent: "colour color highlight"
+            accounts: "imap smtp pop3 jmap server add mailbox"
+            ai: "ai artificial intelligence summary writing help model"
+            aliases: "alias identity sender from address"
+            app_passwords: "imap smtp client thunderbird token api jmap"
+            calendars: "caldav ics subscribe feed"
+            clock: "12 24 hour am pm time format"
+            compose_behaviour: "mailto email links default mail program forward quote send"
+            contacts: "carddav address book"
+            disposal: "delete trash bin forever empty"
+            encryption: "pgp openpgp gpg key"
+            filters: "rules sieve automatic move forward"
+            handwriting: "sign pdf draw"
+            images: "tracking pixel remote load block"
+            inbox_tabs: "tabs promotions social updates forums"
+            insights: "parcel tracking invoice flight"
+            integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            labels: "folders tags unread all mail"
+            language: "locale english german french chinese"
+            notifications: "push browser phone sound alert"
+            password: "login sign-in"
+            profile: "name avatar photo picture"
+            read_receipts: "mdn receipt confirmation"
+            reading_pane: "preview split right bottom"
+            sharing: "link public booking"
+            shortcuts: "keyboard hotkeys keys"
+            swipe_actions: "swipe gesture phone archive"
+            templates: "canned responses snippets text blocks"
+            theme: "dark light mode night colours colors"
+            two_factor: "2fa totp otp authenticator mfa"
+            typography: "font text size"
+            whats_new: "changelog update version release"
+            wkd: "web key directory publish"
+        kind_page: "Page"
+        label: "Search th' settin's"
+        placeholder: "Search th' settin's"
     notifications:
         devices:
             empty: "No device be signed on yet. Turnin' notifications on above signs on this browser; a phone app signs itself on."
@@ -4862,7 +4943,7 @@ shortcuts:
         star: "Mark or unmark"
         undo: "Undo the last deed"
     or: "or"
-    switched_off: "Shortcuts be struck fer ye. Raise 'em under Settings → General."
+    switched_off: "Shortcuts be struck fer ye. Raise 'em under Settings → General → Riggin' an' helm."
     then: "then"
     title: "Keyboard shortcuts"
 
@@ -4870,7 +4951,7 @@ sidebar:
     accounts:
         add: Sign on a crew member
         colour: 'Colours flown by %account%'
-        colour_disabled: 'Colours flown by %account%, laid up in port'
+        colour_disabled: 'Colours flown by %account%, its letters becalmed'
         folders: 'Folders…'
         heading: Th' crew
         menu: 'Folders o'' %account%'
@@ -4982,6 +5063,7 @@ thread_row:
     no_subject: (no subject)
     send_failed:
         failed: Never sailed
+        mail_off: 'Not sailed: letters be becalmed on this ship'
         may_have_sent: 'May have sailed: search th'' Sent hold afore firin'' again'
         rate_limited: 'Never sailed: yer mail port were rationin'' sailings'
         refused: 'Never sailed: th'' harbour master turned it away'
@@ -5006,6 +5088,7 @@ toast:
     schedule_cancelled: The castin' off be belayed.
     send_too_late: Too late, matey — that message has already sailed.
     send_failed: 'That message could not be hoisted: %subject%'
+    send_failed_mail_off: 'That letter could not sail: %subject%. Letters be becalmed on its ship.'
     send_failed_may_have_sent: '%subject% may have sailed, but no word came back. Search th'' Sent hold before ye fire it again.'
     send_failed_rate_limited: 'That message could not be hoisted: %subject%. Yer mail port be rationin'' sailings; try again in a few minutes.'
     send_failed_refused: 'That message could not be hoisted: %subject%. Th'' harbour master turned it away.'

@@ -9,7 +9,7 @@ import { acceptConfirm } from "./support/confirm";
  * part only a browser can: that the JS-built condition tree survives the round
  * trip into storage and back out into the editor.
  */
-const URL = "/settings?section=filters";
+const URL = "/settings/filters";
 
 // beforeAll, not beforeEach: nothing in this file mutates mail or labels. The
 // seeds exist only so the rule editor has an account and a label to point at,

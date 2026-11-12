@@ -7,8 +7,9 @@ namespace App\Service\Imap;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Infrastructure\Messaging\Message\FoldCopiesMessage;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Mail\MessageEraser;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -140,6 +141,7 @@ final readonly class VanishedMessageReconciler
     public function __construct(
         private ImapFolderListing      $listing,
         private MessageRepository      $messages,
+        private MessageImapRepository $messageImapRepository,
         private MailboxRepository      $mailboxes,
         private MessageEraser          $eraser,
         private ImapFlagReconciler     $flags,
@@ -200,7 +202,7 @@ final readonly class VanishedMessageReconciler
             return false;
         }
 
-        $located = $this->messages->findLocatedUidsById($mailbox);
+        $located = $this->messageImapRepository->findLocatedUidsById($mailbox);
 
         $vanished = [];
         $returned = [];
@@ -223,7 +225,7 @@ final readonly class VanishedMessageReconciler
         // somewhere else is a lost location, not a lost email (#415): there is
         // nothing to wait for, and nothing to delete. Only the email's last
         // copy goes on to the vanish marks below and the coverage they wait for.
-        $elsewhere = $this->messages->findIdsWithSeveralLocations($vanished);
+        $elsewhere = $this->messageImapRepository->findIdsWithSeveralLocations($vanished);
 
         foreach ($elsewhere as $messageId) {
             $email = $this->messages->find($messageId);
@@ -235,8 +237,8 @@ final readonly class VanishedMessageReconciler
 
         $vanished = array_values(array_diff($vanished, $elsewhere));
 
-        $marked  = $this->messages->markVanished($vanished, $now);
-        $cleared = $this->messages->clearVanished($returned);
+        $marked  = $this->messageImapRepository->markVanished($vanished, $now);
+        $cleared = $this->messageImapRepository->clearVanished($returned);
 
         // The other half of what this listing said. A message's presence and
         // its flags came back in one `UID FETCH 1:* (FLAGS)` — see
@@ -253,7 +255,7 @@ final readonly class VanishedMessageReconciler
 
         // Mail stored before #415 has no size, and so is never recognised
         // when a copy of it turns up in another folder. The listing knows it.
-        $this->messages->backfillSizes($mailbox, $listing['sizes'] ?? []);
+        $this->messageImapRepository->backfillSizes($mailbox, $listing['sizes'] ?? []);
 
         // And with their size known, copies of one email stored as separate
         // messages before #415 are recognisable: folded in a job of its own,
@@ -304,7 +306,7 @@ final readonly class VanishedMessageReconciler
             return 0;
         }
 
-        $candidates = $this->messages->findReapable($account, $cutoff, self::REAP_BATCH);
+        $candidates = $this->messageImapRepository->findReapable($account, $cutoff, self::REAP_BATCH);
 
         if (0 === count($candidates)) {
             return 0;
@@ -393,7 +395,7 @@ final readonly class VanishedMessageReconciler
 
     private function invalidate(Mailbox $mailbox, int $uidValidity): void
     {
-        $unlocated = $this->messages->unlocateAll($mailbox);
+        $unlocated = $this->messageImapRepository->unlocateAll($mailbox);
 
         $mailbox->uidValidity = $uidValidity;
         $mailbox->lastSeenUid = 0;

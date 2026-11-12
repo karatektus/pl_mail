@@ -215,7 +215,7 @@ For a hosted account whose password is an API token — Fastmail's, with
 
 The server has to be reachable from the test container by that name — on the same Docker network,
 or by an address the container can resolve. The test lets the client reach a private address,
-which the app itself refuses unless the host is in `INTEGRATIONS_ALLOWED_HOSTS`.
+which the app itself refuses unless an administrator allowed the host under Admin → Integrations.
 
 CI runs the same suites the same way — it boots this very stack from `compose.test.yaml` and then
 runs the same commands against it, so "works locally, fails in CI" no longer has a serving path to
@@ -973,6 +973,7 @@ php bin/mirror-wiki.php --check
 |---|---|
 | `app:setup` | Create the first admin user (interactive) |
 | `app:mail:sync [account-id]` | Dispatch an account-level sync for one or all active accounts |
+| `app:mail:fetch-missing [account-id]` | Fetch the mail an IMAP folder holds and plMail does not, such as a message the sync tried five times and passed over. Plans each folder's import again from the top; the import starts at the next sync and fetches only what is missing |
 | `app:mail:send-draft [message-id]` | Send a draft message (picker if no ID given) |
 | `app:mail:test-connection` | Probe an account's IMAP/SMTP settings |
 | `app:contacts:harvest [account-id]` | Harvest contact addresses from synced messages |

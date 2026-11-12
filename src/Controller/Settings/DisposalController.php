@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Settings → Mail → Disposal: what a person is offered for getting rid of mail.
+ * Settings → Inbox → Disposal: what a person is offered for getting rid of mail.
  *
  * Today that is one switch — whether the buttons that delete mail for good are
  * offered at all, on a row and above a selection. Off until somebody turns it
@@ -45,6 +45,6 @@ final class DisposalController extends AbstractController
 
         $em->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'disposal']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'disposal']);
     }
 }

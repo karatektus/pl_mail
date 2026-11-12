@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Infrastructure\Messaging\Message\ProposeEventsMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Calendar\Proposal\EventProposer;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;

@@ -87,6 +87,6 @@ final class WkdSettingsController extends AbstractController
 
     private function back(): Response
     {
-        return $this->redirect($this->generateUrl('app_settings_index', ['section' => 'encryption']) . '#wkd', Response::HTTP_SEE_OTHER);
+        return $this->redirect($this->generateUrl('app_settings_page', ['page' => 'encryption']) . '#card-wkd', Response::HTTP_SEE_OTHER);
     }
 }

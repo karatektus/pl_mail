@@ -333,6 +333,7 @@ framework:
             # anybody's foreground. It must not sit on ingest, where a person
             # changing a setting would put arriving mail behind their mailbox.
             App\Infrastructure\Messaging\Message\ResortMailboxMessage: maintenance
+            App\Infrastructure\Messaging\Message\PurgeLocalMailMessage: maintenance
             # maintenance for the same reason: a settings switch (Gmailify off)
             # followed by a scan of rows the database already has. Nobody waits
             # on it, and arriving mail must not queue behind it.

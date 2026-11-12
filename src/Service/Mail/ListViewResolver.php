@@ -9,8 +9,8 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 
 /**
  * Every conversation in a list, not just the page somebody can see.

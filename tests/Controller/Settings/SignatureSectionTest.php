@@ -9,7 +9,7 @@ use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -63,16 +63,16 @@ final class SignatureSectionTest extends WebTestCase
         $this->account($user, 'nav@joder.dev');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=accounts');
+        $crawler = $client->request('GET', '/settings/accounts');
 
         self::assertResponseIsSuccessful();
         self::assertGreaterThan(
             0,
-            $crawler->filter('nav a[href*="section=signature"]')->count(),
+            $crawler->filter('nav a[href$="/settings/signature"]')->count(),
             'the settings nav links to the signature section',
         );
 
-        $crawler = $client->request('GET', '/settings?section=signature');
+        $crawler = $client->request('GET', '/settings/signature');
 
         self::assertResponseIsSuccessful();
         self::assertGreaterThan(0, $crawler->filter('#settings-signature')->count());
@@ -82,7 +82,7 @@ final class SignatureSectionTest extends WebTestCase
         // falls back to accounts, which would render no panel at all.
         self::assertGreaterThan(
             0,
-            $crawler->filter('nav a[href*="section=signature"][aria-current="page"]')->count(),
+            $crawler->filter('nav a[href$="/settings/signature"][aria-current="page"]')->count(),
             'the nav marks the signature section as the current page',
         );
     }
@@ -105,7 +105,7 @@ final class SignatureSectionTest extends WebTestCase
         $account->setSetting(Account::SETTING_SIGNATURE, '<p>Account wide</p>');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=signature');
+        $crawler = $client->request('GET', '/settings/signature');
 
         self::assertResponseIsSuccessful();
 
@@ -152,7 +152,7 @@ final class SignatureSectionTest extends WebTestCase
         $token = $this->aliasToken($client, $alias->id);
 
         $client->request('POST', $url, ['_token' => $token, 'override' => '1']);
-        self::assertResponseRedirects('/settings?section=signature');
+        self::assertResponseRedirects('/settings/signature');
 
         $stored = $this->reload($account)->getSetting($key);
 
@@ -160,7 +160,7 @@ final class SignatureSectionTest extends WebTestCase
         self::assertStringContainsString('Account wide', $stored);
 
         // ...and now the row IS an editor, on first render, no toggling.
-        $crawler = $client->request('GET', '/settings?section=signature');
+        $crawler = $client->request('GET', '/settings/signature');
         $row     = $crawler->filter(sprintf('[data-signature-alias="%d"]', $alias->id));
 
         self::assertSame('overrides', $row->attr('data-signature-state'));
@@ -169,10 +169,10 @@ final class SignatureSectionTest extends WebTestCase
 
         // "Use the account signature" — the key goes away again.
         $client->request('POST', $url, ['_token' => $token, 'inherit' => '1']);
-        self::assertResponseRedirects('/settings?section=signature');
+        self::assertResponseRedirects('/settings/signature');
         self::assertNull($this->reload($account)->getSetting($key));
 
-        $crawler = $client->request('GET', '/settings?section=signature');
+        $crawler = $client->request('GET', '/settings/signature');
         $row     = $crawler->filter(sprintf('[data-signature-alias="%d"]', $alias->id));
 
         self::assertSame('inherits', $row->attr('data-signature-state'));
@@ -201,7 +201,7 @@ final class SignatureSectionTest extends WebTestCase
             'override' => '1',
         ]);
 
-        self::assertResponseRedirects('/settings?section=signature');
+        self::assertResponseRedirects('/settings/signature');
         self::assertSame(
             '<p>Mine</p>',
             $this->reload($account)->getSetting(Account::signatureAliasSetting((int) $alias->id)),
@@ -226,7 +226,7 @@ final class SignatureSectionTest extends WebTestCase
         $this->alias($account, 'three@joder.dev');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=signature');
+        $crawler = $client->request('GET', '/settings/signature');
 
         self::assertResponseIsSuccessful();
         self::assertSame(1, $crawler->filter('#settings-signature details')->count());
@@ -238,7 +238,7 @@ final class SignatureSectionTest extends WebTestCase
         $account->setSetting(Account::signatureAliasSetting((int) $alias->id), '<p>Mine</p>');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=signature');
+        $crawler = $client->request('GET', '/settings/signature');
 
         self::assertNotNull(
             $crawler->filter('#settings-signature details')->attr('open'),
@@ -265,7 +265,7 @@ final class SignatureSectionTest extends WebTestCase
 
         // A plain POST, so the controller's redirect fallback answers rather
         // than the Turbo Stream — the panel works without JavaScript too.
-        self::assertResponseRedirects('/settings?section=signature');
+        self::assertResponseRedirects('/settings/signature');
 
         $stored = (string) $this->reload($account)->getSetting(Account::SETTING_SIGNATURE);
 
@@ -300,17 +300,17 @@ final class SignatureSectionTest extends WebTestCase
         $client->request('POST', $url, ['_token' => $token, 'override' => '1']);
         $client->request('POST', $url, ['_token' => $token, 'signature' => '<p>Mine</p>']);
 
-        self::assertResponseRedirects('/settings?section=signature');
+        self::assertResponseRedirects('/settings/signature');
         self::assertSame('<p>Mine</p>', $this->reload($account)->getSetting($key));
 
         // 3. present but empty — deliberately signs with nothing. The panel
         //    says so in words rather than looking like the inheriting row.
         $client->request('POST', $url, ['_token' => $token, 'signature' => '']);
 
-        self::assertResponseRedirects('/settings?section=signature');
+        self::assertResponseRedirects('/settings/signature');
         self::assertSame('', $this->reload($account)->getSetting($key));
 
-        $crawler = $client->request('GET', '/settings?section=signature');
+        $crawler = $client->request('GET', '/settings/signature');
         $row     = $crawler->filter(sprintf('[data-signature-alias="%d"]', $alias->id));
 
         self::assertSame('overrides', $row->attr('data-signature-state'), 'empty is not inherit');
@@ -320,7 +320,7 @@ final class SignatureSectionTest extends WebTestCase
         // ...and back to absent, which is not the same value as ''.
         $client->request('POST', $url, ['_token' => $token, 'inherit' => '1']);
 
-        self::assertResponseRedirects('/settings?section=signature');
+        self::assertResponseRedirects('/settings/signature');
         self::assertNull($this->reload($account)->getSetting($key));
     }
 
@@ -369,7 +369,7 @@ final class SignatureSectionTest extends WebTestCase
      */
     private function csrf(KernelBrowser $client, string $formAction): string
     {
-        $crawler = $client->request('GET', '/settings?section=signature');
+        $crawler = $client->request('GET', '/settings/signature');
 
         self::assertResponseIsSuccessful();
 
@@ -399,7 +399,7 @@ final class SignatureSectionTest extends WebTestCase
         $user    = $this->boot($client);
         $account = $this->account($user, 'source@joder.dev');
 
-        $crawler = $client->request('GET', '/settings?section=signature');
+        $crawler = $client->request('GET', '/settings/signature');
         $form    = $crawler->filter(sprintf('form[action="/account/%d/signature"]', $account->id));
 
         self::assertSame(1, $form->filter('textarea[data-settings--signature-source-target="source"]')->count());
@@ -439,7 +439,7 @@ final class SignatureSectionTest extends WebTestCase
 
     private function aliasToken(KernelBrowser $client, int $aliasId): string
     {
-        $crawler = $client->request('GET', '/settings?section=signature');
+        $crawler = $client->request('GET', '/settings/signature');
 
         self::assertResponseIsSuccessful();
 
@@ -475,7 +475,7 @@ final class SignatureSectionTest extends WebTestCase
         $this->connection->beginTransaction();
 
         $this->em->createQuery(
-            'UPDATE ' . Account::class . ' a SET a.isActive = false WHERE a.usr = :usr',
+            'UPDATE ' . Account::class . ' a SET a.mailEnabled = false WHERE a.usr = :usr',
         )->setParameter('usr', $user)->execute();
 
         $this->em->clear();
@@ -492,7 +492,7 @@ final class SignatureSectionTest extends WebTestCase
         $account->username  = $email;
         $account->email     = $email;
         $account->authType  = 'password';
-        $account->isActive  = true;
+        $account->mailEnabled = true;
         $account->isPrimary = true;
         $account->sortOrder = 0;
         $account->imapHost  = 'imap.example.test';

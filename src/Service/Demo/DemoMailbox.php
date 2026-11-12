@@ -15,9 +15,9 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
-use App\Repository\Mail\ContactRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
+use App\Repository\Mail\Contact\ContactRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\BounceCorrelator;
 use App\Service\Calendar\CalendarEventWriter;
@@ -358,7 +358,7 @@ final readonly class DemoMailbox
         $account->smtpPort       = 465;
         $account->smtpEncryption = 'ssl';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
 
         $this->entityManager->persist($account);
         $this->entityManager->flush();

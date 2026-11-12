@@ -351,7 +351,7 @@ final class GmailifyLinksTest extends KernelTestCase
         $account->password       = 'x';
         $account->authType       = true === $gmail ? AuthType::OAuth2->value : AuthType::Password->value;
         $account->oauthProvider  = true === $gmail ? MailProvider::Google->value : null;
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
 
         $this->em->persist($account);
 

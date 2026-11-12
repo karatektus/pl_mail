@@ -11,7 +11,7 @@ use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -131,7 +131,7 @@ final class SidebarFolderMarksTest extends WebTestCase
         $account->password       = 'x';
         $account->authType       = $gmail ? AuthType::OAuth2->value : 'password';
         $account->oauthProvider  = $gmail ? MailProvider::Google->value : null;
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
         $this->em->flush();
 

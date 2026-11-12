@@ -9,7 +9,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Template\MailTemplate;
 use App\Entity\Template\TemplateFolder;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Mail\UserAccounts;
 use App\Service\Template\TemplateLibrary;
 use Doctrine\DBAL\Connection;
@@ -240,7 +240,7 @@ final class TemplateLibraryTest extends KernelTestCase
         $account->username  = $email;
         $account->email     = $email;
         $account->authType  = 'password';
-        $account->isActive  = true;
+        $account->mailEnabled = true;
         $account->isPrimary = false;
         $account->sortOrder = 50;
         $account->imapHost  = 'imap.example.test';

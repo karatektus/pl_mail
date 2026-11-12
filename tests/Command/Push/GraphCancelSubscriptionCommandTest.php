@@ -8,7 +8,7 @@ use App\Command\Push\GraphCancelSubscriptionCommand;
 use App\Domain\Enum\Account\AuthType;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -117,7 +117,7 @@ final class GraphCancelSubscriptionCommandTest extends KernelTestCase
         $account->email           = $user->email;
         $account->name            = 'Fixture';
         $account->username        = $user->email;
-        $account->isActive        = true;
+        $account->mailEnabled     = true;
         $account->imapHost        = 'imap.example.test';
         $account->imapPort        = 993;
         $account->imapEncryption  = 'ssl';

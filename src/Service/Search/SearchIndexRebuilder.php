@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Service\Search;
 
 use App\Domain\Helper\ReadableBody;
-use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\ParameterType;
+use App\Repository\Ai\MessageEmbedding\MessageEmbeddingRepository;
+use App\Repository\Mail\Message\MessageSearchIndexRepository;
+use Doctrine\DBAL\Exception as DbalException;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * Indexes the messages whose search_vector is still NULL, newest first.
@@ -43,35 +45,33 @@ use Doctrine\DBAL\ParameterType;
  * again (see EmbeddingCatchUp). A thread summary needs nothing; it is seen to
  * be out of date the next time the thread is opened.
  *
+ * ONE ROW THAT WILL NOT INDEX DOES NOT STOP THE REST (#546). Each row is
+ * written under a savepoint of its own. A batch used to be one statement in
+ * one transaction, and a message whose vector Postgres refused rolled back the
+ * other 499 with it; newest first, the next pass took the same batch and
+ * failed the same way, and the index stopped at 500 of 9,444 for good. A row
+ * that fails now is logged and left NULL, and this pass does not ask for it
+ * again; the next pass tries it once more, which is right for a failure that
+ * was only a moment's.
+ *
  * FOR UPDATE SKIP LOCKED, so two passes at once — the schedule and an
  * administrator's backfill — share the work instead of waiting on each other,
  * and a sync holding a row it is writing is simply passed by until next time.
  */
 final readonly class SearchIndexRebuilder
 {
-    /**
-     * The rows whose HTML has to be read: no body_html_text yet, an HTML body,
-     * and a text part that does not hold the words — none, nothing but
-     * whitespace (`!~ '[^[:space:]]'`), or Graph's preview. octet_length()
-     * reads a TOASTed value's size without fetching it. The PHP side decides
-     * the rest; this only has to be no narrower than it.
-     */
-    private const string NEEDS_WORDS = <<<'SQL'
-        (m.body_html_text IS NULL
-         AND octet_length(coalesce(m.body_html_safe, m.body_html, '')) > 0
-         AND (m.graph_id IS NOT NULL OR m.body_text IS NULL OR m.body_text !~ '[^[:space:]]'))
-        SQL;
-
     /** @param int $batchSize rows per transaction; a parameter so a test can watch the order */
     public function __construct(
-        private Connection $connection,
+        private MessageSearchIndexRepository $index,
+        private MessageEmbeddingRepository   $embeddings,
         private int        $batchSize = 500,
+        private LoggerInterface $logger = new NullLogger(),
     ) {}
 
     /** How many messages are still waiting. One probe of a partial index once there are none. */
     public function pending(): int
     {
-        return (int) $this->connection->fetchOne('SELECT count(*) FROM message WHERE search_vector IS NULL');
+        return $this->index->countPending();
     }
 
     /**
@@ -90,9 +90,10 @@ final readonly class SearchIndexRebuilder
         $deadline = null === $seconds ? null : microtime(true) + $seconds;
         $indexed  = 0;
         $filled   = 0;
+        $refused  = [];
 
         do {
-            [$batch, $words] = $this->batch();
+            [$batch, $words] = $this->batch($refused);
 
             $indexed += $batch;
             $filled  += $words;
@@ -105,24 +106,15 @@ final readonly class SearchIndexRebuilder
         return ['indexed' => $indexed, 'filled' => $filled];
     }
 
-    /** @return array{int, int} rows indexed, rows given body_html_text */
-    private function batch(): array
+    /**
+     * @param list<int> $refused rows this pass could not index, not asked for again
+     *
+     * @return array{int, int} rows taken, rows given body_html_text
+     */
+    private function batch(array &$refused): array
     {
-        $this->connection->beginTransaction();
-
-        try {
-            /** @var list<array{id: int|string, needs_words: bool, graph_id: ?string, body_text: ?string, body_html: ?string, body_html_safe: ?string}> $rows */
-            $rows = $this->connection->fetchAllAssociative(
-                'SELECT m.id, m.graph_id, ' . self::NEEDS_WORDS . ' AS needs_words,'
-                . ' CASE WHEN ' . self::NEEDS_WORDS . ' THEN m.body_text END AS body_text,'
-                . ' CASE WHEN ' . self::NEEDS_WORDS . ' THEN m.body_html END AS body_html,'
-                . ' CASE WHEN ' . self::NEEDS_WORDS . ' THEN m.body_html_safe END AS body_html_safe'
-                . ' FROM message m WHERE m.search_vector IS NULL'
-                . ' ORDER BY m.id DESC LIMIT :limit FOR UPDATE SKIP LOCKED',
-                ['limit' => $this->batchSize],
-                ['limit' => ParameterType::INTEGER],
-            );
-
+        return $this->index->inTransaction(function () use (&$refused): array {
+            $rows   = $this->index->lockPendingBatch($this->batchSize, $refused);
             $filled = [];
             $plain  = [];
 
@@ -134,42 +126,57 @@ final readonly class SearchIndexRebuilder
 
                 if (null === $words) {
                     $plain[] = $id;
-
                     continue;
                 }
 
-                $this->connection->executeStatement(
-                    "UPDATE message SET body_html_text = :words, search_vector = ''::tsvector WHERE id = :id",
-                    ['words' => $words, 'id' => $id],
-                    ['id' => ParameterType::INTEGER],
-                );
-
-                $filled[] = $id;
+                if (true === $this->attempt($id, fn () => $this->index->fillWords($id, $words), $refused)) {
+                    $filled[] = $id;
+                }
             }
 
-            if ([] !== $plain) {
-                $this->connection->executeStatement(
-                    "UPDATE message SET search_vector = ''::tsvector WHERE id IN (:ids)",
-                    ['ids' => $plain],
-                    ['ids' => ArrayParameterType::INTEGER],
-                );
+            // Together while they go through, which is every time but the
+            // rare one; one by one only when the batch is refused, to find the
+            // row it was refused for.
+            if ([] !== $plain && false === $this->attempt(null, fn () => $this->index->markForIndexing($plain), $refused)) {
+                foreach ($plain as $id) {
+                    $this->attempt($id, fn () => $this->index->markForIndexing([$id]), $refused);
+                }
             }
 
             if ([] !== $filled) {
-                $this->connection->executeStatement(
-                    'DELETE FROM message_embedding WHERE message_id IN (:ids)',
-                    ['ids' => $filled],
-                    ['ids' => ArrayParameterType::INTEGER],
-                );
+                $this->embeddings->deleteForMessages($filled);
             }
 
-            $this->connection->commit();
-        } catch (\Throwable $e) {
-            $this->connection->rollBack();
+            return [count($rows), count($filled)];
+        });
+    }
 
-            throw $e;
+    /**
+     * Run one write under a savepoint: the nested transaction is one, so a
+     * refusal rolls back this write alone and the batch's transaction goes on.
+     *
+     * @param int|null  $id      the row, or null for a write over several
+     * @param list<int> $refused where a refused row is recorded
+     */
+    private function attempt(?int $id, callable $write, array &$refused): bool
+    {
+        try {
+            $this->index->inTransaction($write);
+
+            return true;
+        } catch (DbalException $e) {
+            if (null === $id) {
+                return false;
+            }
+
+            $refused[] = $id;
+
+            $this->logger->warning('A message could not be indexed for search; it is left out of this pass', [
+                'messageId' => $id,
+                'error'     => $e->getMessage(),
+            ]);
+
+            return false;
         }
-
-        return [count($rows), count($filled)];
     }
 }

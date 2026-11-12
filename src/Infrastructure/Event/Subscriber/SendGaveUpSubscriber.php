@@ -7,7 +7,8 @@ namespace App\Infrastructure\Event\Subscriber;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Exception\SendFailureException;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
 use App\Service\Mail\SendOutcomeNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -33,6 +34,7 @@ final readonly class SendGaveUpSubscriber implements EventSubscriberInterface
 {
     public function __construct(
         private MessageRepository      $messages,
+        private MessageSendRepository $messageSendRepository,
         private EntityManagerInterface $em,
         private SendOutcomeNotifier    $outcomes,
     ) {
@@ -55,8 +57,8 @@ final readonly class SendGaveUpSubscriber implements EventSubscriberInterface
 
         // The handler put the claim down before rethrowing; this is the same
         // statement again, for a failure that left before it could.
-        $this->messages->releaseSendClaim($send->messageId);
-        $this->messages->markSendFailed($send->messageId, self::failureIn($event->getThrowable()));
+        $this->messageSendRepository->releaseSendClaim($send->messageId);
+        $this->messageSendRepository->markSendFailed($send->messageId, self::failureIn($event->getThrowable()));
 
         $message = $this->messages->find($send->messageId);
 

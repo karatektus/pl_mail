@@ -6,7 +6,7 @@ namespace App\Service\User\TwoFactor;
 
 use App\Entity\User\TrustedDevice;
 use App\Entity\User\User;
-use App\Repository\User\TrustedDeviceRepository;
+use App\Repository\User\TrustedDevice\TrustedDeviceRepository;
 use App\Security\TwoFactor\TrustedDeviceCookieJar;
 use Symfony\Component\HttpFoundation\Request;
 

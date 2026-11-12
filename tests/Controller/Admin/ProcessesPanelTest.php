@@ -7,7 +7,7 @@ namespace App\Tests\Controller\Admin;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Monitoring\ProcessHeartbeatService;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -130,7 +130,7 @@ final class ProcessesPanelTest extends WebTestCase
             $account->smtpEncryption = 'starttls';
             $account->password       = 'x';
             $account->authType       = 'password';
-            $account->isActive       = true;
+            $account->mailEnabled    = true;
             $this->em->persist($account);
         }
 

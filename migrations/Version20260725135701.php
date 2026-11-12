@@ -14,7 +14,7 @@ final class Version20260725135701 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Add custom ink and tint colours to appearance';
     }
 
     public function up(Schema $schema): void

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Command\Ai;
 
 use App\Entity\Ai\AiFeature;
-use App\Repository\Ai\AiSettingsRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\EmbeddingBackfill;
 use App\Service\Ai\EmbeddingStore;

@@ -64,7 +64,7 @@ final class SwipeActionResolver
     {
         $user = $this->security->getUser();
 
-        if (!$user instanceof User) {
+        if (false === $user instanceof User) {
             return $direction->defaultAction();
         }
 

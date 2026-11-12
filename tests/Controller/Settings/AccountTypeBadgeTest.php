@@ -8,7 +8,7 @@ use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\IncomingProtocol;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -65,7 +65,7 @@ final class AccountTypeBadgeTest extends WebTestCase
             $badges[$protocol->value] = $this->account($protocol);
         }
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
 
         foreach (['imap' => 'IMAP', 'pop3' => 'POP3', 'jmap' => 'JMAP'] as $protocol => $label) {
             $badge = $crawler->filter('li[data-account-id="' . $badges[$protocol]->id . '"] [data-account-type]');
@@ -85,7 +85,7 @@ final class AccountTypeBadgeTest extends WebTestCase
         $account->imapEncryption   = 'ssl';
         $account->authType         = AuthType::Password->value;
         $account->incomingProtocol = $protocol;
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $this->em->flush();
 

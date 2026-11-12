@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:7e1be9d1794b261c19145ce0c560716bdeae60ef -->
+<!-- translated-from: features/accounts.md sha1:47ba29081569784f245ca20eefff10803643e6d0 -->
 
 # Konten und Aliase
 
@@ -105,6 +105,12 @@ beim Anbieter registrieren, bevor der Knopf überhaupt etwas tut. Ist das erledi
 Microsoft** an, und der gesamte Ablauf ist die Zustimmungsseite des Anbieters selbst — hier
 wird überhaupt kein Passwort gespeichert.
 
+Kreuz über den beiden Knöpfen an, wofür das Konto da ist: **E-Mail**, **Kalender** und
+**Kontakte**, vorgegeben sind alle drei. Die Zustimmungsseite fragt dann nur danach. Ein
+Google-Konto, das du nur für seinen Kalender verbindest, wird nie um Zugriff auf seine E-Mails
+gebeten und taucht in der Mail-Seitenleiste nicht auf. Die anderen kannst du später einschalten;
+siehe [E-Mail, Kalender und Kontakte](#e-mail-kalender-und-kontakte).
+
 **Erteile alles, wonach die Zustimmungsseite fragt.** Googles Seite listet die Berechtigungen als
 einzelne Häkchen auf und lässt dich jedes davon ablehnen — und ein abgelehntes Häkchen lässt die
 Anmeldung nicht scheitern. Das Konto wird verbunden, plMail sagt das auch, und der Teil, den du
@@ -165,7 +171,7 @@ Jede Zeile bietet:
 |---|---|
 | **Farbfeld** | Öffnet die Palette; die gewählte Farbe gehört dem Konto von da an — bei jedem Konto |
 | **Als primär festlegen** | Verfasst neue Nachrichten künftig aus diesem Konto — in jeder Zeile außer der primären |
-| **Konto deaktivieren** / **Konto aktivieren** | Hält die Synchronisierung an oder nimmt sie wieder auf, ohne etwas zu löschen |
+| **E-Mail, Kalender und Kontakte** (Schalter-Symbol) | Schaltet jedes der drei für dieses Konto ein oder aus und entfernt synchronisierte E-Mails, solange E-Mail aus ist; siehe [E-Mail, Kalender und Kontakte](#e-mail-kalender-und-kontakte) |
 | **Konto bearbeiten** | Servereinstellungen und Passwort — nur bei Konten mit Passwort |
 | **Ordner** | Die IMAP-Ordner des Kontos: jeden ein- oder ausschalten und deine eigenen anlegen, umbenennen oder löschen — nur bei IMAP-Konten; siehe [Ordner](#ordner) |
 | **Outlook-Kategorien folgen** (Schlagwort-Symbol) | Standardmäßig aus; an, setzt eine in Outlook gesetzte oder entfernte Kategorie das Label hier oder nimmt es ab — nur bei Microsoft-Konten; siehe [Labels als Outlook-Kategorien](#labels-als-outlook-kategorien) |
@@ -188,6 +194,38 @@ statt das Entfernen aufzuhalten — denn ein Zurücksetzen, das nicht läuft, we
 erreichbar ist, ist schlimmer als ein Kanal, der binnen einer Woche von selbst abläuft.
 
 Lässt du im Bearbeitungsformular das Passwortfeld leer, bleibt das gespeicherte erhalten.
+
+### E-Mail, Kalender und Kontakte
+
+Jedes Konto ist für bis zu drei Dinge da — seine E-Mails, seine Kalender und seine Kontakte — und
+jedes davon schaltest du einzeln ein oder aus, über das Schalter-Symbol in der Zeile des Kontos. Bei
+einem neuen Konto sind alle drei an, außer du nimmst beim Verbinden von Gmail oder Outlook Häkchen
+heraus.
+
+Ausschalten heißt: plMail spricht mit dem Server darüber nicht mehr, in keine Richtung. Was schon da
+ist, wird nie entfernt:
+
+| Ausgeschaltet | Was aufhört | Was bleibt |
+|---|---|---|
+| **E-Mail** | Synchronisieren, Push, Senden von diesem Konto und jede Änderung, die zum Server zurückgeht — gelesen, archivieren, verschieben, löschen, Ordner | Die schon synchronisierten E-Mails. Das Konto bleibt in der Seitenleiste, solange es welche hat, und seine eigenen Seiten zeigen sie; die gemeinsamen Posteingänge, die Zähler, die kontoübergreifende Suche und die Benachrichtigungen über neue E-Mails lassen es aus |
+| **Kalender** | Das Synchronisieren der Kalender des Kontos | Ihre Termine. Eine Änderung in der Zwischenzeit wartet und geht raus, sobald du den Kalender wieder einschaltest |
+| **Kontakte** | Das Synchronisieren der Adressbücher des Kontos | Ihre Kontakte. Eine Änderung wartet genauso; ein ganz gelöschter Kontakt kommt mit der ersten Synchronisierung zurück |
+
+Änderungen an E-Mails, solange E-Mail aus ist, bleiben in plMail. Schaltest du E-Mail wieder ein,
+liest die nächste Synchronisierung den Server neu, und wo sich beide unterscheiden, gewinnt der
+Server.
+
+Ein Konto mit ausgeschalteter E-Mail kann nicht das sein, von dem neue E-Mails gesendet werden. War
+es das Hauptkonto, geht das an das erste Konto, bei dem E-Mail an ist.
+
+Bei einem Gmail- oder Outlook-Konto braucht es für etwas, wofür das Konto nicht verbunden wurde,
+erst die Erlaubnis des Anbieters. Der Schalter zeigt dann **Erlauben…** und öffnet die
+Zustimmungsseite des Anbieters; kommst du zurück, ist er an.
+
+**Synchronisierte E-Mails aus plMail entfernen** erscheint unter den Schaltern, solange E-Mail aus
+ist. Es löscht die E-Mails dieses Kontos aus der Datenbank von plMail — Unterhaltungen, Nachrichten,
+Anhänge — und nichts auf dem Server, egal ob E-Mail an oder aus ist. Es läuft im Hintergrund. Ordner
+und Labels bleiben. Schaltest du E-Mail danach wieder ein, lädt plMail das Postfach von vorn herunter.
 
 ## Einstellungen pro Konto
 
@@ -360,6 +398,12 @@ gespeichert hat, werden über die nächsten Synchronisierungen entfernt; Mail, d
 bleibt. Bei Gmail über IMAP bleibt All Mail eingeschaltet, denn archivierte Mail liegt dort und
 nirgends sonst. Schaltest du einen wieder ein, holt plMail die entfernten
 Kopien erneut ab.
+
+Ihre Labels verschwinden zur selben Zeit aus der Seitenleiste, denn was sie bei ausgeschaltetem
+Ordner enthalten, ist nur diese übrig gebliebene Mail und nicht alles. An ihrer Stelle schaltet
+plMail sein eigenes **Alle E-Mails** ein (siehe [Mail](mail.md)), das jede Unterhaltung aus
+jedem Ordner zeigt. Beide Labels bleiben unter **Einstellungen → Labels**, wo du sie wieder
+einblenden kannst.
 
 Verschachtelte Ordner sind unter ihrem übergeordneten Ordner eingerückt. Ein Ordner, der nur andere
 zusammenfasst und selbst keine Post enthält — etwa `[Gmail]` bei Gmail —, steht ausgegraut in der

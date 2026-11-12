@@ -17,10 +17,11 @@ use App\Entity\Mail\Pop3Uidl;
 use App\Infrastructure\Pop3\Pop3ConnectionFactory;
 use App\Infrastructure\Pop3\Pop3RefusedException;
 use App\Infrastructure\Pop3\Pop3Session;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\Pop3UidlRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Pop3Uidl\Pop3UidlRepository;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\PostIngestPipeline;
@@ -113,6 +114,7 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
         private AccountRepository      $accountRepository,
         private MailboxRepository      $mailboxRepository,
         private MessageRepository      $messageRepository,
+        private MessageImapRepository $messageImapRepository,
         private Pop3UidlRepository     $uidls,
         private LabelResolver          $labelResolver,
         private PostIngestPipeline     $postIngest,
@@ -434,7 +436,7 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
             }
         }
 
-        $held = $this->messageRepository->findAdoptable($account, $messageId, $fingerprint, notInPop3Ledger: true);
+        $held = $this->messageImapRepository->findAdoptable($account, $messageId, $fingerprint, notInPop3Ledger: true);
 
         return null === $held ? null : (int) $held->id;
     }

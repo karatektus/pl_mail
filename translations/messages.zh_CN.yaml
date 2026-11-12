@@ -2,8 +2,6 @@ account:
     add_title: 添加账户
     added: 账户添加成功
     colour_set: 账户颜色已更改
-    disabled: 账户已停用
-    enabled: 账户已启用
     form:
         email: 电子邮件地址
         encryption: 加密方式
@@ -49,13 +47,27 @@ account:
             same: 发件使用相同密码
             separate: 发件使用不同密码
         username: 用户名
+    mail_purge_queued: '正在从 plMail 中移除此账户的邮件。服务器上的副本会保留。'
     oauth:
         calendar_declined: '账户已连接，但未获授日历访问权限，因此不会同步该账户的日历。请重新连接，并在 Google 授权页面勾选日历访问权限。'
         google: '使用 Google 继续'
         info: 通过服务商登录，无需保存密码。
         microsoft: '使用 Microsoft 继续'
+        services:
+            help: '下一页只会请求你勾选的权限。之后可在“设置 → 账户”中更改。'
+            legend: '此账户用于'
     primary_set: 主账户已更改
     removed: 账户已移除
+    service:
+        calendar:
+            off: '日历已关闭'
+            on: '日历已开启'
+        contacts:
+            off: '联系人已关闭'
+            on: '联系人已开启'
+        mail:
+            off: '邮件已关闭。已有的邮件会保留。'
+            on: '邮件已开启'
     sync_interval_set: 同步间隔已更改
     tabs:
         imap: 'IMAP / SMTP'
@@ -79,7 +91,7 @@ account:
             missing_fields: '请先至少输入电子邮件地址和 IMAP 主机。'
             missing_password: 没有可用于测试的密码。请在上方输入密码；编辑表单中留空会保留已保存的密码，但需先保存账户，测试才能使用该密码。
             pop3_ok: '已连接，邮箱中有 %count% 封邮件。'
-            private_network: '该服务器位于私有网络中。必须先由管理员在 INTEGRATIONS_ALLOWED_HOSTS 中允许其主机，plMail 才能连接。'
+            private_network: '该服务器位于私有网络中。必须先由管理员在“管理 → 集成 → 私有网络中的服务器”中允许它，plMail 才能连接。'
             smtp_none: '未配置 SMTP 主机，此账户无法发送邮件。'
             smtp_ok: 已连接并登录。
             timeout: 服务器未及时响应，请检查主机、端口以及是否受到防火墙阻拦。
@@ -528,7 +540,7 @@ admin:
         base_url_per_user: 每位用户自行输入服务器地址。
         base_url_pinned: 所有用户固定使用此地址
         calendar:
-            connected_warning: "已有连接：%count%。修改或清空地址后，每个连接下次查找日历时都会使用新设置，因此原本连接其他服务器（如 iCloud）的用户会被要求使用自己的密码连接此服务器。已镜像的日历保留发现时的地址；如果清空的地址属于私有网络，则这些日历会停止同步，直到其主机被加入 INTEGRATIONS_ALLOWED_HOSTS。"
+            connected_warning: "已有连接：%count%。修改或清空地址后，每个连接下次查找日历时都会使用新设置，因此原本连接其他服务器（如 iCloud）的用户会被要求使用自己的密码连接此服务器。已镜像的日历保留发现时的地址；如果清空的地址属于私有网络，则这些日历会停止同步，直到它在下方“私有网络中的服务器”中被允许。"
             heading: "日历"
             intro: "用户在“设置 → 日历”中镜像日历的服务器和订阅源。两者均向所有人提供；此处可以为所有人设置统一的服务器地址。Nextcloud 在上方的文件服务中设置，连接后也会带入其日历。"
         clear_secret: 移除已保存的客户端密钥
@@ -585,6 +597,25 @@ admin:
             enabled: 已启用
             incomplete: 需要凭据
             unimplemented: 暂不可用
+        trusted:
+            add: '允许服务器'
+            allow: '允许'
+            allow_http: '允许未加密的 http'
+            empty: '暂无。解析到私有地址的服务器在列入此处之前会被拒绝。'
+            field:
+                allow_http: '此服务器没有证书：允许未加密的 http'
+                allow_http_help: '仅适用于你自己网络中的服务器。发送给它的应用密码将以明文穿过该网络。'
+                host: '服务器'
+                host_help: '其主机名或 IP 地址，与用户输入的地址中一致：dav.home.example.com、192.168.1.20。也可以填写完整地址，只会保留其中的主机。'
+            form_intro: '之后，已登录的用户即可将 plMail 连接到此服务器，即使它解析到私有地址。他们中的任何人都能让 plMail 向此处列出的每台服务器发送请求，因此只列出实际使用的服务器，而不是网络中的每台机器。'
+            heading: '私有网络中的服务器'
+            http_allowed: '已允许未加密的 http'
+            intro: 'plMail 会拒绝指向私有网络的服务器地址，以免有人借此访问本机或其旁边的其他机器。此处列出的服务器例外：家中的 CalDAV、CardDAV 或文件服务器，局域网中的日历订阅源。'
+            remove: '不再允许 %host%'
+            remove_confirm: '不再允许 %host%？指向它的连接将在下次同步时停止工作。'
+            removed: '服务器已移除'
+            require_https: '要求 https'
+            saved: '服务器已允许'
         tutorial:
             caldav:
                 intro: 'CalDAV 使用每位用户的应用密码，向用户自己的服务器进行验证，因此此处无需注册。'
@@ -653,6 +684,13 @@ admin:
                 step_base_url: '可选填固定服务器地址，例如 https://paperless.example.com。'
                 step_enable: 开启上方的“向用户提供此服务”。
                 step_token: '每位用户从 Paperless 的 My Profile → API Auth Token 复制 API 令牌，然后粘贴到自己的集成设置中。'
+            webdav:
+                intro: "WebDAV 适用于任何支持该协议的文件服务器——FileBrowser Quantum、群晖 NAS、rclone serve webdav、Apache mod_dav。每位用户使用自己的密码或令牌连接，因此这里无需注册任何内容。"
+                no_links: "WebDAV 不支持公开链接、预览和搜索。超过附件大小上限的文件无法附加，选择器会显示文件图标而不是缩略图。"
+                security: "位于私有网络中的服务器（例如家中的 NAS）只有在列入下方“私有网络中的服务器”后才能访问。"
+                step_base_url: "可选：固定地址，例如 https://files.example.com/dav/files/。这是要打开的文件夹的完整地址，包含路径：在 FileBrowser Quantum 上是 /dav/ 加上数据源名称。"
+                step_enable: 开启上方的“向用户提供此服务”。
+                step_user: "每位用户输入该地址、服务器要求时的用户名，以及密码或 API 令牌。FileBrowser Quantum 将 API 令牌用作密码，并忽略用户名。"
         tutorial_heading: 设置步骤
         unimplemented_notice: 'plMail 暂不支持连接此服务。可以先注册凭据，支持发布后即可使用。'
     loading: 加载中…
@@ -2999,10 +3037,8 @@ settings:
                 '7': '橄榄绿'
         delete: '移除账户'
         delete_confirm: '要移除 %account% 吗？这将永久删除此账户已同步的所有邮件，且无法撤销。'
-        disable: '停用账户'
         edit: '编辑账户'
         empty: '尚无账户。添加账户以开始同步邮件。'
-        enable: '启用账户'
         folders:
             always_synced: '收件箱始终保持同步'
             button: '文件夹'
@@ -3039,6 +3075,7 @@ settings:
             placeholder: '此文件夹仅用于归组其他文件夹，本身没有可同步的内容'
             refused:
                 has_children: '此文件夹内还有文件夹。请先删除或移走它们。'
+                mail_off: '此账户的邮件已关闭，无法在服务器上更改其文件夹。请先开启邮件。'
                 not_empty: '此文件夹中仍有邮件（%count%）。请先移走；删除文件夹会删除其中的邮件。'
                 server: '邮件服务器拒绝了：%reason%'
                 special_use: '收件箱、已发送、草稿、废纸篓、垃圾邮件和归档永远不会在 plMail 中被重命名或删除：其他邮件应用和 plMail 本身都依赖它们。'
@@ -3092,6 +3129,25 @@ settings:
                 microsoft: '通过 Microsoft 推送通知即时收取新邮件。'
             title: '即时收取'
         reorder: '拖动以排序'
+        services:
+            allow: '授权…'
+            allow_explained: '开启%service%需要 %provider% 尚未授予 plMail 的权限。将打开 %provider% 请求授权。'
+            calendar: '日历'
+            calendar_help: '其日历，双向同步'
+            change: '%account% 的邮件、日历和联系人'
+            close: '完成'
+            contacts: '联系人'
+            contacts_help: '其通讯录，双向同步'
+            intro: '关闭此账户不需要的功能。plMail 将不再就此与服务器通信，已有的内容会保留。'
+            mail: '邮件'
+            mail_help: '同步、发送以及对其邮件的每一项更改'
+            none: '全部已关闭'
+            purge: '从 plMail 移除已同步的邮件'
+            purge_confirm: '移除 plMail 为 %account% 同步的所有邮件？服务器上的邮件会保留。重新开启邮件后，plMail 会重新下载。'
+            purge_help: '只移除 plMail 中的副本，服务器上不会删除任何内容。'
+            turn_off: '关闭 %account% 的%service%'
+            turn_on: '开启 %account% 的%service%'
+            used_for: '用于：%services%'
         status:
             active: '已启用'
             disabled: '已停用'
@@ -3309,43 +3365,6 @@ settings:
             matchGlass: '沿用玻璃效果不透明度'
             subheading: '主内容区域的色调和不透明度，可独立于侧边栏设置。'
             tint: '背景色调'
-        preview:
-            body: '这是一封用于展示阅读面板的简短邮件。这里都不是真实邮件，预览不会加载任何邮件。'
-            heading: '预览'
-            hide: '隐藏预览'
-            resize: '调整预览大小'
-            compose_body: '这是一封写到一半的回复，用于展示撰写窗口。这里的内容不会发送。'
-            compose_heading: '新邮件'
-            compose_send: '发送'
-            compose_subject: 'Re: 关于分析机的笔记'
-            compose_to: 'ada@plmail.test'
-            field_date: '日期'
-            field_from: '发件人'
-            field_subject: '主题'
-            field_to: '收件人'
-            reply: '回复'
-            sender1: 'Ada Lovelace'
-            sender2: 'Grace Hopper'
-            sender3: 'Kathleen Booth'
-            sender4: 'Margaret Hamilton'
-            sender5: 'Barbara Liskov'
-            sender6: 'Karen Spärck Jones'
-            sender7: 'Radia Perlman'
-            sender8: 'Frances Allen'
-            show: '显示预览'
-            snippet: '这是预览文字的示例，展示每行空间能容纳多少内容。'
-            subheading: '在示例列表上预览你的设置。这里不会加载你的邮件。'
-            to: '收件人：你'
-            value_from: 'Ada Lovelace <ada@plmail.test>'
-            value_to: 'you@plmail.test'
-            subject1: '关于分析机的笔记'
-            subject2: 'Re: 编译器草稿'
-            subject3: '如约附上汇编笔记'
-            subject4: '制导软件 — 优先级列表'
-            subject5: 'Re: 抽象与类型层次结构'
-            subject6: '词项权重及其重要性'
-            subject7: '生成树草稿，请审阅'
-            subject8: '优化内层循环：结果'
         reset: '恢复默认设置'
         subheading: '主题、密度、字体和背景，应用的整体外观都在这里设置。'
         seg:
@@ -3663,6 +3682,17 @@ settings:
         send_optimistic: '关闭窗口'
         send_hold: '保持打开'
         heading: '撰写'
+        mailto: '邮件链接'
+        mailto_app_linux: 'plMail 正以已安装应用的形式运行。将它设为桌面的默认邮件程序后，其他程序中的链接才会来到这里：在桌面设置的“默认应用程序”中选择 plMail，或使用 ~/.local/share/applications 中 plMail 的 .desktop 文件运行 xdg-settings set default-url-scheme-handler mailto。'
+        mailto_app_macos: 'plMail 正以已安装应用的形式运行。将它设为 Mac 的默认邮件程序后，其他程序中的链接才会来到这里：在“邮件”中打开“设置 → 通用 → 默认电子邮件阅读器”，选择 plMail。如果列表中没有，选择“选择…”，在个人文件夹的“应用程序 → Chrome Apps”中找到 plMail。'
+        mailto_app_other: 'plMail 正以已安装应用的形式运行。在系统设置中将它设为默认邮件程序后，其他程序中的链接才会来到这里。'
+        mailto_app_windows: 'plMail 正以已安装应用的形式运行。将它设为默认邮件程序后，其他程序中的链接才会来到这里：打开“设置 → 应用 → 默认应用”，搜索 MAILTO，然后选择 plMail。'
+        mailto_asked: '浏览器会在地址栏旁询问——请选择“允许”，plMail 也会随之成为默认程序。没有出现询问，链接仍然没有打开 plMail？那说明 plMail 已登记但不是默认程序：在 Chrome 中打开 chrome://settings/handlers，在 plMail 的 ⋮ 菜单中选择“设为默认”。'
+        mailto_button: '使用 plMail'
+        mailto_failed: '此浏览器拒绝了该请求。'
+        mailto_hint: '在此浏览器中用 plMail 打开其他网站上的 mailto: 链接。每个浏览器和设备需分别设置。安装为应用后，plMail 会在已打开的窗口中打开这些链接。'
+        mailto_insecure: '浏览器只允许通过 HTTPS 进行此设置，而此处的 plMail 使用的是普通 HTTP。'
+        mailto_unsupported: '此浏览器无法将邮件链接交给网页应用。Android 和 iOS 版 plMail 应用可以。'
         open: '展开'
         subheading: '所有账户的撰写窗口行为。'
     insights:
@@ -3719,6 +3749,8 @@ settings:
         field:
             base_url: '服务器地址'
             base_url_fixed: '正在连接管理员指定的 %url%。'
+            base_url_help:
+                webdav: "要打开的文件夹的完整地址，包含路径——在 FileBrowser Quantum 上为 https://host/dav/<source>/。"
             name: '名称'
             name_help: '仅你可见，用于区分不同连接。'
             permissions:
@@ -3734,6 +3766,7 @@ settings:
                 oneDrive: '访问令牌'
                 openCloud: '应用令牌'
                 paperless: 'API 令牌'
+                webdav: "密码或令牌"
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -3743,6 +3776,7 @@ settings:
                 oneDrive: ''
                 openCloud: '在 OpenCloud 的账户设置 → 应用令牌中创建，并选择较长的有效期：令牌过期后将无法使用。使用单点登录时，用户名可能是偏好设置中显示的 ID。'
                 paperless: '从 Paperless 的 My Profile → API Auth Token 中复制。'
+                webdav: "对于 FileBrowser Quantum，请创建 API 令牌并粘贴到这里；用户名可以留空。令牌过期后将无法使用。"
             secret_unchanged: '留空以保留已保存的凭据'
             username: '用户名'
         heading: '集成'
@@ -3941,7 +3975,7 @@ settings:
         subheading: "在手机上滑动邮件行时执行的操作。"
     unified_inboxes:
         account_label: '%account% 的统一收件箱'
-        account_off: '已停用——重新启用前，其邮件不会显示。'
+        account_off: '邮件已关闭——重新开启前，其邮件不会在此显示。'
         accounts_heading: '账户'
         accounts_subheading: '每个账户的邮件显示在哪个收件箱。新账户会进入你的第一个收件箱。'
         add: '添加'
@@ -3977,41 +4011,88 @@ settings:
         show_hint: '关闭后，更新完成时不会自动打开任何内容，顶栏的 ? 也不会显示圆点。仍可通过 ? → 更新内容查看。'
         subheading: 'plMail 更新后向你显示的内容。'
     nav:
-        accounts: '邮件账户'
+        accounts: "账户"
         ai: '助手'
         aliases: '别名'
         app_passwords: '应用密码'
         appearance: '外观'
-        calendar_behaviour: '行为'
+        area:
+            account: "账户与安全"
+            assistant: "助手与自动化"
+            calendar_contacts: "日历与联系人"
+            general: "常规"
+            inbox: "收件箱"
+            integrations: "集成"
+            mail_accounts: "邮件账户"
+            reading_writing: "阅读与撰写"
+        calendar_behaviour: "日历行为"
         calendars: '日历'
-        categories: '分类'
+        categories: "分类与排序"
+        compose: "撰写"
         contacts: "联系人"
         disposal: '彻底删除'
         encryption: "加密"
         filters: '过滤器'
-        general: '常规'
-        group:
-            access: '访问'
-            calendar: '日历'
-            features: '功能'
-            mail: '邮件'
-            personal: '个人'
         health: '账户健康状况'
-        images: '图片'
+        health_banner: "有问题需要你处理：请查看账户健康状况。"
         inboxes: '统一收件箱'
         insights: '邮件要点'
         integrations: '集成'
         labels: '标签'
+        layout: "布局与操作"
         notifications: '通知'
         profile: '个人资料'
-        read_receipts: '已读回执'
-        reading_pane: '阅读面板'
+        reading: "阅读"
+        region: "语言与地区"
         security: '安全'
         sharing: '共享'
-        shortcuts: '键盘快捷键'
         signature: '签名'
-        swipe_actions: "滑动操作"
         templates: '模板'
+        whats_new: "新功能"
+    search:
+        count: "结果：%count%"
+        empty: "未找到。搜索范围包括页面名称、卡片标题和关键词。"
+        failed: "无法加载设置搜索。请关闭后重试。"
+        hint_move: "选择"
+        hint_open: "打开"
+        keyword: "关键词"
+        keywords:
+            accent: "颜色 强调色 高亮 color"
+            accounts: "imap smtp pop3 jmap 服务器 添加 邮箱"
+            ai: "ai 人工智能 摘要 写作 帮助 模型"
+            aliases: "别名 身份 发件人 地址"
+            app_passwords: "imap smtp 客户端 thunderbird 令牌 api jmap"
+            calendars: "caldav ics 订阅"
+            clock: "12 24 小时 时间 格式"
+            compose_behaviour: "mailto 邮件链接 默认邮件程序 转发 引用 发送"
+            contacts: "carddav 通讯录"
+            disposal: "删除 回收站 彻底 清空"
+            encryption: "pgp openpgp gpg 密钥"
+            filters: "规则 sieve 自动 移动 转发"
+            handwriting: "签名 pdf 手写"
+            images: "跟踪 像素 远程 加载 阻止"
+            inbox_tabs: "标签页 推广 社交 动态 论坛"
+            insights: "包裹 物流 发票 航班"
+            integrations: "nextcloud dropbox drive onedrive immich paperless 云 webdav"
+            labels: "文件夹 标签 未读 所有邮件"
+            language: "语言 中文 英语 德语 法语"
+            notifications: "推送 浏览器 手机 声音 提醒"
+            password: "密码 登录"
+            profile: "姓名 头像 照片"
+            read_receipts: "mdn 已读回执 确认"
+            reading_pane: "预览 分栏 右侧 下方"
+            sharing: "链接 公开 预约"
+            shortcuts: "键盘 按键 快捷键"
+            swipe_actions: "滑动 手势 手机 归档"
+            templates: "模板 快速回复 片段"
+            theme: "深色 浅色 模式 夜间 颜色 dark"
+            two_factor: "2fa totp otp 验证器 双重验证"
+            typography: "字体 文字 大小"
+            whats_new: "更新 版本 更新日志"
+            wkd: "web key directory 发布"
+        kind_page: "页面"
+        label: "搜索设置"
+        placeholder: "搜索设置"
     notifications:
         devices:
             empty: '尚未注册任何设备。开启上方通知会注册此浏览器；手机应用会自行注册。'
@@ -4353,14 +4434,14 @@ shortcuts:
         star: '添加或移除星标'
         undo: '撤销上一步操作'
     or: '或'
-    switched_off: '你已关闭快捷键。可在设置 → 常规中开启。'
+    switched_off: "你已关闭快捷键。可在设置 → 常规 → 布局与操作中开启。"
     then: '然后'
     title: '键盘快捷键'
 sidebar:
     accounts:
         add: '添加账户'
         colour: '%account% 的颜色标记'
-        colour_disabled: '%account% 的颜色标记，该账户已停用'
+        colour_disabled: '%account% 的颜色标记，该账户的邮件已关闭'
         folders: '文件夹…'
         heading: '账户'
         menu: '%account% 的文件夹'
@@ -4467,6 +4548,7 @@ thread_row:
     no_subject: '（无主题）'
     send_failed:
         failed: '未发送'
+        mail_off: '未发送：此账户的邮件已关闭'
         may_have_sent: '可能已发送：再次发送前请检查已发送文件夹'
         rate_limited: '未发送：邮件服务商限制了发送频率'
         refused: '未发送：邮件服务器拒绝接收'
@@ -4490,6 +4572,7 @@ toast:
     schedule_cancelled: '已取消定时发送。'
     send_too_late: '来不及了——此邮件已经发出。'
     send_failed: '此邮件未能发送：%subject%'
+    send_failed_mail_off: '无法发送此邮件：%subject%。其账户的邮件已关闭。'
     send_failed_may_have_sent: '%subject% 可能已经发送，但响应丢失。再次发送前请检查已发送文件夹。'
     send_failed_rate_limited: '此邮件未能发送：%subject%。邮件服务商目前限制了发送频率，请几分钟后重试。'
     send_failed_refused: '此邮件未能发送：%subject%。邮件服务器拒绝接收。'

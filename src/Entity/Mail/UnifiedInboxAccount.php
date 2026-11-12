@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Mail;
 
-use App\Repository\Mail\UnifiedInboxAccountRepository;
+use App\Repository\Mail\UnifiedInboxAccount\UnifiedInboxAccountRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

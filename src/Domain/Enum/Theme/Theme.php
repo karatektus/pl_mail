@@ -116,6 +116,26 @@ enum Theme: string
     }
 
     /**
+     * The surface colour the theme paints its panels in, as the installed
+     * app's title bar should wear it (#589): one colour, or for System the
+     * light one and the dark one, which the OS decides between.
+     *
+     * The light half is swatch()[0], which already mirrors the block's
+     * --rgb-surface. System's dark half is the `.dark` base block in app.css
+     * (17 24 39), the palette a system theme paints in when the OS is dark;
+     * no other theme has one.
+     *
+     * @return array{light: string, dark: ?string}
+     */
+    public function surfaces(): array
+    {
+        return [
+            'light' => $this->swatch()[0],
+            'dark'  => self::System === $this ? '#111827' : null,
+        ];
+    }
+
+    /**
      * Swatch colours for the picker — surface, ink, accent.
      *
      * The accent is also the theme's seeded setting (see defaults()), and the

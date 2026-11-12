@@ -56,7 +56,7 @@ function actions(page: Page): Locator {
 
 test.describe("the delete-now switch in Settings → Mail → Disposal", () => {
     test("is off to begin with: Spam offers Delete and no Delete forever, on the row or above a selection", async ({ page }) => {
-        await page.goto("/settings?section=disposal");
+        await page.goto("/settings/disposal");
 
         await expect(page.locator('input[name="deleteNow"][value="0"]'), "off is the chosen answer").toBeChecked();
 

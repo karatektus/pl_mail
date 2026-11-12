@@ -6,7 +6,7 @@ namespace App\Entity\Crypto;
 
 use App\Domain\Enum\Crypto\KeyPublicationState;
 use App\Domain\Trait\TimestampableTrait;
-use App\Repository\Crypto\KeyPublicationRepository;
+use App\Repository\Crypto\KeyPublication\KeyPublicationRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

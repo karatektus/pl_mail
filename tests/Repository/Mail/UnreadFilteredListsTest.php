@@ -6,7 +6,8 @@ namespace App\Tests\Repository\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -63,6 +64,11 @@ final class UnreadFilteredListsTest extends KernelTestCase
         return static::getContainer()->get(MessageThreadRepository::class);
     }
 
+    private function badges(): MessageThreadBadgeRepository
+    {
+        return static::getContainer()->get(MessageThreadBadgeRepository::class);
+    }
+
     /**
      * The inbox badge against the list its own link opens.
      *
@@ -78,7 +84,7 @@ final class UnreadFilteredListsTest extends KernelTestCase
         $this->thread('Nothing unread', unread: 0);
 
         $repository = $this->repository();
-        $badge      = $repository->countUnreadPerRole($this->user)[LabelRole::Inbox->value] ?? 0;
+        $badge      = $this->badges()->countUnreadPerRole($this->user)[LabelRole::Inbox->value] ?? 0;
 
         $rows = $repository->findForUnifiedInbox(
             $this->user,
@@ -107,7 +113,7 @@ final class UnreadFilteredListsTest extends KernelTestCase
         $this->em->flush();
 
         $repository = $this->repository();
-        $badge      = $repository->countUnreadPerUserLabel($this->user)[(int) $work->id] ?? 0;
+        $badge      = $this->badges()->countUnreadPerUserLabel($this->user)[(int) $work->id] ?? 0;
 
         $rows = $repository->findForLabel($work, unreadOnly: true);
 
@@ -134,7 +140,7 @@ final class UnreadFilteredListsTest extends KernelTestCase
         $this->em->flush();
 
         $repository = $this->repository();
-        $badge      = $repository->countUnreadForStarred($this->user);
+        $badge      = $this->badges()->countUnreadForStarred($this->user);
 
         self::assertSame(1, $badge);
         self::assertCount($badge, $repository->findForStarred($this->user, unreadOnly: true));
@@ -158,12 +164,12 @@ final class UnreadFilteredListsTest extends KernelTestCase
 
         $repository = $this->repository();
 
-        self::assertSame(1, $repository->countUnreadPerUserLabel($this->user)[(int) $work->id] ?? 0);
+        self::assertSame(1, $this->badges()->countUnreadPerUserLabel($this->user)[(int) $work->id] ?? 0);
         self::assertCount(1, $repository->findForLabel($work, unreadOnly: true));
 
         $this->binThread($thread, $trash);
 
-        self::assertSame(0, $repository->countUnreadPerUserLabel($this->user)[(int) $work->id] ?? 0);
+        self::assertSame(0, $this->badges()->countUnreadPerUserLabel($this->user)[(int) $work->id] ?? 0);
         self::assertCount(0, $repository->findForLabel($work, unreadOnly: true));
     }
 
@@ -198,7 +204,7 @@ final class UnreadFilteredListsTest extends KernelTestCase
         $repository = $this->repository();
 
         // The row under the first account counts only its own.
-        $scoped = $repository->countUnreadPerUserLabel($this->user, $this->account)[(int) $work->id] ?? 0;
+        $scoped = $this->badges()->countUnreadPerUserLabel($this->user, $this->account)[(int) $work->id] ?? 0;
 
         self::assertSame(2, $scoped);
         self::assertCount(
@@ -209,7 +215,7 @@ final class UnreadFilteredListsTest extends KernelTestCase
 
         // While the sidebar's own label row means every account, and its link
         // has to widen to match.
-        $across = $repository->countUnreadPerUserLabel($this->user)[(int) $work->id] ?? 0;
+        $across = $this->badges()->countUnreadPerUserLabel($this->user)[(int) $work->id] ?? 0;
 
         self::assertSame(3, $across);
         self::assertCount($across, $repository->findForLabel($work, null, unreadOnly: true));

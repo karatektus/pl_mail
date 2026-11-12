@@ -1,8 +1,10 @@
 {#
 settings/_compose_behavior.html.twig
 ─────────────────────────────────────────────────────────────────────────────
-How the compose window behaves for this user — today, whether a forward opens
-with its quoted original folded behind the "show quoted text" pill.
+How the compose window behaves for this user — whether a forward opens with
+its quoted original folded behind the "show quoted text" pill, what a send
+shows while it is held — and, last, whether this browser hands its mailto:
+links to plMail at all.
 
 A plain form that submits on change and redirects, exactly like the clock
 beside it: the choice matters on the next compose window, not on this page,
@@ -82,5 +84,45 @@ idiom every boolean on the appearance page wears.
         </div>
     </div>
 </form>
+
+{# Third, and not a setting plMail stores: which program a mailto: link opens
+   is the BROWSER's choice, per browser and per device, so there is nothing to
+   post. The button asks the browser (settings--mailto-handler says what it can
+   and cannot know about the answer). An installed plMail in Chromium offers
+   itself through the manifest's protocol_handlers without this — and inside
+   that app the button is swapped for the system's own steps (#587).
+
+   The URL is the one ComposeController reads; `%s` is where the browser puts
+   the whole link, and is appended rather than passed to path(), which would
+   encode the percent sign into `%25s`. #}
+<div class="mt-4 flex items-start justify-between gap-3"
+     data-controller="settings--mailto-handler"
+     data-settings--mailto-handler-url-value="{{ path('app_compose_new') }}?mailto=%s"
+     data-settings--mailto-handler-labels-value="{{ {
+         asked:       'settings.compose_behavior.mailto_asked'|trans,
+         failed:      'settings.compose_behavior.mailto_failed'|trans,
+         insecure:    'settings.compose_behavior.mailto_insecure'|trans,
+         unsupported: 'settings.compose_behavior.mailto_unsupported'|trans,
+         app_macos:   'settings.compose_behavior.mailto_app_macos'|trans,
+         app_windows: 'settings.compose_behavior.mailto_app_windows'|trans,
+         app_linux:   'settings.compose_behavior.mailto_app_linux'|trans,
+         app_other:   'settings.compose_behavior.mailto_app_other'|trans,
+     }|json_encode|e('html_attr') }}">
+    <span class="min-w-0">
+        <span class="block text-xs font-medium text-ink-muted">{{ 'settings.compose_behavior.mailto'|trans }}</span>
+        <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.compose_behavior.mailto_hint'|trans }}</span>
+        <span class="block text-[11px] text-ink mt-1" data-settings--mailto-handler-target="state" role="status" hidden></span>
+    </span>
+
+    <button type="button"
+            class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
+                   bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer
+                   disabled:cursor-not-allowed disabled:opacity-40"
+            data-settings--mailto-handler-target="button"
+            data-action="click->settings--mailto-handler#register">
+        <i class="fa-solid fa-at text-xs" aria-hidden="true"></i>
+        {{ 'settings.compose_behavior.mailto_button'|trans }}
+    </button>
+</div>
 
 </div>

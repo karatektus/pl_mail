@@ -12,7 +12,7 @@ use App\Jmap\Mapper\MailboxCounts;
 use App\Jmap\Mapper\MailboxMapper;
 use App\Jmap\Method\Mail\MailboxSetMethod;
 use App\Jmap\Protocol\JmapContext;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Label\Label\LabelRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -288,7 +288,7 @@ final class MailboxColorTest extends KernelTestCase
         $this->account->smtpEncryption = 'starttls';
         $this->account->password = 'x';
         $this->account->authType = 'password';
-        $this->account->isActive = true;
+        $this->account->mailEnabled = true;
         $this->em->persist($this->account);
 
         $this->em->flush();

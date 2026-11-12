@@ -6,7 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Entity\Mail\Account;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\SignatureImporter;
 use App\Service\Mail\SignatureProvider;
@@ -188,6 +188,6 @@ final class SignatureController extends AbstractController
             ]);
         }
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'signature']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'signature']);
     }
 }

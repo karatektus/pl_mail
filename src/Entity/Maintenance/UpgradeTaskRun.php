@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Maintenance;
 
-use App\Repository\Maintenance\UpgradeTaskRunRepository;
+use App\Repository\Maintenance\UpgradeTaskRun\UpgradeTaskRunRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

@@ -15,10 +15,10 @@ use Doctrine\ORM\EntityManagerInterface;
 final class ImportRunner
 {
     public function __construct(
-        private ContactManager $manager,
-        private DuplicateFinder $finder,
-        private ContactPhotoStore $photos,
-        private EntityManagerInterface $em,
+        private readonly ContactManager $manager,
+        private readonly DuplicateFinder $finder,
+        private readonly ContactPhotoStore $photos,
+        private readonly EntityManagerInterface $em,
     ) {
     }
 

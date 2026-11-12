@@ -30,14 +30,14 @@ use App\Entity\User\ApiToken;
 use App\Entity\User\User;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Infrastructure\Encryption\Encryptor;
-use App\Repository\Calendar\CalendarRepository;
-use App\Repository\Calendar\CalendarShareLinkRepository;
-use App\Repository\Integration\IntegrationRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Rule\MailRuleRepository;
-use App\Repository\User\ApiTokenRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarShareLink\CalendarShareLinkRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
+use App\Repository\User\ApiToken\ApiTokenRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Backup\ConfigBackupExporter;
 use App\Service\Backup\ConfigBackupImporter;
 use Doctrine\DBAL\Connection;
@@ -762,7 +762,7 @@ final class ConfigBackupUsersTest extends KernelTestCase
         $account->smtpHost       = 'smtp.example.test';
         $account->smtpPort       = 587;
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $account->isPrimary      = true;
         // The retired sync cap, written as a raw key: an install upgraded from
         // a version that still had the setting carries it, and neither export

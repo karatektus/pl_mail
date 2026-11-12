@@ -5,16 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Entity;
 
 use App\Domain\Trait\TimestampableTrait;
-use App\Entity\Label\Label;
-use App\Entity\Calendar\EventSuppression;
-use App\Entity\Mail\Account;
-use App\Entity\Mail\UploadedBlob;
-use App\Entity\Monitoring\LogEntry;
-use App\Entity\User\PushSubscription;
-use App\Jmap\State\ChangeLog;
-use App\Entity\Mail\Contact;
-use App\Entity\Mail\Mailbox;
-use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping as ORM;
@@ -121,20 +111,75 @@ final class TimestampableTest extends KernelTestCase
         );
     }
 
-    /** @return iterable<string, array{string}> */
+    /**
+     * The other half of the rule: timestamps come from the trait or not at
+     * all. CategoryReport and BackgroundJob each declared a createdAt of their
+     * own, which is how a second, slightly different way of stamping a row
+     * starts. An entity whose moment means something else names it for that
+     * (purgedAt, finishedAt) and is not caught here.
+     */
+    public function testNoEntityDeclaresItsOwnTimestamps(): void
+    {
+        $own = [];
+
+        foreach (self::entityClasses() as $class) {
+            foreach (['createdAt', 'updatedAt'] as $name) {
+                $reflection = new \ReflectionClass($class);
+
+                if (false === $reflection->hasProperty($name)) {
+                    continue;
+                }
+
+                if (false === in_array(TimestampableTrait::class, $reflection->getTraitNames(), true)) {
+                    $own[] = $class.'::$'.$name;
+                }
+            }
+        }
+
+        self::assertSame([], $own, 'Take createdAt/updatedAt from TimestampableTrait instead');
+    }
+
+    /**
+     * Every entity that uses the trait, found rather than listed: a list kept
+     * by hand covered eleven of them.
+     *
+     * @return iterable<string, array{string}>
+     */
     public static function timestampedEntities(): iterable
     {
-        yield 'Account'          => [Account::class];
-        yield 'ChangeLog'        => [ChangeLog::class];
-        yield 'EventSuppression' => [EventSuppression::class];
-        yield 'LogEntry'         => [LogEntry::class];
-        yield 'PushSubscription' => [PushSubscription::class];
-        yield 'UploadedBlob'     => [UploadedBlob::class];
-        yield 'Contact' => [Contact::class];
-        yield 'Label'   => [Label::class];
-        yield 'Mailbox' => [Mailbox::class];
-        yield 'Message' => [Message::class];
-        yield 'User'    => [User::class];
+        foreach (self::entityClasses() as $class) {
+            if (in_array(TimestampableTrait::class, (new \ReflectionClass($class))->getTraitNames(), true)) {
+                yield substr($class, strlen('App\\')) => [$class];
+            }
+        }
+    }
+
+    /** @return list<class-string> */
+    private static function entityClasses(): array
+    {
+        // All of src/, not src/Entity: the JMAP change log lives in src/Jmap/State.
+        $root    = dirname(__DIR__, 2).'/src';
+        $classes = [];
+
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)) as $file) {
+            if ('php' !== $file->getExtension()) {
+                continue;
+            }
+
+            $class = 'App\\'.str_replace('/', '\\', substr($file->getPathname(), strlen($root) + 1, -4));
+
+            if (false === str_contains((string) file_get_contents($file->getPathname()), '#[ORM\\Entity')) {
+                continue;
+            }
+
+            if (class_exists($class) && [] !== (new \ReflectionClass($class))->getAttributes(ORM\Entity::class)) {
+                $classes[] = $class;
+            }
+        }
+
+        sort($classes);
+
+        return $classes;
     }
 
     private function user(): User

@@ -12,7 +12,7 @@ use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use App\Service\Calendar\EventReconciler;
 use App\Service\Calendar\Extraction\ExtractedEvent;
 use DateTimeImmutable;
@@ -267,7 +267,7 @@ final class SharedEventUpdateTest extends WebTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         // Where extraction files, and where the user then shares it to.

@@ -6,7 +6,7 @@ namespace App\Tests\Service\User;
 
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
-use App\Repository\User\ApiTokenRepository;
+use App\Repository\User\ApiToken\ApiTokenRepository;
 use App\Service\User\DevicePairingService;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

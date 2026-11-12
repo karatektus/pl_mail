@@ -15,8 +15,8 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\CalendarNotifier;
 use App\Service\Calendar\CalendarPuller;
@@ -944,7 +944,7 @@ final class CalendarSyncServiceTest extends KernelTestCase
         $account->password       = 'x';
         $account->authType       = 'oauth2';
         $account->oauthProvider  = 'google';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $calendar           = new Calendar();

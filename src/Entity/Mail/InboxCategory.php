@@ -6,7 +6,7 @@ namespace App\Entity\Mail;
 
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Mail\InboxCategoryRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

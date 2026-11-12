@@ -9,7 +9,7 @@ use App\Entity\Ai\AiFeature;
 use App\Entity\Ai\AiSettings;
 use App\Entity\Embeddable\AiPreferences;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -310,7 +310,7 @@ final class AiPreferencesTest extends WebTestCase
     {
         [$client] = $this->signedIn();
 
-        $crawler = $client->request('GET', '/settings?section=ai');
+        $crawler = $client->request('GET', '/settings/ai');
 
         self::assertSame(200, $client->getResponse()->getStatusCode());
         self::assertCount(count(AiFeature::cases()), $crawler->filter('[data-ai-feature]'));
@@ -335,7 +335,7 @@ final class AiPreferencesTest extends WebTestCase
     {
         [$client] = $this->signedIn(writingHelp: false);
 
-        $crawler = $client->request('GET', '/settings?section=ai');
+        $crawler = $client->request('GET', '/settings/ai');
 
         $row = $crawler->filter(sprintf('[data-ai-feature="%s"]', AiFeature::WritingHelp->value));
 
@@ -365,7 +365,7 @@ final class AiPreferencesTest extends WebTestCase
      */
     private function token(KernelBrowser $client): string
     {
-        $crawler = $client->request('GET', '/settings?section=ai');
+        $crawler = $client->request('GET', '/settings/ai');
 
         return (string) $crawler
             ->filter('[data-settings--toggle-token-value]')
@@ -381,7 +381,7 @@ final class AiPreferencesTest extends WebTestCase
      */
     private function formToken(KernelBrowser $client, string $action): string
     {
-        $crawler = $client->request('GET', '/settings?section=ai');
+        $crawler = $client->request('GET', '/settings/ai');
 
         return (string) $crawler
             ->filter(sprintf('form[action="%s"] input[name="_token"]', $action))

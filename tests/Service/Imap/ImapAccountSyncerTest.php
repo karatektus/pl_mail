@@ -13,7 +13,7 @@ use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Service\Imap\ImapAccountSyncer;
 use App\Service\Imap\MailboxSyncer;
 use App\Service\Imap\MessageSyncer;

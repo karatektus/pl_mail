@@ -4,22 +4,25 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Infrastructure\ImapClient\ImapLoop;
-use App\Service\Imap\ImapConnector;
-use App\Tests\Infrastructure\ImapClient\FakeImapServer;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Domain\Helper\MessageIdHelper;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapCopies;
 use App\Service\Imap\MailboxSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessageEraser;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -170,6 +173,92 @@ final class MailboxMirrorFolderTest extends KernelTestCase
     }
 
     /**
+     * #548: the label Proton's All Mail fed while it was synced kept a stale
+     * handful of mail and read, in the sidebar, as the place to see all of it.
+     * Hidden when the folder is recognised, with plMail's own All Mail shown
+     * instead; Starred's label hidden too, with nothing to replace it, as the
+     * system Starred is already there.
+     */
+    public function testARecognisedMirrorsLabelMakesWayForTheRealAllMail(): void
+    {
+        $this->sync($this->protonListing());
+
+        self::assertFalse($this->mailbox('All Mail')->label?->isVisible, 'the All Mail folder\'s label');
+        self::assertFalse($this->mailbox('Starred')->label?->isVisible, 'the Starred folder\'s label');
+        // Presence: a syncer that hid every label would pass the two above.
+        self::assertTrue($this->mailbox('Archive')->label?->isVisible);
+
+        self::assertTrue($this->allMail()?->isVisible, 'plMail\'s own All Mail is in the sidebar');
+    }
+
+    public function testStarredAloneDoesNotSwitchOnAllMail(): void
+    {
+        $listing = $this->protonListing();
+        unset($listing['Archive']);
+
+        $this->sync($listing);
+
+        self::assertFalse($this->mailbox('Starred')->label?->isVisible);
+        // Without an Archive, All Mail is a real folder and stays as it was.
+        self::assertTrue($this->mailbox('All Mail')->label?->isVisible);
+        self::assertNotTrue($this->allMail()?->isVisible);
+    }
+
+    /**
+     * Existing installs: the migration puts switched-off mirrors back to "not
+     * yet recognised", and the next sync hides the label. Once — somebody who
+     * shows it again in Settings keeps it.
+     */
+    public function testAnExistingMirrorsLabelIsHiddenOnceAfterTheMigration(): void
+    {
+        $this->sync($this->protonListing());
+
+        $label = $this->mailbox('All Mail')->label;
+        self::assertNotNull($label);
+
+        // The state before this change, then the migration's.
+        $label->isVisible = true;
+        $this->mailbox('All Mail')->mirrorsOtherFolders = false;
+        $this->em->flush();
+
+        $this->sync($this->protonListing());
+
+        self::assertFalse($this->mailbox('All Mail')->label?->isVisible, 'hidden on recognition');
+        self::assertFalse($this->mailbox('All Mail')->isSyncEnabled, 'and the folder still off');
+
+        $this->mailbox('All Mail')->label->isVisible = true;
+        $this->em->flush();
+
+        $this->sync($this->protonListing());
+
+        self::assertTrue($this->mailbox('All Mail')->label?->isVisible, 'and not again');
+    }
+
+    /**
+     * A label is the user's, across accounts. One a synced folder on another
+     * account still feeds is a label in use, and stays.
+     */
+    public function testALabelAnotherAccountsFolderStillFeedsStaysVisible(): void
+    {
+        $other = new Mailbox();
+        $other->account   = $this->secondAccount();
+        $other->name      = 'All Mail';
+        $other->fullPath  = 'All Mail';
+        $other->delimiter = self::DELIMITER;
+        $other->isSyncEnabled = true;
+        $this->em->persist($other);
+        $this->em->flush();
+
+        self::getContainer()->get(LabelResolver::class)->linkFolder($other, $other->account, null);
+        $this->em->flush();
+
+        $this->sync($this->protonListing());
+
+        self::assertSame($other->label?->id, $this->mailbox('All Mail')->label?->id, 'the two folders share one label');
+        self::assertTrue($this->mailbox('All Mail')->label?->isVisible);
+    }
+
+    /**
      * The reported conversation, and the copies that must survive the
      * clean-up beside the one that must not.
      */
@@ -273,7 +362,7 @@ final class MailboxMirrorFolderTest extends KernelTestCase
             $this->em,
             $container->get(ImapConnector::class),
             $container->get(LabelResolver::class),
-            $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageImapRepository::class),
             $container->get(MessageEraser::class),
             $container->get(ImapCopies::class),
             new NullLogger(),
@@ -374,6 +463,33 @@ final class MailboxMirrorFolderTest extends KernelTestCase
         return $message;
     }
 
+    private function allMail(): ?Label
+    {
+        return self::getContainer()->get(LabelRepository::class)
+            ->findOneByRoleForUser(LabelRole::AllMail, $this->account->usr);
+    }
+
+    private function secondAccount(): Account
+    {
+        $account = new Account();
+        $account->usr = $this->account->usr;
+        $account->email = 'Second Mirror Fixture';
+        $account->username = 'second-mirror@example.test';
+        $account->imapHost = '127.0.0.1';
+        $account->imapPort = 1143;
+        $account->imapEncryption = 'starttls';
+        $account->smtpHost = '127.0.0.1';
+        $account->smtpPort = 1025;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->mailEnabled = true;
+        $this->em->persist($account);
+        $this->em->flush();
+
+        return $account;
+    }
+
     private function seedAccount(): Account
     {
         $user = new User();
@@ -396,7 +512,7 @@ final class MailboxMirrorFolderTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
 
         $this->em->flush();

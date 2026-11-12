@@ -2,8 +2,6 @@ account:
     add_title: Konto hinzufügen
     added: Konto wurde hinzugefügt
     colour_set: Kontofarbe geändert
-    disabled: Konto deaktiviert
-    enabled: Konto aktiviert
     form:
         email: E-Mail-Adresse
         encryption: Verschlüsselung
@@ -49,13 +47,27 @@ account:
             same: Zum Senden dasselbe Passwort verwenden
             separate: Zum Senden ein anderes Passwort verwenden
         username: Benutzername
+    mail_purge_queued: 'Die E-Mails dieses Kontos werden aus plMail entfernt. Auf dem Server bleiben sie.'
     oauth:
         calendar_declined: Das Konto ist verbunden, aber der Kalenderzugriff wurde nicht erteilt — seine Kalender werden also nicht synchronisiert. Verbinde es neu und hak auf Googles Zustimmungsseite den Kalenderzugriff an.
         google: Weiter mit Google
         info: Melde dich bei deinem Anbieter an — es wird kein Passwort gespeichert.
         microsoft: Weiter mit Microsoft
+        services:
+            help: 'Auf der nächsten Seite wird nur das angefragt, was du ankreuzt. Ändern kannst du es später unter Einstellungen → Konten.'
+            legend: 'Konto verwenden für'
     primary_set: Primäres Konto geändert
     removed: Konto entfernt
+    service:
+        calendar:
+            off: 'Kalender ausgeschaltet'
+            on: 'Kalender eingeschaltet'
+        contacts:
+            off: 'Kontakte ausgeschaltet'
+            on: 'Kontakte eingeschaltet'
+        mail:
+            off: 'E-Mail ausgeschaltet. Was schon da ist, bleibt.'
+            on: 'E-Mail eingeschaltet'
     sync_interval_set: Abrufintervall geändert
     tabs:
         imap: IMAP / SMTP
@@ -79,7 +91,7 @@ account:
             missing_fields: 'Gib zuerst mindestens eine E-Mail-Adresse und einen IMAP-Host ein.'
             missing_password: 'Kein Passwort zum Testen. Gib oben eins ein — beim Bearbeiten behält ein leeres Feld das gespeicherte Passwort, und das kann der Test erst nutzen, wenn das Konto gespeichert ist.'
             pop3_ok: 'Verbunden — %count% Nachrichten im Postfach.'
-            private_network: 'Dieser Server liegt in einem privaten Netz. Eine Administratorin oder ein Administrator muss seinen Host erst in INTEGRATIONS_ALLOWED_HOSTS freigeben, bevor plMail sich verbinden darf.'
+            private_network: 'Dieser Server liegt in einem privaten Netz. Eine Administratorin oder ein Administrator muss ihn erst unter Admin → Integrationen → Server in privaten Netzen erlauben, bevor plMail sich verbinden darf.'
             smtp_none: 'Kein SMTP-Host eingetragen — Senden ist für dieses Konto aus.'
             smtp_ok: 'Verbunden und angemeldet.'
             timeout: 'Der Server hat nicht rechtzeitig geantwortet. Prüf Host und Port und ob eine Firewall dazwischen ist.'
@@ -614,7 +626,7 @@ admin:
         base_url_per_user: 'Jede Person gibt ihre eigene Serveradresse ein.'
         base_url_pinned: 'für alle festgelegt'
         calendar:
-            connected_warning: 'Bereits verbunden: %count%. Eine geänderte oder entfernte Adresse gilt für jede dieser Verbindungen, sobald ihre Kalender das nächste Mal gesucht werden. Wer mit einem anderen Server verbunden ist, etwa iCloud, wird dann mit dem eigenen Passwort bei diesem angefragt. Bereits gespiegelte Kalender behalten die Adresse, unter der sie gefunden wurden; lag eine entfernte Adresse in einem privaten Netz, synchronisieren sie nicht mehr, bis ihr Host in INTEGRATIONS_ALLOWED_HOSTS steht.'
+            connected_warning: 'Bereits verbunden: %count%. Eine geänderte oder entfernte Adresse gilt für jede dieser Verbindungen, sobald ihre Kalender das nächste Mal gesucht werden. Wer mit einem anderen Server verbunden ist, etwa iCloud, wird dann mit dem eigenen Passwort bei diesem angefragt. Bereits gespiegelte Kalender behalten die Adresse, unter der sie gefunden wurden; lag eine entfernte Adresse in einem privaten Netz, synchronisieren sie nicht mehr, bis er unten unter Server in privaten Netzen erlaubt ist.'
             heading: 'Kalender'
             intro: 'Server und Feeds, aus denen unter Einstellungen → Kalender Kalender gespiegelt werden. Beide stehen allen zur Verfügung; hier lässt sich eine Serveradresse für alle festlegen. Nextcloud wird oben bei den Dateidiensten eingerichtet, seine Kalender kommen mit.'
         clear_secret: 'Gespeichertes Client-Secret entfernen'
@@ -692,6 +704,25 @@ admin:
             enabled: 'Aktiviert'
             incomplete: 'Zugangsdaten fehlen'
             unimplemented: 'Noch nicht verfügbar'
+        trusted:
+            add: 'Server erlauben'
+            allow: 'Erlauben'
+            allow_http: 'Unverschlüsseltes http erlauben'
+            empty: 'Noch keiner. Ein Server, der auf eine private Adresse zeigt, wird abgelehnt, bis er hier steht.'
+            field:
+                allow_http: 'Dieser Server hat kein Zertifikat: unverschlüsseltes http erlauben'
+                allow_http_help: 'Nur für einen Server in deinem eigenen Netz. App-Passwörter gehen dann unverschlüsselt durch dieses Netz.'
+                host: 'Server'
+                host_help: 'Sein Hostname oder seine IP-Adresse, wie in der Adresse, die eingetippt wird: dav.home.example.com, 192.168.1.20. Eine ganze Adresse geht auch; nur ihr Host wird übernommen.'
+            form_intro: 'Angemeldete Nutzerinnen und Nutzer können plMail dann mit diesem Server verbinden, obwohl er auf eine private Adresse zeigt. Jede und jeder von ihnen kann plMail an jeden Server hier Anfragen schicken lassen. Trag also die Server ein, die wirklich genutzt werden, nicht jeden Rechner im Netz.'
+            heading: 'Server in privaten Netzen'
+            http_allowed: 'Unverschlüsseltes http erlaubt'
+            intro: 'plMail lehnt eine Serveradresse ab, die in ein privates Netz zeigt, damit niemand darüber diesen Rechner oder andere daneben erreicht. Die Server hier sind trotzdem erlaubt: ein CalDAV-, CardDAV- oder Dateiserver zu Hause, ein Kalender-Feed im LAN.'
+            remove: '%host% nicht mehr erlauben'
+            remove_confirm: '%host% nicht mehr erlauben? Verbindungen dorthin funktionieren ab ihrer nächsten Synchronisierung nicht mehr.'
+            removed: 'Server entfernt'
+            require_https: 'https verlangen'
+            saved: 'Server erlaubt'
         tutorial:
             caldav:
                 intro: 'CalDAV meldet sich mit einem App-Passwort pro Person am eigenen Server an — hier ist nichts zu registrieren.'
@@ -760,6 +791,13 @@ admin:
                 step_base_url: 'Optional die Serveradresse festlegen, etwa https://paperless.example.com.'
                 step_enable: 'Oben „Diesen Dienst anbieten“ einschalten.'
                 step_token: 'Jede Person kopiert ihr API-Token in Paperless unter My Profile → API Auth Token und trägt es in ihren eigenen Integrationseinstellungen ein.'
+            webdav:
+                intro: "WebDAV deckt jeden Dateiserver ab, der es spricht — FileBrowser Quantum, ein Synology-NAS, rclone serve webdav, Apache mod_dav. Jede Person verbindet sich mit eigenem Passwort oder Token, hier ist also nichts zu registrieren."
+                no_links: "WebDAV kennt keine öffentlichen Links, keine Vorschauen und keine Suche. Dateien über der Anhangsgrenze lassen sich nicht anhängen, und die Auswahl zeigt ein Datei-Symbol statt eines Vorschaubilds."
+                security: "Ein Server in einem privaten Netz, etwa ein NAS zu Hause, wird erst erreicht, wenn er unten unter Server in privaten Netzen steht."
+                step_base_url: "Optional die Adresse festlegen, etwa https://files.example.com/dav/files/. Gemeint ist die volle Adresse des Ordners samt Pfad: bei FileBrowser Quantum /dav/ und dahinter der Name der Quelle."
+                step_enable: 'Oben „Diesen Dienst anbieten“ einschalten.'
+                step_user: "Jede Person trägt diese Adresse ein, einen Benutzernamen, falls der Server einen will, und ein Passwort oder API-Token. FileBrowser Quantum nimmt ein API-Token als Passwort und ignoriert den Benutzernamen."
         tutorial_heading: 'Einrichtung'
         unimplemented_notice: 'plMail kann diesen Dienst noch nicht ansprechen. Die Zugangsdaten können jetzt hinterlegt werden — sie greifen, sobald die Unterstützung erscheint.'
     loading: 'Wird geladen…'
@@ -3179,7 +3217,7 @@ profile:
         name_first: Vorname
         name_last: Nachname
 
-# The reading pane beside the message list (Settings → Reading pane turns it on).
+# The reading pane beside the message list (Settings → Reading & writing → Reading turns it on).
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
@@ -3378,10 +3416,8 @@ settings:
                 '7': Oliv
         delete: Konto entfernen
         delete_confirm: '%account% entfernen? Dadurch werden alle synchronisierten Nachrichten dieses Kontos endgültig gelöscht. Das lässt sich nicht rückgängig machen.'
-        disable: Konto deaktivieren
         edit: Konto bearbeiten
         empty: Noch keine Konten. Füge eines hinzu, um E-Mails zu synchronisieren.
-        enable: Konto aktivieren
         folders:
             always_synced: Der Posteingang wird immer synchronisiert
             button: Ordner
@@ -3424,6 +3460,7 @@ settings:
             placeholder: 'Ein Platzhalter, der nur andere Ordner zusammenfasst — darin gibt es nichts zu synchronisieren'
             refused:
                 has_children: 'In diesem Ordner liegen weitere Ordner. Lösche oder verschiebe sie zuerst.'
+                mail_off: 'Für dieses Konto ist E-Mail ausgeschaltet, deshalb lassen sich seine Ordner auf dem Server nicht ändern. Schalte E-Mail zuerst ein.'
                 not_empty: 'In diesem Ordner liegen noch Nachrichten (%count%). Verschiebe sie zuerst; einen Ordner zu löschen löscht seine Nachrichten.'
                 server: 'Der Mailserver hat abgelehnt: %reason%'
                 special_use: 'Posteingang, Gesendet, Entwürfe, Papierkorb, Spam und Archiv werden in plMail nie umbenannt oder gelöscht: Andere Mailprogramme und plMail selbst verlassen sich auf sie.'
@@ -3506,6 +3543,25 @@ settings:
                 microsoft: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
             title: Sofortige Zustellung
         reorder: Zum Umsortieren ziehen
+        services:
+            allow: 'Erlauben…'
+            allow_explained: 'Für %service% braucht plMail eine Berechtigung, die %provider% noch nicht erteilt hat. Öffnet %provider%, um sie anzufragen.'
+            calendar: 'Kalender'
+            calendar_help: 'Seine Kalender, in beide Richtungen abgeglichen'
+            change: 'E-Mail, Kalender und Kontakte für %account%'
+            close: 'Fertig'
+            contacts: 'Kontakte'
+            contacts_help: 'Seine Adressbücher, in beide Richtungen abgeglichen'
+            intro: 'Schalte aus, wofür du dieses Konto nicht verwendest. plMail spricht dann mit dem Server nicht mehr darüber und behält, was schon da ist.'
+            mail: 'E-Mail'
+            mail_help: 'Synchronisieren, Senden und jede Änderung an seinen E-Mails'
+            none: 'Alles ausgeschaltet'
+            purge: 'Synchronisierte E-Mails aus plMail entfernen'
+            purge_confirm: 'Alle E-Mails, die plMail für %account% synchronisiert hat, entfernen? Auf dem Server bleiben sie. Schaltest du E-Mail wieder ein, lädt plMail sie neu herunter.'
+            purge_help: 'Nur die Kopie in plMail wird entfernt. Auf dem Server wird nichts gelöscht.'
+            turn_off: '%service% für %account% ausschalten'
+            turn_on: '%service% für %account% einschalten'
+            used_for: 'Verwendet für %services%'
         status:
             active: Aktiv
             disabled: Deaktiviert
@@ -3735,43 +3791,6 @@ settings:
             matchGlass: An Glas-Deckkraft angleichen
             subheading: Farbton und Deckkraft des Hauptbereichs, unabhängig von der Seitenleiste.
             tint: Hintergrundfarbton
-        preview:
-            body: Eine kurze Nachricht, damit der Lesebereich etwas zu zeigen hat. Nichts davon ist echte Post — die Vorschau lädt keine.
-            heading: Vorschau
-            hide: Vorschau ausblenden
-            resize: Vorschau in der Breite ändern
-            compose_body: Eine halb geschriebene Antwort, damit im Fenster etwas steht. Hier wird nichts verschickt.
-            compose_heading: Neue Nachricht
-            compose_send: Senden
-            compose_subject: 'Re: Notizen zur Analytical Engine'
-            compose_to: ada@plmail.test
-            field_date: Datum
-            field_from: Von
-            field_subject: Betreff
-            field_to: An
-            reply: Antworten
-            sender1: Ada Lovelace
-            sender2: Grace Hopper
-            sender3: Kathleen Booth
-            sender4: Margaret Hamilton
-            sender5: Barbara Liskov
-            sender6: Karen Spärck Jones
-            sender7: Radia Perlman
-            sender8: Frances Allen
-            show: Vorschau anzeigen
-            snippet: So sieht eine Vorschauzeile aus, und so viel davon passt hinein, bevor der Platz in der Zeile ausgeht.
-            subheading: Deine Einstellungen an einer Beispielliste. Hier wird nichts aus deinen Nachrichten geladen.
-            to: an dich
-            value_from: Ada Lovelace <ada@plmail.test>
-            value_to: du@plmail.test
-            subject1: Notizen zur Analytical Engine
-            subject2: 'Re: Entwurf des Compilers'
-            subject3: Assembler-Notizen, wie versprochen
-            subject4: Steuerungssoftware — die Prioritätenliste
-            subject5: 'Re: Abstraktion und die Typhierarchie'
-            subject6: Termgewichtung, und warum sie zählt
-            subject7: Entwurf für den Spanning Tree
-            subject8: 'Die innere Schleife optimieren: Ergebnisse'
         reset: Auf Standard zurücksetzen
         subheading: Farbschema, Dichte, Schrift und Hintergrund — das ganze Erscheinungsbild der App an einem Ort.
         seg:
@@ -4276,6 +4295,17 @@ settings:
         send_optimistic: Schließen
         send_hold: Offen lassen
         heading: 'Verfassen'
+        mailto: 'E-Mail-Links'
+        mailto_app_linux: 'plMail läuft als installierte App. Links aus anderen Programmen kommen hier an, sobald es das Standard-Mailprogramm deines Desktops ist: Wähle plMail in den Einstellungen deines Desktops unter Standard-Anwendungen, oder führe xdg-settings set default-url-scheme-handler mailto mit der .desktop-Datei von plMail aus ~/.local/share/applications aus.'
+        mailto_app_macos: 'plMail läuft als installierte App. Links aus anderen Programmen kommen hier an, sobald es das Standard-Mailprogramm deines Macs ist: Öffne in Mail Einstellungen → Allgemein → Standard-E-Mail-Programm und wähle plMail. Steht es nicht in der Liste, wähle Auswählen… und such plMail in deinem Benutzerordner unter Programme → Chrome Apps.'
+        mailto_app_other: 'plMail läuft als installierte App. Links aus anderen Programmen kommen hier an, sobald es in den Einstellungen deines Systems das Standard-Mailprogramm ist.'
+        mailto_app_windows: 'plMail läuft als installierte App. Links aus anderen Programmen kommen hier an, sobald es dein Standard-Mailprogramm ist: Öffne Einstellungen → Apps → Standard-Apps, such nach MAILTO und wähle plMail.'
+        mailto_asked: 'Dein Browser fragt an der Adresszeile nach — wähle dort Zulassen, dann ist plMail auch gleich der Standard. Keine Nachfrage, und Links kommen trotzdem nicht an? Dann ist plMail eingetragen, aber nicht der Standard: Öffne in Chrome chrome://settings/handlers und wähle im ⋮-Menü von plMail „Als Standard festlegen“.'
+        mailto_button: 'plMail verwenden'
+        mailto_failed: 'Dieser Browser hat die Anfrage abgelehnt.'
+        mailto_hint: 'mailto:-Links von anderen Seiten in plMail öffnen, in diesem Browser. Jeder Browser und jedes Gerät entscheidet für sich. Als App installiert öffnet plMail sie im Fenster, das schon offen ist.'
+        mailto_insecure: 'Browser erlauben das nur über HTTPS, und plMail läuft hier über einfaches HTTP.'
+        mailto_unsupported: 'Dieser Browser kann E-Mail-Links nicht an eine Web-App geben. Die plMail-Apps für Android und iOS können das.'
         open: 'Ausgeklappt'
         subheading: 'Wie sich das Verfassen-Fenster für dich verhält, über alle Konten.'
     insights:
@@ -4341,6 +4371,8 @@ settings:
         field:
             base_url: 'Serveradresse'
             base_url_fixed: 'Verbindung zu %url%, von der Administration festgelegt.'
+            base_url_help:
+                webdav: "Die volle Adresse des Ordners samt Pfad — bei FileBrowser Quantum https://host/dav/<quelle>/."
             name: Name
             name_help: 'Nur für dich sichtbar, um zwei Verbindungen auseinanderzuhalten.'
             permissions:
@@ -4356,6 +4388,7 @@ settings:
                 oneDrive: 'Zugriffstoken'
                 openCloud: 'App-Token'
                 paperless: 'API-Token'
+                webdav: "Passwort oder Token"
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -4365,6 +4398,7 @@ settings:
                 oneDrive: ''
                 openCloud: 'Erstelle eines in OpenCloud unter Kontoeinstellungen → App-Tokens und wähl eine lange Laufzeit: Ein abgelaufenes Token funktioniert nicht mehr. Mit Single Sign-on ist der Benutzername eventuell die ID unter Einstellungen.'
                 paperless: 'In Paperless unter My Profile → API Auth Token kopieren.'
+                webdav: "Bei FileBrowser Quantum ein API-Token anlegen und hier einfügen; den Benutzernamen kannst du leer lassen. Ein abgelaufenes Token funktioniert nicht mehr."
             secret_unchanged: 'Leer lassen, um die gespeicherten Zugangsdaten zu behalten'
             username: Benutzername
         heading: Integrationen
@@ -4629,7 +4663,7 @@ settings:
         subheading: Was eine Wischbewegung über eine Zeile auf dem Telefon bewirkt.
     unified_inboxes:
         account_label: 'Sammel-Posteingang für %account%'
-        account_off: 'Ausgeschaltet — nichts davon wird angezeigt, bis du es wieder einschaltest.'
+        account_off: 'E-Mail ausgeschaltet — nichts davon wird hier angezeigt, bis du sie wieder einschaltest.'
         accounts_heading: 'Konten'
         accounts_subheading: 'In welchem Posteingang die Mail jedes Kontos erscheint. Ein neues Konto landet in deinem ersten Posteingang.'
         add: 'Hinzufügen'
@@ -4665,41 +4699,88 @@ settings:
         show_hint: 'Aus: Nach einem Update öffnet sich nichts, und das ? oben zeigt keinen Punkt. Die Hinweise findest du weiter unter ? → Was ist neu.'
         subheading: 'Was plMail dir zeigt, nachdem es aktualisiert wurde.'
     nav:
-        accounts: E-Mail-Konten
+        accounts: "Konten"
         ai: 'Assistent'
         aliases: Aliase
         app_passwords: App-Passwörter
         appearance: Darstellung
-        calendar_behaviour: Verhalten
+        area:
+            account: "Konto"
+            assistant: "Assistent & Automatik"
+            calendar_contacts: "Kalender & Kontakte"
+            general: "Allgemein"
+            inbox: "Posteingang"
+            integrations: "Integrationen"
+            mail_accounts: "E-Mail-Konten"
+            reading_writing: "Lesen & Schreiben"
+        calendar_behaviour: "Kalenderverhalten"
         calendars: Kalender
-        categories: "Kategorien"
+        categories: "Kategorien & Sortierung"
+        compose: "Verfassen"
         contacts: Kontakte
         disposal: Entsorgen
         encryption: "Verschlüsselung"
         filters: Filter
-        general: Allgemein
-        group:
-            access: Zugriff
-            calendar: Kalender
-            features: Funktionen
-            mail: E-Mail
-            personal: Persönlich
         health: 'Zustand der Konten'
-        images: Bilder
+        health_banner: "Etwas braucht deine Aufmerksamkeit — siehe Zustand der Konten."
         inboxes: 'Sammel-Posteingänge'
         insights: Insights
         integrations: Integrationen
         labels: Labels
+        layout: "Layout & Bedienung"
         notifications: Benachrichtigungen
         profile: Profil
-        read_receipts: Lesebestätigungen
-        reading_pane: Lesebereich
+        reading: "Lesen"
+        region: "Sprache & Region"
         security: Sicherheit
         sharing: Teilen
-        shortcuts: Tastenkürzel
         signature: Signaturen
-        swipe_actions: Wischgesten
         templates: 'Vorlagen'
+        whats_new: "Neuigkeiten"
+    search:
+        count: "Treffer: %count%"
+        empty: "Nichts gefunden. Die Suche durchsucht Seitennamen, Kartenüberschriften und Stichwörter."
+        failed: "Die Einstellungssuche konnte nicht geladen werden. Schließe sie und versuche es noch einmal."
+        hint_move: "auswählen"
+        hint_open: "öffnen"
+        keyword: "Stichwort"
+        keywords:
+            accent: "farbe akzent hervorhebung color"
+            accounts: "imap smtp pop3 jmap server hinzufügen postfach"
+            ai: "ki künstliche intelligenz zusammenfassung schreibhilfe modell ai"
+            aliases: "alias identität absender von adresse"
+            app_passwords: "imap smtp programm thunderbird token api jmap"
+            calendars: "caldav ics abonnieren feed"
+            clock: "12 24 stunden uhrzeit format am pm"
+            compose_behaviour: "mailto e-mail-links standard-mailprogramm weiterleiten zitat senden"
+            contacts: "carddav adressbuch"
+            disposal: "löschen papierkorb endgültig leeren"
+            encryption: "pgp openpgp gpg schlüssel"
+            filters: "regeln sieve automatisch verschieben weiterleiten"
+            handwriting: "unterschreiben pdf zeichnen"
+            images: "tracking pixel extern laden blockieren"
+            inbox_tabs: "tabs werbung sozial benachrichtigungen foren"
+            insights: "paket sendungsverfolgung rechnung flug"
+            integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            labels: "ordner tags ungelesen alle e-mails"
+            language: "sprache deutsch englisch französisch chinesisch"
+            notifications: "push browser handy ton hinweis"
+            password: "kennwort anmeldung login"
+            profile: "name avatar foto bild"
+            read_receipts: "mdn empfangsbestätigung bestätigung"
+            reading_pane: "vorschau geteilt rechts unten"
+            sharing: "link öffentlich buchung"
+            shortcuts: "tastatur tasten kürzel hotkeys"
+            swipe_actions: "wischen geste handy archivieren"
+            templates: "textbausteine antworten vorlagen"
+            theme: "dunkel hell modus nacht farben dark"
+            two_factor: "2fa totp otp authenticator zwei faktor"
+            typography: "schrift schriftart text größe"
+            whats_new: "änderungen update version release"
+            wkd: "web key directory veröffentlichen"
+        kind_page: "Seite"
+        label: "Einstellungen durchsuchen"
+        placeholder: "Einstellungen durchsuchen"
     notifications:
         devices:
             empty: >-
@@ -5091,7 +5172,7 @@ shortcuts:
         star: "Markieren oder Markierung entfernen"
         undo: "Letzte Aktion rückgängig machen"
     or: "oder"
-    switched_off: "Die Kürzel sind für dich ausgeschaltet. Schalte sie unter Einstellungen → Allgemein ein."
+    switched_off: "Die Kürzel sind für dich ausgeschaltet. Schalte sie unter Einstellungen → Allgemein → Layout & Bedienung ein."
     then: "dann"
     title: "Tastenkürzel"
 
@@ -5099,7 +5180,7 @@ sidebar:
     accounts:
         add: Konto hinzufügen
         colour: 'Farbmarkierung für %account%'
-        colour_disabled: 'Farbmarkierung für %account%, das deaktiviert ist'
+        colour_disabled: 'Farbmarkierung für %account%, bei dem E-Mail ausgeschaltet ist'
         folders: 'Ordner …'
         heading: Konten
         menu: 'Ordner von %account%'
@@ -5211,6 +5292,7 @@ thread_row:
     no_subject: (kein Betreff)
     send_failed:
         failed: Nicht gesendet
+        mail_off: 'Nicht gesendet: Für dieses Konto ist E-Mail ausgeschaltet'
         may_have_sent: 'Vielleicht gesendet: schau unter Gesendet nach, bevor du sie noch einmal sendest'
         rate_limited: 'Nicht gesendet: dein Mailanbieter hat das Senden begrenzt'
         refused: 'Nicht gesendet: der Mailserver hat sie abgelehnt'
@@ -5235,6 +5317,7 @@ toast:
     schedule_cancelled: Geplanter Versand abgebrochen.
     send_too_late: Zu spät — diese Nachricht wurde bereits gesendet.
     send_failed: 'Diese Nachricht konnte nicht gesendet werden: %subject%'
+    send_failed_mail_off: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Für ihr Konto ist E-Mail ausgeschaltet.'
     send_failed_may_have_sent: '%subject% wurde vielleicht gesendet, aber die Antwort ging verloren. Schau unter Gesendet nach, bevor du sie noch einmal sendest.'
     send_failed_rate_limited: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Dein Mailanbieter begrenzt gerade das Senden; versuch es in ein paar Minuten noch einmal.'
     send_failed_refused: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Der Mailserver hat sie abgelehnt.'

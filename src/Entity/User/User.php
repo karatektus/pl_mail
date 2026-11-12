@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\User;
 
 use App\Domain\DTO\Push\NotifyScope;
@@ -9,29 +11,29 @@ use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Contacts\ContactsPaneMode;
 use App\Domain\Enum\Contacts\ContactsSwitchSkip;
 use App\Domain\Enum\Crypto\KeyringRoot;
+use App\Domain\Enum\Mail\ComposeAction;
 use App\Domain\Enum\Mail\ReadingPaneMode;
+use App\Domain\Enum\Mail\SearchSortOrder;
+use App\Domain\Enum\Mail\SidebarRow;
 use App\Domain\Enum\Mail\SwipeAction;
 use App\Domain\Enum\Mail\SwipeDirection;
-use App\Domain\Enum\Mail\SearchSortOrder;
-use App\Domain\Enum\Mail\ComposeAction;
-use App\Domain\Enum\Mail\SidebarRow;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
+use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Embeddable\AiPreferences;
-use App\Entity\Embeddable\CategorySorting;
 use App\Entity\Embeddable\Appearance;
+use App\Entity\Embeddable\CategorySorting;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
+use DateTimeImmutable;
+use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
-use App\Domain\Trait\TimestampableTrait;
-use DateTimeImmutable;
-use DateTimeInterface;
-use Exception;
 use Doctrine\ORM\Mapping as ORM;
+use Exception;
 use Scheb\TwoFactorBundle\Model\BackupCodeInterface;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfiguration;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfigurationInterface;
@@ -357,8 +359,8 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     #[ORM\Column(length: 255)]
     public ?string $nameLast = null;
 
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    public ?\DateTimeInterface $lastLogin = null;
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    public ?\DateTimeImmutable $lastLogin = null;
 
 
 
@@ -909,20 +911,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const int CONTACTS_PANE_DEFAULT_WIDTH = 420;
 
     /**
-     * How wide the live preview beside the appearance settings is.
-     *
-     * The settings bag for the same reason the calendar's width is: rendered
-     * into the first paint, and the same at every desk. It needs no migration —
-     * the bag is a JSON column, and a user who has never dragged it reads the
-     * default below.
-     *
-     * Its own key rather than sharing the calendar's: they are two boundaries
-     * on two pages with different useful ranges, and one number would mean
-     * widening the preview to read a colour narrowed the calendar next time.
-     */
-    public const string SETTING_APPEARANCE_PREVIEW_WIDTH = 'appearance.preview_width';
-
-    /**
      * Whether the open message sits beside the message list, and how much of the
      * mail card it takes — see ReadingPaneMode.
      *
@@ -1053,30 +1041,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SEND_FEEDBACK_HOLD = 'hold';
 
     /**
-     * The default is 19rem — what the column was fixed at before it could move.
-     *
-     * The maximum is the CALENDAR's maximum, deliberately the same number: both
-     * are "a pane beside the thing the page is for", and 560 was a limit
-     * inherited from the days when this was a sidebar rather than a peer card.
-     * A preview is worth widening — it is the only place on the page where the
-     * list density, the preview lines and the snippet clamp can be judged
-     * against each other at a realistic width, and at 560 the list still had to
-     * use its stacked layout to fit.
-     *
-     * What keeps this honest is that it is a ceiling and not a promise. The
-     * boundary is clamped against what the two cards actually have between
-     * them, minus the controls card's own floor (`main-min` in
-     * _appearance.html.twig), so 900 is reachable on a window with 900 to spare
-     * and the preview simply stops earlier on one without. Note that raising a
-     * maximum can only widen the range a stored width is clamped into: nobody's
-     * remembered value changes, and the pane they left is the pane they return
-     * to.
-     */
-    public const int APPEARANCE_PREVIEW_MIN_WIDTH = 240;
-    public const int APPEARANCE_PREVIEW_MAX_WIDTH = 900;
-    public const int APPEARANCE_PREVIEW_DEFAULT_WIDTH = 304;
-
-    /**
      * Virtual, so there is no column behind it — the value lives in the
      * settings bag, and Doctrine refuses to map a property whose hooks do not
      * touch a backing store.
@@ -1158,22 +1122,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
                 self::SETTING_CONTACTS_SWITCH_SKIP,
                 ContactsSwitchSkip::None === $skip ? null : $skip->value,
             );
-        }
-    }
-
-    /** Virtual, out of the settings bag — see SETTING_APPEARANCE_PREVIEW_WIDTH. */
-    public int $appearancePreviewWidth {
-        get {
-            $width = $this->getSetting(
-                self::SETTING_APPEARANCE_PREVIEW_WIDTH,
-                self::APPEARANCE_PREVIEW_DEFAULT_WIDTH,
-            );
-
-            if (false === is_int($width)) {
-                return self::APPEARANCE_PREVIEW_DEFAULT_WIDTH;
-            }
-
-            return max(self::APPEARANCE_PREVIEW_MIN_WIDTH, min(self::APPEARANCE_PREVIEW_MAX_WIDTH, $width));
         }
     }
 
@@ -1383,7 +1331,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * the key is absent for nearly everybody, and routes that delete for good
      * refuse with a 403 while it is, not only the templates that draw the
      * button: a switch that only hid the flame would leave a hand-made POST
-     * working. Per USER, like every setting in this bag — Settings → Mail →
+     * working. Per USER, like every setting in this bag — Settings → Inbox →
      * Disposal.
      */
     public const string SETTING_DISPOSAL_DELETE_NOW = 'disposal.delete_now';
@@ -1629,7 +1577,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * Spam as the provider disputing who sent it, and no standing permission
      * outranks that. Images still come through the proxy, so a sender learns
      * that the message was opened but not the reader's address. Per USER, like
-     * the allowlist it widens — Settings → Mail → Images.
+     * the allowlist it widens — Settings → Reading & writing → Reading.
      */
     public const string SETTING_IMAGES_ALWAYS_SHOW = 'images.always_show';
 
@@ -1655,7 +1603,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * Only read while the inbox tabs are on at all (CategorySorting::$tabs):
      * somebody who chose One list gets one list everywhere, whatever this says.
      * Only a stored true is on, so the key is absent for nearly everybody.
-     * Per USER — Settings → Mail → Categories.
+     * Per USER — Settings → Inbox → Categories & sorting.
      */
     public const string SETTING_ACCOUNT_INBOX_TABS = 'categories.account_tabs';
 
@@ -1963,7 +1911,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     public function addAccount(Account $account): static
     {
-        if (!$this->accounts->contains($account)) {
+        if (false === $this->accounts->contains($account)) {
             $this->accounts->add($account);
             $account->usr = $this;
         }

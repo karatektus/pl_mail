@@ -45,7 +45,7 @@ for (const theme of ["light", "dark"] as const) {
 
         const email = await person(page);
 
-        await page.goto("/settings?section=profile");
+        await page.goto("/settings/profile");
         await setTheme(page, theme);
 
         const reference = await look(page, page.locator('.min-w-0.-mx-6 input[type="text"]:visible').first());
@@ -55,7 +55,7 @@ for (const theme of ["light", "dark"] as const) {
         await referenceInput.focus();
         const referenceFocus = await referenceInput.evaluate((el) => getComputedStyle(el).boxShadow);
 
-        await page.goto("/settings?section=encryption");
+        await page.goto("/settings/encryption");
         await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });
         await expect(page.locator("turbo-frame#contact-keys")).toHaveAttribute("complete", "");
         await setTheme(page, theme);

@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Ai;
 
+use App\Repository\Ai\MessageEmbedding\MessageEmbeddingRepository;
 use DateTimeImmutable;
-use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\ParameterType;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -34,7 +32,7 @@ use Throwable;
 final readonly class EmbeddingStore
 {
     public function __construct(
-        private Connection      $connection,
+        private MessageEmbeddingRepository $embeddings,
         private LoggerInterface $logger,
     ) {
     }
@@ -60,24 +58,7 @@ final readonly class EmbeddingStore
         try {
             // Upsert: re-embedding after a model change has to replace rather
             // than collide, and the primary key is the message.
-            $this->connection->executeStatement(
-                <<<'SQL'
-                    INSERT INTO message_embedding (message_id, embedding, dimensions, model, created_at)
-                    VALUES (:id, :embedding, :dimensions, :model, :now)
-                    ON CONFLICT (message_id) DO UPDATE
-                        SET embedding  = EXCLUDED.embedding,
-                            dimensions = EXCLUDED.dimensions,
-                            model      = EXCLUDED.model,
-                            created_at = EXCLUDED.created_at
-                SQL,
-                [
-                    'id'         => $messageId,
-                    'embedding'  => self::toPostgresArray($unit),
-                    'dimensions' => count($unit),
-                    'model'      => $model,
-                    'now'        => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
-                ],
-            );
+            $this->embeddings->upsert($messageId, self::toPostgresArray($unit), count($unit), $model, new DateTimeImmutable());
 
             return true;
         } catch (Throwable $exception) {
@@ -110,14 +91,7 @@ final readonly class EmbeddingStore
         }
 
         try {
-            /** @var list<int> $ids */
-            $ids = $this->connection->fetchFirstColumn(
-                'SELECT message_id FROM message_embedding WHERE message_id IN (:ids) AND model = :model',
-                ['ids' => $messageIds, 'model' => $model],
-                ['ids' => ArrayParameterType::INTEGER],
-            );
-
-            return array_map(intval(...), $ids);
+            return $this->embeddings->storedIds($messageIds, $model);
         } catch (Throwable $exception) {
             $this->logger->error('EmbeddingStore: could not read stored embeddings', [
                 'error'     => $exception->getMessage(),
@@ -181,46 +155,16 @@ final readonly class EmbeddingStore
      */
     public function coverageDetailFor(int $userId, string $model, ?int $dimensions = null): array
     {
-        // One statement whatever the caller asked, rather than two SQL strings
-        // to keep in step: a null width COALESCEs into "whatever this row has",
-        // which is the same predicate with the test switched off. The CAST is
-        // not decoration — a bare bound NULL has no type Postgres can infer
-        // inside COALESCE, and it answers `could not determine data type`.
-        $matches = 'e.model = :model AND e.dimensions = COALESCE(CAST(:dimensions AS int), e.dimensions)';
-
-        $sql = <<<SQL
-            SELECT
-                COUNT(*)                                            AS eligible,
-                COUNT(e.message_id) FILTER (WHERE {$matches})       AS embedded,
-                COUNT(e.message_id) FILTER (WHERE NOT ({$matches})) AS stale
-              FROM message m
-              JOIN message_thread t ON t.id = m.thread_id
-              JOIN account a ON a.id = t.account_id
-              LEFT JOIN message_embedding e ON e.message_id = m.id
-             WHERE a.usr_id = :userId
-        SQL;
-
         try {
-            $row = $this->connection->fetchAssociative($sql, [
-                'userId'     => $userId,
-                'model'      => $model,
-                'dimensions' => $dimensions,
-            ], [
-                'userId'     => ParameterType::INTEGER,
-                'dimensions' => null === $dimensions ? ParameterType::NULL : ParameterType::INTEGER,
-            ]);
+            $row = $this->embeddings->coverageForUser($userId, $model, $dimensions);
         } catch (Throwable) {
             return ['embedded' => 0, 'eligible' => 0, 'stale' => 0];
         }
 
-        if (false === $row) {
-            return ['embedded' => 0, 'eligible' => 0, 'stale' => 0];
-        }
-
         return [
-            'embedded' => (int) $row['embedded'],
-            'eligible' => (int) $row['eligible'],
-            'stale'    => (int) $row['stale'],
+            'embedded' => $row['embedded'],
+            'eligible' => $row['eligible'],
+            'stale'    => $row['stale'],
         ];
     }
 
@@ -229,7 +173,7 @@ final readonly class EmbeddingStore
      *
      * What the admin panel counts, and it must be counted the way the walk
      * walks or the percentage never reaches a hundred: BackfillEmbeddingsHandler
-     * takes its ids from MessageRepository::idsForUserAfter(), which joins
+     * takes its ids from MessageBackfillRepository::idsForUserAfter(), which joins
      * message to account directly. Counting through message_thread instead —
      * the join coverageFor() uses, because a person's own mailbox is a thread
      * list — answers a slightly different set, and a progress bar that stops at
@@ -244,9 +188,7 @@ final readonly class EmbeddingStore
     public function coverage(string $model): array
     {
         try {
-            $eligible = (int) $this->connection->fetchOne(
-                'SELECT COUNT(*) FROM message m JOIN account a ON a.id = m.account_id',
-            );
+            $eligible = $this->embeddings->countEligible();
         } catch (Throwable) {
             $eligible = 0;
         }
@@ -266,10 +208,7 @@ final readonly class EmbeddingStore
     public function storedSince(string $model, DateTimeImmutable $since): int
     {
         try {
-            return (int) $this->connection->fetchOne(
-                'SELECT COUNT(*) FROM message_embedding WHERE model = :model AND created_at >= :since',
-                ['model' => $model, 'since' => $since->format('Y-m-d H:i:s')],
-            );
+            return $this->embeddings->countStoredSince($model, $since);
         } catch (Throwable) {
             return 0;
         }
@@ -279,10 +218,7 @@ final readonly class EmbeddingStore
     public function countFor(string $model): int
     {
         try {
-            return (int) $this->connection->fetchOne(
-                'SELECT COUNT(*) FROM message_embedding WHERE model = :model',
-                ['model' => $model],
-            );
+            return $this->embeddings->countForModel($model);
         } catch (Throwable) {
             return 0;
         }

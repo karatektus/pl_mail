@@ -61,7 +61,7 @@ test.describe("calendar sharing", () => {
     test.beforeAll(provisionCalendars);
 
     test.afterEach(async ({ page }) => {
-        await page.goto("/settings?section=sharing");
+        await page.goto("/settings/sharing");
 
         const remove = () => page.getByRole("button", { name: `Delete the link "${LINK_NAME}"` });
 
@@ -85,7 +85,7 @@ test.describe("calendar sharing", () => {
     test("a busy/free link shows the hours and none of the details", async ({ page, browser }) => {
         seedSecretEvent();
 
-        await page.goto("/settings?section=sharing");
+        await page.goto("/settings/sharing");
 
         await page.getByRole("button", { name: "New shared link" }).click();
 
@@ -130,7 +130,7 @@ test.describe("calendar sharing", () => {
     test("ticking a box reveals that field and only that field", async ({ page, browser }) => {
         seedSecretEvent();
 
-        await page.goto("/settings?section=sharing");
+        await page.goto("/settings/sharing");
         await page.getByRole("button", { name: "New shared link" }).click();
 
         const modal = page.locator("#modal-backdrop");
@@ -158,7 +158,7 @@ test.describe("calendar sharing", () => {
     });
 
     test("a revoked link stops answering", async ({ page, browser }) => {
-        await page.goto("/settings?section=sharing");
+        await page.goto("/settings/sharing");
         await page.getByRole("button", { name: "New shared link" }).click();
 
         const modal = page.locator("#modal-backdrop");
@@ -249,7 +249,7 @@ test.describe("appointment booking", () => {
                 ` --title="${PAGE_NAME} — Ada Lovelace" --clear`,
         );
 
-        await page.goto("/settings?section=sharing");
+        await page.goto("/settings/sharing");
 
         const remove = () => page.getByRole("button", { name: `Delete the booking page "${PAGE_NAME}"` });
 
@@ -267,7 +267,7 @@ test.describe("appointment booking", () => {
     });
 
     test("a stranger picks a free time and books it", async ({ page, browser }) => {
-        await page.goto("/settings?section=sharing");
+        await page.goto("/settings/sharing");
 
         await page.getByRole("button", { name: "New booking page" }).click();
 
@@ -389,7 +389,7 @@ test.describe("appointment booking", () => {
     });
 
     test("a booking page that is switched off stops answering", async ({ page, browser }) => {
-        await page.goto("/settings?section=sharing");
+        await page.goto("/settings/sharing");
         await page.getByRole("button", { name: "New booking page" }).click();
 
         const modal = page.locator("#modal-backdrop");

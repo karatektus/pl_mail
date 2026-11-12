@@ -10,7 +10,7 @@ use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -139,7 +139,7 @@ final class LabelPlacesTest extends WebTestCase
         $account->oauthProvider    = 'microsoft';
         $account->oauthAccessToken = 'x';
         $account->oauthTokenExpiry = new \DateTimeImmutable('+1 day');
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $account->followsOutlookCategories = $follows;
         $this->em->persist($account);
         $this->em->flush();
@@ -164,7 +164,7 @@ final class LabelPlacesTest extends WebTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $account->labelsAsKeywords = $keywords;
         $this->em->persist($account);
 

@@ -6,8 +6,8 @@ namespace App\Service\AddressBook;
 
 use App\Domain\DTO\AddressBook\ContactSuggestion;
 use App\Entity\Mail\Contact as HarvestedAddress;
-use App\Repository\Contacts\ContactRepository as AddressBookContacts;
-use App\Repository\Mail\ContactRepository;
+use App\Repository\Contacts\Contact\ContactRepository as AddressBookContacts;
+use App\Repository\Mail\Contact\ContactRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**

@@ -7,6 +7,7 @@ namespace App\Service\Integration\Driver;
 use App\Domain\DTO\Integration\Listing;
 use App\Domain\DTO\Integration\RemoteFile;
 use App\Domain\Enum\Integration\Provider;
+use App\Domain\Interface\SearchableDriverInterface;
 use App\Entity\Integration\Integration;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionInterface;
 
@@ -26,7 +27,7 @@ use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionIn
  * Flow v2 (#235) obtains one without the copy-and-paste; see
  * NextcloudLoginFlow.
  */
-final readonly class NextcloudDriver extends AbstractWebDavDriver
+final readonly class NextcloudDriver extends AbstractWebDavDriver implements SearchableDriverInterface
 {
     /**
      * Where Nextcloud serves WebDAV, CalDAV and CardDAV alike, under the base

@@ -6,7 +6,7 @@ namespace App\Tests\Controller\Settings;
 
 use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -18,10 +18,10 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  *
  * Three promises, kept apart because each fails differently.
  *
- * A token is required, for the reason AppearancePaneStateTest gives about its
- * own endpoint: a forged request can only rearrange the victim's own mailbox,
- * which is an argument for leaving old endpoints alone and not for minting new
- * ones without a check.
+ * A token is required. A forged request can only rearrange the victim's own
+ * mailbox, which is an argument for leaving old endpoints alone and not for
+ * minting new ones without a check — StateChangingPostsNeedCsrfTest exists
+ * because that reasoning ran out once already.
  *
  * The clamp and the mode check are the SERVER's. The drag handle bounds what it
  * sends, but a stored share of 4000 would draw a list nobody can see, and a
@@ -232,7 +232,7 @@ final class ReadingPaneStateTest extends WebTestCase
         $user->readingPaneMode = ReadingPaneMode::Right;
         static::getContainer()->get(EntityManagerInterface::class)->flush();
 
-        $crawler = $client->request('GET', '/settings?section=reading-pane');
+        $crawler = $client->request('GET', '/settings/reading');
 
         self::assertResponseIsSuccessful();
         self::assertCount(2, $crawler->filter('input[name="readingPane"]'));
@@ -243,32 +243,35 @@ final class ReadingPaneStateTest extends WebTestCase
     /**
      * The control began as the last one on Appearance, the one thing on that
      * page that was not part of the theme, and the shortcuts switch as the
-     * fifth card on General. Both have a page under Features now, and the
-     * places they came from must not still be drawing a second copy: two
-     * controls for one stored value is how one of them ends up stale.
+     * fifth card on General. The reading pane lives on Reading and the
+     * shortcuts on Layout & controls since #569, and the places they came from
+     * must not still be drawing a second copy: two controls for one stored
+     * value is how one of them ends up stale.
      */
     public function testItHasAPageOfItsOwnAndTheShortcutsDoTooRatherThanACornerOfAnotherPage(): void
     {
         [$client] = $this->signedIn();
 
-        $appearance = $client->request('GET', '/settings?section=appearance');
+        $appearance = $client->request('GET', '/settings/appearance');
 
         self::assertResponseIsSuccessful();
         self::assertCount(0, $appearance->filter('input[name="readingPane"]'));
-        self::assertCount(1, $appearance->filter('a[href$="section=reading-pane"]'), 'the navigation offers the page');
-        self::assertCount(1, $appearance->filter('a[href$="section=shortcuts"]'));
+        self::assertCount(0, $appearance->filter('form[action$="/settings/shortcuts"]'));
+        self::assertCount(1, $appearance->filter('nav a[href$="/settings/reading"]'), 'the navigation offers the page');
+        self::assertCount(1, $appearance->filter('nav a[href$="/settings/layout"]'));
 
-        $general = $client->request('GET', '/settings?section=general');
-
-        self::assertResponseIsSuccessful();
-        self::assertCount(0, $general->filter('form[action$="/settings/shortcuts"]'));
-
-        // Presence: the form is where the navigation says it is.
-        $shortcuts = $client->request('GET', '/settings?section=shortcuts');
+        // Presence: each control is where the navigation says it is.
+        $reading = $client->request('GET', '/settings/reading');
 
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $shortcuts->filter('form[action$="/settings/shortcuts"]'));
-        self::assertCount(1, $shortcuts->filter('a[href$="section=shortcuts"][aria-current="page"]'));
+        self::assertGreaterThan(0, $reading->filter('input[name="readingPane"]')->count());
+        self::assertCount(1, $reading->filter('nav a[href$="/settings/reading"][aria-current="page"]'));
+
+        $layout = $client->request('GET', '/settings/layout');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $layout->filter('form[action$="/settings/shortcuts"]'));
+        self::assertCount(1, $layout->filter('nav a[href$="/settings/layout"][aria-current="page"]'));
     }
 
     protected function tearDown(): void
@@ -290,7 +293,7 @@ final class ReadingPaneStateTest extends WebTestCase
      */
     private function token(KernelBrowser $client): string
     {
-        $crawler = $client->request('GET', '/settings?section=reading-pane');
+        $crawler = $client->request('GET', '/settings/reading');
 
         return (string) $crawler
             ->filter('[data-settings--reading-pane-token-value]')

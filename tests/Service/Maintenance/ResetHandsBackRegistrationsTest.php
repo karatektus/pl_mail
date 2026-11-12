@@ -8,7 +8,7 @@ use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Maintenance\DataResetter;
 use App\Service\Maintenance\ResetScope;
 use App\Tests\Support\Push\ScriptedPushManager;
@@ -160,7 +160,7 @@ final class ResetHandsBackRegistrationsTest extends KernelTestCase
         $account->oauthProvider     = MailProvider::Google->value;
         $account->oauthAccessToken  = 'access-token';
         $account->oauthRefreshToken = 'refresh-token';
-        $account->isActive          = true;
+        $account->mailEnabled       = true;
         $account->pushEnabled       = true;
 
         $this->em->persist($account);

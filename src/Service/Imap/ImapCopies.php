@@ -15,7 +15,8 @@ use App\Entity\Mail\PurgedCopy;
 use App\Infrastructure\ImapClient\ImapSession;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Repository\Mail\PurgedCopy\PurgedCopyRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use Doctrine\ORM\EntityManagerInterface;
@@ -65,12 +66,13 @@ final readonly class ImapCopies
     private const int INDEX_PAGE = 500;
 
     public function __construct(
-        private MessageRepository       $messages,
+        private MessageImapRepository $messageImapRepository,
         private StateManager            $stateManager,
         private ThreadLabelSynchronizer $threadLabels,
         private LabelResolver           $labelResolver,
         private EntityManagerInterface  $em,
         private LoggerInterface         $logger,
+        private PurgedCopyRepository $purgedCopyRepository,
     ) {
     }
 
@@ -97,8 +99,8 @@ final readonly class ImapCopies
         foreach (array_chunk($identities, self::INDEX_PAGE, true) as $page) {
             $messageIds = array_values(array_unique(array_filter(array_map(static fn (ImapCopyIdentity $copy): string => $copy->messageId, $page))));
             $serverIds  = array_values(array_unique(array_filter(array_map(static fn (ImapCopyIdentity $copy): ?string => $copy->serverId, $page))));
-            $candidates = $this->messages->findCopyCandidates($mailbox->account, $messageIds, $serverIds);
-            $purged     = $this->purgedEmails($mailbox, $messageIds, $serverIds);
+            $candidates = $this->messageImapRepository->findCopyCandidates($mailbox->account, $messageIds, $serverIds);
+            $purged     = $this->purgedCopyRepository->findForAccountByIds($mailbox->account, $messageIds, $serverIds);
 
             if ([] === $candidates && [] === $purged) {
                 continue;
@@ -231,43 +233,6 @@ final readonly class ImapCopies
         }
 
         return null;
-    }
-
-    /**
-     * Purged email of this account that a new copy might be.
-     *
-     * @param list<string> $messageIds
-     * @param list<string> $serverIds
-     *
-     * @return list<PurgedCopy>
-     */
-    private function purgedEmails(Mailbox $mailbox, array $messageIds, array $serverIds): array
-    {
-        if ([] === $messageIds && [] === $serverIds) {
-            return [];
-        }
-
-        $qb = $this->em->createQueryBuilder()
-            ->select('p')
-            ->from(PurgedCopy::class, 'p')
-            ->join('p.mailbox', 'mb')
-            ->where('mb.account = :account')
-            ->setParameter('account', $mailbox->account);
-
-        $either = $qb->expr()->orX();
-
-        if ([] !== $messageIds) {
-            $either->add('p.messageId IN (:messageIds)');
-            $qb->setParameter('messageIds', $messageIds);
-        }
-
-        if ([] !== $serverIds) {
-            $either->add('p.serverEmailId IN (:serverIds)');
-            $qb->setParameter('serverIds', $serverIds);
-        }
-
-        /** @var list<PurgedCopy> */
-        return $qb->andWhere($either)->getQuery()->getResult();
     }
 
     /**

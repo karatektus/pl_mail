@@ -29,6 +29,13 @@ enum SendFailure: string
     /** The request went out and the answer was lost, and whether the mail arrived could not be checked. */
     case MayHaveSent = 'may_have_sent';
 
+    /**
+     * The account's mail was switched off before the message went out (#575):
+     * a scheduled send that came due afterwards, or a draft sent from a client
+     * that had not heard. Switching mail back on and sending again works.
+     */
+    case MailOff = 'mail_off';
+
     /** Anything else that outlasted the retries — a token that would not refresh, say. */
     case Failed = 'failed';
 }

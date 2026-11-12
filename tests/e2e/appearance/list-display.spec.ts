@@ -28,7 +28,7 @@ const cssVar = (page: Page, name: string) =>
     );
 
 const open = async (page: Page) => {
-    await page.goto("/settings?section=appearance");
+    await page.goto("/settings/appearance");
     await expect(page.locator(PANEL)).toBeVisible();
 };
 
@@ -293,60 +293,6 @@ test.describe("appearance — mail list display", () => {
         await row.locator("[data-thread-select]").check({ force: true });
         await expect(row.locator("[data-thread-select]")).toBeChecked();
         await row.locator("[data-thread-select]").uncheck({ force: true });
-    });
-
-    /** The preview is a preview: nothing in it is fetched. */
-    test("the live preview loads no mail", async ({ page }) => {
-        const mailRequests: string[] = [];
-
-        // `/assets/` is excluded on purpose and not as a convenience: the mail
-        // Stimulus controllers are named after the feature they drive and live
-        // under assets/controllers/mail/, so a naive "/mail/" filter catches
-        // fifteen JavaScript files and nothing else. What this test is about is
-        // whether the PREVIEW fetches mail, which would be a document or a
-        // JSON endpoint, never a hashed asset.
-        page.on("request", (request) => {
-            const path = new URL(request.url()).pathname;
-
-            if (path.startsWith("/assets/")) {
-                return;
-            }
-
-            if (/\/mail\/|\/api\/|thread/.test(path)) {
-                mailRequests.push(request.url());
-            }
-        });
-
-        await open(page);
-        await expect(page.locator("[data-preview-row]").first()).toBeVisible();
-
-        // A FLOOR, NOT THE NUMBER, and the number is why. This asserted
-        // exactly three, the preview grew to eight on purpose — the card is as
-        // tall as the controls beside it and the setting being watched is
-        // DENSITY, which needs a list long enough to have a rhythm — and this
-        // test went red over a decorative constant with nothing wrong. How many
-        // samples the card draws is settings/_appearance_preview.html.twig's
-        // decision and it is free to change it again.
-        //
-        // What is not free to change is the sentence in the title: the rows
-        // have to be there, and none of them may have been fetched. Three is
-        // the floor because a "list" showing fewer is not showing a rhythm.
-        expect(await page.locator("[data-preview-row]").count()).toBeGreaterThanOrEqual(3);
-        expect(mailRequests).toEqual([]);
-    });
-
-    /** The preview wears the setting, which is the only reason it is there. */
-    test("the live preview follows the controls", async ({ page }) => {
-        await open(page);
-
-        const previewCorner = page.locator("[data-preview-row] [data-account-corner]").first();
-        await expect(previewCorner).toBeVisible();
-
-        await setToggle(page, "accountCorner", false);
-        await expect(previewCorner).toBeHidden();
-
-        await setToggle(page, "accountCorner", true);
-        await expect(previewCorner).toBeVisible();
     });
 });
 

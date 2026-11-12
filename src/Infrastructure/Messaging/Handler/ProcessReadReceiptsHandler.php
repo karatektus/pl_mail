@@ -6,7 +6,7 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ProcessReadReceiptsMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Mail\BounceCorrelator;
 use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\ReadReceiptCorrelator;

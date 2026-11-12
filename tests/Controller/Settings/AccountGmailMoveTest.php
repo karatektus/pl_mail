@@ -8,7 +8,7 @@ use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -62,7 +62,7 @@ final class AccountGmailMoveTest extends WebTestCase
     {
         $account = $this->gmailAccount();
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
         $button  = $crawler->filter('turbo-frame#account-gmail-move-' . $account->id . ' button[data-account-gmail-move]');
 
         self::assertSame('false', $button->attr('aria-pressed'), 'off by default');
@@ -96,11 +96,11 @@ final class AccountGmailMoveTest extends WebTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
 
         self::assertCount(0, $crawler->filter('turbo-frame#account-gmail-move-' . $account->id));
 
@@ -122,7 +122,7 @@ final class AccountGmailMoveTest extends WebTestCase
         $account->oauthProvider    = MailProvider::Google->value;
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new DateTimeImmutable('+1 day');
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $this->em->flush();
 

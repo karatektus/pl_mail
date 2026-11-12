@@ -12,7 +12,7 @@ use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Messaging\Handler\ApplyJmapChangesHandler;
 use App\Infrastructure\Messaging\Message\ApplyJmapChangesMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\JmapClient\JmapAccountSyncer;
 use App\Service\JmapClient\JmapImporter;
 use App\Service\JmapClient\JmapImportStep;
@@ -85,7 +85,7 @@ final class StalwartRoundTripTest extends KernelTestCase
         $account->jmapSessionUrl   = $sessionUrl;
         $account->jmapTokenAuth    = '1' === getenv('JMAP_TEST_TOKEN_AUTH');
         $account->authType         = 'password';
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $user->addAccount($account);
         $this->em->flush();

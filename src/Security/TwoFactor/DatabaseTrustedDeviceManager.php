@@ -6,7 +6,7 @@ namespace App\Security\TwoFactor;
 
 use App\Entity\User\TrustedDevice;
 use App\Entity\User\User;
-use App\Repository\User\TrustedDeviceRepository;
+use App\Repository\User\TrustedDevice\TrustedDeviceRepository;
 use App\Service\User\TwoFactor\DeviceLabeller;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;

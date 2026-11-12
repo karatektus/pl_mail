@@ -8,9 +8,9 @@ use App\Entity\Mail\Account;
 use App\Entity\Template\MailTemplate;
 use App\Entity\Template\TemplateFolder;
 use App\Entity\User\User;
-use App\Repository\Template\MailTemplateRepository;
-use App\Repository\Template\TemplateFolderRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Template\MailTemplate\MailTemplateRepository;
+use App\Repository\Template\TemplateFolder\TemplateFolderRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -58,12 +58,12 @@ final class TemplateSectionTest extends WebTestCase
         $user    = $this->boot($client);
         $account = $this->account($user, 'mirror@plmail.test');
 
-        $crawler = $client->request('GET', '/settings?section=templates');
+        $crawler = $client->request('GET', '/settings/templates');
 
         self::assertResponseIsSuccessful();
         self::assertSame(
             1,
-            $crawler->filter('nav a[href*="section=templates"][aria-current="page"]')->count(),
+            $crawler->filter('nav a[href$="/settings/templates"][aria-current="page"]')->count(),
             'the nav has the section and marks it current',
         );
 
@@ -299,7 +299,7 @@ final class TemplateSectionTest extends WebTestCase
         $this->em->clear();
         self::assertSame('Bills', $this->em->find(TemplateFolder::class, $folder->id)->name);
 
-        $crawler = $client->request('GET', '/settings?section=templates');
+        $crawler = $client->request('GET', '/settings/templates');
         $delete  = $crawler->filter(sprintf('form[action$="/folder/%d/delete"]', $folder->id));
 
         self::assertSame(1, $delete->count(), 'a folder the user made can be deleted from its row');
@@ -425,7 +425,7 @@ final class TemplateSectionTest extends WebTestCase
         $this->connection->executeStatement('DELETE FROM template_folder WHERE usr_id = ?', [$user->id]);
 
         $this->em->createQuery(
-            'UPDATE ' . Account::class . ' a SET a.isActive = false WHERE a.usr = :usr',
+            'UPDATE ' . Account::class . ' a SET a.mailEnabled = false WHERE a.usr = :usr',
         )->setParameter('usr', $user)->execute();
 
         $this->em->clear();
@@ -442,7 +442,7 @@ final class TemplateSectionTest extends WebTestCase
         $account->username  = $email;
         $account->email     = $email;
         $account->authType  = 'password';
-        $account->isActive  = true;
+        $account->mailEnabled = true;
         $account->isPrimary = true;
         $account->sortOrder = 0;
         $account->imapHost  = 'imap.example.test';

@@ -78,6 +78,24 @@ test.describe("search", () => {
         await expect(page.locator(BOX)).toHaveValue("invoice");
     });
 
+    /**
+     * The box follows the address bar when the address changes, not on every
+     * frame load. The list refreshing at the same address — or a folder's
+     * frame landing a moment after the page — used to put the URL's empty `q`
+     * back over a query typed and not yet sent, as soon as the reader looked
+     * away from the box. In Trash, focusing it again then wrote `in:trash `
+     * over the gap, which is how this showed up first.
+     */
+    test("a frame load at the same address leaves an unsent query alone", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await page.locator(BOX).fill("invoice");
+        await page.locator(BOX).blur();
+
+        await page.evaluate(() => document.dispatchEvent(new Event("turbo:frame-load")));
+
+        await expect(page.locator(BOX)).toHaveValue("invoice");
+    });
+
     test("suggests the operators it understands, narrowing as you type", async ({ page }) => {
         await type(page, "fr");
 

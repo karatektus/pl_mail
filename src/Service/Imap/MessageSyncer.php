@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service\Imap;
 
 use App\Domain\DTO\Mail\IngestedMessage;
@@ -18,8 +20,9 @@ use App\Infrastructure\ImapClient\ImapSession;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Label\KeywordLabels;
 use App\Service\Mail\InlineAttachmentDetector;
@@ -52,6 +55,7 @@ class MessageSyncer
         private readonly EntityManagerInterface  $em,
         private readonly LoggerInterface         $logger,
         private readonly MessageRepository       $messageRepository,
+        private readonly MessageImapRepository $messageImapRepository,
         private readonly InlineAttachmentDetector $inlineDetector,
         private readonly MisfiledBodyDetector    $misfiledBody,
         private readonly MisfiledBodyUnpacker    $bodyUnpacker,
@@ -158,7 +162,7 @@ class MessageSyncer
         // lower, and processBatch() treats anything at or below the mark as
         // handled. array_flip turns [123, 456, …] into [123 => 0, 456 => 1, …].
         $syncedUids = array_flip(
-            $this->messageRepository->findSyncedUids($mailbox, $lastSeenUid)
+            $this->messageImapRepository->findSyncedUids($mailbox, $lastSeenUid)
         );
 
         // Mail deleted forever here, whose deletion the server has not
@@ -380,7 +384,7 @@ class MessageSyncer
             $mailboxNow = $this->mailboxRepository->find($mailboxId);
 
             if (null !== $mailboxNow) {
-                foreach ($this->messageRepository->findSyncedUids($mailboxNow, $lastSeenUid) as $heldUid) {
+                foreach ($this->messageImapRepository->findSyncedUids($mailboxNow, $lastSeenUid) as $heldUid) {
                     $syncedUids[(int) $heldUid] = true;
                 }
             }

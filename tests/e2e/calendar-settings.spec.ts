@@ -42,7 +42,7 @@ test.describe("calendar settings", () => {
     test.beforeAll(provisionCalendars);
 
     test.beforeEach(async ({ page }) => {
-        await page.goto("/settings?section=calendars");
+        await page.goto("/settings/calendars");
     });
 
     test.afterEach(async ({ page }) => {
@@ -50,7 +50,7 @@ test.describe("calendar settings", () => {
         // name, so this cannot delete the wrong one if a previous run left
         // something behind.
         for (const name of [NAME, RENAMED]) {
-            await page.goto("/settings?section=calendars");
+            await page.goto("/settings/calendars");
 
             // The default calendar has no delete button, so a test that failed
             // between the two halves of "moves the default" would otherwise
@@ -211,7 +211,7 @@ test.describe("subscribing to remote calendars", () => {
     // wall clock.
     test.beforeEach(async ({ page }) => {
         seed("seed-calendar-source");
-        await page.goto("/settings?section=calendars");
+        await page.goto("/settings/calendars");
     });
 
     // Not just between tests: a fixture connection left on this worker's user
@@ -369,7 +369,7 @@ test.describe("subscribing to remote calendars", () => {
 
         // The connection is stored carrying its failure, the way every other
         // connect path stores one — so it has to be disconnectable from here.
-        await page.goto("/settings?section=calendars");
+        await page.goto("/settings/calendars");
         await page.getByRole("button", { name: `Disconnect "${name}"` }).click();
         await acceptConfirm(page);
         await expect(page.getByText(name, { exact: true })).toHaveCount(0);

@@ -8,7 +8,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -159,7 +159,7 @@ final class MessageLocationMirrorTest extends KernelTestCase
     {
         $message = $this->message($this->inbox, 11);
 
-        self::getContainer()->get(MessageRepository::class)->unlocateAll($this->inbox);
+        self::getContainer()->get(MessageImapRepository::class)->unlocateAll($this->inbox);
 
         self::assertSame([[$this->inbox->id, null]], $this->locationsOf($message));
     }
@@ -270,7 +270,7 @@ final class MessageLocationMirrorTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
         $this->account = $account;
 

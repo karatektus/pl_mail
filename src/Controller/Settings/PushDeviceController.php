@@ -6,8 +6,8 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
-use App\Repository\Push\PushDeliveryRepository;
-use App\Repository\User\PushSubscriptionRepository;
+use App\Repository\Push\PushDelivery\PushDeliveryRepository;
+use App\Repository\User\PushSubscription\PushSubscriptionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -93,6 +93,6 @@ final class PushDeviceController extends AbstractController
             ]);
         }
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'notifications']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'notifications']);
     }
 }

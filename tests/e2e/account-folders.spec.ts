@@ -21,7 +21,7 @@ const ACCOUNT = "E2E Mailbox";
 
 test.describe("account folders modal", () => {
     test("opens from the account row, explains itself, and closes", async ({ page }) => {
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
 
         const row = page
             .locator("#settings-account-list li")
@@ -50,7 +50,7 @@ test.describe("account folders modal", () => {
      * not exist. The modal stays open on the form, keeping what was typed.
      */
     test("refuses a folder name with the separator in it, inside the modal", async ({ page }) => {
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
 
         await page
             .locator("#settings-account-list li")
@@ -76,7 +76,7 @@ test.describe("account folders modal", () => {
      * not exist) the list says so rather than claiming either answer.
      */
     test("switches labels as keywords on and off in the folder list", async ({ page }) => {
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
 
         await page
             .locator("#settings-account-list li")
@@ -179,7 +179,7 @@ test.describe("account folders modal", () => {
 
 /** Adds a password IMAP account through the settings modal, as accounts-sidebar.spec.ts does. */
 async function addAccount(page: Page, label: string, stamp: number): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     await page
         .locator("section")
@@ -202,7 +202,7 @@ async function addAccount(page: Page, label: string, stamp: number): Promise<voi
 }
 
 async function removeAccount(page: Page, label: string): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     const row = page.locator("#settings-account-list li").filter({ hasText: new RegExp(label, "i") });
 

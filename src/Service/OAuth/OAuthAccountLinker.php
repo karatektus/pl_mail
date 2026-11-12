@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\Service\OAuth;
 
+use App\Domain\Enum\Account\AccountService;
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Exception\AccountIdentityMismatch;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SubscribeAccountContactsMessage;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Mail\AccountCreator;
+use App\Service\Mail\AccountServiceSwitch;
 use App\Service\Mail\AliasSeeder;
 use App\Service\Push\PushSubscriptionRegistry;
 use DateTimeImmutable;
@@ -37,6 +39,7 @@ final readonly class OAuthAccountLinker
         private AliasSeeder              $aliasSeeder,
         private AccountCreator           $accountCreator,
         private MessageBusInterface      $bus,
+        private AccountServiceSwitch     $switch,
     ) {
     }
 
@@ -45,17 +48,36 @@ final readonly class OAuthAccountLinker
      *
      * Ordering is deliberate: the account is flushed before push and aliases,
      * both of which read a persisted account.
+     *
+     * $services is what the grant was asked for (#575), and the account's
+     * switches end up exactly there: a Google account connected for its
+     * calendar holds no mail scope, and a mail switch left on would sync
+     * nothing but refusals. On an account that already existed — the same
+     * mailbox added again — the switches go through AccountServiceSwitch, so
+     * what each one means (push handed back, a sync asked for) happens too.
+     * Push and aliases are mail's, and only set up when mail is wanted.
+     *
+     * @param list<AccountService> $services
      */
     public function link(
         User                 $user,
         MailProvider         $provider,
         string               $email,
         AccessTokenInterface $token,
+        array                $services = [],
     ): Account {
-        $account = $this->upsert($user, $provider, $email, $token);
+        $services = [] === $services ? AccountService::cases() : $services;
+        $account  = $this->upsert($user, $provider, $email, $token, $services);
 
-        $this->registerPush($account);
-        $this->aliasSeeder->seed($account);
+        foreach (AccountService::cases() as $service) {
+            $this->switch->set($account, $service, true === in_array($service, $services, true));
+        }
+
+        if (true === $account->mailEnabled) {
+            $this->registerPush($account);
+            $this->aliasSeeder->seed($account);
+        }
+
         $this->bringContacts($account, $provider);
 
         return $account;
@@ -92,6 +114,13 @@ final readonly class OAuthAccountLinker
      * both a Google and a Microsoft account (see upsert()), and re-pointing one
      * at the other would be the same corruption by a slower route.
      *
+     * $services are switched on once the grant is written (#575) — the ones a
+     * reconnect asked for, which is how a switch that needed a wider grant
+     * ends up on. Services not named are left as they were: a reconnect is a
+     * repair, not a reconfiguration.
+     *
+     * @param list<AccountService> $services
+     *
      * @throws AccountIdentityMismatch when the authorised mailbox is not this one
      */
     public function relink(
@@ -99,6 +128,7 @@ final readonly class OAuthAccountLinker
         MailProvider         $provider,
         string               $email,
         AccessTokenInterface $token,
+        array                $services = [],
     ): Account {
         if (0 !== strcasecmp(trim($email), trim($account->email))) {
             throw new AccountIdentityMismatch($account->email, $email);
@@ -134,13 +164,15 @@ final readonly class OAuthAccountLinker
         $account->oauthLastRefreshError = null;
         $account->oauthLastRefreshAt    = new DateTimeImmutable();
 
-        // A grant that died while the account was switched off leaves it off.
-        // Reconnecting is an unambiguous "I want this working", so it is turned
-        // back on — but only if it was us that stopped it, which is why this
-        // reads the error rather than setting isActive unconditionally.
-        $account->isActive = true;
-
         $this->em->flush();
+
+        // Reconnecting is an unambiguous "I want this working", so what it was
+        // for is switched on. A reconnect from the health page names what the
+        // account already does — or everything, for one switched off entirely
+        // — so it turns back on what a dead grant had left off.
+        foreach ([] === $services ? AccountService::cases() : $services as $service) {
+            $this->switch->set($account, $service, true);
+        }
 
         // Aliases are seeded rather than reseeded: AliasSeeder is idempotent,
         // and a mailbox that gained a send-as address while the grant was dead
@@ -166,7 +198,7 @@ final readonly class OAuthAccountLinker
      */
     private function bringContacts(Account $account, MailProvider $provider): void
     {
-        if (false === $provider->grantsContactsAccess($account->oauthGrantedScopes) || null === $account->id) {
+        if (false === $account->contactsEnabled || false === $provider->grantsContactsAccess($account->oauthGrantedScopes) || null === $account->id) {
             return;
         }
 
@@ -203,12 +235,18 @@ final readonly class OAuthAccountLinker
 
     // ── Private ───────────────────────────────────────────────────────────────
 
+    /**
+     * @param list<AccountService> $services empty for all of them, as link() reads it
+     */
     private function upsert(
         User                 $user,
         MailProvider         $provider,
         string               $email,
         AccessTokenInterface $token,
+        array                $services = [],
     ): Account {
+        $services = [] === $services ? AccountService::cases() : $services;
+
         // Email alone does NOT identify an account: an OAuth provider's login
         // address is independent of where the mail is hosted, so the same
         // address can legitimately exist as both an IMAP account and an OAuth
@@ -228,7 +266,13 @@ final readonly class OAuthAccountLinker
             $account->usr = $user;
             $account->email = $email;
             $account->name = $duplicate ? sprintf('%s (%s)', $email, ucfirst($provider->value)) : $email;
-            $account->isActive = true;
+
+            // Set before the first flush on a new row, so nothing ever sees it
+            // switched on for a service the grant does not cover. link() puts
+            // an existing row's switches in place through the switch service.
+            foreach (AccountService::cases() as $service) {
+                $account->enable($service, true === in_array($service, $services, true));
+            }
 
             // AccountCreator hands the colour out at creation and this path
             // does not go through it, so without this every OAuth account kept

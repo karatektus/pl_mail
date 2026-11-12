@@ -14,26 +14,26 @@ use App\Entity\Mail\EmailAlias;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
-use App\Repository\Calendar\BookingPageRepository;
-use App\Repository\Calendar\CalendarRepository;
-use App\Repository\Calendar\CalendarShareLinkRepository;
-use App\Repository\Integration\IntegrationRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\InboxCategoryRepository;
-use App\Repository\Mail\UnifiedInboxAccountRepository;
-use App\Repository\Mail\UnifiedInboxRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Rule\MailRuleRepository;
-use App\Repository\User\ApiTokenRepository;
-use App\Repository\Crypto\AddressKeyRepository;
-use App\Repository\Crypto\ContactCertificateRepository;
+use App\Repository\Calendar\BookingPage\BookingPageRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarShareLink\CalendarShareLinkRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\UnifiedInboxAccount\UnifiedInboxAccountRepository;
+use App\Repository\Mail\UnifiedInbox\UnifiedInboxRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
+use App\Repository\User\ApiToken\ApiTokenRepository;
+use App\Repository\Crypto\AddressKey\AddressKeyRepository;
+use App\Repository\Crypto\ContactCertificate\ContactCertificateRepository;
 use App\Entity\Crypto\KeyPublication;
-use App\Repository\Crypto\ContactKeyRepository;
-use App\Repository\Crypto\KeyPublicationRepository;
-use App\Repository\Crypto\SmimeCertificateRepository;
-use App\Repository\Crypto\UserKeyCopyRepository;
-use App\Repository\Crypto\UserKeyRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
+use App\Repository\Crypto\KeyPublication\KeyPublicationRepository;
+use App\Repository\Crypto\SmimeCertificate\SmimeCertificateRepository;
+use App\Repository\Crypto\UserKeyCopy\UserKeyCopyRepository;
+use App\Repository\Crypto\UserKey\UserKeyRepository;
+use App\Repository\User\User\UserRepository;
 use DateTimeInterface;
 use Throwable;
 
@@ -186,13 +186,12 @@ final readonly class ConfigBackupUsers
         User::SETTING_ONBOARDING_STEP,
         User::SETTING_ONBOARDING_SKIPPED,
         User::SETTING_ONBOARDING_DONE_STEPS,
-        // All five shipped after this list was written and none of them was
+        // All four shipped after this list was written and none of them was
         // added to it, which is what the completeness test below now prevents
         // rather than what this comment apologises for. Every one is a choice
         // somebody made about their own screen, holds no id, and means the same
         // thing on any install — so there was never an argument for leaving
         // them out, only an absence of one.
-        User::SETTING_APPEARANCE_PREVIEW_WIDTH,
         // Whether the open message sits beside the list, and how much of the mail
         // card it takes. In the backup for the reason the calendar pane's mode
         // and width are: it is a preference somebody set about their own screen,
@@ -748,7 +747,7 @@ final readonly class ConfigBackupUsers
      * The mailboxes, with the credentials that open them and nothing about what
      * was ever in them.
      *
-     * Everything below `isActive` on the entity is sync state and is absent by
+     * Everything below the service switches on the entity is sync state and is absent by
      * design — see the class docblock. What is here is exactly what the
      * "Add mail account" form asks for, plus the OAuth tokens a provider handed
      * back, which are worth more than the form's answers: a restored refresh
@@ -799,7 +798,12 @@ final readonly class ConfigBackupUsers
                 // again and the health card built on it goes quiet for
                 // connections that are working fine.
                 'oauthGrantedScopes' => $account->oauthGrantedScopes,
-                'isActive'          => $account->isActive,
+                // Three switches since #575. The old single `isActive` is not
+                // written any more; the restorer still reads it from files
+                // made before, as what it governed — mail and contacts.
+                'mailEnabled'       => $account->mailEnabled,
+                'calendarEnabled'   => $account->calendarEnabled,
+                'contactsEnabled'   => $account->contactsEnabled,
                 'pushEnabled'       => $account->pushEnabled,
                 'settings'          => $this->settingsOfAccount($account),
                 'aliases'           => $this->exportAliases($account),

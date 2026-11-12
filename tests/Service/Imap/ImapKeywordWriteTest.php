@@ -13,10 +13,11 @@ use App\Entity\User\User;
 use App\Infrastructure\ImapClient\ImapLoop;
 use App\Infrastructure\Messaging\Handler\ApplyImapKeywordsHandler;
 use App\Infrastructure\Messaging\Message\ApplyImapKeywordsMessage;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapPermanentFlags;
@@ -225,7 +226,7 @@ final class ImapKeywordWriteTest extends KernelTestCase
             $container->get(LabelRepository::class),
             new GraphLabelPolicy(),
             new NullLogger(),
-            $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageImapRepository::class),
             $container->get(LabelResolver::class),
         ))->attachLabel([$message], $label);
 
@@ -311,7 +312,7 @@ final class ImapKeywordWriteTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
 
         $inbox = new Mailbox();

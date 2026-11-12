@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Entity\Mail;
 
 use App\Domain\Enum\Mail\GmailSkipReason;
-use App\Repository\Mail\GmailSkippedMessageRepository;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 
