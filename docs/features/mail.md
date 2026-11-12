@@ -1191,8 +1191,11 @@ opened without it.
   **Settings → Applications → mailto**). Each link opens plMail in a new tab: a website cannot bring
   a tab that is already open, a pinned one included, to the front.
 - **plMail installed as an app** in Chrome or Edge offers itself for email links without that
-  button. The system's own setting for the default mail program decides between them. A link opens
-  in the plMail window that is already open, in its dock, instead of in a new window.
+  button. A link opens in the plMail window that is already open, in its dock, instead of in a new
+  window. Links from other programs reach the app only once it is the system's default mail
+  program, and a web app cannot ask the system for that; inside the app, **Email links** shows the
+  steps for your system in place of the button (on a Mac: Mail → **Settings → General → Default
+  email reader** → plMail; on Windows: **Settings → Apps → Default apps** → MAILTO → plMail).
 - **The Android and iOS apps** take email links as any mail app does; see
   [Clients](clients.md).
 

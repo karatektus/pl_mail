@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:d109c60b96fd7e072f23d0daecbcfdfbb824bc35 -->
+<!-- translated-from: features/mail.md sha1:0e018770e5ed6f04b1ecc2b0cdc13102af56e0ce -->
 
 # Mail
 
@@ -1307,9 +1307,12 @@ Absender oder die Unterhaltung, auf die er antwortet, wird er ohne das geöffnet
   Link öffnet plMail in einem neuen Tab: Eine Website kann keinen schon offenen Tab nach vorne holen,
   auch keinen angepinnten.
 - **Als App installiert** bietet sich plMail in Chrome oder Edge ohne diesen Knopf für E-Mail-Links
-  an. Welches Programm sie bekommt, entscheidet dann die Einstellung des Systems für das
-  Standard-Mailprogramm. Ein Link öffnet sich dann im plMail-Fenster, das schon offen ist, unten
-  rechts, statt in einem neuen Fenster.
+  an. Ein Link öffnet sich dann im plMail-Fenster, das schon offen ist, unten rechts, statt in einem
+  neuen Fenster. Links aus anderen Programmen erreichen die App erst, wenn sie das
+  Standard-Mailprogramm des Systems ist, und darum bitten kann eine Web-App das System nicht; in der
+  App zeigt **E-Mail-Links** statt des Knopfs die Schritte für dein System (auf dem Mac: Mail →
+  **Einstellungen → Allgemein → Standard-E-Mail-Programm** → plMail; unter Windows:
+  **Einstellungen → Apps → Standard-Apps** → MAILTO → plMail).
 - **Die Apps für Android und iOS** nehmen E-Mail-Links an wie jede Mail-App; siehe
   [Clients](clients.md).
 
