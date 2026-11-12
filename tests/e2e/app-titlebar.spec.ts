@@ -23,7 +23,7 @@ async function box(page: Page, selector: string) {
     return { left: Math.round(b.x), top: Math.round(b.y), right: Math.round(b.x + b.width), bottom: Math.round(b.y + b.height) };
 }
 
-test("without a title bar, the top bar and sidebar meet the window's edges", async ({ page }) => {
+test("without a title bar, only the margin around the panels goes", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await asTitlebarless(page);
     await page.goto("/mail/inbox");
@@ -34,13 +34,21 @@ test("without a title bar, the top bar and sidebar meet the window's edges", asy
     const top = await box(page, ".shell-topbar");
     expect(top).toMatchObject({ left: 0, top: 0, right: 1280 });
 
+    // The panels meet the window's edges and keep the gap between them…
     const side = await box(page, "#sidebar");
-    expect(side).toMatchObject({ left: 0, top: top.bottom, bottom: 800 });
-
-    // The content is still a card, a gutter in from the right and the bottom.
     const main = await box(page, ".main-pane");
-    expect(main.right).toBeLessThan(1280);
-    expect(main.bottom).toBeLessThan(800);
+    expect(side.left).toBe(0);
+    expect(side.top).toBeGreaterThan(top.bottom);
+    expect(main.right).toBe(1280);
+    expect(main.bottom).toBe(800);
+
+    // …and their card: a squared-off, stretched sidebar was the first try.
+    expect(await page.locator("#sidebar").evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).not.toBe("0px");
+
+    // Chrome paints the strips beside the window buttons in the theme-color,
+    // so it has to be the bar's own colour, not the brand purple.
+    const bar = await page.locator(".shell-topbar").evaluate((el) => getComputedStyle(el).backgroundColor);
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", bar);
 });
 
 test("in a tab the shell keeps its gutter", async ({ page }) => {
@@ -50,4 +58,5 @@ test("in a tab the shell keeps its gutter", async ({ page }) => {
 
     await expect(page.locator("html")).not.toHaveClass(/\bapp-titlebar\b/);
     expect((await box(page, ".shell-topbar")).top).toBeGreaterThan(0);
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#a21caf");
 });
