@@ -1,4 +1,4 @@
-import { test, expect } from "./support/test";
+import { test, expect, type Page } from "./support/test";
 import { mailRow, seed } from "./support/config";
 import { settled } from "./support/motion";
 
@@ -59,10 +59,108 @@ test("the settings button asks the browser to hand mailto: links to plMail", asy
     await page.goto("/settings/compose");
     await page.getByRole("button", { name: "Use plMail" }).click();
 
-    await expect(page.getByRole("status").filter({ hasText: "asks you to confirm" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "choose Allow" })).toBeVisible();
 
     const calls = await page.evaluate(() => (window as unknown as { __mailtoCalls: Array<[string, string]> }).__mailtoCalls);
     const origin = new URL(page.url()).origin;
 
     expect(calls).toEqual([["mailto", `${origin}/compose/new?mailto=%s`]]);
 });
+
+/**
+ * The installed app given a link while its window is open (#585). Chromium
+ * focuses the window and hands the link to `window.launchQueue` without
+ * navigating; headless Chromium has no installed app to launch, so the queue is
+ * stood in for and the launch delivered by hand.
+ */
+async function stubLaunchQueue(page: Page): Promise<void> {
+    await page.addInitScript(() => {
+        const w = window as unknown as { __launch?: (p: { targetURL: string }) => void };
+        // Defined rather than assigned: Chromium has a read-only launchQueue
+        // of its own on Window, and an assignment to it is silently ignored.
+        Object.defineProperty(window, "launchQueue", {
+            configurable: true,
+            value: { setConsumer: (fn: (p: { targetURL: string }) => void) => { w.__launch = fn; } },
+        });
+    });
+}
+
+async function launch(page: Page, path: string): Promise<void> {
+    await page.evaluate((url) => {
+        (window as unknown as { __launch: (p: { targetURL: string }) => void }).__launch({ targetURL: url });
+    }, new URL(path, page.url()).href);
+}
+
+test("a link launched into the open app opens in its dock", async ({ page }) => {
+    await stubLaunchQueue(page);
+    await page.goto("/mail/inbox");
+    await settled(page);
+
+    await launch(page, "/compose/new?mailto=" + encodeURIComponent("mailto:launch@example.invalid?subject=From%20outside"));
+
+    const window = page.locator(dock);
+    await expect(window.locator('input[name="compose[subject]"]')).toHaveValue("From outside");
+    await expect(window.locator('[data-compose--compose-target="toField"]')).toContainText("launch@example.invalid");
+    await expect(page).toHaveURL(/\/mail\/inbox/);
+});
+
+test("launching the app from its icon opens no composer", async ({ page }) => {
+    await stubLaunchQueue(page);
+    await page.goto("/mail/inbox");
+    await settled(page);
+
+    await launch(page, "/mail/inbox");
+    // Anything off-origin is not ours to load either.
+    await page.evaluate(() => {
+        (window as unknown as { __launch: (p: { targetURL: string }) => void }).__launch({ targetURL: "https://elsewhere.invalid/compose/new" });
+    });
+
+    await expect(page.locator(`${dock} input[name="compose[subject]"]`)).toHaveCount(0);
+});
+
+test("the first launch, redirected into ?compose=, is not opened twice", async ({ page }) => {
+    await stubLaunchQueue(page);
+    const link = "/compose/new?mailto=" + encodeURIComponent("mailto:first@example.invalid?subject=Only%20once");
+    await page.goto(link);
+    await page.waitForURL(/\/mail\/inbox\?compose=/);
+
+    const subject = page.locator(`${dock} input[name="compose[subject]"]`);
+    await expect(subject).toHaveValue("Only once");
+    await subject.fill("Typed by hand");
+
+    // What Chromium delivers to the page that navigation produced.
+    await launch(page, link);
+
+    await expect(subject).toHaveValue("Typed by hand");
+});
+
+/**
+ * Inside the installed app the button only ever reached the browser, and links
+ * from other programs need the SYSTEM's default mail program (#587). Headless
+ * Chromium runs in a tab, so the app's display mode and the platform are stood
+ * in for.
+ */
+async function asInstalledApp(page: Page, platform: string): Promise<void> {
+    await page.addInitScript((platform) => {
+        const real = window.matchMedia.bind(window);
+        window.matchMedia = (query: string) =>
+            "(display-mode: standalone)" === query
+                ? ({ ...real(query), matches: true, media: query } as MediaQueryList)
+                : real(query);
+        Object.defineProperty(navigator, "userAgentData", { configurable: true, value: { platform } });
+    }, platform);
+}
+
+for (const [platform, says] of [
+    ["macOS", "Default email reader"],
+    ["Windows", "Default apps"],
+    ["Linux", "xdg-settings"],
+] as const) {
+    test(`in the installed app on ${platform}, the system's steps replace the button`, async ({ page }) => {
+        await asInstalledApp(page, platform);
+        await page.goto("/settings/compose");
+
+        await expect(page.getByRole("status").filter({ hasText: says })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Use plMail" })).toBeHidden();
+    });
+}

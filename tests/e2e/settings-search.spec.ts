@@ -14,6 +14,7 @@ import { test, expect, type Page } from "./support/test";
  *   - Clearing the filter puts the folding back as the reader left it.
  *   - ⌘K / Ctrl+K opens the palette from a page that is not Settings at all,
  *     and Enter on a result lands on its page with that card ringed.
+ *   - A result scrolls the settings pane only, not the clipped page shell.
  *   - On a phone the tree is behind one button, which names where you are.
  *
  * Read-only: nothing here saves a setting.
@@ -111,6 +112,51 @@ test.describe("the ⌘K palette", () => {
         await page.keyboard.press("Escape");
         await expect(page.locator("#settings-palette")).toBeHidden();
     });
+});
+
+test("a result scrolls the settings pane, never the page around it", async ({ page }) => {
+    // The shell is overflow-hidden, but a script can still scroll it, and
+    // scrollIntoView does. The sr-only label of each alias under Compose
+    // defaults was placed against the shell rather than the settings pane; with
+    // a handful of aliases they reached below the window, and a result for
+    // "mailto" slid the whole page up — top bar and all — with no scrollbar to
+    // put it back. One alias is enough to show the label escaping, not enough
+    // to move anything, so the escape is asserted as well as the scroll.
+    //
+    // The alias is added and removed here: the list is not reseeded between
+    // runs (see settings-forms.spec.ts).
+    const address = `scroll-${Date.now()}@example.test`;
+    const account = page.locator("#settings-alias-list > div > div").first();
+
+    await page.setViewportSize(DESKTOP);
+    await page.goto("/settings/aliases");
+    await account.getByPlaceholder(/Add another address/i).fill(address);
+    await account.getByRole("button", { name: "Add" }).click();
+    await expect(page.getByText(address)).toBeVisible();
+
+    try {
+        await filter(page).fill("mailto");
+        await tree(page).locator("li[data-settings--nav-target='hit']:not([hidden]) a").first().click();
+
+        await expect(page).toHaveURL(/\/settings\/compose#card-compose-behaviour$/);
+        await expect(page.locator("#card-compose-behaviour")).toHaveClass(/settings-card-flash/);
+        await expect(page.locator("label.sr-only", { hasText: address })).toHaveCount(1);
+
+        const escaped = await page.evaluate(() => {
+            const port = document.getElementById("card-compose-behaviour")!.closest(".overflow-y-auto")!;
+
+            return [...port.querySelectorAll("*")]
+                .filter((e) => "absolute" === getComputedStyle(e).position && false === port.contains((e as HTMLElement).offsetParent))
+                .map((e) => e.outerHTML.slice(0, 80));
+        });
+
+        expect(escaped).toEqual([]);
+        expect(await page.locator(".shell-frame").locator("..").evaluate((e) => e.scrollTop)).toBe(0);
+    } finally {
+        await page.goto("/settings/aliases");
+        await page.locator("li").filter({ hasText: address }).getByRole("button", { name: "Remove" }).click();
+        await expect(page.getByText(address)).toHaveCount(0);
+    }
 });
 
 test("on a phone the tree waits behind a button that says where you are", async ({ page }) => {

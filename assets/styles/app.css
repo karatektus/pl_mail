@@ -4422,6 +4422,76 @@ html {
     box-shadow: none;
 }
 
+/* ═══ The installed app without a title bar (#589) ══════════════════════════
+   `html.app-titlebar` is set in app.html.twig while the installed app runs in
+   window-controls-overlay: the reader hid Chrome's title bar, the page now
+   starts at the very top of the window, and the window's own buttons (left on
+   macOS, right elsewhere, with Chrome's app menu beside them) are drawn over
+   it, on strips Chrome paints in the page's theme-color (ui--titlebar keeps
+   that the top bar's own colour).
+
+   Only the margin AROUND the panels goes: the shell's outer gutter, so the
+   top bar, the sidebar and the content meet the window's edges. Every panel
+   keeps its size and the gaps between them — the first version stretched the
+   sidebar, which was not what was asked for — and loses only the rounding of
+   the corners that land in the middle of a window edge (below).
+
+   The env() values are the strip the page may use beside the window buttons.
+   Their fallbacks keep the rules harmless where they are absent (a test, or a
+   browser that knows the display mode but not the variables): no inset.
+
+   Unlayered, like the shell chrome above, to beat the `pane` utility.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.app-titlebar .shell-frame {
+    padding: 0;
+}
+
+/* With no margin, a panel's rounded corner halfway along one of the window's
+   edges — the top bar's lower corners, the sidebar's upper-left and
+   lower-right — reads as a notch in the edge. Those corners are squared; the
+   ones that face another panel stay round, and so do the ones in the window's
+   own corners, which the window rounds anyway. Which corner sits where depends
+   on the layout of the moment (a calendar beside the mail, a reading pane, a
+   collapsed sidebar), so ui--titlebar measures and marks them: `data-edge`
+   holds tl/tr/bl/br. */
+.app-titlebar [data-edge~="tl"] { border-top-left-radius: 0 !important; }
+.app-titlebar [data-edge~="tr"] { border-top-right-radius: 0 !important; }
+.app-titlebar [data-edge~="bl"] { border-bottom-left-radius: 0 !important; }
+.app-titlebar [data-edge~="br"] { border-bottom-right-radius: 0 !important; }
+
+.app-titlebar .shell-topbar {
+    padding-inline-start: calc(env(titlebar-area-x, 0px) + 0.75rem);
+    padding-inline-end: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 0.75rem);
+
+    /* Opaque, so the strips Chrome paints beside the window buttons in the
+       theme-color are the same colour as the bar they sit on, over any
+       background picture. */
+    background-color: rgb(var(--rgb-surface));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+
+    /* The empty part of the bar moves the window, as the title bar did. */
+    -webkit-app-region: drag;
+    app-region: drag;
+}
+
+/* The logo is as wide as it is here. In a tab it is held to the sidebar's
+   width so the search lines up with the content; here that width was a link
+   reaching all the way to the search field — most of the bar's empty space,
+   and none of it draggable. */
+.app-titlebar .shell-topbar .shell-logo {
+    width: auto;
+    margin-inline-end: 1.5rem;
+}
+
+/* …and everything that takes a click stays a control. The search shell as a
+   whole, because its results open below it and a drag region would swallow
+   the clicks on its padding. */
+.app-titlebar .shell-topbar :is(a, button, input, select, textarea, label, summary, [role="button"], [tabindex], .search-shell) {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+}
+
 /* ═══ Collapsed sidebar (icon rail) ════════════════════════════════════════
    Toggled by sidebar_drawer_controller and pre-applied from localStorage in
    app.html.twig. Only `#sidebar` is targeted, which is the inline copy — the

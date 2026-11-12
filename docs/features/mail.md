@@ -1185,11 +1185,17 @@ opened without it.
   browser does.
 - **On other websites**, links go to plMail once this browser is told to send them there:
   **Settings → Reading & writing → Compose → Email links → Use plMail**. The browser asks you to confirm,
-  by the address bar, and plMail is not told whether you said yes. Each browser and each device is
-  set on its own, and the browser's own settings are where it is undone (in Chrome,
-  `chrome://settings/handlers`; in Firefox, **Settings → Applications → mailto**).
+  by the address bar; **Allow** there also makes plMail the default, and plMail is not told whether
+  you said yes. Each browser and each device is set on its own, and the browser's own settings are
+  where it is changed or undone (in Chrome, `chrome://settings/handlers`; in Firefox,
+  **Settings → Applications → mailto**). Each link opens plMail in a new tab: a website cannot bring
+  a tab that is already open, a pinned one included, to the front.
 - **plMail installed as an app** in Chrome or Edge offers itself for email links without that
-  button. The system's own setting for the default mail program decides between them.
+  button. A link opens in the plMail window that is already open, in its dock, instead of in a new
+  window. Links from other programs reach the app only once it is the system's default mail
+  program, and a web app cannot ask the system for that; inside the app, **Email links** shows the
+  steps for your system in place of the button (on a Mac: Mail → **Settings → General → Default
+  email reader** → plMail; on Windows: **Settings → Apps → Default apps** → MAILTO → plMail).
 - **The Android and iOS apps** take email links as any mail app does; see
   [Clients](clients.md).
 
@@ -1436,7 +1442,13 @@ or deleted. Editing it does not lift the mark, because the mail has still not go
 app take `mailto:` links over HTTPS (or on `localhost`), so an install reached over plain HTTP shows
 the button switched off and says why. Safari, and every browser on iOS, cannot hand email links to a
 web app at all; the plMail app for iOS can. A browser asked and answered "no" is not something
-plMail can see: pressing the button again asks again.
+plMail can see.
+
+**Links still go nowhere after "Use plMail".** Chrome asks only once. If plMail is already on its
+list but not the default, pressing the button again shows no prompt, and a link from another program
+brings Chrome to the front and stops there. Open `chrome://settings/handlers` and choose
+**Set as default** in plMail's ⋮ menu. A link from another program also goes to the Chrome profile
+used last, which has to be the one plMail is set up in.
 
 **The cancel disappears two seconds before the message does.** The send job is held for ten seconds,
 but the composer stops offering *click to cancel* after eight and closes itself. Nothing is wrong

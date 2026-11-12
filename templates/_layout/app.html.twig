@@ -130,6 +130,11 @@
        nonce and all, while the policy stays the first page's. Which is why
        nothing in a body is an inline script — behaviour lives in controllers. #}
     <meta name="csp-nonce" content="{{ csp_nonce() }}">
+    {# The installed app's colour first, then the tab's: the browser takes the
+       first theme-color whose media matches. See appearance_app_theme_colours. #}
+    {% for media, colour in appearance_app_theme_colours() %}
+        <meta name="theme-color" media="{{ media }}" content="{{ colour }}">
+    {% endfor %}
     <meta name="theme-color" content="#a21caf">
 
     {# Turbo's snapshot policy for THIS page. Empty by default — most pages are
@@ -211,6 +216,24 @@
                 document.documentElement.style.setProperty('--compose-w', Math.max(420, Math.min(4000, Math.round(composeSize.w))) + 'px');
                 document.documentElement.style.setProperty('--compose-h', Math.max(360, Math.min(4000, Math.round(composeSize.h))) + 'px');
             }
+        } catch (e) {}
+
+        // The installed app with its title bar hidden (#589). The manifest asks
+        // for `window-controls-overlay`, and when the reader hides Chrome's
+        // title bar the page reaches the top of the window, with the window's
+        // own buttons drawn over it. `app-titlebar` (app.css) then turns the
+        // topbar into the title bar. A class rather than the media query
+        // itself, so the rules can be seen and tested outside an installed
+        // app; set before first paint, and again whenever the reader shows or
+        // hides the title bar, which changes the display mode in place.
+        try {
+            var overlay = window.matchMedia('(display-mode: window-controls-overlay)');
+            var titlebar = function () {
+                document.documentElement.classList.toggle('app-titlebar', overlay.matches);
+            };
+
+            titlebar();
+            overlay.addEventListener('change', titlebar);
         } catch (e) {}
     </script>
 
@@ -368,7 +391,7 @@
        app.css, and the compose controller's _trackViewport, which is what
        publishes the first of them. #}
     <div class="compose-dock fixed right-6 z-50 flex items-end gap-3"
-         data-controller="compose--dock"
+         data-controller="compose--dock compose--launch-queue"
          {# Its frames' failures are explained in place, in the words below —
             request_errors.js leaves this subtree to it. #}
          data-turbo-errors="self"

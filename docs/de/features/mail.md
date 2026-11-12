@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:35b279e8212938c53c6940c8e40d8a1c0f937cee -->
+<!-- translated-from: features/mail.md sha1:0e018770e5ed6f04b1ecc2b0cdc13102af56e0ce -->
 
 # Mail
 
@@ -1300,13 +1300,19 @@ Absender oder die Unterhaltung, auf die er antwortet, wird er ohne das geöffnet
   weiterhin, was der Browser tut.
 - **Auf anderen Websites** landen Links bei plMail, sobald dieser Browser sie dorthin schicken soll:
   **Einstellungen → Lesen & Schreiben → Verfassen → E-Mail-Links → plMail verwenden**. Der Browser fragt an
-  der Adresszeile nach, und plMail erfährt nicht, ob du zugestimmt hast. Jeder Browser und jedes
-  Gerät wird für sich eingestellt, und rückgängig machst du es in den Einstellungen des Browsers (in
-  Chrome unter `chrome://settings/handlers`, in Firefox unter **Einstellungen → Anwendungen →
-  mailto**).
+  der Adresszeile nach; **Zulassen** macht plMail dort auch gleich zum Standard, und plMail erfährt
+  nicht, ob du zugestimmt hast. Jeder Browser und jedes Gerät wird für sich eingestellt, und ändern
+  oder rückgängig machen kannst du es in den Einstellungen des Browsers (in Chrome unter
+  `chrome://settings/handlers`, in Firefox unter **Einstellungen → Anwendungen → mailto**). Jeder
+  Link öffnet plMail in einem neuen Tab: Eine Website kann keinen schon offenen Tab nach vorne holen,
+  auch keinen angepinnten.
 - **Als App installiert** bietet sich plMail in Chrome oder Edge ohne diesen Knopf für E-Mail-Links
-  an. Welches Programm sie bekommt, entscheidet dann die Einstellung des Systems für das
-  Standard-Mailprogramm.
+  an. Ein Link öffnet sich dann im plMail-Fenster, das schon offen ist, unten rechts, statt in einem
+  neuen Fenster. Links aus anderen Programmen erreichen die App erst, wenn sie das
+  Standard-Mailprogramm des Systems ist, und darum bitten kann eine Web-App das System nicht; in der
+  App zeigt **E-Mail-Links** statt des Knopfs die Schritte für dein System (auf dem Mac: Mail →
+  **Einstellungen → Allgemein → Standard-E-Mail-Programm** → plMail; unter Windows:
+  **Einstellungen → Apps → Standard-Apps** → MAILTO → plMail).
 - **Die Apps für Android und iOS** nehmen E-Mail-Links an wie jede Mail-App; siehe
   [Clients](clients.md).
 
@@ -1584,8 +1590,14 @@ nicht raus.
 lassen eine Web-App `mailto:`-Links nur über HTTPS (oder auf `localhost`) übernehmen, also ist der
 Knopf bei einer Installation über einfaches HTTP ausgeschaltet und sagt, warum. Safari und jeder
 Browser unter iOS können E-Mail-Links gar nicht an eine Web-App geben; die plMail-App für iOS kann
-es. Hat der Browser gefragt und du hast „Nein“ gesagt, sieht plMail das nicht: ein weiterer Druck
-auf den Knopf fragt noch einmal.
+es. Hat der Browser gefragt und du hast „Nein“ gesagt, sieht plMail das nicht.
+
+**Links landen nach „plMail verwenden“ trotzdem nirgends.** Chrome fragt nur einmal. Steht plMail
+schon in seiner Liste, ist aber nicht der Standard, zeigt ein weiterer Druck auf den Knopf keine
+Nachfrage, und ein Link aus einem anderen Programm holt Chrome nach vorne und bleibt dort stehen.
+Öffne `chrome://settings/handlers` und wähle im ⋮-Menü von plMail **Als Standard festlegen**. Ein
+Link aus einem anderen Programm geht außerdem an das zuletzt benutzte Chrome-Profil, und das muss
+das sein, in dem plMail eingerichtet ist.
 
 **Der Abbruch verschwindet zwei Sekunden vor der Nachricht.** Der Sendeauftrag wird zehn Sekunden
 zurückgehalten, das Fenster bietet *zum Abbrechen klicken* aber nur acht Sekunden lang an und

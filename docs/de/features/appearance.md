@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:8abb101afb82304300c9e838bc64a796e701f31b -->
+<!-- translated-from: features/appearance.md sha1:c076066d382f84ff4e2a1ff2ad7fe210fdff36b3 -->
 
 # Darstellung
 
@@ -345,6 +345,19 @@ Darunter legt **Uhrzeit anzeigen** fest, wo du die aktuelle Uhrzeit beim Mail-Le
 - **Nirgends** — die obere Leiste wie bisher: der Demnächst-Knopf nur, wenn etwas ansteht.
 
 Die Uhrzeit läuft jede Minute von selbst weiter und folgt Zeitzone und Uhrzeitformat von oben.
+
+## Das Fenster der installierten App
+
+plMail, in Chrome oder Edge als App installiert, kommt ohne die Titelleiste des Browsers aus. Chrome
+zeigt in der Titelleiste der App einen kleinen Pfeil-Knopf (**Titelleiste ausblenden**); ein Druck
+genügt, und die Wahl bleibt. Die obere Leiste von plMail nimmt dann den Platz der Titelleiste ein:
+Sie liegt am oberen Rand des Fensters, die Fensterknöpfe sitzen darin (auf dem Mac links, unter
+Windows und Linux rechts), und an ihren leeren Stellen verschiebst du das Fenster wie an der
+Titelleiste. Der Rand um die Flächen fällt weg, sodass obere Leiste, Seitenleiste und Inhalt bis an
+die Fensterränder reichen; jede behält ihre Größe, die Abstände zwischen ihnen bleiben, und eine
+Ecke, die mitten an einem Fensterrand säße, ist eckig. Die
+Streifen hinter den Fensterknöpfen bekommen die Farbe der oberen Leiste. Derselbe Pfeil holt die
+Titelleiste zurück.
 
 ## Wo du weiterliest
 
