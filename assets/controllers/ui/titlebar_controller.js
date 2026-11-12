@@ -5,21 +5,16 @@ import { Controller } from '@hotwired/stimulus';
  *
  * Chrome paints what it draws around an installed app — the whole title bar,
  * or with the title bar hidden the strips behind the window buttons and its
- * own menu — in the page's `<meta name="theme-color">`. That is the brand
- * purple from the layout, which in a tab colours the browser's chrome on
- * phones and is right there; in the app it was a purple band glued to a top
- * bar of a different colour.
+ * own menu — in the page's `<meta name="theme-color">`. The server renders the
+ * app's colour itself, under a `display-mode` condition ahead of the tab's
+ * purple (AppearanceExtension::appThemeColours), so every page and every Turbo
+ * visit already arrives right. A first version set it from here and watched
+ * <head> for the server's purple coming back; the server knowing is simpler.
  *
- * So in the app the meta tag is set to the top bar's surface colour, and kept
- * there: a theme switch, the system going dark, or a Turbo visit all repaint
- * it. A visit is watched on <head> itself rather than trusted to reconnect
- * this controller: a link could put the server's purple back without the
- * topbar being connected again, and the strips stayed purple until a reload.
- * In a tab nothing is touched.
- *
- * The colour is read from a probe painted `rgb(var(--rgb-surface))` rather
- * than from the bar itself, because with the title bar shown the bar is still
- * the translucent card, and Chrome takes the theme-color opaque.
+ * What the server cannot know is a theme being TRIED: the appearance settings
+ * repaint <html> before anything is saved. So a change to <html> repaints the
+ * app's tags with the surface now on screen, read from a probe painted
+ * `rgb(var(--rgb-surface))`. The next page load renders the saved one again.
  *
  * Second job, with the title bar hidden (html.app-titlebar): squaring the
  * panel corners that land halfway along a window edge, see #edges.
@@ -32,8 +27,13 @@ export default class extends Controller {
             return;
         }
 
+        // The surface the server rendered for; tags are only rewritten when
+        // the one on screen differs. Most changes to <html> (the sidebar rail,
+        // the title bar class) are not a theme, and rewriting System's light
+        // and dark tags with one colour for them would break the OS switch the
+        // server's tags already handle.
+        this.surface = this.#surface();
         this.paint = () => this.#paint();
-        this.paint();
 
         // Coalesced to one measurement a frame: a resize, a frame load and the
         // panes it resizes all ask at once.
@@ -60,30 +60,14 @@ export default class extends Controller {
             attributes: true,
             attributeFilter: ['class', 'style', 'data-theme'],
         });
-
-        // Turbo's head merge swaps the meta tag for the server's, whose content
-        // is the brand purple. Setting it back is a no-op the second time
-        // (#paint compares first), so this cannot loop on its own change.
-        this.head = new MutationObserver(this.paint);
-        this.head.observe(document.head, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['content'],
-        });
-
-        this.scheme = window.matchMedia('(prefers-color-scheme: dark)');
-        this.scheme.addEventListener('change', this.paint);
     }
 
     disconnect() {
         this.observer?.disconnect();
-        this.head?.disconnect();
         this.resizes?.disconnect();
         cancelAnimationFrame(this.frame);
         window.removeEventListener('resize', this.edges);
         document.removeEventListener('turbo:frame-load', this.edges);
-        this.scheme?.removeEventListener('change', this.paint);
     }
 
     #installed() {
@@ -168,23 +152,31 @@ export default class extends Controller {
         }
     }
 
-    #paint() {
+    #surface() {
         const probe = document.createElement('span');
         probe.style.cssText = 'position:absolute;visibility:hidden;background-color:rgb(var(--rgb-surface))';
         document.body.append(probe);
         const colour = getComputedStyle(probe).backgroundColor;
         probe.remove();
 
-        let meta = document.querySelector('meta[name="theme-color"]');
+        return colour;
+    }
 
-        if (null === meta) {
-            meta = document.createElement('meta');
-            meta.name = 'theme-color';
-            document.head.append(meta);
+    #paint() {
+        const colour = this.#surface();
+
+        if (colour === this.surface) {
+            return;
         }
 
-        if (meta.content !== colour) {
-            meta.content = colour;
+        this.surface = colour;
+
+        // Only the app's tags (the ones with a display-mode condition); the
+        // tab's purple stays the tab's.
+        for (const meta of document.querySelectorAll('meta[name="theme-color"][media*="display-mode"]')) {
+            if (meta.content !== colour) {
+                meta.content = colour;
+            }
         }
     }
 }

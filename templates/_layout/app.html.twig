@@ -130,6 +130,11 @@
        nonce and all, while the policy stays the first page's. Which is why
        nothing in a body is an inline script — behaviour lives in controllers. #}
     <meta name="csp-nonce" content="{{ csp_nonce() }}">
+    {# The installed app's colour first, then the tab's: the browser takes the
+       first theme-color whose media matches. See appearance_app_theme_colours. #}
+    {% for media, colour in appearance_app_theme_colours() %}
+        <meta name="theme-color" media="{{ media }}" content="{{ colour }}">
+    {% endfor %}
     <meta name="theme-color" content="#a21caf">
 
     {# Turbo's snapshot policy for THIS page. Empty by default — most pages are
