@@ -1,4 +1,3 @@
-<!-- highlight -->
 **The installed app shows how to become your mail program.** Inside plMail installed as an app,
 **Settings → Reading & writing → Compose → Email links** now shows the steps for making it the
 system's default mail program on macOS, Windows or Linux, instead of a button that only covered
