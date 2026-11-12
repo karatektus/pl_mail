@@ -1,4 +1,3 @@
-<!-- highlight -->
 **Use an account for its mail, its calendar or its contacts — or any two of them.** Each account
 now has three switches in **Settings → Accounts**, in place of the single on/off toggle, which only
 ever stopped the mail. Switching one off stops plMail talking to the server about it and keeps

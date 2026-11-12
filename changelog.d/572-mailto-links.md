@@ -1,4 +1,4 @@
-<!-- highlight -->
+<!-- highlight screenshot=mailto-links -->
 **Email links open in plMail.** A `mailto:` link in a mail you are reading now opens plMail's own
 compose window instead of your computer's mail program, with the recipients, subject and text the
 link carries. Links on other websites can come to plMail too: **Settings → Reading & writing →

@@ -1,4 +1,3 @@
-<!-- highlight -->
 **Email links reuse the open plMail app.** With plMail installed as an app in Chrome or Edge, a
 `mailto:` link from another program now opens in the plMail window that is already open, in its
 dock, instead of in a second window. The **Use plMail** button in settings now says to choose

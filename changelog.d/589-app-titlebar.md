@@ -1,4 +1,3 @@
-<!-- highlight -->
 **The installed app can drop the title bar.** plMail installed as an app in Chrome or Edge can hide
 the browser's title bar (the arrow button in it). plMail's top bar then runs along the window's top
 edge with the window buttons inside it, in its own colour, and moves the window when dragged; the
