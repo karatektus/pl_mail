@@ -4296,10 +4296,10 @@ settings:
         send_hold: Offen lassen
         heading: 'Verfassen'
         mailto: 'E-Mail-Links'
-        mailto_asked: 'Dein Browser fragt nach — schau in oder neben der Adresszeile.'
+        mailto_asked: 'Dein Browser fragt an der Adresszeile nach — wähle dort Zulassen, dann ist plMail auch gleich der Standard. Keine Nachfrage, und Links kommen trotzdem nicht an? Dann ist plMail eingetragen, aber nicht der Standard: Öffne in Chrome chrome://settings/handlers und wähle im ⋮-Menü von plMail „Als Standard festlegen“.'
         mailto_button: 'plMail verwenden'
         mailto_failed: 'Dieser Browser hat die Anfrage abgelehnt.'
-        mailto_hint: 'mailto:-Links von anderen Seiten in plMail öffnen, in diesem Browser. Jeder Browser und jedes Gerät entscheidet für sich.'
+        mailto_hint: 'mailto:-Links von anderen Seiten in plMail öffnen, in diesem Browser. Jeder Browser und jedes Gerät entscheidet für sich. Als App installiert öffnet plMail sie im Fenster, das schon offen ist.'
         mailto_insecure: 'Browser erlauben das nur über HTTPS, und plMail läuft hier über einfaches HTTP.'
         mailto_unsupported: 'Dieser Browser kann E-Mail-Links nicht an eine Web-App geben. Die plMail-Apps für Android und iOS können das.'
         open: 'Ausgeklappt'

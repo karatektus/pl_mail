@@ -146,6 +146,12 @@ final class ComposeMailtoTest extends WebTestCase
             [['protocol' => 'mailto', 'url' => '/compose/new?mailto=%s']],
             $manifest['protocol_handlers'] ?? null,
         );
+
+        // #585: an installed app given a link brings its open window forward
+        // instead of opening another, and compose--launch-queue opens the link
+        // in that window's dock. `auto` after it for browsers that know the
+        // member but not the mode.
+        self::assertSame(['client_mode' => ['focus-existing', 'auto']], $manifest['launch_handler'] ?? null);
     }
 
     // ---------------------------------------------------------------- helpers

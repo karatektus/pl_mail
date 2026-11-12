@@ -7,6 +7,9 @@
     "display": "standalone",
     "background_color": "#faf7f2",
     "theme_color": "#a21caf",
+    "launch_handler": {
+        "client_mode": ["focus-existing", "auto"]
+    },
     "protocol_handlers": [
         {
             "protocol": "mailto",
