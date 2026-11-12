@@ -96,7 +96,40 @@ export function flashCard(id) {
         return;
     }
 
-    card.scrollIntoView({ block: "start", behavior: "instant" });
+    scrollToTop(card);
     card.classList.add("settings-card-flash");
     window.setTimeout(() => card.classList.remove("settings-card-flash"), FLASH_MS);
+}
+
+/**
+ * Bring `card` to the top of the one box that scrolls it, and nothing else.
+ *
+ * Not scrollIntoView(): that scrolls every ancestor that has overflow,
+ * `overflow: hidden` ones included. The settings page sits in a shell that is
+ * clipped, not scrolled, and the moment anything overflows it — as the sr-only
+ * labels of Compose defaults did, see settings/index.html.twig — a search
+ * result slid the whole page up, top bar and all, with no scrollbar to put it
+ * back. The template fixes that overflow; this makes sure the next one cannot
+ * move the shell either.
+ *
+ * Setting scrollTop on the nearest auto/scroll ancestor clamps at the end of
+ * the content, which is what a reader expects. A page with no such ancestor
+ * (none today) falls back to the document.
+ */
+function scrollToTop(card) {
+    let port = card.parentElement;
+
+    while (null !== port && false === /(auto|scroll)/.test(getComputedStyle(port).overflowY)) {
+        port = port.parentElement;
+    }
+
+    port ??= document.scrollingElement;
+
+    if (null === port) {
+        return;
+    }
+
+    const top = port === document.scrollingElement ? 0 : port.getBoundingClientRect().top;
+
+    port.scrollTop += card.getBoundingClientRect().top - top;
 }

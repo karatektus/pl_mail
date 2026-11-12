@@ -71,8 +71,17 @@ the links that leave the app (a provider's consent screen, an .ics download).
                         {# Scrollable body: section nav + content.
                            IMPORTANT: this grid must have exactly TWO children —
                            the nav and ONE content wrapper. A third child wraps
-                           into the 180px nav column on the next grid row. #}
-                        <div class="flex-1 overflow-y-auto @container
+                           into the 180px nav column on the next grid row.
+
+                           `relative` so this port, not .shell-frame, is what
+                           absolutely positioned content is placed against and
+                           clipped by. Without it the sr-only labels of Compose
+                           defaults (one per address) sat where they would have
+                           been without the port, far below the window, and made
+                           the clipped shell scrollable: a search result's
+                           scroll then moved the whole page up, top bar and
+                           all, with no scrollbar to put it back. #}
+                        <div class="relative flex-1 overflow-y-auto @container
                                     {{ 'appearance' == section ? 'pane-fill-port' : '' }}">
                             {# `pane-fill-host` for Appearance only, and this is the
                                one line that decides whether that section GROWS this
