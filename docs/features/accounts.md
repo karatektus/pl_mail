@@ -90,6 +90,11 @@ button does anything. Once that is done, **Add account** offers **Continue with 
 **Continue with Microsoft** on the **OAuth** tab, and the whole flow is the provider's own consent
 screen — no password is stored here at all.
 
+Above the two buttons, tick what the account is for: **Mail**, **Calendar** and **Contacts**, all
+three by default. The consent screen then asks only for those. A Google account connected for its
+calendar alone is never asked for access to its mail, and does not show up in the mail sidebar. You
+can switch the others on later; see [Mail, calendar and contacts](#mail-calendar-and-contacts).
+
 **Grant everything the consent screen asks for.** Google's screen lists the permissions as separate
 tick boxes and lets you decline any of them — and declining one does not fail the sign-in. The
 account connects, plMail says so, and the part you withheld quietly does not work: calendars that
@@ -144,7 +149,7 @@ Each row offers:
 |---|---|
 | **Colour swatch** | Opens the palette; the colour you pick is the account's from then on — on any account |
 | **Make primary** | Sends new messages from this account by default — on any row but the primary's |
-| **Disable account** / **Enable account** | Stops or resumes syncing without deleting anything |
+| **Mail, calendar and contacts** (switch icon) | Switches each of the three on or off for this account, and removes synced mail while mail is off; see [Mail, calendar and contacts](#mail-calendar-and-contacts) |
 | **Edit account** | Server settings and password — password accounts only |
 | **Folders** | The account's IMAP folders: switch each on or off, and make, rename or delete your own — IMAP accounts only; see [Folders](#folders) |
 | **Follow Outlook categories** (tags icon) | Off by default; on, a category put on or taken off in Outlook puts the label on or takes it off here — Microsoft accounts only; see [Labels as Outlook categories](#labels-as-outlook-categories) |
@@ -166,6 +171,36 @@ because Google is unreachable is a worse outcome than a channel that lapses on i
 week.
 
 On the edit form, leaving the password field blank keeps the stored one.
+
+### Mail, calendar and contacts
+
+Each account is used for up to three things — its mail, its calendars and its contacts — and each
+is switched on or off on its own, from the switch icon on the account's row. All three are on for
+an account you add, unless you untick some when connecting Gmail or Outlook.
+
+Switching something off stops plMail talking to the server about it, in both directions. It never
+removes what is already here:
+
+| Switched off | What stops | What stays |
+|---|---|---|
+| **Mail** | Syncing, push, sending from the account, and every change going back to the server — read, archive, move, delete, folders | The mail already synced. The account stays in the sidebar while it holds any, and its own pages list it; the unified inboxes, badge counts, search across accounts and new-mail notifications leave it out |
+| **Calendar** | Syncing the account's calendars | Their events. An edit made meanwhile waits, and goes out when you switch the calendar back on |
+| **Contacts** | Syncing the account's address books | Their contacts. An edit waits the same way; a contact deleted outright comes back with the first sync |
+
+Changes you make to mail while it is off stay in plMail. When you switch mail back on, the next sync
+reads the server again, and where the two disagree the server wins.
+
+An account whose mail is off cannot be the one new mail is sent from. If it was the primary, the
+primary moves to the first account whose mail is on.
+
+On a Gmail or Outlook account, switching on something the account was not connected for needs
+the provider's permission first. The switch then says **Allow…** and opens the provider's consent
+screen; when you come back, it is on.
+
+**Remove synced mail from plMail** appears under the switches while mail is off. It deletes this
+account's mail from plMail's database — threads, messages, attachments — and nothing on the server,
+whether mail is on or off. It runs in the background. Folders and labels stay. If you switch mail
+back on afterwards, plMail downloads the mailbox again from the start.
 
 ## Per-account settings
 

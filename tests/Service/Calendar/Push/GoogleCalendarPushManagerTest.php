@@ -363,7 +363,7 @@ final class GoogleCalendarPushManagerTest extends KernelTestCase
         $account->username      = $user->email;
         $account->authType      = AuthType::OAuth2->value;
         $account->oauthProvider = MailProvider::Google->value;
-        $account->isActive      = true;
+        $account->mailEnabled   = true;
         $this->em->persist($account);
 
         $this->calendar           = new Calendar();

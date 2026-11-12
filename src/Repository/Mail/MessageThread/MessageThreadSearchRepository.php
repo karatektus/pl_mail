@@ -625,7 +625,7 @@ class MessageThreadSearchRepository extends ServiceEntityRepository
     {
         /** @var list<int> $ids */
         $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
-            'SELECT id FROM account WHERE usr_id = ? AND is_active = true',
+            'SELECT id FROM account WHERE usr_id = ? AND mail_enabled = true',
             [$userId],
         );
 
@@ -653,7 +653,7 @@ class MessageThreadSearchRepository extends ServiceEntityRepository
     ): array {
         $params = [];
         $types  = [];
-        $where  = ['a.usr_id = :userId', 'a.is_active = true'];
+        $where  = ['a.usr_id = :userId', 'a.mail_enabled = true'];
 
         $params['userId'] = $user->id;
         $types['userId']  = ParameterType::INTEGER;

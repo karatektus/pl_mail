@@ -145,7 +145,7 @@ final class ImapIdleListenerTest extends KernelTestCase
         $account->smtpHost       = $this->host;
         $account->smtpPort       = 587;
         $account->smtpEncryption = 'starttls';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $mailbox                = new Mailbox();

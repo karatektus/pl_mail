@@ -223,7 +223,7 @@ final class AccountSyncIntervalTest extends WebTestCase
         $account->name     = $email;
         $account->username = $email;
         $account->email    = $email;
-        $account->isActive = true;
+        $account->mailEnabled = true;
 
         if ($oauth) {
             $account->authType          = AuthType::OAuth2->value;

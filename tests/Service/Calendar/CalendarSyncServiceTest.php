@@ -944,7 +944,7 @@ final class CalendarSyncServiceTest extends KernelTestCase
         $account->password       = 'x';
         $account->authType       = 'oauth2';
         $account->oauthProvider  = 'google';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $calendar           = new Calendar();

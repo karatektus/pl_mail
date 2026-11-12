@@ -253,7 +253,7 @@ final class HappeningSoonPanelTest extends WebTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $this->accountCalendar = $this->seedCalendar($user, 'Account', '#2563eb', isDefault: true);

@@ -75,7 +75,7 @@ final class Pop3AccountSyncerTest extends KernelTestCase
         $account->imapPort         = 995;
         $account->imapEncryption   = 'ssl';
         $account->authType         = 'password';
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $user->addAccount($account);
         $this->em->flush();

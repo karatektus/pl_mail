@@ -54,7 +54,7 @@ final class GmailSkippedCommandTest extends KernelTestCase
         $account->username      = uniqid('gmail-', true);
         $account->authType      = AuthType::OAuth2->value;
         $account->oauthProvider = 'google';
-        $account->isActive      = true;
+        $account->mailEnabled   = true;
         $account->importTotal   = 12;
         $this->em->persist($account);
         $this->em->flush();

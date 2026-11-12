@@ -6,14 +6,17 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\ConnectionTestResult;
+use App\Domain\Enum\Account\AccountService;
 use App\Domain\Enum\Account\IncomingProtocol;
 use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
 use App\Form\AccountType;
+use App\Infrastructure\Messaging\Message\PurgeLocalMailMessage;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Graph\GraphSubscriptionManager;
 use App\Service\Mail\AccountCreator;
+use App\Service\Mail\AccountServiceSwitch;
 use App\Service\Mail\AliasSeeder;
 use App\Service\Mail\ConnectionTester;
 use App\Service\Mail\GmailApiClient;
@@ -28,6 +31,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -114,25 +118,70 @@ final class AccountController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/toggle', name: 'toggle', methods: ['POST'])]
-    public function toggle(Request $request, Account $account): Response
+    /** The account's three service switches, in a modal (#575). */
+    #[Route('/{id}/services', name: 'services', methods: ['GET'])]
+    public function services(Account $account): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
-        $this->assertCsrf($request, 'toggle' . $account->id);
+        return $this->render('settings/accounts/_services_modal.html.twig', [
+            'account' => $account,
+        ]);
+    }
 
-        $newActive = false === $account->isActive;
+    /**
+     * Switch one of the account's services — mail, calendar, contacts — on or
+     * off (#575). It replaces the single on/off toggle, which only ever
+     * governed mail whatever it looked like it governed.
+     *
+     * The position asked for is posted rather than flipped from what is
+     * stored, so two tabs pressing the same switch agree on where it ends up.
+     * A service whose grant does not cover it is not switched on here: the
+     * page offers the provider's consent screen in that case instead (see
+     * AccountServiceSwitch::needsConsent()), and a post that arrives anyway is
+     * refused rather than turning on something that can only fail.
+     */
+    #[Route('/{id}/service/{service}', name: 'service', requirements: ['service' => 'mail|calendar|contacts'], methods: ['POST'])]
+    public function service(Request $request, Account $account, string $service, AccountServiceSwitch $switch): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
-        $account->isActive = $newActive;
-        $this->entityManager->flush();
+        $this->assertCsrf($request, 'account-service' . $account->id);
 
-        if (true === $newActive) {
-            $toastMessage = 'account.enabled';
-        } else {
-            $toastMessage = 'account.disabled';
+        $which   = AccountService::from($service);
+        $enabled = true === $request->request->getBoolean('enabled');
+
+        if (true === $enabled && true === $switch->needsConsent($account, $which)) {
+            throw new BadRequestHttpException('The account\'s grant does not cover this service; reconnect to allow it.');
         }
 
-        return $this->streamAccountList($request, $toastMessage);
+        $switch->set($account, $which, $enabled);
+
+        return $this->streamAccountList(
+            $request,
+            sprintf('account.service.%s.%s', $which->value, true === $enabled ? 'on' : 'off'),
+        );
+    }
+
+    /**
+     * Remove the mail plMail has synced for this account, from this database
+     * only (#575). Queued: see PurgeLocalMailMessage.
+     *
+     * No check of the mail switch, and that is on purpose. The page offers this
+     * only while mail is off, but nothing about the purge depends on it — it
+     * sends nothing to the server in either position — so a stale page that
+     * still shows the button cannot turn it into anything worse.
+     */
+    #[Route('/{id}/purge-mail', name: 'purge_mail', methods: ['POST'])]
+    public function purgeMail(Request $request, Account $account, MessageBusInterface $bus): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
+        $this->assertCsrf($request, 'account-purge-mail' . $account->id);
+
+        $bus->dispatch(new PurgeLocalMailMessage((int) $account->id));
+
+        return $this->streamAccountList($request, 'account.mail_purge_queued');
     }
 
     #[Route('/{id}/delete', name: 'delete', methods: ['POST'])]

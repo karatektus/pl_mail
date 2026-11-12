@@ -70,6 +70,13 @@ final readonly class RegisterCalendarPushHandler
             return;
         }
 
+        if (null !== $calendar->account && false === $calendar->account->calendarEnabled) {
+            // Calendars switched off on the account (#575). A channel opened
+            // now would only deliver notifications the sync then ignores; the
+            // renewal sweep asks again once the switch is back on.
+            return;
+        }
+
         $manager = $this->registry->resolve($calendar);
 
         if (null === $manager) {

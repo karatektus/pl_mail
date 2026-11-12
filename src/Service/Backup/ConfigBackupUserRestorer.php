@@ -395,7 +395,13 @@ final readonly class ConfigBackupUserRestorer
             $account->oauthRefreshToken = $this->text($row, 'oauthRefreshToken');
             $account->oauthTokenExpiry  = $this->moment($row, 'oauthTokenExpiry');
             $account->oauthGrantedScopes = $this->text($row, 'oauthGrantedScopes');
-            $account->isActive          = true === ($row['isActive'] ?? false);
+            // A file made before #575 has only `isActive`, which paused mail
+            // and contacts together and never touched the calendars — read as
+            // exactly that, so a restore lands where the old install was.
+            $legacyActive               = true === ($row['isActive'] ?? false);
+            $account->mailEnabled       = true === ($row['mailEnabled'] ?? $legacyActive);
+            $account->calendarEnabled   = true === ($row['calendarEnabled'] ?? true);
+            $account->contactsEnabled   = true === ($row['contactsEnabled'] ?? $legacyActive);
             $account->pushEnabled       = true === ($row['pushEnabled'] ?? false);
 
             foreach ($this->map($row, 'settings') as $key => $value) {

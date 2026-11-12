@@ -1,0 +1,83 @@
+{#
+Mail, calendar and contacts for one account, each switched on or off (#575).
+
+A modal rather than a menu on the row: the account list's card is
+overflow-hidden and only as tall as its rows, so three switches, their
+explanation and the remove-mail action did not fit above a single account.
+
+Accepts:
+  account   Account   the account whose services these are
+
+Each switch posts its new position; a switch whose grant does not cover it is a
+link to the provider's consent screen instead (AccountServiceSwitch::
+needsConsent()), because switching it on without the permission would sync
+nothing but refusals and the controller refuses it anyway. Removing synced mail
+sits under the switches and only while mail is off; it removes mail from plMail
+and never from the server.
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    <turbo-frame id="modal">
+        <template data-ui--modal-frame-title>{{ 'settings.accounts.services.change'|trans({ '%account%': account.displayAddress }) }}</template>
+
+        <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4" data-account-services>
+            <p class="text-sm text-ink-muted">{{ 'settings.accounts.services.intro'|trans }}</p>
+
+            <ul class="divide-y divide-line rounded-pane border border-line">
+                {% for service in account_services() %}
+                    {% set on          = account.isEnabled(service) %}
+                    {% set serviceName = service.labelKey|trans %}
+                    <li class="flex items-center gap-3 px-4 py-3">
+                        <i class="{{ service.icon }} w-4 text-center text-ink-faint" aria-hidden="true"></i>
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-sm font-medium text-ink">{{ serviceName }}</span>
+                            <span class="block text-xs text-ink-faint">{{ ('settings.accounts.services.' ~ service.value ~ '_help')|trans }}</span>
+                        </span>
+
+                        {% if account_service_needs_consent(account, service) %}
+                            <a href="{{ path('app_oauth_connect', { provider: account.oauthProvider, reconnect: account.id, services: account_services_with(account, service) }) }}"
+                               data-turbo="false"
+                               class="shrink-0 h-8 px-3 inline-flex items-center rounded-lg text-sm font-medium text-accent hover:bg-hover transition-colors"
+                               title="{{ 'settings.accounts.services.allow_explained'|trans({ '%service%': serviceName, '%provider%': account.oauthProvider|capitalize }) }}">
+                                {{ 'settings.accounts.services.allow'|trans }}
+                            </a>
+                        {% else %}
+                            <form method="post" action="{{ path('app_account_service', { id: account.id, service: service.value }) }}" class="shrink-0">
+                                <input type="hidden" name="_token" value="{{ csrf_token('account-service' ~ account.id) }}">
+                                <input type="hidden" name="enabled" value="{{ on ? '0' : '1' }}">
+                                <button type="submit" role="switch" aria-checked="{{ on ? 'true' : 'false' }}"
+                                        class="w-10 h-8 flex items-center justify-center rounded-lg hover:bg-hover transition-colors cursor-pointer"
+                                        aria-label="{{ (on ? 'settings.accounts.services.turn_off' : 'settings.accounts.services.turn_on')|trans({ '%service%': serviceName, '%account%': account.displayAddress }) }}">
+                                    <i class="fa-solid {{ on ? 'fa-toggle-on text-success' : 'fa-toggle-off text-ink-faint' }} text-xl" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+
+            {% if not account.mailEnabled %}
+                <div class="rounded-pane border border-line px-4 py-3 space-y-2">
+                    <form method="post" action="{{ path('app_account_purge_mail', { id: account.id }) }}"
+                          data-turbo-confirm="{{ 'settings.accounts.services.purge_confirm'|trans({ '%account%': account.displayAddress }) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('account-purge-mail' ~ account.id) }}">
+                        <button type="submit"
+                                class="h-8 px-3 inline-flex items-center gap-2 rounded-lg text-sm font-medium text-danger hover:bg-danger-soft transition-colors cursor-pointer">
+                            <i class="fa-solid fa-broom" aria-hidden="true"></i>
+                            {{ 'settings.accounts.services.purge'|trans }}
+                        </button>
+                    </form>
+                    <p class="text-xs text-ink-faint">{{ 'settings.accounts.services.purge_help'|trans }}</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="flex items-center justify-end gap-2 px-5 py-3.5">
+            <button type="button" data-action="click->ui--modal#close"
+                    class="px-3 h-9 rounded-lg text-sm font-medium text-ink-soft hover:bg-hover transition-colors cursor-pointer">
+                {{ 'settings.accounts.services.close'|trans }}
+            </button>
+        </div>
+    </turbo-frame>
+{% endblock %}

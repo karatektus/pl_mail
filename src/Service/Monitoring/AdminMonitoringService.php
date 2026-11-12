@@ -213,7 +213,7 @@ final class AdminMonitoringService
                 // explains silence on its own: GmailPushController drops
                 // notifications for accounts failing either of these.
                 'pushEnabled'   => true === $account->pushEnabled,
-                'accountActive' => true === $account->isActive,
+                'accountActive' => true === $account->mailEnabled,
                 'health'        => $this->pushRegistry->health($account)->value,
                 'resourceName'  => $resourceName,
             ];

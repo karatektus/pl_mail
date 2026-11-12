@@ -434,7 +434,7 @@ final class LabelFolderMakerTest extends KernelTestCase
         $account->oauthProvider    = 'microsoft';
         $account->oauthAccessToken = 'x';
         $account->oauthTokenExpiry = new \DateTimeImmutable('+1 day');
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $this->em->flush();
 

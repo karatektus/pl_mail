@@ -358,7 +358,7 @@ final readonly class DemoMailbox
         $account->smtpPort       = 465;
         $account->smtpEncryption = 'ssl';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
 
         $this->entityManager->persist($account);
         $this->entityManager->flush();

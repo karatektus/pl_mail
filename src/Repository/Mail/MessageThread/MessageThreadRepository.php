@@ -65,7 +65,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
+            ->andWhere('a.mailEnabled = true')
             ->andWhere('l.role = :inbox')
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox)
@@ -151,7 +151,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
+            ->andWhere('a.mailEnabled = true')
             ->andWhere('l.role = :inbox')
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox);
@@ -219,7 +219,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             )
             ->join('t.account', 'a')
             ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
+            ->andWhere('a.mailEnabled = true')
             ->andWhere('EXISTS (SELECT il.id FROM ' . Label::class . ' il WHERE il.role = :inbox AND il MEMBER OF t.labels)')
             ->groupBy('t.category')
             ->addGroupBy('t.userCategory')
@@ -261,7 +261,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
+            ->andWhere('a.mailEnabled = true')
             ->andWhere('l.role = :inbox')
             ->andWhere('t.unreadCount > 0')
             ->groupBy('t.category')
@@ -288,7 +288,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
+            ->andWhere('a.mailEnabled = true')
             ->andWhere('l.role = :role')
             ->setParameter('user', $user)
             ->setParameter('role', $role)
@@ -319,7 +319,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
+            ->andWhere('a.mailEnabled = true')
             ->andWhere('l.role = :role')
             ->setParameter('user', $user)
             ->setParameter('role', $role);
@@ -590,7 +590,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         } else {
             $qb->join('t.account', 'allAccount')
                 ->andWhere('allAccount.usr = :user')
-                ->andWhere('allAccount.isActive = true')
+                ->andWhere('allAccount.mailEnabled = true')
                 ->setParameter('user', $owner);
         }
 
@@ -671,7 +671,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('t')
             ->join('t.account', 'a')
             ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
+            ->andWhere('a.mailEnabled = true')
             ->andWhere('t.starredAt IS NOT NULL')
             ->setParameter('user', $user)
             ->setFirstResult($offset)
@@ -724,7 +724,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('t')
             ->join('t.account', 'a')
             ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
+            ->andWhere('a.mailEnabled = true')
             ->andWhere('t.unreadCount > 0')
             ->setParameter('user', $user);
 
@@ -752,7 +752,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->select('COUNT(t.id)')
             ->join('t.account', 'a')
             ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
+            ->andWhere('a.mailEnabled = true')
             ->andWhere('t.starredAt IS NOT NULL')
             ->setParameter('user', $user);
 

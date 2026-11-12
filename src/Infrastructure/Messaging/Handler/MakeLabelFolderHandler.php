@@ -152,7 +152,9 @@ final readonly class MakeLabelFolderHandler
         $account = $this->accounts->find($accountId);
         $binding = null === $account ? null : $label?->bindingFor($account);
 
-        if (null === $account || null === $binding?->graphCategoryId) {
+        // Not with mail switched off (#575): the category stays in Outlook's
+        // list, and the binding keeps its id, so the next sync still knows it.
+        if (null === $account || false === $account->mailEnabled || null === $binding?->graphCategoryId) {
             return;
         }
 

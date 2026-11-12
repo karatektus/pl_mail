@@ -234,7 +234,7 @@ final class SignatureProviderTest extends TestCase
 
         $this->setId($account, 7);
         $account->email    = 'work@example.test';
-        $account->isActive = true;
+        $account->mailEnabled = true;
 
         $this->alias($account, 'work@example.test', EmailAliasStatus::Primary, 1);
 

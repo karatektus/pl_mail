@@ -230,7 +230,7 @@ class ComposeType extends AbstractType
         if (
             null === $account
             || $account->usr !== $user
-            || false === (bool) $account->isActive
+            || false === $account->mailEnabled
             || false === $account->catchesAddress($address)
         ) {
             return [];
@@ -247,7 +247,7 @@ class ComposeType extends AbstractType
         $choices = [];
 
         foreach ($this->accountRepository->findForUserOrdered($user) as $account) {
-            if (false === (bool) $account->isActive) {
+            if (false === $account->mailEnabled) {
                 continue;
             }
 

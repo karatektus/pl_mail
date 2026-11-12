@@ -296,7 +296,7 @@ final class ComposeTemplatePickerTest extends WebTestCase
         $account->username  = $email;
         $account->email     = $email;
         $account->authType  = 'password';
-        $account->isActive  = true;
+        $account->mailEnabled = true;
         $account->isPrimary = $primary;
         $account->sortOrder = true === $primary ? 0 : 1;
         $account->imapHost  = 'imap.example.test';

@@ -319,7 +319,7 @@ final class RegisterCalendarPushHandlerTest extends KernelTestCase
         $this->account->username      = $this->user->email;
         $this->account->authType      = AuthType::OAuth2->value;
         $this->account->oauthProvider = MailProvider::Google->value;
-        $this->account->isActive      = true;
+        $this->account->mailEnabled   = true;
         $this->em->persist($this->account);
 
         $this->calendar           = new Calendar();

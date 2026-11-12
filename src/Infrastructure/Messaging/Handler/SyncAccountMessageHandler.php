@@ -60,7 +60,7 @@ final readonly class SyncAccountMessageHandler
             return;
         }
 
-        if (true !== $account->isActive) {
+        if (true !== $account->mailEnabled) {
             $this->logger->info('Account inactive', ['accountId' => $message->accountId]);
             return;
         }

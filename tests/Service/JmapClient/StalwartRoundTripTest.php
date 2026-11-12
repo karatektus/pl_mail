@@ -85,7 +85,7 @@ final class StalwartRoundTripTest extends KernelTestCase
         $account->jmapSessionUrl   = $sessionUrl;
         $account->jmapTokenAuth    = '1' === getenv('JMAP_TEST_TOKEN_AUTH');
         $account->authType         = 'password';
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $user->addAccount($account);
         $this->em->flush();

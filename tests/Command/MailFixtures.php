@@ -44,7 +44,7 @@ final class MailFixtures
         EntityManagerInterface $em,
         User $user,
         ?string $username = null,
-        bool $isActive = true,
+        bool $mailEnabled = true,
     ): Account {
         $account = new Account();
         $account->usr = $user;
@@ -59,7 +59,7 @@ final class MailFixtures
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = $isActive;
+        $account->mailEnabled = $mailEnabled;
 
         $em->persist($account);
         $em->flush();

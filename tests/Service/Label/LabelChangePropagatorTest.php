@@ -506,7 +506,7 @@ final class LabelChangePropagatorTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = $authType->value;
-        $account->isActive = true;
+        $account->mailEnabled = true;
 
         if (null !== $oauthProvider) {
             $account->oauthProvider = $oauthProvider;

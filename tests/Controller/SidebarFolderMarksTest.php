@@ -131,7 +131,7 @@ final class SidebarFolderMarksTest extends WebTestCase
         $account->password       = 'x';
         $account->authType       = $gmail ? AuthType::OAuth2->value : 'password';
         $account->oauthProvider  = $gmail ? MailProvider::Google->value : null;
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
         $this->em->flush();
 

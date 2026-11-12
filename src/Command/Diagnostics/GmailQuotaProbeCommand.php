@@ -212,7 +212,7 @@ final class GmailQuotaProbeCommand extends Command
     {
         /** @var list<Account> $gmail */
         $gmail = $this->accounts->findBy(
-            ['authType' => AuthType::OAuth2->value, 'oauthProvider' => 'google', 'isActive' => true],
+            ['authType' => AuthType::OAuth2->value, 'oauthProvider' => 'google', 'mailEnabled' => true],
             ['id' => 'ASC'],
         );
 

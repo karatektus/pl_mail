@@ -90,6 +90,15 @@ class MessageSendService
             return false;
         }
 
+        // Mail switched off means nothing leaves through this account (#575).
+        // Refused rather than answered false, so a scheduled send that comes
+        // due afterwards is marked on the draft with the reason, instead of
+        // retried until the transport gives up. Here rather than in each
+        // sender: every send of a stored message comes through this method.
+        if (false === $account->mailEnabled) {
+            throw new SendRefusedException('Mail is switched off for this account.', SendFailure::MailOff);
+        }
+
         // A message the browser built goes out as it was built or not at all:
         // the server holds no key to build it again. See SealGuard.
         $refusal = $this->sealGuard->refusal($message);

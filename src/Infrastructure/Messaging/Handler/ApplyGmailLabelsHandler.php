@@ -69,6 +69,13 @@ final class ApplyGmailLabelsHandler
             return;
         }
 
+        // Mail switched off (#575): the change stays here and nothing goes to
+        // the server. The next sync after switching back on reads the server's
+        // state over it — see AccountService.
+        if (false === $account->mailEnabled) {
+            return;
+        }
+
         $gmailIds = $this->collectGmailIds($message->messageIds);
 
         if (count($gmailIds) === 0) {

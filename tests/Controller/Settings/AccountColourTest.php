@@ -359,7 +359,7 @@ final class AccountColourTest extends WebTestCase
         $account->username   = $email;
         $account->email      = $email;
         $account->authType   = AuthType::Password->value;
-        $account->isActive   = true;
+        $account->mailEnabled = true;
         $account->imapHost   = 'imap.example.test';
         $account->colorIndex = $colorIndex;
 
@@ -381,7 +381,7 @@ final class AccountColourTest extends WebTestCase
         $account->oauthProvider     = MailProvider::Google->value;
         $account->oauthAccessToken  = 'access-token';
         $account->oauthRefreshToken = 'refresh-token';
-        $account->isActive          = true;
+        $account->mailEnabled       = true;
         $account->colorIndex        = $colorIndex;
 
         $this->em->persist($account);

@@ -747,7 +747,7 @@ final readonly class ConfigBackupUsers
      * The mailboxes, with the credentials that open them and nothing about what
      * was ever in them.
      *
-     * Everything below `isActive` on the entity is sync state and is absent by
+     * Everything below the service switches on the entity is sync state and is absent by
      * design — see the class docblock. What is here is exactly what the
      * "Add mail account" form asks for, plus the OAuth tokens a provider handed
      * back, which are worth more than the form's answers: a restored refresh
@@ -798,7 +798,12 @@ final readonly class ConfigBackupUsers
                 // again and the health card built on it goes quiet for
                 // connections that are working fine.
                 'oauthGrantedScopes' => $account->oauthGrantedScopes,
-                'isActive'          => $account->isActive,
+                // Three switches since #575. The old single `isActive` is not
+                // written any more; the restorer still reads it from files
+                // made before, as what it governed — mail and contacts.
+                'mailEnabled'       => $account->mailEnabled,
+                'calendarEnabled'   => $account->calendarEnabled,
+                'contactsEnabled'   => $account->contactsEnabled,
                 'pushEnabled'       => $account->pushEnabled,
                 'settings'          => $this->settingsOfAccount($account),
                 'aliases'           => $this->exportAliases($account),

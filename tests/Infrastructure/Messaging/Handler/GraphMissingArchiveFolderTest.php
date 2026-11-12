@@ -255,7 +255,7 @@ final class GraphMissingArchiveFolderTest extends KernelTestCase
         $this->account->password       = 'x';
         $this->account->authType       = AuthType::OAuth2->value;
         $this->account->oauthProvider  = MailProvider::Microsoft->value;
-        $this->account->isActive       = true;
+        $this->account->mailEnabled    = true;
         // The client asks the token manager before every request, and without a
         // token that is good for a while it goes off to refresh one — which
         // fails, and every assertion below becomes "no requests were made".

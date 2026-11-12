@@ -354,7 +354,7 @@ final class ComposeSafetyTest extends WebTestCase
         // Every account this user already has would otherwise compete with the
         // two the test is about — the seeded mailbox included.
         $this->em->createQuery(
-            'UPDATE ' . Account::class . ' a SET a.isActive = false WHERE a.usr = :usr',
+            'UPDATE ' . Account::class . ' a SET a.mailEnabled = false WHERE a.usr = :usr',
         )->setParameter('usr', $user)->execute();
 
         $this->em->clear();
@@ -371,7 +371,7 @@ final class ComposeSafetyTest extends WebTestCase
         $account->username  = $email;
         $account->email     = $email;
         $account->authType  = 'password';
-        $account->isActive  = true;
+        $account->mailEnabled = true;
         $account->isPrimary = $primary;
         $account->sortOrder = $sortOrder;
         $account->imapHost  = 'imap.example.test';

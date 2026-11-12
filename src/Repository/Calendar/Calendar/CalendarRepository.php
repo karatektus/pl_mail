@@ -255,10 +255,15 @@ class CalendarRepository extends ServiceEntityRepository
      */
     public function findDueForSync(DateTimeImmutable $before, int $limit = 200, ?DateTimeImmutable $now = null): array
     {
+        // The left join leaves a calendar mirrored through a connection rather
+        // than a mail account untouched; one whose account has its calendars
+        // switched off (#575) is not due, however long ago it last synced.
         return $this->createQueryBuilder('calendar')
             ->addSelect('COALESCE(calendar.lastSyncedAt, :epoch) AS HIDDEN dueSince')
+            ->leftJoin('calendar.account', 'account')
             ->where('calendar.role = :remote')
             ->andWhere('calendar.remoteId IS NOT NULL')
+            ->andWhere('account.id IS NULL OR account.calendarEnabled = true')
             ->andWhere('calendar.lastSyncedAt IS NULL OR calendar.lastSyncedAt < :before')
             ->andWhere('calendar.syncBackoffUntil IS NULL OR calendar.syncBackoffUntil <= :now')
             ->andWhere(

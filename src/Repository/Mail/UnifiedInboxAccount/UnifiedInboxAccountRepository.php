@@ -35,7 +35,7 @@ class UnifiedInboxAccountRepository extends ServiceEntityRepository
     public function inboxesByAccount(UserInterface $user): array
     {
         $rows = $this->getEntityManager()->createQueryBuilder()
-            ->select('a.id AS accountId', 'a.isActive AS active', 'IDENTITY(m.inbox) AS inboxId')
+            ->select('a.id AS accountId', 'a.mailEnabled AS active', 'IDENTITY(m.inbox) AS inboxId')
             ->from(Account::class, 'a')
             ->leftJoin(UnifiedInboxAccount::class, 'm', 'WITH', 'm.account = a')
             ->where('a.usr = :user')

@@ -81,7 +81,7 @@ final class InboxCategoryControllerTest extends WebTestCase
         $account->username = $account->email;
         $account->authType = \App\Domain\Enum\Account\AuthType::Password->value;
         $account->imapHost = 'imap.example.test';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
 
         $forum   = $this->pinnedThread($account, \App\Domain\Enum\Mail\MessageCategory::Forums);

@@ -173,15 +173,15 @@ final class OAuthAccountRelinkTest extends KernelTestCase
      */
     public function testReconnectingReactivatesADisabledAccount(): void
     {
-        $account           = $this->deadAccount('disabled@joder.dev');
-        $account->isActive = false;
+        $account              = $this->deadAccount('disabled@joder.dev');
+        $account->mailEnabled = false;
         $this->em->flush();
 
         $this->linker->relink($account, MailProvider::Google, 'disabled@joder.dev', $this->token('fresh-access'));
 
         $this->em->clear();
 
-        self::assertTrue($this->em->find(Account::class, $account->id)->isActive);
+        self::assertTrue($this->em->find(Account::class, $account->id)->mailEnabled);
     }
 
     // ── the identity guard ───────────────────────────────────────────────────
@@ -312,7 +312,7 @@ final class OAuthAccountRelinkTest extends KernelTestCase
         $account->oauthAccessToken      = 'stale-access';
         $account->oauthRefreshToken     = 'stale-refresh';
         $account->oauthLastRefreshError = 'invalid_grant';
-        $account->isActive              = true;
+        $account->mailEnabled           = true;
 
         $this->em->persist($account);
         $this->em->flush();

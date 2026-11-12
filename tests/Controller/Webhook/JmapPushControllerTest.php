@@ -132,7 +132,7 @@ final class JmapPushControllerTest extends WebTestCase
         $account->authType             = 'password';
         $account->incomingProtocol     = IncomingProtocol::Jmap;
         $account->imapHost             = 'jmap.example.test';
-        $account->isActive             = true;
+        $account->mailEnabled          = true;
         $account->pushEnabled          = true;
         $account->jmapPushSubscription = ['id' => 'ps1', 'verified' => false, 'expires' => time() + 3600, 'token' => $this->token];
         $em->persist($account);

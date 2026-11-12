@@ -77,6 +77,12 @@ final readonly class ApplyLabelStructureHandler
             return;
         }
 
+        // Mail switched off (#575): labels made, renamed or removed here stay
+        // here. The provider's own labels are read back once mail is on again.
+        if (false === $account->mailEnabled) {
+            return;
+        }
+
         try {
             if (true === $account->isGmail()) {
                 $this->applyGmail($account, $message);

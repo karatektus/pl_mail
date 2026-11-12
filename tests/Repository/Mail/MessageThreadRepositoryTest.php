@@ -238,7 +238,7 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         self::assertNotContains($second[0]->id, array_map(static fn ($t) => $t->id, $first));
         self::assertSame(51, $this->repository->countForAccountAllMail($this->account));
 
-        $this->account->isActive = false;
+        $this->account->mailEnabled = false;
         $first[0]->unreadCount   = 1;
         $this->em->flush();
 
@@ -264,7 +264,7 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $disabled = $this->seedAccount($this->user, 'disabled@example.test');
         $foreign  = $this->seedAccount($this->seedUser(), 'foreign@example.test');
 
-        $disabled->isActive = false;
+        $disabled->mailEnabled = false;
 
         for ($i = 0; $i < 51; ++$i) {
             $this->thread('owned-' . $i, '2026-03-01 09:00');
@@ -955,7 +955,7 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $account->imapPort       = 993;
         $account->imapEncryption = 'ssl';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
 
         $this->em->persist($account);
         $this->em->flush();

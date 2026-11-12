@@ -139,7 +139,7 @@ final class LabelPlacesTest extends WebTestCase
         $account->oauthProvider    = 'microsoft';
         $account->oauthAccessToken = 'x';
         $account->oauthTokenExpiry = new \DateTimeImmutable('+1 day');
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $account->followsOutlookCategories = $follows;
         $this->em->persist($account);
         $this->em->flush();
@@ -164,7 +164,7 @@ final class LabelPlacesTest extends WebTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $account->labelsAsKeywords = $keywords;
         $this->em->persist($account);
 

@@ -151,7 +151,7 @@ final class MoveToFolderRuleMigrationTest extends KernelTestCase
         $account->imapEncryption = 'ssl';
         $account->authType       = $gmail ? AuthType::OAuth2->value : 'password';
         $account->oauthProvider  = $gmail ? MailProvider::Google->value : null;
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
         $this->em->flush();
 

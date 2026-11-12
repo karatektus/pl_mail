@@ -240,7 +240,7 @@ final class TemplateLibraryTest extends KernelTestCase
         $account->username  = $email;
         $account->email     = $email;
         $account->authType  = 'password';
-        $account->isActive  = true;
+        $account->mailEnabled = true;
         $account->isPrimary = false;
         $account->sortOrder = 50;
         $account->imapHost  = 'imap.example.test';

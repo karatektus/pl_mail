@@ -112,7 +112,7 @@ final readonly class MailImporter
     /** Whether this account still has history that this class would fetch. */
     public function hasWork(Account $account): bool
     {
-        if (true !== $account->isActive) {
+        if (true !== $account->mailEnabled) {
             return false;
         }
 

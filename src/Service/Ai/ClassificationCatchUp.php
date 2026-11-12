@@ -129,7 +129,7 @@ final readonly class ClassificationCatchUp
         // one inbox to them and one queue to the model, and starting on the
         // finished account's history while another is still importing would
         // put old mail in front of that import's recent mail.
-        $accounts = $this->accounts->findBy(['usr' => $user, 'isActive' => true]);
+        $accounts = $this->accounts->findBy(['usr' => $user, 'mailEnabled' => true]);
 
         if (false === $this->importState->allComplete($accounts)) {
             return 0;

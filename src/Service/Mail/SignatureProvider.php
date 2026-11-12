@@ -210,7 +210,7 @@ final readonly class SignatureProvider
         $map = [];
 
         foreach ($accounts as $account) {
-            if (false === (bool) $account->isActive) {
+            if (false === $account->mailEnabled) {
                 continue;
             }
 

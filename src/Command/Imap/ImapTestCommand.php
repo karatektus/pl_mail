@@ -49,7 +49,7 @@ final class ImapTestCommand extends Command
         $accountId = $input->getOption('account');
         $account   = null !== $accountId
             ? $this->accounts->find($accountId)
-            : $this->accounts->findOneBy(['isActive' => true]);
+            : $this->accounts->findOneBy(['mailEnabled' => true]);
 
         if (false === $account instanceof Account) {
             $io->error('No active account found.');

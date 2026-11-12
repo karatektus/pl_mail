@@ -55,7 +55,7 @@ final readonly class ComposeWindow
     {
         $primary = $this->accounts->findOneBy([
             'usr'       => $user,
-            'isActive'  => true,
+            'mailEnabled'  => true,
             'isPrimary' => true,
         ]);
 
@@ -66,7 +66,7 @@ final readonly class ComposeWindow
         return $this->accounts->findOneBy(
             [
                 'usr'      => $user,
-                'isActive' => true,
+                'mailEnabled' => true,
             ],
             ['sortOrder' => 'ASC'],
         );

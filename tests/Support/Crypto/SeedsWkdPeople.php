@@ -49,7 +49,7 @@ trait SeedsWkdPeople
             $account->email    = $address;
             $account->username = $address;
             $account->authType = 'password';
-            $account->isActive = true;
+            $account->mailEnabled = true;
             $account->imapHost = 'imap.example.test';
             $em->persist($account);
         }

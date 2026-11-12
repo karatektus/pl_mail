@@ -94,6 +94,13 @@ final class ApplyGraphChangesHandler
             return;
         }
 
+        // Mail switched off (#575): the change stays here and nothing goes to
+        // the server. The next sync after switching back on reads the server's
+        // state over it — see AccountService.
+        if (false === $account->mailEnabled) {
+            return;
+        }
+
         $messages = $this->messageRepository->findBy(['id' => $message->messageIds]);
 
         if (count($messages) === 0) {

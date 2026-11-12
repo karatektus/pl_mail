@@ -170,7 +170,7 @@ final class ConfigBackupUnifiedInboxesTest extends KernelTestCase
             $account->imapPort       = 993;
             $account->imapEncryption = 'ssl';
             $account->authType       = 'password';
-            $account->isActive       = true;
+            $account->mailEnabled    = true;
             $this->entityManager->persist($account);
 
             $made[$email] = $account;

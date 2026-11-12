@@ -46,8 +46,11 @@
                     </button>
                 </div>
 
-                <span class="w-2.5 h-2.5 rounded-full shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-ink-faint' }}"
-                      title="{{ account.isActive ? 'settings.accounts.status.active'|trans : 'settings.accounts.status.disabled'|trans }}"></span>
+                {# On while any of the three services is (#575): an account
+                   kept for its calendar alone is working, not switched off. #}
+                {% set anyOn = account.mailEnabled or account.calendarEnabled or account.contactsEnabled %}
+                <span class="w-2.5 h-2.5 rounded-full shrink-0 {{ anyOn ? 'bg-green-400' : 'bg-ink-faint' }}"
+                      title="{{ anyOn ? 'settings.accounts.status.active'|trans : 'settings.accounts.status.disabled'|trans }}"></span>
 
                 <div class="min-w-0 flex-1">
                     <p class="flex items-center gap-2 min-w-0">
@@ -71,6 +74,17 @@
                         {% endif %}
                     </p>
                     <p class="truncate text-xs text-ink-faint">{{ account.username }} · {{ account.imapHost }}</p>
+                    {# Said only when something is off, so the common case — an
+                       account used for everything — reads as it always did. #}
+                    {% if account.services|length < account_services()|length %}
+                        <p class="truncate text-xs text-ink-faint" data-account-services>
+                            {% if account.services is empty %}
+                                {{ 'settings.accounts.services.none'|trans }}
+                            {% else %}
+                                {{ 'settings.accounts.services.used_for'|trans({ '%services%': account.services|map(s => s.labelKey|trans)|join(', ') }) }}
+                            {% endif %}
+                        </p>
+                    {% endif %}
                 </div>
 
                 {# A password account says how its mail is read, not how it
@@ -91,9 +105,9 @@
                        never said it would do.
 
                        Only offered on an account that could actually send —
-                       a disabled account as the default From would be a From
-                       nothing can go out of. #}
-                    {% if not account.isPrimary and account.isActive %}
+                       an account with its mail switched off as the default
+                       From would be a From nothing can go out of. #}
+                    {% if not account.isPrimary and account.mailEnabled %}
                         <form method="post" action="{{ path('app_account_primary', { id: account.id }) }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('account-primary' ~ account.id) }}">
                             <button
@@ -262,17 +276,25 @@
                     {% if account.gmail %}
                         {{ include('settings/accounts/_gmail_move_control.html.twig', {account: account}) }}
                     {% endif %}
-                    <form method="post" action="{{ path('app_account_toggle', { id: account.id }) }}">
-                        <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ account.id) }}">
-                        <button
-                            type="submit"
-                            class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
-                            aria-label="{{ account.isActive ? 'settings.accounts.disable'|trans : 'settings.accounts.enable'|trans }}"
-                            title="{{ account.isActive ? 'settings.accounts.disable'|trans : 'settings.accounts.enable'|trans }}"
-                        >
-                            <i class="fa-solid {{ account.isActive ? 'fa-toggle-on text-success' : 'fa-toggle-off' }} text-base" aria-hidden="true"></i>
-                        </button>
-                    </form>
+                    {# Mail, calendar and contacts, each switched on its own
+                       (#575), in a modal like Folders. This replaced a single
+                       on/off toggle that only ever stopped the mail, whatever
+                       it looked like it did. A menu on the row was the first
+                       version, and the card's overflow-hidden cut it off above
+                       a single account. #}
+                    {% set servicesLabel = 'settings.accounts.services.change'|trans({ '%account%': account.displayAddress }) %}
+                    <button
+                        type="button"
+                        data-controller="ui--modal"
+                        data-action="click->ui--modal#open"
+                        data-ui--modal-title-value="{{ servicesLabel }}"
+                        data-ui--modal-src-value="{{ path('app_account_services', { id: account.id }) }}"
+                        data-ui--modal-size-value="narrow"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                        aria-label="{{ servicesLabel }}" title="{{ servicesLabel }}"
+                    >
+                        <i class="fa-solid {{ anyOn ? 'fa-toggle-on text-success' : 'fa-toggle-off' }} text-base" aria-hidden="true"></i>
+                    </button>
 
                     <form method="post" action="{{ path('app_account_delete', { id: account.id }) }}"
                           data-turbo-confirm="{{ 'settings.accounts.delete_confirm'|trans({ '%account%': account.displayAddress }) }}">

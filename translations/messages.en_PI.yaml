@@ -2,8 +2,6 @@ account:
     add_title: Sign on a new crew member
     added: Crew member signed on, arr!
     colour_set: Th' colours be changed
-    disabled: Ship's papers revoked
-    enabled: Ship's papers restored
     form:
         email: Parrot address
         encryption: Cipher
@@ -49,13 +47,27 @@ account:
             same: "Use th' same password fer sendin'"
             separate: "Use a different password fer sendin'"
         username: Name ye go by
+    mail_purge_queued: 'Heavin’ this ship’s letters out o’ plMail. The far port keeps its copy.'
     oauth:
         calendar_declined: The account be aboard, but ye never granted the almanac — so its calendars will not sync. Sign in again and tick the calendar box when Google asks.
         google: Sail on with Google
         info: Sign on with yer harbourmaster — no secret word be kept aboard.
         microsoft: Sail on with Microsoft
+        services:
+            help: 'The next screen only asks for what ye tick. Ye can change it later under Settings → Accounts.'
+            legend: 'Sail this ship for'
     primary_set: A new flagship be named
     removed: Crew member put ashore
+    service:
+        calendar:
+            off: 'Ship’s log be lashed shut'
+            on: 'Ship’s log be keepin’ time again'
+        contacts:
+            off: 'Crew roster be lashed shut'
+            on: 'Crew roster be open again'
+        mail:
+            off: 'Letters be becalmed. What’s aboard stays aboard.'
+            on: 'Letters be flowin’ again'
     sync_interval_set: Th' watch be reset
     tabs:
         imap: IMAP / SMTP
@@ -3268,10 +3280,8 @@ settings:
                 '7': Olive
         delete: Put this crew member ashore
         delete_confirm: 'Put %account% ashore? Every bottle hauled aboard for this crew member goes to Davy Jones for good, and there be no gettin'' them back.'
-        disable: Revoke the papers
         edit: Amend the papers
         empty: No crew yet. Sign one on to start haulin' mail aboard.
-        enable: Restore the papers
         folders:
             always_synced: The inbox be always hauled aboard
             button: Folders
@@ -3313,6 +3323,7 @@ settings:
             placeholder: 'A marker that only herds other folders — there be nothin in it to haul aboard'
             refused:
                 has_children: 'This folder has folders inside her. Scuttle or move those first.'
+                mail_off: 'Letters be becalmed on this ship, so its holds cannot be changed at the far port. Raise letters first.'
                 not_empty: 'This folder still holds post (%count%). Move it elsewhere first; scuttlin a folder sinks its post.'
                 server: 'The mail server said nay: %reason%'
                 special_use: 'The inbox, Sent, Drafts, Trash, Junk an Archive be never renamed or scuttled from plMail: other mail apps an plMail itself lean on them.'
@@ -3388,6 +3399,25 @@ settings:
                 microsoft: New mail lands the instant Microsoft fires the cannon.
             title: Word the moment it lands
         reorder: Drag to reorder the line
+        services:
+            allow: 'Ask leave…'
+            allow_explained: 'Raisin’ %service% needs leave %provider% ain’t given plMail yet. Opens %provider% to ask for it.'
+            calendar: 'Ship’s log'
+            calendar_help: 'Its ship’s logs, kept true both ways'
+            change: 'Letters, ship’s log an’ crew roster for %account%'
+            close: 'Aye'
+            contacts: 'Crew roster'
+            contacts_help: 'Its crew rosters, kept true both ways'
+            intro: 'Furl what ye don’t sail this ship for. plMail then stops hailin’ the far port about it an’ keeps what’s already aboard.'
+            mail: 'Letters'
+            mail_help: 'Fetchin’, sendin’ an’ every change ye make to its letters'
+            none: 'All sails furled'
+            purge: 'Heave the synced letters out o’ plMail'
+            purge_confirm: 'Heave every letter plMail fetched for %account% overboard? The far port keeps them. Raise letters again an’ plMail fetches the lot anew.'
+            purge_help: 'Only plMail’s copy goes over the side. Nothin’ be sunk at the far port.'
+            turn_off: 'Furl %service% for %account%'
+            turn_on: 'Raise %service% for %account%'
+            used_for: 'Sailin’ for %services%'
         status:
             active: Sailin'
             disabled: Beached
@@ -4417,7 +4447,7 @@ settings:
         subheading: "What a swipe across a bottle does on yer phone."
     unified_inboxes:
         account_label: 'Gathered hold fer %account%'
-        account_off: 'Struck — none o’ its letters be shown till ye hoist it again.'
+        account_off: 'Letters becalmed — none o’ its letters be shown here till ye raise ’em again.'
         accounts_heading: 'Ships'
         accounts_subheading: 'Which hold each ship’s letters be stowed in. A new ship goes in yer first hold.'
         add: 'Add'
@@ -4917,7 +4947,7 @@ sidebar:
     accounts:
         add: Sign on a crew member
         colour: 'Colours flown by %account%'
-        colour_disabled: 'Colours flown by %account%, laid up in port'
+        colour_disabled: 'Colours flown by %account%, its letters becalmed'
         folders: 'Folders…'
         heading: Th' crew
         menu: 'Folders o'' %account%'
@@ -5029,6 +5059,7 @@ thread_row:
     no_subject: (no subject)
     send_failed:
         failed: Never sailed
+        mail_off: 'Not sailed: letters be becalmed on this ship'
         may_have_sent: 'May have sailed: search th'' Sent hold afore firin'' again'
         rate_limited: 'Never sailed: yer mail port were rationin'' sailings'
         refused: 'Never sailed: th'' harbour master turned it away'
@@ -5053,6 +5084,7 @@ toast:
     schedule_cancelled: The castin' off be belayed.
     send_too_late: Too late, matey — that message has already sailed.
     send_failed: 'That message could not be hoisted: %subject%'
+    send_failed_mail_off: 'That letter could not sail: %subject%. Letters be becalmed on its ship.'
     send_failed_may_have_sent: '%subject% may have sailed, but no word came back. Search th'' Sent hold before ye fire it again.'
     send_failed_rate_limited: 'That message could not be hoisted: %subject%. Yer mail port be rationin'' sailings; try again in a few minutes.'
     send_failed_refused: 'That message could not be hoisted: %subject%. Th'' harbour master turned it away.'

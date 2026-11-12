@@ -6,6 +6,7 @@ namespace App\Repository\Mail\Account;
 
 use App\Domain\Enum\Account\IncomingProtocol;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Common\Collections\Criteria;
@@ -25,19 +26,28 @@ class AccountRepository extends ServiceEntityRepository
     /**
      * Every account a JMAP push channel should be held open for.
      *
-     * Active, JMAP, and push left on — the same switch the Gmail and Graph
-     * subscriptions honour. Fetched whole: the listener needs the credentials
-     * on each to open its stream.
+     * JMAP, push left on — the same switch the Gmail and Graph subscriptions
+     * honour — and at least one service switched on (#575). Any one, not mail
+     * alone: a JMAP server pushes one stream of state changes for mail,
+     * calendars and contacts together, and JmapPushFanout hands each type to
+     * a handler that checks its own switch. A Fastmail account kept for its
+     * calendar still wants to hear about a moved meeting at once rather than
+     * at the next sweep. QueryBuilder for the OR, which findBy() cannot say.
+     * Fetched whole: the listener needs the credentials on each to open its
+     * stream.
      *
      * @return list<Account>
      */
     public function findJmapForPush(): array
     {
-        return $this->findBy([
-            'isActive'         => true,
-            'incomingProtocol' => IncomingProtocol::Jmap,
-            'pushEnabled'      => true,
-        ], ['id' => 'ASC']);
+        return $this->createQueryBuilder('account')
+            ->andWhere('account.incomingProtocol = :jmap')
+            ->andWhere('account.pushEnabled = true')
+            ->andWhere('account.mailEnabled = true OR account.calendarEnabled = true OR account.contactsEnabled = true')
+            ->setParameter('jmap', IncomingProtocol::Jmap)
+            ->orderBy('account.id', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**
@@ -79,7 +89,7 @@ class AccountRepository extends ServiceEntityRepository
     }
 
     /**
-     * findForUserOrdered(), restricted to the accounts that are switched on.
+     * findForUserOrdered(), restricted to the accounts whose mail is switched on.
      *
      * The sidebar's list, and the reason this exists rather than a findBy():
      * the sidebar used to order by sortOrder alone. sortOrder defaults to 0 and
@@ -97,7 +107,7 @@ class AccountRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('account')
             ->addSelect('LOWER(COALESCE(account.email, account.username)) AS HIDDEN sortName')
             ->andWhere('account.usr = :usr')
-            ->andWhere('account.isActive = true')
+            ->andWhere('account.mailEnabled = true')
             ->setParameter('usr', $user)
             ->orderBy('account.sortOrder', 'ASC')
             ->addOrderBy('sortName', 'ASC')
@@ -129,7 +139,7 @@ class AccountRepository extends ServiceEntityRepository
             'SELECT
                 a.id,
                 a.email,
-                a.is_active,
+                a.mail_enabled,
                 (SELECT COUNT(*) FROM message_thread t WHERE t.account_id = a.id) AS threads,
                 (SELECT COUNT(*)
                    FROM message m
@@ -169,7 +179,37 @@ class AccountRepository extends ServiceEntityRepository
     }
 
     /**
-     * The ids of a user's active accounts, as values a query can bind.
+     * Which of a user's mail-off accounts still hold mail, by id.
+     *
+     * Mail switched off keeps what was fetched (#575), and an account in that
+     * state stays in the sidebar for as long as there is anything to read —
+     * while one that never had mail, a Google account connected for its
+     * calendar alone, has no business in a mail sidebar at all. This is the
+     * line between the two.
+     *
+     * Only the switched-off accounts are asked about, because a switched-on one
+     * is in the sidebar whatever it holds. EXISTS rather than a count: the
+     * answer is yes or no, and idx_message_thread_account_last_message leads on
+     * account_id, so the first thread found settles it.
+     *
+     * @return list<int>
+     */
+    public function findMailOffIdsHoldingMail(UserInterface $user): array
+    {
+        $rows = $this->createQueryBuilder('account')
+            ->select('account.id')
+            ->andWhere('account.usr = :usr')
+            ->andWhere('account.mailEnabled = false')
+            ->andWhere(sprintf('EXISTS (SELECT 1 FROM %s thread WHERE thread.account = account)', MessageThread::class))
+            ->setParameter('usr', $user)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map(intval(...), $rows);
+    }
+
+    /**
+     * The ids of a user's mail-on accounts, as values a query can bind.
      *
      * @return list<int>
      */
@@ -177,7 +217,7 @@ class AccountRepository extends ServiceEntityRepository
     {
         /** @var list<int|string> $ids */
         $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
-            'SELECT id FROM account WHERE usr_id = ? AND is_active = true',
+            'SELECT id FROM account WHERE usr_id = ? AND mail_enabled = true',
             [$user->id],
         );
 

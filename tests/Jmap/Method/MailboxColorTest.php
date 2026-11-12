@@ -288,7 +288,7 @@ final class MailboxColorTest extends KernelTestCase
         $this->account->smtpEncryption = 'starttls';
         $this->account->password = 'x';
         $this->account->authType = 'password';
-        $this->account->isActive = true;
+        $this->account->mailEnabled = true;
         $this->em->persist($this->account);
 
         $this->em->flush();

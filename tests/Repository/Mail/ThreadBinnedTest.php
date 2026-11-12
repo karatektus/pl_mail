@@ -67,7 +67,7 @@ final class ThreadBinnedTest extends KernelTestCase
         $this->account->username = uniqid('binned-', true);
         $this->account->imapHost = 'imap.example.test';
         $this->account->authType = AuthType::Password->value;
-        $this->account->isActive = true;
+        $this->account->mailEnabled = true;
         $this->em->persist($this->account);
         $this->em->flush();
 

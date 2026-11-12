@@ -501,7 +501,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $account->smtpHost           = 'smtp.audit.test';
         $account->smtpPort           = 587;
         $account->authType           = 'password';
-        $account->isActive           = true;
+        $account->mailEnabled        = true;
         $account->isPrimary          = true;
         $account->colorIndex         = 3;
         $account->oauthGrantedScopes = 'https://mail.google.com/ openid';

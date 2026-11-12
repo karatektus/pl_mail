@@ -165,7 +165,7 @@ final class MessageBodyHtmlTextTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
         $this->em->flush();
 

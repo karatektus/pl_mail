@@ -138,6 +138,8 @@ final class AccountFoldersController extends AbstractController
             $this->em->flush();
         } catch (InvalidFolderNameException $e) {
             return $this->renderNewForm($account, $parentId, $name, $this->invalidName($e));
+        } catch (FolderActionRefusedException $e) {
+            return $this->renderNewForm($account, $parentId, $name, $this->refused($e));
         } catch (ImapFolderRefusedException $e) {
             return $this->renderNewForm($account, $parentId, $name, $this->serverRefused($e));
         } catch (Throwable $e) {
