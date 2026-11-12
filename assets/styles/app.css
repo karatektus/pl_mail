@@ -4422,6 +4422,71 @@ html {
     box-shadow: none;
 }
 
+/* ═══ The installed app without a title bar (#589) ══════════════════════════
+   `html.app-titlebar` is set in app.html.twig while the installed app runs in
+   window-controls-overlay: the reader hid Chrome's title bar, the page now
+   starts at the very top of the window, and the window's own buttons (left on
+   macOS, right elsewhere, with Chrome's app menu beside them) are drawn over
+   it. The topbar takes the title bar's place — full width, at the window's
+   edge, no card — and the sidebar meets the left and bottom edges below it.
+   The main pane stays the one card, as in the flat layout.
+
+   The env() values are the strip the page may use beside the window buttons.
+   Their fallbacks keep the rules harmless where they are absent (a test, or a
+   browser that knows the display mode but not the variables): no inset.
+
+   Unlayered, like the shell chrome above, to beat the `pane` utility.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.app-titlebar .shell-frame {
+    padding: 0;
+    gap: 0;
+}
+
+.app-titlebar .shell-topbar {
+    border-radius: 0;
+    border-width: 0 0 1px 0;
+    box-shadow: none;
+    min-height: max(3.5rem, env(titlebar-area-height, 0px));
+    padding-inline-start: calc(env(titlebar-area-x, 0px) + 0.75rem);
+    padding-inline-end: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 0.75rem);
+
+    /* The empty part of the bar moves the window, as the title bar did. */
+    -webkit-app-region: drag;
+    app-region: drag;
+}
+
+/* …and everything that takes a click stays a control. The search shell as a
+   whole, because its results open below it and a drag region would swallow
+   the clicks on its padding. */
+.app-titlebar .shell-topbar :is(a, button, input, select, textarea, label, summary, [role="button"], [tabindex], .search-shell) {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+}
+
+/* What sits under the topbar keeps the gutter between its cards, and loses
+   it only at the window's edges: the sidebar against the left and the
+   bottom, the content one gutter in from the right and the bottom. Below md
+   there is no sidebar (it is the drawer), so the content keeps its left
+   gutter too. */
+.app-titlebar .shell-frame > :not(.shell-topbar) {
+    padding: var(--spacing-gutter);
+}
+
+@media (min-width: 768px) {
+    .app-titlebar .shell-frame > :not(.shell-topbar) {
+        padding-inline-start: 0;
+    }
+
+    .app-titlebar #sidebar {
+        border-radius: 0;
+        border-width: 0 1px 0 0;
+        box-shadow: none;
+        margin-top: calc(-1 * var(--spacing-gutter));
+        margin-bottom: calc(-1 * var(--spacing-gutter));
+        height: calc(100% + 2 * var(--spacing-gutter));
+    }
+}
+
 /* ═══ Collapsed sidebar (icon rail) ════════════════════════════════════════
    Toggled by sidebar_drawer_controller and pre-applied from localStorage in
    app.html.twig. Only `#sidebar` is targeted, which is the inline copy — the

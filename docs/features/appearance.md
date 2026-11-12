@@ -316,6 +316,16 @@ Below that, **Show the time** puts the current time somewhere you can see it whi
 
 The time moves on by itself each minute and follows the timezone and clock format above.
 
+## The installed app's window
+
+plMail installed as an app in Chrome or Edge can do without the browser's title bar. Chrome shows a
+small arrow button in the app's title bar (**Hide title bar**); press it once and the choice is kept.
+plMail's own top bar then takes the title bar's place: it runs along the window's top edge, the
+window's buttons sit inside it (on the left on a Mac, on the right on Windows and Linux), and its
+empty space moves the window as the title bar did. The sidebar reaches the window's left and bottom
+edges below it, whichever layout you use; the content stays a card. The same arrow brings the title
+bar back.
+
 ## Where to read further
 
 - [Mail](mail.md) — the lists and panes these settings paint.
