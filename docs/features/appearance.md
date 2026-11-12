@@ -323,8 +323,8 @@ small arrow button in the app's title bar (**Hide title bar**); press it once an
 plMail's own top bar then takes the title bar's place: it runs along the window's top edge, the
 window's buttons sit inside it (on the left on a Mac, on the right on Windows and Linux), and its
 empty space moves the window as the title bar did. The margin around the panels goes, so the top
-bar, the sidebar and the content reach the window's edges; each keeps its own shape, and the gaps
-between them stay. The strips behind the window buttons take the top bar's colour. The same arrow
+bar, the sidebar and the content reach the window's edges; each keeps its size and the gaps between
+them stay, and a corner that would sit halfway along the window's edge is square. The strips behind the window buttons take the top bar's colour. The same arrow
 brings the title bar back.
 
 ## Where to read further

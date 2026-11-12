@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:88b30d2abe99622f09cbd63ea1f89513cb2d7c5e -->
+<!-- translated-from: features/appearance.md sha1:c076066d382f84ff4e2a1ff2ad7fe210fdff36b3 -->
 
 # Darstellung
 
@@ -354,7 +354,8 @@ genügt, und die Wahl bleibt. Die obere Leiste von plMail nimmt dann den Platz d
 Sie liegt am oberen Rand des Fensters, die Fensterknöpfe sitzen darin (auf dem Mac links, unter
 Windows und Linux rechts), und an ihren leeren Stellen verschiebst du das Fenster wie an der
 Titelleiste. Der Rand um die Flächen fällt weg, sodass obere Leiste, Seitenleiste und Inhalt bis an
-die Fensterränder reichen; jede behält ihre Form, und die Abstände zwischen ihnen bleiben. Die
+die Fensterränder reichen; jede behält ihre Größe, die Abstände zwischen ihnen bleiben, und eine
+Ecke, die mitten an einem Fensterrand säße, ist eckig. Die
 Streifen hinter den Fensterknöpfen bekommen die Farbe der oberen Leiste. Derselbe Pfeil holt die
 Titelleiste zurück.
 
