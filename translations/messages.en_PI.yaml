@@ -4099,10 +4099,10 @@ settings:
         send_hold: "Keep it open"
         heading: 'Scribblin'''
         mailto: 'Letter links'
-        mailto_asked: 'Yer browser be askin'' ye to say aye — look fer its hail by the address bar.'
+        mailto_asked: 'Yer browser hails ye by the address bar — say Allow, an'' plMail be the default too. No hail, an'' still no letters come aboard? Then plMail be on the roster but not the default: in Chrome open chrome://settings/handlers an'' pick “Set as default” in plMail''s ⋮ menu.'
         mailto_button: 'Sail with plMail'
         mailto_failed: 'This browser sent the request to Davy Jones.'
-        mailto_hint: 'Open mailto: links from other ports in plMail, in this browser. Every browser an'' every ship be decidin'' fer itself.'
+        mailto_hint: 'Open mailto: links from other ports in plMail, in this browser. Every browser an'' every ship be decidin'' fer itself. Installed as an app, plMail opens ''em in the window already afloat.'
         mailto_insecure: 'Browsers only allow this over HTTPS, an'' plMail be reached over plain HTTP here.'
         mailto_unsupported: 'This browser cannot hand letter links to a web app. The plMail apps fer Android an'' iOS can.'
         open: 'On deck'

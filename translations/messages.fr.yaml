@@ -4334,10 +4334,10 @@ settings:
         send_hold: La garder ouverte
         heading: 'Rédaction'
         mailto: 'Liens e-mail'
-        mailto_asked: 'Votre navigateur demande confirmation — regardez près de la barre d''adresse.'
+        mailto_asked: 'Votre navigateur demande près de la barre d''adresse — choisissez Autoriser, ce qui fait aussi de plMail le choix par défaut. Pas de demande, et les liens n''arrivent toujours pas ? plMail est alors enregistré sans être le choix par défaut : dans Chrome, ouvrez chrome://settings/handlers et choisissez « Définir par défaut » dans le menu ⋮ de plMail.'
         mailto_button: 'Utiliser plMail'
         mailto_failed: 'Ce navigateur a refusé la demande.'
-        mailto_hint: 'Ouvrir dans plMail les liens mailto: des autres sites, dans ce navigateur. Chaque navigateur et chaque appareil décide pour lui-même.'
+        mailto_hint: 'Ouvrir dans plMail les liens mailto: des autres sites, dans ce navigateur. Chaque navigateur et chaque appareil décide pour lui-même. Installé comme application, plMail les ouvre dans la fenêtre déjà ouverte.'
         mailto_insecure: 'Les navigateurs ne l''autorisent qu''en HTTPS, et plMail est joint ici en HTTP simple.'
         mailto_unsupported: 'Ce navigateur ne peut pas confier les liens e-mail à une application web. Les applications plMail pour Android et iOS le peuvent.'
         open: 'Ouvert'

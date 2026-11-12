@@ -4280,10 +4280,10 @@ settings:
         send_hold: Keep it open
         heading: 'Composing'
         mailto: 'Email links'
-        mailto_asked: 'Your browser asks you to confirm — look for its prompt at the address bar.'
+        mailto_asked: 'Your browser asks at the address bar — choose Allow there, which also makes plMail the default. No prompt, and links still do not arrive? Then plMail is registered but not the default: in Chrome open chrome://settings/handlers and pick “Set as default” in plMail’s ⋮ menu.'
         mailto_button: 'Use plMail'
         mailto_failed: 'This browser turned the request down.'
-        mailto_hint: 'Open mailto: links from other sites in plMail, in this browser. Each browser and device decides for itself.'
+        mailto_hint: 'Open mailto: links from other sites in plMail, in this browser. Each browser and device decides for itself. Installed as an app, plMail opens them in the window that is already open.'
         mailto_insecure: 'Browsers only allow this over HTTPS, and plMail is reached over plain HTTP here.'
         mailto_unsupported: 'This browser cannot hand email links to a web app. The plMail apps for Android and iOS can.'
         open: 'Open'
