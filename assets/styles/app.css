@@ -4432,8 +4432,9 @@ html {
 
    Only the margin AROUND the panels goes: the shell's outer gutter, so the
    top bar, the sidebar and the content meet the window's edges. Every panel
-   keeps its card, its size and the gaps between them — the first version
-   squared the sidebar off and stretched it, which was not what was asked for.
+   keeps its size and the gaps between them — the first version stretched the
+   sidebar, which was not what was asked for — and loses only the rounding of
+   the corners that land in the middle of a window edge (below).
 
    The env() values are the strip the page may use beside the window buttons.
    Their fallbacks keep the rules harmless where they are absent (a test, or a
@@ -4444,6 +4445,19 @@ html {
 .app-titlebar .shell-frame {
     padding: 0;
 }
+
+/* With no margin, a panel's rounded corner halfway along one of the window's
+   edges — the top bar's lower corners, the sidebar's upper-left and
+   lower-right — reads as a notch in the edge. Those corners are squared; the
+   ones that face another panel stay round, and so do the ones in the window's
+   own corners, which the window rounds anyway. Which corner sits where depends
+   on the layout of the moment (a calendar beside the mail, a reading pane, a
+   collapsed sidebar), so ui--titlebar measures and marks them: `data-edge`
+   holds tl/tr/bl/br. */
+.app-titlebar [data-edge~="tl"] { border-top-left-radius: 0 !important; }
+.app-titlebar [data-edge~="tr"] { border-top-right-radius: 0 !important; }
+.app-titlebar [data-edge~="bl"] { border-bottom-left-radius: 0 !important; }
+.app-titlebar [data-edge~="br"] { border-bottom-right-radius: 0 !important; }
 
 .app-titlebar .shell-topbar {
     padding-inline-start: calc(env(titlebar-area-x, 0px) + 0.75rem);

@@ -42,13 +42,32 @@ test("without a title bar, only the margin around the panels goes", async ({ pag
     expect(main.right).toBe(1280);
     expect(main.bottom).toBe(800);
 
-    // …and their card: a squared-off, stretched sidebar was the first try.
-    expect(await page.locator("#sidebar").evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).not.toBe("0px");
+    // …and their size. Only a corner halfway along a window edge is squared
+    // (it read as a notch); one facing another panel stays round, and so does
+    // one in the window's own corner.
+    const radii = (selector: string) => page.locator(selector).evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { tl: cs.borderTopLeftRadius, tr: cs.borderTopRightRadius, bl: cs.borderBottomLeftRadius, br: cs.borderBottomRightRadius };
+    });
+    await expect.poll(() => radii("#sidebar")).toMatchObject({ tl: "0px", br: "0px" });
+    const sidebar = await radii("#sidebar");
+    expect(sidebar.tr).not.toBe("0px");
+    expect(sidebar.bl).not.toBe("0px");
+
+    const bar = await radii(".shell-topbar");
+    expect(bar).toMatchObject({ bl: "0px", br: "0px" });
+    expect(bar.tl).not.toBe("0px");
 
     // Chrome paints the strips beside the window buttons in the theme-color,
     // so it has to be the bar's own colour, not the brand purple.
-    const bar = await page.locator(".shell-topbar").evaluate((el) => getComputedStyle(el).backgroundColor);
-    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", bar);
+    const colour = await page.locator(".shell-topbar").evaluate((el) => getComputedStyle(el).backgroundColor);
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", colour);
+
+    // A link that is a Turbo visit brings the server's head along, purple
+    // included; the bar's colour has to come back without a reload.
+    await page.locator("#sidebar a[href*='/mail/starred']").first().click();
+    await page.waitForURL(/\/mail\/starred/);
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", colour);
 });
 
 test("in a tab the shell keeps its gutter", async ({ page }) => {
