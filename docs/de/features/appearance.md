@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:71cab6eadcc8bde99e8d174f6deac95437479611 -->
+<!-- translated-from: features/appearance.md sha1:88b30d2abe99622f09cbd63ea1f89513cb2d7c5e -->
 
 # Darstellung
 
@@ -353,8 +353,10 @@ zeigt in der Titelleiste der App einen kleinen Pfeil-Knopf (**Titelleiste ausble
 genügt, und die Wahl bleibt. Die obere Leiste von plMail nimmt dann den Platz der Titelleiste ein:
 Sie liegt am oberen Rand des Fensters, die Fensterknöpfe sitzen darin (auf dem Mac links, unter
 Windows und Linux rechts), und an ihren leeren Stellen verschiebst du das Fenster wie an der
-Titelleiste. Darunter reicht die Seitenleiste bis an den linken und unteren Fensterrand, in jedem
-Layout; der Inhalt bleibt eine Karte. Derselbe Pfeil holt die Titelleiste zurück.
+Titelleiste. Der Rand um die Flächen fällt weg, sodass obere Leiste, Seitenleiste und Inhalt bis an
+die Fensterränder reichen; jede behält ihre Form, und die Abstände zwischen ihnen bleiben. Die
+Streifen hinter den Fensterknöpfen bekommen die Farbe der oberen Leiste. Derselbe Pfeil holt die
+Titelleiste zurück.
 
 ## Wo du weiterliest
 

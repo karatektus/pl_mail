@@ -322,9 +322,10 @@ plMail installed as an app in Chrome or Edge can do without the browser's title 
 small arrow button in the app's title bar (**Hide title bar**); press it once and the choice is kept.
 plMail's own top bar then takes the title bar's place: it runs along the window's top edge, the
 window's buttons sit inside it (on the left on a Mac, on the right on Windows and Linux), and its
-empty space moves the window as the title bar did. The sidebar reaches the window's left and bottom
-edges below it, whichever layout you use; the content stays a card. The same arrow brings the title
-bar back.
+empty space moves the window as the title bar did. The margin around the panels goes, so the top
+bar, the sidebar and the content reach the window's edges; each keeps its own shape, and the gaps
+between them stay. The strips behind the window buttons take the top bar's colour. The same arrow
+brings the title bar back.
 
 ## Where to read further
 
