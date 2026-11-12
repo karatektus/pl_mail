@@ -1,4 +1,4 @@
-<!-- highlight -->
+<!-- highlight screenshot=settings-search -->
 **Settings is easier to find your way around, and it has a search.** The settings column was 29
 pages in five groups, sixteen of them under "Mail", and General held whatever had no better home.
 It is now a tree of eight areas — Account, General, Mail accounts, Inbox, Reading & writing,

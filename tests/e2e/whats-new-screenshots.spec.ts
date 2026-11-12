@@ -802,3 +802,53 @@ test.describe("What's new screenshots, v0.4.2 integrations", () => {
         await capture(page, "nextcloud-approval", panel, 760);
     });
 });
+
+test.describe("What's new screenshots, v0.4.3", () => {
+    test.skip(undefined === process.env.E2E_SCREENSHOTS, 'Demo mailbox required — run "npm run test:e2e:screenshots".');
+
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.beforeAll(() => {
+        seedUser({ email: TEST_DEMO.email, password: TEST_DEMO.password });
+        consoleCommand(`app:test:seed-demo --email=${TEST_DEMO.email}`);
+    });
+
+    test.beforeEach(async ({ page }) => {
+        await login(page, TEST_DEMO.email, TEST_DEMO.password);
+    });
+
+    /**
+     * The tree with a word in its filter (#569). "sign" rather than a page's
+     * name: it finds cards in two areas, and Password by its keyword
+     * "sign-in", which is what a search over the cards adds to a list of pages.
+     */
+    test("settings-search", async ({ page }) => {
+        await page.goto("/settings/labels");
+
+        const tree = page.locator("#settings-tree");
+        await page.locator("#settings-filter").fill("sign");
+        await expect(tree.locator("li[data-settings--nav-target='hit']:not([hidden])").first()).toBeVisible();
+
+        await capture(page, "settings-search", tree);
+    });
+
+    /**
+     * The compose window a mailto: link opens (#572), reached the way the
+     * browser's handler reaches it: /compose/new?mailto=…, which the server
+     * turns into the mailbox with the window in its dock. Not saved: a link's
+     * window is no draft until the first autosave.
+     */
+    test("mailto-links", async ({ page }) => {
+        const link = "mailto:priya@ramanjoinery.example?cc=jonas@ramanjoinery.example"
+            + "&subject=Shelves%20for%20the%20Brunnengasse%20workshop"
+            + "&body=Hello%20Priya%2C%0A%0AI%20saw%20the%20shelves%20on%20your%20website.";
+
+        await page.goto(`/compose/new?mailto=${encodeURIComponent(link)}`);
+
+        const dock = page.locator("#compose_dock");
+        await expect(dock.locator('input[name="compose[subject]"]')).toHaveValue("Shelves for the Brunnengasse workshop");
+        await expect(dock.locator('[data-compose--compose-target="ccField"]')).toContainText("jonas@ramanjoinery.example");
+
+        await capture(page, "mailto-links", dock.locator(".compose-window"));
+    });
+});
