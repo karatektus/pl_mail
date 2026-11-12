@@ -127,10 +127,6 @@ test.describe("What's new screenshots", () => {
         await capture(page, "permanent-delete", await card(page, "disposal", "Disposal"));
     });
 
-    test("templates", async ({ page }) => {
-        await capture(page, "templates", await card(page, "templates", "Templates"));
-    });
-
     /** The pane beside the list, with a conversation open in it; put back to off afterwards. */
     test("reading-pane", async ({ page }) => {
         const pane = async (mode: "right" | "off"): Promise<void> => {

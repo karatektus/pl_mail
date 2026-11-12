@@ -2464,7 +2464,7 @@ name, so a filter for `a@x.de` also caught `ba@x.de`, and anybody could match it
 address in their display name. The spam button's filters use the new conditions. Existing filters
 are unchanged. JMAP clients get the same two as `fromAddress` and `fromDomain` in `Email/query`.
 
-<!-- highlight screenshot=templates -->
+<!-- highlight -->
 **Message templates.** Settings → Templates is a new section: write
 a message once, file it in a folder, and insert it from a new button in the compose window. The
 folder tree opens with one folder per mail account, and the account you are writing from has its
