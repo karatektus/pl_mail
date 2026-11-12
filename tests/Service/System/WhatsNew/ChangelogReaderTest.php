@@ -154,6 +154,43 @@ final class ChangelogReaderTest extends TestCase
     }
 
     /**
+     * Every entry is a paragraph of its own: a blank line before each bold
+     * headline. Without it the reader takes the entry for more of the one
+     * above, and the dialog shows two or three entries under the first one's
+     * headline — v0.4.2 shipped like that, and v0.3.4 before it.
+     *
+     * Told apart from a line that merely wraps onto something bold by what a
+     * headline looks like: bold up to the end of a sentence, at the start of a
+     * line, after a line that ends one.
+     */
+    public function testNoEntryRunsIntoTheOneBeforeIt(): void
+    {
+        $sources = ['CHANGELOG.md' => (string) file_get_contents(dirname(__DIR__, 4) . '/CHANGELOG.md')];
+
+        foreach (self::fragments() as $name => $markdown) {
+            $sources['changelog.d/' . $name] = $markdown;
+        }
+
+        foreach ($sources as $name => $markdown) {
+            $lines = explode("\n", str_replace("\r\n", "\n", $markdown));
+
+            foreach ($lines as $index => $line) {
+                $before = $lines[$index - 1] ?? '';
+
+                if ('' === trim($before) || 1 !== preg_match('/^\*\*(?!Migration:)[^*]+[.!?]\*\*( |$)/', $line)) {
+                    continue;
+                }
+
+                self::assertDoesNotMatchRegularExpression(
+                    '/[.!?)]\s*$/',
+                    $before,
+                    sprintf('%s line %d starts an entry with no blank line before it: "%s"', $name, $index + 1, mb_substr($line, 0, 60)),
+                );
+            }
+        }
+    }
+
+    /**
      * Every screenshot a highlight names is in public/whats-new, and no two
      * highlights claim the same name — the files are named by feature, not by
      * release. Read off the raw file and the fragments in changelog.d/, so
