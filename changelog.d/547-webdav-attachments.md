@@ -1,4 +1,3 @@
-<!-- highlight -->
 **Attach from and save to any WebDAV server.** WebDAV joins the file services under Settings →
 Integrations, for a file server that is neither Nextcloud nor OpenCloud: FileBrowser Quantum, a
 Synology NAS, `rclone serve webdav`, Apache mod_dav. You give the full address of the folder to open,
