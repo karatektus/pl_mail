@@ -10,7 +10,14 @@ import { Controller } from "@hotwired/stimulus";
  * `isProtocolHandlerRegistered` was specified and never shipped. So this says
  * where to look for the prompt and does not claim an outcome it cannot see.
  *
- * Three states, decided on connect:
+ * Four states, decided on connect:
+ *   - running as the INSTALLED app (#587): the button is the wrong tool here.
+ *     registerProtocolHandler registers with the browser, which only covers
+ *     links clicked inside Chrome; a link from another program reaches the app
+ *     only when the SYSTEM's default mail program is the app, and no web API
+ *     can ask the system for that — not on macOS, where native apps can, and
+ *     not on Windows, where nothing but the user can. So the button goes and
+ *     the steps for this system are shown in its place;
  *   - no registerProtocolHandler at all (Safari, every iOS browser, Firefox on
  *     Android): the button stays disabled and says so, rather than doing
  *     nothing when pressed;
@@ -37,6 +44,16 @@ export default class extends Controller {
     };
 
     connect() {
+        if (this.#installed()) {
+            if (this.hasButtonTarget) {
+                this.buttonTarget.hidden = true;
+            }
+
+            this.#say(`app_${this.#system()}`);
+
+            return;
+        }
+
         if (typeof navigator.registerProtocolHandler !== "function") {
             this.#disable("unsupported");
 
@@ -61,6 +78,31 @@ export default class extends Controller {
     }
 
     // ── Private ───────────────────────────────────────────────────────────
+
+    /**
+     * Whether this page is the installed app's window rather than a tab. The
+     * manifest asks for `standalone`; the other two are what a browser may
+     * give an installed app instead, and none of them is ever a tab.
+     */
+    #installed() {
+        return ["standalone", "minimal-ui", "window-controls-overlay"]
+            .some((mode) => window.matchMedia(`(display-mode: ${mode})`).matches);
+    }
+
+    /**
+     * Which system's steps to show: macos, windows, linux, or other. Client
+     * hints first (Chromium, which is the only engine that installs apps with
+     * protocol handlers), the legacy platform string as the fallback.
+     */
+    #system() {
+        const platform = String(navigator.userAgentData?.platform || navigator.platform || "").toLowerCase();
+
+        if (platform.startsWith("mac")) return "macos";
+        if (platform.startsWith("win")) return "windows";
+        if (platform.startsWith("linux")) return "linux";
+
+        return "other";
+    }
 
     #disable(state) {
         if (this.hasButtonTarget) {

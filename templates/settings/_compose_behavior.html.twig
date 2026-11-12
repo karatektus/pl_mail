@@ -89,7 +89,8 @@ idiom every boolean on the appearance page wears.
    is the BROWSER's choice, per browser and per device, so there is nothing to
    post. The button asks the browser (settings--mailto-handler says what it can
    and cannot know about the answer). An installed plMail in Chromium offers
-   itself through the manifest's protocol_handlers without this.
+   itself through the manifest's protocol_handlers without this — and inside
+   that app the button is swapped for the system's own steps (#587).
 
    The URL is the one ComposeController reads; `%s` is where the browser puts
    the whole link, and is appended rather than passed to path(), which would
@@ -102,6 +103,10 @@ idiom every boolean on the appearance page wears.
          failed:      'settings.compose_behavior.mailto_failed'|trans,
          insecure:    'settings.compose_behavior.mailto_insecure'|trans,
          unsupported: 'settings.compose_behavior.mailto_unsupported'|trans,
+         app_macos:   'settings.compose_behavior.mailto_app_macos'|trans,
+         app_windows: 'settings.compose_behavior.mailto_app_windows'|trans,
+         app_linux:   'settings.compose_behavior.mailto_app_linux'|trans,
+         app_other:   'settings.compose_behavior.mailto_app_other'|trans,
      }|json_encode|e('html_attr') }}">
     <span class="min-w-0">
         <span class="block text-xs font-medium text-ink-muted">{{ 'settings.compose_behavior.mailto'|trans }}</span>

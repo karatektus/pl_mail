@@ -133,3 +133,34 @@ test("the first launch, redirected into ?compose=, is not opened twice", async (
 
     await expect(subject).toHaveValue("Typed by hand");
 });
+
+/**
+ * Inside the installed app the button only ever reached the browser, and links
+ * from other programs need the SYSTEM's default mail program (#587). Headless
+ * Chromium runs in a tab, so the app's display mode and the platform are stood
+ * in for.
+ */
+async function asInstalledApp(page: Page, platform: string): Promise<void> {
+    await page.addInitScript((platform) => {
+        const real = window.matchMedia.bind(window);
+        window.matchMedia = (query: string) =>
+            "(display-mode: standalone)" === query
+                ? ({ ...real(query), matches: true, media: query } as MediaQueryList)
+                : real(query);
+        Object.defineProperty(navigator, "userAgentData", { configurable: true, value: { platform } });
+    }, platform);
+}
+
+for (const [platform, says] of [
+    ["macOS", "Default email reader"],
+    ["Windows", "Default apps"],
+    ["Linux", "xdg-settings"],
+] as const) {
+    test(`in the installed app on ${platform}, the system's steps replace the button`, async ({ page }) => {
+        await asInstalledApp(page, platform);
+        await page.goto("/settings/compose");
+
+        await expect(page.getByRole("status").filter({ hasText: says })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Use plMail" })).toBeHidden();
+    });
+}

@@ -4296,6 +4296,10 @@ settings:
         send_hold: Offen lassen
         heading: 'Verfassen'
         mailto: 'E-Mail-Links'
+        mailto_app_linux: 'plMail läuft als installierte App. Links aus anderen Programmen kommen hier an, sobald es das Standard-Mailprogramm deines Desktops ist: Wähle plMail in den Einstellungen deines Desktops unter Standard-Anwendungen, oder führe xdg-settings set default-url-scheme-handler mailto mit der .desktop-Datei von plMail aus ~/.local/share/applications aus.'
+        mailto_app_macos: 'plMail läuft als installierte App. Links aus anderen Programmen kommen hier an, sobald es das Standard-Mailprogramm deines Macs ist: Öffne in Mail Einstellungen → Allgemein → Standard-E-Mail-Programm und wähle plMail. Steht es nicht in der Liste, wähle Auswählen… und such plMail in deinem Benutzerordner unter Programme → Chrome Apps.'
+        mailto_app_other: 'plMail läuft als installierte App. Links aus anderen Programmen kommen hier an, sobald es in den Einstellungen deines Systems das Standard-Mailprogramm ist.'
+        mailto_app_windows: 'plMail läuft als installierte App. Links aus anderen Programmen kommen hier an, sobald es dein Standard-Mailprogramm ist: Öffne Einstellungen → Apps → Standard-Apps, such nach MAILTO und wähle plMail.'
         mailto_asked: 'Dein Browser fragt an der Adresszeile nach — wähle dort Zulassen, dann ist plMail auch gleich der Standard. Keine Nachfrage, und Links kommen trotzdem nicht an? Dann ist plMail eingetragen, aber nicht der Standard: Öffne in Chrome chrome://settings/handlers und wähle im ⋮-Menü von plMail „Als Standard festlegen“.'
         mailto_button: 'plMail verwenden'
         mailto_failed: 'Dieser Browser hat die Anfrage abgelehnt.'
