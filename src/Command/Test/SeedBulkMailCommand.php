@@ -429,7 +429,7 @@ final class SeedBulkMailCommand extends Command
         $account->imapPort       = 993;
         $account->imapEncryption = 'ssl';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
 
         $this->entityManager->persist($account);
         $this->entityManager->flush();

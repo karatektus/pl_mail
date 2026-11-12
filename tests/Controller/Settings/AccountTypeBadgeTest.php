@@ -85,7 +85,7 @@ final class AccountTypeBadgeTest extends WebTestCase
         $account->imapEncryption   = 'ssl';
         $account->authType         = AuthType::Password->value;
         $account->incomingProtocol = $protocol;
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $this->em->flush();
 

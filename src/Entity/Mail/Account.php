@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Mail;
 
+use App\Domain\Enum\Account\AccountService;
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Domain\Enum\Account\IncomingProtocol;
@@ -223,8 +224,72 @@ class Account extends AccountModel
     #[ORM\Column(type: 'text', nullable: true)]
     public ?string $exportRefusedReason = null;
 
-    #[ORM\Column]
-    public ?bool $isActive = null;
+    /**
+     * Whether plMail talks to the mail server for this account: syncs it,
+     * listens for push, sends from it, and carries changes back (#575).
+     *
+     * The column that used to be `is_active`, renamed for what it always did —
+     * the calendars never read it, so "switched off" only ever meant the mail.
+     * Off keeps the mail that is already here: the account stays in the sidebar
+     * while it holds any, and its own pages list it. What it leaves is
+     * everything unified — the shared inboxes, the badge counts, search across
+     * accounts, new-mail notifications — and every path to the server, in both
+     * directions. See AccountService for the rule all three switches share.
+     */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $mailEnabled = true;
+
+    /**
+     * Whether this account's calendars sync. Off holds them still: the events
+     * stay, a local edit waits as pending, and both go out when it is on again.
+     */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $calendarEnabled = true;
+
+    /** The same, for the account's address books. */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $contactsEnabled = true;
+
+    /**
+     * The services that are switched on, in AccountService order.
+     *
+     * Virtual: it is the three columns above read together, for the places
+     * that want them as a set — the OAuth scopes asked for, the health check
+     * that measures a grant against what it should cover.
+     *
+     * @var list<AccountService>
+     */
+    public array $services {
+        get => array_values(array_filter(
+            AccountService::cases(),
+            fn (AccountService $service): bool => $this->isEnabled($service),
+        ));
+    }
+
+    /**
+     * Stays a method: it takes the service and answers for it, which no single
+     * property can.
+     */
+    public function isEnabled(AccountService $service): bool
+    {
+        return match ($service) {
+            AccountService::Mail     => $this->mailEnabled,
+            AccountService::Calendar => $this->calendarEnabled,
+            AccountService::Contacts => $this->contactsEnabled,
+        };
+    }
+
+    /** The one place a switch is written, so a caller cannot name a column that is not one. */
+    public function enable(AccountService $service, bool $enabled): static
+    {
+        match ($service) {
+            AccountService::Mail     => $this->mailEnabled     = $enabled,
+            AccountService::Calendar => $this->calendarEnabled = $enabled,
+            AccountService::Contacts => $this->contactsEnabled = $enabled,
+        };
+
+        return $this;
+    }
 
     /**
      * When this account last synced without error.
@@ -928,7 +993,7 @@ class Account extends AccountModel
      *
      * Both stay methods: there is no boolean column here. They answer a
      * question about $authType and $oauthProvider, which is an interpretation
-     * of two strings rather than the plain read $isActive and $pushEnabled are.
+     * of two strings rather than the plain read $mailEnabled and $pushEnabled are.
      */
     public function isMicrosoft(): bool
     {

@@ -880,7 +880,7 @@ final class NewMailMarkerTest extends WebTestCase
         $strangersAccount->imapPort       = 993;
         $strangersAccount->imapEncryption = 'ssl';
         $strangersAccount->authType       = 'password';
-        $strangersAccount->isActive       = true;
+        $strangersAccount->mailEnabled    = true;
         $this->em->persist($strangersAccount);
 
         $strangersThread                    = new MessageThread();

@@ -39,7 +39,7 @@ class MessageThreadSnoozeRepository extends ServiceEntityRepository
             ->select('COUNT(t.id)')
             ->join('t.account', 'a')
             ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
+            ->andWhere('a.mailEnabled = true')
             ->andWhere('t.snoozedUntil IS NOT NULL')
             ->andWhere('t.snoozedUntil > :now')
             ->setParameter('user', $user)

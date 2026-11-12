@@ -61,7 +61,7 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
 
     public function run(SymfonyStyle $io): int
     {
-        $accounts = $this->accountRepository->findBy(['isActive' => true]);
+        $accounts = $this->accountRepository->findBy(['mailEnabled' => true]);
 
         if (count($accounts) === 0) {
             $io->warning('No active accounts.');

@@ -82,7 +82,7 @@ final class MailSyncCommandTest extends KernelTestCase
     public function testWithNoArgumentItDispatchesForEveryActiveAccount(): void
     {
         $active   = $this->account();
-        $inactive = $this->account(isActive: false);
+        $inactive = $this->account(mailEnabled: false);
 
         $exit = $this->tester()->execute([]);
 
@@ -112,7 +112,7 @@ final class MailSyncCommandTest extends KernelTestCase
             'A duplicated dispatch means the same mailbox is synced twice concurrently.',
         );
         self::assertCount(
-            count($this->repository()->findBy(['isActive' => true])),
+            count($this->repository()->findBy(['mailEnabled' => true])),
             $ids,
         );
     }
@@ -192,9 +192,9 @@ final class MailSyncCommandTest extends KernelTestCase
         );
     }
 
-    private function account(bool $isActive = true): Account
+    private function account(bool $mailEnabled = true): Account
     {
-        return MailFixtures::account($this->em, MailFixtures::user($this->em, 'sync'), isActive: $isActive);
+        return MailFixtures::account($this->em, MailFixtures::user($this->em, 'sync'), mailEnabled: $mailEnabled);
     }
 
     private function repository(): AccountRepository

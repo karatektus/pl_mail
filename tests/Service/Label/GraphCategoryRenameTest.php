@@ -219,7 +219,7 @@ final class GraphCategoryRenameTest extends KernelTestCase
         $account->password         = 'x';
         $account->authType         = AuthType::OAuth2->value;
         $account->oauthProvider    = MailProvider::Microsoft->value;
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new DateTimeImmutable('+1 day');
         $this->em->persist($account);

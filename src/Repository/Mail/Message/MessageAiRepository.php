@@ -252,7 +252,7 @@ class MessageAiRepository extends ServiceEntityRepository
               FROM message m
               JOIN account a ON a.id = m.account_id
              WHERE a.usr_id = :userId
-               AND a.is_active = true
+               AND a.mail_enabled = true
              ORDER BY m.received_at DESC NULLS LAST, m.id DESC
              LIMIT :limit
             SQL,
@@ -340,7 +340,7 @@ class MessageAiRepository extends ServiceEntityRepository
               FROM message m
               JOIN account a ON a.id = m.account_id
              WHERE a.usr_id = :userId
-               AND a.is_active = true
+               AND a.mail_enabled = true
                AND m.ai_categorised_at IS NULL
             SQL;
 

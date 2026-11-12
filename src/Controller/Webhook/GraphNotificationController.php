@@ -205,7 +205,7 @@ final class GraphNotificationController extends AbstractController
             return null;
         }
 
-        if (true !== $account->isActive) {
+        if (true !== $account->mailEnabled) {
             return null;
         }
 

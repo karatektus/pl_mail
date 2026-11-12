@@ -384,7 +384,7 @@ final class MailRuleControllerTest extends WebTestCase
         $account->imapPort       = 993;
         $account->imapEncryption = 'ssl';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $thread                    = new MessageThread();

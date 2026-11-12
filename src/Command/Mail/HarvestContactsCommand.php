@@ -43,7 +43,7 @@ final class HarvestContactsCommand extends Command
         if (null !== $accountId) {
             $accounts = [$this->accountRepository->find((int) $accountId)];
         } else {
-            $accounts = $this->accountRepository->findBy(['isActive' => true]);
+            $accounts = $this->accountRepository->findBy(['mailEnabled' => true]);
         }
 
         foreach ($accounts as $account) {

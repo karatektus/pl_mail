@@ -71,7 +71,7 @@ final class MailSyncCommand extends Command
 
             $accounts = [$account];
         } else {
-            $accounts = $this->accountRepository->findBy(['isActive' => true]);
+            $accounts = $this->accountRepository->findBy(['mailEnabled' => true]);
         }
 
         // Each account has its own interval (#202), so the scheduler asks every

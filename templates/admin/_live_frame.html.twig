@@ -547,7 +547,7 @@
                     </thead>
                     <tbody>
                         {% for row in accountOverview %}
-                            <tr class="border-t border-line text-ink-soft {{ row.is_active ? '' : 'opacity-50' }}">
+                            <tr class="border-t border-line text-ink-soft {{ row.mail_enabled ? '' : 'opacity-50' }}">
                                 <td class="px-4 py-2 text-xs truncate max-w-40">{{ row.email }}</td>
                                 <td class="px-2 py-2 text-xs">{{ row.threads }}</td>
                                 <td class="px-2 py-2 text-xs">{{ row.messages }}</td>

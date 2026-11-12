@@ -315,7 +315,7 @@ final class SmimeEndpointsTest extends WebTestCase
         $account->email    = $address;
         $account->username = $address;
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $account->imapHost = 'imap.example.test';
         $this->em->persist($account);
 

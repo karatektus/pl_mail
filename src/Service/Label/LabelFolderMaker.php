@@ -34,8 +34,11 @@ final readonly class LabelFolderMaker
 
     public function canMake(Label $label, Account $account): bool
     {
+        // Mail switched off (#575) makes no folders: the folder is made on the
+        // server, and nothing goes there while the switch is off.
         return null === $label->role
             && false === $label->isSystem
+            && true === $account->mailEnabled
             && (true === $account->isPlainImap() || true === $account->isMicrosoft())
             && false === $this->isFolder($label, $account);
     }

@@ -193,6 +193,13 @@ final class ApplyImapFlagsHandler
             $firstMailboxId = array_key_first($byMailbox);
             $account        = $this->mailboxRepository->find($firstMailboxId)->account;
 
+            // Mail switched off (#575): the change stays here and nothing goes
+            // to the server. Per account, because one envelope can address
+            // folders of several — see AccountService for why that is final.
+            if (false === $account->mailEnabled) {
+                continue;
+            }
+
             try {
                 $session = $this->connector->session($account);
 

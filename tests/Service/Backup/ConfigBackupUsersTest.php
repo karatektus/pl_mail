@@ -762,7 +762,7 @@ final class ConfigBackupUsersTest extends KernelTestCase
         $account->smtpHost       = 'smtp.example.test';
         $account->smtpPort       = 587;
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $account->isPrimary      = true;
         // The retired sync cap, written as a raw key: an install upgraded from
         // a version that still had the setting carries it, and neither export

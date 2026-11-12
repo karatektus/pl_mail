@@ -53,7 +53,7 @@ final class ComposeWithoutAccountTest extends WebTestCase
         // Switched off counts as none: ComposeWindow::defaultAccountFor()
         // offers only active accounts.
         $container->get('doctrine.orm.entity_manager')
-            ->createQuery('UPDATE ' . Account::class . ' a SET a.isActive = false WHERE a.usr = :usr')
+            ->createQuery('UPDATE ' . Account::class . ' a SET a.mailEnabled = false WHERE a.usr = :usr')
             ->setParameter('usr', $user)
             ->execute();
 

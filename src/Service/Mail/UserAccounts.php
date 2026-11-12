@@ -15,7 +15,7 @@ use Symfony\Contracts\Service\ResetInterface;
  *
  * ── The duplication this removes ────────────────────────────────────────────
  * Every mail list page read the account table twice: the sidebar's account
- * section through AccountsGlobal, which wants the switched-on ones, and the
+ * section through AccountsGlobal, which wants the ones it shows, and the
  * topbar's health dot through AccountHealthInspector, which wants all of them
  * because a switched-off account with a dead grant is still a dead grant. Two
  * services, two correct questions, one table, and the narrower answer sitting
@@ -24,13 +24,13 @@ use Symfony\Contracts\Service\ResetInterface;
  * ── Why the superset is the one that gets read ──────────────────────────────
  * active() is all() filtered on isActive rather than a query of its own.
  * AccountRepository::findActiveForUserOrdered() is findForUserOrdered() plus
- * `account.isActive = true`, with the same `sortOrder, LOWER(COALESCE(email,
+ * `account.mailEnabled = true`, with the same `sortOrder, LOWER(COALESCE(email,
  * username))` ordering in both — so the filtered superset is the subset, row
  * for row and in the same order. That ordering is load-bearing: see the
  * docblock on findActiveForUserOrdered(), where an ordering of the sidebar's
  * own made the settings page's drag handles a control over nothing.
  *
- * `true === $account->isActive` and not a truthiness test, because the column
+ * `true === $account->mailEnabled` and not a truthiness test, because the column
  * is NULLABLE. A null isActive fails `= true` in SQL — NULL = true is NULL, not
  * false — so a strict comparison is what reproduces the query, and `false ===`
  * or `!` would not: both would let a null through.
@@ -58,6 +58,14 @@ final class UserAccounts implements ResetInterface
      */
     private array $byUser = [];
 
+    /**
+     * user identifier => the ids of that user's mail-off accounts that still
+     * hold mail, memoised beside the accounts for the same reason.
+     *
+     * @var array<string, list<int>>
+     */
+    private array $holdingMail = [];
+
     public function __construct(
         private readonly AccountRepository $accounts,
     ) {
@@ -65,7 +73,8 @@ final class UserAccounts implements ResetInterface
 
     public function reset(): void
     {
-        $this->byUser = [];
+        $this->byUser      = [];
+        $this->holdingMail = [];
     }
 
     /**
@@ -81,8 +90,8 @@ final class UserAccounts implements ResetInterface
     }
 
     /**
-     * The ones that are switched on — the same set, same order, minus the
-     * accounts the user has paused.
+     * The ones whose mail is switched on — the same set, same order, minus the
+     * accounts the user has paused or keeps for calendar and contacts alone.
      *
      * @return list<Account>
      */
@@ -90,7 +99,38 @@ final class UserAccounts implements ResetInterface
     {
         return array_values(array_filter(
             $this->all($user),
-            static fn (Account $account): bool => true === $account->isActive,
+            static fn (Account $account): bool => true === $account->mailEnabled,
+        ));
+    }
+
+    /**
+     * The accounts the mail sidebar lists: mail on, or mail off with mail still
+     * here to read.
+     *
+     * The second half is what keeps "mail off" from meaning "mail gone". An
+     * account switched off keeps its folders and its threads, and they are
+     * reached through its row here — dimmed, and named as switched off. An
+     * account that has never held mail is left out, because a row that opens
+     * onto nothing is not somewhere anybody would want to go.
+     *
+     * @return list<Account>
+     */
+    public function inMail(UserInterface $user): array
+    {
+        $all = $this->all($user);
+
+        $mailOff = array_filter($all, static fn (Account $account): bool => false === $account->mailEnabled);
+
+        if ([] === $mailOff) {
+            return $all;
+        }
+
+        $holding = $this->holdingMail[$user->getUserIdentifier()] ??= $this->accounts->findMailOffIdsHoldingMail($user);
+
+        return array_values(array_filter(
+            $all,
+            static fn (Account $account): bool => true === $account->mailEnabled
+                || true === in_array((int) $account->id, $holding, true),
         ));
     }
 }

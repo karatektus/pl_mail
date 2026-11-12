@@ -2,8 +2,6 @@ account:
     add_title: Add account
     added: Account added successfully
     colour_set: Account colour changed
-    disabled: Account disabled
-    enabled: Account enabled
     form:
         email: Email address
         encryption: Encryption
@@ -49,13 +47,27 @@ account:
             same: Use the same password for sending
             separate: Use a different password for sending
         username: Username
+    mail_purge_queued: 'Removing this account’s mail from plMail. The server keeps its copy.'
     oauth:
         calendar_declined: The account is connected, but calendar access was not granted — so its calendars will not sync. Reconnect it and tick calendar access on Google's consent screen.
         google: Continue with Google
         info: Sign in with your provider — no password stored.
         microsoft: Continue with Microsoft
+        services:
+            help: 'The next screen only asks for what you tick. You can change it later in Settings → Accounts.'
+            legend: 'Use this account for'
     primary_set: Primary account changed
     removed: Account removed
+    service:
+        calendar:
+            off: 'Calendar switched off'
+            on: 'Calendar switched on'
+        contacts:
+            off: 'Contacts switched off'
+            on: 'Contacts switched on'
+        mail:
+            off: 'Mail switched off. What is already here stays.'
+            on: 'Mail switched on'
     sync_interval_set: Sync interval changed
     tabs:
         imap: IMAP / SMTP
@@ -3419,10 +3431,8 @@ settings:
                 '7': Olive
         delete: Remove account
         delete_confirm: 'Remove %account%? This permanently deletes all synced messages for this account and cannot be undone.'
-        disable: Disable account
         edit: Edit account
         empty: No accounts yet. Add one to start syncing mail.
-        enable: Enable account
         folders:
             always_synced: The inbox is always synced
             button: Folders
@@ -3464,6 +3474,7 @@ settings:
             placeholder: 'A placeholder that only groups other folders — there is nothing in it to sync'
             refused:
                 has_children: 'This folder has folders inside it. Delete or move those first.'
+                mail_off: 'Mail is switched off for this account, so its folders cannot be changed on the server. Switch mail on first.'
                 not_empty: 'This folder still holds mail (%count%). Move it elsewhere first; deleting a folder would delete its mail.'
                 server: 'The mail server refused: %reason%'
                 special_use: 'The inbox, Sent, Drafts, Trash, Junk and Archive are never renamed or deleted from plMail: other mail apps and plMail itself rely on them.'
@@ -3540,6 +3551,25 @@ settings:
                 microsoft: New mail arrives immediately via Microsoft push notifications.
             title: Instant delivery
         reorder: Drag to reorder
+        services:
+            allow: 'Allow…'
+            allow_explained: 'Switching on %service% needs a permission %provider% has not given plMail yet. Opens %provider% to ask for it.'
+            calendar: 'Calendar'
+            calendar_help: 'Its calendars, kept in step both ways'
+            change: 'Mail, calendar and contacts for %account%'
+            close: 'Done'
+            contacts: 'Contacts'
+            contacts_help: 'Its address books, kept in step both ways'
+            intro: 'Switch off what you do not use this account for. plMail then stops talking to the server about it and keeps what is already here.'
+            mail: 'Mail'
+            mail_help: 'Syncing, sending and every change you make to its mail'
+            none: 'Everything switched off'
+            purge: 'Remove synced mail from plMail'
+            purge_confirm: 'Remove all mail plMail has synced for %account%? It stays on the server. If you switch mail back on, plMail downloads it again.'
+            purge_help: 'Only plMail’s copy is removed. Nothing is deleted on the server.'
+            turn_off: 'Switch off %service% for %account%'
+            turn_on: 'Switch on %service% for %account%'
+            used_for: 'Used for %services%'
         status:
             active: Active
             disabled: Disabled
@@ -4604,7 +4634,7 @@ settings:
         subheading: What a swipe across a row does on a phone.
     unified_inboxes:
         account_label: 'Unified inbox for %account%'
-        account_off: 'Switched off — none of its mail is listed until you switch it back on.'
+        account_off: 'Mail switched off — none of its mail is listed here until you switch it back on.'
         accounts_heading: 'Accounts'
         accounts_subheading: 'Which inbox each account''s mail is listed in. A new account goes into your first inbox.'
         add: 'Add'
@@ -5115,7 +5145,7 @@ sidebar:
     accounts:
         add: Add account
         colour: 'Colour marking %account%'
-        colour_disabled: 'Colour marking %account%, which is switched off'
+        colour_disabled: 'Colour marking %account%, whose mail is switched off'
         folders: 'Folders…'
         heading: Accounts
         menu: 'Folders of %account%'
@@ -5230,6 +5260,7 @@ thread_row:
     no_subject: (no subject)
     send_failed:
         failed: Not sent
+        mail_off: 'Not sent: mail is switched off for this account'
         may_have_sent: 'May have been sent: check Sent before sending it again'
         rate_limited: 'Not sent: your mail provider was limiting sends'
         refused: 'Not sent: the mail server refused it'
@@ -5271,6 +5302,7 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Too late — that message had already been sent.
     send_failed: 'That message could not be sent: %subject%'
+    send_failed_mail_off: 'That message could not be sent: %subject%. Mail is switched off for its account.'
     send_failed_may_have_sent: '%subject% may have been sent, but the answer was lost. Check Sent before sending it again.'
     send_failed_rate_limited: 'That message could not be sent: %subject%. Your mail provider is limiting sends right now; try again in a few minutes.'
     send_failed_refused: 'That message could not be sent: %subject%. The mail server refused it.'

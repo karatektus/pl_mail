@@ -102,7 +102,7 @@ final class ComposeBehaviorTest extends WebTestCase
         $this->account->imapPort       = 993;
         $this->account->imapEncryption = 'ssl';
         $this->account->authType       = 'password';
-        $this->account->isActive       = true;
+        $this->account->mailEnabled    = true;
         $em->persist($this->account);
         $em->flush();
 

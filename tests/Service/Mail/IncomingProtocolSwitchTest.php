@@ -64,7 +64,7 @@ final class IncomingProtocolSwitchTest extends KernelTestCase
         $account->imapHost = 'mail.example.test';
         $account->imapPort = 993;
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
         $user->addAccount($account);
 

@@ -147,7 +147,7 @@ final class GraphDeltaLinksResetMigrationTest extends KernelTestCase
         $account->oauthProvider    = $provider;
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new \DateTimeImmutable('+1 day');
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $account->graphDeltaLinks  = $links;
 
         $this->em->persist($account);

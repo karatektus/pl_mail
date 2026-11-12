@@ -48,7 +48,7 @@ final class DecryptedMailExtension extends AbstractExtension
             'model'    => $this->policy->modelHost(),
             'accounts' => $user instanceof User ? array_values(array_filter(
                 $this->accounts->findForUserOrdered($user),
-                static fn (Account $account): bool => true === $account->isActive,
+                static fn (Account $account): bool => true === $account->mailEnabled,
             )) : [],
         ];
     }

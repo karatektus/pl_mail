@@ -55,7 +55,7 @@ trait SeedsFolderLabels
         $account->imapEncryption = 'ssl';
         $account->authType       = 'password';
         $account->password       = 'x';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $this->em->flush();

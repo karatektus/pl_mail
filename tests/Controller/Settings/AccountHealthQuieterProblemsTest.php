@@ -820,7 +820,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthProvider     = MailProvider::Google->value;
         $account->oauthAccessToken  = 'access-token';
         $account->oauthRefreshToken = 'refresh-token';
-        $account->isActive          = true;
+        $account->mailEnabled       = true;
 
         $this->em->persist($account);
         $this->em->flush();

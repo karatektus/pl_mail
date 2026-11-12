@@ -245,7 +245,7 @@ final class SyncGraphAttachmentListingTest extends KernelTestCase
         $this->account->password         = 'x';
         $this->account->authType         = AuthType::OAuth2->value;
         $this->account->oauthProvider    = MailProvider::Microsoft->value;
-        $this->account->isActive         = true;
+        $this->account->mailEnabled      = true;
         $this->account->oauthAccessToken = 'test-access-token';
         $this->account->oauthTokenExpiry = new DateTimeImmutable('+1 day');
         $this->em->persist($this->account);

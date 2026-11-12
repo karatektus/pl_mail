@@ -431,7 +431,7 @@ final class MessageRepositoryTest extends KernelTestCase
         $account->imapPort       = 993;
         $account->imapEncryption = 'ssl';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
 
         $this->em->persist($account);
         $this->em->flush();

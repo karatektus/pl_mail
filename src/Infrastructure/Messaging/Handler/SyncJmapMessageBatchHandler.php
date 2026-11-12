@@ -37,7 +37,7 @@ final readonly class SyncJmapMessageBatchHandler
         $this->origin->during($message->trigger ?? null, function () use ($message): void {
             $account = $this->accounts->find($message->accountId);
 
-            if (null === $account || true !== $account->isActive || false === $account->isJmap()) {
+            if (null === $account || true !== $account->mailEnabled || false === $account->isJmap()) {
                 $this->logger->info('SyncJmapMessageBatch: account gone, inactive or no longer JMAP', [
                     'accountId' => $message->accountId,
                 ]);

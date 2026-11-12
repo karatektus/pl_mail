@@ -107,7 +107,7 @@ final readonly class AllMailView
             return false;
         }
 
-        if (null === $narrowedTo && true !== $account->isActive) {
+        if (null === $narrowedTo && true !== $account->mailEnabled) {
             return false;
         }
 

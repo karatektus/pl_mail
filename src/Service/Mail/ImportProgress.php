@@ -56,7 +56,7 @@ final readonly class ImportProgress
     public function forUser(User $user): array
     {
         /** @var list<Account> $accounts */
-        $accounts = $this->accounts->findBy(['usr' => $user, 'isActive' => true], ['sortOrder' => 'ASC', 'id' => 'ASC']);
+        $accounts = $this->accounts->findBy(['usr' => $user, 'mailEnabled' => true], ['sortOrder' => 'ASC', 'id' => 'ASC']);
 
         if ([] === $accounts) {
             return [];

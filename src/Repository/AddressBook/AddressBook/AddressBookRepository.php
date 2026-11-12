@@ -112,9 +112,9 @@ class AddressBookRepository extends ServiceEntityRepository
      *
      * QueryBuilder for the `IS NULL OR <` that findBy() cannot say. A paused
      * connection is skipped: pausing it in Settings → Integrations is how a
-     * person says "stop talking to that server". So is a disabled mail
-     * account, for the books of a Google or Microsoft one — left joins, as a
-     * book has one holder or the other.
+     * person says "stop talking to that server". So is an account with its
+     * contacts switched off, for the books of a Google or Microsoft one — left
+     * joins, as a book has one holder or the other.
      *
      * @return list<AddressBook>
      */
@@ -127,7 +127,7 @@ class AddressBookRepository extends ServiceEntityRepository
             ->addSelect('COALESCE(book.lastSyncedAt, :epoch) AS HIDDEN dueSince')
             ->leftJoin('book.integration', 'integration')
             ->leftJoin('book.account', 'account')
-            ->where('integration.isActive = true OR (book.account IS NOT NULL AND (account.isActive IS NULL OR account.isActive = true))')
+            ->where('integration.isActive = true OR (book.account IS NOT NULL AND account.contactsEnabled = true)')
             ->andWhere('book.lastSyncedAt IS NULL OR book.lastSyncedAt < :before')
             ->setParameter('before', $before)
             ->setParameter('epoch', new DateTimeImmutable('@0'))

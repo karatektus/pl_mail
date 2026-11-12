@@ -270,7 +270,7 @@ final class StateChangingPostsNeedCsrfTest extends WebTestCase
             $account->email    = 'csrf-fixture@joder.dev';
             $account->username = 'csrf-fixture@joder.dev';
             $account->authType = 'password';
-            $account->isActive = true;
+            $account->mailEnabled = true;
             $account->imapHost = 'imap.example.test';
             $em->persist($account);
 

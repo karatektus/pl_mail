@@ -74,7 +74,7 @@ final class GmailPushController extends AbstractController
 
         $accounts = $this->accountRepository->findBy([
             'email'    => $emailAddress,
-            'isActive' => true,
+            'mailEnabled' => true,
         ]);
 
         $dispatched = 0;

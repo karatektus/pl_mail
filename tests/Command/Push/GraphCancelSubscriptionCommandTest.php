@@ -117,7 +117,7 @@ final class GraphCancelSubscriptionCommandTest extends KernelTestCase
         $account->email           = $user->email;
         $account->name            = 'Fixture';
         $account->username        = $user->email;
-        $account->isActive        = true;
+        $account->mailEnabled     = true;
         $account->imapHost        = 'imap.example.test';
         $account->imapPort        = 993;
         $account->imapEncryption  = 'ssl';

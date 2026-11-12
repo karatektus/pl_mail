@@ -2,8 +2,6 @@ account:
     add_title: Konto hinzufügen
     added: Konto wurde hinzugefügt
     colour_set: Kontofarbe geändert
-    disabled: Konto deaktiviert
-    enabled: Konto aktiviert
     form:
         email: E-Mail-Adresse
         encryption: Verschlüsselung
@@ -49,13 +47,27 @@ account:
             same: Zum Senden dasselbe Passwort verwenden
             separate: Zum Senden ein anderes Passwort verwenden
         username: Benutzername
+    mail_purge_queued: 'Die E-Mails dieses Kontos werden aus plMail entfernt. Auf dem Server bleiben sie.'
     oauth:
         calendar_declined: Das Konto ist verbunden, aber der Kalenderzugriff wurde nicht erteilt — seine Kalender werden also nicht synchronisiert. Verbinde es neu und hak auf Googles Zustimmungsseite den Kalenderzugriff an.
         google: Weiter mit Google
         info: Melde dich bei deinem Anbieter an — es wird kein Passwort gespeichert.
         microsoft: Weiter mit Microsoft
+        services:
+            help: 'Auf der nächsten Seite wird nur das angefragt, was du ankreuzt. Ändern kannst du es später unter Einstellungen → Konten.'
+            legend: 'Konto verwenden für'
     primary_set: Primäres Konto geändert
     removed: Konto entfernt
+    service:
+        calendar:
+            off: 'Kalender ausgeschaltet'
+            on: 'Kalender eingeschaltet'
+        contacts:
+            off: 'Kontakte ausgeschaltet'
+            on: 'Kontakte eingeschaltet'
+        mail:
+            off: 'E-Mail ausgeschaltet. Was schon da ist, bleibt.'
+            on: 'E-Mail eingeschaltet'
     sync_interval_set: Abrufintervall geändert
     tabs:
         imap: IMAP / SMTP
@@ -3404,10 +3416,8 @@ settings:
                 '7': Oliv
         delete: Konto entfernen
         delete_confirm: '%account% entfernen? Dadurch werden alle synchronisierten Nachrichten dieses Kontos endgültig gelöscht. Das lässt sich nicht rückgängig machen.'
-        disable: Konto deaktivieren
         edit: Konto bearbeiten
         empty: Noch keine Konten. Füge eines hinzu, um E-Mails zu synchronisieren.
-        enable: Konto aktivieren
         folders:
             always_synced: Der Posteingang wird immer synchronisiert
             button: Ordner
@@ -3450,6 +3460,7 @@ settings:
             placeholder: 'Ein Platzhalter, der nur andere Ordner zusammenfasst — darin gibt es nichts zu synchronisieren'
             refused:
                 has_children: 'In diesem Ordner liegen weitere Ordner. Lösche oder verschiebe sie zuerst.'
+                mail_off: 'Für dieses Konto ist E-Mail ausgeschaltet, deshalb lassen sich seine Ordner auf dem Server nicht ändern. Schalte E-Mail zuerst ein.'
                 not_empty: 'In diesem Ordner liegen noch Nachrichten (%count%). Verschiebe sie zuerst; einen Ordner zu löschen löscht seine Nachrichten.'
                 server: 'Der Mailserver hat abgelehnt: %reason%'
                 special_use: 'Posteingang, Gesendet, Entwürfe, Papierkorb, Spam und Archiv werden in plMail nie umbenannt oder gelöscht: Andere Mailprogramme und plMail selbst verlassen sich auf sie.'
@@ -3532,6 +3543,25 @@ settings:
                 microsoft: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
             title: Sofortige Zustellung
         reorder: Zum Umsortieren ziehen
+        services:
+            allow: 'Erlauben…'
+            allow_explained: 'Für %service% braucht plMail eine Berechtigung, die %provider% noch nicht erteilt hat. Öffnet %provider%, um sie anzufragen.'
+            calendar: 'Kalender'
+            calendar_help: 'Seine Kalender, in beide Richtungen abgeglichen'
+            change: 'E-Mail, Kalender und Kontakte für %account%'
+            close: 'Fertig'
+            contacts: 'Kontakte'
+            contacts_help: 'Seine Adressbücher, in beide Richtungen abgeglichen'
+            intro: 'Schalte aus, wofür du dieses Konto nicht verwendest. plMail spricht dann mit dem Server nicht mehr darüber und behält, was schon da ist.'
+            mail: 'E-Mail'
+            mail_help: 'Synchronisieren, Senden und jede Änderung an seinen E-Mails'
+            none: 'Alles ausgeschaltet'
+            purge: 'Synchronisierte E-Mails aus plMail entfernen'
+            purge_confirm: 'Alle E-Mails, die plMail für %account% synchronisiert hat, entfernen? Auf dem Server bleiben sie. Schaltest du E-Mail wieder ein, lädt plMail sie neu herunter.'
+            purge_help: 'Nur die Kopie in plMail wird entfernt. Auf dem Server wird nichts gelöscht.'
+            turn_off: '%service% für %account% ausschalten'
+            turn_on: '%service% für %account% einschalten'
+            used_for: 'Verwendet für %services%'
         status:
             active: Aktiv
             disabled: Deaktiviert
@@ -4629,7 +4659,7 @@ settings:
         subheading: Was eine Wischbewegung über eine Zeile auf dem Telefon bewirkt.
     unified_inboxes:
         account_label: 'Sammel-Posteingang für %account%'
-        account_off: 'Ausgeschaltet — nichts davon wird angezeigt, bis du es wieder einschaltest.'
+        account_off: 'E-Mail ausgeschaltet — nichts davon wird hier angezeigt, bis du sie wieder einschaltest.'
         accounts_heading: 'Konten'
         accounts_subheading: 'In welchem Posteingang die Mail jedes Kontos erscheint. Ein neues Konto landet in deinem ersten Posteingang.'
         add: 'Hinzufügen'
@@ -5146,7 +5176,7 @@ sidebar:
     accounts:
         add: Konto hinzufügen
         colour: 'Farbmarkierung für %account%'
-        colour_disabled: 'Farbmarkierung für %account%, das deaktiviert ist'
+        colour_disabled: 'Farbmarkierung für %account%, bei dem E-Mail ausgeschaltet ist'
         folders: 'Ordner …'
         heading: Konten
         menu: 'Ordner von %account%'
@@ -5258,6 +5288,7 @@ thread_row:
     no_subject: (kein Betreff)
     send_failed:
         failed: Nicht gesendet
+        mail_off: 'Nicht gesendet: Für dieses Konto ist E-Mail ausgeschaltet'
         may_have_sent: 'Vielleicht gesendet: schau unter Gesendet nach, bevor du sie noch einmal sendest'
         rate_limited: 'Nicht gesendet: dein Mailanbieter hat das Senden begrenzt'
         refused: 'Nicht gesendet: der Mailserver hat sie abgelehnt'
@@ -5282,6 +5313,7 @@ toast:
     schedule_cancelled: Geplanter Versand abgebrochen.
     send_too_late: Zu spät — diese Nachricht wurde bereits gesendet.
     send_failed: 'Diese Nachricht konnte nicht gesendet werden: %subject%'
+    send_failed_mail_off: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Für ihr Konto ist E-Mail ausgeschaltet.'
     send_failed_may_have_sent: '%subject% wurde vielleicht gesendet, aber die Antwort ging verloren. Schau unter Gesendet nach, bevor du sie noch einmal sendest.'
     send_failed_rate_limited: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Dein Mailanbieter begrenzt gerade das Senden; versuch es in ein paar Minuten noch einmal.'
     send_failed_refused: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Der Mailserver hat sie abgelehnt.'

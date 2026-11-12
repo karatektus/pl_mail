@@ -650,7 +650,7 @@ class MessageRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('m')
             ->join('m.account', 'a')
             ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
+            ->andWhere('a.mailEnabled = true')
             ->andWhere('m.seenAt IS NULL')
             ->andWhere('m.receivedAt >= :dated')
             ->andWhere('m.createdAt >= :since')

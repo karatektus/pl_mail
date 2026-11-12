@@ -68,7 +68,7 @@ final readonly class ResortMailboxHandler
         $correspondents = $this->contacts->findCorrespondentEmails($user);
         $filed          = 0;
 
-        foreach ($this->accounts->findBy(['usr' => $user, 'isActive' => true]) as $account) {
+        foreach ($this->accounts->findBy(['usr' => $user, 'mailEnabled' => true]) as $account) {
             $accountId = (int) $account->id;
             $lastId    = 0;
 

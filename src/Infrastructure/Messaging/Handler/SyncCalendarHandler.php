@@ -54,6 +54,15 @@ final readonly class SyncCalendarHandler
             return;
         }
 
+        if (null !== $calendar->account && false === $calendar->account->calendarEnabled) {
+            // The account's calendars are switched off (#575). Here rather than
+            // only in the sweep, because webhooks, a save, the subscribe screen
+            // and a JMAP push all queue this too. Nothing is lost by stopping:
+            // a local edit stays pending, and the push that opens the next
+            // sync after switching back on sends it.
+            return;
+        }
+
         try {
             $touched = $this->sync->sync($calendar);
         } catch (CalendarSyncPermanentException $e) {

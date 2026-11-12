@@ -67,7 +67,7 @@ final class DemoTemplatesTest extends KernelTestCase
         $this->account->username  = 'demo@plmail.test';
         $this->account->email     = 'you@example.com';
         $this->account->authType  = 'password';
-        $this->account->isActive  = true;
+        $this->account->mailEnabled = true;
         $this->account->isPrimary = true;
         $this->account->imapHost  = 'imap.example.com';
         $this->em->persist($this->account);

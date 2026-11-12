@@ -2,8 +2,6 @@ account:
     add_title: 添加账户
     added: 账户添加成功
     colour_set: 账户颜色已更改
-    disabled: 账户已停用
-    enabled: 账户已启用
     form:
         email: 电子邮件地址
         encryption: 加密方式
@@ -49,13 +47,27 @@ account:
             same: 发件使用相同密码
             separate: 发件使用不同密码
         username: 用户名
+    mail_purge_queued: '正在从 plMail 中移除此账户的邮件。服务器上的副本会保留。'
     oauth:
         calendar_declined: '账户已连接，但未获授日历访问权限，因此不会同步该账户的日历。请重新连接，并在 Google 授权页面勾选日历访问权限。'
         google: '使用 Google 继续'
         info: 通过服务商登录，无需保存密码。
         microsoft: '使用 Microsoft 继续'
+        services:
+            help: '下一页只会请求你勾选的权限。之后可在“设置 → 账户”中更改。'
+            legend: '此账户用于'
     primary_set: 主账户已更改
     removed: 账户已移除
+    service:
+        calendar:
+            off: '日历已关闭'
+            on: '日历已开启'
+        contacts:
+            off: '联系人已关闭'
+            on: '联系人已开启'
+        mail:
+            off: '邮件已关闭。已有的邮件会保留。'
+            on: '邮件已开启'
     sync_interval_set: 同步间隔已更改
     tabs:
         imap: 'IMAP / SMTP'
@@ -3025,10 +3037,8 @@ settings:
                 '7': '橄榄绿'
         delete: '移除账户'
         delete_confirm: '要移除 %account% 吗？这将永久删除此账户已同步的所有邮件，且无法撤销。'
-        disable: '停用账户'
         edit: '编辑账户'
         empty: '尚无账户。添加账户以开始同步邮件。'
-        enable: '启用账户'
         folders:
             always_synced: '收件箱始终保持同步'
             button: '文件夹'
@@ -3065,6 +3075,7 @@ settings:
             placeholder: '此文件夹仅用于归组其他文件夹，本身没有可同步的内容'
             refused:
                 has_children: '此文件夹内还有文件夹。请先删除或移走它们。'
+                mail_off: '此账户的邮件已关闭，无法在服务器上更改其文件夹。请先开启邮件。'
                 not_empty: '此文件夹中仍有邮件（%count%）。请先移走；删除文件夹会删除其中的邮件。'
                 server: '邮件服务器拒绝了：%reason%'
                 special_use: '收件箱、已发送、草稿、废纸篓、垃圾邮件和归档永远不会在 plMail 中被重命名或删除：其他邮件应用和 plMail 本身都依赖它们。'
@@ -3118,6 +3129,25 @@ settings:
                 microsoft: '通过 Microsoft 推送通知即时收取新邮件。'
             title: '即时收取'
         reorder: '拖动以排序'
+        services:
+            allow: '授权…'
+            allow_explained: '开启%service%需要 %provider% 尚未授予 plMail 的权限。将打开 %provider% 请求授权。'
+            calendar: '日历'
+            calendar_help: '其日历，双向同步'
+            change: '%account% 的邮件、日历和联系人'
+            close: '完成'
+            contacts: '联系人'
+            contacts_help: '其通讯录，双向同步'
+            intro: '关闭此账户不需要的功能。plMail 将不再就此与服务器通信，已有的内容会保留。'
+            mail: '邮件'
+            mail_help: '同步、发送以及对其邮件的每一项更改'
+            none: '全部已关闭'
+            purge: '从 plMail 移除已同步的邮件'
+            purge_confirm: '移除 plMail 为 %account% 同步的所有邮件？服务器上的邮件会保留。重新开启邮件后，plMail 会重新下载。'
+            purge_help: '只移除 plMail 中的副本，服务器上不会删除任何内容。'
+            turn_off: '关闭 %account% 的%service%'
+            turn_on: '开启 %account% 的%service%'
+            used_for: '用于：%services%'
         status:
             active: '已启用'
             disabled: '已停用'
@@ -3941,7 +3971,7 @@ settings:
         subheading: "在手机上滑动邮件行时执行的操作。"
     unified_inboxes:
         account_label: '%account% 的统一收件箱'
-        account_off: '已停用——重新启用前，其邮件不会显示。'
+        account_off: '邮件已关闭——重新开启前，其邮件不会在此显示。'
         accounts_heading: '账户'
         accounts_subheading: '每个账户的邮件显示在哪个收件箱。新账户会进入你的第一个收件箱。'
         add: '添加'
@@ -4407,7 +4437,7 @@ sidebar:
     accounts:
         add: '添加账户'
         colour: '%account% 的颜色标记'
-        colour_disabled: '%account% 的颜色标记，该账户已停用'
+        colour_disabled: '%account% 的颜色标记，该账户的邮件已关闭'
         folders: '文件夹…'
         heading: '账户'
         menu: '%account% 的文件夹'
@@ -4514,6 +4544,7 @@ thread_row:
     no_subject: '（无主题）'
     send_failed:
         failed: '未发送'
+        mail_off: '未发送：此账户的邮件已关闭'
         may_have_sent: '可能已发送：再次发送前请检查已发送文件夹'
         rate_limited: '未发送：邮件服务商限制了发送频率'
         refused: '未发送：邮件服务器拒绝接收'
@@ -4537,6 +4568,7 @@ toast:
     schedule_cancelled: '已取消定时发送。'
     send_too_late: '来不及了——此邮件已经发出。'
     send_failed: '此邮件未能发送：%subject%'
+    send_failed_mail_off: '无法发送此邮件：%subject%。其账户的邮件已关闭。'
     send_failed_may_have_sent: '%subject% 可能已经发送，但响应丢失。再次发送前请检查已发送文件夹。'
     send_failed_rate_limited: '此邮件未能发送：%subject%。邮件服务商目前限制了发送频率，请几分钟后重试。'
     send_failed_refused: '此邮件未能发送：%subject%。邮件服务器拒绝接收。'

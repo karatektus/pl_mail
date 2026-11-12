@@ -216,7 +216,7 @@ final class ThreadUserCategoryResolutionTest extends KernelTestCase
         $other->username = uniqid('other-', true);
         $other->authType = \App\Domain\Enum\Account\AuthType::Password->value;
         $other->imapHost = 'imap.example.test';
-        $other->isActive = true;
+        $other->mailEnabled = true;
         $this->em->persist($other);
 
         $mine = $this->thread('mine');
@@ -336,7 +336,7 @@ final class ThreadUserCategoryResolutionTest extends KernelTestCase
         $account->imapPort       = 993;
         $account->imapEncryption = 'ssl';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
         $this->em->flush();
 

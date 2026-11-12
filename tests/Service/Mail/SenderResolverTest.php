@@ -83,7 +83,7 @@ final class SenderResolverTest extends TestCase
     public function testADeactivatedAccountIsRefused(): void
     {
         $account           = $this->account();
-        $account->isActive = false;
+        $account->mailEnabled = false;
 
         self::assertNull($this->resolver->accountFor('7|alias@example.test', $this->user));
     }
@@ -188,7 +188,7 @@ final class SenderResolverTest extends TestCase
         $account           = new Account();
         $account->usr      = $this->user;
         $account->email    = 'me@example.test';
-        $account->isActive = true;
+        $account->mailEnabled = true;
 
         $this->stored = $account;
 

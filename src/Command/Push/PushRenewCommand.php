@@ -71,7 +71,7 @@ final class PushRenewCommand extends Command
         $repair = true === $input->getOption('repair');
 
         $accounts = $this->accountRepository->findBy([
-            'isActive'    => true,
+            'mailEnabled'    => true,
             'pushEnabled' => true,
         ]);
 

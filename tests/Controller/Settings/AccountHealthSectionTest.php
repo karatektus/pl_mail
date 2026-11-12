@@ -629,7 +629,7 @@ final class AccountHealthSectionTest extends WebTestCase
         $account->username = $email;
         $account->email    = $email;
         $account->authType = AuthType::Password->value;
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $account->imapHost = 'imap.example.test';
 
         $this->em->persist($account);
@@ -651,7 +651,7 @@ final class AccountHealthSectionTest extends WebTestCase
         $account->oauthProvider      = MailProvider::Google->value;
         $account->oauthAccessToken   = 'access-token';
         $account->oauthRefreshToken  = 'refresh-token';
-        $account->isActive           = true;
+        $account->mailEnabled        = true;
 
         $this->em->persist($account);
         $this->em->flush();

@@ -137,7 +137,7 @@ final class ClassifyBacklogCommandTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
 
         // What ends an IMAP import: no folder has history left to bring in.

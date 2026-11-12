@@ -2,8 +2,6 @@ account:
     add_title: Ajouter un compte
     added: Compte ajouté
     colour_set: Couleur du compte modifiée
-    disabled: Compte désactivé
-    enabled: Compte activé
     form:
         email: Adresse e-mail
         encryption: Chiffrement
@@ -49,13 +47,27 @@ account:
             same: Utiliser le même mot de passe pour l’envoi
             separate: Utiliser un autre mot de passe pour l’envoi
         username: Nom d’utilisateur
+    mail_purge_queued: 'Suppression du courrier de ce compte dans plMail. Le serveur garde sa copie.'
     oauth:
         calendar_declined: Le compte est connecté, mais l’accès à l’agenda n’a pas été accordé — ses agendas ne seront donc pas synchronisés. Reconnectez-le et cochez l’accès à l’agenda sur l’écran de consentement de Google.
         google: Continuer avec Google
         info: Connectez-vous chez votre fournisseur — aucun mot de passe n’est stocké.
         microsoft: Continuer avec Microsoft
+        services:
+            help: 'L’écran suivant ne demande que ce que vous cochez. Vous pourrez le changer plus tard dans Paramètres → Comptes.'
+            legend: 'Utiliser ce compte pour'
     primary_set: Compte principal modifié
     removed: Compte supprimé
+    service:
+        calendar:
+            off: 'Agenda désactivé'
+            on: 'Agenda activé'
+        contacts:
+            off: 'Contacts désactivés'
+            on: 'Contacts activés'
+        mail:
+            off: 'Courrier désactivé. Ce qui est déjà là reste.'
+            on: 'Courrier activé'
     sync_interval_set: Intervalle de synchronisation modifié
     tabs:
         imap: IMAP / SMTP
@@ -3440,10 +3452,8 @@ settings:
                 '7': Olive
         delete: Supprimer le compte
         delete_confirm: 'Supprimer %account% ? Tous les messages synchronisés de ce compte seront définitivement supprimés, sans retour possible.'
-        disable: Désactiver le compte
         edit: Modifier le compte
         empty: Aucun compte pour l’instant. Ajoutez-en un pour commencer à synchroniser du courrier.
-        enable: Activer le compte
         folders:
             always_synced: La boîte de réception est toujours synchronisée
             button: Dossiers
@@ -3485,6 +3495,7 @@ settings:
             placeholder: 'Un dossier qui ne fait que regrouper d’autres dossiers — il n’y a rien à synchroniser dedans'
             refused:
                 has_children: 'Ce dossier contient d’autres dossiers. Supprimez-les ou déplacez-les d’abord.'
+                mail_off: 'Le courrier est désactivé pour ce compte : ses dossiers ne peuvent pas être modifiés sur le serveur. Activez d’abord le courrier.'
                 not_empty: 'Ce dossier contient encore du courrier (%count%). Déplacez-le d’abord ; supprimer un dossier supprimerait son courrier.'
                 server: 'Le serveur de messagerie a refusé : %reason%'
                 special_use: 'La boîte de réception, Envoyés, Brouillons, Corbeille, Indésirables et Archives ne sont jamais renommés ni supprimés depuis plMail : les autres applications et plMail lui-même en dépendent.'
@@ -3562,6 +3573,25 @@ settings:
                 microsoft: Le nouveau courrier arrive immédiatement via les notifications push de Microsoft.
             title: Livraison instantanée
         reorder: Faites glisser pour réorganiser
+        services:
+            allow: 'Autoriser…'
+            allow_explained: 'Activer %service% demande une autorisation que %provider% n’a pas encore donnée à plMail. Ouvre %provider% pour la demander.'
+            calendar: 'Agenda'
+            calendar_help: 'Ses agendas, tenus à jour dans les deux sens'
+            change: 'Courrier, agenda et contacts pour %account%'
+            close: 'Terminé'
+            contacts: 'Contacts'
+            contacts_help: 'Ses carnets d’adresses, tenus à jour dans les deux sens'
+            intro: 'Désactivez ce pour quoi vous n’utilisez pas ce compte. plMail cesse alors d’en parler au serveur et garde ce qui est déjà là.'
+            mail: 'Courrier'
+            mail_help: 'Synchronisation, envoi et chaque modification de son courrier'
+            none: 'Tout est désactivé'
+            purge: 'Supprimer de plMail le courrier synchronisé'
+            purge_confirm: 'Supprimer tout le courrier que plMail a synchronisé pour %account% ? Il reste sur le serveur. Si vous réactivez le courrier, plMail le télécharge à nouveau.'
+            purge_help: 'Seule la copie de plMail est supprimée. Rien n’est effacé sur le serveur.'
+            turn_off: 'Désactiver %service% pour %account%'
+            turn_on: 'Activer %service% pour %account%'
+            used_for: 'Utilisé pour %services%'
         status:
             active: Actif
             disabled: Désactivé
@@ -4666,7 +4696,7 @@ settings:
         subheading: Ce que fait un balayage sur une ligne, sur téléphone.
     unified_inboxes:
         account_label: 'Boîte unifiée pour %account%'
-        account_off: 'Désactivé — aucun de ses messages n’est affiché tant que vous ne le réactivez pas.'
+        account_off: 'Courrier désactivé — aucun de ses messages n’est affiché ici tant que vous ne le réactivez pas.'
         accounts_heading: 'Comptes'
         accounts_subheading: 'La boîte dans laquelle s’affichent les messages de chaque compte. Un nouveau compte va dans votre première boîte.'
         add: 'Ajouter'
@@ -5153,7 +5183,7 @@ sidebar:
     accounts:
         add: Ajouter un compte
         colour: 'Marquage de couleur de %account%'
-        colour_disabled: 'Marquage de couleur de %account%, qui est désactivé'
+        colour_disabled: 'Marquage de couleur de %account%, dont le courrier est désactivé'
         folders: 'Dossiers…'
         heading: Comptes
         menu: 'Dossiers de %account%'
@@ -5268,6 +5298,7 @@ thread_row:
     no_subject: (sans objet)
     send_failed:
         failed: Non envoyé
+        mail_off: 'Non envoyé : le courrier est désactivé pour ce compte'
         may_have_sent: 'Peut-être envoyé : vérifiez Envoyés avant de le renvoyer'
         rate_limited: 'Non envoyé : votre fournisseur limitait les envois'
         refused: 'Non envoyé : le serveur de messagerie l’a refusé'
@@ -5308,6 +5339,7 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Trop tard — ce message avait déjà été envoyé.
     send_failed: 'Ce message n’a pas pu être envoyé : %subject%'
+    send_failed_mail_off: 'Ce message n’a pas pu être envoyé : %subject%. Le courrier est désactivé pour son compte.'
     send_failed_may_have_sent: '%subject% a peut-être été envoyé, mais la réponse s’est perdue. Vérifiez Envoyés avant de le renvoyer.'
     send_failed_rate_limited: 'Ce message n’a pas pu être envoyé : %subject%. Votre fournisseur limite les envois en ce moment ; réessayez dans quelques minutes.'
     send_failed_refused: 'Ce message n’a pas pu être envoyé : %subject%. Le serveur de messagerie l’a refusé.'

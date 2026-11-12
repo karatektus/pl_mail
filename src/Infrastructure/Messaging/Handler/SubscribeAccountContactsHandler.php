@@ -40,7 +40,10 @@ final readonly class SubscribeAccountContactsHandler
     {
         $account = $this->accounts->find($message->accountId);
 
-        if (null === $account || null === $account->usr || [] !== $this->books->findForHolder($account)) {
+        // Contacts switched off at connect time (#575) is a "no" to mirroring
+        // them, not a "later": switching contacts on afterwards queues this
+        // again, which is when the books are found.
+        if (null === $account || null === $account->usr || false === $account->contactsEnabled || [] !== $this->books->findForHolder($account)) {
             return;
         }
 

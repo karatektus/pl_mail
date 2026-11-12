@@ -160,7 +160,7 @@ final class ResetHandsBackRegistrationsTest extends KernelTestCase
         $account->oauthProvider     = MailProvider::Google->value;
         $account->oauthAccessToken  = 'access-token';
         $account->oauthRefreshToken = 'refresh-token';
-        $account->isActive          = true;
+        $account->mailEnabled       = true;
         $account->pushEnabled       = true;
 
         $this->em->persist($account);

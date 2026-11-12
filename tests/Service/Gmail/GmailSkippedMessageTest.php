@@ -198,7 +198,7 @@ final class GmailSkippedMessageTest extends KernelTestCase
         $sibling->username      = uniqid('work-', true);
         $sibling->authType      = AuthType::Password->value;
         $sibling->imapHost      = 'imap.work.test';
-        $sibling->isActive      = true;
+        $sibling->mailEnabled   = true;
         $this->em->persist($sibling);
 
         // On a conversation of its own account, as every stored message is:
@@ -494,7 +494,7 @@ final class GmailSkippedMessageTest extends KernelTestCase
         $account->oauthProvider    = 'google';
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new DateTimeImmutable('+1 day');
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
 
         $this->em->persist($account);
         $this->em->flush();
@@ -515,7 +515,7 @@ final class GmailSkippedMessageTest extends KernelTestCase
         $sibling->username = uniqid('work-', true);
         $sibling->authType = AuthType::Password->value;
         $sibling->imapHost = 'imap.work.test';
-        $sibling->isActive = true;
+        $sibling->mailEnabled = true;
         $this->em->persist($sibling);
         $this->em->flush();
 
@@ -535,7 +535,7 @@ final class GmailSkippedMessageTest extends KernelTestCase
         $sibling->oauthProvider    = 'google';
         $sibling->oauthAccessToken = 'test-access-token';
         $sibling->oauthTokenExpiry = new DateTimeImmutable('+1 day');
-        $sibling->isActive         = true;
+        $sibling->mailEnabled      = true;
         $this->em->persist($sibling);
         $this->em->flush();
 

@@ -71,7 +71,7 @@ final class JmapMailSyncTest extends KernelTestCase
         $account->imapPort         = 443;
         $account->imapEncryption   = 'ssl';
         $account->authType         = 'password';
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $user->addAccount($account);
         $this->em->flush();

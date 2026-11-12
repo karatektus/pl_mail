@@ -43,6 +43,15 @@ final readonly class DeleteRemoteContactHandler
             return;
         }
 
+        if (false === $book->isActive()) {
+            // Contacts switched off, or the connection paused: nothing goes to
+            // the server while it is (#575). There is no row left to keep the
+            // delete pending on, so the card is still on the server, and the
+            // first pull after switching back on brings it back as a contact —
+            // the same outcome as a delete the server refused.
+            return;
+        }
+
         try {
             $this->drivers->forBook($book)->delete($book, $message->href, $message->etag);
         } catch (CalendarResyncRequiredException $e) {

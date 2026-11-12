@@ -101,7 +101,7 @@ final class SyncController extends AbstractController
     {
         return array_values(array_filter(
             $this->accountRepository->findForUserOrdered($this->getUser()),
-            static fn (Account $account): bool => true === $account->isActive,
+            static fn (Account $account): bool => true === $account->mailEnabled,
         ));
     }
 }

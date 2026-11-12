@@ -425,7 +425,7 @@ final class TemplateSectionTest extends WebTestCase
         $this->connection->executeStatement('DELETE FROM template_folder WHERE usr_id = ?', [$user->id]);
 
         $this->em->createQuery(
-            'UPDATE ' . Account::class . ' a SET a.isActive = false WHERE a.usr = :usr',
+            'UPDATE ' . Account::class . ' a SET a.mailEnabled = false WHERE a.usr = :usr',
         )->setParameter('usr', $user)->execute();
 
         $this->em->clear();
@@ -442,7 +442,7 @@ final class TemplateSectionTest extends WebTestCase
         $account->username  = $email;
         $account->email     = $email;
         $account->authType  = 'password';
-        $account->isActive  = true;
+        $account->mailEnabled = true;
         $account->isPrimary = true;
         $account->sortOrder = 0;
         $account->imapHost  = 'imap.example.test';

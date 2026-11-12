@@ -96,7 +96,7 @@ final class AccountGmailMoveTest extends WebTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
         $this->em->flush();
 
@@ -122,7 +122,7 @@ final class AccountGmailMoveTest extends WebTestCase
         $account->oauthProvider    = MailProvider::Google->value;
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new DateTimeImmutable('+1 day');
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $this->em->flush();
 

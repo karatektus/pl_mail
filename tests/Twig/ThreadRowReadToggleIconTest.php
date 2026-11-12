@@ -156,7 +156,7 @@ final class ThreadRowReadToggleIconTest extends KernelTestCase
         $this->account->imapPort       = 993;
         $this->account->imapEncryption = 'ssl';
         $this->account->authType       = 'password';
-        $this->account->isActive       = true;
+        $this->account->mailEnabled    = true;
 
         $this->em->persist($this->account);
         $this->em->flush();

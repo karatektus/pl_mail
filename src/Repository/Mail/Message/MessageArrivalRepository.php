@@ -87,7 +87,7 @@ class MessageArrivalRepository extends ServiceEntityRepository
                      AND m.created_at <= m.provider_accepted_at + INTERVAL '1 day'
                      AND LOWER(COALESCE(m.from_address, '')) <> LOWER(COALESCE(a.email, ''))
               ) l ON true
-             WHERE a.is_active = true
+             WHERE a.mail_enabled = true
              GROUP BY a.id, a.email, a.auth_type, a.oauth_provider, a.incoming_protocol, a.push_enabled
              ORDER BY a.email
             SQL,
@@ -148,7 +148,7 @@ class MessageArrivalRepository extends ServiceEntityRepository
                    GREATEST(0, EXTRACT(EPOCH FROM (m.provider_accepted_at - m.received_at))) AS underway
               FROM message m
               JOIN account a ON a.id = m.account_id
-             WHERE a.is_active = true
+             WHERE a.mail_enabled = true
                AND m.provider_accepted_at >= :since
                AND m.created_at <= m.provider_accepted_at + INTERVAL '1 day'
                AND LOWER(COALESCE(m.from_address, '')) <> LOWER(COALESCE(a.email, ''))

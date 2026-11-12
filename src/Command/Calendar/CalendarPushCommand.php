@@ -122,6 +122,15 @@ final class CalendarPushCommand extends Command
                 continue;
             }
 
+            // Calendars switched off on their account (#575) are not renewed:
+            // a channel expires on its own within days, and nothing it would
+            // deliver is synced meanwhile. --stop still reaches them, so a
+            // channel can be handed back on purpose.
+            if (false === $stop && null !== $calendar->account && false === $calendar->account->calendarEnabled) {
+                $skipped++;
+                continue;
+            }
+
             if (true === $stop) {
                 $manager->unsubscribe($calendar);
                 $io->text(sprintf('→ stopped push for %s (#%d)', $calendar->name, (int) $calendar->id));

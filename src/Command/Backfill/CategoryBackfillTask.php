@@ -56,7 +56,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
     {
         $force = $io->confirm('Re-run messages that already have a category?', false);
 
-        $accounts = $this->accountRepository->findBy(['isActive' => true]);
+        $accounts = $this->accountRepository->findBy(['mailEnabled' => true]);
 
         if (count($accounts) === 0) {
             $io->warning('No active accounts.');

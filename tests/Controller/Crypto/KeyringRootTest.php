@@ -459,7 +459,7 @@ final class KeyringRootTest extends WebTestCase
         $account->email    = self::ADDRESS;
         $account->username = self::ADDRESS;
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $account->imapHost = 'imap.example.test';
         $this->em->persist($account);
 

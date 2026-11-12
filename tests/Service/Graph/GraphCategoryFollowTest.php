@@ -365,7 +365,7 @@ final class GraphCategoryFollowTest extends KernelTestCase
         $account->oauthProvider    = 'microsoft';
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new DateTimeImmutable('+1 day');
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
 
         $this->em->persist($account);
         $this->em->flush();

@@ -293,7 +293,7 @@ final class GraphLabelDeleteTest extends KernelTestCase
         $account->password         = 'x';
         $account->authType         = AuthType::OAuth2->value;
         $account->oauthProvider    = MailProvider::Microsoft->value;
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         // Without a token that is good for a while, the client goes off to
         // refresh one and no request reaches the mock.
         $account->oauthAccessToken = 'test-access-token';

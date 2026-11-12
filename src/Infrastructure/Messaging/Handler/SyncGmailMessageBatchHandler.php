@@ -796,7 +796,7 @@ final readonly class SyncGmailMessageBatchHandler
     private function buildSiblingAccountMap(Account $account): array
     {
         $user     = $account->usr;
-        $siblings = $this->accountRepository->findBy(['usr' => $user, 'isActive' => true]);
+        $siblings = $this->accountRepository->findBy(['usr' => $user, 'mailEnabled' => true]);
         $map      = [];
 
         foreach ($siblings as $sibling) {

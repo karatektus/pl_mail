@@ -133,12 +133,12 @@ class AddressBook
 
     /**
      * Whether the thing behind it may be used: a connection switched off, or
-     * an account disabled, syncs nothing.
+     * an account whose contacts are switched off (#575), syncs nothing.
      */
     public function isActive(): bool
     {
         if (null !== $this->account) {
-            return false !== $this->account->isActive;
+            return true === $this->account->contactsEnabled;
         }
 
         return true === $this->integration?->isActive;
