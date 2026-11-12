@@ -10,6 +10,191 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## v0.4.3 — 2026-11-12
+
+Settings is now a tree with a search, `mailto:` links open in plMail's own composer — in a tab or
+in the installed app, which can also do without its title bar — and an account can be used for its
+mail, its calendar or its contacts on their own. WebDAV joins the file services, search answers a
+common word much faster, pages load sooner, and a server on your own network can be allowed from
+the admin page.
+
+<!-- highlight screenshot=settings-search -->
+**Settings is easier to find your way around, and it has a search.** The settings column was 29
+pages in five groups, sixteen of them under "Mail", and General held whatever had no better home.
+It is now a tree of eight areas — Account, General, Mail accounts, Inbox, Reading & writing,
+Calendar & contacts, Assistant & automation, Integrations — with at most five pages each; the
+area of the page you are on is open and the rest fold away. General's cards moved to where they
+belong (Language & region, Layout & controls, Compose, What's new), Reading pane and Images became
+one Reading page, and swipe actions and keyboard shortcuts sit with the sidebar under Layout &
+controls. A field above the tree filters it as you type and finds the cards on every page, by
+heading or by keyword ("dark" finds Theme, "2fa" finds two-factor), ignoring case and accents.
+⌘K or Ctrl+K opens the same search from anywhere in plMail, and a result opens its page with the
+card highlighted. On a phone the tree sits behind one button that names the page you are on.
+Each page has its own address now, `/settings/<page>`; an old `/settings?section=…` bookmark opens
+the first page. No schema change, no deployment change.
+[#569](https://github.com/karatektus/pl_mail/issues/569).
+
+<!-- highlight screenshot=mailto-links -->
+**Email links open in plMail.** A `mailto:` link in a mail you are reading now opens plMail's own
+compose window instead of your computer's mail program, with the recipients, subject and text the
+link carries. Links on other websites can come to plMail too: **Settings → Reading & writing →
+Compose → Email links → Use plMail** asks the browser to send them here (it needs HTTPS, and Safari cannot), and
+plMail installed as an app in Chrome or Edge offers itself on its own. A link cannot set the sender
+or the conversation it answers. Along the way, a draft opened with Cc or Bcc addresses already on it
+shows those rows instead of hiding recipients it will send to. No schema change.
+[#572](https://github.com/karatektus/pl_mail/issues/572).
+
+**Pages are ready sooner after the first visit, and the first visit loads less.** The browser was
+never told it could keep plMail's scripts, so every full page load asked again for each of about
+two hundred modules; on a NAS install the inbox HTML arrived after 0.6 seconds and the page was
+ready after 4.7. Compiled assets now carry a one-year `Cache-Control: immutable`: their file names
+change with their content, so an update still reaches the browser at once. The controllers of
+screens the mail list does not use (admin, calendar, contacts, settings, rules, sign-in, setup,
+onboarding, What's new) now load when such a screen opens rather than on every page. No schema
+change; the header is set by the image's own Caddy, so an install behind a reverse proxy gets it as
+long as the proxy passes it on.
+[#542](https://github.com/karatektus/pl_mail/issues/542).
+
+**Search answers a common word in a fraction of the time.** A search collects matching mail from
+several lookups (the words, word beginnings, the subject and the sender) and used to combine them
+in a way that made the database read every message one by one instead of using its search index,
+and it scored every match for relevance even when the results are sorted by date. Measured on
+200,000 messages, a word in one mail of twelve now takes 0.25 seconds instead of about one, and a
+word in nearly every mail 1.3 seconds instead of five. The results are the same; sorting by
+relevance still scores them. No schema change, no deployment change.
+[#544](https://github.com/karatektus/pl_mail/issues/544).
+
+**A message with megabytes of text is stored and searchable, and no longer stops the search index
+being rebuilt.** Postgres refuses a search index entry over 1 MB, and plMail fed it a message's
+whole body. Since v0.4.2 also indexes mail sent as HTML only, a message with several megabytes of
+HTML stopped the background rebuild after v0.4.2 at the first 500 messages, and such a message
+arriving new could not be stored at all: the sync tried it a few times and then skipped it. Search
+now reads the first 200,000 characters of a body (about 30,000 words; the rest of a body that long
+is not searchable), and a message the index still cannot take is logged and passed over instead of
+holding up the others. Mail the sync skipped this way before the update is fetched now: after the
+update every IMAP folder is looked through once in the background, and what the server holds and
+plMail does not is brought in (mail deleted in plMail is left out). `app:mail:fetch-missing` does
+the same on demand. The migrations replace the search function, including one patched by hand,
+and rewrite no table.
+[#546](https://github.com/karatektus/pl_mail/issues/546).
+
+**Attach from and save to any WebDAV server.** WebDAV joins the file services under Settings →
+Integrations, for a file server that is neither Nextcloud nor OpenCloud: FileBrowser Quantum, a
+Synology NAS, `rclone serve webdav`, Apache mod_dav. You give the full address of the folder to open,
+path included (on FileBrowser Quantum, `/dav/` and the source name), a username if the server wants
+one, and a password or API token. Browse, attach copies, save attachments and make folders; WebDAV
+has no links, previews or search. Administrators: a server on your own network has to be allowed
+under Admin → Integrations → Servers on a private network, as for the other self-hosted services. No
+schema change.
+[#547](https://github.com/karatektus/pl_mail/issues/547), requested by @laserhill.
+
+**On a Proton Mail account, All Mail in the sidebar lists all your mail instead of an old handful.**
+Since v0.4.1 plMail no longer fetches Proton's "All Mail" folder, which repeats every message, but
+the label that folder had filled stayed in the sidebar with the few messages no other folder held.
+It looked like the place to see everything and showed nothing recent, so mail seemed to be
+missing. That label and the one from Proton's "Starred" folder now leave the sidebar (they stay in
+Settings → Labels), and plMail's own All Mail, which lists every conversation from every folder,
+is switched on in their place. No schema change; a data migration has the next folder sync of each
+account do this, and folders you switched back on are left alone.
+[#548](https://github.com/karatektus/pl_mail/issues/548).
+
+**The "Indexing progress" link under a search opens the admin page, styled.** It pointed at the
+AI section's inner frame rather than the admin page, and from inside the mail list, so clicking
+it showed that fragment on its own with no layout or styles. It now opens Admin → AI. No schema
+change, no deployment change.
+[#551](https://github.com/karatektus/pl_mail/issues/551).
+
+**After walking the list with the arrow keys, archiving or moving a conversation no longer sends
+the cursor back to the top.** Only the keyboard shortcuts for archive and delete knew to move the
+cursor on; a conversation that left the list any other way (its own buttons, a swipe, moving,
+snoozing or reporting it as spam) took the cursor with it, and the next ↓ started from the first
+row. The cursor now lands on the conversation after the one that left. No schema change, no
+deployment change.
+[#553](https://github.com/karatektus/pl_mail/issues/553).
+
+**A CalDAV, CardDAV or file server on your own network can be allowed from the admin page.** plMail
+refuses a server address that resolves to a private address, so nobody signed in can aim it at the
+database or anything else on its network, and the way to make an exception was the
+`INTEGRATIONS_ALLOWED_HOSTS` variable. A Docker Compose install could not set it: `compose.yaml` never
+passed it into the containers, so a Baïkal at home stayed refused whatever was in `.env`. Admin →
+Integrations now has **Servers on a private network**, a list of hosts an administrator allows, each
+with its own tick for plain `http://`. The error a user sees names that page, a change applies at
+once, and the list travels in a config backup. Plain http is per host now instead of the
+install-wide `INTEGRATIONS_ALLOW_HTTP`. Neither variable is read any more; a migration creates the
+new table and copies what they held into it, and with `INTEGRATIONS_ALLOW_HTTP` on it also allows
+plain http for the host of every connection already saved with an `http://` address, so those keep
+working.
+[#564](https://github.com/karatektus/pl_mail/issues/564), reported by @sbach89.
+
+**An IMAP import on a slow connection finishes instead of retrying the same messages for ever.**
+Since v0.4.1 every IMAP command had to be over within thirty seconds, however steadily the server
+was answering. An import fetches fifty whole messages at a time, and on a slower line (a NAS at
+home, for example) fifty messages with their attachments take longer than that: the fetch was cut
+with "did not answer UID FETCH in time", nothing of it was stored, and every retry asked for the
+same fifty messages. The import of that folder never moved, and leaving the folder out only moved
+the problem to the next one. The thirty seconds are now how long a server may go quiet, as they
+were before v0.4.1, and the five-minute limit on a whole import step still stops a server that
+keeps a fetch alive by trickling. Large uploads, such as the copy of a sent message with its
+attachments, are measured the same way. An import that stopped this way starts again by itself
+with the account's next sync; the import steps already under Admin → Failed messages can be
+retried or deleted, and neither is needed. No schema change, no deployment change.
+[#565](https://github.com/karatektus/pl_mail/issues/565).
+
+**Settings → Appearance no longer has a preview card.** The sample mail list and message beside the
+controls, and the boundary that resized it, are gone. Since the new settings tree, a 1280-pixel
+window no longer had room for both cards, so the preview sat behind a **Show preview** button on
+most screens. Every control already changes the whole app as you use it, so the app is the preview
+now. The remembered preview width is no longer stored or carried in a backup; an older backup that
+holds one restores without it. No schema change.
+
+**Use an account for its mail, its calendar or its contacts — or any two of them.** Each account
+now has three switches in **Settings → Accounts**, in place of the single on/off toggle, which only
+ever stopped the mail. Switching one off stops plMail talking to the server about it and keeps
+what is already here: mail stays readable from the account's row in the sidebar, and calendar and
+contact edits made meanwhile go out when you switch them back on. When you add a Gmail or Outlook
+account you can tick what it is for, and the consent screen only asks for that — a Google account
+connected for its calendar is never asked for access to its mail. While mail is off, **Remove
+synced mail from plMail** deletes plMail's copy and nothing on the server.
+[#575](https://github.com/karatektus/pl_mail/issues/575).
+
+**Migration:** the account table's `is_active` column is renamed `mail_enabled`, and two columns,
+`calendar_enabled` and `contacts_enabled`, are added and filled from what the old switch did:
+calendars stay on everywhere, contacts follow the old switch. An account that was switched off now
+shows in the sidebar again, dimmed, while it still holds mail. No deployment change.
+
+**An empty IMAP inbox no longer logs an import warning every minute.** A folder whose history
+import had reached its lowest message asked the server for mail below UID 1. Dovecot refuses that
+search, and the refusal was logged as "the folder is not on the server" and asked again every
+minute, without end. Such a folder is now marked imported straight away, and the warning, when a
+server does refuse the search, says so instead of blaming a missing folder. No schema change.
+[#578](https://github.com/karatektus/pl_mail/pull/578).
+
+**The search box keeps a query you have not sent yet.** Typing in the search box, clicking
+elsewhere and letting the mail list refresh used to empty the box again. In Trash or Spam, clicking
+back into it then showed only `in:trash` or `in:spam`. The box now changes only when the address
+does: opening a folder or a conversation still clears it, as before. No schema change.
+[#580](https://github.com/karatektus/pl_mail/pull/580).
+
+**Email links reuse the open plMail app.** With plMail installed as an app in Chrome or Edge, a
+`mailto:` link from another program now opens in the plMail window that is already open, in its
+dock, instead of in a second window. The **Use plMail** button in settings now says to choose
+**Allow** at the address bar, and what to do when Chrome has plMail on its list but not as the
+default (no prompt appears, and links bring Chrome to the front and stop there). In a normal or
+pinned tab a link still opens a new tab: a website cannot bring another tab to the front.
+No schema change. [#585](https://github.com/karatektus/pl_mail/issues/585).
+
+**The installed app shows how to become your mail program.** Inside plMail installed as an app,
+**Settings → Reading & writing → Compose → Email links** now shows the steps for making it the
+system's default mail program on macOS, Windows or Linux, instead of a button that only covered
+links clicked inside the browser. A web app cannot ask the system for this itself.
+No schema change. [#587](https://github.com/karatektus/pl_mail/issues/587).
+
+**The installed app can drop the title bar.** plMail installed as an app in Chrome or Edge can hide
+the browser's title bar (the arrow button in it). plMail's top bar then runs along the window's top
+edge with the window buttons inside it, in its own colour, and moves the window when dragged; the
+margin around the panels goes, and the panels keep their shape. No schema change.
+[#589](https://github.com/karatektus/pl_mail/issues/589).
+
 ## v0.4.2 — 2026-11-09
 
 plMail can now keep several unified inboxes, send photos smaller, resize, crop and turn the pictures
