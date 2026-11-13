@@ -94,10 +94,13 @@ Accepts nothing: reads message_list(), message_list_samples() and the
             </div>
         {% endblock %}
         {% block body %}
-            {# The outer box scrolls sideways, so the wide list can be wider
-               than the card; the inner one is the list, sized by the width
-               choice and carrying the `@container` the rows query. #}
-            <div class="overflow-x-auto" data-testid="list-preview">
+            {# Inset like every card body, and framed, so the sample rows read
+               as a picture of the list rather than as part of this page. The
+               frame scrolls sideways, so the wide list can be wider than the
+               card; the list inside is sized by the width choice and carries
+               the `@container` the rows query. #}
+            <div class="px-4 py-3">
+            <div class="overflow-x-auto rounded-lg border border-line" data-testid="list-preview">
                 <ul inert
                     data-settings--message-list-target="preview"
                     style="width: 42rem; max-width: none"
@@ -106,6 +109,7 @@ Accepts nothing: reads message_list(), message_list_samples() and the
                         {% include '_partials/_thread_row.html.twig' with { thread: sample, newThreadIds: [] } %}
                     {% endfor %}
                 </ul>
+            </div>
             </div>
         {% endblock %}
     {% endembed %}
