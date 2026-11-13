@@ -182,7 +182,7 @@ The compose file declares ten named volumes:
 | Volume | Holds |
 |---|---|
 | `app_secrets` | `generated.env`, `postgres_password`, the JWT keypair. Mounted by **every** app service, and read-only into `database` |
-| `app_attachments`, `app_raw`, `app_uploads` | Attachments, raw message sources, and staged JMAP uploads. Mounted by every app service, because the workers write them and the web container serves them |
+| `app_attachments`, `app_raw`, `app_uploads` | Attachments, raw message sources, staged JMAP uploads, and what users upload: profile pictures, signature images, backgrounds and their own logos. Mounted by every app service, because the workers write them and the web container serves them |
 | `database_data` | The PostgreSQL cluster |
 | `caddy_data`, `caddy_config` | Caddy's TLS material and state |
 | `mercure_data`, `mercure_config` | Hub state, mounted by the worker |
