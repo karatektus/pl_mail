@@ -268,7 +268,7 @@ different questions, so a tab carries two numbers: the pill says what arrived th
 been shown, and a plain **unread count** beside the tab's name says how many conversations in that
 category hold unread mail. The count is the sidebar's Inbox badge split by tab, so the tabs add up
 to it; it shows on every tab including the one you are on, and is hidden at zero. It can be
-switched off under **Settings → Appearance → Message list**. (Earlier
+switched off under **Settings → Inbox → Categories**. (Earlier
 versions kept this number off the tabs, on the argument that the badge and the bold rows already
 say unread. They cannot say *where*: with the Inbox badge reading 1 and Primary open and empty,
 nothing on the strip pointed at the tab holding the mail.) The strip is live — pills, counts and
@@ -303,6 +303,54 @@ If it is simply wrong, **Report** at the bottom of the panel says where it shoul
 goes to your administrator under [Reported mail](admin.md#reported-mail), with the three verdicts and
 the evidence behind them — which is what a rule or a prompt gets changed on the strength of. It sends
 the sender, the subject and the decision; it does not send the message.
+
+## What a list row shows
+
+**Settings → Inbox → Message list** decides what each row in the mail list carries. Every default is
+what the list did before the option existed, so nothing moves until you change something. At the top
+of the page is a preview: four made-up conversations, drawn by the same template as your list, that
+change as you pick. **Phone**, **Narrow** and **Wide** set how wide the preview list is, because how a
+row is laid out depends on how wide the list is.
+
+| Control | What it does |
+|---|---|
+| **One-line rows** | When a row puts the sender, the subject and the preview on one line. **As soon as they fit** from a list of medium width, the way Gmail's list reads, with slightly tighter rows; **Only on wide lists** from a very wide one; **Never**. Narrower than that a row stacks: three lines on a phone, the sender and subject over the preview in between |
+| **Preview** | What a stacked row shows of the message: **None**, **After the subject** on the subject's own line, **One line** or **Two lines** under it. A one-line row always shows the preview after the subject |
+| **Attachments** | **Hidden**, a **Paperclip**, or **Chips**: up to three files named under the preview, then "+N". A chip opens the viewer for a PDF, picture or video and downloads anything else |
+| **Labels** | **Before the subject** as chips, as **Dots** in the label's colour (its name shows on hover), on their **Own line**, or **Hidden** |
+| **Sender** | **Everyone** who wrote in the conversation, or the **Latest** sender alone. In Sent and Drafts a row names the recipients either way |
+| **Date** | **Smart** — the time today, the day this year, the full date before that — or **Date and time** on every row |
+| **Message count** | The number after a conversation's subject |
+| **Replied arrow** | An arrow in front of the subject when the newest mail in the conversation has been answered. Off by default |
+| **Star** | Whether a conversation you have not starred shows its outline **On hover** or **Always** |
+| **Sender discs** | The coloured circle carrying the sender's initial — see the trap below, this one does not disappear |
+| **Account corner** | The coloured triangle in a row's lower-left saying which account the message arrived on. On by default; it is only ever drawn in a list that mixes accounts anyway |
+| **Unread rows** | **Subtle**, **Standard** or **Strong** — how loudly the list says a row is unread |
+
+**Unread rows** changes the tint behind the row and the accent bar beside it, and nothing else. The
+bold sender and subject stay at every setting on purpose: bold is the signal that survives a
+colour-blind reader, a translucent pane over a photograph, and a printout. Subtle removes the tint
+entirely, Strong deepens it and adds a bar down the row's leading edge.
+
+Two preview lines is the ceiling because a stacked row has room for two. The archive, delete, spam,
+snooze and read buttons on a row appear when the pointer is over it; there is no setting to show
+them on every row, because on any list short of very wide they crowd out the subject.
+
+The unread count beside each inbox tab's name is set on **Settings → Inbox → Categories**, beside
+the tabs it counts.
+
+These settings are your account's, not the browser's, and they used to be on the Appearance page.
+They say what a row tells you rather than how the app looks, so an exported theme does not carry
+them; a config backup does. The Android and iOS apps have their own list, and read only the account
+corner, sender discs, unread emphasis and number of preview lines from here.
+
+**Sender discs cannot be switched off, only emptied.** That disc *is* the row's checkbox: the real
+input sits behind it and every bulk action in the toolbar reads it. Switching it off paints over the
+identity — the colour and the letter go — and leaves a plain outlined circle in the same place, so
+the selection target and the row's geometry are exactly where they were.
+
+**The account corner only ever appears in a list that mixes accounts.** On a single-account install
+it has never been drawn, and switching it on will not make it appear.
 
 ## The "New" marker
 

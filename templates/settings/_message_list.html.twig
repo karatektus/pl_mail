@@ -1,0 +1,203 @@
+{#
+settings/_message_list.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Settings → Inbox → Message list (#608): what a row in the list shows, with a
+preview of four rows at the top that follows every click.
+
+The preview is the list's own row template drawing conversations that exist
+only for this page (MessageListSamples), inside the same `@container` the
+list has. Every control sets the attribute on <html> that the real list
+reads, so the preview changes because the list would — there is no second
+copy of the row to keep in step. `inert`, because its links point at mail
+that does not exist.
+
+Its width is a choice, because the row's shape depends on the LIST's width
+and the settings pane is one width only: without it, "Only on wide lists"
+would show nothing different from "Never" on most screens. The widths are
+the ones the shapes change at, a little past each (see app.css): a phone,
+the two-line band, and a list wide enough for one line under either layout.
+
+Each control posts its one field to settings--message-list, which saves it
+and applies what the server says the page now carries.
+
+Accepts nothing: reads message_list(), message_list_samples() and the
+`accounts` global.
+#}
+{% set list = message_list() %}
+
+{% set segGroup = 'grid grid-flow-col auto-cols-fr max-w-md rounded-pane border border-line overflow-hidden' %}
+{% set segText  = 'flex h-full items-center justify-center px-2 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                   peer-checked:bg-accent peer-checked:text-accent-ink
+                   peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                   transition-colors cursor-pointer' %}
+
+{# One choice: a label, a line saying what it does, and a segmented group of
+   real radios sharing a name, so arrow keys move within it for free. The
+   same shape as the Appearance page's choices, which this page sits beside.
+
+   `attr` is the <html> attribute the choice is written to, when there is one
+   the page can set before the server answers; `values` maps a stored value to
+   what the attribute carries when the two differ (on/off for the switches). #}
+{% macro choice(field, key, current, options, segGroup, segText, attr = null, values = {}) %}
+    <div class="px-4 py-3">
+        <span class="block text-xs font-medium text-ink-muted" id="list-{{ field }}-label">{{ (key ~ '.label')|trans }}</span>
+        <span class="block text-[11px] text-ink-faint mt-0.5 mb-1.5">{{ (key ~ '.hint')|trans }}</span>
+        <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="list-{{ field }}-label">
+            {% for value, text in options %}
+                {# A switch's options are keyed '1' and '0'; Twig hands those
+                   keys over as integers, so they are compared as strings. #}
+                <label>
+                    <input type="radio" name="{{ field }}" class="peer sr-only"
+                           value="{{ value }}"
+                           data-action="change->settings--message-list#pick"
+                           {% if attr %}
+                               data-list-attr="{{ attr }}"
+                               data-list-value="{{ values[value] ?? value }}"
+                           {% endif %}
+                           aria-label="{{ (key ~ '.label')|trans }} — {{ text|trans }}"
+                           {{ (current ~ '') == (value ~ '') ? 'checked' : '' }}>
+                    <span class="{{ segText }}">{{ text|trans }}</span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+{% endmacro %}
+
+{% set shownHidden = { 1: 'settings.message_list.shown', 0: 'settings.message_list.hidden' } %}
+{% set onOff = { 1: 'on', 0: 'off' } %}
+
+<div data-controller="settings--message-list"
+     data-settings--message-list-url-value="{{ path('app_message_list_save') }}">
+
+    {% embed 'settings/_card.html.twig' with {
+        id:         'card-list-preview',
+        heading:    'settings.message_list.preview.heading'|trans,
+        subheading: 'settings.message_list.preview.subheading'|trans,
+    } %}
+        {% block actions %}
+            <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+                 role="radiogroup" aria-label="{{ 'settings.message_list.preview.width'|trans }}">
+                {% for width, rem in { phone: 22, narrow: 42, wide: 80 } %}
+                    <label>
+                        <input type="radio" name="previewWidth" class="peer sr-only" value="{{ rem }}"
+                               data-action="change->settings--message-list#width"
+                               aria-label="{{ 'settings.message_list.preview.width'|trans }} — {{ ('settings.message_list.preview.widths.' ~ width)|trans }}"
+                               {{ width == 'narrow' ? 'checked' : '' }}>
+                        <span class="flex h-full items-center justify-center px-2.5 py-1 text-[11px] text-ink-muted
+                                     peer-checked:bg-accent peer-checked:text-accent-ink
+                                     peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                                     transition-colors cursor-pointer">
+                            {{ ('settings.message_list.preview.widths.' ~ width)|trans }}
+                        </span>
+                    </label>
+                {% endfor %}
+            </div>
+        {% endblock %}
+        {% block body %}
+            {# The outer box scrolls sideways, so the wide list can be wider
+               than the card; the inner one is the list, sized by the width
+               choice and carrying the `@container` the rows query. #}
+            <div class="overflow-x-auto" data-testid="list-preview">
+                <ul inert
+                    data-settings--message-list-target="preview"
+                    style="width: 42rem; max-width: none"
+                    class="@container divide-y divide-line select-none">
+                    {% for sample in message_list_samples() %}
+                        {% include '_partials/_thread_row.html.twig' with { thread: sample, newThreadIds: [] } %}
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+    {% embed 'settings/_card.html.twig' with {
+        id:         'card-list-layout',
+        heading:    'settings.message_list.layout.heading'|trans,
+        subheading: 'settings.message_list.layout.subheading'|trans,
+    } %}
+        {% block body %}
+            {# Imported here and not once at the top: a block of an embed is
+               the embedded template's, and macros imported by the page are
+               not in its scope. #}
+            {% import 'settings/_message_list.html.twig' as ui %}
+            <div class="divide-y divide-line">
+                {{ ui.choice('layout', 'settings.message_list.layout', list.layout.value, {
+                    fit:     'settings.message_list.layout.fit',
+                    wide:    'settings.message_list.layout.wide',
+                    stacked: 'settings.message_list.layout.stacked',
+                }, segGroup, segText, 'data-list-layout') }}
+                {{ ui.choice('preview', 'settings.message_list.preview_lines', list.preview.value, {
+                    none:   'settings.message_list.preview_lines.none',
+                    inline: 'settings.message_list.preview_lines.inline',
+                    one:    'settings.message_list.preview_lines.one',
+                    two:    'settings.message_list.preview_lines.two',
+                }, segGroup, segText, 'data-list-preview') }}
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+    {% embed 'settings/_card.html.twig' with {
+        id:         'card-list-content',
+        heading:    'settings.message_list.content.heading'|trans,
+        subheading: 'settings.message_list.content.subheading'|trans,
+    } %}
+        {% block body %}
+            {# Imported here and not once at the top: a block of an embed is
+               the embedded template's, and macros imported by the page are
+               not in its scope. #}
+            {% import 'settings/_message_list.html.twig' as ui %}
+            <div class="divide-y divide-line">
+                {{ ui.choice('attachments', 'settings.message_list.attachments', list.attachments.value, {
+                    hidden: 'settings.message_list.hidden',
+                    icon:   'settings.message_list.attachments.icon',
+                    chips:  'settings.message_list.attachments.chips',
+                }, segGroup, segText, 'data-list-attachments') }}
+                {{ ui.choice('labels', 'settings.message_list.labels', list.labels.value, {
+                    inline: 'settings.message_list.labels.inline',
+                    line:   'settings.message_list.labels.line',
+                    dots:   'settings.message_list.labels.dots',
+                    hidden: 'settings.message_list.hidden',
+                }, segGroup, segText, 'data-list-labels') }}
+                {{ ui.choice('sender', 'settings.message_list.sender', list.sender.value, {
+                    everyone: 'settings.message_list.sender.everyone',
+                    latest:   'settings.message_list.sender.latest',
+                }, segGroup, segText, 'data-list-sender') }}
+                {{ ui.choice('date', 'settings.message_list.date', list.date.value, {
+                    smart: 'settings.message_list.date.smart',
+                    full:  'settings.message_list.date.full',
+                }, segGroup, segText, 'data-list-date') }}
+                {{ ui.choice('messageCount', 'settings.message_list.count', list.messageCount ? 1 : 0, shownHidden, segGroup, segText, 'data-list-count', onOff) }}
+                {{ ui.choice('replied', 'settings.message_list.replied', list.replied ? 1 : 0, shownHidden, segGroup, segText, 'data-list-replied', onOff) }}
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+    {% embed 'settings/_card.html.twig' with {
+        id:         'card-list-markers',
+        heading:    'settings.message_list.markers.heading'|trans,
+        subheading: 'settings.message_list.markers.subheading'|trans,
+    } %}
+        {% block body %}
+            {# Imported here and not once at the top: a block of an embed is
+               the embedded template's, and macros imported by the page are
+               not in its scope. #}
+            {% import 'settings/_message_list.html.twig' as ui %}
+            <div class="divide-y divide-line">
+                {{ ui.choice('star', 'settings.message_list.star', list.star.value, {
+                    hover:  'settings.message_list.on_hover',
+                    always: 'settings.message_list.always',
+                }, segGroup, segText, 'data-list-star') }}
+                {# The three below are custom properties rather than attributes
+                   (see MessageListRenderer), so they take effect when the save
+                   answers with the new values rather than on the click. #}
+                {{ ui.choice('avatars', 'settings.message_list.avatars', list.avatars ? 1 : 0, shownHidden, segGroup, segText) }}
+                {{ ui.choice('accountCorner', 'settings.message_list.corner', list.accountCorner ? 1 : 0, shownHidden, segGroup, segText) }}
+                {{ ui.choice('unreadEmphasis', 'settings.message_list.unread', list.unreadEmphasis.value, {
+                    subtle:   'settings.message_list.unread.subtle',
+                    standard: 'settings.message_list.unread.standard',
+                    strong:   'settings.message_list.unread.strong',
+                }, segGroup, segText) }}
+            </div>
+        {% endblock %}
+    {% endembed %}
+</div>

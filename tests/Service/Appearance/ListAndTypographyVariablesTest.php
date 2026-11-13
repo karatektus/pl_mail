@@ -6,7 +6,6 @@ namespace App\Tests\Service\Appearance;
 
 use App\Domain\Enum\Theme\Density;
 use App\Domain\Enum\Theme\FontFamily;
-use App\Domain\Enum\Theme\UnreadEmphasis;
 use App\Entity\Embeddable\Appearance;
 use App\Service\Appearance\AppearanceRenderer;
 use App\Service\Appearance\BackgroundResolver;
@@ -15,8 +14,9 @@ use Symfony\Component\Asset\Packages;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
- * The mail-list, typography and per-surface settings, from the stored value to
- * the CSS custom property.
+ * The typography and per-surface settings, from the stored value to the CSS
+ * custom property. The mail-list settings that were here are MessageList's
+ * since #608; MessageListRendererTest holds their half of this promise.
  *
  * The claim worth testing is not that a setter stores what it was given — it is
  * that a FRESH APPEARANCE RENDERS THE APP EXACTLY AS IT WAS before any of these
@@ -59,113 +59,11 @@ final class ListAndTypographyVariablesTest extends TestCase
     {
         $variables = $this->render(new Appearance());
 
-        self::assertSame('block', $variables['--list-corner-display'], 'the account corner ships on');
-        self::assertSame('0', $variables['--list-avatar-hide'], 'sender discs ship on');
-        self::assertSame('block', $variables['--list-preview-display']);
-        self::assertSame('nowrap', $variables['--list-preview-wrap'], 'one truncated line, as `truncate` gives');
-        self::assertSame('1', $variables['--unread-emphasis'], 'the tint is the theme\'s own, unscaled');
-        self::assertSame('0px', $variables['--unread-bar-w'], 'no accent bar unless asked for');
         self::assertSame('1', $variables['--app-font-scale']);
 
         // The two numbers the templates gave up when density reached them.
         self::assertSame('0.625rem', $variables['--surface-list-row-y'], 'the thread row\'s old py-2.5');
         self::assertSame('1rem', $variables['--surface-reading-row-y'], 'the message block\'s old py-4');
-    }
-
-    /**
-     * Two lines is four properties, not a count — and the wide branch is not
-     * one of them.
-     *
-     * A wide row puts the subject and the preview on one line, so the clamp is
-     * a stacked-row answer only; `--list-preview-display-wide` staying `block`
-     * while the stacked one becomes a box is the whole of that distinction.
-     */
-    public function testTwoPreviewLinesClampsOnlyTheStackedLayout(): void
-    {
-        $appearance = new Appearance();
-        $appearance->previewLines = 2;
-
-        $variables = $this->render($appearance);
-
-        self::assertSame('-webkit-box', $variables['--list-preview-display']);
-        self::assertSame('block', $variables['--list-preview-display-wide']);
-        self::assertSame('2', $variables['--list-preview-lines']);
-        self::assertSame('normal', $variables['--list-preview-wrap'], 'truncate\'s nowrap has to be released');
-    }
-
-    /** No preview at all hides it at both widths, and never clamps to zero. */
-    public function testNoPreviewLinesHidesItEverywhere(): void
-    {
-        $appearance = new Appearance();
-        $appearance->previewLines = 0;
-
-        $variables = $this->render($appearance);
-
-        self::assertSame('none', $variables['--list-preview-display']);
-        self::assertSame('none', $variables['--list-preview-display-wide']);
-        self::assertSame(
-            '1',
-            $variables['--list-preview-lines'],
-            '-webkit-line-clamp: 0 shows the text; the count must never reach CSS as zero',
-        );
-    }
-
-    public function testTheAccountCornerCanBeSwitchedOff(): void
-    {
-        $appearance = new Appearance();
-        $appearance->accountCorner = false;
-
-        self::assertSame('none', $this->render($appearance)['--list-corner-display']);
-    }
-
-    /**
-     * The unread count on the inbox tabs is on unless somebody turns it off.
-     *
-     * `inline` and `none` and nothing else: the variable is a `display` value,
-     * read by the `[data-tab-unread]` rule, so anything CSS cannot use there
-     * would leave the number showing for somebody who switched it off.
-     */
-    public function testTheTabUnreadCountIsOnByDefaultAndCanBeSwitchedOff(): void
-    {
-        $appearance = new Appearance();
-
-        self::assertSame('inline', $this->render($appearance)['--tab-unread-display']);
-
-        $appearance->tabUnreadCount = false;
-
-        self::assertSame('none', $this->render($appearance)['--tab-unread-display']);
-    }
-
-    /** It travels with a theme export and a config backup like the others. */
-    public function testTheTabUnreadCountSurvivesAnExportAndImport(): void
-    {
-        $source = new Appearance();
-        $source->tabUnreadCount = false;
-
-        self::assertFalse($source->toArray()['tabUnreadCount']);
-        self::assertFalse(new Appearance()->applyArray($source->toArray())->tabUnreadCount);
-        self::assertTrue(new Appearance()->applyArray(['tabUnreadCount' => '1'])->tabUnreadCount);
-
-        // Absent from a file written before the setting existed: left as it is.
-        $kept = new Appearance();
-        $kept->tabUnreadCount = false;
-
-        self::assertFalse($kept->applyArray(['accountCorner' => true])->tabUnreadCount);
-    }
-
-    public function testEmphasisScalesTheTintAndDrawsTheBarOnlyWhenStrong(): void
-    {
-        $appearance = new Appearance();
-
-        $appearance->unreadEmphasis = UnreadEmphasis::Subtle;
-        $subtle = $this->render($appearance);
-        self::assertSame('0', $subtle['--unread-emphasis'], 'no tint at all');
-        self::assertSame('0px', $subtle['--unread-bar-w']);
-
-        $appearance->unreadEmphasis = UnreadEmphasis::Strong;
-        $strong = $this->render($appearance);
-        self::assertSame('1.6', $strong['--unread-emphasis']);
-        self::assertSame('3px', $strong['--unread-bar-w']);
     }
 
     public function testTheFontScaleIsClampedToTheRangeItPublishes(): void
@@ -177,17 +75,6 @@ final class ListAndTypographyVariablesTest extends TestCase
 
         $appearance->fontScale = 0.1;
         self::assertSame(Appearance::RANGE_FONT_SCALE['min'], $appearance->fontScale);
-    }
-
-    public function testPreviewLinesAreClampedToTheRangeItPublishes(): void
-    {
-        $appearance = new Appearance();
-
-        $appearance->previewLines = 9;
-        self::assertSame(Appearance::RANGE_PREVIEW_LINES['max'], $appearance->previewLines);
-
-        $appearance->previewLines = -3;
-        self::assertSame(Appearance::RANGE_PREVIEW_LINES['min'], $appearance->previewLines);
     }
 
     public function testAFontFamilyBecomesAWholeStack(): void
@@ -313,32 +200,10 @@ final class ListAndTypographyVariablesTest extends TestCase
         self::assertNull($appearance->listDensity);
     }
 
-    /**
-     * The settings pane posts strings, JMAP and a theme file post booleans.
-     * "0" is truthy to a plain cast, which is how a toggle comes to be
-     * impossible to switch off.
-     */
-    public function testABooleanArrivesEitherAsAStringOrAsABoolean(): void
-    {
-        $appearance = new Appearance();
-
-        $appearance->applyArray(['accountCorner' => '0', 'listAvatars' => false]);
-        self::assertFalse($appearance->accountCorner);
-        self::assertFalse($appearance->listAvatars);
-
-        $appearance->applyArray(['accountCorner' => '1', 'listAvatars' => true]);
-        self::assertTrue($appearance->accountCorner);
-        self::assertTrue($appearance->listAvatars);
-    }
-
     /** Export → import is lossless for everything added here. */
     public function testTheNewSettingsSurviveAnExportAndImport(): void
     {
         $source = new Appearance();
-        $source->accountCorner = false;
-        $source->listAvatars = false;
-        $source->previewLines = 2;
-        $source->unreadEmphasis = UnreadEmphasis::Strong;
         $source->fontFamily = FontFamily::Monospace;
         $source->fontScale = 1.125;
         $source->listDensity = Density::Compact;
@@ -361,11 +226,29 @@ final class ListAndTypographyVariablesTest extends TestCase
     {
         $appearance = new Appearance();
         $appearance->listDensity = Density::Compact;
-        $appearance->accountCorner = false;
+        $appearance->fontScale = 1.25;
 
         $appearance->applyArray(new Appearance()->toArray());
 
         self::assertNull($appearance->listDensity);
-        self::assertTrue($appearance->accountCorner);
+        self::assertSame(1.0, $appearance->fontScale);
+    }
+
+    /**
+     * A theme no longer carries the list (#608). Importing somebody's colours
+     * used to change how many preview lines your list had; an old theme file
+     * that still has the keys imports without complaint and moves nothing.
+     */
+    public function testAThemeExportCarriesNoListSettings(): void
+    {
+        $exported = new Appearance()->toArray();
+
+        foreach (['previewLines', 'accountCorner', 'listAvatars', 'tabUnreadCount', 'unreadEmphasis'] as $key) {
+            self::assertArrayNotHasKey($key, $exported);
+        }
+
+        $imported = new Appearance()->applyArray(['previewLines' => 0, 'accountCorner' => false] + $exported);
+
+        self::assertSame($exported, $imported->toArray());
     }
 }

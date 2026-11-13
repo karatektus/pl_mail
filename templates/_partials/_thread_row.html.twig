@@ -188,6 +188,18 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set hasAttachment = row.narrowed ? row.hasAttachments : item.attachmentCount > 0 %}
     {% set senderSeed = latest ? (latest.fromAddress ?: sender) : sender %}
 
+    {# The message list settings' other answers (#608). Each is drawn and
+       app.css shows the one <html> asks for — see MessageListRenderer.
+       `latestSender` is the newest message's sender alone; in Sent and Drafts
+       both answers are the recipients, because every row there is yours.
+       `attachmentChips` is empty unless the reader's list shows chips, since
+       only then are the names read (ThreadRows). #}
+    {% set latestSender = (draft_scope or sent_scope or latest is null)
+        ? sender
+        : (latest.filedAsSent ? 'thread_row.me'|trans : (latest.fromName ?: latest.fromAddress ?: sender)) %}
+    {% set replied = row.replied %}
+    {% set attachmentChips = row.attachments %}
+
     {# Opened from Trash, the conversation shows its deleted side; the thread
        route has no list behind it, so the link says so. #}
     {% set href = bin_view()
@@ -208,6 +220,13 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set encrypted = item.crypto is not null and item.crypto.encrypted %}
 
     {% set hasAttachment = item.hasAttachments %}
+    {# A single message has one sender, so both sender answers are it. No
+       chips: a message row is a search hit or a compose stream's redraw, and
+       reading its parts would be a query per row for the one list where the
+       setting is least likely to be what the reader is looking at. #}
+    {% set latestSender = sender %}
+    {% set replied = '\\Answered' in item.flags %}
+    {% set attachmentChips = [] %}
 
     {% set draft = item.isDraft %}
     {% set draftId = item.id %}
@@ -560,7 +579,8 @@ be a worse regression than the one this feature fixes.
                     {% endif %}
 
                     <span class="truncate text-sm {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-muted' }}">
-                        {{ sender }}
+                        <span data-row-sender-name="everyone">{{ sender }}</span>
+                        <span data-row-sender-name="latest">{{ latestSender }}</span>
                     </span>
                 </span>
             </div>
@@ -579,9 +599,31 @@ be a worse regression than the one this feature fixes.
                that are already competing for one line, so they drop to a line
                of their own underneath. #}
             <div class="min-w-0 flex-1 flex flex-col row-band:contents">
-                <div class="min-w-0 flex flex-col row-band:contents row-line:flex-row row-line:items-baseline row-line:gap-2">
-                    <span data-row-subject class="truncate text-sm mt-1 row-band:mt-0 row-line:mt-0 row-line:flex-shrink-0 row-line:max-w-[45%]
+                {# `row-inline:` is the one-line row's arrangement of the
+                   subject and the preview — side by side, the preview cut
+                   where the line ends — and it is also what an inline preview
+                   asks for at any width (#608). `row-split:` is the two-line
+                   row when the preview has a line of its own. Both variants
+                   are in app.css. The air above the subject when stacked is
+                   on this box rather than on the subject, so the two sit level
+                   when they share a line. #}
+                <div class="min-w-0 flex flex-col mt-1 row-band:mt-0 row-line:mt-0 row-split:contents row-inline:flex-row row-inline:items-baseline row-inline:gap-2">
+                    <span data-row-subject class="truncate text-sm row-inline:flex-shrink-0 row-inline:max-w-[45%]
                                  {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-soft' }}">
+                        {# Labels in front of the subject, as Gmail's list has
+                           them — or as coloured dots in the same place. One of
+                           three copies of the labels in this row; app.css
+                           shows the one the reader chose (#608). #}
+                        {% include '_partials/_thread_labels.html.twig' with { item: item, account: rowAccount, hook: 'inline', class: 'mr-1.5' } %}
+                        {# Answered: the newest mail in it is yours or carries
+                           \Answered. Shown only for somebody who asked for it. #}
+                        {% if replied %}
+                            <span data-row-replied class="mr-1 text-[11px] text-ink-faint"
+                                  title="{{ 'thread_row.replied'|trans }}">
+                                <i class="fa-solid fa-reply" aria-hidden="true"></i>
+                                <span class="sr-only">{{ 'thread_row.replied'|trans }}</span>
+                            </span>
+                        {% endif %}
                         {# An encrypted message: a lock in front of its subject.
                            It used to be said by the preview, which read
                            "Encrypted message" after the subject — the server
@@ -601,7 +643,7 @@ be a worse regression than the one this feature fixes.
                         {% endif %}
                         {{ subjectLine }}
                         {% if count > 1 %}
-                            <span class="ml-1 text-xs font-medium text-ink-faint">{{ 'thread_row.message_count'|trans({'{ count }': count}) }}</span>
+                            <span data-row-count class="ml-1 text-xs font-medium text-ink-faint">{{ 'thread_row.message_count'|trans({'{ count }': count}) }}</span>
                         {% endif %}
                     </span>
 
@@ -610,7 +652,7 @@ be a worse regression than the one this feature fixes.
                        the same margin so the dot stays level with it. #}
                     {# Two lines: the whole second row, under the sender as
                        well as the subject. The grid's row gap is the air. #}
-                    <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 row-band:mt-0 row-band:col-span-2 row-line:mt-0">
+                    <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 row-band:mt-0 row-split:col-span-2 row-inline:mt-0">
                         {# A draft with a send time on it. Without this the
                            Drafts list is the one place a scheduled message
                            lives and the only place that does not say so — the
@@ -700,7 +742,7 @@ be a worse regression than the one this feature fixes.
                                 </button>
                             </span>
                         {% endif %}
-                        <span class="row-line:hidden contents">
+                        <span data-row-labels="line" class="row-inline:hidden contents">
                             {% include '_partials/_thread_labels.html.twig' with { item: item, account: rowAccount } %}
                         </span>
                         {# A three-line row has one short line for the preview,
@@ -745,9 +787,47 @@ be a worse regression than the one this feature fixes.
                    outranks `.hidden`, which a plain container variant does
                    not need to — see the note on `hidden @xl:inline-block`
                    above. #}
-                <div class="hidden row-line:has-[*]:flex items-center mt-1">
+                <div data-row-labels="below" class="hidden row-inline:has-[*]:flex items-center mt-1 row-band:col-span-2">
                     {% include '_partials/_thread_labels.html.twig' with { item: item, account: rowAccount } %}
                 </div>
+
+                {# The files, by name (#608): under everything else at every
+                   width, since a one-line row has no room for them and a
+                   stacked one has no better place. Each opens the viewer for
+                   what it can show and downloads the rest, as its chip in the
+                   reading pane does; lifted over the row's own link (`z-10`)
+                   so a click lands on the file and not on the conversation. #}
+                {% if attachmentChips is not empty %}
+                    {% set chipLimit = constant('App\\Domain\\Enum\\MessageList\\AttachmentDisplay::CHIP_LIMIT') %}
+                    <div data-row-attachments class="flex flex-wrap items-center gap-1.5 mt-1.5 row-band:col-span-2">
+                        {% for chip in attachmentChips|slice(0, chipLimit) %}
+                            {% set chipClass = 'relative z-10 pointer-events-auto inline-flex items-center gap-1.5 max-w-48 px-2 py-0.5 rounded-full
+                                                border border-line bg-sunken text-[11px] text-ink-soft hover:bg-hover transition-colors cursor-pointer
+                                                focus:outline-none focus-visible:ring-2 focus-visible:ring-accent' %}
+                            {% set chipFace %}
+                                <i class="fa-regular {{ chip.icon }} text-[11px] text-ink-faint" aria-hidden="true"></i>
+                                <span class="truncate">{{ chip.filename ?: 'attachment' }}</span>
+                            {% endset %}
+                            {% if chip.previewKind is not null %}
+                                <button type="button"
+                                        data-controller="ui--modal"
+                                        data-action="click->ui--modal#open"
+                                        data-ui--modal-size-value="full"
+                                        data-ui--modal-src-value="{{ path('app_mail_attachment_preview', { id: chip.id }) }}"
+                                        data-ui--modal-title-value="{{ chip.filename ?: 'attachment.preview.untitled'|trans }}"
+                                        class="{{ chipClass }}">{{ chipFace }}</button>
+                            {% else %}
+                                <a href="{{ path('app_mail_attachment', { id: chip.id }) }}?download=1"
+                                   download="{{ chip.filename ?: 'attachment' }}"
+                                   aria-label="{{ 'attachment.download_named'|trans({ '%name%': chip.filename ?: 'attachment' }) }}"
+                                   class="{{ chipClass }}">{{ chipFace }}</a>
+                            {% endif %}
+                        {% endfor %}
+                        {% if attachmentChips|length > chipLimit %}
+                            <span class="text-[11px] text-ink-faint">+{{ attachmentChips|length - chipLimit }}</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
             </div>
         </div>
 
@@ -797,7 +877,7 @@ be a worse regression than the one this feature fixes.
                        Every other icon in this file is wrapped for the same
                        reason. #}
                     {% if hasAttachment %}
-                        <span class="hidden row-line:inline" aria-hidden="true">
+                        <span data-row-clip class="hidden row-line:inline" aria-hidden="true">
                             <i class="fa-solid fa-paperclip text-[11px]"></i>
                         </span>
                     {% endif %}
@@ -812,6 +892,13 @@ be a worse regression than the one this feature fixes.
                         : date %}
 
                     {% if shown %}
+                        {# Smart, as the list always dated a row; and the day
+                           with the time on every row, for somebody who reads a
+                           list by when things came (#608). #}
+                        <span data-row-date="full">
+                            {{ shown|intl_date(shown|date('Y') == 'now'|date('Y') ? 'dMMM' : 'dMMMy') }}, {{ shown|date(clock.time) }}
+                        </span>
+                        <span data-row-date="smart">
                         {% if snooze_scope and shown is not same as(date) %}
                             <span class="text-accent">
                                 {{ shown|intl_date('dMMM') }}, {{ shown|date(clock.time) }}
@@ -823,6 +910,7 @@ be a worse regression than the one this feature fixes.
                         {% else %}
                             {{ shown|intl_date('dMMMy') }}
                         {% endif %}
+                        </span>
                     {% endif %}
                 </span>
 
@@ -997,7 +1085,7 @@ be a worse regression than the one this feature fixes.
                    better with its two marks together than with one stranded
                    beside the time. The wide copy lives with the date. #}
                 {% if hasAttachment %}
-                    <span class="row-line:hidden text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
+                    <span data-row-clip class="row-line:hidden text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
                         <i class="fa-solid fa-paperclip text-xs" aria-hidden="true"></i>
                     </span>
                     <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
@@ -1005,6 +1093,7 @@ be a worse regression than the one this feature fixes.
 
                 <button
                     type="button"
+                    data-row-star
                     data-action="click->mail--message-row#toggleStar"
                     data-mail--message-row-star-url-param="{{ path('app_status_star', {'type': type, 'id': rowId}) }}"
                     class="z-10 pointer-events-auto cursor-pointer transition-colors
@@ -1028,7 +1117,7 @@ be a worse regression than the one this feature fixes.
                the dot is 8px and the star glyph is 14, so aligning their right
                edges puts their centres 3px apart. #}
             {% if unread %}
-                <span class="@xl:hidden h-5 mt-1.5 w-3.5 flex items-center justify-center shrink-0" aria-hidden="true">
+                <span data-row-unread-dot class="@xl:hidden h-5 mt-1.5 w-3.5 flex items-center justify-center shrink-0" aria-hidden="true">
                     <span class="w-2 h-2 rounded-full bg-success"></span>
                 </span>
                 {# No |default: a missing key comes back from |trans as the key

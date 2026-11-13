@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "./support/test";
+import { saveListSettings } from "./support/message-list";
 
 /**
  * The account corner in a REAL multi-account list, on and off.
@@ -12,23 +13,11 @@ import { test, expect, type Page } from "./support/test";
  * is exactly the result this must not accept.
  */
 
-const PANEL = '[data-controller="settings--appearance"]';
 const OUT = "var/shots";
 
+/** On the user, through the Message list page's endpoint (#608). */
 const setCorner = async (page: Page, on: boolean) => {
-    await page.goto("/settings/appearance");
-    await expect(page.locator(PANEL)).toBeVisible();
-
-    const segment = page.locator(
-        `${PANEL} input[type="radio"][data-toggles="accountCorner"][value="${on ? "1" : "0"}"]`,
-    );
-
-    if (false === (await segment.isChecked())) {
-        await segment.check({ force: true });
-        await page.waitForResponse(
-            (r) => r.url().includes("/settings/appearance") && r.request().method() === "POST",
-        );
-    }
+    await saveListSettings(page, { accountCorner: on });
 };
 
 test.describe("appearance — the account corner in a real list", () => {

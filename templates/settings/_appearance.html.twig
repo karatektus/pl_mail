@@ -601,142 +601,23 @@
                 </div>
             </section>
 
-            {# ── Mail list ─────────────────────────────────────────────────
-               What a row in the message list shows. Every default is what the
-               list did before these controls existed, so nothing moves for
-               anybody who never comes here. #}
+            {# ── Action buttons ────────────────────────────────────────────
+               This section was "Message list" and held five list settings
+               beside this one. They say what a row tells you, not how the app
+               looks, and they are Settings → Inbox → Message list now (#608);
+               the action buttons are the look of every toolbar and stay. #}
             <section>
-                <div class="mb-4">
-                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.list.heading'|trans }}</h3>
-                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.list.subheading'|trans }}</p>
-                </div>
-
                 <div class="space-y-4">
-                    {# The two on/off settings. A checkbox cannot carry its own state into
-                       the payload — save() reads `input.value`, which is "on" whether a
-                       box is ticked or not — so each drives a hidden field holding "1" or
-                       "0", the same pattern the ink and main-pane defaults use. #}
-                    {% set toggles = [
-                        {
-                            field: 'accountCorner',
-                            on:    a.accountCorner,
-                            vars:  { on: { '--list-corner-display': 'block' }, off: { '--list-corner-display': 'none' } },
-                        },
-                        {
-                            field: 'listAvatars',
-                            on:    a.listAvatars,
-                            vars:  { on: { '--list-avatar-hide': '0' }, off: { '--list-avatar-hide': '1' } },
-                        },
-                        {
-                            field: 'tabUnreadCount',
-                            on:    a.tabUnreadCount,
-                            vars:  { on: { '--tab-unread-display': 'inline' }, off: { '--tab-unread-display': 'none' } },
-                        },
-                    ] %}
-
-                    {# Segmented like every other short choice on this page. The
-                       radios are UI only — they carry no field attribute, so
-                       save() never reads them; each change writes the hidden
-                       field beside the group, which is what travels. #}
-                    {% for toggle in toggles %}
-                        <div>
-                            <span class="block text-xs font-medium text-ink-muted" id="list-toggle-{{ toggle.field }}">
-                                {{ ('settings.appearance.list.' ~ toggle.field)|trans }}
-                            </span>
-                            <span class="block text-[11px] text-ink-faint mt-0.5 mb-1.5">
-                                {{ ('settings.appearance.list.' ~ toggle.field ~ 'Hint')|trans }}
-                            </span>
-                            <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="list-toggle-{{ toggle.field }}">
-                                {% for shown in [true, false] %}
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="{{ toggle.field }}Mode" class="peer sr-only"
-                                               value="{{ shown ? '1' : '0' }}"
-                                               data-toggles="{{ toggle.field }}"
-                                               data-css-vars-on="{{ toggle.vars.on|json_encode }}"
-                                               data-css-vars-off="{{ toggle.vars.off|json_encode }}"
-                                               data-action="change->settings--appearance#toggleListOption"
-                                               aria-label="{{ ('settings.appearance.list.' ~ toggle.field)|trans }} — {{ (shown ? 'settings.appearance.seg.shown' : 'settings.appearance.seg.hidden')|trans }}"
-                                            {{ toggle.on == shown ? 'checked' : '' }}>
-                                        <span class="{{ segText }}">
-                                            {{ (shown ? 'settings.appearance.seg.shown' : 'settings.appearance.seg.hidden')|trans }}
-                                        </span>
-                                    </label>
-                                {% endfor %}
-                            </div>
-                            <input type="hidden" data-settings--appearance-field="{{ toggle.field }}"
-                                   data-toggle-field="{{ toggle.field }}" value="{{ toggle.on ? '1' : '0' }}">
-                        </div>
-                    {% endfor %}
-
-                    {# Preview lines. The values are the CSS the row needs rather than the
-                       count, for the reason AppearanceRenderer gives: nothing in CSS
-                       derives "hidden" from a count, and `truncate`'s nowrap has to be
-                       released for a second line to exist. Two is the ceiling because the
-                       row has room for two. #}
-                    <div>
-                        <span class="block text-xs font-medium text-ink-muted mb-1.5" id="preview-lines-label">
-                            {{ 'settings.appearance.list.previewLines'|trans }}
-                        </span>
-                        <div class="{{ segGroup }}"
-                             role="radiogroup" aria-labelledby="preview-lines-label">
-                            {% set lineOptions = {
-                                0: { '--list-preview-display': 'none', '--list-preview-display-wide': 'none', '--list-preview-lines': '1', '--list-preview-wrap': 'nowrap' },
-                                1: { '--list-preview-display': 'block', '--list-preview-display-wide': 'block', '--list-preview-lines': '1', '--list-preview-wrap': 'nowrap' },
-                                2: { '--list-preview-display': '-webkit-box', '--list-preview-display-wide': 'block', '--list-preview-lines': '2', '--list-preview-wrap': 'normal' },
-                            } %}
-                            {% for lines, vars in lineOptions %}
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="previewLines" class="peer sr-only" value="{{ lines }}"
-                                           data-settings--appearance-field="previewLines"
-                                           data-css-vars="{{ vars|json_encode }}"
-                                           data-action="change->settings--appearance#applyPreviewLines"
-                                           aria-label="{{ ('settings.appearance.list.previewLines' ~ lines)|trans }}"
-                                        {{ a.previewLines == lines ? 'checked' : '' }}>
-                                    <span class="{{ segText }}">
-                                        {{ ('settings.appearance.list.previewLines' ~ lines)|trans }}
-                                    </span>
-                                </label>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    {# Unread emphasis. The BOLD WEIGHT is not part of this and does not
-                       move: it survives a colour-blind reader, a photograph behind a
-                       translucent pane and a printout, which the tint does not. What
-                       varies is the tint's strength and, at Strong, an accent bar down the
-                       row's leading edge. #}
-                    <div>
-                        <span class="block text-xs font-medium text-ink-muted mb-1.5" id="unread-emphasis-label">
-                            {{ 'settings.appearance.list.unreadEmphasis'|trans }}
-                        </span>
-                        <div class="{{ segGroup }}"
-                             role="radiogroup" aria-labelledby="unread-emphasis-label">
-                            {% for emphasis in enum('App\\Domain\\Enum\\Theme\\UnreadEmphasis').cases %}
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="unreadEmphasis" class="peer sr-only" value="{{ emphasis.value }}"
-                                           data-settings--appearance-field="unreadEmphasis"
-                                           data-css-vars="{{ { '--unread-emphasis': emphasis.tintScale, '--unread-bar-w': emphasis.barWidth }|json_encode }}"
-                                           data-action="change->settings--appearance#applyVars"
-                                           aria-label="{{ ('settings.appearance.list.unread.' ~ emphasis.value)|trans }}"
-                                        {{ a.unreadEmphasis == emphasis ? 'checked' : '' }}>
-                                    <span class="{{ segText }}">
-                                        {{ ('settings.appearance.list.unread.' ~ emphasis.value)|trans }}
-                                    </span>
-                                </label>
-                            {% endfor %}
-                        </div>
-                    </div>
-
                     {# Icons, words or both on the action buttons (#459). The two
                        sample buttons are there because nothing else on this page
                        has one, so a choice would otherwise show nothing until the
                        reader went back to their mail. #}
                     <div>
                         <span class="block text-xs font-medium text-ink-muted" id="action-buttons-label">
-                            {{ 'settings.appearance.list.actionButtons'|trans }}
+                            {{ 'settings.appearance.buttons.label'|trans }}
                         </span>
                         <span class="block text-[11px] text-ink-faint mt-0.5 mb-1.5">
-                            {{ 'settings.appearance.list.actionButtonsHint'|trans }}
+                            {{ 'settings.appearance.buttons.hint'|trans }}
                         </span>
                         <div class="{{ segGroup }}"
                              role="radiogroup" aria-labelledby="action-buttons-label">
@@ -746,10 +627,10 @@
                                            data-settings--appearance-field="actionButtons"
                                            data-css-vars="{{ { '--action-icon-display': style.iconDisplay, '--action-label-display': style.labelDisplay, '--action-btn-px': style.paddingX, '--action-btn-gap': style.gap }|json_encode }}"
                                            data-action="change->settings--appearance#applyVars"
-                                           aria-label="{{ ('settings.appearance.list.actionButton.' ~ style.value)|trans }}"
+                                           aria-label="{{ ('settings.appearance.buttons.' ~ style.value)|trans }}"
                                         {{ a.actionButtons == style ? 'checked' : '' }}>
                                     <span class="{{ segText }}">
-                                        {{ ('settings.appearance.list.actionButton.' ~ style.value)|trans }}
+                                        {{ ('settings.appearance.buttons.' ~ style.value)|trans }}
                                     </span>
                                 </label>
                             {% endfor %}

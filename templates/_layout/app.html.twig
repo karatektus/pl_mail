@@ -38,12 +38,13 @@
          being a Twig global rather than a controller variable. Read through
          `prefersHour12()` in assets/clock_format.js. #}
       data-clock-hour12="{{ clock.is12Hour ? 'true' : 'false' }}"
-      {# The preview-lines setting as a count, for the one thing its CSS
-         variables cannot do: move the width at which a list row goes to one
-         line. A container query cannot read a custom property. See the
-         `row-line:` variant in app.css. #}
-      data-list-preview-lines="{{ appearance().previewLines }}"
-      style="{{ appearance_vars() }}">
+      {# The message list settings (#608): attributes for the choices that
+         move a row's shape, which app.css meets inside container queries —
+         a container query cannot read a custom property — and properties for
+         the four values a declaration uses directly. See MessageListRenderer.
+         The settings page rewrites both as you click. #}
+      {% for name, value in message_list_attributes() %} {{ name }}="{{ value }}"{% endfor %}
+      style="{{ appearance_vars() }};{{ message_list_vars() }}">
 <head>
     <meta charset="UTF-8">
     {# Without this the browser assumes a ~980px desktop canvas and scales the

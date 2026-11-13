@@ -3210,6 +3210,103 @@ settings:
         with_keys: "密钥会一同传输，加密邮件可立即在应用中打开。"
         expires: '于 %time% 过期。'
         open_in_app: '在应用中打开'
+    message_list:
+        always: '始终'
+        attachments:
+            chips: '文件标签'
+            hint: '文件标签在预览下方列出最多三个文件，可直接从列表中打开。'
+            icon: '回形针'
+            label: '附件'
+        avatars:
+            hint: '显示发件人姓名首字母的彩色圆圈。关闭后会变为普通圆圈而非消失，因为它同时也是该行的复选框。'
+            label: '发件人圆形头像'
+        content:
+            heading: '内容'
+            subheading: '每一行展示的会话信息。'
+        corner:
+            hint: '每行角落的彩色三角形，表示邮件所属账户。仅在混合多个账户的列表中显示。'
+            label: '账户角标'
+        count:
+            hint: '会话主题后面的数字。'
+            label: '邮件数'
+        date:
+            full: '日期和时间'
+            hint: '智能：今天显示时间，今年显示日期，更早显示完整日期。'
+            label: '日期'
+            smart: '智能'
+        hidden: '隐藏'
+        labels:
+            dots: '圆点'
+            hint: '在主题前以标签或标签颜色的圆点显示，或单独一行。'
+            inline: '主题前'
+            label: '标签'
+            line: '单独一行'
+        layout:
+            fit: '放得下时'
+            heading: '布局'
+            hint: '较宽的列表把发件人、主题和预览放在一行。较窄时分行显示。'
+            label: '单行显示'
+            stacked: '从不'
+            subheading: '行何时变为单行，以及显示多少邮件内容。'
+            wide: '仅宽列表'
+        markers:
+            heading: '标记'
+            subheading: '每一行上的标记。'
+        on_hover: '悬停时'
+        preview:
+            heading: '预览'
+            subheading: '虚构的邮件，按你的列表方式绘制。选择宽度，查看行如何变化。'
+            width: '预览宽度'
+            widths:
+                narrow: '窄'
+                phone: '手机'
+                wide: '宽'
+        preview_lines:
+            hint: '分行显示时显示多少邮件内容。单行时始终显示在主题之后。'
+            inline: '主题之后'
+            label: '摘要'
+            none: '无'
+            one: '一行'
+            two: '两行'
+        replied:
+            hint: '会话中最新的邮件已回复时，在主题前显示箭头。'
+            label: '已回复箭头'
+        sample:
+            contract:
+                body: '这是最后一轮修改。能否在周五前签字，以便我们下月一号开始？'
+                subject: '合同草案 – 最终版'
+            digest:
+                body: '本周值得一读的五件事、新的一期节目，以及你附近的活动。'
+                subject: '你的每周摘要'
+            flights:
+                body: '我找到了周二上午的两个选择。较早的那班更便宜，但在主题演讲前一小时才落地。'
+                subject: '会议的航班'
+            label:
+                travel: '旅行'
+                work: '工作'
+            offsite:
+                body: '湖边小屋四月第二周有空。市区场地需要在周一前答复。'
+                subject: '春季团建规划：场地和日期'
+        sender:
+            everyone: '所有人'
+            hint: '在已发送和草稿中，始终显示收件人。'
+            label: '发件人'
+            latest: '最新'
+        shown: '显示'
+        star:
+            hint: '针对未加星标的会话。已加星标的会话始终显示星标。'
+            label: '星标'
+        tab_counts:
+            heading: '标签页计数'
+            hint: '每个选项卡名称旁的数字，表示该分类中含有未读邮件的会话数。各选项卡的数字之和等于侧边栏的收件箱角标数。“3 封新邮件”提示独立显示，不受此设置影响。'
+            label: '收件箱选项卡的未读数'
+            subheading: '收件箱标签页上的数字。'
+        unread:
+            hint: '未读行的着色强度。粗体在任何设置下都保留。'
+            label: '未读行样式'
+            standard: '标准'
+            strong: '醒目'
+            subtle: '柔和'
     native_apps:
         android_hint: '然后用下面的按钮完成配对。目前，在 Google Play 上购买这个应用是支持本项目的主要方式。'
         android_title: '请先安装 Android 版 plMail'
@@ -3239,6 +3336,12 @@ settings:
             solid: '纯色'
             theme: '主题默认'
             upload: '上传图片'
+        buttons:
+            both: '图标和文字'
+            hint: '会话或所选邮件上方的按钮显示的内容。'
+            icons: '图标'
+            label: '操作按钮'
+            text: '文字'
         density:
             comfortable: '宽松'
             compact: '紧凑'
@@ -3275,30 +3378,6 @@ settings:
             flat: '平面式'
             heading: '布局'
             subheading: '界面的框架样式。卡片式将每个面板显示为悬浮卡片；平面式将顶栏和侧边栏直接放在背景上，仅主面板保留卡片边框。'
-        list:
-            accountCorner: '账户角标'
-            accountCornerHint: '每行角落的彩色三角形，表示邮件所属账户。仅在混合多个账户的列表中显示。'
-            actionButton:
-                both: '图标和文字'
-                icons: '图标'
-                text: '文字'
-            actionButtons: '操作按钮'
-            actionButtonsHint: '会话或所选邮件上方的按钮显示的内容。'
-            heading: '邮件列表'
-            listAvatars: '发件人圆形头像'
-            listAvatarsHint: '显示发件人姓名首字母的彩色圆圈。关闭后会变为普通圆圈而非消失，因为它同时也是该行的复选框。'
-            tabUnreadCount: '收件箱选项卡的未读数'
-            tabUnreadCountHint: '每个选项卡名称旁的数字，表示该分类中含有未读邮件的会话数。各选项卡的数字之和等于侧边栏的收件箱角标数。“3 封新邮件”提示独立显示，不受此设置影响。'
-            previewLines: '预览行数'
-            previewLines0: '无'
-            previewLines1: '一行'
-            previewLines2: '两行'
-            subheading: '列表每行显示的内容。'
-            unread:
-                standard: '标准'
-                strong: '醒目'
-                subtle: '柔和'
-            unreadEmphasis: '未读行样式'
         logo:
             colour: '颜色'
             custom:
@@ -3370,8 +3449,6 @@ settings:
         seg:
             custom: '自定义'
             default: '主题默认'
-            hidden: '隐藏'
-            shown: '显示'
         text:
             autoDerive: '自动推导'
             color: '文字颜色'
@@ -4042,6 +4119,7 @@ settings:
         integrations: '集成'
         labels: '标签'
         layout: "布局与操作"
+        message_list: '邮件列表'
         notifications: '通知'
         profile: '个人资料'
         reading: "阅读"
@@ -4078,6 +4156,9 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless 云 webdav"
             labels: "文件夹 标签 未读 所有邮件"
             language: "语言 中文 英语 德语 法语"
+            list_content: '附件 文件标签 回形针 文件 标签 发件人 日期 时间 数量 已回复'
+            list_layout: '行 单行 紧凑 预览 摘要 分行 宽度'
+            list_markers: '星标 悬停 头像 圆圈 账户 角标 未读 粗体'
             notifications: "推送 浏览器 手机 声音 提醒"
             password: "密码 登录"
             profile: "姓名 头像 照片"
@@ -4548,6 +4629,7 @@ thread_row:
     new_badge: '新'
     no_recipient: '（无收件人）'
     no_subject: '（无主题）'
+    replied: '已回复'
     send_failed:
         failed: '未发送'
         mail_off: '未发送：此账户的邮件已关闭'

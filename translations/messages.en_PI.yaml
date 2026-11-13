@@ -3480,6 +3480,103 @@ settings:
         with_keys: "Yer keys sail along: ciphered letters open in the app straight away."
         expires: "Fades at %time%."
         open_in_app: "Open it in th' app"
+    message_list:
+        always: 'Always'
+        attachments:
+            chips: 'Chips'
+            hint: 'Chips name up to three bits o'' cargo under the peek an'' open one straight from the manifest.'
+            icon: 'Paperclip'
+            label: 'Cargo'
+        avatars:
+            hint: The coloured coin bearin' the sender's initial. Struck off it turns a plain ring rather than vanishin' — 'tis also the row's tick-box.
+            label: Sender medallions
+        content:
+            heading: 'What she carries'
+            subheading: 'What every row says about its yarn.'
+        corner:
+            hint: The wee coloured pennant in a row's corner, namin' which berth the message sailed in on. Only ever flown when the manifest mixes berths.
+            label: Crew colours
+        count:
+            hint: 'The number after a yarn''s subject.'
+            label: 'Message tally'
+        date:
+            full: 'Date an'' hour'
+            hint: 'Smart shows the hour today, the day this year, an'' the whole date afore that.'
+            label: 'Date'
+            smart: 'Smart'
+        hidden: 'Stowed'
+        labels:
+            dots: 'Dots'
+            hint: 'Afore the subject, as chips or as dots in the flag''s colour, or on a line o'' their own.'
+            inline: 'Afore the subject'
+            label: 'Flags'
+            line: 'Own line'
+        layout:
+            fit: 'Soon as she fits'
+            heading: 'Riggin'''
+            hint: 'A wide manifest puts the sender, the subject an'' the peek on one line. Narrower, a row stacks.'
+            label: 'One-line rows'
+            stacked: 'Never'
+            subheading: 'When a row goes to one line, an'' how much o'' the message it shows.'
+            wide: 'Only on wide manifests'
+        markers:
+            heading: 'Marks'
+            subheading: 'The marks on every row.'
+        on_hover: 'When the cursor sails by'
+        preview:
+            heading: 'Spyglass'
+            subheading: 'Made-up mail, drawn the way yer manifest draws it. Pick a width to see a row change her shape.'
+            width: 'Spyglass width'
+            widths:
+                narrow: 'Narrow'
+                phone: 'Phone'
+                wide: 'Wide'
+        preview_lines:
+            hint: 'How much o'' the message a stacked row shows. A one-line row always shows it after the subject.'
+            inline: 'After the subject'
+            label: 'Peek'
+            none: 'None'
+            one: 'One line'
+            two: 'Two lines'
+        replied:
+            hint: 'An arrow afore the subject when the newest mail in the yarn has been answered.'
+            label: 'Answered arrow'
+        sample:
+            contract:
+                body: 'Here be the last round o'' changes. Could ye make yer mark by Friday so we sail on the first o'' the month?'
+                subject: 'Articles draft – the final word'
+            digest:
+                body: 'Five things worth readin'' this week, a new tale, an'' the gatherin''s comin'' up near yer port.'
+                subject: 'Yer weekly dispatch'
+            flights:
+                body: 'I found two ships for Tuesday mornin''. The earlier be cheaper but makes port an hour afore the keynote.'
+                subject: 'Passage to the conference'
+            label:
+                travel: 'Voyages'
+                work: 'Graft'
+            offsite:
+                body: 'The lake house be free the second week o'' April. The city tavern needs an answer by Monday.'
+                subject: 'Plannin'' the spring shore leave: ports an'' dates'
+        sender:
+            everyone: 'The whole crew'
+            hint: 'In Sent an'' Drafts the row names the recipients either way.'
+            label: 'Sender'
+            latest: 'The latest'
+        shown: 'Shown'
+        star:
+            hint: 'For a yarn ye haven''t marked. A marked one always flies its mark.'
+            label: 'Mark'
+        tab_counts:
+            heading: 'Tab tallies'
+            hint: 'The number beside each tab''s name: how many yarns in that hold carry unread mail. Together the tabs make the Inbox tally in the sidebar. The "3 new" pennant be a separate thing an'' stays.'
+            label: 'Unread tally on the inbox tabs'
+            subheading: 'The numbers on the inbox tabs.'
+        unread:
+            hint: 'How loud an unread row be tinted. Bold stays whatever ye pick.'
+            label: Unread rows
+            standard: As she be
+            strong: Loud as a cannon
+            subtle: A whisper
     native_apps:
         android_hint: "Then sign it on with th' button below. Buyin' th' app on Google Play be, fer now, the main way this crew keeps afloat."
         android_title: "Fetch plMail fer Android first"
@@ -3516,6 +3613,12 @@ settings:
             solid: One flat hue
             theme: Theme default
             upload: Hoist an image
+        buttons:
+            both: 'Pictures and words'
+            hint: "What the buttons atop a conversation or a haul be showin'."
+            icons: 'Pictures'
+            label: 'Action buttons'
+            text: 'Words'
         density:
             comfortable: Roomy
             compact: Cramped
@@ -3552,30 +3655,6 @@ settings:
             flat: Flat as a calm sea
             heading: Riggin'
             subheading: How the deck be framed. Crates float every panel like cargo; flat lays the top rail an' side riggin' straight on the backdrop an' leaves only the main deck boxed.
-        list:
-            accountCorner: Crew colours
-            accountCornerHint: The wee coloured pennant in a row's corner, namin' which berth the message sailed in on. Only ever flown when the manifest mixes berths.
-            actionButton:
-                both: 'Pictures and words'
-                icons: 'Pictures'
-                text: 'Words'
-            actionButtons: 'Action buttons'
-            actionButtonsHint: "What the buttons atop a conversation or a haul be showin'."
-            heading: Manifest
-            listAvatars: Sender medallions
-            listAvatarsHint: The coloured coin bearin' the sender's initial. Struck off it turns a plain ring rather than vanishin' — 'tis also the row's tick-box.
-            tabUnreadCount: 'Unread tally on the inbox tabs'
-            tabUnreadCountHint: 'The number beside each tab''s name: how many yarns in that hold carry unread mail. Together the tabs make the Inbox tally in the sidebar. The "3 new" pennant be a separate thing an'' stays.'
-            previewLines: Peek lines
-            previewLines0: None
-            previewLines1: One line
-            previewLines2: Two lines
-            subheading: What every row o' the manifest shows.
-            unread:
-                standard: As she be
-                strong: Loud as a cannon
-                subtle: A whisper
-            unreadEmphasis: Unread rows
         logo:
             colour: 'Colours'
             custom:
@@ -3647,8 +3726,6 @@ settings:
         seg:
             custom: 'Yer own'
             default: "Theme's pick"
-            hidden: 'Stowed'
-            shown: 'Shown'
         text:
             autoDerive: Work it out for me
             color: Text colour
@@ -4531,6 +4608,7 @@ settings:
         integrations: 'Friendly ports'
         labels: Flags
         layout: "Riggin' an' helm"
+        message_list: 'Manifest'
         notifications: Word from the crow's nest
         profile: Yer colours
         reading: "Readin'"
@@ -4567,6 +4645,9 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
             labels: "folders tags unread all mail"
             language: "locale english german french chinese"
+            list_content: 'cargo attachments chips paperclip files flags labels sender date hour tally answered'
+            list_layout: 'rows one line compact dense peek preview stacked width'
+            list_markers: 'mark star hover medallion avatar crew corner unread bold'
             notifications: "push browser phone sound alert"
             password: "login sign-in"
             profile: "name avatar photo picture"
@@ -5076,6 +5157,7 @@ thread_row:
     new_badge: Fresh
     no_recipient: (bound for nowhere)
     no_subject: (no subject)
+    replied: 'Answered'
     send_failed:
         failed: Never sailed
         mail_off: 'Not sailed: letters be becalmed on this ship'

@@ -504,6 +504,10 @@ final readonly class ConfigBackupUsers
             // provider, and whether there are tabs at all. Carried the way the
             // two above are, so the next decision added to it travels too.
             'categorySorting' => $user->categorySorting->toArray(),
+            // What a list row shows (#608). Five of these were in
+            // `appearance` before; the restorer still reads them from there
+            // for a document written before this key existed.
+            'messageList' => $user->messageList->toArray(),
             'settings'   => $this->settingsOf($user),
             'createdAt'  => $user->createdAt->format(DateTimeInterface::ATOM),
             // Carried for the reason export() gives about deletedAt: being

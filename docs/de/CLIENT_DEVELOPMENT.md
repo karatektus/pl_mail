@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:6fdd29f9b66c78b052193cdf5c7bd33cc52bc324 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:476d9e55593947c3b9baabb6e7a3cde7516c2d1c -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -1835,7 +1835,13 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
   `fontFamily`, `fontScale`, `previewLines`, `unreadEmphasis`, `actionButtons`, `accountCorner`, `listAvatars`, `tabUnreadCount`,
   den drei Dichten pro Oberfläche und den nur lesbaren `logoStyle`, `logoMotif` und `logoPaint`
   (siehe [§2](#2-aussehen-und-verhalten)). Bau das Token-System
-  trotzdem; lies die Werte des Servers hinein, statt eigene Vorgaben zu erfinden.
+  trotzdem; lies die Werte des Servers hinein, statt eigene Vorgaben zu erfinden. Die fünf
+  Listen-Eigenschaften (`previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`,
+  `tabUnreadCount`) gehören seit #608 zur Web-Seite Einstellungen → Posteingang → Nachrichtenliste
+  und werden hier für bestehende Clients unverändert ausgeliefert; die übrigen Zeilen-Optionen des
+  Webs (Aufbau, Anhang-Chips, Platz der Labels und so weiter) sind nicht auf der Leitung.
+  `previewLines` liest für die Inline-Vorschau des Webs 1, und die bereits gespeicherte Zahl zu
+  schreiben lässt eine Inline-Vorschau in Ruhe.
 - Kontoliste und -reihenfolge.
 - Vorlagen — auflisten, bearbeiten und einfügen über `Template/*` und `TemplateFolder/*`; siehe
   [Vorlagen](#vorlagen). Füg über `Template/render` ein und frag vor dem Senden nach, solange eine

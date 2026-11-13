@@ -3681,6 +3681,103 @@ settings:
         with_keys: 'Vos clés vous accompagnent : le courrier chiffré s’ouvre tout de suite dans l’application.'
         expires: "Expire à %time%."
         open_in_app: "Ouvrir dans l’application"
+    message_list:
+        always: 'Toujours'
+        attachments:
+            chips: 'Puces'
+            hint: 'Les puces nomment jusqu’à trois fichiers sous l’aperçu et en ouvrent un directement depuis la liste.'
+            icon: 'Trombone'
+            label: 'Pièces jointes'
+        avatars:
+            hint: Le cercle coloré portant l’initiale de l’expéditeur. Désactivé, il devient un simple cercle au lieu de disparaître — c’est aussi la case à cocher de la ligne.
+            label: Pastilles d’expéditeur
+        content:
+            heading: 'Contenu'
+            subheading: 'Ce que chaque ligne dit de sa conversation.'
+        corner:
+            hint: Le triangle coloré dans le coin d’une ligne, qui indique sur quel compte elle est arrivée. Seulement dessiné dans une liste qui mélange les comptes.
+            label: Coin du compte
+        count:
+            hint: 'Le nombre après l’objet d’une conversation.'
+            label: 'Nombre de messages'
+        date:
+            full: 'Date et heure'
+            hint: 'Intelligente affiche l’heure aujourd’hui, le jour cette année, puis la date complète.'
+            label: 'Date'
+            smart: 'Intelligente'
+        hidden: 'Masqué'
+        labels:
+            dots: 'Points'
+            hint: 'Devant l’objet, en puces ou en points de la couleur du libellé, ou sur une ligne à part.'
+            inline: 'Avant l’objet'
+            label: 'Libellés'
+            line: 'Ligne à part'
+        layout:
+            fit: 'Dès que ça tient'
+            heading: 'Disposition'
+            hint: 'Une liste large met l’expéditeur, l’objet et l’aperçu sur une ligne. Plus étroite, la ligne s’empile.'
+            label: 'Affichage sur une ligne'
+            stacked: 'Jamais'
+            subheading: 'Quand une ligne passe sur une seule ligne, et ce qu’elle montre du message.'
+            wide: 'Listes larges seulement'
+        markers:
+            heading: 'Marques'
+            subheading: 'Les marques de chaque ligne.'
+        on_hover: 'Au survol'
+        preview:
+            heading: 'Aperçu'
+            subheading: 'Des messages inventés, dessinés comme votre liste les dessine. Choisissez une largeur pour voir une ligne changer de forme.'
+            width: 'Largeur de l’aperçu'
+            widths:
+                narrow: 'Étroite'
+                phone: 'Téléphone'
+                wide: 'Large'
+        preview_lines:
+            hint: 'Ce qu’une ligne empilée montre du message. Une ligne simple le montre toujours après l’objet.'
+            inline: 'Après l’objet'
+            label: 'Aperçu du message'
+            none: 'Aucun'
+            one: 'Une ligne'
+            two: 'Deux lignes'
+        replied:
+            hint: 'Une flèche devant l’objet quand le dernier message de la conversation a reçu une réponse.'
+            label: 'Flèche de réponse'
+        sample:
+            contract:
+                body: 'Voici la dernière série de modifications. Pourriez-vous signer d’ici vendredi pour que nous commencions le premier du mois ?'
+                subject: 'Projet de contrat – version finale'
+            digest:
+                body: 'Cinq choses à lire cette semaine, un nouvel épisode et les événements près de chez vous.'
+                subject: 'Votre résumé de la semaine'
+            flights:
+                body: 'J’ai trouvé deux options pour mardi matin. La première est moins chère mais atterrit une heure avant la conférence d’ouverture.'
+                subject: 'Vols pour la conférence'
+            label:
+                travel: 'Voyages'
+                work: 'Travail'
+            offsite:
+                body: 'La maison du lac est libre la deuxième semaine d’avril. Le lieu en ville attend une réponse d’ici lundi.'
+                subject: 'Séminaire de printemps : lieux et dates'
+        sender:
+            everyone: 'Tous'
+            hint: 'Dans Envoyés et Brouillons, la ligne nomme les destinataires dans les deux cas.'
+            label: 'Expéditeur'
+            latest: 'Le dernier'
+        shown: 'Affiché'
+        star:
+            hint: 'Pour une conversation sans étoile. Une conversation suivie montre toujours son étoile.'
+            label: 'Étoile'
+        tab_counts:
+            heading: 'Compteurs des onglets'
+            hint: 'Le nombre à côté du nom de chaque onglet : combien de conversations de cette catégorie contiennent du courrier non lu. Les onglets s’additionnent pour donner le badge de la boîte de réception dans la barre latérale. La pastille « 3 nouveaux » est distincte et reste.'
+            label: 'Nombre de non-lus sur les onglets'
+            subheading: 'Les nombres sur les onglets de la boîte de réception.'
+        unread:
+            hint: 'L’intensité de la teinte d’une ligne non lue. Le gras reste à chaque réglage.'
+            label: Lignes non lues
+            standard: Standard
+            strong: Marqué
+            subtle: Discret
     native_apps:
         android_hint: "Associez-la ensuite avec le bouton ci-dessous. Acheter l’application sur Google Play est, pour l’instant, le principal moyen de soutenir ce projet."
         android_title: "Installez d’abord plMail pour Android"
@@ -3718,6 +3815,12 @@ settings:
             solid: Couleur unie
             theme: Défaut du thème
             upload: Envoyer une image
+        buttons:
+            both: 'Icônes et texte'
+            hint: "Ce qu'affichent les boutons au-dessus d'une conversation ou d'une sélection."
+            icons: 'Icônes'
+            label: "Boutons d'action"
+            text: 'Texte'
         density:
             comfortable: Confortable
             compact: Compacte
@@ -3754,30 +3857,6 @@ settings:
             flat: À plat
             heading: Disposition
             subheading: Comment l’interface est encadrée. Encadrée fait flotter chaque panneau comme une carte ; à plat pose la barre du haut et la barre latérale directement sur l’arrière-plan et n’encadre que le volet principal.
-        list:
-            accountCorner: Coin du compte
-            accountCornerHint: Le triangle coloré dans le coin d’une ligne, qui indique sur quel compte elle est arrivée. Seulement dessiné dans une liste qui mélange les comptes.
-            actionButton:
-                both: 'Icônes et texte'
-                icons: 'Icônes'
-                text: 'Texte'
-            actionButtons: "Boutons d'action"
-            actionButtonsHint: "Ce qu'affichent les boutons au-dessus d'une conversation ou d'une sélection."
-            heading: Liste des messages
-            listAvatars: Pastilles d’expéditeur
-            listAvatarsHint: Le cercle coloré portant l’initiale de l’expéditeur. Désactivé, il devient un simple cercle au lieu de disparaître — c’est aussi la case à cocher de la ligne.
-            tabUnreadCount: 'Nombre de non-lus sur les onglets'
-            tabUnreadCountHint: 'Le nombre à côté du nom de chaque onglet : combien de conversations de cette catégorie contiennent du courrier non lu. Les onglets s’additionnent pour donner le badge de la boîte de réception dans la barre latérale. La pastille « 3 nouveaux » est distincte et reste.'
-            previewLines: Lignes d’aperçu
-            previewLines0: Aucune
-            previewLines1: Une ligne
-            previewLines2: Deux lignes
-            subheading: Ce qu’affiche chaque ligne de la liste.
-            unread:
-                standard: Standard
-                strong: Marqué
-                subtle: Discret
-            unreadEmphasis: Lignes non lues
         logo:
             colour: 'Couleur'
             custom:
@@ -3849,8 +3928,6 @@ settings:
         seg:
             custom: 'Personnalisé'
             default: 'Défaut du thème'
-            hidden: 'Masqué'
-            shown: 'Affiché'
         text:
             autoDerive: Déduire automatiquement
             color: Couleur du texte
@@ -4782,6 +4859,7 @@ settings:
         integrations: Intégrations
         labels: Libellés
         layout: "Disposition et commandes"
+        message_list: 'Liste des messages'
         notifications: Notifications
         profile: Profil
         reading: "Lecture"
@@ -4818,6 +4896,9 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
             labels: "dossiers étiquettes non lus tous"
             language: "langue anglais allemand français chinois"
+            list_content: 'pièces jointes puces trombone fichiers libellés expéditeur date heure nombre répondu'
+            list_layout: 'lignes une ligne compact dense aperçu empilé largeur'
+            list_markers: 'étoile survol avatar pastille compte coin non lu gras'
             notifications: "push navigateur téléphone son alerte"
             password: "connexion identifiant"
             profile: "nom avatar photo image"
@@ -5317,6 +5398,7 @@ thread_row:
     new_badge: Nouveau
     no_recipient: (sans destinataire)
     no_subject: (sans objet)
+    replied: 'Répondu'
     send_failed:
         failed: Non envoyé
         mail_off: 'Non envoyé : le courrier est désactivé pour ce compte'

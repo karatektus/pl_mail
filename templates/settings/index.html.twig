@@ -351,6 +351,12 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                 {% endblock %}
                                             {% endembed %}
                                         </div>
+                                    {% elseif section == 'message-list' %}
+                                        {# What a row in the list shows (#608). Five of these
+                                           were a group on Appearance; the page is its own
+                                           because they say what a row tells you, not how
+                                           the app looks. #}
+                                        {% include 'settings/_message_list.html.twig' %}
                                     {% elseif section == 'categories' %}
                                         {# Everything about the inbox tabs on one page: what sorts
                                            mail into them, then the tabs themselves — which built-in
@@ -384,6 +390,19 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                         tabs:        categoryTabs,
                                                         switchedOff: app.user.categorySorting.switchedOff(),
                                                     } %}
+                                                {% endblock %}
+                                            {% endembed %}
+
+                                            {# The number beside each tab's name. Stored with the
+                                               message list settings (#608) and set here, beside the
+                                               tabs it counts, by the same controller and endpoint. #}
+                                            {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-tab-counts',
+                                                heading:    'settings.message_list.tab_counts.heading'|trans,
+                                                subheading: 'settings.message_list.tab_counts.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_tab_counts.html.twig' %}
                                                 {% endblock %}
                                             {% endembed %}
                                         </div>

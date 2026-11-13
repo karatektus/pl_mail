@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { paintListSettings } from "./support/message-list";
 
 /**
  * Where a list row stops being three stacked lines and becomes one.
@@ -23,10 +24,13 @@ import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
  * query on #message-list. The viewports below are chosen so the list lands on
  * each side of the line (sidebar and gutters take ~250px).
  *
- * All of that is for no preview and for two preview lines. With ONE preview
- * line the row goes to one line from 48rem, Gmail-style, with the preview
- * after the subject and a tighter row (`row-line:` / `row-snug:` in app.css).
- * Every test names the setting it is about, because one line is the default.
+ * All of that is the "Only on wide lists" layout. "As soon as they fit", the
+ * default, goes to one line from 48rem, Gmail-style, with the preview after the
+ * subject and a tighter row (`row-line:` / `row-snug:` in app.css). Until #608
+ * the two were one setting — one preview line meant the 48rem layout — and the
+ * tests still take the old count, painting the layout and preview it became
+ * (the same translation the #608 migration made): 0 and 2 are wide with no
+ * preview or two lines, 1 is fit with one line.
  */
 
 const SUBJECT = INBOX_SUBJECTS.star;
@@ -52,20 +56,14 @@ const geometry = async (page: Page) => {
 };
 
 /**
- * What the layout writes on <html> for a preview-lines setting — the count and
- * AppearanceRenderer's variables — set directly so the spec does not depend
- * on what the seed user last saved.
+ * The layout and preview an old preview-lines count became, painted on <html>
+ * directly so the spec does not depend on what the seed user last saved.
  */
 const setPreviewLines = async (page: Page, lines: 0 | 1 | 2) => {
-    await page.evaluate((lines) => {
-        const root = document.documentElement;
-
-        root.dataset.listPreviewLines = String(lines);
-        root.style.setProperty("--list-preview-display", ["none", "block", "-webkit-box"][lines]);
-        root.style.setProperty("--list-preview-display-wide", 0 === lines ? "none" : "block");
-        root.style.setProperty("--list-preview-lines", String(Math.max(1, lines)));
-        root.style.setProperty("--list-preview-wrap", lines > 1 ? "normal" : "nowrap");
-    }, lines);
+    await paintListSettings(page, {
+        layout: 1 === lines ? "fit" : "wide",
+        preview: ["none", "one", "two"][lines],
+    });
 };
 
 const openInbox = async (page: Page, width: number, lines: 0 | 1 | 2 = 2) => {

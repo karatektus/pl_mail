@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\DTO\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Helper\OwnAddressHelper;
 use App\Entity\Mail\Message;
@@ -55,6 +56,8 @@ final readonly class ThreadRowMessage
         /** Unread — what MessageThread::$unreadCount counts. */
         public bool $unread = false,
         public bool $hasAttachments = false,
+        /** Carries \Answered: somebody replied to it from this mailbox (#608). */
+        public bool $answered = false,
     ) {
     }
 
@@ -80,6 +83,7 @@ final readonly class ThreadRowMessage
             self::wearsTrash($message),
             null === $message->seenAt,
             true === $message->hasAttachments,
+            $message->hasFlag(MessageFlag::ANSWERED),
         );
     }
 
