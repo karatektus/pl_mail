@@ -1,4 +1,4 @@
-<!-- translated-from: install/docker.md sha1:9b6c9df44980e9f44118c66f4af839fe71f6880d -->
+<!-- translated-from: install/docker.md sha1:028b4dc7d721c5a064ff41e7c25533a8e55a38b7 -->
 # Installation mit Docker Compose
 
 Der unterstützte Weg, von Anfang bis Ende: was du brauchst, was `docker compose up` tatsächlich tut,
@@ -198,7 +198,7 @@ Die Compose-Datei deklariert zehn benannte Volumes:
 | Volume | Enthält |
 |---|---|
 | `app_secrets` | `generated.env`, `postgres_password`, das JWT-Schlüsselpaar. Von **jedem** App-Dienst eingehängt, in `database` nur lesend |
-| `app_attachments`, `app_raw`, `app_uploads` | Anhänge, Rohnachrichten und zwischengelagerte JMAP-Uploads. Von jedem App-Dienst eingehängt, denn die Worker schreiben sie und der Web-Container liefert sie aus |
+| `app_attachments`, `app_raw`, `app_uploads` | Anhänge, Rohnachrichten, zwischengelagerte JMAP-Uploads und was Nutzerinnen hochladen: Profilbilder, Signaturbilder, Hintergründe und eigene Logos. Von jedem App-Dienst eingehängt, denn die Worker schreiben sie und der Web-Container liefert sie aus |
 | `database_data` | Der PostgreSQL-Cluster |
 | `caddy_data`, `caddy_config` | Caddys TLS-Material und Zustand |
 | `mercure_data`, `mercure_config` | Zustand des Hubs, vom Worker eingehängt |
