@@ -28,6 +28,15 @@ final readonly class ThreadRow
     public ?\DateTimeImmutable $lastAt;
 
     /**
+     * Whether the conversation has been answered from here: the newest mail
+     * that is not a draft is either one you sent or one marked \Answered.
+     * The row's reply arrow (#608). The newest rather than any, because an
+     * arrow on a conversation whose latest mail is still waiting for you would
+     * say the opposite of what is true.
+     */
+    public bool $replied;
+
+    /**
      * @param list<ThreadRowMessage> $messages  oldest first
      * @param string                 $snippet   MessageSnippet of the latest message
      * @param bool                   $encrypted whether the latest message is encrypted:
@@ -35,12 +44,17 @@ final readonly class ThreadRow
      * @param bool                   $narrowed  whether $messages leaves out the other
      *                                          side of a partly deleted conversation
      *                                          (App\Service\Mail\BinView)
+     * @param list<AttachmentChip>   $attachments the files on those messages, for a
+     *                                          row that names them (#608); empty
+     *                                          when the row only needs to know
+     *                                          there are some — see ThreadRows
      */
     public function __construct(
         public array $messages,
         public string $snippet,
         public bool $encrypted = false,
         public bool $narrowed = false,
+        public array $attachments = [],
     ) {
         $this->latest = [] === $messages ? null : $messages[count($messages) - 1];
 
@@ -67,5 +81,20 @@ final readonly class ThreadRow
         $this->unread         = $unread;
         $this->hasAttachments = $hasAttachments;
         $this->lastAt         = $lastAt;
+        $this->replied        = self::repliedTo($messages);
+    }
+
+    /** @param list<ThreadRowMessage> $messages */
+    private static function repliedTo(array $messages): bool
+    {
+        foreach (array_reverse($messages) as $message) {
+            if (true === $message->isDraft) {
+                continue;
+            }
+
+            return $message->filedAsSent || $message->answered;
+        }
+
+        return false;
     }
 }

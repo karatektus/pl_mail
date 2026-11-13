@@ -58,7 +58,7 @@ final class SettingsNavigation
     public const string PAGE_REQUIREMENT = 'profile|security|app-passwords|encryption'
         . '|region|appearance|layout|notifications|whats-new'
         . '|accounts|aliases|health'
-        . '|inboxes|categories|labels|filters|disposal'
+        . '|inboxes|message-list|categories|labels|filters|disposal'
         . '|reading|compose|signature|templates'
         . '|calendars|calendar-behaviour|sharing|contacts'
         . '|ai|insights'
@@ -74,7 +74,8 @@ final class SettingsNavigation
      *
      * Order within an area is the order someone meets the pages, not the
      * alphabet: Profile before Security, the inbox's own setup (unified inboxes,
-     * tabs) before what files mail away (labels, filters, disposal).
+     * how its rows read, tabs) before what files mail away (labels, filters,
+     * disposal).
      */
     private const array TABLE = [
         'account' => ['fa-solid fa-user', [
@@ -144,9 +145,16 @@ final class SettingsNavigation
                 ['card-unified-inboxes', 'settings.unified_inboxes.heading', null],
                 ['card-unified-inbox-accounts', 'settings.unified_inboxes.accounts_heading', null],
             ],
+            'message-list' => [
+                ['card-list-preview', 'settings.message_list.preview.heading', null],
+                ['card-list-layout', 'settings.message_list.layout.heading', 'settings.search.keywords.list_layout'],
+                ['card-list-content', 'settings.message_list.content.heading', 'settings.search.keywords.list_content'],
+                ['card-list-markers', 'settings.message_list.markers.heading', 'settings.search.keywords.list_markers'],
+            ],
             'categories' => [
                 ['card-sorting', 'settings.sorting.heading', null],
                 ['card-inbox-tabs', 'settings.categories.heading', 'settings.search.keywords.inbox_tabs'],
+                ['card-tab-counts', 'settings.message_list.tab_counts.heading', null],
             ],
             'labels' => [
                 ['card-labels', 'settings.labels.heading', 'settings.search.keywords.labels'],

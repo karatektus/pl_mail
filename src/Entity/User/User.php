@@ -24,6 +24,7 @@ use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Embeddable\AiPreferences;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\Embeddable\CategorySorting;
+use App\Entity\Embeddable\MessageList;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Repository\User\User\UserRepository;
@@ -108,6 +109,10 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     #[ORM\Embedded(class: Appearance::class, columnPrefix: 'appearance_')]
     public private(set) Appearance $appearance;
+
+    /** What a row in the message list shows (#608); see MessageList. */
+    #[ORM\Embedded(class: MessageList::class, columnPrefix: 'message_list_')]
+    public private(set) MessageList $messageList;
 
     /**
      * What this person has decided about the AI features an administrator
@@ -465,6 +470,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         $this->updatedAt = new \DateTimeImmutable();
         $this->accounts = new ArrayCollection();
         $this->appearance = new Appearance();
+        $this->messageList = new MessageList();
         $this->aiPreferences = new AiPreferences();
         $this->categorySorting = new CategorySorting();
     }

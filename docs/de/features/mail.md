@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:0e018770e5ed6f04b1ecc2b0cdc13102af56e0ce -->
+<!-- translated-from: features/mail.md sha1:cc6d8d0a921e65e7e8d8541363373089c8ce8ea5 -->
 
 # Mail
 
@@ -301,8 +301,8 @@ Das Fähnchen sagt, was angekommen ist, ohne dir gezeigt worden zu sein, und ein
 **Ungelesen-Zahl** neben dem Namen des Tabs sagt, in wie vielen Unterhaltungen dieser Kategorie
 Ungelesenes liegt. Die Zahl ist der Posteingangs-Badge der Seitenleiste, nach Tabs aufgeteilt — die
 Tabs ergeben zusammen also genau ihn. Sie steht auf jedem Tab, auch auf dem, auf dem du gerade bist,
-und ist bei null ausgeblendet. Abschalten lässt sie sich unter **Einstellungen → Erscheinungsbild →
-Nachrichtenliste**. (Frühere Versionen hielten diese Zahl von den Tabs fern, mit dem
+und ist bei null ausgeblendet. Abschalten lässt sie sich unter **Einstellungen → Posteingang →
+Kategorien**. (Frühere Versionen hielten diese Zahl von den Tabs fern, mit dem
 Argument, Badge und fette Zeilen sagten Ungelesenes schon. Sie können aber nicht sagen, *wo*: Zeigt
 der Posteingangs-Badge 1, ist Primär geöffnet und leer, deutete nichts auf der Leiste auf den Tab
 mit der Post.) Die Leiste ist live — Fähnchen, Zahlen und Absendernamen aktualisieren sich an Ort und
@@ -340,6 +340,59 @@ Ist es schlicht falsch, sagst du mit **Melden** unten im Bereich, wohin es gehö
 bei deiner Administration unter [Gemeldete Mails](admin.md#gemeldete-mails), zusammen mit den drei
 Urteilen und den Belegen dahinter — daraus wird eine Regel oder eine Anweisung geändert. Gesendet
 werden Absender, Betreff und die Entscheidung; die Nachricht selbst nicht.
+
+## Was eine Listenzeile zeigt
+
+**Einstellungen → Posteingang → Nachrichtenliste** entscheidet, was jede Zeile der Mailliste trägt.
+Jede Vorgabe ist das, was die Liste tat, bevor es die Option gab — es bewegt sich also nichts, bis du
+etwas änderst. Oben auf der Seite steht eine Vorschau: vier erfundene Unterhaltungen, von derselben
+Vorlage gezeichnet wie deine Liste, die sich beim Auswählen ändern. **Telefon**, **Schmal** und
+**Breit** stellen ein, wie breit die Vorschauliste ist, denn wie eine Zeile aufgebaut ist, hängt von
+der Breite der Liste ab.
+
+| Bedienelement | Was es tut |
+|---|---|
+| **Einzeilige Darstellung** | Wann eine Zeile Absender, Betreff und Vorschau in eine Zeile setzt. **Sobald sie passt** ab mittlerer Listenbreite, wie bei Gmail, mit etwas engeren Zeilen; **Nur bei breiten Listen** ab einer sehr breiten; **Nie**. Schmaler wird die Zeile gestapelt: drei Zeilen auf dem Handy, dazwischen Absender und Betreff über der Vorschau |
+| **Vorschau** | Was eine gestapelte Zeile von der Nachricht zeigt: **Keine**, **Hinter dem Betreff** in dessen eigener Zeile, **Eine Zeile** oder **Zwei Zeilen** darunter. Eine einzeilige Zeile zeigt die Vorschau immer hinter dem Betreff |
+| **Anhänge** | **Ausgeblendet**, eine **Büroklammer** oder **Chips**: bis zu drei Dateien mit Namen unter der Vorschau, dann „+N“. Ein Chip öffnet den Betrachter für PDF, Bild oder Video und lädt alles andere herunter |
+| **Labels** | **Vor dem Betreff** als Chips, als **Punkte** in der Farbe des Labels (der Name erscheint beim Überfahren), in einer **Eigenen Zeile** oder **Ausgeblendet** |
+| **Absender** | **Alle**, die in der Unterhaltung geschrieben haben, oder nur der **Zuletzt** schreibende. In Gesendet und Entwürfe nennt eine Zeile so oder so die Empfänger |
+| **Datum** | **Intelligent** — heute die Uhrzeit, in diesem Jahr der Tag, davor das ganze Datum — oder **Datum und Uhrzeit** in jeder Zeile |
+| **Anzahl der Nachrichten** | Die Zahl hinter dem Betreff einer Unterhaltung |
+| **Pfeil für Beantwortet** | Ein Pfeil vor dem Betreff, wenn die neueste Mail der Unterhaltung beantwortet ist. Standardmäßig aus |
+| **Stern** | Ob eine Unterhaltung ohne Stern ihren Umriss **Beim Überfahren** oder **Immer** zeigt |
+| **Absenderkreise** | Der farbige Kreis mit der Initiale des Absenders — siehe den Fallstrick unten, dieser hier verschwindet nicht |
+| **Konto-Ecke** | Das farbige Dreieck unten links in einer Zeile, das sagt, über welches Konto die Nachricht eingegangen ist. Standardmäßig an; gezeichnet wird es ohnehin nur in einer Liste, die mehrere Konten mischt |
+| **Ungelesene Zeilen** | **Dezent**, **Standard** oder **Stark** — wie laut die Liste sagt, dass eine Zeile ungelesen ist |
+
+**Ungelesene Zeilen** ändert den Farbton hinter der Zeile und den Akzentbalken daneben, und sonst
+nichts. Der fette Absender und der fette Betreff bleiben bei jeder Einstellung, und zwar mit Absicht:
+Fettschrift ist das Signal, das eine farbenblinde Leserin, eine lichtdurchlässige Fläche über einem
+Foto und einen Ausdruck übersteht. Dezent nimmt den Farbton ganz weg, Stark vertieft ihn und setzt
+einen Balken an die vordere Kante der Zeile.
+
+Zwei Vorschauzeilen sind die Obergrenze, weil eine gestapelte Zeile für zwei Platz hat. Die Knöpfe
+zum Archivieren, Löschen, als Spam Melden, Zurückstellen und Gelesen-Markieren erscheinen, wenn der
+Mauszeiger über einer Zeile steht; eine Einstellung, sie in jeder Zeile zu zeigen, gibt es nicht,
+denn in jeder Liste, die nicht sehr breit ist, verdrängen sie den Betreff.
+
+Die Ungelesen-Zahl neben dem Namen jedes Posteingangs-Tabs stellst du unter **Einstellungen →
+Posteingang → Kategorien** ein, neben den Tabs, die sie zählt.
+
+Diese Einstellungen gehören zu deinem Konto, nicht zum Browser, und standen früher auf der Seite
+Erscheinungsbild. Sie sagen, was eine Zeile dir mitteilt, nicht, wie die App aussieht — ein
+exportiertes Theme trägt sie deshalb nicht, ein Konfigurations-Backup schon. Die Android- und
+iOS-Apps haben ihre eigene Liste und lesen von hier nur Konto-Ecke, Absenderkreise, Hervorhebung
+ungelesener Zeilen und die Zahl der Vorschauzeilen.
+
+**Absenderkreise lassen sich nicht abschalten, nur leeren.** Dieser Kreis *ist* das Auswahlkästchen
+der Zeile: Das eigentliche Eingabefeld sitzt dahinter, und jede Sammelaktion in der Werkzeugleiste
+liest es. Ihn auszuschalten übermalt die Identität — Farbe und Buchstabe gehen — und lässt einen
+schlichten umrandeten Kreis an derselben Stelle stehen, sodass Auswahlfläche und Geometrie der Zeile
+genau dort bleiben, wo sie waren.
+
+**Die Konto-Ecke taucht nur in einer Liste auf, die Konten mischt.** Auf einer Installation mit einem
+einzigen Konto wurde sie nie gezeichnet, und sie einzuschalten lässt sie nicht erscheinen.
 
 ## Die Markierung „Neu“
 

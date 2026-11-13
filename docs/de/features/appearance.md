@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:c076066d382f84ff4e2a1ff2ad7fe210fdff36b3 -->
+<!-- translated-from: features/appearance.md sha1:9743becf21591a2e2ff62730e90e068fddd32aed -->
 
 # Darstellung
 
@@ -101,26 +101,11 @@ Posteingang in einem zweiten Tab öffnest; er übernimmt die Änderung beim näc
 
 ## Was eine Listenzeile zeigt
 
-**Nachrichtenliste** entscheidet, wie viel jede Zeile der Mailliste trägt. Jede Vorgabe ist das, was
-die Liste schon vor diesen Bedienelementen tat — es bewegt sich also nichts, bis du etwas änderst.
-
-| Bedienelement | Was es tut |
-|---|---|
-| **Konto-Ecke** | Das farbige Dreieck unten links in einer Zeile, das sagt, über welches Konto die Nachricht eingegangen ist. Standardmäßig an; gezeichnet wird es ohnehin nur in einer Liste, die mehrere Konten mischt |
-| **Absenderkreise** | Der farbige Kreis mit der Initiale des Absenders — siehe den Fallstrick unten, dieser hier verschwindet nicht |
-| **Ungelesen-Zahl auf den Posteingangs-Tabs** | Die Zahl neben dem Namen jedes Kategorie-Tabs: in wie vielen Unterhaltungen darin Ungelesenes liegt. Standardmäßig an. Aus blendet nur die Zahl aus; die Farbe auf dem Symbol eines Tabs und das Fähnchen „3 neu“ bleiben |
-| **Vorschauzeilen** | **Keine**, **Eine Zeile** oder **Zwei Zeilen** aus dem Nachrichtentext. Mit **Eine Zeile** steht ab mittlerer Listenbreite jede Nachricht auf einer etwas engeren Zeile, die Vorschau hinter dem Betreff, wie bei Gmail. Auf dem Handy, und bei den anderen beiden Einstellungen, bis die Liste sehr breit ist, steht die Vorschau unter dem Betreff |
-| **Ungelesene Zeilen** | **Dezent**, **Standard** oder **Stark** — wie laut die Liste sagt, dass eine Zeile ungelesen ist |
-
-**Ungelesene Zeilen** ändert den Farbton hinter der Zeile und den Akzentbalken daneben, und sonst
-nichts. Der fette Absender und der fette Betreff bleiben bei jeder Einstellung, und zwar mit Absicht:
-Fettschrift ist das Signal, das eine farbenblinde Leserin, eine lichtdurchlässige Fläche über einem
-Foto und einen Ausdruck übersteht, und das ist es nicht wert, eingetauscht zu werden. Dezent nimmt
-den Farbton ganz weg, Stark vertieft ihn und setzt einen Balken an die vordere Kante der Zeile.
-
-Zwei Zeilen sind die Obergrenze, weil die Zeile nur für zwei Platz hat, und die zweite wird nur im
-gestapelten Layout gezeichnet — auf einem breiten Bildschirm teilen sich Betreff und Vorschau
-absichtlich eine Zeile, eine zweite würde den Betreff dort aus seiner eigenen Zeile schieben.
+Was eine Zeile der Mailliste trägt — Vorschau, Anhänge, Labels, Absender, Datum und die Zeichen
+darauf — stellst du jetzt unter **Einstellungen → Posteingang → Nachrichtenliste** ein, beschrieben
+unter [Mail → Was eine Listenzeile zeigt](mail.md#was-eine-listenzeile-zeigt). Diese Einstellungen
+sagen, was eine Zeile dir mitteilt, nicht, wie die App aussieht — ein exportiertes Theme trägt sie
+deshalb nicht mehr.
 
 ## Typografie
 
@@ -271,8 +256,7 @@ solche Datei zurück. **Auf Standard zurücksetzen** stellt alles dorthin, wo ei
 beginnt.
 
 Der Export trägt die Version, das Theme, das Layout, das Logo (Symbol und Farbe), den Akzent, alle
-fünf Glas-Zahlen, die Dichte und die drei bereichseigenen Dichten, die Einstellungen der
-Nachrichtenliste, Schriftart und Textgröße, die Hintergrundwahl, die Textfarben und die
+fünf Glas-Zahlen, die Dichte und die drei bereichseigenen Dichten, Schriftart und Textgröße, die Hintergrundwahl, die Textfarben und die
 Einstellungen des Hauptbereichs. Er trägt
 bewusst **nicht** dein hochgeladenes Hintergrundbild: Ein Dateiname bedeutet auf der
 Installation von jemand anderem nichts, ein eigener Hintergrund wird also als **Theme-Standard**
@@ -379,17 +363,6 @@ erneut hochlädst.
 stillschweigend angehoben, solange ein Hintergrund verwendet wird, der nicht vom Theme kommt — eine
 einfarbige Fläche eingeschlossen. Der Regler bewegt sich weiterhin; die Darstellung folgt ihm nicht
 bis nach unten.
-
-**Absenderkreise lassen sich nicht abschalten, nur leeren.** Dieser Kreis *ist* das Auswahlkästchen
-der Zeile: Das eigentliche Eingabefeld sitzt dahinter, und jede Sammelaktion in der Werkzeugleiste
-liest es. Ihn auszuschalten übermalt die Identität — Farbe und Buchstabe gehen — und lässt einen
-schlichten umrandeten Kreis an derselben Stelle stehen, sodass Auswahlfläche und Geometrie der Zeile
-genau dort bleiben, wo sie waren. Eine Zeile ganz ohne Kreis wäre eine Zeile, die du nicht auswählen
-kannst.
-
-**Die Konto-Ecke taucht nur in einer Liste auf, die Konten mischt.** Auf einer Installation mit einem
-einzigen Konto wurde sie nie gezeichnet, und sie einzuschalten lässt sie nicht erscheinen. Es ist
-nichts kaputt; es gibt schlicht keine Mehrdeutigkeit, die sie auflösen könnte.
 
 **Die Textgröße erreicht das Verfassen-Fenster nicht.** Der Editor behält mit Absicht seine eigene
 Schrift und Größe, denn diese Größe ist Formatierung, die im versendeten HTML landet. Die Oberfläche

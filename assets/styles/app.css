@@ -202,15 +202,11 @@
        no account at all (the login screen, a shared calendar). */
     --list-corner-display:  block;
     --list-avatar-hide:     0;
-    --list-preview-display:      block;
-    --list-preview-display-wide: block;
-    --list-preview-lines:        1;
-    --list-preview-wrap:         nowrap;
 
     /* How loudly an unread row is tinted. --unread-tint-alpha is the THEME's
        base (it is in the palette inventory below, declared by every block);
        the multiplier and the bar are the USER's, written inline by
-       AppearanceRenderer from the emphasis setting. */
+       MessageListRenderer from the emphasis setting. */
     --unread-emphasis:  1;
     --unread-bar-w:     0px;
 
@@ -5436,35 +5432,45 @@ html {
 /*
    `row-line:` and `row-band:`, the one-line and the two-line row. The row
    template writes these rather than `@rowwide:` and `@xl:@max-rowwide:`,
-   because where one line starts depends on the preview-lines setting.
+   because where one line starts is the reader's choice (#608), carried on
+   <html> as `data-list-layout` — a container query cannot read a custom
+   property, but a selector can read an attribute:
 
-   With ONE preview line the row is one line from `--container-rowsnug` (48rem)
-   up, the way Gmail's list reads: sender, subject, and the preview after the
-   subject on the same line, cut wherever the row ends. That is the trade the
-   75rem line above refused for everybody, and it is still refused for the
-   other two settings: two preview lines need a line of their own, and with
-   none the two-line row loses nothing by keeping its band. Choosing one line
-   is choosing the denser list.
+     wide     one line from `--container-rowwide` (75rem), the width measured
+              above for a subject and a usable preview side by side
+     fit      one line from `--container-rowsnug` (48rem), the way Gmail's
+              list reads: sender, subject, and the preview after the subject
+              cut wherever the row ends. Choosing it is choosing the denser
+              list. The default, because it is what one preview line meant
+              before the layout was a setting of its own.
+     stacked  never one line; two lines from `@xl` up
 
-   48rem rather than `@xl`: at 36rem the sender and date columns leave the
-   subject and the preview about 80px each ("E2E Remot…", "Your weekly …"),
-   which is not a preview of anything. At 48rem they share about 350px. Between
-   the two this setting keeps the two-line band like the others.
+   48rem rather than `@xl` for fit: at 36rem the sender and date columns
+   leave the subject and the preview about 80px each ("E2E Remot…", "Your
+   weekly …"), which is not a preview of anything. At 48rem they share about
+   350px.
 
-   `row-snug:` is the one-line-from-48rem case on its own, for what only it
-   gets: a tighter row (`list-row-y-snug`).
+   `row-snug:` is fit's one-line row on its own, for what only it gets: a
+   tighter row (`list-row-y-snug`).
 
-   The setting comes from `data-list-preview-lines` on <html>, because a
-   container query cannot read a custom property. The appearance settings
-   rewrite it as you click, like the variables. A page without the attribute
-   gets the 75rem line.
+   `row-inline:` is the one-line row's arrangement of the subject and the
+   preview — side by side, the preview after the subject — which an inline
+   preview (`data-list-preview="inline"`) asks for at every width.
+   `row-split:` is the two-line row when the preview has a line of its own,
+   which is every preview but inline. Between them the two-line row can put
+   the preview under the subject, or beside it.
+
+   A page without the attributes is three lines at every width. Every page
+   the layout draws has them (MessageListRenderer writes all of them, always).
 */
 @custom-variant row-line {
-    @container (width >= theme(--container-rowwide)) {
-        @slot;
+    &:where(html[data-list-layout="wide"] *) {
+        @container (width >= theme(--container-rowwide)) {
+            @slot;
+        }
     }
 
-    &:where(html[data-list-preview-lines="1"] *) {
+    &:where(html[data-list-layout="fit"] *) {
         @container (width >= theme(--container-rowsnug)) {
             @slot;
         }
@@ -5472,22 +5478,66 @@ html {
 }
 
 @custom-variant row-band {
-    &:where(html:not([data-list-preview-lines="1"]) *) {
+    &:where(html[data-list-layout="wide"] *) {
         @container (theme(--container-xl) <= width < theme(--container-rowwide)) {
             @slot;
         }
     }
 
-    &:where(html[data-list-preview-lines="1"] *) {
+    &:where(html[data-list-layout="fit"] *) {
         @container (theme(--container-xl) <= width < theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
+
+    &:where(html[data-list-layout="stacked"] *) {
+        @container (width >= theme(--container-xl)) {
             @slot;
         }
     }
 }
 
 @custom-variant row-snug {
-    &:where(html[data-list-preview-lines="1"] *) {
+    &:where(html[data-list-layout="fit"] *) {
         @container (width >= theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
+}
+
+@custom-variant row-inline {
+    &:where(html[data-list-layout="wide"] *) {
+        @container (width >= theme(--container-rowwide)) {
+            @slot;
+        }
+    }
+
+    &:where(html[data-list-layout="fit"] *) {
+        @container (width >= theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
+
+    &:where(html[data-list-preview="inline"] *) {
+        @slot;
+    }
+}
+
+@custom-variant row-split {
+    &:where(html[data-list-layout="wide"]:not([data-list-preview="inline"]) *) {
+        @container (theme(--container-xl) <= width < theme(--container-rowwide)) {
+            @slot;
+        }
+    }
+
+    &:where(html[data-list-layout="fit"]:not([data-list-preview="inline"]) *) {
+        @container (theme(--container-xl) <= width < theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
+
+    &:where(html[data-list-layout="stacked"]:not([data-list-preview="inline"]) *) {
+        @container (width >= theme(--container-xl)) {
             @slot;
         }
     }
@@ -5541,53 +5591,121 @@ html {
 }
 
 /*
-   The preview line, and how many of it there are.
+   The preview, and how much of it (#608).
 
-   Stacked, the row has room for a second line and the clamp engages. Wide, it
-   does not: the subject and the preview share one line by design, and a second
-   preview line there pushes the subject onto a row of its own, which is the
-   arrangement the wide layout exists to avoid. So the wide branch takes the
-   same on/off switch without the clamp.
+   One line, cut with an ellipsis, is the row's own `truncate`. These rules
+   only change it, and only for the two settings that differ: two lines, and
+   none. Two is a stacked-row answer: wherever the row is one line, or the
+   preview sits after the subject, there is one line to give it and the clamp
+   comes off again. Those overrides are written per layout because the width
+   at which a row is one line is per layout, and a plain rule cannot use the
+   `row-inline:` variant. None comes last and wins everywhere.
 
-   `@container`, matching the row's own `@rowwide` (the 75rem container width
-   declared by --container-rowwide in the "Mail list display" block above). A
-   plain rule cannot use the variant, and a custom property means nothing inside
-   a query, so the number comes through `theme()`, which Tailwind resolves at
-   build time. It was written out by hand once, with a comment asking for the
-   two to be changed together, which is the kind of promise that gets kept
-   until it does not: the
-   row switches on the LIST's width, not the viewport's — the list is narrower
-   than a phone whenever the calendar pane is docked wide.
+   Unlayered, like the rules around it: Tailwind's `truncate` is in a layer
+   and would win over anything here that was not.
+
+   `:not(.hidden)` is load-bearing. A scheduled draft's row carries
+   `hidden @xl:inline-block` on this very element — the badge saying when it
+   goes has already eaten the line, and what is left of the snippet at 393px
+   is two characters and an ellipsis. Unlayered rules would otherwise beat
+   that `.hidden` and put the fragment back.
 */
-/*
-   `:not(.hidden)` is load-bearing, and only on the stacked branch. A scheduled
-   draft's row carries `hidden @xl:inline-block` on this very element — the
-   badge saying when it goes has already eaten the line, and what is left of
-   the snippet at 393px is two characters and an ellipsis. These rules are
-   unlayered and would otherwise beat that `.hidden` and put the fragment back.
-   From `@xl` up, where the row shows both, the element still carries
-   `.hidden`, so it stays out of this rule and its one line is Tailwind's
-   `truncate`.
-*/
-[data-row-snippet]:not(.hidden) {
-    display: var(--list-preview-display);
-    -webkit-line-clamp: var(--list-preview-lines);
+html[data-list-preview="two"] [data-row-snippet]:not(.hidden) {
+    display: -webkit-box;
     -webkit-box-orient: vertical;
-    white-space: var(--list-preview-wrap);
-    overflow: hidden;
+    -webkit-line-clamp: 2;
+    white-space: normal;
 }
 
-@container (min-width: theme(--container-rowwide)) {
-    /* `:not(.hidden)` for SPECIFICITY, not for the exemption above: a container
-       query adds none, so a bare `[data-row-snippet]` (0,1,0) lost to the
-       stacked rule's `[data-row-snippet]:not(.hidden)` (0,2,0) and the
-       "wide is always one line" override never applied — with the two-line
-       setting on, a one-line row wrapped its preview anyway. */
-    [data-row-snippet]:not(.hidden) {
-        display: var(--list-preview-display-wide);
+@container (width >= theme(--container-rowwide)) {
+    html[data-list-preview="two"][data-list-layout="wide"] [data-row-snippet]:not(.hidden) {
+        display: block;
         -webkit-line-clamp: 1;
         white-space: nowrap;
     }
+}
+
+@container (width >= theme(--container-rowsnug)) {
+    html[data-list-preview="two"][data-list-layout="fit"] [data-row-snippet]:not(.hidden) {
+        display: block;
+        -webkit-line-clamp: 1;
+        white-space: nowrap;
+    }
+}
+
+html[data-list-preview="none"] [data-row-snippet]:not(.hidden) {
+    display: none;
+}
+
+/* With no preview beside it, the subject keeps the whole line. The cap is
+   what leaves the preview room when they share one. */
+html[data-list-preview="none"] [data-row-subject] {
+    max-width: none;
+}
+
+/* With the preview beside the subject, a stacked row is one line shorter and
+   has no line for the unread dot to sit on. The bold sender and subject still
+   say it. */
+html[data-list-preview="inline"] [data-row-unread-dot],
+html[data-list-preview="none"] [data-row-unread-dot] {
+    display: none;
+}
+
+/*
+   The rest of the row's choices (#608), each one a part of the row the
+   template always draws and this either shows or does not. Unlayered, so a
+   `display: none` here beats the Tailwind display utility on the same element.
+*/
+
+/* Labels: three copies, one shown. `line` is in front of the preview on a
+   stacked row and on a line of its own under a one-line one (the template
+   picks between those two); `inline` and `dots` are in front of the subject. */
+html:not([data-list-labels="line"]) [data-row-labels="line"],
+html:not([data-list-labels="line"]) [data-row-labels="below"],
+html:not([data-list-labels="inline"]):not([data-list-labels="dots"]) [data-row-labels="inline"] {
+    display: none;
+}
+
+/* A dot in the label's own ink, which every theme already holds legible. The
+   name goes, and stays in the chip's title. */
+html[data-list-labels="dots"] [data-row-labels="inline"] [data-label-chip] {
+    width: 0.5rem;
+    height: 0.5rem;
+    padding: 0;
+    border: 0;
+    background-color: currentColor;
+}
+
+html[data-list-labels="dots"] [data-row-labels="inline"] [data-label-chip] > * {
+    display: none;
+}
+
+/* Attachments: the paperclip, the chips, or neither. */
+html:not([data-list-attachments="icon"]) [data-row-clip],
+html:not([data-list-attachments="chips"]) [data-row-attachments] {
+    display: none;
+}
+
+/* Sender: everybody in the conversation, or the newest message's. */
+html:not([data-list-sender="latest"]) [data-row-sender-name="latest"],
+html[data-list-sender="latest"] [data-row-sender-name="everyone"] {
+    display: none;
+}
+
+/* Date: the list's own, or the day and the time on every row. */
+html:not([data-list-date="full"]) [data-row-date="full"],
+html[data-list-date="full"] [data-row-date="smart"] {
+    display: none;
+}
+
+html[data-list-count="off"] [data-row-count],
+html:not([data-list-replied="on"]) [data-row-replied] {
+    display: none;
+}
+
+/* The star of a conversation that is not starred, there before the pointer. */
+html[data-list-star="always"] [data-row-star] {
+    opacity: 1;
 }
 
 /*

@@ -14,7 +14,6 @@ use App\Domain\Enum\Theme\Layout;
 use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
-use App\Domain\Enum\Theme\UnreadEmphasis;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Embeddable]
@@ -57,17 +56,6 @@ final class Appearance
     public const array RANGE_RADIUS = ['min' => 0.0, 'max' => 2.0];
     public const array RANGE_SCRIM_ALPHA = ['min' => 0.0, 'max' => 0.7];
     public const array RANGE_MAIN_ALPHA = ['min' => 0.15, 'max' => 1.0];
-
-    /**
-     * How many lines of the message preview a list row shows: none, one, two.
-     *
-     * Two is the ceiling because the row only has room for two. Wide, the
-     * subject and the preview share a single line by design, so a second line
-     * there would push the subject off its own row; the clamp is applied in the
-     * stacked layout only and app.css says so. Three was tried and is a wall of
-     * grey text at any density below Comfortable.
-     */
-    public const array RANGE_PREVIEW_LINES = ['min' => 0, 'max' => 2];
 
     /**
      * The interface text scale, as a multiplier on the 16px root.
@@ -376,64 +364,12 @@ final class Appearance
         }
     }
 
-    /* ── Mail list display ────────────────────────────────────────────────
-       What a row in the message list shows. Every default below is what the
-       list already did before these settings existed, so an install that
-       upgrades looks identical until somebody changes something. */
-
-    /**
-     * The account corner: a coloured triangle clipped to a row's lower-left,
-     * saying which account the row arrived on.
-     *
-     * Optional because it is identity vocabulary, and not everybody wants their
-     * list carrying it — but ON by default, because a unified list across three
-     * accounts is genuinely ambiguous without it (the same Message-ID delivered
-     * to three addresses puts three identical rows on screen) and the person
-     * who does not want it is one click from not having it. It is drawn only in
-     * a unified list on a multi-account install anyway; on one account it has
-     * never appeared at all, and this setting does not change that.
-     */
-    #[ORM\Column(type: 'boolean', options: ['default' => true])]
-    public bool $accountCorner = true;
-
-    /**
-     * The sender disc — the coloured circle carrying an initial.
-     *
-     * "Off" does not remove the control, and cannot: the disc IS the row's
-     * checkbox (the real input is sr-only behind it, and every bulk action in
-     * the toolbar reads it). So off means the disc loses its colour and its
-     * letter and becomes a plain outlined circle in the same slot — the
-     * identity goes, the selection target and the row's geometry stay. See
-     * app.css, which paints that over it rather than removing anything.
-     */
-    #[ORM\Column(type: 'boolean', options: ['default' => true])]
-    public bool $listAvatars = true;
-
-    /**
-     * The unread count beside each inbox tab's name.
-     *
-     * ON by default, because it answers a question nothing else on the strip
-     * can: the sidebar's Inbox badge says there is unread mail and not which
-     * tab it is in. OPTIONAL, for the same reason the account corner is: it is
-     * one more number on a strip that already carries the "3 new" pill, and
-     * the person who reads the pill and the bold rows and wants nothing else
-     * is one click from not having it.
-     *
-     * Off hides the number and nothing else. The tint on a tab's icon and the
-     * pill are separate statements and stay.
-     */
-    #[ORM\Column(type: 'boolean', options: ['default' => true])]
-    public bool $tabUnreadCount = true;
-
-    #[ORM\Column(type: 'smallint', options: ['default' => 1])]
-    public int $previewLines = 1 {
-        set {
-            $this->previewLines = max(self::RANGE_PREVIEW_LINES['min'], min(self::RANGE_PREVIEW_LINES['max'], $value));
-        }
-    }
-
-    #[ORM\Column(type: 'string', length: 16, enumType: UnreadEmphasis::class, options: ['default' => 'standard'])]
-    public UnreadEmphasis $unreadEmphasis = UnreadEmphasis::Standard;
+    /* ── Action buttons ───────────────────────────────────────────────────
+       The account corner, the sender discs, the tab counts, the preview lines
+       and the unread emphasis used to sit here. They decide what a list row
+       says rather than how the app looks, and they rode along in every
+       exported theme for no better reason than being here; they are
+       MessageList now (#608). */
 
     /** Icons, words or both on the action buttons; see ActionButtonStyle (#459). */
     #[ORM\Column(type: 'string', length: 16, enumType: ActionButtonStyle::class, options: ['default' => 'icons'])]
@@ -541,11 +477,6 @@ final class Appearance
             'inkFaint' => $this->inkFaint,
             'mainTint' => $this->mainTint,
             'mainAlpha' => $this->mainAlpha,
-            'accountCorner' => $this->accountCorner,
-            'listAvatars' => $this->listAvatars,
-            'tabUnreadCount' => $this->tabUnreadCount,
-            'previewLines' => $this->previewLines,
-            'unreadEmphasis' => $this->unreadEmphasis->value,
             'actionButtons' => $this->actionButtons->value,
             'fontFamily' => $this->fontFamily->value,
             'fontScale' => $this->fontScale,
@@ -666,26 +597,6 @@ final class Appearance
         if (true === array_key_exists('mainAlpha', $data)) {
             $raw = $data['mainAlpha'];
             $this->mainAlpha = '' === $raw || null === $raw ? null : floatval($raw);
-        }
-
-        if (true === isset($data['accountCorner'])) {
-            $this->accountCorner = self::boolean($data['accountCorner']);
-        }
-
-        if (true === isset($data['listAvatars'])) {
-            $this->listAvatars = self::boolean($data['listAvatars']);
-        }
-
-        if (true === isset($data['tabUnreadCount'])) {
-            $this->tabUnreadCount = self::boolean($data['tabUnreadCount']);
-        }
-
-        if (true === isset($data['previewLines'])) {
-            $this->previewLines = intval($data['previewLines']);
-        }
-
-        if (true === isset($data['unreadEmphasis'])) {
-            $this->unreadEmphasis = UnreadEmphasis::tryFrom((string) $data['unreadEmphasis']) ?? $this->unreadEmphasis;
         }
 
         if (true === isset($data['actionButtons'])) {

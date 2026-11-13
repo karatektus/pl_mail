@@ -16,6 +16,7 @@ use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
 use App\Domain\Enum\Theme\UnreadEmphasis;
 use App\Entity\Embeddable\Appearance;
+use App\Entity\Embeddable\MessageList;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Domain\Enum\Template\DateFormatPreset;
@@ -437,7 +438,7 @@ final class SessionBuilder
                 'radius' => Appearance::RANGE_RADIUS,
                 'scrimAlpha' => Appearance::RANGE_SCRIM_ALPHA,
                 'mainAlpha' => Appearance::RANGE_MAIN_ALPHA,
-                'previewLines' => Appearance::RANGE_PREVIEW_LINES,
+                'previewLines' => MessageList::RANGE_PREVIEW_LINES,
                 'fontScale' => Appearance::RANGE_FONT_SCALE,
             ],
         ];

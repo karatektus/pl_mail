@@ -3624,6 +3624,103 @@ settings:
         with_keys: "Deine Schlüssel kommen mit: Verschlüsselte Mails öffnen sich in der App sofort."
         expires: "Läuft um %time% ab."
         open_in_app: "In der App öffnen"
+    message_list:
+        always: 'Immer'
+        attachments:
+            chips: 'Chips'
+            hint: 'Chips nennen bis zu drei Dateien unter der Vorschau und öffnen eine direkt aus der Liste.'
+            icon: 'Büroklammer'
+            label: 'Anhänge'
+        avatars:
+            hint: Der farbige Kreis mit der Initiale des Absenders. Ausgeschaltet wird daraus ein schlichter Kreis, statt zu verschwinden — er ist zugleich das Auswahlkästchen der Zeile.
+            label: Absenderkreise
+        content:
+            heading: 'Inhalt'
+            subheading: 'Was jede Zeile über ihre Unterhaltung sagt.'
+        corner:
+            hint: Das farbige Dreieck in der Ecke einer Zeile, das zeigt, über welches Konto sie eingegangen ist. Wird nur in Listen gezeichnet, die mehrere Konten mischen.
+            label: Konto-Ecke
+        count:
+            hint: 'Die Zahl hinter dem Betreff einer Unterhaltung.'
+            label: 'Anzahl der Nachrichten'
+        date:
+            full: 'Datum und Uhrzeit'
+            hint: 'Intelligent zeigt heute die Uhrzeit, in diesem Jahr den Tag und davor das ganze Datum.'
+            label: 'Datum'
+            smart: 'Intelligent'
+        hidden: 'Ausgeblendet'
+        labels:
+            dots: 'Punkte'
+            hint: 'Vor dem Betreff, als Chips oder als Punkte in der Farbe des Labels, oder in einer eigenen Zeile.'
+            inline: 'Vor dem Betreff'
+            label: 'Labels'
+            line: 'Eigene Zeile'
+        layout:
+            fit: 'Sobald sie passt'
+            heading: 'Aufbau'
+            hint: 'Eine breite Liste zeigt Absender, Betreff und Vorschau in einer Zeile. Schmaler wird die Zeile gestapelt.'
+            label: 'Einzeilige Darstellung'
+            stacked: 'Nie'
+            subheading: 'Wann eine Zeile einzeilig wird und wie viel von der Nachricht sie zeigt.'
+            wide: 'Nur bei breiten Listen'
+        markers:
+            heading: 'Markierungen'
+            subheading: 'Die Zeichen in jeder Zeile.'
+        on_hover: 'Beim Überfahren'
+        preview:
+            heading: 'Vorschau'
+            subheading: 'Erfundene Mails, so gezeichnet, wie deine Liste sie zeichnet. Wähle eine Breite, um zu sehen, wie eine Zeile ihre Form ändert.'
+            width: 'Breite der Vorschau'
+            widths:
+                narrow: 'Schmal'
+                phone: 'Telefon'
+                wide: 'Breit'
+        preview_lines:
+            hint: 'Wie viel von der Nachricht eine gestapelte Zeile zeigt. Eine einzeilige Zeile zeigt sie immer hinter dem Betreff.'
+            inline: 'Hinter dem Betreff'
+            label: 'Vorschau'
+            none: 'Keine'
+            one: 'Eine Zeile'
+            two: 'Zwei Zeilen'
+        replied:
+            hint: 'Ein Pfeil vor dem Betreff, wenn die neueste Mail der Unterhaltung beantwortet ist.'
+            label: 'Pfeil für Beantwortet'
+        sample:
+            contract:
+                body: 'Hier die letzte Runde Änderungen. Kannst du bis Freitag unterschreiben, damit wir zum Ersten anfangen können?'
+                subject: 'Vertragsentwurf – endgültige Fassung'
+            digest:
+                body: 'Fünf lesenswerte Dinge dieser Woche, eine neue Folge und die Termine in deiner Nähe.'
+                subject: 'Dein Wochenrückblick'
+            flights:
+                body: 'Ich habe zwei Möglichkeiten für Dienstagmorgen gefunden. Die frühere ist günstiger, landet aber eine Stunde vor der Keynote.'
+                subject: 'Flüge zur Konferenz'
+            label:
+                travel: 'Reisen'
+                work: 'Arbeit'
+            offsite:
+                body: 'Das Haus am See ist in der zweiten Aprilwoche frei. Der Ort in der Stadt braucht bis Montag eine Antwort.'
+                subject: 'Planung des Frühjahrs-Offsites: Orte und Termine'
+        sender:
+            everyone: 'Alle'
+            hint: 'In Gesendet und Entwürfe nennt die Zeile so oder so die Empfänger.'
+            label: 'Absender'
+            latest: 'Zuletzt'
+        shown: 'Angezeigt'
+        star:
+            hint: 'Für eine Unterhaltung ohne Stern. Eine markierte zeigt ihren Stern immer.'
+            label: 'Stern'
+        tab_counts:
+            heading: 'Zähler auf den Tabs'
+            hint: 'Die Zahl neben dem Namen jedes Tabs: in wie vielen Unterhaltungen dieser Kategorie Ungelesenes liegt. Zusammen ergeben die Tabs den Posteingangs-Badge der Seitenleiste. Das Fähnchen „3 neu“ ist davon getrennt und bleibt.'
+            label: 'Ungelesen-Zahl auf den Posteingangs-Tabs'
+            subheading: 'Die Zahlen auf den Posteingangs-Tabs.'
+        unread:
+            hint: 'Wie stark eine ungelesene Zeile getönt ist. Fett bleibt bei jeder Einstellung.'
+            label: Ungelesene Zeilen
+            standard: Standard
+            strong: Stark
+            subtle: Dezent
     native_apps:
         android_hint: "Danach koppelst du sie mit dem Button unten. Der Kauf der App bei Google Play ist im Moment der wichtigste Weg, wie sich dieses Projekt trägt."
         android_title: "Installiere zuerst plMail für Android"
@@ -3662,6 +3759,12 @@ settings:
             solid: Einfarbig
             theme: Theme-Standard
             upload: Bild hochladen
+        buttons:
+            both: 'Symbole und Text'
+            hint: 'Was die Schaltflächen über einer Konversation oder Auswahl zeigen.'
+            icons: 'Symbole'
+            label: 'Aktionsschaltflächen'
+            text: 'Text'
         density:
             comfortable: Komfortabel
             compact: Kompakt
@@ -3698,30 +3801,6 @@ settings:
             flat: Flach
             heading: Layout
             subheading: Wie die Oberfläche gerahmt ist. „Kacheln“ zeigt jede Fläche als eigene Karte; „Flach“ setzt Kopf- und Seitenleiste direkt auf den Hintergrund und lässt nur den Hauptbereich als Karte stehen.
-        list:
-            accountCorner: Konto-Ecke
-            accountCornerHint: Das farbige Dreieck in der Ecke einer Zeile, das zeigt, über welches Konto sie eingegangen ist. Wird nur in Listen gezeichnet, die mehrere Konten mischen.
-            actionButton:
-                both: 'Symbole und Text'
-                icons: 'Symbole'
-                text: 'Text'
-            actionButtons: 'Aktionsschaltflächen'
-            actionButtonsHint: 'Was die Schaltflächen über einer Konversation oder Auswahl zeigen.'
-            heading: Nachrichtenliste
-            listAvatars: Absenderkreise
-            listAvatarsHint: Der farbige Kreis mit der Initiale des Absenders. Ausgeschaltet wird daraus ein schlichter Kreis, statt zu verschwinden — er ist zugleich das Auswahlkästchen der Zeile.
-            tabUnreadCount: 'Ungelesen-Zahl auf den Posteingangs-Tabs'
-            tabUnreadCountHint: 'Die Zahl neben dem Namen jedes Tabs: in wie vielen Unterhaltungen dieser Kategorie Ungelesenes liegt. Zusammen ergeben die Tabs den Posteingangs-Badge der Seitenleiste. Das Fähnchen „3 neu“ ist davon getrennt und bleibt.'
-            previewLines: Vorschauzeilen
-            previewLines0: Keine
-            previewLines1: Eine Zeile
-            previewLines2: Zwei Zeilen
-            subheading: Was jede Zeile der Liste zeigt.
-            unread:
-                standard: Standard
-                strong: Stark
-                subtle: Dezent
-            unreadEmphasis: Ungelesene Zeilen
         logo:
             colour: 'Farbe'
             custom:
@@ -3796,8 +3875,6 @@ settings:
         seg:
             custom: 'Eigene'
             default: 'Theme-Vorgabe'
-            hidden: 'Ausgeblendet'
-            shown: 'Sichtbar'
         text:
             autoDerive: Automatisch ableiten
             color: Textfarbe
@@ -4747,6 +4824,7 @@ settings:
         integrations: Integrationen
         labels: Labels
         layout: "Layout & Bedienung"
+        message_list: 'Nachrichtenliste'
         notifications: Benachrichtigungen
         profile: Profil
         reading: "Lesen"
@@ -4783,6 +4861,9 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
             labels: "ordner tags ungelesen alle e-mails"
             language: "sprache deutsch englisch französisch chinesisch"
+            list_content: 'anhänge chips büroklammer dateien labels absender datum uhrzeit anzahl beantwortet'
+            list_layout: 'zeilen einzeilig kompakt dicht vorschau gestapelt breite'
+            list_markers: 'stern überfahren avatar kreis konto ecke ungelesen fett'
             notifications: "push browser handy ton hinweis"
             password: "kennwort anmeldung login"
             profile: "name avatar foto bild"
@@ -5309,6 +5390,7 @@ thread_row:
     new_badge: Neu
     no_recipient: (kein Empfänger)
     no_subject: (kein Betreff)
+    replied: 'Beantwortet'
     send_failed:
         failed: Nicht gesendet
         mail_off: 'Nicht gesendet: Für dieses Konto ist E-Mail ausgeschaltet'

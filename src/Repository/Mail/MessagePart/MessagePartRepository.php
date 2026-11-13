@@ -20,6 +20,38 @@ class MessagePartRepository extends ServiceEntityRepository
     }
 
     /**
+     * The files a list row names as chips (#608): every part of these
+     * messages that the reading pane lists as an attachment, in the order the
+     * pane lists them.
+     *
+     * The same test as MessagePart::isListed() — not inline, not the sender's
+     * own key — written as a WHERE so a page of fifty rows is one statement and
+     * no part is hydrated. Four columns, because the chip draws a name and an
+     * icon and needs nothing else; see AttachmentChip.
+     *
+     * @param list<int> $messageIds
+     *
+     * @return list<array{id: int, messageId: int, filename: ?string, contentType: ?string, sealed: bool}>
+     */
+    public function findListedForMessages(array $messageIds): array
+    {
+        if ([] === $messageIds) {
+            return [];
+        }
+
+        /** @var list<array{id: int, messageId: int, filename: ?string, contentType: ?string, sealed: bool}> */
+        return $this->createQueryBuilder('p')
+            ->select('p.id', 'IDENTITY(p.message) AS messageId', 'p.filename', 'p.contentType', 'p.sealed')
+            ->where('p.message IN (:messages)')
+            ->andWhere('p.isInline IS NULL OR p.isInline = false')
+            ->andWhere('p.senderKeyFingerprint IS NULL')
+            ->setParameter('messages', $messageIds)
+            ->addOrderBy('p.id', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+    }
+
+    /**
      * Every message that has at least one part, as ids.
      *
      * DISTINCT over a projection, which Doctrine's API has no form of: findBy()

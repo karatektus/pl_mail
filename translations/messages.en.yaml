@@ -3632,6 +3632,103 @@ settings:
         with_keys: "Your keys come along: encrypted mail opens in the app straight away."
         expires: "Expires at %time%."
         open_in_app: "Open in the app"
+    message_list:
+        always: 'Always'
+        attachments:
+            chips: 'Chips'
+            hint: 'Chips name up to three files under the preview and open one straight from the list.'
+            icon: 'Paperclip'
+            label: 'Attachments'
+        avatars:
+            hint: The coloured circle carrying the sender's initial. Switched off it becomes a plain circle rather than disappearing — it is also the row's checkbox.
+            label: Sender discs
+        content:
+            heading: 'Content'
+            subheading: 'What each row says about its conversation.'
+        corner:
+            hint: The coloured triangle in a row's corner, saying which account it arrived on. Only ever drawn in a list that mixes accounts.
+            label: Account corner
+        count:
+            hint: 'The number after a conversation''s subject.'
+            label: 'Message count'
+        date:
+            full: 'Date and time'
+            hint: 'Smart shows the time today, the day this year and the full date before that.'
+            label: 'Date'
+            smart: 'Smart'
+        hidden: 'Hidden'
+        labels:
+            dots: 'Dots'
+            hint: 'In front of the subject, as chips or as dots in the label''s colour, or on a line of their own.'
+            inline: 'Before the subject'
+            label: 'Labels'
+            line: 'Own line'
+        layout:
+            fit: 'As soon as they fit'
+            heading: 'Layout'
+            hint: 'A wide list puts the sender, the subject and the preview on one line. Narrower, a row stacks.'
+            label: 'One-line rows'
+            stacked: 'Never'
+            subheading: 'When a row goes to one line, and how much of the message it shows.'
+            wide: 'Only on wide lists'
+        markers:
+            heading: 'Markers'
+            subheading: 'The marks on each row.'
+        on_hover: 'On hover'
+        preview:
+            heading: 'Preview'
+            subheading: 'Made-up mail, drawn the way your list draws it. Pick a width to see a row change shape.'
+            width: 'Preview width'
+            widths:
+                narrow: 'Narrow'
+                phone: 'Phone'
+                wide: 'Wide'
+        preview_lines:
+            hint: 'How much of the message a stacked row shows. A one-line row always shows it after the subject.'
+            inline: 'After the subject'
+            label: 'Preview'
+            none: 'None'
+            one: 'One line'
+            two: 'Two lines'
+        replied:
+            hint: 'An arrow in front of the subject when the newest mail in the conversation has been answered.'
+            label: 'Replied arrow'
+        sample:
+            contract:
+                body: 'Here is the last round of changes. Could you sign by Friday so we can start on the first of the month?'
+                subject: 'Contract draft – final version'
+            digest:
+                body: 'Five things worth reading this week, a new episode, and the events coming up near you.'
+                subject: 'Your weekly digest'
+            flights:
+                body: 'I found two options for Tuesday morning. The earlier one is cheaper but lands an hour before the keynote.'
+                subject: 'Flights for the conference'
+            label:
+                travel: 'Travel'
+                work: 'Work'
+            offsite:
+                body: 'The lake house is free the second week of April. The city venue needs an answer by Monday.'
+                subject: 'Planning the spring offsite: venues and dates'
+        sender:
+            everyone: 'Everyone'
+            hint: 'In Sent and Drafts the row names the recipients either way.'
+            label: 'Sender'
+            latest: 'Latest'
+        shown: 'Shown'
+        star:
+            hint: 'For a conversation you have not starred. A starred one always shows its star.'
+            label: 'Star'
+        tab_counts:
+            heading: 'Tab counts'
+            hint: 'The number beside each tab''s name: how many conversations in that category hold unread mail. The tabs add up to the Inbox badge in the sidebar. The "3 new" pill is separate and stays.'
+            label: 'Unread count on inbox tabs'
+            subheading: 'The numbers on the inbox tabs.'
+        unread:
+            hint: 'How strongly an unread row is tinted. Bold stays at every setting.'
+            label: Unread rows
+            standard: Standard
+            strong: Strong
+            subtle: Subtle
     native_apps:
         android_hint: "Then pair it with the button below. Buying the app on Google Play is, for now, the main way this project supports itself."
         android_title: "Install plMail for Android first"
@@ -3668,6 +3765,12 @@ settings:
             solid: Solid colour
             theme: Theme default
             upload: Upload image
+        buttons:
+            both: 'Icons and text'
+            hint: 'What the buttons above a conversation or a selection show.'
+            icons: 'Icons'
+            label: 'Action buttons'
+            text: 'Text'
         density:
             comfortable: Comfortable
             compact: Compact
@@ -3704,30 +3807,6 @@ settings:
             flat: Flat
             heading: Layout
             subheading: How the interface is framed. Boxed floats every panel as a card; flat puts the top bar and sidebar straight on the background and keeps only the main pane boxed.
-        list:
-            accountCorner: Account corner
-            accountCornerHint: The coloured triangle in a row's corner, saying which account it arrived on. Only ever drawn in a list that mixes accounts.
-            actionButton:
-                both: 'Icons and text'
-                icons: 'Icons'
-                text: 'Text'
-            actionButtons: 'Action buttons'
-            actionButtonsHint: 'What the buttons above a conversation or a selection show.'
-            heading: Message list
-            listAvatars: Sender discs
-            listAvatarsHint: The coloured circle carrying the sender's initial. Switched off it becomes a plain circle rather than disappearing — it is also the row's checkbox.
-            tabUnreadCount: 'Unread count on inbox tabs'
-            tabUnreadCountHint: 'The number beside each tab''s name: how many conversations in that category hold unread mail. The tabs add up to the Inbox badge in the sidebar. The "3 new" pill is separate and stays.'
-            previewLines: Preview lines
-            previewLines0: None
-            previewLines1: One line
-            previewLines2: Two lines
-            subheading: What each row in the list shows.
-            unread:
-                standard: Standard
-                strong: Strong
-                subtle: Subtle
-            unreadEmphasis: Unread rows
         logo:
             colour: 'Colour'
             custom:
@@ -3799,8 +3878,6 @@ settings:
         seg:
             custom: 'Custom'
             default: 'Theme default'
-            hidden: 'Hidden'
-            shown: 'Shown'
         text:
             autoDerive: Auto-derive
             color: Text colour
@@ -4721,6 +4798,7 @@ settings:
         integrations: Integrations
         labels: Labels
         layout: "Layout & controls"
+        message_list: 'Message list'
         notifications: Notifications
         profile: Profile
         reading: "Reading"
@@ -4757,6 +4835,9 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
             labels: "folders tags unread all mail"
             language: "locale english german french chinese"
+            list_content: 'attachments chips paperclip files labels sender date time count replied answered'
+            list_layout: 'rows one line compact dense preview snippet stacked lines width'
+            list_markers: 'star hover avatar disc account corner unread bold'
             notifications: "push browser phone sound alert"
             password: "login sign-in"
             profile: "name avatar photo picture"
@@ -5280,6 +5361,7 @@ thread_row:
     new_badge: New
     no_recipient: (no recipient)
     no_subject: (no subject)
+    replied: 'Replied'
     send_failed:
         failed: Not sent
         mail_off: 'Not sent: mail is switched off for this account'

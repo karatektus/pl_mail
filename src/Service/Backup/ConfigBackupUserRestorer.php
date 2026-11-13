@@ -22,6 +22,7 @@ use App\Domain\Enum\Calendar\ShareWindow;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Calendar\BookingPage;
+use App\Entity\Embeddable\MessageList;
 use App\Entity\Crypto\AddressKey;
 use App\Entity\Crypto\ContactCertificate;
 use App\Entity\Crypto\ContactKey;
@@ -301,6 +302,15 @@ final readonly class ConfigBackupUserRestorer
         // inbox: what such a restore has always produced, so an old file does
         // not start behaving differently.
         $user->categorySorting->applyArray($this->map($document, 'categorySorting'));
+        // A document from before #608 has no `messageList`, and five of its
+        // settings in `appearance` under their old names; they are read from
+        // there first, so such a restore keeps the list it had. A document
+        // that has both is one written since, whose `appearance` no longer
+        // carries them, so the order only matters for the old kind.
+        $user->messageList->applyArray([
+            ...MessageList::fromLegacyAppearance($this->map($document, 'appearance')),
+            ...$this->map($document, 'messageList'),
+        ]);
 
         foreach ($this->map($document, 'settings') as $key => $value) {
             $user->setSetting($key, $value);

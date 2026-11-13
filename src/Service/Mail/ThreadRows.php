@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\DTO\Mail\AttachmentChip;
 use App\Domain\DTO\Mail\ThreadRow;
 use App\Domain\DTO\Mail\ThreadRowMessage;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\SendFailure;
+use App\Domain\Enum\MessageList\AttachmentDisplay;
+use App\Entity\User\User;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\MessagePart\MessagePartRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\AbstractLazyCollection;
+use Doctrine\Common\Collections\Collection;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -47,6 +53,14 @@ use Symfony\Contracts\Service\ResetInterface;
  * only (BinView): sender, snippet, draft, count and date. A side with nothing
  * on it is a thread wholly on the other, which is drawn whole.
  *
+ * ── Attachment chips ────────────────────────────────────────────────────────
+ * A row that names its files (#608) needs their names, which the row fields do
+ * not carry. That is a third statement, made only for somebody whose list shows
+ * chips: everybody else's row needs to know there ARE files, which
+ * `hasAttachments` already says. Read from the entities when the parts are in
+ * memory anyway (the settings page's sample rows are built that way), because
+ * that costs nothing either way.
+ *
  * Resettable because FrankenPHP and the Messenger workers keep this alive
  * between requests, and a row answered from a previous one is stale.
  */
@@ -60,6 +74,8 @@ final class ThreadRows implements ResetInterface
         private readonly MessageRepository $messages,
         private readonly MessageSnippet $snippet,
         private readonly BinView $bin,
+        private readonly MessagePartRepository $parts,
+        private readonly Security $security,
     ) {
     }
 
@@ -137,12 +153,88 @@ final class ThreadRows implements ResetInterface
             }
         }
 
+        $chips = [];
+
+        foreach ($entities as $index => $entity) {
+            if (false === in_array($all[$index], $kept, true) || false === $this->readParts($entity->messageParts)) {
+                continue;
+            }
+
+            foreach ($entity->messageParts as $part) {
+                if (true === $part->isListed()) {
+                    $chips[] = AttachmentChip::of($part);
+                }
+            }
+        }
+
         return new ThreadRow(
             $kept,
             $this->snippet->of($latest),
             true === $latest?->crypto?->isEncrypted(),
             count($kept) < count($all),
+            $chips,
         );
+    }
+
+    /**
+     * Whether the signed-in reader's list names files under its rows. Asked
+     * per call rather than kept, because this service outlives the request
+     * and the setting can change between two of them.
+     */
+    private function wantsChips(): bool
+    {
+        $user = $this->security->getUser();
+
+        return $user instanceof User && AttachmentDisplay::Chips === $user->messageList->attachments;
+    }
+
+    /**
+     * Whether to walk a message's parts for its chips: when the reader wants
+     * chips, or when the parts are in memory already and walking them is free.
+     *
+     * @param Collection<int, \App\Entity\Mail\MessagePart> $parts
+     */
+    private function readParts(Collection $parts): bool
+    {
+        return (!$parts instanceof AbstractLazyCollection || $parts->isInitialized()) || $this->wantsChips();
+    }
+
+    /**
+     * Each thread's attachment chips, in one statement for the page; nothing
+     * at all unless the reader's list shows chips.
+     *
+     * @param array<int, list<ThreadRowMessage>> $byThread
+     *
+     * @return array<int, list<AttachmentChip>> thread id => its chips
+     */
+    private function chipsFor(array $byThread): array
+    {
+        if (false === $this->wantsChips()) {
+            return [];
+        }
+
+        $threadOf = [];
+
+        foreach ($byThread as $threadId => $messages) {
+            foreach ($messages as $message) {
+                if (null !== $message->id && true === $message->hasAttachments) {
+                    $threadOf[$message->id] = $threadId;
+                }
+            }
+        }
+
+        $chips = [];
+
+        foreach ($this->parts->findListedForMessages(array_keys($threadOf)) as $part) {
+            $chips[$threadOf[$part['messageId']]][] = new AttachmentChip(
+                (int) $part['id'],
+                $part['filename'],
+                $part['contentType'],
+                true === $part['sealed'],
+            );
+        }
+
+        return $chips;
     }
 
     /**
@@ -197,6 +289,7 @@ final class ThreadRows implements ResetInterface
                 (int) ($row['trashed'] ?? 0) > 0,
                 null === $row['seenAt'],
                 true === $row['hasAttachments'],
+                in_array(MessageFlag::ANSWERED->value, $flags, true),
             );
         }
 
@@ -244,6 +337,8 @@ final class ThreadRows implements ResetInterface
 
         $this->messages->storePreviews($made);
 
+        $chips = $this->chipsFor($byThread);
+
         foreach ($byThread as $threadId => $messages) {
             $latestId = ($messages[count($messages) - 1] ?? null)?->id;
             $preview  = null !== $latestId ? ($previews[$latestId] ?? null) : null;
@@ -255,6 +350,7 @@ final class ThreadRows implements ResetInterface
                 // nullsafe operator guards the call, not the offset.
                 null !== $preview && true === $preview['crypto']?->isEncrypted(),
                 $narrowed[$threadId],
+                $chips[$threadId] ?? [],
             );
         }
     }

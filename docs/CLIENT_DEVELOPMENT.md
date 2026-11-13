@@ -1670,7 +1670,12 @@ Ordered roughly by how much users will miss them.
 - Appearance — `Appearance/get` and `Appearance/set` serve the whole object, including `fontFamily`,
   `fontScale`, `previewLines`, `unreadEmphasis`, `actionButtons`, `accountCorner`, `listAvatars`, `tabUnreadCount`, the three
   per-surface densities and the read-only `logoStyle`, `logoMotif` and `logoPaint` (see [§2](#2-look-and-feel)). Build the token system regardless; read the
-  server's values into it rather than inventing your own defaults.
+  server's values into it rather than inventing your own defaults. The five list properties
+  (`previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`, `tabUnreadCount`) are the web's
+  Settings → Inbox → Message list since #608 and are served here unchanged for existing clients;
+  the web's other row options (layout, attachment chips, label placement and so on) are not on the
+  wire. `previewLines` reads 1 for the web's inline preview, and writing the number already stored
+  leaves an inline preview alone.
 - Account list and order.
 - Templates — list, edit and insert them over `Template/*` and `TemplateFolder/*`; see
   [Templates](#templates). Insert through `Template/render`, and ask before sending with a
