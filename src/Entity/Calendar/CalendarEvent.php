@@ -10,6 +10,7 @@ use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Enum\Calendar\ExtractionKind;
 use App\Domain\Enum\Calendar\ParticipationStatus;
 use App\Domain\Enum\Calendar\SyncState;
+use App\Domain\Helper\EventColor;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
@@ -252,6 +253,22 @@ class CalendarEvent
      */
     #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
     public array $jscalendar = [];
+
+    /**
+     * What every view draws this event in, as "#rrggbb": the event's own
+     * `jscalendar.color` (#616) when it is one EventColor can draw, otherwise
+     * its calendar's colour, as before events had one.
+     *
+     * Read off the canonical object rather than projected into a column: no
+     * query filters or sorts by it, and a column would be one more thing for
+     * CalendarEventWriter to keep in step. A value EventColor cannot draw is
+     * still stored and still written back — it only falls back here.
+     */
+    public string $displayColor {
+        get => EventColor::hexOf($this->jscalendar['color'] ?? null)
+            ?? $this->calendar->color
+            ?? Calendar::DEFAULT_COLOR;
+    }
 
     /**
      * Opaque id at the remote, for events mirrored from a connected calendar.

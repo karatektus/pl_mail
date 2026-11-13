@@ -384,6 +384,45 @@ final class CalDavEventConverterTest extends TestCase
         self::assertStringNotContainsString('BYDAY=TU,TH', $ics);
     }
 
+    public function testAColourSetOnThePhoneIsReadOffTheEvent(): void
+    {
+        // What DAVx5 writes for an Android event colour (#616), and the whole
+        // reason the feature exists: every entry drawn in one colour here
+        // while the phone shows each in its own.
+        $event = $this->converter()->toRemoteEvent($this->calendar('COLOR:turquoise'), '/c/1.ics', null);
+
+        self::assertSame('turquoise', $event?->jscalendar['color'] ?? null);
+    }
+
+    public function testAnEventWithoutAColourSaysSoRatherThanSayingNothing(): void
+    {
+        // Null, not absent: CalendarEventWriter reads the stated null as "taken
+        // off on the phone". Left out, a colour removed at the server would
+        // stay here forever.
+        $event = $this->converter()->toRemoteEvent($this->calendar(), '/c/1.ics', null);
+
+        self::assertNotNull($event);
+        self::assertArrayHasKey('color', $event->jscalendar);
+        self::assertNull($event->jscalendar['color']);
+    }
+
+    public function testAColourGoesBackOutExactlyAsItCameIn(): void
+    {
+        // A hex is not what RFC 7986 allows, and some clients write one anyway.
+        // Correcting it to the nearest name on the next PUT would rewrite
+        // another client's data for no reason the user can see.
+        foreach (['turquoise', '#ff8800', 'rebeccapurple'] as $color) {
+            $ics = $this->converter()->toIcs(CalDavFixture::event(jscalendar: ['color' => $color]));
+
+            self::assertStringContainsString("COLOR:{$color}\r\n", $ics, $color);
+        }
+    }
+
+    public function testAnEventWithoutAColourWritesNoColourLine(): void
+    {
+        self::assertStringNotContainsString('COLOR', $this->converter()->toIcs(CalDavFixture::event()));
+    }
+
     public function testACancelledEventStaysAnEventRatherThanBecomingADeletion(): void
     {
         $ics = $this->calendar('STATUS:CANCELLED');

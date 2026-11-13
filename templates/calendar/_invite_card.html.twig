@@ -57,7 +57,7 @@ Variables:
 
     {# The calendar's own colour on the edge, so an invitation is recognisably
        the same object as the chip it became in the calendar. #}
-    <div class="border-l-4 px-4 py-3" style="border-color: {{ event.calendar.color }}">
+    <div class="border-l-4 px-4 py-3" style="border-color: {{ event.displayColor }}">
 
         <div class="flex items-start gap-3">
             <i class="fa-regular fa-calendar-check mt-0.5 text-ink-faint" aria-hidden="true"></i>
@@ -181,7 +181,7 @@ Variables:
                reader's clock, which the real block replaces within a moment. #}
             <template data-calendar--invite-target="face">
                 <div class="relative h-full rounded-md overflow-hidden ring-1 ring-line shadow-sm block-tint text-left"
-                     style="--block-tint: {{ event.calendar.color }}1a; --block-stripe: {{ event.calendar.color }}2e; --block-edge: {{ event.calendar.color }}b3; --invite-slot-colour: {{ event.calendar.color }}">
+                     style="--block-tint: {{ event.displayColor }}1a; --block-stripe: {{ event.displayColor }}2e; --block-edge: {{ event.displayColor }}b3; --invite-slot-colour: {{ event.displayColor }}">
                     <div class="w-full h-full grid grid-cols-[max-content_minmax(0,1fr)] gap-x-1.5 content-start items-start px-1.5 py-0.5 overflow-hidden">
                         {% if not event.isAllDay %}
                             <span class="shrink-0 text-[11px] tabular-nums text-ink-faint col-start-2 row-start-1 leading-4">
@@ -189,7 +189,7 @@ Variables:
                             </span>
                         {% endif %}
                         <span class="shrink-0 rounded-full w-1 self-stretch col-start-1 row-span-full"
-                              style="background-color: {{ event.calendar.color }}"
+                              style="background-color: {{ event.displayColor }}"
                               aria-hidden="true"></span>
                         <span class="min-w-0 text-xs text-ink col-start-2 whitespace-normal break-words line-clamp-2 leading-4">
                             {%- if event.kind is not null -%}

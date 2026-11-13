@@ -93,6 +93,16 @@ use Sabre\VObject\Reader;
  * list would put an organiser's address on a reminder that fires in somebody
  * else's client.
  *
+ * ── COLOR ─────────────────────────────────────────────────────────────────
+ * RFC 7986's per-event colour, which DAVx5 and Nextcloud write (#616). Read
+ * into `jscalendar.color` and written back from it VERBATIM, whatever it says:
+ * the RFC asks for a CSS3 name, some clients write "#rrggbb", and plMail's job
+ * is to draw what it can (EventColor::hexOf()) and hand back the rest
+ * untouched rather than "correct" another client's data on the next PUT. A
+ * resource without the line states `color: null`, which CalendarEventWriter
+ * reads as "taken off at the server". The master's only, as with VALARM: an
+ * override VEVENT's own COLOR is neither read nor written.
+ *
  * ATTACH and X- properties are still not carried either way. They round-trip
  * through neither the columns nor the JSCalendar object, and writing back an
  * event with them stripped would be worse than not writing it.
@@ -206,6 +216,12 @@ final readonly class CalDavEventConverter
 
         if (null !== $event->location && '' !== $event->location) {
             $vevent->add('LOCATION', $event->location);
+        }
+
+        $color = $event->jscalendar['color'] ?? null;
+
+        if (true === is_string($color) && '' !== trim($color)) {
+            $vevent->add('COLOR', trim($color));
         }
 
         $rrule = $this->rruleOf($event);
@@ -424,6 +440,10 @@ final readonly class CalDavEventConverter
         if ('' !== $location) {
             $jscalendar['locations'] = ['1' => ['@type' => 'Location', 'name' => $location]];
         }
+
+        // Null, not left out, when there is none: see the class docblock.
+        $color               = trim((string) ($vevent->COLOR ?? ''));
+        $jscalendar['color'] = '' !== $color ? $color : null;
 
         // Stated even when empty. A resource is the whole event — master and
         // every override in one file — so no ATTENDEE, no VALARM or no

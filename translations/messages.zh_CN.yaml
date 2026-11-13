@@ -1334,6 +1334,58 @@ calendar:
         all_day: 全天
         calendar: 日历
         cancel: 取消
+        color:
+            all: 所有颜色
+            button: '颜色：%color%'
+            calendar: 日历颜色
+            custom: 自定义
+            dialog: 事件颜色
+            names:
+                cadetblue: 军校蓝
+                chocolate: 巧克力色
+                coral: 珊瑚色
+                cornflowerblue: 矢车菊蓝
+                crimson: 深红
+                darkgoldenrod: 深金菊色
+                darkkhaki: 深卡其色
+                darkmagenta: 深洋红
+                darkorange: 深橙色
+                darkturquoise: 深绿松石色
+                dimgray: 暗灰色
+                dodgerblue: 道奇蓝
+                firebrick: 砖红色
+                forestgreen: 森林绿
+                gold: 金色
+                goldenrod: 金菊色
+                hotpink: 亮粉色
+                indigo: 靛青
+                lightseagreen: 浅海绿色
+                limegreen: 酸橙绿
+                mediumpurple: 中紫色
+                mediumseagreen: 中海绿色
+                mediumvioletred: 中紫红色
+                midnightblue: 午夜蓝
+                olivedrab: 橄榄褐色
+                orchid: 兰花紫
+                palevioletred: 浅紫红色
+                peru: 秘鲁色
+                rosybrown: 玫瑰褐
+                royalblue: 品蓝色
+                saddlebrown: 马鞍棕
+                seagreen: 海绿色
+                sienna: 赭色
+                slateblue: 石板蓝
+                slategray: 石板灰
+                steelblue: 钢蓝色
+                teal: 水鸭色
+                tomato: 番茄红
+                turquoise: 绿松石色
+                yellowgreen: 黄绿色
+            nearest: '最接近 %hex%'
+            none: 没有叫这个名字的颜色。
+            often: 常用
+            results: 匹配的颜色
+            search: 搜索颜色
         copies:
             help: 勾选的日历会收到此日程及你保存的所有更改。取消勾选不会删除日程：该日历会保留当前副本并停止接收更新。当两个副本不再一致时，它们将分别显示。
             hidden: 此日历已隐藏，显示日历后才能看到日程

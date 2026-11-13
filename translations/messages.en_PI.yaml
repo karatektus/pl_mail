@@ -1412,6 +1412,58 @@ calendar:
         all_day: All the day long
         calendar: Almanac
         cancel: Belay that
+        color:
+            all: Every colour in the locker
+            button: 'Colours: %color%'
+            calendar: 'Th'' almanac''s colours'
+            custom: Hand-mixed
+            dialog: 'Th'' reckonin''s colours'
+            names:
+                cadetblue: Cadet blue
+                chocolate: Chocolate
+                coral: Coral
+                cornflowerblue: Cornflower blue
+                crimson: Crimson
+                darkgoldenrod: Dark goldenrod
+                darkkhaki: Dark khaki
+                darkmagenta: Dark magenta
+                darkorange: Dark orange
+                darkturquoise: Dark turquoise
+                dimgray: Dim grey
+                dodgerblue: Dodger blue
+                firebrick: Firebrick
+                forestgreen: Forest green
+                gold: Gold
+                goldenrod: Goldenrod
+                hotpink: Hot pink
+                indigo: Indigo
+                lightseagreen: Light sea green
+                limegreen: Lime green
+                mediumpurple: Medium purple
+                mediumseagreen: Medium sea green
+                mediumvioletred: Medium violet red
+                midnightblue: Midnight blue
+                olivedrab: Olive drab
+                orchid: Orchid
+                palevioletred: Pale violet red
+                peru: Peru
+                rosybrown: Rosy brown
+                royalblue: Royal blue
+                saddlebrown: Saddle brown
+                seagreen: Sea green
+                sienna: Sienna
+                slateblue: Slate blue
+                slategray: Slate grey
+                steelblue: Steel blue
+                teal: Teal
+                tomato: Tomato
+                turquoise: Turquoise
+                yellowgreen: Yellow green
+            nearest: 'Closest to %hex%'
+            none: No colour sails by that name.
+            often: Flown oft
+            results: Colours that answer
+            search: Hunt fer a colour
         copies:
             help: >-
                 Marked almanacs get this reckonin' an' every change ye stow to
