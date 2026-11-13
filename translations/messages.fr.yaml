@@ -947,9 +947,13 @@ admin:
                 running_for: 'Depuis'
                 waiting: 'En attente'
                 worker: 'Worker'
+            concurrency:
+                default: 'Par défaut (%count%)'
+                hint: 'worker-ingest exécute les tâches de chaque compte de messagerie dans des processus à part, autant en parallèle, pour qu’un fournisseur qui ne répond plus ne bloque pas les autres comptes. Les tâches d’un même compte s’exécutent toujours l’une après l’autre. Chaque tâche en cours occupe environ 50 Mo.'
+                label: 'Tâches de messagerie simultanées'
             footnote: 'Une lecture de cet instant, pas de la période ci-dessus : le temps d’attente d’une tâche n’est pas conservé une fois traitée. Un worker avec deux files termine la première avant de regarder la seconde.'
             heading: 'Ce que chaque worker a en attente'
-            lead: 'Quel processus est en retard, et de combien. Chaque worker traite une tâche à la fois.'
+            lead: 'Quel processus est en retard, et de combien. worker-ingest traite plusieurs tâches de messagerie à la fois, une par compte ; chaque autre worker traite une tâche à la fois.'
             refresh: 'Actualiser'
     processes:
         empty: 'Aucun signal de vie pour l’instant — les processus apparaissent ici après leur premier signal.'

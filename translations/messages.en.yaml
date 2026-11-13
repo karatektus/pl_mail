@@ -939,9 +939,13 @@ admin:
                 running_for: 'For'
                 waiting: 'Waiting'
                 worker: 'Worker'
+            concurrency:
+                default: 'Default (%count%)'
+                hint: 'worker-ingest runs each mail account''s jobs in processes of their own, this many side by side, so one provider that stops answering cannot hold up the other accounts. The same account''s jobs still run one after another. Each running job takes about 50 MB.'
+                label: 'Mail jobs at once'
             footnote: 'A reading of this moment, not of the period above: how long a job waited is not kept once it has been handled. A worker with two queues finishes the first before it looks at the second.'
             heading: 'What each worker has waiting'
-            lead: 'Which process is behind, and by how much. Every worker takes one job at a time.'
+            lead: 'Which process is behind, and by how much. worker-ingest runs several mail jobs at once, one per account; every other worker takes one job at a time.'
             refresh: 'Refresh'
     processes:
         empty: 'No heartbeats yet — processes report here after their first beat.'

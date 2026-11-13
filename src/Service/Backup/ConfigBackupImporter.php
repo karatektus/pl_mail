@@ -293,6 +293,7 @@ final readonly class ConfigBackupImporter
         ConfigBackupDatabase::LOG_SETTINGS,
         ConfigBackupDatabase::UPDATE_SETTINGS,
         ConfigBackupDatabase::OIDC_CONFIG,
+        ConfigBackupDatabase::WORKER_SETTINGS,
     ];
 
     private function databaseItems(array $database): array
@@ -447,6 +448,7 @@ final readonly class ConfigBackupImporter
                     ConfigBackupDatabase::LOG_SETTINGS    => $this->database->restoreLogSettings($values),
                     ConfigBackupDatabase::UPDATE_SETTINGS => $this->database->restoreUpdateSettings($values),
                     ConfigBackupDatabase::OIDC_CONFIG     => $this->database->restoreOidcConfig($values),
+                    ConfigBackupDatabase::WORKER_SETTINGS => $this->database->restoreWorkerSettings($values),
                 };
 
                 continue;

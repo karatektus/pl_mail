@@ -79,6 +79,20 @@ final readonly class BackgroundProcesses
     private const string PREFIXED_COOKIE = '__Secure-mercure_access_token';
     private const string BARE_COOKIE     = 'mercure_access_token';
 
+    /**
+     * Consumers that handle each message in a process of its own, several at
+     * once, instead of one after another (#610).
+     *
+     * worker-ingest, because its queue is every job that talks to a mail
+     * provider for every account, and one provider that stops answering held
+     * all of them up: during a Microsoft outage no account synced, Gmail and
+     * IMAP included. See ChildProcessExecutionStrategy. One queue each, so
+     * the worker's single transport is the only one passed.
+     *
+     * @var list<string>
+     */
+    private const array ISOLATED = ['worker-ingest'];
+
     /** The consumers' recycling, as compose ran them: hourly, or at 256 MB. */
     private const array CONSUMER_LIMITS = ['--time-limit=3600', '--memory-limit=256M'];
 
@@ -191,6 +205,10 @@ final readonly class BackgroundProcesses
 
     private function consumer(string $name, string ...$transports): BackgroundProcess
     {
+        if (true === in_array($name, self::ISOLATED, true)) {
+            return new BackgroundProcess($name, ['php', 'bin/console', 'app:messenger:consume-isolated', ...$transports, ...self::CONSUMER_LIMITS]);
+        }
+
         return new BackgroundProcess($name, ['php', 'bin/console', 'messenger:consume', ...$transports, ...self::CONSUMER_LIMITS]);
     }
 

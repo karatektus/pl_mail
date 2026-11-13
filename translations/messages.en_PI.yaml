@@ -877,9 +877,13 @@ admin:
                 running_for: 'Fer'
                 waiting: "Waitin'"
                 worker: 'Hand'
+            concurrency:
+                default: 'Standard (%count%)'
+                hint: "worker-ingest runs each mail account's jobs in processes o' their own, this many side by side, so one provider gone silent can't hold up the rest o' the fleet. The same account's jobs still go one after t'other. Each runnin' job takes about 50 MB."
+                label: 'Mail jobs at once'
             footnote: "A readin' o' this moment, not o' the stretch above: how long a job waited be not kept once it be done. A hand with two lines clears the first afore lookin' at the second."
             heading: "What each hand has waitin'"
-            lead: 'Which hand be behind, an'' by how much. Ev''ry hand takes one job at a time.'
+            lead: "Which hand be behind, an' by how much. worker-ingest works several mail jobs at once, one per account; ev'ry other hand takes one job at a time."
             refresh: 'Look again'
     processes:
         empty: 'No heartbeats yet — hands report here after their first beat.'

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Middleware;
 
+use App\Domain\Exception\GraphUnavailableException;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Infrastructure\Messaging\Stamp\ConnectionWaitStamp;
 use Psr\Container\ContainerInterface;
@@ -41,7 +42,8 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
  * ONLY a connection failure, and only when every wrapped failure is one. A
  * TransportExceptionInterface is HttpClient's word for "no HTTP answer at
  * all": refused, timed out, DNS, TLS. Any status the provider did answer with
- * is a different exception and a different decision (see GmailApiClient). A
+ * is a different exception and a different decision (see GmailApiClient),
+ * with the one exception of Microsoft's outage answers, below. A
  * sync that could not connect AND failed some other way has a second problem
  * that must not be waved through on the strength of the first.
  *
@@ -52,6 +54,19 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
  * has been gone for a while. Its $requestedAt goes along unchanged, so a sync
  * that got through in the meantime makes the waiting one redundant like any
  * other.
+ *
+ * ## Microsoft answering with an outage counts as not being reached (#610)
+ *
+ * A Graph 500, 502 or 504 (GraphUnavailableException) is taken here too,
+ * although Graph did answer. The answer is "UnknownError" with an empty
+ * message, from a gateway that could not reach Exchange — the same statement
+ * as a refused connection, one hop further in, and the same thing to do about
+ * it. Before this, an Exchange Online incident put every Outlook sync on
+ * Messenger's ladder: a WARNING with nested stack traces per attempt, per
+ * account, for as long as the incident lasted, and GiveUpQuietlyOnThrottling's
+ * one warning only at the end of it. A sync is still the only job taken;
+ * a batch that meets a 5xx keeps the ladder, as it does for a connection
+ * failure, because there the noise is about mail.
  *
  * The handler has already written the failure onto the account by the time
  * this sees it (SyncAccountMessageHandler::recordFailure), so the account
@@ -148,7 +163,8 @@ final readonly class WaitOutConnectionFailures implements MiddlewareInterface
         }
 
         foreach ($wrapped as $exception) {
-            if (false === $exception instanceof TransportExceptionInterface) {
+            if (false === $exception instanceof TransportExceptionInterface
+                && false === $exception instanceof GraphUnavailableException) {
                 return false;
             }
         }

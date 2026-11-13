@@ -26,6 +26,7 @@
 {# The house card: one definition of the shell, the band and the inset, shared
    with every other admin and settings page. See the partial. #}
 {% import '_partials/_card_chrome.html.twig' as chrome %}
+{% import '_partials/_select.html.twig' as select %}
 
 <turbo-frame id="admin-performance">
     <div class="@container space-y-6">
@@ -208,6 +209,34 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+            {# How many mail jobs worker-ingest runs side by side (#610). Its
+               own form and a full reload, like the log level: what it changes
+               is the worker, and the page that reports the worker should be a
+               fresh one. #}
+            <div class="flex flex-wrap items-center gap-2 px-4 py-2.5 border-t border-line bg-sunken/40" data-testid="performance-mail-concurrency">
+                <i class="fa-solid fa-layer-group text-[10px] text-ink-faint" aria-hidden="true"></i>
+                <label for="performance-mail-concurrency" class="text-xs text-ink-muted">{{ 'admin.performance.workers.concurrency.label'|trans }}</label>
+
+                <form method="post" action="{{ path('app_admin_performance_mail_concurrency') }}" data-turbo-frame="_top"
+                      class="flex items-center gap-2" data-controller="ui--auto-submit">
+                    <input type="hidden" name="_token" value="{{ csrf_token('admin_mail_concurrency') }}">
+                    <select id="performance-mail-concurrency" name="concurrency"
+                            {{ select.enhance() }}
+                            class="select-field h-8 text-xs"
+                            data-action="change->ui--auto-submit#submit">
+                        <option value="" {{ mailConcurrency.chosen is null ? 'selected' : '' }}>
+                            {{ 'admin.performance.workers.concurrency.default'|trans({ '%count%': mailConcurrency.default }) }}
+                        </option>
+                        {% for n in mailConcurrency.min..mailConcurrency.max %}
+                            <option value="{{ n }}" {{ mailConcurrency.chosen == n ? 'selected' : '' }}>{{ n }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+
+                <span class="text-xs text-ink-faint flex-1 min-w-0">
+                    {{ 'admin.performance.workers.concurrency.hint'|trans }}
+                </span>
             </div>
             <p class="px-4 py-2 border-t border-line text-[12px] leading-snug text-ink-faint">
                 {{ 'admin.performance.workers.footnote'|trans }}

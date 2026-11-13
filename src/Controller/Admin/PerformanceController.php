@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Ai\MetricWindow;
 use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Repository\Mail\Message\MessageArrivalRepository;
 use App\Repository\Mail\Message\MessageAiRepository;
+use App\Repository\System\WorkerSettings\WorkerSettingsRepository;
 use App\Service\Monitoring\QueueMonitor;
 use App\Service\System\Work\BackgroundProcesses;
 use DateTimeImmutable;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -43,6 +46,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 final class PerformanceController extends AbstractController
 {
+    use ChecksCsrf;
+
     /** Rows in the per-message table. The summary above it covers the whole window. */
     private const int DETAIL_ROWS = 50;
 
@@ -57,7 +62,8 @@ final class PerformanceController extends AbstractController
         private readonly MessageArrivalRepository $messageArrivalRepository,
         private readonly AiSettingsRepository $settings,
         private readonly QueueMonitor         $queues,
-        private readonly BackgroundProcesses  $processes
+        private readonly BackgroundProcesses  $processes,
+        private readonly WorkerSettingsRepository $workerSettings,
     ) {
     }
 
@@ -81,6 +87,15 @@ final class PerformanceController extends AbstractController
             // "95% within 15 min" turns into spam collected on schedule.
             'slowest' => $this->messageArrivalRepository->slowestArrivals($since, self::SLOWEST_ROWS),
             'workers' => $this->workers(),
+            // The admin's choice, null for the default — the select offers
+            // "default" as its own option, so following a later release's
+            // default stays reachable once a number has been picked.
+            'mailConcurrency' => [
+                'chosen'  => $this->workerSettings->current()?->mailConcurrency,
+                'default' => WorkerSettingsRepository::DEFAULT_CONCURRENCY,
+                'min'     => WorkerSettingsRepository::MIN_CONCURRENCY,
+                'max'     => WorkerSettingsRepository::MAX_CONCURRENCY,
+            ],
             // The model host's card is fetched by the page itself, the way
             // Admin → AI did it — a host that is switched off must not hold
             // this page for as long as its timeout. All that is decided here
@@ -115,6 +130,36 @@ final class PerformanceController extends AbstractController
      * @return list<array{worker: string, queues: list<array{queue: string, pending: int, running: int,
      *     waitingSeconds: int|null, runningSeconds: int|null}>}>
      */
+    /**
+     * How many mail jobs worker-ingest runs at once (#610).
+     *
+     * Here, beside the table that shows the ingest queue waiting, because that
+     * is where somebody notices it is too few. The worker reads the setting
+     * again every half a minute, so nothing has to be restarted.
+     *
+     * An empty value stores null, which means the default: see WorkerSettings.
+     * Anything else is clamped to what the repository allows rather than
+     * refused — the select offers nothing else, and a hand-made request gets
+     * the nearest sensible number.
+     */
+    #[Route('/admin/performance/mail-concurrency', name: 'app_admin_performance_mail_concurrency', methods: ['POST'])]
+    public function setMailConcurrency(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        $this->assertCsrf($request, 'admin_mail_concurrency');
+
+        $chosen = trim((string) $request->request->get('concurrency', ''));
+
+        $settings = $this->workerSettings->currentOrNew();
+        $settings->mailConcurrency = '' === $chosen || false === ctype_digit($chosen)
+            ? null
+            : WorkerSettingsRepository::clamp((int) $chosen);
+
+        $entityManager->persist($settings);
+        $entityManager->flush();
+
+        return $this->redirectToRoute('app_admin_performance');
+    }
+
     private function workers(): array
     {
         $byQueue = [];
