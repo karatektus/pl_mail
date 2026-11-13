@@ -354,7 +354,7 @@ identity is threaded through a URL that would outlive the render that made it.
         ~ (roomy ? 'linear-gradient(var(--mark-split, to bottom), ' : 'conic-gradient(')
         ~ slices|join(', ') ~ ')' %}
 {% else %}
-    {% set mark_style = 'background-color: ' ~ event.calendar.color %}
+    {% set mark_style = 'background-color: ' ~ event.displayColor %}
 {% endif %}
 
 <button type="button"
@@ -365,7 +365,7 @@ identity is threaded through a URL that would outlive the render that made it.
    data-event-chip="{{ event.id }}"
    {% if tentative %}
    data-tentative
-   style="--block-stripe: {{ event.calendar.color }}2e; --block-edge: {{ event.calendar.color }}b3"
+   style="--block-stripe: {{ event.displayColor }}2e; --block-edge: {{ event.displayColor }}b3"
    {% endif %}
    {# Details, not the editor. Clicking an event to find out when it is used
       to open a form asking you to change it — and the three things people

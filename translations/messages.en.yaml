@@ -1494,6 +1494,58 @@ calendar:
         all_day: All day
         calendar: Calendar
         cancel: Cancel
+        color:
+            all: All colours
+            button: 'Colour: %color%'
+            calendar: Calendar colour
+            custom: Custom
+            dialog: Event colour
+            names:
+                cadetblue: Cadet blue
+                chocolate: Chocolate
+                coral: Coral
+                cornflowerblue: Cornflower blue
+                crimson: Crimson
+                darkgoldenrod: Dark goldenrod
+                darkkhaki: Dark khaki
+                darkmagenta: Dark magenta
+                darkorange: Dark orange
+                darkturquoise: Dark turquoise
+                dimgray: Dim grey
+                dodgerblue: Dodger blue
+                firebrick: Firebrick
+                forestgreen: Forest green
+                gold: Gold
+                goldenrod: Goldenrod
+                hotpink: Hot pink
+                indigo: Indigo
+                lightseagreen: Light sea green
+                limegreen: Lime green
+                mediumpurple: Medium purple
+                mediumseagreen: Medium sea green
+                mediumvioletred: Medium violet red
+                midnightblue: Midnight blue
+                olivedrab: Olive drab
+                orchid: Orchid
+                palevioletred: Pale violet red
+                peru: Peru
+                rosybrown: Rosy brown
+                royalblue: Royal blue
+                saddlebrown: Saddle brown
+                seagreen: Sea green
+                sienna: Sienna
+                slateblue: Slate blue
+                slategray: Slate grey
+                steelblue: Steel blue
+                teal: Teal
+                tomato: Tomato
+                turquoise: Turquoise
+                yellowgreen: Yellow green
+            nearest: 'Nearest to %hex%'
+            none: No colour is called that.
+            often: Often used
+            results: Matching colours
+            search: Search colours
         copies:
             help: >-
                 Ticked calendars get this event and every change you save to it.

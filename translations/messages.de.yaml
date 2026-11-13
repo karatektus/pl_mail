@@ -1512,6 +1512,58 @@ calendar:
         all_day: Ganztägig
         calendar: Kalender
         cancel: Abbrechen
+        color:
+            all: Alle Farben
+            button: 'Farbe: %color%'
+            calendar: Kalenderfarbe
+            custom: Eigene
+            dialog: Terminfarbe
+            names:
+                cadetblue: Kadettblau
+                chocolate: Schokoladenbraun
+                coral: Koralle
+                cornflowerblue: Kornblumenblau
+                crimson: Karmesinrot
+                darkgoldenrod: Dunkle Goldrute
+                darkkhaki: Dunkles Khaki
+                darkmagenta: Dunkelmagenta
+                darkorange: Dunkelorange
+                darkturquoise: Dunkeltürkis
+                dimgray: Dunkelgrau
+                dodgerblue: Dodgerblau
+                firebrick: Ziegelrot
+                forestgreen: Waldgrün
+                gold: Gold
+                goldenrod: Goldrute
+                hotpink: Pink
+                indigo: Indigo
+                lightseagreen: Helles Seegrün
+                limegreen: Limettengrün
+                mediumpurple: Mittleres Lila
+                mediumseagreen: Mittleres Seegrün
+                mediumvioletred: Mittleres Violettrot
+                midnightblue: Mitternachtsblau
+                olivedrab: Olivgrün
+                orchid: Orchidee
+                palevioletred: Blasses Violettrot
+                peru: Peru
+                rosybrown: Altrosa
+                royalblue: Königsblau
+                saddlebrown: Sattelbraun
+                seagreen: Seegrün
+                sienna: Siena
+                slateblue: Schieferblau
+                slategray: Schiefergrau
+                steelblue: Stahlblau
+                teal: Petrol
+                tomato: Tomatenrot
+                turquoise: Türkis
+                yellowgreen: Gelbgrün
+            nearest: 'Am nächsten an %hex%'
+            none: Keine Farbe heißt so.
+            often: Oft verwendet
+            results: Passende Farben
+            search: Farben suchen
         copies:
             help: >-
                 Angehakte Kalender bekommen diesen Termin und jede Änderung, die

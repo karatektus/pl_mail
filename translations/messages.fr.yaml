@@ -1503,6 +1503,58 @@ calendar:
         all_day: Toute la journée
         calendar: Agenda
         cancel: Annuler
+        color:
+            all: Toutes les couleurs
+            button: 'Couleur : %color%'
+            calendar: Couleur de l’agenda
+            custom: Personnalisée
+            dialog: Couleur de l’événement
+            names:
+                cadetblue: Bleu cadet
+                chocolate: Chocolat
+                coral: Corail
+                cornflowerblue: Bleuet
+                crimson: Cramoisi
+                darkgoldenrod: Verge d’or foncé
+                darkkhaki: Kaki foncé
+                darkmagenta: Magenta foncé
+                darkorange: Orange foncé
+                darkturquoise: Turquoise foncé
+                dimgray: Gris foncé
+                dodgerblue: Bleu Dodger
+                firebrick: Rouge brique
+                forestgreen: Vert forêt
+                gold: Or
+                goldenrod: Verge d’or
+                hotpink: Rose vif
+                indigo: Indigo
+                lightseagreen: Vert marin clair
+                limegreen: Vert citron
+                mediumpurple: Violet moyen
+                mediumseagreen: Vert marin moyen
+                mediumvioletred: Rouge violet moyen
+                midnightblue: Bleu nuit
+                olivedrab: Vert olive terne
+                orchid: Orchidée
+                palevioletred: Rouge violet pâle
+                peru: Pérou
+                rosybrown: Vieux rose
+                royalblue: Bleu roi
+                saddlebrown: Brun cuir
+                seagreen: Vert marin
+                sienna: Terre de Sienne
+                slateblue: Bleu ardoise
+                slategray: Gris ardoise
+                steelblue: Bleu acier
+                teal: Sarcelle
+                tomato: Tomate
+                turquoise: Turquoise
+                yellowgreen: Vert jaune
+            nearest: 'La plus proche de %hex%'
+            none: Aucune couleur ne porte ce nom.
+            often: Souvent utilisées
+            results: Couleurs correspondantes
+            search: Rechercher une couleur
         copies:
             help: >-
                 Les agendas cochés reçoivent cet événement et chaque modification que

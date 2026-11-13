@@ -104,14 +104,16 @@ file, and the two are indistinguishable until something tries to parse one.
 
 For Google, Microsoft and CalDAV, changes travel in both directions. What crosses is the meeting
 itself: title, start and end, time zone, all-day, location, description, status, the recurrence rule
-with every per-occurrence change filed against it, participants, and reminders. A booking taken
+with every per-occurrence change filed against it, participants, and reminders. On CalDAV the event's
+own colour crosses too, as the `COLOR` property phones write. A booking taken
 through one of your booking pages, and an event you created on two calendars at once, both travel
 like any other event.
 
 What does not cross:
 
 - **Anything about how plMail draws it.** A calendar's colour, its visibility, its position in your
-  list, whether it is your default — those are yours.
+  list, whether it is your default — those are yours. An event's own colour stays in plMail on
+  Google and Microsoft calendars, which keep colours in models of their own.
 - **Where an event came from.** plMail records whether an event was typed, read out of a message,
   mirrored, or booked; a provider has no field for that and nothing carries it back.
 - **Attachments on an event.**

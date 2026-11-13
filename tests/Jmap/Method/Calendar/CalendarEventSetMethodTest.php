@@ -271,6 +271,45 @@ final class CalendarEventSetMethodTest extends CalendarMethodTestCase
         self::assertSame('Room 2', $event->location);
     }
 
+    /**
+     * An event's own colour (#616) is settable, kept by an update that does not
+     * name it, and cleared by null — the three things the apps need to offer
+     * the same picker the web editor has.
+     */
+    public function testAColourIsSetKeptAndCleared(): void
+    {
+        $event = $this->createdEvent(['title' => 'Dentist', 'start' => $this->local(9), 'color' => 'turquoise']);
+
+        self::assertSame('turquoise', $event->jscalendar['color'] ?? null);
+
+        $this->method->handle([
+            'accountId' => $this->accountId(),
+            'update' => [(string) $event->id => ['title' => 'Dentist (moved)']],
+        ], $this->context());
+
+        self::assertSame('turquoise', $event->jscalendar['color'] ?? null, 'an update that does not name it keeps it');
+
+        $this->method->handle([
+            'accountId' => $this->accountId(),
+            'update' => [(string) $event->id => ['color' => null]],
+        ], $this->context());
+
+        self::assertArrayNotHasKey('color', $event->jscalendar);
+    }
+
+    public function testAColourNothingCouldDrawIsRefused(): void
+    {
+        $result = $this->create(['new' => [
+            'calendarId' => (string) $this->calendar->id,
+            'title' => 'Dentist',
+            'start' => $this->local(9),
+            'color' => 'sort-of-blue',
+        ]]);
+
+        self::assertSame('invalidProperties', $result['notCreated']['new']['type']);
+        self::assertSame(['color'], $result['notCreated']['new']['properties']);
+    }
+
     /** ifInState could only ever answer "nothing has changed", so it is refused rather than believed. */
     public function testIfInStateIsRefusedRatherThanAlwaysSatisfied(): void
     {

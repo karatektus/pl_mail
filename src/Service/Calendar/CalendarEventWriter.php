@@ -38,8 +38,19 @@ final readonly class CalendarEventWriter
     private const array DERIVED_KEYS = [
         '@type', 'uid', 'title', 'start', 'duration', 'status', 'privacy', 'timeZone',
         'showWithoutTime', 'description', 'locations', 'recurrenceRules',
-        'recurrenceOverrides', 'participants', 'alerts',
+        'recurrenceOverrides', 'participants', 'alerts', 'color',
     ];
+
+    /**
+     * The `$color` that means "this event has no colour of its own": it is
+     * drawn in its calendar's again, and the COLOR line leaves the next PUT.
+     *
+     * An empty string rather than a second flag, because null is already
+     * taken: it means "no opinion, keep what is stored", which is what every
+     * caller without a colour field — the sync engine, an extractor, a JMAP
+     * patch that does not name `color` — has to say.
+     */
+    public const string NO_COLOR = '';
 
     /** The overlay keys whose explicit [] means "none", not "not stated". */
     private const array STATED_EMPTY_CLEARS = ['alerts', 'participants', 'recurrenceOverrides'];
@@ -64,6 +75,9 @@ final readonly class CalendarEventWriter
      *                                                    writer does not derive — freeBusyStatus, keywords,
      *                                                    a verbatim `plmail:rrule` — are carried across, so an
      *                                                    edit with no field for them does not erase them
+     * @param string|null              $color             the event's own colour (#616) as it is to be stored:
+     *                                                    a CSS name, or whatever value the caller is keeping.
+     *                                                    Null keeps what is stored; NO_COLOR clears it
      */
     public function write(
         CalendarEvent     $event,
@@ -81,6 +95,7 @@ final readonly class CalendarEventWriter
         ?array            $jscalendarOverlay = null,
         ?array            $alerts = null,
         ?array            $base = null,
+        ?string           $color = null,
     ): CalendarEvent {
         // Before any column moves: this is the only record of where the series
         // started, and it is what its override keys are relative to.
@@ -100,7 +115,7 @@ final readonly class CalendarEventWriter
             $event->uid = $this->newUid();
         }
 
-        $event->jscalendar = $this->toJsCalendar($event, $description, $recurrenceRule, $alerts);
+        $event->jscalendar = $this->toJsCalendar($event, $description, $recurrenceRule, $alerts, $color);
 
         // Under the derived object, never over it: the keys this writer owns
         // are the ones the caller has just stated, and a base carrying the old
@@ -141,6 +156,15 @@ final readonly class CalendarEventWriter
                 if ([] === ($jscalendarOverlay[$key] ?? null)) {
                     unset($event->jscalendar[$key]);
                 }
+            }
+
+            // The same statement for a scalar. A CalDAV resource with no COLOR
+            // line is an event whose colour was taken off on the phone, and the
+            // converter says so with `color: null`; a driver that knows nothing
+            // about colours — Google's, Graph's, an invitation's — leaves the
+            // key out, and a colour picked here survives its next pull.
+            if (true === array_key_exists('color', $jscalendarOverlay) && false === is_string($jscalendarOverlay['color'])) {
+                unset($event->jscalendar['color']);
             }
         }
 
@@ -202,6 +226,31 @@ final readonly class CalendarEventWriter
 
         $this->em->persist($event);
         $this->materialiser->materialise($event);
+    }
+
+    /**
+     * Give a series its own colour, or take it away, without rewriting it.
+     *
+     * For the editor's "this event" scope, which does not call write(): a
+     * per-instance edit is a patch on the series, and a colour belongs to the
+     * series — JSCalendar would let an override carry one, but neither the
+     * views nor COLOR on a CalDAV override VEVENT would be read back, so the
+     * picker in an editor opened on one occurrence colours them all.
+     *
+     * Occurrences are not re-materialised: they carry no colour, every view
+     * reads it off the event (CalendarEvent::$displayColor).
+     */
+    public function recolor(CalendarEvent $event, string $color): void
+    {
+        $jscalendar = $event->jscalendar;
+
+        if (self::NO_COLOR === $color) {
+            unset($jscalendar['color']);
+        } else {
+            $jscalendar['color'] = $color;
+        }
+
+        $event->jscalendar = $jscalendar;
     }
 
     /**
@@ -383,6 +432,7 @@ final readonly class CalendarEventWriter
         ?string       $description,
         ?array        $recurrenceRule,
         ?array        $alerts = null,
+        ?string       $color = null,
     ): array {
         $zone = $event->timeZone ?? 'UTC';
 
@@ -455,6 +505,16 @@ final readonly class CalendarEventWriter
         // treatment recurrenceOverrides gets in overrideInstances().
         if (true === is_array($stored) && [] !== $stored) {
             $jscalendar['alerts'] = $stored;
+        }
+
+        // The editor states it on every save; nothing else has a field for it,
+        // and dropping it there would turn a phone's colour back to the
+        // calendar's the first time somebody renamed the meeting here — and
+        // push that to the phone.
+        $colour = $color ?? ($event->jscalendar['color'] ?? null);
+
+        if (true === is_string($colour) && self::NO_COLOR !== $colour) {
+            $jscalendar['color'] = $colour;
         }
 
         return $jscalendar;

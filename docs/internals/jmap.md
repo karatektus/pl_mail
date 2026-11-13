@@ -385,6 +385,11 @@ no way to discover otherwise. The properties left out, and why:
 | `privacy` | there is no writer parameter for it, and writing the column directly is exactly what this class must not do |
 | `alerts`, `links` | nowhere to project them from — the writer rebuilds the canonical object from the columns on every write, so they would survive one save and vanish on the next |
 
+`color` is accepted: a CSS colour name or `#rrggbb` (RFC 8984 §4.2.9), and `null` to clear it.
+Anything nothing would draw is refused with `invalidProperties`. An update that does not name
+`color` keeps the stored one, including a value this server cannot draw, which is written back to
+a CalDAV server as it came.
+
 Times are parsed as strict LocalDateTime (RFC 8984 §4.1.2): no offset, no trailing `Z`.
 Accepting `2026-06-02T09:00:00Z` looks like a courtesy and is not — it says UTC, the zone
 beside it says Europe/Berlin, and guessing which the client meant moves a meeting by hours in
