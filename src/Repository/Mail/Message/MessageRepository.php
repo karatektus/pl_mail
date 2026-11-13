@@ -463,6 +463,8 @@ class MessageRepository extends ServiceEntityRepository
                 'm.receivedAt',
                 'm.sentAt',
                 'm.createdAt',
+                // A draft's last save, for ThreadRowMessage::writtenAt().
+                'm.updatedAt',
                 'm.submissionSendAt',
                 // The warning a draft whose send failed wears in the list (#125).
                 'm.sendFailure',

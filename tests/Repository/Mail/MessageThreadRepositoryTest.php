@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Repository\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\ListSortOrder;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Label\Label;
@@ -818,6 +820,82 @@ final class MessageThreadRepositoryTest extends KernelTestCase
             $found->id,
             'a tie on lastMessageAt was broken by something other than the row order',
         );
+    }
+
+    // ── Drafts ───────────────────────────────────────────────────────────────
+
+    /**
+     * Drafts is ordered by when its drafts were written, not by the
+     * conversation's last message. A draft does not move lastMessageAt, so a
+     * reply written just now to last week's mail was listed a week down, under
+     * drafts nobody had touched since.
+     */
+    public function testDraftsAreOrderedByWhenTheDraftWasWritten(): void
+    {
+        $drafts = $this->seedSystemLabel(LabelRole::Drafts);
+
+        // A conversation from last week, answered just now.
+        $answered = $this->thread('answered', '2026-01-01 09:00');
+        $this->message($answered, '2026-01-01 09:00');
+        $reply = $this->localDraft($answered, $drafts, '2026-03-01 12:00');
+
+        // A fresh compose from yesterday, its thread seeded by the draft.
+        $fresh = $this->thread('fresh', '2026-02-28 09:00');
+        $this->localDraft($fresh, $drafts, '2026-02-28 09:00');
+
+        // A draft synced from another client: its provider date counts, not
+        // when it was synced here.
+        $synced = $this->thread('synced', '2026-02-01 09:00');
+        $syncedDraft = $this->message($synced, '2026-02-01 09:00');
+        $syncedDraft->sentAt = null;
+        $syncedDraft->addFlag(MessageFlag::DRAFT);
+        $syncedDraft->addLabel($drafts);
+        $this->syncThreadLabels($synced);
+
+        self::assertSame(
+            ['answered', 'fresh', 'synced'],
+            $this->subjectsOf($this->repository->findForRole($this->user, LabelRole::Drafts)),
+        );
+        self::assertSame(
+            ['synced', 'fresh', 'answered'],
+            $this->subjectsOf($this->repository->findForRole($this->user, LabelRole::Drafts, sort: ListSortOrder::Oldest)),
+        );
+        self::assertSame(
+            ['answered', 'fresh', 'synced'],
+            $this->subjectsOf($this->repository->findForLabel($drafts)),
+        );
+
+        // A draft thrown in the bin does not place the conversation: the
+        // answered one keeps an older live draft and sorts by that.
+        $this->localDraft($answered, $drafts, '2026-01-02 09:00');
+        $reply->addLabel($this->seedSystemLabel(LabelRole::Trash));
+        $this->syncThreadLabels($answered);
+
+        self::assertSame(
+            ['fresh', 'synced', 'answered'],
+            $this->subjectsOf($this->repository->findForRole($this->user, LabelRole::Drafts)),
+        );
+    }
+
+    /**
+     * A draft written here: no receivedAt, and its time is its last save,
+     * which only PrePersist/PreUpdate write — set in the database instead.
+     */
+    private function localDraft(MessageThread $thread, Label $drafts, string $savedAt): Message
+    {
+        $draft             = $this->message($thread, $savedAt);
+        $draft->receivedAt = null;
+        $draft->sentAt     = null;
+        $draft->addFlag(MessageFlag::DRAFT);
+        $draft->addLabel($drafts);
+        $this->syncThreadLabels($thread);
+
+        $this->connection->executeStatement(
+            'UPDATE message SET updated_at = :at WHERE id = :id',
+            ['at' => $savedAt, 'id' => $draft->id],
+        );
+
+        return $draft;
     }
 
     /**

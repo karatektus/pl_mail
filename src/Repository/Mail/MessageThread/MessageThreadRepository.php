@@ -307,7 +307,7 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         $this->narrowToUnread($qb, $unreadOnly);
 
-        $sort->applyTo($qb);
+        $this->sortList($qb, $sort, $role);
 
         return $qb->getQuery()->getResult();
     }
@@ -362,7 +362,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         $this->onlyLiveDrafts($qb, $label->role);
         $this->narrowToUnread($qb, $unreadOnly);
 
-        $sort->applyTo($qb);
+        $this->sortList($qb, $sort, $label->role);
 
         return $qb->getQuery()->getResult();
     }
@@ -382,6 +382,45 @@ class MessageThreadRepository extends ServiceEntityRepository
         $this->narrowToUnread($qb, $unreadOnly);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * The list's order — by the conversation's last message, except in Drafts,
+     * which is ordered by when its drafts were last written.
+     *
+     * lastMessageAt is the wrong key there, and on purpose everywhere else: a
+     * draft may not advance it (MessageThreader::recordActivity()), so an
+     * autosave does not reorder the inbox. But Drafts lists a conversation
+     * BECAUSE of its draft, and a reply written just now to a mail from last
+     * week sat a week down the list, under drafts nobody had touched since.
+     *
+     * The draft's time is ThreadRowMessage::writtenAt(), spelled in DQL: the
+     * provider's date for a draft synced from elsewhere, our last save for one
+     * written here. Only live drafts count, the ones onlyLiveDrafts() lists the
+     * conversation for. HIDDEN keeps the row an entity; under DISTINCT Postgres
+     * wants an ORDER BY expression in the select list, which this is.
+     */
+    private function sortList(QueryBuilder $qb, ListSortOrder $sort, ?LabelRole $role): void
+    {
+        if (LabelRole::Drafts !== $role) {
+            $sort->applyTo($qb);
+
+            return;
+        }
+
+        $direction = ListSortOrder::Oldest === $sort ? 'ASC' : 'DESC';
+
+        $qb->addSelect(sprintf(
+            '(SELECT MAX(COALESCE(sortDraft.receivedAt, sortDraft.updatedAt)) FROM %1$s sortDraft JOIN sortDraft.labels sortDraftLabel
+                WHERE sortDraft.thread = t AND sortDraftLabel.role = :sortDraftRole
+                AND NOT EXISTS (SELECT sortBinned.id FROM %1$s sortBinned JOIN sortBinned.labels sortBinnedLabel
+                    WHERE sortBinned = sortDraft AND sortBinnedLabel.role = :sortBinnedRole)) AS HIDDEN draftWrittenAt',
+            Message::class,
+        ))
+            ->setParameter('sortDraftRole', LabelRole::Drafts)
+            ->setParameter('sortBinnedRole', LabelRole::Trash)
+            ->orderBy('draftWrittenAt', $direction)
+            ->addOrderBy('t.id', $direction);
     }
 
     /**
