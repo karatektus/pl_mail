@@ -44,16 +44,37 @@ framework:
     # next to the code it protects and tested. The two are mutually exclusive in
     # this config anyway: naming a retry_strategy and an http_codes list in the
     # same block is a configuration error.
+    #
+    # TIME LIMITS on both mail APIs (#610). PHP's own is per read, sixty
+    # seconds of silence: a server that sends a byte now and then never trips
+    # it, and during the Microsoft outage of 13 November 2026 a sync sat inside
+    # one call to Graph while every account on the installation waited behind
+    # it. `timeout` is that per-read limit, shorter; `max_duration` is the
+    # whole request, which nothing limited before. Two minutes is a 25 MB
+    # message at under two megabits a second, the largest honest download
+    # either API serves. The worker kills a job that runs much longer anyway
+    # (ChildProcessExecutionStrategy); these make the call fail first, with an
+    # error that says which call it was.
     http_client:
         scoped_clients:
             graph.client:
                 scope: 'https://graph\.microsoft\.com'
+                timeout: 30
+                max_duration: 120
                 retry_failed:
                     retry_strategy: App\Infrastructure\Http\GraphRetryStrategy
                     # Three attempts in all. See the strategy: this ladder runs
                     # inside the sync, so it is measured in seconds, and the
                     # minutes-long one lives in messenger.yaml.
                     max_retries: 2
+            # GmailApiClient asks for this one with #[Target('gmail.client')].
+            # No retries: Gmail's failures are sorted by GmailApiClient itself,
+            # quota refusals included, and that sorting is what reports them to
+            # the pacer.
+            gmail.client:
+                scope: 'https://(gmail|www)\.googleapis\.com'
+                timeout: 30
+                max_duration: 120
 
     #esi: true
     #fragments: true

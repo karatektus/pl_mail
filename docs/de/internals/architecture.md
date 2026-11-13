@@ -1,4 +1,4 @@
-<!-- translated-from: internals/architecture.md sha1:f092616b374273166f571a14bcd7a8ea45a8ff4d -->
+<!-- translated-from: internals/architecture.md sha1:875ca77084364dc2836a3267d84a421aea1a7c6d -->
 # Architektur
 
 Die Schichten, was wo liegt, und die Regeln, die das so halten. Diese Seite beschreibt die
@@ -189,6 +189,17 @@ Transport seinen eigenen Prozess: `worker-export`, `worker-ingest`, `worker-back
 dieser Reihenfolge — siehe [Mail-Ingest](mail-ingest.md#was-auf-eine-nachricht-folgt-und-wo-es-läuft). Ein fünfter Transport, `async`, wird ohne Routing
 weitergeführt, damit Envelopes, die vor der Aufteilung eingereiht wurden, noch irgendwo landen
 können; der Maintenance-Worker leert ihn.
+
+Ein Prozess pro Queue reicht für `ingest` trotzdem nicht, denn diese Queue enthält jeden Job, der
+für irgendein Konto mit einem Mailanbieter spricht. Als Microsoft Graph am 13. November 2026 nicht
+richtig antwortete, steckte ein Job für ein Outlook-Konto in einem Aufruf fest, und eine Stunde lang
+synchronisierte kein Konto, Gmail und IMAP eingeschlossen. Deshalb führt `worker-ingest`
+`app:messenger:consume-isolated` aus: derselbe Symfony-Worker, aber jede Nachricht wird von einem
+eigenen Kindprozess bearbeitet (`ChildProcessExecutionStrategy`). Mehrere laufen gleichzeitig, so
+viele wie Admin → Performance erlaubt (standardmäßig vier). Jobs desselben Kontos laufen weiterhin
+nacheinander, in der Reihenfolge ihres Eintreffens, und ein Kindprozess, der länger als sechs
+Minuten läuft, wird beendet. Ein so beendeter Sync wird verworfen, weil der Zeitplan ihn ohnehin
+wieder anstößt; alles andere landet wie jeder andere Fehler auf der Retry-Leiter.
 
 `bulk` ist der jüngste davon und derjenige, den du am ehesten mit `maintenance` verwechselst:
 Er trägt Mark-Read- und Archiv-Läufe über eine ganze Ansicht. Die dauern so lange wie eine

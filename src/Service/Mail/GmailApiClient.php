@@ -10,6 +10,7 @@ use App\Domain\Exception\GmailThrottledException;
 use App\Entity\Mail\Account;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\OAuth\OAuthTokenManager;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -65,6 +66,7 @@ final class GmailApiClient
     ];
 
     public function __construct(
+        #[Target('gmail.client')]
         private readonly HttpClientInterface $httpClient,
         private readonly OAuthTokenManager  $tokenManager,
         private readonly GmailQuotaPacer    $pacer,

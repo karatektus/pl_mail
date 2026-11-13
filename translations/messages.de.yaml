@@ -951,9 +951,13 @@ admin:
                 running_for: 'Seit'
                 waiting: 'Wartend'
                 worker: 'Worker'
+            concurrency:
+                default: 'Standard (%count%)'
+                hint: 'worker-ingest führt die Jobs jedes Mailkontos in eigenen Prozessen aus, so viele nebeneinander. So kann ein Anbieter, der nicht mehr antwortet, die anderen Konten nicht aufhalten. Die Jobs desselben Kontos laufen weiter nacheinander. Jeder laufende Job braucht etwa 50 MB.'
+                label: 'Mail-Jobs gleichzeitig'
             footnote: 'Ein Stand von diesem Moment, nicht vom Zeitraum oben: Wie lange ein Job gewartet hat, wird nicht aufbewahrt, sobald er erledigt ist. Ein Worker mit zwei Warteschlangen arbeitet die erste ab, bevor er in die zweite schaut.'
             heading: 'Was bei jedem Worker wartet'
-            lead: 'Welcher Prozess im Rückstand ist, und um wie viel. Jeder Worker nimmt einen Job nach dem anderen.'
+            lead: 'Welcher Prozess im Rückstand ist, und um wie viel. worker-ingest führt mehrere Mail-Jobs gleichzeitig aus, einen pro Konto; jeder andere Worker nimmt einen Job nach dem anderen.'
             refresh: 'Aktualisieren'
     processes:
         empty: 'Noch keine Heartbeats — Prozesse melden sich hier nach ihrem ersten Lebenszeichen.'

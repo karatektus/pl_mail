@@ -35,6 +35,26 @@ final class BackgroundProcessesTest extends TestCase
         self::assertSame(['imap-listener'], BackgroundProcesses::expand(['imap-listener', 'imap-listener']));
     }
 
+    /**
+     * worker-ingest handles each message in a process of its own (#610); the
+     * other consumers stay on Messenger's own command.
+     */
+    public function testOnlyTheIngestWorkerRunsItsJobsInProcessesOfTheirOwn(): void
+    {
+        $commands = [];
+
+        foreach (new BackgroundProcesses(self::IDENTIFIER)->all() as $process) {
+            $commands[$process->name] = $process->command;
+        }
+
+        self::assertSame(
+            ['php', 'bin/console', 'app:messenger:consume-isolated', 'ingest', '--time-limit=3600', '--memory-limit=256M'],
+            $commands['worker-ingest'],
+        );
+        self::assertSame('messenger:consume', $commands['worker-backlog'][2]);
+        self::assertSame('messenger:consume', $commands['worker-export'][2]);
+    }
+
     public function testTheHubIsConfiguredAsItsContainerWas(): void
     {
         $hub = new BackgroundProcesses(self::IDENTIFIER, 'mercure_access_token', 'the-generated-secret')->all()[0];
