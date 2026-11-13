@@ -703,7 +703,39 @@ final readonly class AccountHealthInspector
             // window its provider keeps, and that is somewhere to look.
             facts: $this->resyncFacts($account),
             detail: $account->lastSyncError,
+            bodyVariant: $this->syncFailureVariant($account),
         );
+    }
+
+    /**
+     * Which advice the "keeps failing to sync" card gives (#602).
+     *
+     * The plain text tells someone to check the host, the port and the
+     * password, which is right for IMAP and POP3 and meaningless for an
+     * account that signs in through Microsoft or Google: there is none of the
+     * three to check. During Exchange Online's incident of November 2026 that
+     * was the advice shown beside a Graph 502.
+     *
+     * The stored error is read for the status rather than a column added for
+     * it: both API clients word a failed response the same way ("Graph request
+     * failed with 502", "Gmail messages.list failed with 503"), and reading the
+     * text works for the failures already on record. It is advice and nothing
+     * else — the worst a missed match does is fall back to the generic
+     * provider sentence.
+     *
+     * @return 'provider_down'|'oauth'|null null for the plain IMAP/POP3 text
+     */
+    private function syncFailureVariant(Account $account): ?string
+    {
+        if (null === $account->oauthProvider) {
+            return null;
+        }
+
+        if (1 === preg_match('/^(?:Graph|Gmail)\b[^:]*\bfailed with 5\d\d\b/', (string) $account->lastSyncError)) {
+            return 'provider_down';
+        }
+
+        return 'oauth';
     }
 
     /**

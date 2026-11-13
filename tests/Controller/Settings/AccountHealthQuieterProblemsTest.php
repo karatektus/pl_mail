@@ -337,6 +337,70 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
     }
 
     /**
+     * The advice fits the account (#602).
+     *
+     * During Exchange Online's incident of November 2026 an Outlook account
+     * showed a Graph 502 under "check the host, the port or the password" —
+     * none of which an account signed in through Microsoft has. The host, the
+     * port and the password are for IMAP; a 5xx from the provider is the
+     * provider's, and says so.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('syncFailureAdvice')]
+    public function testTheSyncCardGivesAdviceThatFitsTheAccount(?string $provider, string $error, string $says, string $doesNotSay): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'advice-' . md5($error . $provider) . '@joder.dev');
+
+        $account->oauthProvider = $provider;
+
+        for ($i = 0; $i < 3; ++$i) {
+            $account->recordSyncFailure($error);
+        }
+
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings/health');
+        $card    = $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]');
+
+        self::assertSame(1, $card->count());
+        self::assertStringContainsString($says, $card->text());
+        self::assertStringNotContainsString($doesNotSay, $card->text());
+    }
+
+    /** @return iterable<string, array{?string, string, string, string}> */
+    public static function syncFailureAdvice(): iterable
+    {
+        yield 'IMAP keeps the host, the port and the password' => [
+            null,
+            'IMAP: connection refused',
+            'the host, the port or the password',
+            'status page',
+        ];
+
+        yield 'Outlook during a Microsoft outage' => [
+            MailProvider::Microsoft->value,
+            'Graph request failed with 502: {"error":{"code":"UnknownError","message":""}}',
+            'failing at their end',
+            'the host, the port or the password',
+        ];
+
+        yield 'Gmail during a Google outage' => [
+            MailProvider::Google->value,
+            'Gmail messages.list failed with 503: (no message in body)',
+            'failing at their end',
+            'the host, the port or the password',
+        ];
+
+        yield 'an OAuth account failing some other way' => [
+            MailProvider::Google->value,
+            'Gmail messages.list failed with 404 (notFound): Requested entity was not found.',
+            'refusing or not answering',
+            'the host, the port or the password',
+        ];
+    }
+
+    /**
      * A dead sign-in explains a failing sync, so it does not get a second card.
      *
      * "Sign in again" and "your mail server is refusing us" are different

@@ -4114,6 +4114,24 @@ settings:
                     The sign-in is fine, so this is the mail server refusing or
                     unreachable: check that it is up and that nothing has
                     changed about the host, the port or the password.
+                body_oauth: >-
+                    Several attempts in a row have failed, so new mail is not
+                    arriving for this account and anything that depends on it —
+                    filters that run on delivery, and the unread counts — is
+                    standing still. The mail already here is safe and unchanged.
+                    The sign-in is fine, so this is your provider refusing or not
+                    answering. It usually clears on its own and plMail keeps
+                    trying; if it lasts, check your provider's status page.
+                body_provider_down: >-
+                    New mail is not arriving for this account because your
+                    provider's servers are failing at their end — the technical
+                    detail below is their answer, not a problem with this
+                    account. Anything that depends on new mail, such as filters
+                    that run on delivery and the unread counts, is standing still
+                    until then. The mail already here is safe and unchanged, and
+                    there is nothing to change on your side: plMail keeps trying
+                    and catches up on its own once the provider has recovered.
+                    Your provider's status page says when that is likely.
                 title: '%account% keeps failing to sync'
             server_alert:
                 body: >-

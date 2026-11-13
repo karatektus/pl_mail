@@ -50,6 +50,9 @@ final readonly class HealthIssue
      *                                             so the reasoning can be checked
      *                                             rather than believed — see
      *                                             HealthFact
+     * @param string|null             $bodyVariant one kind, told differently
+     *                                             for a different kind of
+     *                                             account — see bodyKey()
      */
     public function __construct(
         public string          $id,
@@ -63,7 +66,24 @@ final readonly class HealthIssue
         public ?string         $detail = null,
         public ?string         $awaitingKey = null,
         public array           $facts = [],
+        public ?string         $bodyVariant = null,
     ) {
+    }
+
+    /**
+     * The sentence to show, which is usually the kind's own.
+     *
+     * A variant exists because the same fact can call for different advice
+     * (#602): "this mailbox keeps failing to sync" is the same card for an
+     * IMAP server and for Outlook, but only the first has a host, a port and a
+     * password anyone could check. Another kind for each would have been a
+     * second icon, a second severity and a second id for one problem.
+     */
+    public function bodyKey(): string
+    {
+        $key = $this->kind->bodyKey();
+
+        return null === $this->bodyVariant ? $key : $key . '_' . $this->bodyVariant;
     }
 
     /**

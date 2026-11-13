@@ -3940,6 +3940,21 @@ settings:
                     sound, so 'tis the mail server refusin' or lost at sea —
                     check she be afloat and that naught changed about the host,
                     the port or the password.
+                body_oauth: >-
+                    Several tries in a row have foundered, so no new post be
+                    arrivin' for this account and all that hangs on it stands
+                    still. The post already aboard be safe. The sign-on be
+                    sound, so 'tis yer provider refusin' or not hailin' back.
+                    It mostly clears on its own and plMail keeps tryin'; if it
+                    lingers, spy yer provider's status page.
+                body_provider_down: >-
+                    No new post be arrivin' for this account, for yer
+                    provider's own ships be takin' on water — the detail below
+                    be their answer, not a fault with this account. All that
+                    hangs on new post stands still till then. The post already
+                    aboard be safe, and there be naught for ye to change: plMail
+                    keeps tryin' and catches up once the provider be afloat
+                    again. Their status page tells when that might be.
                 title: "%account% keeps foulin' its reckonin'"
             server_alert:
                 body: >-
