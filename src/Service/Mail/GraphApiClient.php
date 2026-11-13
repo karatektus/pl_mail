@@ -7,6 +7,7 @@ namespace App\Service\Mail;
 use App\Domain\Exception\GraphApiException;
 use App\Domain\Exception\GraphResyncRequiredException;
 use App\Domain\Exception\GraphThrottledException;
+use App\Domain\Exception\GraphUnavailableException;
 use App\Entity\Mail\Account;
 use App\Service\Graph\GraphCategoryColorMapper;
 use App\Service\OAuth\OAuthTokenManager;
@@ -1282,6 +1283,14 @@ final class GraphApiClient
             }
 
             throw new GraphThrottledException($message, $retryAfter);
+        }
+
+        // Microsoft's side, not ours (#603). The same wording as any other
+        // failure, so a search of old logs still finds these, and a class of
+        // its own so the end of the retry ladder can tell an outage from a
+        // fault. GraphRetryStrategy has already repeated a GET twice by now.
+        if (true === in_array($status, GraphUnavailableException::STATUSES, true)) {
+            throw new GraphUnavailableException(sprintf('Graph request failed with %d: %s', $status, $body), $status);
         }
 
         throw new GraphApiException(sprintf('Graph request failed with %d: %s', $status, $body), $status);

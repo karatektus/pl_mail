@@ -4117,6 +4117,25 @@ settings:
                     Mailserver — er lehnt ab oder ist nicht erreichbar. Prüf, ob
                     er läuft und ob sich an Host, Port oder Passwort etwas
                     geändert hat.
+                body_oauth: >-
+                    Mehrere Versuche hintereinander sind fehlgeschlagen — für
+                    dieses Konto kommt also keine neue Mail an, und alles, was
+                    davon abhängt, steht still: Filter, die beim Empfang laufen,
+                    und die Ungelesen-Zähler. Die Mail, die schon da ist, bleibt
+                    unverändert. Die Anmeldung ist in Ordnung, es liegt also an
+                    deinem Anbieter — er lehnt ab oder antwortet nicht. Das gibt
+                    sich meist von selbst, plMail versucht es weiter; hält es an,
+                    schau auf die Statusseite deines Anbieters.
+                body_provider_down: >-
+                    Für dieses Konto kommt keine neue Mail an, weil die Server
+                    deines Anbieters auf ihrer Seite Fehler liefern — die
+                    technischen Details unten sind deren Antwort, kein Problem mit
+                    diesem Konto. Was von neuer Mail abhängt, etwa Filter beim
+                    Empfang und die Ungelesen-Zähler, steht bis dahin still. Die
+                    Mail, die schon da ist, bleibt unverändert, und du musst
+                    nichts ändern: plMail versucht es weiter und holt alles nach,
+                    sobald der Anbieter wieder läuft. Wann das sein dürfte, steht
+                    auf seiner Statusseite.
                 title: '%account% scheitert immer wieder beim Abgleich'
             server_alert:
                 body: >-

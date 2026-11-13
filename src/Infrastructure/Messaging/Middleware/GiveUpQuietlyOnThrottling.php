@@ -7,6 +7,7 @@ namespace App\Infrastructure\Messaging\Middleware;
 use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Domain\Exception\GmailThrottledException;
 use App\Domain\Exception\GraphThrottledException;
+use App\Domain\Exception\GraphUnavailableException;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
@@ -95,6 +96,21 @@ use Symfony\Component\Messenger\Transport\Sender\SenderInterface;
  * Graph's mail throttling (GraphThrottledException) is not in this group. It
  * is still left to the ladder and to the last-attempt rules above, which were
  * written for it.
+ *
+ * ## Nor is Microsoft being down
+ *
+ * GraphUnavailableException — a 500, 502 or 504 from Graph — gets the same
+ * last-attempt rules as Graph's throttling, and for the same reason: nothing
+ * in this application is at fault, the next scheduled sync resumes from the
+ * same cursor, and a batch put back is mail that is not lost. Before #603 an
+ * Exchange Online incident left every sync job of every Outlook account on
+ * the failed queue, at CRITICAL, for someone to put back by hand once
+ * Microsoft had recovered — which is exactly what the next sync would have
+ * done anyway.
+ *
+ * Not waited out on the first attempt like a quota: an outage has no
+ * Retry-After to wait for, and the ladder's growing delays are the right
+ * shape for something that may clear in seconds or in hours.
  */
 final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
 {
@@ -149,9 +165,12 @@ final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
             }
 
             $message = $envelope->getMessage();
+            $reason  = true === $this->isOutage($failure)
+                ? 'the mail provider is not answering'
+                : 'the mail provider is rate-limiting this account';
 
             if ($message instanceof SyncAccountMessage) {
-                $this->logger->warning('Sync skipped: the mail provider is rate-limiting this account. The next sync resumes from the same point.', [
+                $this->logger->warning(sprintf('Sync skipped: %s. The next sync resumes from the same point.', $reason), [
                     'accountId' => $message->accountId,
                     'error'     => $failure->getMessage(),
                 ]);
@@ -177,7 +196,7 @@ final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
                     new ThrottleDeferralStamp($deferrals + 1),
                 ]));
 
-                $this->logger->warning('Mail fetch put back: the mail provider is rate-limiting this account. Trying again in a quarter of an hour.', [
+                $this->logger->warning(sprintf('Mail fetch put back: %s. Trying again in a quarter of an hour.', $reason), [
                     'accountId' => $message->accountId,
                     'messages'  => count($message instanceof SyncGmailMessageBatchMessage ? $message->gmailIds : $message->graphIds),
                     'deferral'  => $deferrals + 1,
@@ -291,11 +310,27 @@ final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
 
         foreach ($wrapped as $exception) {
             if (false === $exception instanceof GmailThrottledException
-                && false === $exception instanceof GraphThrottledException) {
+                && false === $exception instanceof GraphThrottledException
+                && false === $exception instanceof GraphUnavailableException) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * Whether the provider was down rather than busy, for the log line only.
+     * Any wrapped outage is enough: the two only differ in the words used.
+     */
+    private function isOutage(HandlerFailedException $failure): bool
+    {
+        foreach ($failure->getWrappedExceptions() as $exception) {
+            if ($exception instanceof GraphUnavailableException) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

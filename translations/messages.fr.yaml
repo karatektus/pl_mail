@@ -4171,6 +4171,23 @@ settings:
                     bonne, c’est donc le serveur de mail qui refuse ou est injoignable :
                     vérifiez qu’il fonctionne et que rien n’a changé côté serveur, port
                     ou mot de passe.
+                body_oauth: >-
+                    Plusieurs tentatives d’affilée ont échoué : le nouveau courrier
+                    n’arrive donc pas pour ce compte, et tout ce qui en dépend — filtres
+                    appliqués à la réception, compteurs de non-lus — est à l’arrêt. Le
+                    courrier déjà là est en sécurité et inchangé. La connexion est
+                    bonne, c’est donc votre fournisseur qui refuse ou ne répond pas. Cela
+                    se règle généralement tout seul et plMail continue d’essayer ; si
+                    cela dure, consultez la page d’état de votre fournisseur.
+                body_provider_down: >-
+                    Le nouveau courrier n’arrive pas pour ce compte parce que les
+                    serveurs de votre fournisseur sont en panne de leur côté — le détail
+                    technique ci-dessous est leur réponse, pas un problème de ce compte.
+                    Ce qui dépend du nouveau courrier, comme les filtres appliqués à la
+                    réception et les compteurs de non-lus, est à l’arrêt d’ici là. Le
+                    courrier déjà là est en sécurité et inchangé, et vous n’avez rien à
+                    modifier : plMail continue d’essayer et rattrape tout seul son retard
+                    une fois le fournisseur rétabli. Sa page d’état indique quand.
                 title: '%account% n’arrive plus à se synchroniser'
             server_alert:
                 body: >-
