@@ -421,6 +421,22 @@ final readonly class GoogleCalendarApiClient
             );
         }
 
+        // A 400 is Google saying the request itself is wrong — an event type
+        // that will not take a field (#622), a body it cannot parse — and the
+        // same body is refused the same way every time. Left unclassified it
+        // escaped CalendarPusher, failed the whole run, and every retry met the
+        // same event first: one birthday stopped the calendar syncing at all.
+        // Permanent, the pusher gives up on that one event and the rest go out.
+        // Not the 403s' listed-reasons treatment, because no reason under a 400
+        // ever means "try again later": Google's transient answers are 403, 429
+        // and 5xx.
+        if (400 === $status) {
+            throw new CalendarSyncPermanentException(
+                sprintf('Google refused this calendar request as malformed and will refuse it again. %s', $detail),
+                $status,
+            );
+        }
+
         if (403 === $status && true === in_array($reason, self::PERMANENT_REASONS, true)) {
             throw new CalendarSyncPermanentException(
                 sprintf('Google refused this calendar request and will refuse it again. %s', $detail),

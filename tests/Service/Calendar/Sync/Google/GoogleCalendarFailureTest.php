@@ -227,6 +227,34 @@ final class GoogleCalendarFailureTest extends TestCase
         }
     }
 
+    public function testAMalformedWriteIsGivenUpOnRatherThanRetried(): void
+    {
+        // The refusal that took a whole calendar down (#623): Google will not
+        // take a birthday's visibility, and will not take it on the retry
+        // either. Unclassified it escaped CalendarPusher, which only steps past
+        // a permanent refusal, so the run failed and every retry met the same
+        // event first.
+        $fixture = new GoogleDriverFixture(GoogleDriverFixture::error(
+            400,
+            'eventTypeRestriction',
+            "'birthday' event type must have a visibility setting of 'private'.",
+        ));
+
+        try {
+            $fixture->driver->push(
+                GoogleDriverFixture::calendar(),
+                GoogleDriverFixture::event(remoteId: 'ev-1', etag: '"8"'),
+            );
+            self::fail('a 400 must not look like a successful write');
+        } catch (CalendarSyncPermanentException $e) {
+            self::assertSame(400, $e->getStatus());
+            // Account health shows this under "Technical detail"; Google's own
+            // reason is the part that says which field it would not take.
+            self::assertStringContainsString('eventTypeRestriction', $e->getMessage());
+            self::assertStringContainsString("visibility setting of 'private'", $e->getMessage());
+        }
+    }
+
     public function testAnUnrecognisedRefusalIsNotWrittenOff(): void
     {
         // A permanent classification is a decision never to try again. Guessing
