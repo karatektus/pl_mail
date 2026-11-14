@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Controller\CalDav;
 
 use App\Domain\Enum\Calendar\CalendarRole;
+use App\Domain\Enum\Calendar\SyncState;
 use App\Entity\Calendar\Calendar;
+use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
 use Doctrine\DBAL\Connection;
@@ -178,7 +180,89 @@ final class CalDavWriteTest extends WebTestCase
         self::assertSame('/caldav/', $client->getResponse()->headers->get('Location'));
     }
 
+    /**
+     * A reminder dismissed in Apple Calendar is a PUT of the same event with
+     * ACKNOWLEDGED added to its VALARM. plMail does not store the stamp, so the
+     * row is unchanged — and it used to be pushed to the provider anyway. On a
+     * Google birthday that push was refused and stopped the calendar syncing
+     * on the day of the birthday (#622).
+     */
+    public function testAnEventPutBackUnchangedIsNotPushed(): void
+    {
+        $client = $this->boot(synced: true);
+        $uid    = 'put-' . uniqid('', true) . '@plmail.test';
+
+        $this->put($client, $uid, $this->ics($uid, 'Birthday', alarm: true));
+        $this->settle($uid);
+
+        $client->request('GET', $this->href($uid), [], [], ['HTTP_AUTHORIZATION' => $this->basic()]);
+        $served = (string) $client->getResponse()->getContent();
+        $etag   = (string) $client->getResponse()->headers->get('ETag');
+
+        self::assertStringContainsString('BEGIN:VALARM', $served, 'the reminder has to be there to be acknowledged');
+
+        $acknowledged = str_replace(
+            "END:VALARM",
+            "ACKNOWLEDGED:" . gmdate('Ymd\THis\Z') . "\r\nEND:VALARM",
+            $served,
+        );
+
+        $client->request('PUT', $this->href($uid), [], [], [
+            'HTTP_AUTHORIZATION' => $this->basic(),
+            'CONTENT_TYPE'       => 'text/calendar',
+            'HTTP_IF_MATCH'      => $etag,
+        ], $acknowledged);
+
+        self::assertSame(204, $client->getResponse()->getStatusCode());
+
+        self::assertSame(SyncState::Clean, $this->stateOf($uid), 'nothing changed, so nothing is owed to the remote');
+    }
+
+    public function testAnEventPutBackEditedIsStillPushed(): void
+    {
+        $client = $this->boot(synced: true);
+        $uid    = 'put-' . uniqid('', true) . '@plmail.test';
+
+        $this->put($client, $uid, $this->ics($uid, 'Birthday', alarm: true));
+        $this->settle($uid);
+
+        $this->put($client, $uid, $this->ics($uid, 'Birthday party', alarm: true));
+
+        self::assertSame(204, $client->getResponse()->getStatusCode());
+
+        self::assertSame(SyncState::PendingUpdate, $this->stateOf($uid));
+    }
+
     // ---------------------------------------------------------------- helpers
+
+    /**
+     * The event as if its create had reached the remote: Clean, with an id
+     * there. Without this every later PUT would only extend a pending create.
+     */
+    private function settle(string $uid): void
+    {
+        $event = $this->stored($uid);
+
+        $event->syncState = SyncState::Clean;
+        $event->remoteId  = 'remote-' . $uid;
+        $this->em->flush();
+    }
+
+    /** Read fresh: each request leaves the entity manager cleared. */
+    private function stateOf(string $uid): SyncState
+    {
+        $this->em->clear();
+
+        return $this->stored($uid)->syncState;
+    }
+
+    private function stored(string $uid): CalendarEvent
+    {
+        $event = $this->em->getRepository(CalendarEvent::class)->findOneBy(['calendar' => $this->calendar->id, 'uid' => $uid]);
+        self::assertNotNull($event);
+
+        return $event;
+    }
 
     private function put(KernelBrowser $client, string $uid, string $ics): void
     {
@@ -188,7 +272,7 @@ final class CalDavWriteTest extends WebTestCase
         ], $ics);
     }
 
-    private function ics(string $uid, string $summary): string
+    private function ics(string $uid, string $summary, bool $alarm = false): string
     {
         $start = (new \DateTimeImmutable('+4 days 09:00'))->format('Ymd\THis\Z');
         $end   = (new \DateTimeImmutable('+4 days 10:00'))->format('Ymd\THis\Z');
@@ -197,6 +281,7 @@ final class CalDavWriteTest extends WebTestCase
         return "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//plmail//test//EN\r\n"
             . "BEGIN:VEVENT\r\nUID:{$uid}\r\nDTSTAMP:{$stamp}\r\n"
             . "DTSTART:{$start}\r\nDTEND:{$end}\r\nSUMMARY:{$summary}\r\n"
+            . (true === $alarm ? "BEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:Reminder\r\nTRIGGER:-PT15M\r\nEND:VALARM\r\n" : '')
             . "END:VEVENT\r\nEND:VCALENDAR\r\n";
     }
 
@@ -210,7 +295,7 @@ final class CalDavWriteTest extends WebTestCase
         return 'Basic ' . base64_encode($this->user->email . ':' . $this->secret);
     }
 
-    private function boot(): KernelBrowser
+    private function boot(bool $synced = false): KernelBrowser
     {
         $client = static::createClient();
         $client->disableReboot();
@@ -236,7 +321,10 @@ final class CalDavWriteTest extends WebTestCase
         $calendar           = new Calendar();
         $calendar->usr      = $user;
         $calendar->name     = 'Work';
-        $calendar->role     = CalendarRole::Custom;
+        $calendar->role     = true === $synced ? CalendarRole::Remote : CalendarRole::Custom;
+        // Any remote id makes the calendar one whose events are pushed; no
+        // request goes anywhere in these tests.
+        $calendar->remoteId = true === $synced ? 'remote-calendar' : null;
         $calendar->timeZone = 'UTC';
         $this->em->persist($calendar);
         $this->em->flush();
