@@ -8,7 +8,6 @@ account:
         imap:
             heading: Réception — IMAP
             host: Serveur
-            host_help: 'Laissez vide pour un compte qui ne fait qu’envoyer, via un relais comme SMTP2go.'
             labels_help: 'Avec les mots-clés, les libellés que vous donnez aux messages dans plMail sont aussi enregistrés sur le serveur, et les autres logiciels de messagerie qui affichent les mots-clés (Thunderbird, par exemple) les montrent. Vous pourrez changer cela plus tard dans les dossiers du compte.'
             labels_keywords: 'Aussi sur le serveur'
             labels_label: 'Libellés'
@@ -44,7 +43,6 @@ account:
         smtp:
             heading: Envoi — SMTP
             host: Serveur
-            host_help: 'Laissez vide pour un compte qui ne fait que recevoir.'
             password: Mot de passe d’envoi
             same: Utiliser le même mot de passe pour l’envoi
             separate: Utiliser un autre mot de passe pour l’envoi

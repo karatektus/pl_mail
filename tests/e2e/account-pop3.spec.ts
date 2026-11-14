@@ -207,6 +207,8 @@ test.describe("account form — incoming protocol", () => {
             await page.locator(PORT).fill("995");
             await page.locator('select[name="account[imapEncryption]"]').selectOption("ssl");
             await chooseDeleteMode(page, "Delete it from the server");
+            // Sending is on by default and needs its server (#628).
+            await page.locator('input[name="account[smtpHost]"]').fill(`smtp-${stamp}.example.test`);
 
             await modal.locator('button[type="submit"]').click();
             await expect(page.getByText("Account added successfully")).toBeVisible();

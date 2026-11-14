@@ -12,6 +12,8 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Field\ChoiceFormField;
+use Symfony\Component\DomCrawler\Form;
 
 /**
  * An account that only sends, or only receives, can be added and kept that way
@@ -20,11 +22,12 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  * The request came from somebody sending through SMTP2go, which has no mailbox:
  * the form refused an account without an incoming server, so they gave it a
  * made-up one and got a sync error for it every few minutes. What is pinned
- * here is the form and the switches in front of the model — that a blank
- * server switches its half off and one of the two has to be given, that the
- * edit form switches a half on when it gains a server and off when it loses
- * one and otherwise leaves the switch alone, and that a half the account has
- * no server for cannot be switched on from Settings, where it would only fail.
+ * here is the form and the switches in front of the model — that receiving
+ * and sending are an explicit choice on the form, each server required only
+ * while its half is on and one half always on; that the edit form switches
+ * through AccountServiceSwitch, so the primary follows; and that a half the
+ * account has no server for cannot be switched on from Settings, where it
+ * would only fail.
  *
  * Through the real controllers, in a transaction that is never committed: the
  * client keeps its kernel, so the requests write through the connection the
@@ -61,11 +64,12 @@ final class AccountSendOrReceiveOnlyTest extends WebTestCase
         parent::tearDown();
     }
 
-    public function testARelayIsAddedWithNoIncomingServerAndReceivingOff(): void
+    public function testARelayIsAddedWithReceivingSwitchedOffAndNoIncomingServer(): void
     {
         $this->submitNew([
-            'account[imapHost]' => '',
-            'account[imapPort]' => '',
+            'account[receiving]' => false,
+            'account[imapHost]'  => '',
+            'account[imapPort]'  => '',
         ]);
 
         $account = $this->added();
@@ -77,45 +81,83 @@ final class AccountSendOrReceiveOnlyTest extends WebTestCase
         self::assertTrue($account->isPrimary, 'the only account that sends is the one new mail goes from');
     }
 
-    public function testAMailboxIsAddedWithNoSmtpServerAndSendingOff(): void
+    public function testAMailboxIsAddedWithSendingSwitchedOffAndNoSmtpServer(): void
     {
-        $this->submitNew(['account[smtpHost]' => '']);
+        $this->submitNew([
+            'account[sending]'  => false,
+            'account[smtpHost]' => '',
+        ]);
 
         $account = $this->added();
 
         self::assertNotNull($account, (string) $this->client->getResponse()->getContent());
         self::assertTrue($account->mailEnabled);
-        self::assertFalse($account->sendEnabled, 'not offered in From, where every send would have failed');
+        self::assertFalse($account->sendEnabled, 'not offered in From');
     }
 
-    public function testAnAccountWithNeitherServerIsRefused(): void
+    /**
+     * The switch is the choice, not the fields behind it: folded away, the
+     * incoming fields may still hold what was typed before it was switched
+     * off, and that does not switch receiving back on.
+     */
+    public function testASwitchedOffHalfStaysOffWhateverItsFoldedFieldsHold(): void
+    {
+        $this->submitNew(['account[receiving]' => false]);
+
+        $account = $this->added();
+
+        self::assertNotNull($account, (string) $this->client->getResponse()->getContent());
+        self::assertFalse($account->mailEnabled);
+    }
+
+    public function testSendingSwitchedOnWithoutAnSmtpServerIsRefused(): void
+    {
+        $this->submitNew(['account[smtpHost]' => '']);
+
+        self::assertNull($this->added(), 'a half that is on needs its server');
+        self::assertStringContainsString('Enter the SMTP server', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testReceivingSwitchedOnWithoutAnIncomingServerIsRefused(): void
+    {
+        $this->submitNew(['account[imapHost]' => '']);
+
+        self::assertNull($this->added());
+        self::assertStringContainsString('Enter the incoming server', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testAnAccountWithBothHalvesOffIsRefused(): void
     {
         $this->submitNew([
-            'account[imapHost]' => '',
-            'account[smtpHost]' => '',
+            'account[receiving]' => false,
+            'account[sending]'   => false,
         ]);
 
         self::assertNull($this->added());
-        self::assertStringContainsString('Enter an incoming server, an SMTP server, or both', (string) $this->client->getResponse()->getContent());
+        self::assertStringContainsString('Switch on receiving, sending, or both', (string) $this->client->getResponse()->getContent());
     }
 
-    public function testAnIncomingServerWithoutAPortIsRefused(): void
+    public function testTheEditFormShowsBothSwitchesWhereTheAccountHasThem(): void
     {
-        $this->submitNew(['account[imapPort]' => '']);
+        $account = MailFixtures::account($this->em, $this->user, mailEnabled: false, sendEnabled: true);
 
-        self::assertNull($this->added());
-        self::assertStringContainsString('Enter the port', (string) $this->client->getResponse()->getContent());
+        $crawler = $this->client->request('GET', sprintf('/account/%d/edit', $account->id));
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('input[name="account[receiving]"][role="switch"]:not([checked])'));
+        self::assertCount(1, $crawler->filter('input[name="account[sending]"][role="switch"][checked]'));
     }
 
-    public function testGivingARelayAnIncomingServerSwitchesReceivingOn(): void
+    public function testSwitchingReceivingOnInTheEditFormGoesThroughTheSwitch(): void
     {
         $relay           = MailFixtures::account($this->em, $this->user, mailEnabled: false, sendEnabled: true);
         $relay->imapHost = null;
         $this->em->flush();
 
         $this->submitEdit($relay, [
-            'account[imapHost]' => '127.0.0.1',
-            'account[imapPort]' => '1',
+            'account[receiving]' => true,
+            'account[imapHost]'  => '127.0.0.1',
+            'account[imapPort]'  => '1',
         ]);
 
         $relay = $this->reload($relay);
@@ -124,19 +166,25 @@ final class AccountSendOrReceiveOnlyTest extends WebTestCase
         self::assertTrue($relay->sendEnabled);
     }
 
-    public function testClearingTheSmtpServerSwitchesSendingOff(): void
+    public function testSwitchingThePrimarysSendingOffInTheEditFormMovesThePrimary(): void
     {
-        $account = MailFixtures::account($this->em, $this->user);
+        $primary = MailFixtures::account($this->em, $this->user);
+        $other   = MailFixtures::account($this->em, $this->user);
 
-        $this->submitEdit($account, ['account[smtpHost]' => '']);
+        $primary->isPrimary = true;
+        $primary->sortOrder = 0;
+        $other->sortOrder   = 1;
+        $this->em->flush();
 
-        $account = $this->reload($account);
+        $this->submitEdit($primary, ['account[sending]' => false]);
 
-        self::assertFalse($account->sendEnabled, 'an account with nothing to send through is not a sender');
-        self::assertTrue($account->mailEnabled);
+        $primary = $this->reload($primary);
+
+        self::assertFalse($primary->sendEnabled);
+        self::assertFalse($primary->isPrimary, 'through AccountServiceSwitch, not past it');
     }
 
-    public function testSavingAnUnchangedServerKeepsTheSwitchWhereThePersonPutIt(): void
+    public function testSavingTheEditFormUnchangedKeepsBothSwitches(): void
     {
         $account = MailFixtures::account($this->em, $this->user, mailEnabled: false, sendEnabled: true);
 
@@ -144,7 +192,8 @@ final class AccountSendOrReceiveOnlyTest extends WebTestCase
 
         $account = $this->reload($account);
 
-        self::assertFalse($account->mailEnabled, 'switched off in Settings, and a save of the form is not switching it on');
+        self::assertFalse($account->mailEnabled);
+        self::assertTrue($account->sendEnabled);
     }
 
     public function testReceivingCannotBeSwitchedOnForARelayWithNoIncomingServer(): void
@@ -201,10 +250,11 @@ final class AccountSendOrReceiveOnlyTest extends WebTestCase
 
     /**
      * Fill the add form as a plain IMAP account with both servers, then
-     * apply the overrides. Port 1 on loopback, so the probe that runs on save
-     * is refused at once rather than waiting on a timeout.
+     * apply the overrides; a bool ticks or unticks a switch. Port 1 on
+     * loopback, so the probe that runs on save is refused at once rather
+     * than waiting on a timeout.
      *
-     * @param array<string, string> $overrides
+     * @param array<string, string|bool> $overrides
      */
     private function submitNew(array $overrides): void
     {
@@ -221,26 +271,40 @@ final class AccountSendOrReceiveOnlyTest extends WebTestCase
             'account[smtpPort]' => '1',
         ];
 
-        foreach ($values as $name => $value) {
-            $form[$name] = $value;
-        }
+        $this->fill($form, $values);
 
         $this->client->submit($form);
     }
 
-    /** @param array<string, string> $overrides */
+    /** @param array<string, string|bool> $overrides */
     private function submitEdit(Account $account, array $overrides): void
     {
         $crawler = $this->client->request('GET', sprintf('/account/%d/edit', $account->id));
         $form    = $crawler->filter('form[name="account"]')->form();
 
-        foreach ($overrides as $name => $value) {
-            $form[$name] = $value;
-        }
+        $this->fill($form, $overrides);
 
         $this->client->submit($form);
 
         self::assertResponseIsSuccessful();
+    }
+
+    /** @param array<string, string|bool> $values */
+    private function fill(Form $form, array $values): void
+    {
+        foreach ($values as $name => $value) {
+            if (true === is_bool($value)) {
+                $box = $form[$name];
+
+                self::assertInstanceOf(ChoiceFormField::class, $box);
+
+                true === $value ? $box->tick() : $box->untick();
+
+                continue;
+            }
+
+            $form[$name] = $value;
+        }
     }
 
     /** The account as the request left it in the database. */

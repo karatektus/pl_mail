@@ -8,7 +8,6 @@ account:
         imap:
             heading: Incomin' — IMAP
             host: Port o' call
-            host_help: 'Leave it bare for an account that only sends, through a relay like SMTP2go.'
             labels_help: 'With keywords, the labels ye give yer letters in plMail be stowed on the server too, and other mail vessels that show keywords (Thunderbird, for one) show them. Ye can change this later in the ship’s holds.'
             labels_keywords: 'Stowed on the server too'
             labels_label: 'Labels'
@@ -44,7 +43,6 @@ account:
         smtp:
             heading: Outgoin' — SMTP
             host: Port o' call
-            host_help: 'Leave it bare for an account that only receives.'
             password: "Password fer sendin'"
             same: "Use th' same password fer sendin'"
             separate: "Use a different password fer sendin'"

@@ -18,8 +18,9 @@ import { acceptConfirm } from "./support/confirm";
  *     back when mail is switched on again.
  *   - "Remove synced mail from plMail" is offered while mail is off, and not
  *     while it is on.
- *   - an SMTP relay added with no incoming server (#628) is saved as an
- *     account that only sends, and its receive switch leads to the form.
+ *   - an SMTP relay added with receiving switched off on the form (#628) —
+ *     which folds the incoming fields away — is saved as an account that only
+ *     sends, and its receive switch in Settings leads back to the form.
  */
 
 async function addAccount(page: Page, label: string, stamp: number, incoming = true): Promise<void> {
@@ -42,8 +43,9 @@ async function addAccount(page: Page, label: string, stamp: number, incoming = t
         await page.locator('input[name="account[imapPort]"]').fill("993");
         await page.locator('select[name="account[imapEncryption]"]').selectOption("ssl");
     } else {
-        await imapHost.fill("");
-        await page.locator('input[name="account[imapPort]"]').fill("");
+        // Switched off on the Incoming heading, which folds the fields away.
+        await page.locator("label").filter({ has: page.locator('input[name="account[receiving]"]') }).click();
+        await expect(imapHost).toBeHidden();
     }
 
     // An SMTP server too: without one the account only receives, and the
@@ -115,7 +117,7 @@ test.describe("account services", () => {
         }
     });
 
-    test("a relay added without an incoming server only sends", async ({ page }) => {
+    test("a relay added with receiving switched off only sends", async ({ page }) => {
         test.setTimeout(90_000);
 
         const stamp = Date.now();

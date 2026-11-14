@@ -83,6 +83,18 @@ export default class extends Controller {
             payload.smtpPassword = this._value("smtpPassword");
         }
 
+        // A half switched off on the form (#628) is not tested: its fields
+        // are folded away but still hold what was typed, and probing them
+        // would report on a server the account is not going to use. Blank is
+        // what the server reads as "not configured".
+        if (this._off("receiving")) {
+            payload.imapHost = "";
+        }
+
+        if (this._off("sending")) {
+            payload.smtpHost = "";
+        }
+
         if (this.hasAccountIdValue === true) {
             payload.accountId = this.accountIdValue;
         }
@@ -98,6 +110,12 @@ export default class extends Controller {
         }
 
         return field.value.trim();
+    }
+
+    _off(name) {
+        const field = this.element.querySelector(`[name$="[${name}]"]`);
+
+        return field !== null && field.checked === false;
     }
 
     _checked(name) {

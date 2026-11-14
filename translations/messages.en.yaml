@@ -8,7 +8,6 @@ account:
         imap:
             heading: Incoming — IMAP
             host: Host
-            host_help: 'Leave blank for an account that only sends, through a relay such as SMTP2go.'
             labels_help: 'With keywords, labels you give mail in plMail are stored on the server too, and other mail apps that show keywords (Thunderbird, for one) show them. You can change this later in the account’s folders.'
             labels_keywords: 'On the server too'
             labels_label: 'Labels'
@@ -44,7 +43,6 @@ account:
         smtp:
             heading: Outgoing — SMTP
             host: Host
-            host_help: 'Leave blank for an account that only receives.'
             password: Sending password
             same: Use the same password for sending
             separate: Use a different password for sending

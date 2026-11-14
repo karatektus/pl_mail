@@ -89,14 +89,6 @@ final class AccountController extends AbstractController
         $existingPassword = $account->password;
         $existingProtocol = $account->incomingProtocol;
 
-        // Which halves had no server before the form wrote on the account.
-        // See the end of the submit branch.
-        $lacked = [];
-
-        foreach ([AccountService::Mail, AccountService::Send] as $service) {
-            $lacked[$service->value] = $account->lacksServerFor($service);
-        }
-
         $form = $this->createForm(AccountType::class, $account, [
             'action'           => $this->generateUrl('app_account_edit', ['id' => $account->id]),
             'require_password' => false,
@@ -117,21 +109,13 @@ final class AccountController extends AbstractController
 
             $this->entityManager->flush();
 
-            // A server taken away switches its half off, and one given to a
-            // half that had none switches it on (#628) — the second is what
-            // "Set up…" in the switches leads here to do. Through the switch,
-            // so the primary and push follow as they would from Settings. A
-            // half whose server was there before and is still there keeps
-            // whatever position the person chose for it.
-            foreach ([AccountService::Mail, AccountService::Send] as $service) {
-                $lacks = $account->lacksServerFor($service);
-
-                if (true === $lacks) {
-                    $serviceSwitch->set($account, $service, false);
-                } elseif (true === $lacked[$service->value]) {
-                    $serviceSwitch->set($account, $service, true);
-                }
-            }
+            // Receiving and sending as the form's switches say (#628) —
+            // through the switch service, so the primary and push follow as
+            // they do from Settings. A half that does not change is left
+            // alone by set(). The form has already refused a half switched
+            // on without its server.
+            $serviceSwitch->set($account, AccountService::Mail, true === $form->get('receiving')->getData());
+            $serviceSwitch->set($account, AccountService::Send, true === $form->get('sending')->getData());
 
             return $this->streamAccountList($request, 'account.updated');
         }

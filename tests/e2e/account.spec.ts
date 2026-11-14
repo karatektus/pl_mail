@@ -82,6 +82,8 @@ test.describe("mail account creation", () => {
             await page
                 .locator('select[name="account[imapEncryption]"]')
                 .selectOption("ssl");
+            // Sending is on by default and needs its server (#628).
+            await page.locator('input[name="account[smtpHost]"]').fill(`smtp.${host}`);
 
             await page.locator('#modal button[type="submit"]').click();
 

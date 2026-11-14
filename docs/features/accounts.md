@@ -44,17 +44,18 @@ See [IMAP and SMTP](../providers/imap-smtp.md) for the settings servers disagree
 
 ### An account that only sends, or only receives
 
-Either server can be left blank, as long as the other is filled in:
+The **Incoming** and **Outgoing** headings each carry a switch, **Receive mail** and **Send mail**,
+both on. Switch one off and its fields fold away; its server is then not needed. At least one stays
+on.
 
-- **No incoming server** is an account that only sends, such as an SMTP relay like SMTP2go, which
+- **Receive mail** off is for an account that only sends, such as an SMTP relay like SMTP2go, which
   has no mailbox to read. plMail never tries to sync it, offers it in **From**, and keeps what you
   send through it under Sent in plMail, since there is no server folder to put a copy in.
-- **No SMTP server** is an account that only receives. It syncs as usual and is not offered in
+- **Send mail** off is for an account that only receives. It syncs as usual and is not offered in
   **From**.
 
-The missing half can be added later: fill in its server under **Edit account** and save, and it is
-switched on. Clearing a server there switches its half off. See
-[Mail, calendar and contacts](#mail-calendar-and-contacts).
+The same two switches are on **Edit account**, so either half can be switched on later with its
+server filled in; see [Mail, calendar and contacts](#mail-calendar-and-contacts).
 
 ## Adding a POP3 mailbox
 
@@ -191,8 +192,8 @@ On the edit form, leaving the password field blank keeps the stored one.
 
 Each account is used for up to four things — receiving mail, sending mail, its calendars and its
 contacts — and each is switched on or off on its own, from the switch icon on the account's row.
-All four are on for an account you add, except receiving or sending when you leave its server
-blank, and whatever you untick when connecting Gmail or Outlook.
+All four are on for an account you add, except what you switch off on the form or untick when
+connecting Gmail or Outlook.
 
 Switching something off stops plMail talking to the server about it, in both directions. It never
 removes what is already here:
@@ -212,7 +213,7 @@ primary moves to the first account that sends.
 
 A password account that was never given a server for one half — no incoming server on a relay, no
 SMTP server on a mailbox without one — shows **Set up…** instead of that switch. It opens the
-account form; fill in the server there and save, and that half is on.
+account form, where the half has the same switch; switch it on, fill in the server and save.
 
 On a Gmail or Outlook account, switching on something the account was not connected for needs
 the provider's permission first. The switch then says **Allow…** and opens the provider's consent

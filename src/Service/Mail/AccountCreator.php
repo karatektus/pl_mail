@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Domain\Enum\Account\AccountService;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Mail\Account\AccountRepository;
@@ -61,14 +60,6 @@ final readonly class AccountCreator
     {
         $account->authType = 'password';
         $account->usr      = $user;
-
-        // Receiving and sending by which servers it was given (#628): no
-        // incoming server is an SMTP relay with no mailbox, no SMTP server a
-        // mailbox that cannot send. The form refuses neither. Before the
-        // primary is chosen below, which only ever picks an account that sends.
-        foreach ([AccountService::Mail, AccountService::Send] as $service) {
-            $account->enable($service, false === $account->lacksServerFor($service));
-        }
 
         // A JMAP server pushes over the connection the account already has,
         // with nothing to register first — so its push starts on, as a

@@ -2,9 +2,10 @@
 # domain, not `messages` — a key put in messages.*.yaml renders as the raw key,
 # which is how "setup.install.password_too_short" ended up on screen.
 account.host_invalid: Enter a host name or IP address only — no slashes, question marks or @.
-account.incoming_required: 'Enter the server — a JMAP account reads and sends through it.'
+account.incoming_required: 'Enter the incoming server — this account receives mail.'
 account.port_required: 'Enter the port.'
-account.servers_none: 'Enter an incoming server, an SMTP server, or both.'
+account.services_none: 'Switch on receiving, sending, or both.'
+account.smtp_required: 'Enter the SMTP server — this account sends mail.'
 admin.ai.keep_alive_invalid: Use a duration like 5m, 30m or 4h, a plain number of seconds, or -1 to keep the model loaded for good — leave it empty to use the host's own setting.
 admin.integrations.client_id_missing: Enter the client ID that goes with this secret.
 admin.integrations.secret_missing: Enter the client secret too — a client ID on its own cannot sign anyone in.

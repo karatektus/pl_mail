@@ -8,7 +8,6 @@ account:
         imap:
             heading: Eingehend — IMAP
             host: Server
-            host_help: 'Leer lassen für ein Konto, das nur sendet, über ein Relay wie SMTP2go.'
             labels_help: 'Mit Schlüsselwörtern werden Labels, die du in plMail vergibst, auch auf dem Server gespeichert, und andere Mailprogramme, die Schlüsselwörter zeigen (etwa Thunderbird), zeigen sie an. Du kannst das später in den Ordnern des Kontos ändern.'
             labels_keywords: 'Auch auf dem Server'
             labels_label: 'Labels'
@@ -44,7 +43,6 @@ account:
         smtp:
             heading: Ausgehend — SMTP
             host: Server
-            host_help: 'Leer lassen für ein Konto, das nur empfängt.'
             password: Passwort zum Senden
             same: Zum Senden dasselbe Passwort verwenden
             separate: Zum Senden ein anderes Passwort verwenden

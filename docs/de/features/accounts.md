@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:0cb3c0a2cd7c245ffe5bc05fa4f7f1903c1aaeb2 -->
+<!-- translated-from: features/accounts.md sha1:affd66d403fb80cd2cb3a406878c06ca58916eda -->
 
 # Konten und Aliase
 
@@ -53,18 +53,19 @@ Server uneinig sind.
 
 ### Ein Konto, das nur sendet oder nur empfängt
 
-Einen der beiden Server kannst du leer lassen, solange der andere eingetragen ist:
+Die Überschriften **Eingehend** und **Ausgehend** tragen je einen Schalter, **E-Mail empfangen** und
+**E-Mail senden**, beide an. Schaltest du einen aus, klappen seine Felder weg, und sein Server wird
+nicht mehr gebraucht. Mindestens einer bleibt an.
 
-- **Kein Posteingangsserver** ist ein Konto, das nur sendet, etwa ein SMTP-Relay wie SMTP2go, das
+- **E-Mail empfangen** aus ist für ein Konto, das nur sendet, etwa ein SMTP-Relay wie SMTP2go, das
   kein Postfach zum Lesen hat. plMail versucht nie, es zu synchronisieren, bietet es unter **Von**
   an und behält, was du darüber sendest, in plMail unter Gesendet, weil es keinen Serverordner für
   eine Kopie gibt.
-- **Kein SMTP-Server** ist ein Konto, das nur empfängt. Es synchronisiert wie gewohnt und wird unter
-  **Von** nicht angeboten.
+- **E-Mail senden** aus ist für ein Konto, das nur empfängt. Es synchronisiert wie gewohnt und wird
+  unter **Von** nicht angeboten.
 
-Die fehlende Hälfte kannst du später ergänzen: Trag ihren Server unter **Konto bearbeiten** ein und
-speichere, dann ist sie eingeschaltet. Leerst du dort einen Server, wird seine Hälfte ausgeschaltet.
-Siehe [E-Mail, Kalender und Kontakte](#e-mail-kalender-und-kontakte).
+Dieselben zwei Schalter stehen auch unter **Konto bearbeiten**, so kannst du jede Hälfte später mit
+ihrem Server einschalten; siehe [E-Mail, Kalender und Kontakte](#e-mail-kalender-und-kontakte).
 
 ## Ein POP3-Postfach hinzufügen
 
@@ -215,8 +216,8 @@ Lässt du im Bearbeitungsformular das Passwortfeld leer, bleibt das gespeicherte
 
 Jedes Konto ist für bis zu vier Dinge da — E-Mails empfangen, E-Mails senden, seine Kalender und
 seine Kontakte — und jedes davon schaltest du einzeln ein oder aus, über das Schalter-Symbol in der
-Zeile des Kontos. Bei einem neuen Konto sind alle vier an, außer Empfangen oder Senden, wenn du seinen Server leer
-lässt, und was du beim Verbinden von Gmail oder Outlook abwählst.
+Zeile des Kontos. Bei einem neuen Konto sind alle vier an, außer was du im Formular ausschaltest oder beim Verbinden
+von Gmail oder Outlook abwählst.
 
 Ausschalten heißt: plMail spricht mit dem Server darüber nicht mehr, in keine Richtung. Was schon da
 ist, wird nie entfernt:
@@ -237,8 +238,8 @@ es das Hauptkonto, geht das an das erste Konto, das sendet.
 
 Ein Konto mit Passwort, dem für eine Hälfte nie ein Server gegeben wurde — kein
 Posteingangsserver bei einem Relay, kein SMTP-Server bei einem Postfach ohne —, zeigt statt dieses
-Schalters **Einrichten…**. Das öffnet das Kontoformular; trag den Server dort ein und speichere,
-dann ist die Hälfte an.
+Schalters **Einrichten…**. Das öffnet das Kontoformular, in dem die Hälfte denselben Schalter hat;
+schalte sie ein, trag den Server ein und speichere.
 
 Bei einem Gmail- oder Outlook-Konto braucht es für etwas, wofür das Konto nicht verbunden wurde,
 erst die Erlaubnis des Anbieters. Der Schalter zeigt dann **Erlauben…** und öffnet die

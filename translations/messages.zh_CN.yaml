@@ -8,7 +8,6 @@ account:
         imap:
             heading: '收件 — IMAP'
             host: 主机
-            host_help: '只发送的账户（通过 SMTP2go 等中继）请留空。'
             labels_help: '使用关键字时，您在 plMail 中给邮件加的标签也会保存在服务器上，显示关键字的其他邮件应用（例如 Thunderbird）也会显示它们。之后可以在账户的文件夹中更改。'
             labels_keywords: '同时存到服务器'
             labels_label: '标签'
@@ -44,7 +43,6 @@ account:
         smtp:
             heading: '发件 — SMTP'
             host: 主机
-            host_help: '只接收的账户请留空。'
             password: 发件密码
             same: 发件使用相同密码
             separate: 发件使用不同密码

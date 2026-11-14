@@ -196,6 +196,8 @@ async function addAccount(page: Page, label: string, stamp: number): Promise<voi
     await imapHost.fill(`folders-${stamp}.example.test`);
     await page.locator('input[name="account[imapPort]"]').fill("993");
     await page.locator('select[name="account[imapEncryption]"]').selectOption("ssl");
+    // Sending is on by default and needs its server (#628).
+    await page.locator('input[name="account[smtpHost]"]').fill(`smtp-${stamp}.example.test`);
     await page.locator("#modal button[type=submit]").click();
 
     await expect(page.getByText("Account added successfully")).toBeVisible();
