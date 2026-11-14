@@ -207,7 +207,8 @@ final readonly class IcsImporter
         // import of the same file, which would then duplicate it.
         $event->uid = $remote->uid;
 
-        $isNew = null === $event->id;
+        $isNew  = null === $event->id;
+        $before = $this->writer->snapshot($event);
 
         $this->writer->write(
             event:             $event,
@@ -236,9 +237,13 @@ final readonly class IcsImporter
         // where an import usually lands — but importing into a writable mirror
         // has to reach the provider, or the events exist here alone until the
         // next full read quietly deletes them again.
+        //
+        // An update only when the document changed something: a CalDAV client
+        // PUTs an event back when its reminder is dismissed, and that echo must
+        // not become a push.
         true === $isNew
             ? $this->writer->markLocallyCreated($event)
-            : $this->writer->markLocallyChanged($event);
+            : $this->writer->markLocallyChangedIfChanged($event, $before);
 
         return true;
     }

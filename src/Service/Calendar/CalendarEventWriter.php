@@ -286,6 +286,58 @@ final readonly class CalendarEventWriter
     }
 
     /**
+     * markLocallyChanged(), but only when the write actually changed the event.
+     *
+     * For the writers that are handed a whole event and cannot tell an edit
+     * from an echo: a CalDAV client PUTs the event back when its reminder is
+     * dismissed (Apple Calendar adds ACKNOWLEDGED to the VALARM, Thunderbird
+     * X-MOZ-LASTACK), and a JMAP client may save without changing anything.
+     * Neither stamp is stored, so the row comes out of the write as it went
+     * in — and was still pushed. On a Google birthday that push was a write
+     * Google refuses (#622), on nobody's edit: the reminder went off and the
+     * calendar stopped syncing.
+     *
+     * $before is snapshot() of the row taken before the write.
+     *
+     * @param array<string,mixed> $before
+     */
+    public function markLocallyChangedIfChanged(CalendarEvent $event, array $before): void
+    {
+        if ($before == $this->snapshot($event)) {
+            return;
+        }
+
+        $this->markLocallyChanged($event);
+    }
+
+    /**
+     * What a push would carry, as one comparable value.
+     *
+     * Deliberately the whole JSCalendar object rather than a list of the
+     * fields each driver sends: every difference counts, so a field no
+     * comparison here thought of errs towards a push, which is what happened
+     * before. Compared with ==, so key order does not count as a change.
+     * `sequence` is left out: it counts versions, it is not content.
+     *
+     * @return array<string,mixed>
+     */
+    public function snapshot(CalendarEvent $event): array
+    {
+        return [
+            'calendar'   => $event->calendar?->id,
+            'title'      => $event->title,
+            'startsAt'   => $event->startsAt?->getTimestamp(),
+            'endsAt'     => $event->endsAt?->getTimestamp(),
+            'timeZone'   => $event->timeZone,
+            'isAllDay'   => $event->isAllDay,
+            'location'   => $event->location,
+            'status'     => $event->status,
+            'privacy'    => $event->privacy,
+            'jscalendar' => $event->jscalendar,
+        ];
+    }
+
+    /**
      * A create that has never been at the remote, so the push is a POST rather
      * than a PUT.
      *

@@ -189,6 +189,26 @@ final class CalendarEventSetMethodTest extends CalendarMethodTestCase
     }
 
     /**
+     * A client that saves an event without changing it has not made an edit.
+     * Pushed anyway, it is a write the remote did not need — and on a Google
+     * birthday one Google refuses (#622).
+     */
+    public function testAnUpdateThatChangesNothingIsNotMarkedForPush(): void
+    {
+        $mirrored = $this->mirroredCalendar();
+        $event = $this->seedEvent($mirrored, 'Mirrored meeting', $this->day->setTime(9, 0));
+        $event->syncState = SyncState::Clean;
+        $this->em->flush();
+
+        $this->method->handle([
+            'accountId' => $this->accountId(),
+            'update' => [(string) $event->id => ['title' => 'Mirrored meeting']],
+        ], $this->context());
+
+        self::assertSame(SyncState::Clean, $event->syncState);
+    }
+
+    /**
      * A create is a POST at the remote and an update is a PUT, and the state
      * alone cannot tell them apart — a brand-new event is Clean, exactly like
      * one in step with the remote. Marking a create as an update would push an

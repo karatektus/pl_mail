@@ -311,6 +311,10 @@ final readonly class GoogleCalendarSyncDriver implements CalendarSyncDriverInter
         CalendarEvent $event,
         string        $seriesRemoteId,
     ): void {
+        if (false === $this->mapper->acceptsInstanceWrites($event)) {
+            return;
+        }
+
         foreach (InstanceOverride::listOf($event) as $override) {
             try {
                 $this->pushInstance($account, $calendar, $event, $seriesRemoteId, $override);
