@@ -37,6 +37,13 @@ final readonly class ThreadRow
     public bool $replied;
 
     /**
+     * When the newest draft on the row was last written, or null without one.
+     * The date the Drafts list shows: lastAt is the conversation's, which a
+     * draft does not move, so a reply written just now read "last week".
+     */
+    public ?\DateTimeImmutable $draftAt;
+
+    /**
      * @param list<ThreadRowMessage> $messages  oldest first
      * @param string                 $snippet   MessageSnippet of the latest message
      * @param bool                   $encrypted whether the latest message is encrypted:
@@ -62,10 +69,15 @@ final readonly class ThreadRow
         $unread         = false;
         $hasAttachments = false;
         $lastAt         = null;
+        $draftAt        = null;
 
         foreach ($messages as $message) {
             if ($message->isDraft) {
                 $draft = $message;
+
+                if (null === $draftAt || $message->writtenAt() > $draftAt) {
+                    $draftAt = $message->writtenAt();
+                }
             }
 
             $unread         = $unread || $message->unread;
@@ -82,6 +94,7 @@ final readonly class ThreadRow
         $this->hasAttachments = $hasAttachments;
         $this->lastAt         = $lastAt;
         $this->replied        = self::repliedTo($messages);
+        $this->draftAt        = $draftAt;
     }
 
     /** @param list<ThreadRowMessage> $messages */

@@ -99,7 +99,13 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set unread = row.narrowed ? row.unread : item.unreadCount > 0 %}
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
-    {% set date = row.narrowed ? row.lastAt : item.lastMessageAt %}
+    {# In Drafts, the draft's own time: a draft does not move lastMessageAt
+       (MessageThreader::recordActivity()), so a reply written just now showed
+       the date of the mail it answers. The list is sorted the same way
+       (MessageThreadRepository::sortList()). #}
+    {% set date = draft_scope and row.draftAt is not null
+        ? row.draftAt
+        : (row.narrowed ? row.lastAt : item.lastMessageAt) %}
     {% set count = row.narrowed ? row.count : item.messageCount %}
     {# Everyone who has written in the conversation, oldest first — not the
        newest sender, which made every thread you had answered look like it

@@ -290,6 +290,7 @@ final class ThreadRows implements ResetInterface
                 null === $row['seenAt'],
                 true === $row['hasAttachments'],
                 in_array(MessageFlag::ANSWERED->value, $flags, true),
+                self::dateOrNull($row['updatedAt']),
             );
         }
 
