@@ -184,7 +184,10 @@ class AccountType extends AbstractType
                     'class' => 'form-input',
                 ] + PasswordManagerIgnore::ATTR,
                 'label' => 'IMAP host',
-                'constraints' => [new NotBlank(), self::hostConstraint()],
+                // Not NotBlank (#628): blank is an account that only sends,
+                // through a relay with no mailbox. See serversConstraint().
+                'required'    => false,
+                'constraints' => [self::serversConstraint(), self::hostConstraint()],
             ])
             ->add('imapPort', IntegerType::class, [
                 'attr' => [
@@ -194,7 +197,8 @@ class AccountType extends AbstractType
                     'class'       => 'form-input',
                 ],
                 'label' => 'account.form.port',
-                'constraints' => [new NotBlank(), new Range(min: 1, max: 65535)],
+                'required'    => false,
+                'constraints' => [self::portConstraint(), new Range(min: 1, max: 65535)],
             ])
             ->add('imapEncryption', ChoiceType::class, [
                 'choices' => [
@@ -344,11 +348,70 @@ class AccountType extends AbstractType
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
-            'data_class' => Account::class,
+            'data_class'       => Account::class,
             'require_password' => true,
         ]);
 
         $resolver->setAllowedTypes('require_password', 'bool');
+    }
+
+    /**
+     * Which servers an account needs: at least one of the two (#628).
+     *
+     * A blank incoming server is an account that only sends — an SMTP relay
+     * such as SMTP2go has no mailbox to read — and a blank SMTP server is one
+     * that only receives, which is what a blank SMTP host has always meant
+     * here. AccountCreator switches each half on or off by which server it
+     * was given. Both blank is an account for nothing, and is refused.
+     *
+     * A JMAP account always needs its host, which is where it both reads and,
+     * when the server takes submissions, sends.
+     *
+     * No checkboxes for receiving and sending on this form, and that is
+     * deliberate: they would say the same thing as the two host fields, and a
+     * form where they disagree — Send ticked, no SMTP server — would need a
+     * rule for which one wins. The OAuth tab has them because it has no
+     * fields to read the answer from.
+     */
+    private static function serversConstraint(): Callback
+    {
+        return new Callback(static function (?string $host, ExecutionContextInterface $context): void {
+            if (null !== $host && '' !== trim($host)) {
+                return;
+            }
+
+            $account = $context->getRoot()->getData();
+
+            if (false === $account instanceof Account) {
+                return;
+            }
+
+            if (true === $account->isJmap()) {
+                $context->buildViolation('account.incoming_required')->addViolation();
+
+                return;
+            }
+
+            if (null === $account->smtpHost || '' === trim($account->smtpHost)) {
+                $context->buildViolation('account.servers_none')->addViolation();
+            }
+        });
+    }
+
+    /** The incoming port, whenever there is an incoming server to use it with. */
+    private static function portConstraint(): Callback
+    {
+        return new Callback(static function (?int $port, ExecutionContextInterface $context): void {
+            $account = $context->getRoot()->getData();
+
+            if (null !== $port || false === $account instanceof Account) {
+                return;
+            }
+
+            if (null !== $account->imapHost && '' !== trim($account->imapHost)) {
+                $context->buildViolation('account.port_required')->addViolation();
+            }
+        });
     }
 
     /**

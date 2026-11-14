@@ -77,15 +77,28 @@ final class SenderResolverTest extends TestCase
     }
 
     /**
-     * Deactivating an account must take effect on the window that was already
+     * Switching sending off must take effect on the window that was already
      * open, which is the one place a stale token can still be submitted.
      */
-    public function testADeactivatedAccountIsRefused(): void
+    public function testAnAccountWhoseSendingIsOffIsRefused(): void
     {
-        $account           = $this->account();
-        $account->mailEnabled = false;
+        $account              = $this->account();
+        $account->sendEnabled = false;
 
         self::assertNull($this->resolver->accountFor('7|alias@example.test', $this->user));
+    }
+
+    /**
+     * Receiving is not the question (#628): an SMTP relay has no mailbox to
+     * receive from and is a sender all the same. Asking the mail switch here,
+     * as this did while there was one switch, refused every send from it.
+     */
+    public function testAnAccountThatOnlySendsIsASender(): void
+    {
+        $account              = $this->account();
+        $account->mailEnabled = false;
+
+        self::assertSame($account, $this->resolver->accountFor('7|alias@example.test', $this->user));
     }
 
     public function testAnUnknownAccountIsRefused(): void
@@ -185,10 +198,11 @@ final class SenderResolverTest extends TestCase
 
     private function account(): Account
     {
-        $account           = new Account();
-        $account->usr      = $this->user;
-        $account->email    = 'me@example.test';
+        $account              = new Account();
+        $account->usr         = $this->user;
+        $account->email       = 'me@example.test';
         $account->mailEnabled = true;
+        $account->sendEnabled = true;
 
         $this->stored = $account;
 

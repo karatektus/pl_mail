@@ -1,5 +1,8 @@
 # Constraint messages are translated in the validators domain.
 account.host_invalid: '请仅输入主机名或 IP 地址，不要包含斜杠、问号或 @。'
+account.incoming_required: '请输入服务器——JMAP 账户通过它收发邮件。'
+account.port_required: '请输入端口。'
+account.servers_none: '请输入收信服务器、SMTP 服务器，或两者都输入。'
 admin.ai.keep_alive_invalid: '请输入 5m、30m、4h 等时长或秒数，输入 -1 可让模型一直保持加载。留空则使用主机自身的设置。'
 admin.integrations.client_id_missing: '请输入与此密钥对应的客户端 ID。'
 admin.integrations.secret_missing: '请同时输入客户端密钥，仅有客户端 ID 无法完成登录。'

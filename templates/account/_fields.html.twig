@@ -81,7 +81,8 @@ genuinely needed, merge onto form.<field>.vars.attr.
         {{ 'account.form.imap.heading'|trans }}
     </p>
     <div class="grid grid-cols-[1fr_100px] gap-3">
-        {{ form_row(form.imapHost, { label: 'account.form.imap.host'|trans }) }}
+        {# Blank is an account that only sends (#628); see AccountType. #}
+        {{ form_row(form.imapHost, { label: 'account.form.imap.host'|trans, help: 'account.form.imap.host_help'|trans }) }}
         {{ form_row(form.imapPort, { label: 'account.form.port'|trans }) }}
     </div>
     {# Not under JMAP, which is HTTPS and nothing else: the server reads only
@@ -163,7 +164,7 @@ genuinely needed, merge onto form.<field>.vars.attr.
     </div>
     <div data-settings--imap-preset-target="smtpFields" class="space-y-3">
         <div class="grid grid-cols-[1fr_100px] gap-3">
-            {{ form_row(form.smtpHost, { label: 'account.form.smtp.host'|trans }) }}
+            {{ form_row(form.smtpHost, { label: 'account.form.smtp.host'|trans, help: 'account.form.smtp.host_help'|trans }) }}
             {{ form_row(form.smtpPort, { label: 'account.form.port'|trans }) }}
         </div>
         {{ form_row(form.smtpEncryption, { label: 'account.form.encryption'|trans }) }}

@@ -76,7 +76,7 @@ final class AccountController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'edit')]
-    public function edit(Request $request, Account $account, IncomingProtocolSwitch $protocolSwitch): Response
+    public function edit(Request $request, Account $account, IncomingProtocolSwitch $protocolSwitch, AccountServiceSwitch $serviceSwitch): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
@@ -88,6 +88,14 @@ final class AccountController extends AbstractController
 
         $existingPassword = $account->password;
         $existingProtocol = $account->incomingProtocol;
+
+        // Which halves had no server before the form wrote on the account.
+        // See the end of the submit branch.
+        $lacked = [];
+
+        foreach ([AccountService::Mail, AccountService::Send] as $service) {
+            $lacked[$service->value] = $account->lacksServerFor($service);
+        }
 
         $form = $this->createForm(AccountType::class, $account, [
             'action'           => $this->generateUrl('app_account_edit', ['id' => $account->id]),
@@ -108,6 +116,22 @@ final class AccountController extends AbstractController
             $protocolSwitch->switched($account, $existingProtocol);
 
             $this->entityManager->flush();
+
+            // A server taken away switches its half off, and one given to a
+            // half that had none switches it on (#628) — the second is what
+            // "Set up…" in the switches leads here to do. Through the switch,
+            // so the primary and push follow as they would from Settings. A
+            // half whose server was there before and is still there keeps
+            // whatever position the person chose for it.
+            foreach ([AccountService::Mail, AccountService::Send] as $service) {
+                $lacks = $account->lacksServerFor($service);
+
+                if (true === $lacks) {
+                    $serviceSwitch->set($account, $service, false);
+                } elseif (true === $lacked[$service->value]) {
+                    $serviceSwitch->set($account, $service, true);
+                }
+            }
 
             return $this->streamAccountList($request, 'account.updated');
         }
@@ -130,18 +154,22 @@ final class AccountController extends AbstractController
     }
 
     /**
-     * Switch one of the account's services — mail, calendar, contacts — on or
-     * off (#575). It replaces the single on/off toggle, which only ever
-     * governed mail whatever it looked like it governed.
+     * Switch one of the account's services — receiving and sending mail,
+     * calendar, contacts — on or off (#575, #628). It replaces the single
+     * on/off toggle, which only ever governed mail whatever it looked like it
+     * governed.
      *
      * The position asked for is posted rather than flipped from what is
      * stored, so two tabs pressing the same switch agree on where it ends up.
      * A service whose grant does not cover it is not switched on here: the
      * page offers the provider's consent screen in that case instead (see
      * AccountServiceSwitch::needsConsent()), and a post that arrives anyway is
-     * refused rather than turning on something that can only fail.
+     * refused rather than turning on something that can only fail. The same
+     * goes for a service whose server the account was never given — receiving
+     * on an account added to send through a relay: the page links to the
+     * account form for that one.
      */
-    #[Route('/{id}/service/{service}', name: 'service', requirements: ['service' => 'mail|calendar|contacts'], methods: ['POST'])]
+    #[Route('/{id}/service/{service}', name: 'service', requirements: ['service' => 'mail|send|calendar|contacts'], methods: ['POST'])]
     public function service(Request $request, Account $account, string $service, AccountServiceSwitch $switch): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
@@ -153,6 +181,10 @@ final class AccountController extends AbstractController
 
         if (true === $enabled && true === $switch->needsConsent($account, $which)) {
             throw new BadRequestHttpException('The account\'s grant does not cover this service; reconnect to allow it.');
+        }
+
+        if (true === $enabled && true === $account->lacksServerFor($which)) {
+            throw new BadRequestHttpException('The account has no server for this service; add one in the account form first.');
         }
 
         $switch->set($account, $which, $enabled);
@@ -433,7 +465,9 @@ final class AccountController extends AbstractController
             }
         }
 
-        if ('' === $account->username || '' === $account->imapHost) {
+        // One server is enough: an account may only send, through a relay,
+        // or only receive (#628). Neither leaves nothing to test.
+        if ('' === $account->username || ('' === $account->imapHost && '' === $account->smtpHost)) {
             return $this->json(new ConnectionTestResult(
                 false,
                 $translator->trans('account.test.result.missing_fields'),
@@ -444,7 +478,7 @@ final class AccountController extends AbstractController
             )->toArray());
         }
 
-        if (false === MailServerHost::isValid($account->imapHost)
+        if (('' !== $account->imapHost && false === MailServerHost::isValid($account->imapHost))
             || ('' !== $account->smtpHost && false === MailServerHost::isValid($account->smtpHost))) {
             return $this->json(new ConnectionTestResult(
                 false,

@@ -8,6 +8,7 @@ account:
         imap:
             heading: '收件 — IMAP'
             host: 主机
+            host_help: '只发送的账户（通过 SMTP2go 等中继）请留空。'
             labels_help: '使用关键字时，您在 plMail 中给邮件加的标签也会保存在服务器上，显示关键字的其他邮件应用（例如 Thunderbird）也会显示它们。之后可以在账户的文件夹中更改。'
             labels_keywords: '同时存到服务器'
             labels_label: '标签'
@@ -43,6 +44,7 @@ account:
         smtp:
             heading: '发件 — SMTP'
             host: 主机
+            host_help: '只接收的账户请留空。'
             password: 发件密码
             same: 发件使用相同密码
             separate: 发件使用不同密码
@@ -66,8 +68,11 @@ account:
             off: '联系人已关闭'
             on: '联系人已开启'
         mail:
-            off: '邮件已关闭。已有的邮件会保留。'
-            on: '邮件已开启'
+            off: '接收已关闭。已有的邮件会保留。'
+            on: '接收已开启'
+        send:
+            off: '发送已关闭'
+            on: '发送已开启'
     sync_interval_set: 同步间隔已更改
     tabs:
         imap: 'IMAP / SMTP'
@@ -85,10 +90,11 @@ account:
             failed: 连接失败，请检查主机、端口及加密方式。
             host_invalid: '请仅输入主机名或 IP 地址，不要包含斜杠、问号或 @。'
             imap_ok: '已连接，可见 %count% 个文件夹。'
+            incoming_none: '未配置收信服务器，此账户只发送邮件。'
             jmap_no_mail: '服务器支持 JMAP，但没有为此账户提供邮件。'
             jmap_ok: '已连接，可见 %count% 个邮箱。'
             jmap_submission: '通过 JMAP 服务器发送。'
-            missing_fields: '请先至少输入电子邮件地址和 IMAP 主机。'
+            missing_fields: '请先输入电子邮件地址和至少一个服务器。'
             missing_password: 没有可用于测试的密码。请在上方输入密码；编辑表单中留空会保留已保存的密码，但需先保存账户，测试才能使用该密码。
             pop3_ok: '已连接，邮箱中有 %count% 封邮件。'
             private_network: '该服务器位于私有网络中。必须先由管理员在“管理 → 集成 → 私有网络中的服务器”中允许它，plMail 才能连接。'
@@ -3195,12 +3201,16 @@ settings:
             contacts: '联系人'
             contacts_help: '其通讯录，双向同步'
             intro: '关闭此账户不需要的功能。plMail 将不再就此与服务器通信，已有的内容会保留。'
-            mail: '邮件'
-            mail_help: '同步、发送以及对其邮件的每一项更改'
+            mail: '接收邮件'
+            mail_help: '同步其邮件以及你对其所做的每一项更改'
             none: '全部已关闭'
             purge: '从 plMail 移除已同步的邮件'
             purge_confirm: '移除 plMail 为 %account% 同步的所有邮件？服务器上的邮件会保留。重新开启邮件后，plMail 会重新下载。'
             purge_help: '只移除 plMail 中的副本，服务器上不会删除任何内容。'
+            send: '发送邮件'
+            send_help: '撰写时可选作发件人；邮件、定时发送和已读回执都通过它发出'
+            setup: '设置…'
+            setup_explained: '%service% 需要一个此账户尚未配置的服务器。打开账户表单进行添加。'
             turn_off: '关闭 %account% 的%service%'
             turn_on: '开启 %account% 的%service%'
             used_for: '用于：%services%'
@@ -4688,7 +4698,7 @@ thread_row:
     replied: '已回复'
     send_failed:
         failed: '未发送'
-        mail_off: '未发送：此账户的邮件已关闭'
+        mail_off: '未发送：此账户已关闭发送'
         may_have_sent: '可能已发送：再次发送前请检查已发送文件夹'
         rate_limited: '未发送：邮件服务商限制了发送频率'
         refused: '未发送：邮件服务器拒绝接收'
@@ -4712,7 +4722,7 @@ toast:
     schedule_cancelled: '已取消定时发送。'
     send_too_late: '来不及了——此邮件已经发出。'
     send_failed: '此邮件未能发送：%subject%'
-    send_failed_mail_off: '无法发送此邮件：%subject%。其账户的邮件已关闭。'
+    send_failed_mail_off: '无法发送该邮件：%subject%。其账户已关闭发送。'
     send_failed_may_have_sent: '%subject% 可能已经发送，但响应丢失。再次发送前请检查已发送文件夹。'
     send_failed_rate_limited: '此邮件未能发送：%subject%。邮件服务商目前限制了发送频率，请几分钟后重试。'
     send_failed_refused: '此邮件未能发送：%subject%。邮件服务器拒绝接收。'

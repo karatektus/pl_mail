@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Backup;
 
+use App\Domain\Enum\Account\AccountService;
 use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Crypto\AddressKeyOrigin;
 use App\Domain\Enum\Crypto\AddressKeyStatus;
@@ -412,6 +413,11 @@ final readonly class ConfigBackupUserRestorer
             $account->mailEnabled       = true === ($row['mailEnabled'] ?? $legacyActive);
             $account->calendarEnabled   = true === ($row['calendarEnabled'] ?? true);
             $account->contactsEnabled   = true === ($row['contactsEnabled'] ?? $legacyActive);
+            // A file made before #628 has no send switch: read as the
+            // migration filled it — on where mail was, unless the account
+            // had no server to send through.
+            $account->sendEnabled       = true === ($row['sendEnabled']
+                ?? (true === $account->mailEnabled && false === $account->lacksServerFor(AccountService::Send)));
             $account->pushEnabled       = true === ($row['pushEnabled'] ?? false);
 
             foreach ($this->map($row, 'settings') as $key => $value) {

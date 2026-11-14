@@ -50,6 +50,9 @@ final class ConnectionTester
         $session = null;
 
         [$imapOk, $imapMessage] = match (true) {
+            // No incoming server is an account that only sends (#628): not
+            // probed, and not a failure, the way a blank SMTP host is not.
+            null === $account->imapHost || '' === trim($account->imapHost) => [null, $this->translator->trans('account.test.result.incoming_none')],
             $account->isPop3() => $this->probePop3($account),
             $account->isJmap() => $this->probeJmap($account, $session),
             default            => $this->probeImap($account),

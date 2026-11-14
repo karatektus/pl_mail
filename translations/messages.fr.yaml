@@ -8,6 +8,7 @@ account:
         imap:
             heading: Réception — IMAP
             host: Serveur
+            host_help: 'Laissez vide pour un compte qui ne fait qu’envoyer, via un relais comme SMTP2go.'
             labels_help: 'Avec les mots-clés, les libellés que vous donnez aux messages dans plMail sont aussi enregistrés sur le serveur, et les autres logiciels de messagerie qui affichent les mots-clés (Thunderbird, par exemple) les montrent. Vous pourrez changer cela plus tard dans les dossiers du compte.'
             labels_keywords: 'Aussi sur le serveur'
             labels_label: 'Libellés'
@@ -43,6 +44,7 @@ account:
         smtp:
             heading: Envoi — SMTP
             host: Serveur
+            host_help: 'Laissez vide pour un compte qui ne fait que recevoir.'
             password: Mot de passe d’envoi
             same: Utiliser le même mot de passe pour l’envoi
             separate: Utiliser un autre mot de passe pour l’envoi
@@ -66,8 +68,11 @@ account:
             off: 'Contacts désactivés'
             on: 'Contacts activés'
         mail:
-            off: 'Courrier désactivé. Ce qui est déjà là reste.'
-            on: 'Courrier activé'
+            off: 'Réception désactivée. Ce qui est déjà là reste.'
+            on: 'Réception activée'
+        send:
+            off: 'Envoi désactivé'
+            on: 'Envoi activé'
     sync_interval_set: Intervalle de synchronisation modifié
     tabs:
         imap: IMAP / SMTP
@@ -85,10 +90,11 @@ account:
             failed: 'La connexion n’a pas fonctionné. Vérifiez le serveur, le port et le chiffrement.'
             host_invalid: 'Saisissez uniquement un nom d’hôte ou une adresse IP — sans barre oblique, point d’interrogation ni @.'
             imap_ok: 'Connecté — %count% dossiers visibles.'
+            incoming_none: 'Aucun serveur entrant configuré — ce compte ne fait qu’envoyer.'
             jmap_no_mail: 'Le serveur parle JMAP mais ne propose aucun courrier pour ce compte.'
             jmap_ok: 'Connecté — %count% boîtes visibles.'
             jmap_submission: 'L''envoi passe par le serveur JMAP.'
-            missing_fields: 'Saisissez d’abord au moins une adresse e-mail et un serveur IMAP.'
+            missing_fields: 'Saisissez d’abord une adresse e-mail et au moins un serveur.'
             missing_password: 'Aucun mot de passe pour le test. Saisissez-en un ci-dessus — dans le formulaire de modification, un champ vide conserve le mot de passe enregistré, que le test ne peut utiliser qu’une fois le compte enregistré.'
             pop3_ok: 'Connecté — %count% messages dans la boîte.'
             private_network: 'Ce serveur se trouve sur un réseau privé. Un administrateur doit d''abord l''autoriser dans Admin → Intégrations → Serveurs sur un réseau privé avant que plMail puisse s''y connecter.'
@@ -3639,12 +3645,16 @@ settings:
             contacts: 'Contacts'
             contacts_help: 'Ses carnets d’adresses, tenus à jour dans les deux sens'
             intro: 'Désactivez ce pour quoi vous n’utilisez pas ce compte. plMail cesse alors d’en parler au serveur et garde ce qui est déjà là.'
-            mail: 'Courrier'
-            mail_help: 'Synchronisation, envoi et chaque modification de son courrier'
+            mail: 'Recevoir le courrier'
+            mail_help: 'Synchronisation de son courrier et chaque modification que vous y faites'
             none: 'Tout est désactivé'
             purge: 'Supprimer de plMail le courrier synchronisé'
             purge_confirm: 'Supprimer tout le courrier que plMail a synchronisé pour %account% ? Il reste sur le serveur. Si vous réactivez le courrier, plMail le télécharge à nouveau.'
             purge_help: 'Seule la copie de plMail est supprimée. Rien n’est effacé sur le serveur.'
+            send: 'Envoyer du courrier'
+            send_help: 'Proposé comme expéditeur quand vous écrivez ; le courrier, les envois programmés et les accusés de lecture partent par lui'
+            setup: 'Configurer…'
+            setup_explained: '%service% a besoin d’un serveur que ce compte n’a pas encore. Ouvre le formulaire du compte pour l’ajouter.'
             turn_off: 'Désactiver %service% pour %account%'
             turn_on: 'Activer %service% pour %account%'
             used_for: 'Utilisé pour %services%'
@@ -5457,7 +5467,7 @@ thread_row:
     replied: 'Répondu'
     send_failed:
         failed: Non envoyé
-        mail_off: 'Non envoyé : le courrier est désactivé pour ce compte'
+        mail_off: 'Non envoyé : l’envoi est désactivé pour ce compte'
         may_have_sent: 'Peut-être envoyé : vérifiez Envoyés avant de le renvoyer'
         rate_limited: 'Non envoyé : votre fournisseur limitait les envois'
         refused: 'Non envoyé : le serveur de messagerie l’a refusé'
@@ -5498,7 +5508,7 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Trop tard — ce message avait déjà été envoyé.
     send_failed: 'Ce message n’a pas pu être envoyé : %subject%'
-    send_failed_mail_off: 'Ce message n’a pas pu être envoyé : %subject%. Le courrier est désactivé pour son compte.'
+    send_failed_mail_off: 'Ce message n’a pas pu être envoyé : %subject%. L’envoi est désactivé pour son compte.'
     send_failed_may_have_sent: '%subject% a peut-être été envoyé, mais la réponse s’est perdue. Vérifiez Envoyés avant de le renvoyer.'
     send_failed_rate_limited: 'Ce message n’a pas pu être envoyé : %subject%. Votre fournisseur limite les envois en ce moment ; réessayez dans quelques minutes.'
     send_failed_refused: 'Ce message n’a pas pu être envoyé : %subject%. Le serveur de messagerie l’a refusé.'

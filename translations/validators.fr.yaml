@@ -1,6 +1,9 @@
 # Messages de contraintes. Symfony traduit la validation dans le domaine
 # `validators`, pas `messages` — voir validators.en.yaml.
 account.host_invalid: Saisissez uniquement un nom d’hôte ou une adresse IP — sans barre oblique, point d’interrogation ni @.
+account.incoming_required: 'Saisissez le serveur — un compte JMAP lit et envoie par lui.'
+account.port_required: 'Saisissez le port.'
+account.servers_none: 'Saisissez un serveur entrant, un serveur SMTP, ou les deux.'
 admin.ai.keep_alive_invalid: Utilisez une durée comme 5m, 30m ou 4h, un nombre de secondes, ou -1 pour garder le modèle chargé en permanence — laissez vide pour utiliser le réglage de l’hôte.
 admin.integrations.client_id_missing: Saisissez l’ID client qui va avec ce secret.
 admin.integrations.secret_missing: Saisissez aussi le secret client — un ID client seul ne permet à personne de se connecter.

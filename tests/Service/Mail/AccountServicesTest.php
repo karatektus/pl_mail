@@ -6,6 +6,7 @@ namespace App\Tests\Service\Mail;
 
 use App\Domain\Enum\Account\AccountService;
 use App\Domain\Enum\Account\AuthType;
+use App\Domain\Enum\Account\IncomingProtocol;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Domain\Enum\Mail\SendFailure;
@@ -24,6 +25,7 @@ use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Imap\ImapFolderManager;
 use App\Service\Imap\MessageSendService;
 use App\Service\Mail\AccountServiceSwitch;
+use App\Service\Mail\ComposeWindow;
 use App\Service\Mail\LocalMailPurger;
 use App\Service\Mail\UserAccounts;
 use App\Tests\Command\MailFixtures;
@@ -34,12 +36,15 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
- * An account's mail, calendar and contacts, switched on and off on their own
- * (#575) — and the promise that comes with switching mail off: nothing about
- * it reaches the server, and what is already here stays until asked to go.
+ * An account's receiving, sending, calendar and contacts, switched on and off
+ * on their own (#575, #628) — and the promise that comes with switching one
+ * off: nothing about it reaches the server, and what is already here stays
+ * until asked to go.
  *
  * The claims worth guarding are the ones that fail silently. A primary that
- * stays on a mail-off account is a From address nothing can be sent from; a
+ * stays on an account that cannot send is a From address nothing can be sent
+ * from, and one that moves off an SMTP relay because it receives nothing takes
+ * away the only sender somebody has; a
  * sidebar that hides a mail-off account hides mail somebody may still want;
  * a purge that went through the bin-emptying path would delete the mailbox at
  * the provider; a send or a folder change that slipped past the switch would be
@@ -83,7 +88,24 @@ final class AccountServicesTest extends KernelTestCase
 
     // ── the switch ───────────────────────────────────────────────────────────
 
-    public function testSwitchingThePrimarysMailOffMovesThePrimaryToAnAccountThatCanSend(): void
+    public function testSwitchingThePrimarysSendingOffMovesThePrimaryToAnAccountThatCanSend(): void
+    {
+        $user    = MailFixtures::user($this->em, 'svc');
+        $primary = MailFixtures::account($this->em, $user);
+        $other   = MailFixtures::account($this->em, $user);
+
+        $primary->isPrimary = true;
+        $primary->sortOrder = 0;
+        $other->sortOrder   = 1;
+        $this->em->flush();
+
+        $this->switch->set($primary, AccountService::Send, false);
+
+        self::assertFalse($primary->isPrimary, 'an account whose sending is off sends nothing');
+        self::assertTrue($other->isPrimary);
+    }
+
+    public function testSwitchingThePrimarysReceivingOffLeavesItThePrimary(): void
     {
         $user    = MailFixtures::user($this->em, 'svc');
         $primary = MailFixtures::account($this->em, $user);
@@ -96,8 +118,61 @@ final class AccountServicesTest extends KernelTestCase
 
         $this->switch->set($primary, AccountService::Mail, false);
 
-        self::assertFalse($primary->isPrimary, 'an account whose mail is off sends nothing');
-        self::assertTrue($other->isPrimary);
+        self::assertTrue($primary->isPrimary, 'a relay that receives nothing still sends, and is still the sender');
+        self::assertFalse($other->isPrimary);
+    }
+
+    public function testAnAccountThatOnlySendsIsWhereANewMessageIsWrittenFrom(): void
+    {
+        $user  = MailFixtures::user($this->em, 'svc');
+        $relay = MailFixtures::account($this->em, $user, mailEnabled: false, sendEnabled: true);
+        $inbox = MailFixtures::account($this->em, $user, sendEnabled: false);
+
+        $relay->isPrimary = true;
+        $relay->sortOrder = 1;
+        $inbox->sortOrder = 0;
+        $this->em->flush();
+
+        $window = self::getContainer()->get(ComposeWindow::class);
+
+        self::assertSame($relay->id, $window->defaultAccountFor($user)?->id);
+
+        // And with the flag gone, the fallback still skips the account that
+        // cannot send, though it sorts first.
+        $relay->isPrimary = false;
+        $this->em->flush();
+
+        self::assertSame($relay->id, $window->defaultAccountFor($user)?->id);
+    }
+
+    public function testOnlyThePasswordAccountsServerForAServiceIsAskedFor(): void
+    {
+        $account = MailFixtures::account($this->em, MailFixtures::user($this->em, 'svc'));
+
+        self::assertFalse($account->lacksServerFor(AccountService::Mail));
+        self::assertFalse($account->lacksServerFor(AccountService::Send));
+
+        $account->imapHost = '';
+        $account->smtpHost = null;
+
+        self::assertTrue($account->lacksServerFor(AccountService::Mail), 'a relay has no incoming server to receive with');
+        self::assertTrue($account->lacksServerFor(AccountService::Send));
+        self::assertFalse($account->lacksServerFor(AccountService::Calendar));
+
+        $account->incomingProtocol = IncomingProtocol::Jmap;
+
+        self::assertFalse($account->lacksServerFor(AccountService::Send), 'a JMAP server takes submissions itself');
+
+        $account->authType = AuthType::OAuth2->value;
+
+        self::assertFalse($account->lacksServerFor(AccountService::Mail), 'Gmail and Microsoft find their own servers');
+    }
+
+    public function testSendingAsksForTheSameGrantAsReceiving(): void
+    {
+        foreach (MailProvider::cases() as $provider) {
+            self::assertSame($provider->serviceScopes(AccountService::Mail), $provider->serviceScopes(AccountService::Send));
+        }
     }
 
     public function testSwitchingTheCalendarOnQueuesASyncOfEachMirroredCalendar(): void
@@ -181,14 +256,14 @@ final class AccountServicesTest extends KernelTestCase
 
     // ── nothing reaches the server ───────────────────────────────────────────
 
-    public function testSendingFromAnAccountWithMailOffIsRefusedWithThatReason(): void
+    public function testSendingFromAnAccountWithSendingOffIsRefusedWithThatReason(): void
     {
-        $account = MailFixtures::account($this->em, MailFixtures::user($this->em, 'svc'), mailEnabled: false);
+        $account = MailFixtures::account($this->em, MailFixtures::user($this->em, 'svc'), sendEnabled: false);
         $message = MailFixtures::message($this->em, $account);
 
         try {
             self::getContainer()->get(MessageSendService::class)->send($message);
-            self::fail('a send from a mail-off account must not go out');
+            self::fail('a send from an account whose sending is off must not go out');
         } catch (SendRefusedException $e) {
             self::assertSame(SendFailure::MailOff, $e->failure());
         }

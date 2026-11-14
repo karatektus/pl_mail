@@ -54,9 +54,9 @@ final readonly class ComposeWindow
     public function defaultAccountFor(User $user): ?Account
     {
         $primary = $this->accounts->findOneBy([
-            'usr'       => $user,
-            'mailEnabled'  => true,
-            'isPrimary' => true,
+            'usr'         => $user,
+            'sendEnabled' => true,
+            'isPrimary'   => true,
         ]);
 
         if (null !== $primary) {
@@ -65,8 +65,8 @@ final readonly class ComposeWindow
 
         return $this->accounts->findOneBy(
             [
-                'usr'      => $user,
-                'mailEnabled' => true,
+                'usr'         => $user,
+                'sendEnabled' => true,
             ],
             ['sortOrder' => 'ASC'],
         );

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Enum\Account\AccountService;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Mail\Account\AccountRepository;
@@ -60,6 +61,14 @@ final readonly class AccountCreator
     {
         $account->authType = 'password';
         $account->usr      = $user;
+
+        // Receiving and sending by which servers it was given (#628): no
+        // incoming server is an SMTP relay with no mailbox, no SMTP server a
+        // mailbox that cannot send. The form refuses neither. Before the
+        // primary is chosen below, which only ever picks an account that sends.
+        foreach ([AccountService::Mail, AccountService::Send] as $service) {
+            $account->enable($service, false === $account->lacksServerFor($service));
+        }
 
         // A JMAP server pushes over the connection the account already has,
         // with nothing to register first — so its push starts on, as a
@@ -166,11 +175,12 @@ final readonly class AccountCreator
      * address moves.
      *
      * The primary is the account new mail is sent from, so it has to be one
-     * whose mail is switched on (#575) whenever there is such an account. A
-     * primary whose mail is off gives way to the first one that is on; a user
-     * whose mail is off everywhere keeps the one they had, since there is no
+     * that can send (#575, #628) whenever there is such an account. A primary
+     * whose sending is off gives way to the first one that is on; a user who
+     * cannot send from anywhere keeps the one they had, since there is no
      * better answer and an account with no primary at all is the state this
-     * exists to prevent.
+     * exists to prevent. Receiving does not enter into it: an SMTP relay with
+     * no mailbox is a perfectly good primary.
      *
      * Caller is responsible for flushing.
      *
@@ -184,7 +194,7 @@ final readonly class AccountCreator
             return;
         }
 
-        $sending = array_values(array_filter($accounts, static fn (Account $account): bool => true === $account->mailEnabled));
+        $sending = array_values(array_filter($accounts, static fn (Account $account): bool => true === $account->sendEnabled));
         $pool    = [] === $sending ? $accounts : $sending;
         $primary = null;
 

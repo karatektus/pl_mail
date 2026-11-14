@@ -108,7 +108,7 @@ final readonly class SenderResolver
         if (
             null === $account
             || $account->usr !== $user
-            || false === $account->mailEnabled
+            || false === $account->sendEnabled
         ) {
             return null;
         }
