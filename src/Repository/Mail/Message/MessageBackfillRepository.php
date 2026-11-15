@@ -422,6 +422,49 @@ class MessageBackfillRepository extends ServiceEntityRepository
     }
 
     /**
+     * Messages whose sanitized body still positions something absolutely —
+     * the set the absolute-position repair has to walk.
+     *
+     * Narrowed on the damage, as the conditional-comment walk is: the
+     * sanitizer keeps no `position: absolute` any more, so a copy written
+     * since holds none, and the word left in an older one is in a style
+     * attribute (the inliner has already moved stylesheet rules there). Loose
+     * on purpose — "absolute" in the text of a message matches too, and
+     * re-sanitising that body writes back what it already had (#626).
+     *
+     * @return list<Message>
+     */
+    public function findWithAbsolutePosition(int $afterId, int $limit): array
+    {
+        return $this->absolutePositionQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithAbsolutePosition(): int
+    {
+        return (int) $this->absolutePositionQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function absolutePositionQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            ->andWhere('m.bodyHtmlSafe IS NOT NULL')
+            // Folded because senders write `ABSOLUTE` as well.
+            ->andWhere("LOWER(m.bodyHtmlSafe) LIKE '%absolute%'")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
      * Messages whose body webklex filed as an attachment, oldest id first.
      *
      * The set MisfiledBodyDetector now keeps out of the database, found after
