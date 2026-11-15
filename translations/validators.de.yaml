@@ -1,6 +1,10 @@
 # Symfony übersetzt Validierungsmeldungen in der Domain `validators`, nicht in
 # `messages` — ein Schlüssel in messages.*.yaml erscheint unübersetzt.
 account.host_invalid: Gib nur einen Hostnamen oder eine IP-Adresse ein — ohne Schrägstriche, Fragezeichen oder @.
+account.incoming_required: 'Gib den Posteingangsserver ein — dieses Konto empfängt E-Mails.'
+account.port_required: 'Gib den Port ein.'
+account.services_none: 'Schalte Empfangen, Senden oder beides ein.'
+account.smtp_required: 'Gib den SMTP-Server ein — dieses Konto sendet E-Mails.'
 admin.ai.keep_alive_invalid: Nimm eine Dauer wie 5m, 30m oder 4h, eine reine Sekundenzahl oder -1, damit das Modell dauerhaft geladen bleibt — leer lassen nimmt die Einstellung des Hosts.
 admin.integrations.client_id_missing: Trage die Client-ID ein, die zu diesem Secret gehört.
 admin.integrations.secret_missing: Trage auch das Client-Secret ein — mit der Client-ID allein kann sich niemand anmelden.

@@ -66,8 +66,11 @@ account:
             off: 'Crew roster be lashed shut'
             on: 'Crew roster be open again'
         mail:
-            off: 'Letters be becalmed. What’s aboard stays aboard.'
-            on: 'Letters be flowin’ again'
+            off: 'Receivin’ becalmed. What’s aboard stays aboard.'
+            on: 'Receivin’ under way'
+        send:
+            off: 'Sendin’ becalmed'
+            on: 'Sendin’ under way'
     sync_interval_set: Th' watch be reset
     tabs:
         imap: IMAP / SMTP
@@ -85,10 +88,11 @@ account:
             failed: 'The line didn''t hold. Check the host, port an'' encryption.'
             host_invalid: 'A host name or IP address only, sailor — no slashes, question marks nor @.'
             imap_ok: 'Aboard — %count% holds in sight.'
+            incoming_none: 'No incomin’ server charted — this ship only sends letters.'
             jmap_no_mail: 'The server speaks JMAP but offers no mail fer this account.'
             jmap_ok: 'Aboard — %count% holds in sight.'
             jmap_submission: 'Messages sail out through the JMAP server.'
-            missing_fields: 'Give us an email address an'' an IMAP host first.'
+            missing_fields: 'Give us an email address an’ one server at least first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored one, which the test can only use once the ship be saved.'
             pop3_ok: 'Aye, connected — %count% messages in the hold.'
             private_network: 'This server lies in private waters. Th'' captain must let it aboard under Admin → Friendly ports → Holds in private waters afore plMail may sail to it.'
@@ -3465,12 +3469,16 @@ settings:
             contacts: 'Crew roster'
             contacts_help: 'Its crew rosters, kept true both ways'
             intro: 'Furl what ye don’t sail this ship for. plMail then stops hailin’ the far port about it an’ keeps what’s already aboard.'
-            mail: 'Letters'
-            mail_help: 'Fetchin’, sendin’ an’ every change ye make to its letters'
+            mail: 'Receive letters'
+            mail_help: 'Fetchin’ its letters an’ every change ye make to ’em'
             none: 'All sails furled'
             purge: 'Heave the synced letters out o’ plMail'
             purge_confirm: 'Heave every letter plMail fetched for %account% overboard? The far port keeps them. Raise letters again an’ plMail fetches the lot anew.'
             purge_help: 'Only plMail’s copy goes over the side. Nothin’ be sunk at the far port.'
+            send: 'Send letters'
+            send_help: 'Offered as a sender when ye write; letters, scheduled sailings an’ read receipts set sail through it'
+            setup: 'Rig it…'
+            setup_explained: '%service% needs a port this account ain’t been given yet. Opens the account form to add it.'
             turn_off: 'Furl %service% for %account%'
             turn_on: 'Raise %service% for %account%'
             used_for: 'Sailin’ for %services%'
@@ -5216,7 +5224,7 @@ thread_row:
     replied: 'Answered'
     send_failed:
         failed: Never sailed
-        mail_off: 'Not sailed: letters be becalmed on this ship'
+        mail_off: 'Not sent: sendin’ be becalmed for this account'
         may_have_sent: 'May have sailed: search th'' Sent hold afore firin'' again'
         rate_limited: 'Never sailed: yer mail port were rationin'' sailings'
         refused: 'Never sailed: th'' harbour master turned it away'
@@ -5241,7 +5249,7 @@ toast:
     schedule_cancelled: The castin' off be belayed.
     send_too_late: Too late, matey — that message has already sailed.
     send_failed: 'That message could not be hoisted: %subject%'
-    send_failed_mail_off: 'That letter could not sail: %subject%. Letters be becalmed on its ship.'
+    send_failed_mail_off: 'That letter could not be sent: %subject%. Sendin’ be becalmed for its account.'
     send_failed_may_have_sent: '%subject% may have sailed, but no word came back. Search th'' Sent hold before ye fire it again.'
     send_failed_rate_limited: 'That message could not be hoisted: %subject%. Yer mail port be rationin'' sailings; try again in a few minutes.'
     send_failed_refused: 'That message could not be hoisted: %subject%. Th'' harbour master turned it away.'

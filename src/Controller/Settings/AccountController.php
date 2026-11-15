@@ -76,7 +76,7 @@ final class AccountController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'edit')]
-    public function edit(Request $request, Account $account, IncomingProtocolSwitch $protocolSwitch): Response
+    public function edit(Request $request, Account $account, IncomingProtocolSwitch $protocolSwitch, AccountServiceSwitch $serviceSwitch): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
@@ -109,6 +109,14 @@ final class AccountController extends AbstractController
 
             $this->entityManager->flush();
 
+            // Receiving and sending as the form's switches say (#628) —
+            // through the switch service, so the primary and push follow as
+            // they do from Settings. A half that does not change is left
+            // alone by set(). The form has already refused a half switched
+            // on without its server.
+            $serviceSwitch->set($account, AccountService::Mail, true === $form->get('receiving')->getData());
+            $serviceSwitch->set($account, AccountService::Send, true === $form->get('sending')->getData());
+
             return $this->streamAccountList($request, 'account.updated');
         }
 
@@ -130,18 +138,22 @@ final class AccountController extends AbstractController
     }
 
     /**
-     * Switch one of the account's services — mail, calendar, contacts — on or
-     * off (#575). It replaces the single on/off toggle, which only ever
-     * governed mail whatever it looked like it governed.
+     * Switch one of the account's services — receiving and sending mail,
+     * calendar, contacts — on or off (#575, #628). It replaces the single
+     * on/off toggle, which only ever governed mail whatever it looked like it
+     * governed.
      *
      * The position asked for is posted rather than flipped from what is
      * stored, so two tabs pressing the same switch agree on where it ends up.
      * A service whose grant does not cover it is not switched on here: the
      * page offers the provider's consent screen in that case instead (see
      * AccountServiceSwitch::needsConsent()), and a post that arrives anyway is
-     * refused rather than turning on something that can only fail.
+     * refused rather than turning on something that can only fail. The same
+     * goes for a service whose server the account was never given — receiving
+     * on an account added to send through a relay: the page links to the
+     * account form for that one.
      */
-    #[Route('/{id}/service/{service}', name: 'service', requirements: ['service' => 'mail|calendar|contacts'], methods: ['POST'])]
+    #[Route('/{id}/service/{service}', name: 'service', requirements: ['service' => 'mail|send|calendar|contacts'], methods: ['POST'])]
     public function service(Request $request, Account $account, string $service, AccountServiceSwitch $switch): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
@@ -153,6 +165,10 @@ final class AccountController extends AbstractController
 
         if (true === $enabled && true === $switch->needsConsent($account, $which)) {
             throw new BadRequestHttpException('The account\'s grant does not cover this service; reconnect to allow it.');
+        }
+
+        if (true === $enabled && true === $account->lacksServerFor($which)) {
+            throw new BadRequestHttpException('The account has no server for this service; add one in the account form first.');
         }
 
         $switch->set($account, $which, $enabled);
@@ -433,7 +449,9 @@ final class AccountController extends AbstractController
             }
         }
 
-        if ('' === $account->username || '' === $account->imapHost) {
+        // One server is enough: an account may only send, through a relay,
+        // or only receive (#628). Neither leaves nothing to test.
+        if ('' === $account->username || ('' === $account->imapHost && '' === $account->smtpHost)) {
             return $this->json(new ConnectionTestResult(
                 false,
                 $translator->trans('account.test.result.missing_fields'),
@@ -444,7 +462,7 @@ final class AccountController extends AbstractController
             )->toArray());
         }
 
-        if (false === MailServerHost::isValid($account->imapHost)
+        if (('' !== $account->imapHost && false === MailServerHost::isValid($account->imapHost))
             || ('' !== $account->smtpHost && false === MailServerHost::isValid($account->smtpHost))) {
             return $this->json(new ConnectionTestResult(
                 false,

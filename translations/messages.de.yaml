@@ -66,8 +66,11 @@ account:
             off: 'Kontakte ausgeschaltet'
             on: 'Kontakte eingeschaltet'
         mail:
-            off: 'E-Mail ausgeschaltet. Was schon da ist, bleibt.'
-            on: 'E-Mail eingeschaltet'
+            off: 'Empfangen ausgeschaltet. Was schon da ist, bleibt.'
+            on: 'Empfangen eingeschaltet'
+        send:
+            off: 'Senden ausgeschaltet'
+            on: 'Senden eingeschaltet'
     sync_interval_set: Abrufintervall geändert
     tabs:
         imap: IMAP / SMTP
@@ -85,10 +88,11 @@ account:
             failed: 'Die Verbindung hat nicht geklappt. Prüf Host, Port und Verschlüsselung.'
             host_invalid: 'Gib nur einen Hostnamen oder eine IP-Adresse ein — ohne Schrägstriche, Fragezeichen oder @.'
             imap_ok: 'Verbunden — %count% Ordner sichtbar.'
+            incoming_none: 'Kein Posteingangsserver eingetragen — dieses Konto sendet nur.'
             jmap_no_mail: 'Der Server spricht JMAP, bietet für dieses Konto aber keine Mail an.'
             jmap_ok: 'Verbunden — %count% Postfächer sichtbar.'
             jmap_submission: 'Gesendet wird über den JMAP-Server.'
-            missing_fields: 'Gib zuerst mindestens eine E-Mail-Adresse und einen IMAP-Host ein.'
+            missing_fields: 'Gib zuerst eine E-Mail-Adresse und mindestens einen Server ein.'
             missing_password: 'Kein Passwort zum Testen. Gib oben eins ein — beim Bearbeiten behält ein leeres Feld das gespeicherte Passwort, und das kann der Test erst nutzen, wenn das Konto gespeichert ist.'
             pop3_ok: 'Verbunden — %count% Nachrichten im Postfach.'
             private_network: 'Dieser Server liegt in einem privaten Netz. Eine Administratorin oder ein Administrator muss ihn erst unter Admin → Integrationen → Server in privaten Netzen erlauben, bevor plMail sich verbinden darf.'
@@ -3609,12 +3613,16 @@ settings:
             contacts: 'Kontakte'
             contacts_help: 'Seine Adressbücher, in beide Richtungen abgeglichen'
             intro: 'Schalte aus, wofür du dieses Konto nicht verwendest. plMail spricht dann mit dem Server nicht mehr darüber und behält, was schon da ist.'
-            mail: 'E-Mail'
-            mail_help: 'Synchronisieren, Senden und jede Änderung an seinen E-Mails'
+            mail: 'E-Mail empfangen'
+            mail_help: 'Seine E-Mails synchronisieren und jede Änderung, die du daran machst'
             none: 'Alles ausgeschaltet'
             purge: 'Synchronisierte E-Mails aus plMail entfernen'
             purge_confirm: 'Alle E-Mails, die plMail für %account% synchronisiert hat, entfernen? Auf dem Server bleiben sie. Schaltest du E-Mail wieder ein, lädt plMail sie neu herunter.'
             purge_help: 'Nur die Kopie in plMail wird entfernt. Auf dem Server wird nichts gelöscht.'
+            send: 'E-Mail senden'
+            send_help: 'Beim Schreiben als Absender angeboten; E-Mails, geplante Sendungen und Lesebestätigungen gehen darüber hinaus'
+            setup: 'Einrichten…'
+            setup_explained: '%service% braucht einen Server, den dieses Konto noch nicht hat. Öffnet das Kontoformular, um ihn einzutragen.'
             turn_off: '%service% für %account% ausschalten'
             turn_on: '%service% für %account% einschalten'
             used_for: 'Verwendet für %services%'
@@ -5449,7 +5457,7 @@ thread_row:
     replied: 'Beantwortet'
     send_failed:
         failed: Nicht gesendet
-        mail_off: 'Nicht gesendet: Für dieses Konto ist E-Mail ausgeschaltet'
+        mail_off: 'Nicht gesendet: Für dieses Konto ist Senden ausgeschaltet'
         may_have_sent: 'Vielleicht gesendet: schau unter Gesendet nach, bevor du sie noch einmal sendest'
         rate_limited: 'Nicht gesendet: dein Mailanbieter hat das Senden begrenzt'
         refused: 'Nicht gesendet: der Mailserver hat sie abgelehnt'
@@ -5474,7 +5482,7 @@ toast:
     schedule_cancelled: Geplanter Versand abgebrochen.
     send_too_late: Zu spät — diese Nachricht wurde bereits gesendet.
     send_failed: 'Diese Nachricht konnte nicht gesendet werden: %subject%'
-    send_failed_mail_off: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Für ihr Konto ist E-Mail ausgeschaltet.'
+    send_failed_mail_off: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Für ihr Konto ist Senden ausgeschaltet.'
     send_failed_may_have_sent: '%subject% wurde vielleicht gesendet, aber die Antwort ging verloren. Schau unter Gesendet nach, bevor du sie noch einmal sendest.'
     send_failed_rate_limited: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Dein Mailanbieter begrenzt gerade das Senden; versuch es in ein paar Minuten noch einmal.'
     send_failed_refused: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Der Mailserver hat sie abgelehnt.'

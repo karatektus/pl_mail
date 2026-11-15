@@ -66,8 +66,11 @@ account:
             off: 'Contacts switched off'
             on: 'Contacts switched on'
         mail:
-            off: 'Mail switched off. What is already here stays.'
-            on: 'Mail switched on'
+            off: 'Receiving switched off. What is already here stays.'
+            on: 'Receiving switched on'
+        send:
+            off: 'Sending switched off'
+            on: 'Sending switched on'
     sync_interval_set: Sync interval changed
     tabs:
         imap: IMAP / SMTP
@@ -85,10 +88,11 @@ account:
             failed: 'The connection did not work. Check the host, port and encryption.'
             host_invalid: 'Enter a host name or IP address only — no slashes, question marks or @.'
             imap_ok: 'Connected — %count% folders visible.'
+            incoming_none: 'No incoming server configured — this account only sends.'
             jmap_no_mail: 'The server speaks JMAP but offers no mail for this account.'
             jmap_ok: 'Connected — %count% mailboxes visible.'
             jmap_submission: 'Sending goes through the JMAP server.'
-            missing_fields: 'Enter at least an email address and an IMAP host first.'
+            missing_fields: 'Enter an email address and at least one server first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored password, which the test can only use once the account is saved.'
             pop3_ok: 'Connected — %count% messages in the mailbox.'
             private_network: 'This server is on a private network. An administrator has to allow it under Admin → Integrations → Servers on a private network before plMail may connect to it.'
@@ -3617,12 +3621,16 @@ settings:
             contacts: 'Contacts'
             contacts_help: 'Its address books, kept in step both ways'
             intro: 'Switch off what you do not use this account for. plMail then stops talking to the server about it and keeps what is already here.'
-            mail: 'Mail'
-            mail_help: 'Syncing, sending and every change you make to its mail'
+            mail: 'Receive mail'
+            mail_help: 'Syncing its mail and every change you make to it'
             none: 'Everything switched off'
             purge: 'Remove synced mail from plMail'
             purge_confirm: 'Remove all mail plMail has synced for %account%? It stays on the server. If you switch mail back on, plMail downloads it again.'
             purge_help: 'Only plMail’s copy is removed. Nothing is deleted on the server.'
+            send: 'Send mail'
+            send_help: 'Offered as a sender when you write; mail, scheduled sends and read receipts go out through it'
+            setup: 'Set up…'
+            setup_explained: '%service% needs a server this account has not been given yet. Opens the account form to add it.'
             turn_off: 'Switch off %service% for %account%'
             turn_on: 'Switch on %service% for %account%'
             used_for: 'Used for %services%'
@@ -5420,7 +5428,7 @@ thread_row:
     replied: 'Replied'
     send_failed:
         failed: Not sent
-        mail_off: 'Not sent: mail is switched off for this account'
+        mail_off: 'Not sent: sending is switched off for this account'
         may_have_sent: 'May have been sent: check Sent before sending it again'
         rate_limited: 'Not sent: your mail provider was limiting sends'
         refused: 'Not sent: the mail server refused it'
@@ -5462,7 +5470,7 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Too late — that message had already been sent.
     send_failed: 'That message could not be sent: %subject%'
-    send_failed_mail_off: 'That message could not be sent: %subject%. Mail is switched off for its account.'
+    send_failed_mail_off: 'That message could not be sent: %subject%. Sending is switched off for its account.'
     send_failed_may_have_sent: '%subject% may have been sent, but the answer was lost. Check Sent before sending it again.'
     send_failed_rate_limited: 'That message could not be sent: %subject%. Your mail provider is limiting sends right now; try again in a few minutes.'
     send_failed_refused: 'That message could not be sent: %subject%. The mail server refused it.'

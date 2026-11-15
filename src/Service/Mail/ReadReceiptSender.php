@@ -66,9 +66,9 @@ final readonly class ReadReceiptSender
 
         $account = $message->account;
 
-        // A read receipt is mail like any other, and an account whose mail is
-        // switched off sends none (#575) — not even the automatic kind.
-        if (false === $account->mailEnabled) {
+        // A read receipt is mail like any other, and an account whose sending
+        // is switched off sends none (#575, #628) — not even the automatic kind.
+        if (false === $account->sendEnabled) {
             return false;
         }
 

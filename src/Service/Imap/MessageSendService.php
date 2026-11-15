@@ -90,13 +90,15 @@ class MessageSendService
             return false;
         }
 
-        // Mail switched off means nothing leaves through this account (#575).
-        // Refused rather than answered false, so a scheduled send that comes
-        // due afterwards is marked on the draft with the reason, instead of
-        // retried until the transport gives up. Here rather than in each
-        // sender: every send of a stored message comes through this method.
-        if (false === $account->mailEnabled) {
-            throw new SendRefusedException('Mail is switched off for this account.', SendFailure::MailOff);
+        // Sending switched off means nothing leaves through this account
+        // (#575, #628). Refused rather than answered false, so a scheduled send
+        // that comes due afterwards is marked on the draft with the reason,
+        // instead of retried until the transport gives up. Here rather than in
+        // each sender: every send of a stored message comes through this
+        // method. Receiving is not asked — an SMTP relay with no mailbox
+        // behind it sends with receiving off, and that is the point of it.
+        if (false === $account->sendEnabled) {
+            throw new SendRefusedException('Sending is switched off for this account.', SendFailure::MailOff);
         }
 
         // A message the browser built goes out as it was built or not at all:
@@ -423,6 +425,16 @@ class MessageSendService
         // and the Sent folder row an account switched from IMAP still holds
         // would only lead the connection factory to refuse it.
         if (true === $account->isJmap()) {
+            return;
+        }
+
+        // Receiving switched off is the promise that plMail does not talk to
+        // the incoming server (#628), and appending is talking to it. The
+        // copy stays here, under Sent, which is all an SMTP relay with no
+        // mailbox behind it can have; an account that used to receive keeps
+        // its Sent folder row, which is why this is asked and not left to the
+        // lookup below.
+        if (false === $account->mailEnabled) {
             return;
         }
 

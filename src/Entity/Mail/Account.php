@@ -225,8 +225,9 @@ class Account extends AccountModel
     public ?string $exportRefusedReason = null;
 
     /**
-     * Whether plMail talks to the mail server for this account: syncs it,
-     * listens for push, sends from it, and carries changes back (#575).
+     * Whether plMail talks to the incoming mail server for this account: syncs
+     * it, listens for push, and carries changes back (#575). Sending is
+     * $sendEnabled, its own switch since #628.
      *
      * The column that used to be `is_active`, renamed for what it always did —
      * the calendars never read it, so "switched off" only ever meant the mail.
@@ -238,6 +239,19 @@ class Account extends AccountModel
      */
     #[ORM\Column(options: ['default' => true])]
     public bool $mailEnabled = true;
+
+    /**
+     * Whether this account is offered as a sender and whether anything leaves
+     * through it — composed mail, scheduled sends, read receipts (#628).
+     *
+     * Apart from $mailEnabled so either half can exist alone: an SMTP relay
+     * with no mailbox behind it, or a mailbox whose provider offers no SMTP.
+     * Off is not a pause of something queued — a draft that comes due on an
+     * account that cannot send is refused and says why on the draft, as it
+     * did when mail as a whole was off.
+     */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $sendEnabled = true;
 
     /**
      * Whether this account's calendars sync. Off holds them still: the events
@@ -253,7 +267,7 @@ class Account extends AccountModel
     /**
      * The services that are switched on, in AccountService order.
      *
-     * Virtual: it is the three columns above read together, for the places
+     * Virtual: it is the columns above read together, for the places
      * that want them as a set — the OAuth scopes asked for, the health check
      * that measures a grant against what it should cover.
      *
@@ -274,8 +288,36 @@ class Account extends AccountModel
     {
         return match ($service) {
             AccountService::Mail     => $this->mailEnabled,
+            AccountService::Send     => $this->sendEnabled,
             AccountService::Calendar => $this->calendarEnabled,
             AccountService::Contacts => $this->contactsEnabled,
+        };
+    }
+
+    /**
+     * Whether this service needs a server the account has not been given
+     * (#628), so switching it on could only fail.
+     *
+     * Only a password account can be short of one: Gmail and Microsoft find
+     * their own servers. Receiving needs the incoming host. Sending needs the
+     * SMTP host, except on JMAP, whose server takes submissions itself. An
+     * account added to send through a relay has no incoming host, and one
+     * added to read a mailbox may have no SMTP; either has to be completed in
+     * the account form before the other half is switched on.
+     *
+     * Stays a method: it takes the service and answers for it.
+     */
+    public function lacksServerFor(AccountService $service): bool
+    {
+        if (AuthType::Password->value !== $this->authType) {
+            return false;
+        }
+
+        return match ($service) {
+            AccountService::Mail     => null === $this->imapHost || '' === trim($this->imapHost),
+            AccountService::Send     => false === $this->isJmap() && (null === $this->smtpHost || '' === trim($this->smtpHost)),
+            AccountService::Calendar => false,
+            AccountService::Contacts => false,
         };
     }
 
@@ -284,6 +326,7 @@ class Account extends AccountModel
     {
         match ($service) {
             AccountService::Mail     => $this->mailEnabled     = $enabled,
+            AccountService::Send     => $this->sendEnabled     = $enabled,
             AccountService::Calendar => $this->calendarEnabled = $enabled,
             AccountService::Contacts => $this->contactsEnabled = $enabled,
         };

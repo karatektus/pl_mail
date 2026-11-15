@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Enum\Account;
 
 /**
- * One of the three things an account can be used for, each switched on and
- * off on its own (#575).
+ * One of the things an account can be used for, each switched on and off on
+ * its own (#575, #628).
  *
  * An account used to be all or nothing: the one switch in Settings paused the
  * mail, the contacts went with it, and the calendars — which never read that
@@ -24,14 +24,27 @@ namespace App\Domain\Enum\Account;
  * hold it — the next sync after switching mail back on reads the server's
  * state over them.
  *
- * Three booleans on Account rather than a set column, so every query that has
- * to ask (the sync sweeps, the sidebar, the badge counts) asks a plain column
- * the way it always asked `is_active`, and a database reader sees the state
+ * Mail is two of them, receiving and sending (#628). Somebody who sends
+ * through a relay such as SMTP2go has no mailbox to read, and had to give the
+ * account a made-up incoming server that failed every sync; somebody whose
+ * provider offers no SMTP had an account in the From list that could only
+ * fail. `Mail` kept its value and its column (`mail_enabled`) and now means
+ * the receiving half only — every reader of the column was already a reading
+ * path, and renaming it would have touched them all for a word. `Send` is the
+ * other half: whether the account is offered as a sender and whether anything
+ * leaves through it. Off is the same promise as for the others: nothing
+ * already here is forgotten, nothing goes to the server.
+ *
+ * Booleans on Account rather than a set column, so every query that has to
+ * ask (the sync sweeps, the sidebar, the badge counts) asks a plain column the
+ * way it always asked `is_active`, and a database reader sees the state
  * without decoding anything.
  */
 enum AccountService: string
 {
+    /** Receiving mail: syncing it, push, and carrying changes back. */
     case Mail     = 'mail';
+    case Send     = 'send';
     case Calendar = 'calendar';
     case Contacts = 'contacts';
 
@@ -40,6 +53,7 @@ enum AccountService: string
     {
         return match ($this) {
             self::Mail     => 'settings.accounts.services.mail',
+            self::Send     => 'settings.accounts.services.send',
             self::Calendar => 'settings.accounts.services.calendar',
             self::Contacts => 'settings.accounts.services.contacts',
         };
@@ -49,7 +63,8 @@ enum AccountService: string
     public function icon(): string
     {
         return match ($this) {
-            self::Mail     => 'fa-solid fa-envelope',
+            self::Mail     => 'fa-solid fa-inbox',
+            self::Send     => 'fa-solid fa-paper-plane',
             self::Calendar => 'fa-solid fa-calendar-days',
             self::Contacts => 'fa-solid fa-address-book',
         };
@@ -57,7 +72,7 @@ enum AccountService: string
 
     /**
      * Read a list of service names from a request, keeping only the ones that
-     * exist. An empty or absent list means all three, which is what an account
+     * exist. An empty or absent list means all of them, which is what an account
      * connected without being asked has always been.
      *
      * @param list<string>|string|null $values

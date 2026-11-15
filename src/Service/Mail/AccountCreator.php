@@ -166,11 +166,12 @@ final readonly class AccountCreator
      * address moves.
      *
      * The primary is the account new mail is sent from, so it has to be one
-     * whose mail is switched on (#575) whenever there is such an account. A
-     * primary whose mail is off gives way to the first one that is on; a user
-     * whose mail is off everywhere keeps the one they had, since there is no
+     * that can send (#575, #628) whenever there is such an account. A primary
+     * whose sending is off gives way to the first one that is on; a user who
+     * cannot send from anywhere keeps the one they had, since there is no
      * better answer and an account with no primary at all is the state this
-     * exists to prevent.
+     * exists to prevent. Receiving does not enter into it: an SMTP relay with
+     * no mailbox is a perfectly good primary.
      *
      * Caller is responsible for flushing.
      *
@@ -184,7 +185,7 @@ final readonly class AccountCreator
             return;
         }
 
-        $sending = array_values(array_filter($accounts, static fn (Account $account): bool => true === $account->mailEnabled));
+        $sending = array_values(array_filter($accounts, static fn (Account $account): bool => true === $account->sendEnabled));
         $pool    = [] === $sending ? $accounts : $sending;
         $primary = null;
 

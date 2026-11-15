@@ -110,7 +110,14 @@ enum MailProvider: string
     public function serviceScopes(AccountService $service): array
     {
         return match ($service) {
-            AccountService::Mail     => $this->mailScopes(),
+            // Sending asks for the mail grant, not a narrower one (#628).
+            // Google's gmail.send would do for the Gmail API, but the
+            // mailbox's Sent copy and the send-as addresses are read through
+            // the same grant, and Microsoft's Mail.Send is already one of the
+            // mail scopes. A person connecting Gmail to send only is asked for
+            // what a person connecting it to read is asked for.
+            AccountService::Mail,
+            AccountService::Send     => $this->mailScopes(),
             AccountService::Calendar => $this->calendarScopes(),
             AccountService::Contacts => $this->contactScopes(),
         };

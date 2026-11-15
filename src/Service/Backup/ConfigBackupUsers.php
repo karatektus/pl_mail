@@ -802,10 +802,12 @@ final readonly class ConfigBackupUsers
                 // again and the health card built on it goes quiet for
                 // connections that are working fine.
                 'oauthGrantedScopes' => $account->oauthGrantedScopes,
-                // Three switches since #575. The old single `isActive` is not
-                // written any more; the restorer still reads it from files
-                // made before, as what it governed — mail and contacts.
+                // Three switches since #575, four since #628. The old single
+                // `isActive` is not written any more; the restorer still reads
+                // it from files made before, as what it governed — mail and
+                // contacts.
                 'mailEnabled'       => $account->mailEnabled,
+                'sendEnabled'       => $account->sendEnabled,
                 'calendarEnabled'   => $account->calendarEnabled,
                 'contactsEnabled'   => $account->contactsEnabled,
                 'pushEnabled'       => $account->pushEnabled,

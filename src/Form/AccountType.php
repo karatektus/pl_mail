@@ -184,7 +184,10 @@ class AccountType extends AbstractType
                     'class' => 'form-input',
                 ] + PasswordManagerIgnore::ATTR,
                 'label' => 'IMAP host',
-                'constraints' => [new NotBlank(), self::hostConstraint()],
+                // Not NotBlank (#628): required only while receiving is
+                // switched on. See requiredWhile().
+                'required'    => false,
+                'constraints' => [self::requiredWhile('receiving', 'account.incoming_required'), self::hostConstraint()],
             ])
             ->add('imapPort', IntegerType::class, [
                 'attr' => [
@@ -194,7 +197,8 @@ class AccountType extends AbstractType
                     'class'       => 'form-input',
                 ],
                 'label' => 'account.form.port',
-                'constraints' => [new NotBlank(), new Range(min: 1, max: 65535)],
+                'required'    => false,
+                'constraints' => [self::requiredWhile('receiving', 'account.port_required'), new Range(min: 1, max: 65535)],
             ])
             ->add('imapEncryption', ChoiceType::class, [
                 'choices' => [
@@ -212,7 +216,7 @@ class AccountType extends AbstractType
                     'class' => 'form-input',
                 ] + PasswordManagerIgnore::ATTR,
                 'label' => 'SMTP host',
-                'constraints' => [self::hostConstraint()],
+                'constraints' => [self::requiredWhile('sending', 'account.smtp_required'), self::hostConstraint()],
             ])
             ->add('smtpPort', IntegerType::class, [
                 'required' => false,
@@ -260,6 +264,55 @@ class AccountType extends AbstractType
                 'label'        => 'account.form.smtp.password',
                 'required'     => false,
             ]);
+
+        // ── Receive, send, or both (#628) ──────────────────────────────────
+        // An explicit choice, drawn as a switch on the Incoming and the
+        // Outgoing heading; switched off, the section's fields fold away.
+        // Not mapped: on an account that exists, switching goes through
+        // AccountServiceSwitch, which the edit action calls with these
+        // values, because switching sending off can move the primary and
+        // switching receiving off hands back push. Only a new account, which
+        // has nothing to follow from yet, takes them straight onto its
+        // columns — below.
+        //
+        // Both on for a new account. The server fields are required only for
+        // a half that is on (requiredWhile()), and one half has to stay on.
+        $builder
+            ->add('receiving', CheckboxType::class, [
+                'mapped'   => false,
+                'required' => false,
+                'label'    => 'settings.accounts.services.mail',
+            ])
+            ->add('sending', CheckboxType::class, [
+                'mapped'      => false,
+                'required'    => false,
+                'label'       => 'settings.accounts.services.send',
+                'constraints' => [new Callback(static function (mixed $sending, ExecutionContextInterface $context): void {
+                    if (true !== $sending && true !== $context->getRoot()->get('receiving')->getData()) {
+                        $context->buildViolation('account.services_none')->addViolation();
+                    }
+                })],
+            ]);
+
+        $builder->addEventListener(FormEvents::POST_SET_DATA, static function (FormEvent $event): void {
+            $account = $event->getData();
+
+            if ($account instanceof Account) {
+                $event->getForm()->get('receiving')->setData($account->mailEnabled);
+                $event->getForm()->get('sending')->setData($account->sendEnabled);
+            }
+        });
+
+        $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event): void {
+            $account = $event->getData();
+
+            if (false === $account instanceof Account || null !== $account->id) {
+                return;
+            }
+
+            $account->mailEnabled = true === $event->getForm()->get('receiving')->getData();
+            $account->sendEnabled = true === $event->getForm()->get('sending')->getData();
+        });
 
         // ── The POP3 delete mode: a form field, a jsonb setting ────────────
         // Not a column, so it cannot be mapped. The value lives in the
@@ -344,11 +397,44 @@ class AccountType extends AbstractType
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
-            'data_class' => Account::class,
+            'data_class'       => Account::class,
             'require_password' => true,
         ]);
 
         $resolver->setAllowedTypes('require_password', 'bool');
+    }
+
+    /**
+     * Blank refused only while the half the field belongs to is switched on
+     * (#628): the incoming server and port while receiving is, the SMTP
+     * server while sending is. Switched off, the section is folded away and
+     * whatever it still holds is kept but not asked for.
+     *
+     * Read off the switch on the form, not off the account: on the edit form
+     * the account still carries the position from before the submit, and the
+     * switch is what the person is asking for. JMAP sends through its own
+     * server when it takes submissions, so an SMTP host is never required of
+     * it — Account::lacksServerFor() makes the same exception.
+     */
+    private static function requiredWhile(string $switch, string $message): Callback
+    {
+        return new Callback(static function (mixed $value, ExecutionContextInterface $context) use ($switch, $message): void {
+            $form = $context->getRoot();
+
+            if (true !== $form->get($switch)->getData()) {
+                return;
+            }
+
+            $account = $form->getData();
+
+            if ('sending' === $switch && $account instanceof Account && true === $account->isJmap()) {
+                return;
+            }
+
+            if (null === $value || '' === trim((string) $value)) {
+                $context->buildViolation($message)->addViolation();
+            }
+        });
     }
 
     /**

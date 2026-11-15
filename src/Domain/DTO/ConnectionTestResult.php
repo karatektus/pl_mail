@@ -7,13 +7,14 @@ namespace App\Domain\DTO;
 /**
  * Outcome of an account connection probe.
  *
- * smtpOk is nullable: null means "no SMTP host configured", which is a valid
- * receive-only account rather than a failure.
+ * Both halves are nullable: null means "no server configured", which is a
+ * valid account rather than a failure — smtpOk for one that only receives,
+ * imapOk for one that only sends through a relay (#628).
  */
 final class ConnectionTestResult
 {
     public function __construct(
-        public readonly bool    $imapOk,
+        public readonly ?bool   $imapOk,
         public readonly string  $imapMessage,
         public readonly string  $imapTarget,
         public readonly ?bool   $smtpOk,

@@ -3,8 +3,8 @@ import { test } from "./support/test";
 import { acceptConfirm } from "./support/confirm";
 
 /**
- * Mail, calendar and contacts switched on and off per account (#575), in a
- * real browser.
+ * Receiving, sending, calendar and contacts switched on and off per account
+ * (#575, #628), in a real browser.
  *
  * What the switches do on the server side is in phpunit (AccountServicesTest).
  * What needs a browser:
@@ -18,9 +18,12 @@ import { acceptConfirm } from "./support/confirm";
  *     back when mail is switched on again.
  *   - "Remove synced mail from plMail" is offered while mail is off, and not
  *     while it is on.
+ *   - an SMTP relay added with receiving switched off on the form (#628) —
+ *     which folds the incoming fields away — is saved as an account that only
+ *     sends, and its receive switch in Settings leads back to the form.
  */
 
-async function addAccount(page: Page, label: string, stamp: number): Promise<void> {
+async function addAccount(page: Page, label: string, stamp: number, incoming = true): Promise<void> {
     await page.goto("/settings/accounts");
 
     await page
@@ -35,9 +38,19 @@ async function addAccount(page: Page, label: string, stamp: number): Promise<voi
     await page.locator('input[name="account[email]"]').fill(label);
     await page.locator('input[name="account[username]"]').fill(`services-${stamp}@example.test`);
     await page.locator('input[name="account[password]"]').fill("hunter2");
-    await imapHost.fill(`services-${stamp}.example.test`);
-    await page.locator('input[name="account[imapPort]"]').fill("993");
-    await page.locator('select[name="account[imapEncryption]"]').selectOption("ssl");
+    if (true === incoming) {
+        await imapHost.fill(`services-${stamp}.example.test`);
+        await page.locator('input[name="account[imapPort]"]').fill("993");
+        await page.locator('select[name="account[imapEncryption]"]').selectOption("ssl");
+    } else {
+        // Switched off on the Incoming heading, which folds the fields away.
+        await page.locator("label").filter({ has: page.locator('input[name="account[receiving]"]') }).click();
+        await expect(imapHost).toBeHidden();
+    }
+
+    // An SMTP server too: without one the account only receives, and the
+    // row would say so whatever the test switches.
+    await page.locator('input[name="account[smtpHost]"]').fill(`smtp-${stamp}.example.test`);
     await page.locator("#modal button[type=submit]").click();
 
     // Not the 5s default, for the reason account-colour.spec.ts gives.
@@ -73,16 +86,16 @@ test.describe("account services", () => {
             await open.click();
 
             const modal = page.locator("#modal");
-            const mail = modal.getByRole("switch", { name: /Switch off Mail for/ });
+            const mail = modal.getByRole("switch", { name: /Switch off Receive mail for/ });
             await expect(mail).toBeVisible();
             await expect(mail).toHaveAttribute("aria-checked", "true");
             await expect(modal.getByRole("button", { name: "Remove synced mail from plMail" })).toHaveCount(0);
 
             await mail.click();
-            await expect(page.getByText("Mail switched off. What is already here stays.")).toBeVisible();
+            await expect(page.getByText("Receiving switched off. What is already here stays.")).toBeVisible();
 
             // Streamed back, no reload: the row now says what it is used for.
-            await expect(row.locator("[data-account-services]")).toHaveText(/Used for Calendar, Contacts/);
+            await expect(row.locator("[data-account-services]")).toHaveText(/Used for Send mail, Calendar, Contacts/);
 
             // A new account holds no mail, so with mail off it has no place in
             // the mail sidebar.
@@ -93,12 +106,38 @@ test.describe("account services", () => {
             await open.click();
             await expect(modal.getByRole("button", { name: "Remove synced mail from plMail" })).toBeVisible();
 
-            await modal.getByRole("switch", { name: /Switch on Mail for/ }).click();
-            await expect(page.getByText("Mail switched on")).toBeVisible();
+            await modal.getByRole("switch", { name: /Switch on Receive mail for/ }).click();
+            await expect(page.getByText("Receiving switched on")).toBeVisible();
             await expect(row.locator("[data-account-services]")).toHaveCount(0);
 
             await page.goto("/mail/inbox");
             await expect(page.locator("#account-list")).toContainText(new RegExp(label, "i"));
+        } finally {
+            await removeAccount(page, label);
+        }
+    });
+
+    test("a relay added with receiving switched off only sends", async ({ page }) => {
+        test.setTimeout(90_000);
+
+        const stamp = Date.now();
+        const label = `E2E Relay ${stamp}`;
+
+        try {
+            await addAccount(page, label, stamp, false);
+            await page.goto("/settings/accounts");
+
+            const row = page.locator("#settings-account-list li").filter({ hasText: new RegExp(label, "i") });
+            await expect(row.locator("[data-account-services]")).toHaveText(/Used for Send mail, Calendar, Contacts/);
+
+            await row.getByRole("button", { name: /Mail, calendar and contacts for/ }).click();
+
+            // No switch for receiving: there is no server to receive from,
+            // and the way to give it one is the form.
+            const modal = page.locator("#modal");
+            await expect(modal.getByRole("switch", { name: /Switch off Send mail for/ })).toBeVisible();
+            await expect(modal.getByRole("switch", { name: /Receive mail/ })).toHaveCount(0);
+            await expect(modal.getByRole("link", { name: "Set up…" })).toBeVisible();
         } finally {
             await removeAccount(page, label);
         }
