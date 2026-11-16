@@ -17,19 +17,39 @@ namespace App\Domain\Helper;
  * reader appeared: two copies of a list like this drift the first time
  * somebody adds a provider to one of them.
  *
- * Short and European on purpose — it is the providers plMail's users are
- * actually mailed from, not an attempt at a complete registry. A provider
- * missing here costs one wrong icon for its users, which is a smaller harm
- * than a list nobody can review.
+ * A third reader is the Libravatar card (#642): an administrator is offered a
+ * DNS record for every domain their users have addresses at, except these,
+ * whose DNS belongs to the provider. It showed records for gmail.com and
+ * fastmail.com "exactly as shown", which nobody but Google and Fastmail can
+ * add.
+ *
+ * Not an attempt at a complete registry — the providers plMail's users are
+ * actually mailed from, in the languages it speaks, grouped so a reviewer
+ * can see what is there. A provider missing here costs a wrong icon, a
+ * contact filed as work, or a record offered that cannot be added; each is
+ * smaller than a list nobody can review. A custom domain hosted at one of
+ * these providers is not on it, and rightly: that domain's DNS is its
+ * owner's.
  */
 final class PersonalMailDomains
 {
     /** @var list<string> */
     public const array DOMAINS = [
-        'gmail.com', 'googlemail.com', 'gmx.de', 'gmx.net', 'gmx.at', 'gmx.ch', 'web.de', 't-online.de',
-        'outlook.com', 'outlook.de', 'hotmail.com', 'hotmail.de', 'live.com', 'icloud.com', 'me.com', 'mac.com',
-        'yahoo.com', 'yahoo.de', 'posteo.de', 'posteo.net', 'mailbox.org', 'proton.me', 'protonmail.com',
-        'freenet.de', 'arcor.de', 'aol.com', 'orange.fr', 'free.fr', 'laposte.net',
+        // Google, Microsoft, Apple, Yahoo, AOL
+        'gmail.com', 'googlemail.com',
+        'outlook.com', 'outlook.de', 'outlook.fr', 'hotmail.com', 'hotmail.de', 'hotmail.fr', 'hotmail.co.uk',
+        'live.com', 'live.de', 'live.fr', 'msn.com',
+        'icloud.com', 'me.com', 'mac.com',
+        'yahoo.com', 'yahoo.de', 'yahoo.fr', 'yahoo.co.uk', 'ymail.com', 'aol.com', 'aol.de',
+        // Privacy-minded providers
+        'proton.me', 'protonmail.com', 'protonmail.ch', 'pm.me',
+        'tutanota.com', 'tutanota.de', 'tuta.io', 'tuta.com',
+        'posteo.de', 'posteo.net', 'mailbox.org', 'fastmail.com', 'fastmail.fm', 'hey.com',
+        // German-speaking and French providers
+        'gmx.de', 'gmx.net', 'gmx.at', 'gmx.ch', 'gmx.com', 'gmx.fr', 'web.de', 't-online.de', 'mail.de',
+        'freenet.de', 'arcor.de', 'orange.fr', 'free.fr', 'laposte.net',
+        // Elsewhere
+        'mail.com', 'zoho.com', 'yandex.com', 'yandex.ru', 'seznam.cz', 'qq.com', '163.com', '126.com',
     ];
 
     public static function contains(?string $domain): bool

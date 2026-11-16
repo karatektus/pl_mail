@@ -41,6 +41,7 @@ final class LibravatarDnsCheckTest extends TestCase
         $dns = new FakeDns();
 
         self::assertSame(LibravatarDnsStatus::NotYours, new LibravatarDnsCheck($dns)->check('gmail.com', self::HOST)['status']);
+        self::assertSame(LibravatarDnsStatus::NotYours, new LibravatarDnsCheck($dns)->check('fastmail.com', self::HOST)['status']);
         self::assertSame([], $dns->asked);
     }
 

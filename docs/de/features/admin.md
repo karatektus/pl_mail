@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:47a183fce91620b3a538f077af1d9b921626b981 -->
+<!-- translated-from: features/admin.md sha1:324a314460bc99f31831b3de7c113a6ff9c42520 -->
 
 # Administration
 
@@ -865,8 +865,9 @@ _avatars-sec._tcp.example.com. 3600 IN SRV 0 0 443 mail.example.com.
 diesen Server auf Port 443. **Noch kein Eintrag** heißt, er muss noch angelegt werden. **Zeigt auf**
 nennt einen anderen Server, also entweder einen Tippfehler oder eine Domain mit eigenem
 Avatar-Server. **Falscher Port** heißt, der Eintrag nennt diesen Server auf einem anderen Port als
-443. Domains von Mailanbietern wie Gmail werden als deren markiert: Dort kannst du keine Einträge
-anlegen, und diese Benutzer bekommen ihr Bild stattdessen von Gravatar oder Libravatar.
+443. Domains von Mailanbietern wie Gmail oder Fastmail stehen ohne Eintrag unter der Liste: Dort kann nur
+der Anbieter Einträge anlegen, und diese Benutzer bekommen ihr Bild stattdessen von Gravatar oder
+Libravatar.
 
 DNS ist nicht alles, und die Karte sagt das auch: Die öffentliche Adresse muss https sein, mit einem
 Zertifikat, das Browser akzeptieren (ein selbst signiertes lehnen die Programme stillschweigend ab),

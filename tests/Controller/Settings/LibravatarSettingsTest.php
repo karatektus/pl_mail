@@ -121,7 +121,7 @@ final class LibravatarSettingsTest extends WebTestCase
         self::assertFalse($this->reread()->publishesLibravatar);
     }
 
-    public function testTheAdminCardGivesEachDomainItsRecord(): void
+    public function testTheAdminCardGivesEachOwnDomainItsRecordAndNoneToAProvidersDomain(): void
     {
         $this->user->roles = ['ROLE_USER', 'ROLE_ADMIN'];
         $this->em->flush();
@@ -139,10 +139,28 @@ final class LibravatarSettingsTest extends WebTestCase
         $this->em->persist($account);
         $this->em->flush();
 
-        $page = $this->client->request('GET', '/admin/sender-pictures');
+        $provider                 = new Account();
+        $provider->usr            = $this->user;
+        $provider->email          = 'someone@gmail.com';
+        $provider->username       = 'someone@gmail.com';
+        $provider->imapHost       = 'imap.gmail.com';
+        $provider->imapPort       = 993;
+        $provider->imapEncryption = 'ssl';
+        $provider->authType       = 'password';
+        $provider->mailEnabled    = true;
+        $this->em->persist($provider);
+        $this->em->flush();
+
+        $page  = $this->client->request('GET', '/admin/sender-pictures');
+        $frame = $page->filter('turbo-frame')->text();
 
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString('_avatars-sec._tcp.records.example.', $page->filter('turbo-frame')->text());
+        self::assertStringContainsString('_avatars-sec._tcp.records.example.', $frame);
+
+        // gmail.com is named, so it was not forgotten, but offered no record:
+        // only Google could add one, and the card said "exactly as shown".
+        self::assertStringNotContainsString('_avatars-sec._tcp.gmail.com.', $frame);
+        self::assertStringContainsString('gmail.com', $page->filter('p:contains("Nothing to add")')->text());
     }
 
     private function serving(bool $on): void

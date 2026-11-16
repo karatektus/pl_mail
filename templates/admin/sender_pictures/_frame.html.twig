@@ -9,7 +9,10 @@ Accepts:
   publicUrl          — Admin → Address's URL, or null
   publicHost         — its host, or null
   httpsPublicUrl     — whether that URL is https
-  domains            — every domain a user here has an address at
+  domains            — every domain a user here has an address at, less
+                       the mail providers'
+  providerDomains    — the mail providers' among them (gmail.com, …), drawn
+                       apart with no record: their DNS is not the admin's
   checked            — domain => {status, found} after "Check DNS", else null
 
 Two cards, the two directions of the same question. The first is this
@@ -154,7 +157,7 @@ No auto-refresh wraps this frame — it is configuration.
                 <p class="text-xs text-ink-faint leading-relaxed">{{ 'admin.libravatar.records_intro'|trans }}</p>
 
                 {% if domains is empty %}
-                    <p class="text-xs text-ink-faint">{{ 'admin.libravatar.no_domains'|trans }}</p>
+                    <p class="text-xs text-ink-faint">{{ (providerDomains is empty ? 'admin.libravatar.no_domains' : 'admin.libravatar.no_own_domains')|trans }}</p>
                 {% else %}
                     <ul class="divide-y divide-line rounded-pane border border-line">
                         {% for domain in domains %}
@@ -172,9 +175,7 @@ No auto-refresh wraps this frame — it is configuration.
                                 {# Without a public address the record still shows its
                                    shape, with a placeholder plainly not a real host; the
                                    warning above says where the real one comes from. #}
-                                {% if result is null or result.status.value != 'not_yours' %}
-                                    <code class="block text-xs text-ink-soft font-mono break-all select-all">_avatars-sec._tcp.{{ domain }}. 3600 IN SRV 0 0 443 {{ publicHost ?? 'your-plmail-host.example' }}.</code>
-                                {% endif %}
+                                <code class="block text-xs text-ink-soft font-mono break-all select-all">_avatars-sec._tcp.{{ domain }}. 3600 IN SRV 0 0 443 {{ publicHost ?? 'your-plmail-host.example' }}.</code>
                             </li>
                         {% endfor %}
                     </ul>
@@ -188,6 +189,15 @@ No auto-refresh wraps this frame — it is configuration.
                             {{ 'admin.libravatar.check_dns'|trans }}
                         </button>
                     </form>
+                {% endif %}
+
+                {# Named, so the administrator sees these were not forgotten, and
+                   told why there is nothing to add for them. #}
+                {% if providerDomains is not empty %}
+                    <p class="text-xs text-ink-faint leading-relaxed">
+                        <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+                        {{ 'admin.libravatar.provider_domains'|trans({ '%domains%': providerDomains|join(', ') }) }}
+                    </p>
                 {% endif %}
             </div>
         </div>

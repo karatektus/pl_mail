@@ -792,9 +792,9 @@ _avatars-sec._tcp.example.com. 3600 IN SRV 0 0 443 mail.example.com.
 **Check DNS** looks each one up and says what it found. **OK** means the record names this server on
 port 443. **No record yet** means it still needs adding. **Points to** names another server, which
 is either a typo or a domain that already has its own avatar server. **Wrong port** means the
-record names this server on a port other than 443. Domains at mail providers such as Gmail are
-marked as theirs: you cannot publish records there, and those users get their picture from Gravatar
-or Libravatar instead.
+record names this server on a port other than 443. Domains at mail providers such as Gmail or
+Fastmail are named below the list with no record: only the provider can publish records there, and
+those users get their picture from Gravatar or Libravatar instead.
 
 DNS is not all it needs, and the card says so: the public address must be https, with a certificate
 browsers accept (clients refuse a self-signed one without saying why), and `/avatar/` on that host

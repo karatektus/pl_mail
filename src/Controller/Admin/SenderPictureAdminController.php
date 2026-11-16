@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\Enum\User\LibravatarDnsStatus;
+use App\Domain\Helper\PersonalMailDomains;
 use App\Infrastructure\Messaging\Message\QueueSenderPicturesMessage;
 use App\Repository\Mail\Account\AccountLibravatarRepository;
 use App\Repository\System\SenderPictureSettings\SenderPictureSettingsRepository;
@@ -116,7 +117,7 @@ final class SenderPictureAdminController extends AbstractController
         $host     = $this->publicHost();
         $results  = [];
 
-        foreach ($this->accounts->addressDomains() as $domain) {
+        foreach ($this->ownDomains() as $domain) {
             $results[$domain] = $this->dns->check($domain, $host);
         }
 
@@ -137,9 +138,35 @@ final class SenderPictureAdminController extends AbstractController
             'publicUrl'         => $publicUrl,
             'publicHost'        => $this->publicHost(),
             'httpsPublicUrl'    => null !== $publicUrl && true === str_starts_with(strtolower($publicUrl), 'https://'),
-            'domains'           => $this->accounts->addressDomains(),
+            'domains'           => $this->ownDomains(),
+            'providerDomains'   => $this->providerDomains(),
             'checked'           => $checked,
         ]);
+    }
+
+    /**
+     * The domains an administrator could publish a record at: every domain a
+     * user has an address at, less the mail providers'. Those are drawn apart,
+     * with no record, because a record "exactly as shown" for gmail.com is one
+     * only Google can add, and offering it said otherwise.
+     *
+     * @return list<string>
+     */
+    private function ownDomains(): array
+    {
+        return array_values(array_filter(
+            $this->accounts->addressDomains(),
+            static fn (string $domain): bool => false === PersonalMailDomains::contains($domain),
+        ));
+    }
+
+    /** @return list<string> */
+    private function providerDomains(): array
+    {
+        return array_values(array_filter(
+            $this->accounts->addressDomains(),
+            static fn (string $domain): bool => true === PersonalMailDomains::contains($domain),
+        ));
     }
 
     /** The host Libravatar clients are told to fetch from: Admin → Address's. */
