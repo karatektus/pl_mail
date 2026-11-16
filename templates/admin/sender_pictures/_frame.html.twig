@@ -1,0 +1,77 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+{#
+admin/sender_pictures/_frame.html.twig — Admin → Sender pictures (#639).
+
+Accepts:
+  enabled — whether lookups on the internet are allowed
+  saved   — true immediately after a save
+
+One switch, in the same two-segment shape as the reading settings beside it.
+The intro says plainly what turning it on does to the server's traffic,
+because that is the whole of the decision: requests to Gravatar and to
+senders' own domains, on a schedule set by whoever mails the users. What
+stays on the server either way — contact photos and users' own pictures —
+is said too, so nobody turns this on to get those.
+
+No auto-refresh wraps this frame — it is configuration.
+#}
+{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-xs leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  transition-colors cursor-pointer' %}
+
+<turbo-frame id="admin-sender-pictures">
+
+    <div class="{{ chrome.shell() }}">
+
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-circle-user text-xs text-ink-faint" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.sender_pictures.heading'|trans }}</h2>
+        </div>
+
+        <div class="{{ chrome.body() }} space-y-4">
+
+            {% if saved %}
+                <div role="status" class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
+                    <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ (enabled ? 'admin.sender_pictures.saved_on' : 'admin.sender_pictures.saved_off')|trans }}</p>
+                </div>
+            {% endif %}
+
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.sender_pictures.intro'|trans }}</p>
+
+            <form method="post" action="{{ path('app_admin_sender_pictures_settings') }}"
+                  data-turbo-frame="admin-sender-pictures" data-controller="ui--auto-submit">
+                <input type="hidden" name="_token" value="{{ csrf_token('admin-sender-pictures') }}">
+
+                <div class="flex items-start justify-between gap-3">
+                    <span class="min-w-0">
+                        <span class="block text-sm font-medium text-ink">{{ 'admin.sender_pictures.lookups'|trans }}</span>
+                        <span class="block text-xs text-ink-faint mt-0.5">{{ 'admin.sender_pictures.lookups_hint'|trans }}</span>
+                    </span>
+
+                    <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+                         role="radiogroup" aria-label="{{ 'admin.sender_pictures.lookups'|trans }}">
+                        {% for on in [true, false] %}
+                            <label>
+                                <input type="radio" name="lookupsEnabled" class="peer sr-only"
+                                       value="{{ on ? '1' : '0' }}"
+                                       data-action="change->ui--auto-submit#submit"
+                                       {{ enabled == on ? 'checked' : '' }}>
+                                <span class="{{ segText }}">
+                                    {{ (on ? 'admin.sender_pictures.on' : 'admin.sender_pictures.off')|trans }}
+                                </span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <p class="px-4 text-xs text-ink-faint leading-relaxed">
+        <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+        {{ 'admin.sender_pictures.always_local'|trans }}
+    </p>
+
+</turbo-frame>

@@ -850,6 +850,7 @@ admin:
         performance: Performance
         push: Push
         reset: Reset
+        sender_pictures: 'Sender pictures'
         sso: 'SSO'
         system: System
         updates: Updates
@@ -1040,6 +1041,16 @@ admin:
         running_for: 'for %duration%'
         waiting_since: 'Waiting since'
     refresh_hint: 'Live panels refresh every 10s'
+    sender_pictures:
+        always_local: 'Photos on users'' contacts and users'' own profile pictures are shown either way: they are already on this server.'
+        heading: 'Sender pictures'
+        intro: 'With this on, plMail looks up pictures for the people who mail your users: company logos (BIMI) and website icons from the sender''s own domain, and Gravatar or Libravatar for users who ask for it. The lookups run in the background on the maintenance worker, and no user''s browser contacts these services. Each user chooses which of them they want.'
+        lookups: 'Look up sender pictures on the internet'
+        lookups_hint: 'Off until you turn it on. Turning it on looks up the people who wrote to each user in the last 90 days.'
+        'off': 'Off'
+        'on': 'On'
+        saved_off: 'Lookups are off. Pictures found earlier are no longer shown.'
+        saved_on: 'Lookups are on. Pictures for recent senders are being looked up now.'
     # Shown in a card's header while it is collapsed — short enough to read at
     # a glance, specific enough to be worth expanding for.
     sso:
@@ -4778,6 +4789,17 @@ settings:
         'off': 'Off'
         'on': 'On'
         subheading: Whether pictures that mail loads from elsewhere wait to be asked for.
+    sender_pictures:
+        admin_off: 'Your administrator has not allowed this server to look pictures up on the internet, so these switches do nothing for now. Your choice is kept for when they do.'
+        bimi: 'Company logos'
+        bimi_hint: 'The logo a company publishes for its mail (BIMI), fetched from the company''s own domain and shown only on mail that domain demonstrably sent.'
+        hashed: 'Gravatar and Libravatar'
+        hashed_hint: 'The picture a person chose on Gravatar, or on their domain''s own Libravatar server. Every address you hear from is sent to that service as a hash. Off until you turn it on.'
+        heading: 'Sender pictures'
+        intro: 'Photos on your contacts and the profile pictures of people on this server are always shown. These are the pictures plMail can look up for everyone else, in the background — opening a mail never fetches anything.'
+        subheading: 'Which pictures beside a sender may be looked up on the internet.'
+        website: 'Website icons'
+        website_hint: 'The icon a sender''s website declares for itself. Never for addresses at mail providers such as Gmail, whose icon would say nothing about the person.'
     swipe_actions:
         heading: Swipe actions
         hint: >-
@@ -4907,6 +4929,7 @@ settings:
             profile: "name avatar photo picture"
             read_receipts: "mdn receipt confirmation"
             reading_pane: "preview split right bottom"
+            sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender'
             sharing: "link public booking"
             shortcuts: "keyboard hotkeys keys"
             swipe_actions: "swipe gesture phone archive"

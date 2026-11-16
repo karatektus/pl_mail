@@ -170,6 +170,7 @@ final class SettingsNavigation
             'reading' => [
                 ['card-reading-pane', 'settings.reading_pane.heading', 'settings.search.keywords.reading_pane'],
                 ['card-images', 'settings.images.heading', 'settings.search.keywords.images'],
+                ['card-sender-pictures', 'settings.sender_pictures.heading', 'settings.search.keywords.sender_pictures'],
             ],
             'compose' => [
                 ['card-compose-behaviour', 'settings.compose_behavior.heading', 'settings.search.keywords.compose_behaviour'],

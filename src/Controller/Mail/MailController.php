@@ -33,6 +33,7 @@ use App\Service\Mail\MailPlacement;
 use App\Service\Mail\NewMailMarkers;
 use App\Service\Mail\SidebarCounts;
 use App\Service\Mail\ThreadListRenderer;
+use App\Service\Mail\SenderPicture\SenderPictures;
 use App\Service\Mail\ThreadRows;
 use App\Service\Mail\ThreadSenderFacts;
 use App\Service\Mail\UnifiedInboxes;
@@ -75,6 +76,7 @@ final class MailController extends AbstractController
         private readonly BinView $bin,
         private readonly UnifiedInboxes $unifiedInboxes,
         private readonly NewMailMarkers $newMail,
+        private readonly SenderPictures $senderPictures,
     )
     {
     }
@@ -1144,6 +1146,10 @@ final class MailController extends AbstractController
         if ($user instanceof User) {
             $this->senderFacts->prime($user, $messages);
         }
+
+        // And every sender's picture (#639), in one read per source rather
+        // than a few per message header.
+        $this->senderPictures->preload(array_map(static fn (Message $message): ?string => $message->fromAddress, $messages));
 
         // Same read as message() above, for the same card in the same place.
         $insights = $this->insightCards($thread);

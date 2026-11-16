@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:cc6d8d0a921e65e7e8d8541363373089c8ce8ea5 -->
+<!-- translated-from: features/mail.md sha1:15da905fd38e2b301ca274f3046c91b94ab7aba4 -->
 
 # Mail
 
@@ -1110,6 +1110,38 @@ Einstellung.
 Mail im **Spam** bleibt blockiert, egal was du wählst, auch von vertrauten Absendern: Eine als Spam
 abgelegte Mail ist dein Anbieter, der bezweifelt, dass sie von dem kommt, der sie zu sein vorgibt.
 **Bilder anzeigen** ist dort trotzdem da, um die Bilder einer Mail von Hand zu laden.
+
+## Absenderbilder
+
+Der Kreis neben jedem Absender zeigt ein Bild, wenn plMail eins hat, und sonst den Anfangsbuchstaben.
+In der Reihenfolge, in der plMail sucht:
+
+1. **Jemand auf diesem Server** zeigt das Profilbild, das er sich selbst ausgesucht hat.
+2. **Einer deiner Kontakte** zeigt das Foto auf seiner Karte, egal ob du es hier hinzugefügt hast
+   oder ob es aus deinem CardDAV-, Google- oder Outlook-Adressbuch kam.
+3. **Das Logo einer Firma** (BIMI), das ihre Domain für ihre Mails veröffentlicht. Nur an einer Mail,
+   von der dein Mailserver gesagt hat, dass sie wirklich von dieser Domain kommt, damit ein
+   gefälschter Absender es nie trägt, und nur für Domains, deren DMARC-Richtlinie Server anweist,
+   Fälschungen abzulehnen. plMail prüft das Markenzertifikat nicht, das Gmail und Apple Mail
+   verlangen, deshalb erscheinen hier manche Logos, die dort nicht erscheinen würden.
+4. **Gravatar oder Libravatar**, das Bild, das jemand bei einem dieser Dienste ausgesucht hat. Eine
+   Domain mit eigenem Libravatar-Server wird zuerst gefragt.
+5. **Das Symbol der Website** des Absenders, das größte Symbol, das seine Seite angibt. Nie für
+   Adressen bei Mailanbietern wie Gmail, deren Symbol nichts über die Person sagt.
+
+Die ersten beiden liegen schon auf dem Server und werden immer gezeigt. Die anderen drei werden im
+Internet nachgeschlagen, und nur, wenn die Administration das unter **Admin → Absenderbilder**
+erlaubt. Dann hat **Einstellungen → Lesen & Schreiben → Lesen → Absenderbilder** für jedes einen
+Schalter. Firmenlogos und Website-Symbole sind zu Beginn an, weil sie von der Domain des Absenders
+kommen, die ohnehin weiß, dass sie dir geschrieben hat. Gravatar ist zu Beginn aus: Es würde einen
+Hash jeder Adresse, von der du Mail bekommst, an eine Firma schicken, die weder du noch der Absender
+ist.
+
+Beim Lesen wird nichts geladen. Das Nachschlagen läuft im Hintergrund, einmal pro Absender für alle
+auf dem Server, und ein gefundenes Bild ersetzt den Anfangsbuchstaben auf dem Bildschirm, sobald es
+da ist. Was gefunden wurde, wird etwa einmal im Monat neu geprüft, und Absender, die ein halbes Jahr
+nicht geschrieben haben, werden vergessen. Dein Browser spricht nie mit diesen Diensten; die Bilder
+kommen von plMail.
 
 ## Zurückstellen
 

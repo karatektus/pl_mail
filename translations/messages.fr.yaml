@@ -858,6 +858,7 @@ admin:
         performance: Performances
         push: Push
         reset: Réinitialisation
+        sender_pictures: 'Images des expéditeurs'
         sso: 'SSO'
         system: Système
         updates: Mises à jour
@@ -1048,6 +1049,16 @@ admin:
         running_for: 'depuis %duration%'
         waiting_since: 'En attente depuis'
     refresh_hint: 'Les panneaux en direct s’actualisent toutes les 10 s'
+    sender_pictures:
+        always_local: 'Les photos des contacts des utilisateurs et leurs propres photos de profil sont affichées dans tous les cas : elles sont déjà sur ce serveur.'
+        heading: 'Images des expéditeurs'
+        intro: 'Une fois activé, plMail recherche des images pour les personnes qui écrivent à vos utilisateurs : logos d''entreprise (BIMI) et icônes de site depuis le domaine de l''expéditeur, et Gravatar ou Libravatar pour les utilisateurs qui le demandent. Les recherches s''exécutent en arrière-plan sur le worker de maintenance ; aucun navigateur d''utilisateur ne contacte ces services. Chaque utilisateur choisit lesquelles il souhaite.'
+        lookups: 'Rechercher les images des expéditeurs sur Internet'
+        lookups_hint: 'Désactivé jusqu''à ce que vous l''activiez. L''activer lance la recherche pour les personnes ayant écrit à chaque utilisateur ces 90 derniers jours.'
+        'off': 'Désactivé'
+        'on': 'Activé'
+        saved_off: 'Les recherches sont désactivées. Les images déjà trouvées ne sont plus affichées.'
+        saved_on: 'Les recherches sont activées. Les images des expéditeurs récents sont en cours de recherche.'
     # Shown in a card's header while it is collapsed — short enough to read at
     # a glance, specific enough to be worth expanding for.
     sso:
@@ -4838,6 +4849,17 @@ settings:
         'off': 'Désactivé'
         'on': 'Activé'
         subheading: Si les images qu’un message charge depuis ailleurs attendent qu’on les demande.
+    sender_pictures:
+        admin_off: 'Votre administrateur n''a pas autorisé ce serveur à rechercher des images sur Internet, ces réglages n''ont donc aucun effet pour l''instant. Votre choix est conservé pour plus tard.'
+        bimi: 'Logos d''entreprise'
+        bimi_hint: 'Le logo qu''une entreprise publie pour ses e-mails (BIMI), récupéré sur le domaine de l''entreprise et affiché uniquement sur les messages dont ce domaine est l''expéditeur avéré.'
+        hashed: 'Gravatar et Libravatar'
+        hashed_hint: 'L''image qu''une personne a choisie sur Gravatar ou sur le serveur Libravatar de son domaine. Chaque adresse qui vous écrit est envoyée à ce service sous forme d''empreinte. Désactivé jusqu''à ce que vous l''activiez.'
+        heading: 'Images des expéditeurs'
+        intro: 'Les photos de vos contacts et les photos de profil des personnes de ce serveur sont toujours affichées. Il s''agit ici des images que plMail peut rechercher pour tous les autres, en arrière-plan — ouvrir un e-mail ne télécharge jamais rien.'
+        subheading: 'Quelles images à côté d''un expéditeur peuvent être recherchées sur Internet.'
+        website: 'Icônes de site web'
+        website_hint: 'L''icône que le site web d''un expéditeur déclare. Jamais pour les adresses chez des fournisseurs comme Gmail, dont l''icône ne dirait rien de la personne.'
     swipe_actions:
         heading: Balayage des lignes
         hint: >-
@@ -4968,6 +4990,7 @@ settings:
             profile: "nom avatar photo image"
             read_receipts: "mdn accusé réception confirmation"
             reading_pane: "aperçu partagé droite bas"
+            sender_pictures: 'avatar image photo gravatar libravatar bimi logo icône expéditeur'
             sharing: "lien public réservation"
             shortcuts: "clavier touches raccourcis"
             swipe_actions: "balayer geste téléphone archiver"

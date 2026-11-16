@@ -14,6 +14,7 @@ use App\Domain\Enum\Crypto\KeyringRoot;
 use App\Domain\Enum\Mail\ComposeAction;
 use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SearchSortOrder;
+use App\Domain\Enum\Mail\SenderPictureKind;
 use App\Domain\Enum\Mail\SidebarRow;
 use App\Domain\Enum\Mail\SwipeAction;
 use App\Domain\Enum\Mail\SwipeDirection;
@@ -1593,6 +1594,50 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         set(bool $on) {
             $this->setSetting(self::SETTING_IMAGES_ALWAYS_SHOW, $on ? true : null);
         }
+    }
+
+    /**
+     * Which looked-up sender pictures this reader wants (#639), kind value =>
+     * on/off, out of the settings bag. Only what differs from the kind's own
+     * default is stored — see SenderPictureKind::onByDefault() for why
+     * Gravatar alone starts off — so a later release that changes a default
+     * reaches everyone who never chose.
+     *
+     * Per user, beside the remote images switch it resembles: Settings →
+     * Reading & writing → Reading. None of it applies until the administrator
+     * allows lookups at all (SenderPictureSettings).
+     */
+    public const string SETTING_SENDER_PICTURES = 'sender_pictures';
+
+    /**
+     * Stays a method: it takes the kind and asks the stored choices about it.
+     * Contact photos and other users' pictures are not lookups and are always
+     * on.
+     */
+    public function allowsSenderPicture(SenderPictureKind $kind): bool
+    {
+        if (false === $kind->isLookup()) {
+            return true;
+        }
+
+        $chosen = $this->getSetting(self::SETTING_SENDER_PICTURES, []);
+        $value  = is_array($chosen) ? ($chosen[$kind->value] ?? null) : null;
+
+        return is_bool($value) ? $value : $kind->onByDefault();
+    }
+
+    public function allowSenderPicture(SenderPictureKind $kind, bool $on): static
+    {
+        $chosen = $this->getSetting(self::SETTING_SENDER_PICTURES, []);
+        $chosen = is_array($chosen) ? $chosen : [];
+
+        if ($on === $kind->onByDefault()) {
+            unset($chosen[$kind->value]);
+        } else {
+            $chosen[$kind->value] = $on;
+        }
+
+        return $this->setSetting(self::SETTING_SENDER_PICTURES, [] === $chosen ? null : $chosen);
     }
 
     /**

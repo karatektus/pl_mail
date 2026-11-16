@@ -24,6 +24,44 @@ class AccountRepository extends ServiceEntityRepository
     }
 
     /**
+     * The profile picture of the plMail user behind each of these addresses
+     * (#639): lower-cased address => [user id, avatar file name]. An address
+     * is a user's when one of their accounts is that address.
+     *
+     * Across users on purpose. A colleague on the same server is a sender
+     * like any other, and the picture they chose for themselves is the one
+     * they would want shown on their mail — it is what the top bar shows them.
+     *
+     * @param list<string> $emails lower-cased
+     *
+     * @return array<string, array{userId: int, avatar: string}>
+     */
+    public function profilePicturesByEmail(array $emails): array
+    {
+        if ([] === $emails) {
+            return [];
+        }
+
+        /** @var list<array{email: string, userId: int|string, avatar: string}> $rows */
+        $rows = $this->getEntityManager()->createQuery(
+            'SELECT LOWER(a.email) AS email, u.id AS userId, u.avatar AS avatar FROM App\Entity\Mail\Account a
+             JOIN a.usr u
+             WHERE u.avatar IS NOT NULL AND LOWER(a.email) IN (:emails)
+             ORDER BY u.id ASC'
+        )
+            ->setParameter('emails', $emails)
+            ->getArrayResult();
+
+        $pictures = [];
+
+        foreach ($rows as $row) {
+            $pictures[$row['email']] ??= ['userId' => (int) $row['userId'], 'avatar' => (string) $row['avatar']];
+        }
+
+        return $pictures;
+    }
+
+    /**
      * Every account a JMAP push channel should be held open for.
      *
      * JMAP, push left on — the same switch the Gmail and Graph subscriptions

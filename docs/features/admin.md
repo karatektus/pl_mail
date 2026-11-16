@@ -748,6 +748,30 @@ A mailbox that is a long way behind — the feature was switched on last week, o
 search model — is not what the nightly pass is for. It has a ceiling per mailbox on purpose. Run
 `app:ai:embed-mailbox` above, and watch **Admin → AI** for how far it has got.
 
+## Sender pictures
+
+Whether plMail may look up pictures for the people who mail your users: company logos (BIMI) and
+website icons from the sender's own domain, and Gravatar or Libravatar for users who ask for it. Off
+until you turn it on, because turning it on makes your server send requests it did not make before,
+to hosts chosen by whoever writes to your users.
+
+The lookups run on the maintenance worker, never while a page is drawn, and no user's browser
+contacts these services. Each address or domain is looked up once for the whole server. Turning the
+switch on looks up the people who wrote to each user in the last 90 days, at most a thousand per
+user; after that, new senders are looked up as their mail arrives. A daily round
+(`app:sender-pictures:refresh`) asks again about answers older than a month, forgets senders not seen
+for six months and deletes the files nothing uses. The pictures are kept under
+`uploads/sender-pictures` in the storage volume.
+
+Every request goes through the same rules as the image proxy: https only, never an address on a
+private network, at most three redirects, and a size limit. A picture is redrawn before it is kept,
+and an SVG logo is cut down to its drawing.
+
+Turning the switch off stops new lookups and takes every looked-up picture off every page at once.
+Contact photos and users' own profile pictures are shown either way: they are already on this
+server. Each user still chooses which kinds they want, under **Settings → Reading & writing →
+Reading**. A config backup carries this switch.
+
 ## Users
 
 A searchable, paged list of everyone who can sign in, with when they last signed in and whether they

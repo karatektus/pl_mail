@@ -96,7 +96,13 @@ final class ThreadListQueryBudgetTest extends WebTestCase
     // dots add nothing while one inbox holds every account — they are the
     // Inbox role's numbers then, already read — and one grouped read each when
     // there are several.
-    private const int BUDGET = 31;
+    //
+    // 34 since a row can show the sender's picture (#639): other users'
+    // profile pictures by address, the reader's contacts' photos by address,
+    // and the administrator's lookup switch — three reads per PAGE, made once
+    // for every sender on it (SenderPictures::preload() from ThreadRows). A
+    // fourth, the looked-up pictures, is made only while lookups are on.
+    private const int BUDGET = 34;
 
     /**
      * The ceiling for the INBOX alone: one above BUDGET, and the one read that
@@ -113,9 +119,10 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * the ceiling they had: a shared ceiling raised for one view would let each
      * of the others regress by a query and still pass.
      *
-     * Raised with BUDGET, by the same two reads, for #265.
+     * Raised with BUDGET, by the same two reads, for #265, and by the same
+     * three for #639.
      */
-    private const int INBOX_BUDGET = 32;
+    private const int INBOX_BUDGET = 35;
 
     /**
      * The ceiling for the same list NAVIGATED rather than visited.
@@ -148,8 +155,15 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * to accumulate. Something that pushes a role list over this is chrome
      * creeping back in, and finding out what is the exercise.
      *
+     * Seventeen since rows show the sender's picture (#639). That is list
+     * work, not chrome — the rows are what wear the pictures — and it is two
+     * reads per frame, other users' pictures and the reader's contacts' photos
+     * for every sender on the page, made once (SenderPictures::preload()). The
+     * administrator's lookup switch is the third read on a full page; inside a
+     * frame it is answered by the same read the page already made or, on the
+     * inbox, adds one.
      */
-    private const int FRAME_BUDGET = 15;
+    private const int FRAME_BUDGET = 17;
 
     /**
      * The same ceiling for the INBOX frame alone: sixteen, since the reader's own
@@ -160,6 +174,9 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * Separate from FRAME_BUDGET for the reason INBOX_BUDGET is separate from
      * BUDGET.
      *
+     * Three more since the sender pictures (#639), for the reads FRAME_BUDGET
+     * names, the lookup switch included.
+     *
      * Eighteen since the inbox is one of the reader's unified inboxes (#265):
      * the frame has to know which one it is and which accounts it holds, the
      * same two reads the sidebar makes on a full page, and here they are list
@@ -169,7 +186,7 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * come out of one grouped read (countTabsForUnifiedInbox()): those were
      * three reads of the whole inbox, the largest fixed cost of a tab click.
      */
-    private const int INBOX_FRAME_BUDGET = 16;
+    private const int INBOX_FRAME_BUDGET = 19;
 
     private KernelBrowser $client;
     private Connection $connection;

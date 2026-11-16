@@ -862,6 +862,7 @@ admin:
         performance: Leistung
         push: Push
         reset: Zurücksetzen
+        sender_pictures: 'Absenderbilder'
         sso: 'SSO'
         system: System
         updates: Aktualisierungen
@@ -1053,6 +1054,16 @@ admin:
         running_for: 'seit %duration%'
         waiting_since: 'Wartet seit'
     refresh_hint: 'Live-Bereiche aktualisieren sich alle 10 s'
+    sender_pictures:
+        always_local: 'Fotos an den Kontakten der Benutzer und ihre eigenen Profilbilder werden in jedem Fall gezeigt: Sie liegen schon auf diesem Server.'
+        heading: 'Absenderbilder'
+        intro: 'Ist das an, schlägt plMail Bilder für die Leute nach, die deinen Benutzern schreiben: Firmenlogos (BIMI) und Website-Symbole von der Domain des Absenders, und Gravatar oder Libravatar für Benutzer, die das möchten. Das läuft im Hintergrund auf dem Maintenance-Worker; kein Browser eines Benutzers spricht mit diesen Diensten. Jeder Benutzer wählt selbst, welche davon er möchte.'
+        lookups: 'Absenderbilder im Internet nachschlagen'
+        lookups_hint: 'Aus, bis du es einschaltest. Beim Einschalten werden die Leute nachgeschlagen, die jedem Benutzer in den letzten 90 Tagen geschrieben haben.'
+        'off': 'Aus'
+        'on': 'An'
+        saved_off: 'Nachschlagen ist aus. Bereits gefundene Bilder werden nicht mehr gezeigt.'
+        saved_on: 'Nachschlagen ist an. Bilder für die letzten Absender werden jetzt nachgeschlagen.'
     sso:
         clear_secret: 'Gespeichertes Client-Secret vergessen'
         clear_secret_help: 'Leere dazu auch den Issuer und die Client-ID. Die Anmeldung fällt dann auf die OIDC_*-Variablen der Umgebung zurück oder schaltet sich aus, wenn es keine gibt.'
@@ -4802,6 +4813,17 @@ settings:
         'off': Aus
         'on': An
         subheading: Ob Bilder, die eine Mail von anderswo lädt, erst auf Nachfrage geladen werden.
+    sender_pictures:
+        admin_off: 'Deine Administration hat diesem Server nicht erlaubt, Bilder im Internet nachzuschlagen, deshalb bewirken diese Schalter gerade nichts. Deine Wahl bleibt für später gespeichert.'
+        bimi: 'Firmenlogos'
+        bimi_hint: 'Das Logo, das eine Firma für ihre Mails veröffentlicht (BIMI). Es kommt von der Domain der Firma selbst und erscheint nur an Mails, die nachweislich von dieser Domain stammen.'
+        hashed: 'Gravatar und Libravatar'
+        hashed_hint: 'Das Bild, das jemand bei Gravatar oder auf dem Libravatar-Server der eigenen Domain hinterlegt hat. Jede Adresse, von der du Mail bekommst, geht dafür als Hash an diesen Dienst. Aus, bis du es einschaltest.'
+        heading: 'Absenderbilder'
+        intro: 'Fotos deiner Kontakte und die Profilbilder der Leute auf diesem Server werden immer gezeigt. Hier geht es um die Bilder, die plMail für alle anderen im Hintergrund nachschlagen kann — beim Öffnen einer Mail wird nie etwas geladen.'
+        subheading: 'Welche Bilder neben einem Absender im Internet nachgeschlagen werden dürfen.'
+        website: 'Website-Symbole'
+        website_hint: 'Das Symbol, das die Website eines Absenders für sich angibt. Nie für Adressen bei Mailanbietern wie Gmail, deren Symbol nichts über die Person sagt.'
     swipe_actions:
         heading: Wischgesten
         hint: >-
@@ -4933,6 +4955,7 @@ settings:
             profile: "name avatar foto bild"
             read_receipts: "mdn empfangsbestätigung bestätigung"
             reading_pane: "vorschau geteilt rechts unten"
+            sender_pictures: 'avatar bild foto gravatar libravatar bimi logo symbol absender'
             sharing: "link öffentlich buchung"
             shortcuts: "tastatur tasten kürzel hotkeys"
             swipe_actions: "wischen geste handy archivieren"

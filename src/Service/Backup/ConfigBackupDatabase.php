@@ -23,6 +23,7 @@ use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConf
 use App\Repository\Integration\MailProviderConfig\MailProviderConfigRepository;
 use App\Repository\Integration\TrustedHost\TrustedHostRepository;
 use App\Repository\Monitoring\LogSettings\LogSettingsRepository;
+use App\Repository\System\SenderPictureSettings\SenderPictureSettingsRepository;
 use App\Repository\System\WorkerSettings\WorkerSettingsRepository;
 use App\Repository\Oidc\OidcConfig\OidcConfigRepository;
 use App\Repository\Push\FcmConfig\FcmConfigRepository;
@@ -109,6 +110,13 @@ final readonly class ConfigBackupDatabase
     public const string WORKER_SETTINGS = 'workerSettings';
 
     /**
+     * Whether sender pictures may be looked up on the internet — Admin →
+     * Sender pictures (#639). The switch only: the pictures themselves are
+     * a cache of public data, found again by the first refresh.
+     */
+    public const string SENDER_PICTURE_SETTINGS = 'senderPictureSettings';
+
+    /**
      * Every key the section carries.
      *
      * Exists so {@see \App\Tests\Service\Backup\ConfigBackupCompletenessTest}
@@ -127,6 +135,7 @@ final readonly class ConfigBackupDatabase
         self::OIDC_CONFIG,
         self::TRUSTED_HOSTS,
         self::WORKER_SETTINGS,
+        self::SENDER_PICTURE_SETTINGS,
     ];
 
     public function __construct(
@@ -139,6 +148,7 @@ final readonly class ConfigBackupDatabase
         private OidcConfigRepository                $oidcConfigs,
         private TrustedHostRepository               $trustedHosts,
         private WorkerSettingsRepository            $workerSettings,
+        private SenderPictureSettingsRepository     $senderPictureSettings,
         private EntityManagerInterface              $entityManager,
     ) {
     }
@@ -158,6 +168,7 @@ final readonly class ConfigBackupDatabase
             self::OIDC_CONFIG           => $this->exportOidcConfig(),
             self::TRUSTED_HOSTS         => $this->exportTrustedHosts(),
             self::WORKER_SETTINGS       => $this->exportWorkerSettings(),
+            self::SENDER_PICTURE_SETTINGS => $this->exportSenderPictureSettings(),
         ];
     }
 
@@ -484,6 +495,30 @@ final readonly class ConfigBackupDatabase
         // not the form, and a number this build does not allow is the nearest
         // one it does.
         $settings->mailConcurrency = true === is_int($chosen) ? WorkerSettingsRepository::clamp($chosen) : null;
+
+        if (null === $settings->id) {
+            $this->entityManager->persist($settings);
+        }
+    }
+
+    /** @return array<string, mixed>|null */
+    private function exportSenderPictureSettings(): ?array
+    {
+        $settings = $this->senderPictureSettings->current();
+
+        return null === $settings ? null : ['lookupsEnabled' => $settings->lookupsEnabled];
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function restoreSenderPictureSettings(array $values): void
+    {
+        $settings = $this->senderPictureSettings->currentOrNew();
+
+        // Only a stored true is on: a restore must never be what starts this
+        // server making requests to strangers, unless the backup says it did.
+        $settings->lookupsEnabled = true === ($values['lookupsEnabled'] ?? false);
 
         if (null === $settings->id) {
             $this->entityManager->persist($settings);

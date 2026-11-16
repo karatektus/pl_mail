@@ -378,6 +378,11 @@ framework:
             # than a retry on the worker.
             App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage: export
             App\Infrastructure\Messaging\Message\HarvestContactsMessage: maintenance
+            # Sender picture lookups (#639) are requests to strangers' servers
+            # that nobody is waiting on; behind live mail, beside the other
+            # housekeeping, and on a worker every install already runs.
+            App\Infrastructure\Messaging\Message\ResolveSenderPictureMessage: maintenance
+            App\Infrastructure\Messaging\Message\QueueSenderPicturesMessage: maintenance
             # A signed message's check: a raw fetch from Gmail or Microsoft at
             # worst, then OpenSSL or GnuPG. Per message and soon after it
             # arrives, which is what `enrich` is for.

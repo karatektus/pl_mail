@@ -788,6 +788,7 @@ admin:
         performance: Speed
         push: "Signal flags"
         reset: "Scuttle"
+        sender_pictures: 'Sender likenesses'
         sso: 'Fleet''s seal'
         system: Ship
         updates: "New sails"
@@ -975,6 +976,16 @@ admin:
         running_for: 'for %duration%'
         waiting_since: 'Waitin'' since'
     refresh_hint: 'Live panels be redrawn every 10s'
+    sender_pictures:
+        always_local: 'Likenesses on the crew''s cards an'' their own portraits be shown either way: they be aboard this ship already.'
+        heading: 'Sender likenesses'
+        intro: 'With this on, plMail goes lookin'' fer likenesses o'' them that write yer crew: company flags (BIMI) an'' port icons from the sender''s own port, an'' Gravatar or Libravatar fer crew who ask. The lookin'' happens below decks on the maintenance worker, an'' no crew member''s browser hails these services. Each sailor picks which they want.'
+        lookups: 'Look fer sender likenesses across the seas'
+        lookups_hint: 'Off till ye turn it on. Turnin'' it on looks fer them that wrote each sailor in the last 90 days.'
+        'off': 'Off'
+        'on': 'On'
+        saved_off: 'Lookin'' be off. Likenesses found afore be no longer shown.'
+        saved_on: 'Lookin'' be on. Likenesses fer recent senders be sought now.'
     sso:
         clear_secret: 'Forget th'' stowed client secret'
         clear_secret_help: 'Empty th'' issuer an'' th'' client ID with it. Boardin'' then falls back t'' th'' OIDC_* variables in th'' environment, or shuts if there be none.'
@@ -4587,6 +4598,17 @@ settings:
         'off': Off
         'on': On
         subheading: "Whether pictures a bottle hauls in from elsewhere wait to be asked for."
+    sender_pictures:
+        admin_off: 'Yer captain hasn''t let this ship go lookin'' fer pictures across the seven seas, so these switches do naught fer now. Yer choice be kept fer when they do.'
+        bimi: 'Company flags'
+        bimi_hint: 'The flag a company flies fer its letters (BIMI), fetched from the company''s own port an'' shown only on letters that port truly sent.'
+        hashed: 'Gravatar an'' Libravatar'
+        hashed_hint: 'The likeness a sailor chose on Gravatar, or on their port''s own Libravatar server. Every address that writes ye be sent there as a hash. Off till ye turn it on.'
+        heading: 'Sender likenesses'
+        intro: 'Likenesses on yer mates'' cards an'' the portraits o'' sailors on this ship be always shown. These be the pictures plMail can go lookin'' fer, below decks, fer everyone else — openin'' a letter never fetches a thing.'
+        subheading: 'Which likenesses beside a sender may be looked fer across the seas.'
+        website: 'Port icons'
+        website_hint: 'The icon a sender''s port hoists fer itself. Never fer addresses at great harbours like Gmail, whose icon says naught o'' the sailor.'
     swipe_actions:
         heading: "Swipe deeds"
         hint: >-
@@ -4717,6 +4739,7 @@ settings:
             profile: "name avatar photo picture"
             read_receipts: "mdn receipt confirmation"
             reading_pane: "preview split right bottom"
+            sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender likeness flag'
             sharing: "link public booking"
             shortcuts: "keyboard hotkeys keys"
             swipe_actions: "swipe gesture phone archive"

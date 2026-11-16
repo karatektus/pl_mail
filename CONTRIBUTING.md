@@ -977,6 +977,8 @@ php bin/mirror-wiki.php --check
 | `app:mail:send-draft [message-id]` | Send a draft message (picker if no ID given) |
 | `app:mail:test-connection` | Probe an account's IMAP/SMTP settings |
 | `app:contacts:harvest [account-id]` | Harvest contact addresses from synced messages |
+| `app:sender-pictures:backfill [user-id]` | Queue sender picture lookups for the people who wrote to one user, or every user, in the last 90 days. Only queues; what may be asked is decided on the maintenance worker, as for arriving mail |
+| `app:sender-pictures:refresh [--limit=N]` | Re-check stale sender pictures, forget senders not seen for six months and delete the files nothing uses. Runs daily |
 | `app:calendar:sync [calendar-id] [--stale]` | Dispatch a two-way sync for connected calendars; `--stale` is the sweep the scheduler runs |
 | `app:contacts:sync [address-book-id] [--stale]` | Dispatch a two-way sync for mirrored CardDAV address books; `--stale` is the sweep the scheduler runs |
 | `app:calendar:push [calendar-id] [--force] [--stop]` | Register and renew Google/Microsoft calendar push channels, so changes arrive instead of being polled for |

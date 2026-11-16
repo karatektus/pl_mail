@@ -15,6 +15,7 @@ use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\MessagePart\MessagePartRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Service\Mail\SenderPicture\SenderPictures;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\AbstractLazyCollection;
 use Doctrine\Common\Collections\Collection;
@@ -76,6 +77,7 @@ final class ThreadRows implements ResetInterface
         private readonly BinView $bin,
         private readonly MessagePartRepository $parts,
         private readonly Security $security,
+        private readonly SenderPictures $senderPictures,
     ) {
     }
 
@@ -112,6 +114,24 @@ final class ThreadRows implements ResetInterface
         }
 
         $this->load($ids);
+
+        // The senders' pictures (#639), one query per source for the page
+        // rather than one per row. Every sender on the row, not only the one
+        // the template picks: which one it picks depends on the list (Sent
+        // shows none), and over-loading a few addresses costs nothing.
+        $addresses = [];
+
+        foreach ($threads as $thread) {
+            if (null === $thread->id || false === isset($this->rows[$thread->id])) {
+                continue;
+            }
+
+            foreach ($this->rows[$thread->id]->messages as $message) {
+                $addresses[] = $message->fromAddress;
+            }
+        }
+
+        $this->senderPictures->preload($addresses);
     }
 
     public function for(MessageThread $thread): ThreadRow
@@ -291,6 +311,7 @@ final class ThreadRows implements ResetInterface
                 true === $row['hasAttachments'],
                 in_array(MessageFlag::ANSWERED->value, $flags, true),
                 self::dateOrNull($row['updatedAt']),
+                true === $row['senderVerified'],
             );
         }
 
