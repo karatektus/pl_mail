@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:affd66d403fb80cd2cb3a406878c06ca58916eda -->
+<!-- translated-from: features/accounts.md sha1:cbb6c121bebe79f4ce79d1e89925c0ee498fe797 -->
 
 # Konten und Aliase
 
@@ -176,17 +176,26 @@ nichts um, und sie ist **keine** Statusanzeige. Ob ein Konto tatsächlich funkti
 
 Ändern kannst du sie mit dem Farbfeld in der Zeile des Kontos, das die Palette mit den acht Farben
 öffnet. Dieses Bedienelement gibt es bei **jedem** Konto, auch bei Gmail- und Outlook-Konten — deshalb
-ist es kein Feld in **Konto bearbeiten**: Dieses Formular ist für sie gesperrt. Der Punkt in der
-Seitenleiste ändert sich sofort, und jede Liste, die du danach öffnest, zeigt die neue Farbe an den
-Nachrichten des Kontos; eine Liste, die schon in einem anderen Tab offen ist, wird beim Neuladen
-umgefärbt. Eine Farbe zu wählen, die ein anderes Konto schon trägt, ist erlaubt — so lassen sich
-zwei Konten zu einem Paar machen.
+ist es kein Feld in **Konto bearbeiten**: Dieses Formular ist für sie gesperrt. Eine gewählte Farbe
+siehst du sofort als Vorschau am Knopf und am Punkt in der Seitenleiste; **Speichern** behält sie,
+**Abbrechen**, Escape oder ein Klick daneben stellt die alte wieder her. Jede Liste, die du danach
+öffnest, zeigt die neue Farbe an den Nachrichten des Kontos; eine Liste, die schon in einem anderen
+Tab offen ist, wird beim Neuladen umgefärbt. Eine Farbe zu wählen, die ein anderes Konto schon
+trägt, ist erlaubt — so lassen sich zwei Konten zu einem Paar machen.
+
+Wenn du die acht schlecht auseinanderhalten kannst, ist das neunte Feld eine **eigene Farbe**: Wähle
+sie mit dem Farbwähler oder tippe ihren Hex-Code (`#0072b2`, mit oder ohne `#`). Eine eigene Farbe
+ist in jedem Theme derselbe Wert, während jede der acht einen hellen und einen dunklen Ton hat.
+Deshalb zeigt das Menü ihren Kontrast zum Hintergrund deines aktuellen Themes und zu einem schlichten
+hellen und dunklen (die Zeile „Aktuell“ entfällt, wenn dein Theme einer der beiden ist). Unter 3:1
+sagt eine Zeile, dass die Farbe dort blass ist; speichern kannst du sie trotzdem. Wählst du wieder
+eine der acht, gilt wieder die Palette.
 
 Jede Zeile bietet:
 
 | Bedienelement | Wirkung |
 |---|---|
-| **Farbfeld** | Öffnet die Palette; die gewählte Farbe gehört dem Konto von da an — bei jedem Konto |
+| **Farbfeld** | Öffnet die Palette und eine eigene Farbe; die gespeicherte Farbe gehört dem Konto von da an — bei jedem Konto |
 | **Als primär festlegen** | Verfasst neue Nachrichten künftig aus diesem Konto — in jeder Zeile außer der primären |
 | **E-Mail, Kalender und Kontakte** (Schalter-Symbol) | Schaltet Empfangen, Senden, Kalender und Kontakte für dieses Konto ein oder aus und entfernt synchronisierte E-Mails, solange Empfangen aus ist; siehe [E-Mail, Kalender und Kontakte](#e-mail-kalender-und-kontakte) |
 | **Konto bearbeiten** | Servereinstellungen und Passwort — nur bei Konten mit Passwort |

@@ -428,8 +428,10 @@ be a worse regression than the one this feature fixes.
            corner optional: app.css sets its `display` from --list-corner-display,
            which AppearanceRenderer writes on <html> from the user's setting.
            No branch here, because the condition is not a fact about the row. #}
+        {% set accountDot = account_dot(rowAccount) %}
         <span data-account-corner
-              class="pointer-events-none absolute bottom-0 left-0 h-2.5 w-2.5 {{ rowAccount.colorIndex|account_color }} [clip-path:polygon(0_0,0_100%,100%_100%)]"
+              class="pointer-events-none absolute bottom-0 left-0 h-2.5 w-2.5 {{ accountDot.class }} [clip-path:polygon(0_0,0_100%,100%_100%)]"
+              style="{{ accountDot.style }}"
               title="{{ 'thread_row.account'|trans({ '%account%': accountName }) }}"
               aria-hidden="true"></span>
     {% endif %}

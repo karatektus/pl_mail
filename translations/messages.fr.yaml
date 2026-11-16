@@ -3538,6 +3538,17 @@ settings:
             title: 'Suivre les catégories Outlook'
         colour:
             change: 'Changer la couleur de %account%'
+            contrast_current: 'Actuel'
+            contrast_dark: 'Sombre'
+            contrast_light: 'Clair'
+            contrast_low: 'Peu visible sur ce thème'
+            contrast_ok: 'Bien visible'
+            custom: 'Couleur personnalisée'
+            custom_format: 'Six chiffres hexadécimaux, comme #0072b2.'
+            custom_heading: 'Personnalisée'
+            custom_hex: 'Code couleur hexadécimal'
+            custom_pick: 'Choisir une couleur'
+            presets: 'Prédéfinies'
             swatch:
                 '0': Orange
                 '1': Vert

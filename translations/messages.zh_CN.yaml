@@ -3123,6 +3123,17 @@ settings:
             title: '跟随 Outlook 类别'
         colour:
             change: '更改 %account% 的颜色'
+            contrast_current: '当前'
+            contrast_dark: '深色'
+            contrast_light: '浅色'
+            contrast_low: '在此主题下较暗淡'
+            contrast_ok: '清晰可见'
+            custom: '自定义颜色'
+            custom_format: '六位十六进制数字，例如 #0072b2。'
+            custom_heading: '自定义'
+            custom_hex: '十六进制颜色代码'
+            custom_pick: '选择颜色'
+            presets: '预设'
             swatch:
                 '0': '橙色'
                 '1': '绿色'

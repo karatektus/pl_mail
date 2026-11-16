@@ -389,6 +389,13 @@ final readonly class ConfigBackupUserRestorer
             // restores the colours that backup's accounts were actually wearing.
             $account->colorIndex        = $this->number($row, 'colorIndex')
                 ?? $account->sortOrder;
+            // Held to the same shape AccountController::colour() accepts, since
+            // templates print it as a CSS colour: a hand-edited file must not
+            // be a way to put anything else there.
+            $customColor                = $this->text($row, 'customColor');
+            $account->customColor       = null !== $customColor && 1 === preg_match(Account::CUSTOM_COLOR_PATTERN, $customColor)
+                ? strtolower($customColor)
+                : null;
             $account->imapHost          = $this->text($row, 'imapHost');
             $account->imapPort          = $this->number($row, 'imapPort');
             $account->imapEncryption    = $this->text($row, 'imapEncryption');

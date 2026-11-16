@@ -260,6 +260,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('account.smtpPassword', 'the-smtp-password-4c1e', $account->smtpPassword);
         $this->check('account.imapHost', 'imap.audit.test', $account->imapHost);
         $this->check('account.colorIndex', 3, $account->colorIndex);
+        $this->check('account.customColor', '#0072b2', $account->customColor);
         $this->check('account.oauthGrantedScopes', 'https://mail.google.com/ openid', $account->oauthGrantedScopes);
         // NOT carried: a settled 0 from the source would tell the target's
         // Gmail sync that its still-empty mailbox is complete.
@@ -511,6 +512,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $account->mailEnabled        = true;
         $account->isPrimary          = true;
         $account->colorIndex         = 3;
+        $account->customColor        = '#0072b2';
         $account->oauthGrantedScopes = 'https://mail.google.com/ openid';
         $account->setSetting(Account::SETTING_BACKFILL_TARGET, 0);
         $account->setSetting(Account::SETTING_SIGNATURE, '<p>Viele Grüße, Anna</p>');

@@ -337,6 +337,8 @@ final class AccountController extends AbstractController
      * while the picker marked nothing. Choosing a colour another account already
      * wears is allowed — it is the user's list, and "these two are a pair" is a
      * thing a person might want.
+     *
+     * Or a colour of the user's own, as `#rrggbb` (#638): see Account::$customColor.
      */
     #[Route('/{id}/colour', name: 'colour', methods: ['POST'])]
     public function colour(Request $request, Account $account): Response
@@ -345,13 +347,29 @@ final class AccountController extends AbstractController
 
         $this->assertCsrf($request, 'account-colour' . $account->id);
 
-        $index = filter_var($request->request->get('colour'), FILTER_VALIDATE_INT);
+        $value = $request->request->get('colour');
 
-        if (false === $index || 0 > $index || SenderAvatarExtension::ACCOUNT_COLOURS <= $index) {
-            throw new BadRequestHttpException('The colour is not one of the account palette.');
+        // A colour of the user's own (#638): one field, two shapes, because the
+        // palette and the custom swatch are one radio group in the menu and
+        // mean the same thing — "wear this". A hex value sets the custom
+        // colour; a palette index clears it again. Nothing in between: a short
+        // form, a name or a stray character is refused, since the value is
+        // printed into a style attribute on every list row.
+        if (is_string($value) && 1 === preg_match(Account::CUSTOM_COLOR_PATTERN, $value)) {
+            $account->customColor = strtolower($value);
+            $this->entityManager->flush();
+
+            return $this->streamAccountList($request, 'account.colour_set');
         }
 
-        $account->colorIndex = $index;
+        $index = filter_var($value, FILTER_VALIDATE_INT);
+
+        if (false === $index || 0 > $index || SenderAvatarExtension::ACCOUNT_COLOURS <= $index) {
+            throw new BadRequestHttpException('The colour is not one of the account palette, nor a #rrggbb colour.');
+        }
+
+        $account->colorIndex  = $index;
+        $account->customColor = null;
         $this->entityManager->flush();
 
         return $this->streamAccountList($request, 'account.colour_set');

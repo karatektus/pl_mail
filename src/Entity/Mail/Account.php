@@ -79,6 +79,36 @@ class Account extends AccountModel
     #[ORM\Column(options: ['default' => 0])]
     public int $colorIndex = 0;
 
+    /**
+     * A colour of the user's own, as `#rrggbb`, worn instead of the palette
+     * entry while it is set (#638).
+     *
+     * The eight palette entries are chosen to be told apart by most people,
+     * and "most" is the problem: a colour-blind user could not find three of
+     * them that they could tell apart, and had no way to pick one that they
+     * could. So the palette stays the default, and this is the way out of it.
+     *
+     * Beside $colorIndex rather than replacing it. The palette entries are a
+     * light AND a dark shade each, picked per theme; a custom colour is one
+     * value on every theme, which is what the user asked for and what they
+     * check against the contrast readout in the picker. Keeping the index
+     * also means choosing a palette entry again is a plain "clear this", and
+     * nothing that hands out or restores $colorIndex has to know about it.
+     *
+     * Always lower case and always the full six digits: AccountController::
+     * colour() refuses anything else, so a template may print it as a CSS
+     * colour without escaping it into anything but an attribute.
+     */
+    #[ORM\Column(length: 7, nullable: true)]
+    public ?string $customColor = null;
+
+    /**
+     * What $customColor may hold: `#` and six hex digits. Not the three-digit
+     * short form, and not a colour name — one spelling, so two accounts in the
+     * same colour store the same string and the picker can mark which one is on.
+     */
+    public const string CUSTOM_COLOR_PATTERN = '/^#[0-9a-fA-F]{6}$/';
+
     #[ORM\ManyToOne(inversedBy: 'accounts')]
     #[ORM\JoinColumn(nullable: false)]
     public ?User $usr = null;

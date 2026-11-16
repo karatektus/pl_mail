@@ -789,6 +789,9 @@ final readonly class ConfigBackupUsers
                 // keeps the mark the user recognises it by; leave it out and
                 // they all come back sharing colour 0.
                 'colorIndex'        => $account->colorIndex,
+                // The user's own colour, when they picked one (#638). Absent
+                // from older files, which restore with the palette entry above.
+                'customColor'       => $account->customColor,
                 'imapHost'          => $account->imapHost,
                 'imapPort'          => $account->imapPort,
                 'imapEncryption'    => $account->imapEncryption,

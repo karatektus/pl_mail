@@ -40,7 +40,10 @@ use Symfony\Component\Yaml\Yaml;
  * - a POST without a valid CSRF token is refused;
  * - a value outside the palette is refused, not wrapped round by the modulo the
  *   renderer applies — the renderer's tolerance is for old rows, not for input;
- * - the row offers the whole palette and says which one is current.
+ * - the row offers the whole palette and says which one is current;
+ * - a `#rrggbb` value sets a colour of the user's own, which the sidebar dot
+ *   wears instead of the palette entry, and a palette entry clears it (#638);
+ * - anything that is neither is refused, since it is printed into a style.
  *
  * Skips itself without the seeded users, as the other controller tests do.
  */
@@ -139,6 +142,92 @@ final class AccountColourTest extends WebTestCase
     }
 
     /**
+     * #638: a colour of the user's own. Stored in the one spelling the picker
+     * compares against, and painted as an inline style — the palette class
+     * goes, or the dot would carry both and the class's dark-mode shade would
+     * win on a dark theme.
+     */
+    public function testAHexColourBecomesTheAccountsOwnAndTheDotWearsIt(): void
+    {
+        $account = $this->account($this->user, $this->address(), colorIndex: 2);
+
+        $this->post($account, '#0072B2', $this->csrfToken($account));
+
+        self::assertResponseIsSuccessful();
+
+        $this->em->clear();
+        $stored = $this->em->find(Account::class, $account->id);
+        self::assertNotNull($stored);
+        self::assertSame('#0072b2', $stored->customColor, 'stored lower case');
+        self::assertSame(2, $stored->colorIndex, 'the palette entry is kept for when the custom colour is cleared');
+
+        $crawler = $this->client->request('GET', '/settings/accounts');
+        $dots    = $crawler->filter(sprintf('span[role="img"][aria-label*="%s"]', $account->email));
+
+        self::assertGreaterThanOrEqual(1, count($dots));
+
+        foreach ($dots->each(static fn ($dot): array => [$dot->attr('style'), (string) $dot->attr('class')]) as [$style, $class]) {
+            self::assertSame('background-color: #0072b2', $style);
+            self::assertStringNotContainsString($this->tone(2), $class, 'no palette class beside it');
+        }
+
+        // The menu marks the custom swatch, whose value is the colour, and no
+        // palette entry.
+        $checked = $crawler
+            ->filter(sprintf('form[action$="/account/%d/colour"] input[type="radio"][name="colour"]', $account->id))
+            ->reduce(static fn ($node): bool => null !== $node->attr('checked'));
+        self::assertCount(1, $checked);
+        self::assertSame('#0072b2', $checked->attr('value'));
+    }
+
+    public function testChoosingAPaletteEntryClearsTheCustomColour(): void
+    {
+        $account = $this->account($this->user, $this->address(), colorIndex: 2);
+        $account->customColor = '#123456';
+        $this->em->flush();
+
+        $this->post($account, '5', $this->csrfToken($account));
+
+        self::assertResponseIsSuccessful();
+
+        $this->em->clear();
+        $stored = $this->em->find(Account::class, $account->id);
+        self::assertNotNull($stored);
+        self::assertNull($stored->customColor);
+        self::assertSame(5, $stored->colorIndex);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function malformedColours(): iterable
+    {
+        yield 'short form'        => ['#abc'];
+        yield 'five digits'       => ['#12345'];
+        yield 'not hex'           => ['#gggggg'];
+        yield 'no hash'           => ['0072b2'];
+        yield 'with alpha'        => ['#0072b2ff'];
+        yield 'a style injection' => ['#000000;background:url(x)'];
+        yield 'a colour name'     => ['red'];
+    }
+
+    #[DataProvider('malformedColours')]
+    public function testAMalformedColourIsRefusedAndNothingIsWritten(string $value): void
+    {
+        $account = $this->account($this->user, $this->address(), colorIndex: 2);
+
+        $this->post($account, $value, $this->csrfToken($account));
+
+        self::assertSame(400, $this->client->getResponse()->getStatusCode());
+
+        $this->em->clear();
+        $stored = $this->em->find(Account::class, $account->id);
+        self::assertNotNull($stored);
+        self::assertNull($stored->customColor);
+        self::assertSame(2, $stored->colorIndex);
+    }
+
+    /**
      * The id is the only handle the page has, and it is a small integer — so
      * it is checked against the owner rather than trusted.
      */
@@ -227,18 +316,19 @@ final class AccountColourTest extends WebTestCase
         self::assertResponseIsSuccessful();
 
         foreach ([[$imap, 4], [$oauth, 6]] as [$account, $current]) {
-            $swatches = $crawler->filter(sprintf('form[action$="/account/%d/colour"] button[name="colour"]', $account->id));
+            // The palette and, last, the custom swatch (#638): one radio group.
+            $swatches = $crawler->filter(sprintf('form[action$="/account/%d/colour"] input[type="radio"][name="colour"]', $account->id));
 
             self::assertCount(
-                SenderAvatarExtension::ACCOUNT_COLOURS,
+                SenderAvatarExtension::ACCOUNT_COLOURS + 1,
                 $swatches,
-                sprintf('%s (%s) is offered every colour', $account->email, $account->authType),
+                sprintf('%s (%s) is offered every colour and a custom one', $account->email, $account->authType),
             );
 
-            $pressed = $swatches->reduce(static fn ($node): bool => 'true' === $node->attr('aria-pressed'));
+            $checked = $swatches->reduce(static fn ($node): bool => null !== $node->attr('checked'));
 
-            self::assertCount(1, $pressed, 'exactly one entry is marked');
-            self::assertSame((string) $current, $pressed->attr('value'), 'and it is the account\'s own');
+            self::assertCount(1, $checked, 'exactly one entry is marked');
+            self::assertSame((string) $current, $checked->attr('value'), 'and it is the account\'s own');
         }
     }
 
