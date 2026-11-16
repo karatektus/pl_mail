@@ -4272,6 +4272,7 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless 云 webdav"
             labels: "文件夹 标签 未读 所有邮件"
             language: "语言 中文 英语 德语 法语"
+            libravatar: 'libravatar 头像 图片 照片 分享 公开 个人资料'
             list_content: '附件 文件标签 回形针 文件 标签 发件人 日期 时间 数量 已回复'
             list_layout: '行 单行 紧凑 预览 摘要 分行 宽度'
             list_markers: '星标 悬停 头像 圆圈 账户 角标 未读 粗体'

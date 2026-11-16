@@ -66,6 +66,24 @@ final class LibravatarSettingsTest extends WebTestCase
         self::assertCount(0, $page->filter('form[action="/settings/profile/libravatar"]'));
     }
 
+    /**
+     * Every setting is searchable, and search offers a card exactly when the
+     * page draws it: not an anchor to nothing while the switch is hidden.
+     */
+    public function testSearchOffersTheCardExactlyWhenThePageDrawsIt(): void
+    {
+        $hit = 'li[data-settings--nav-target="hit"] a[href="/settings/profile#card-libravatar"]';
+
+        $page = $this->client->request('GET', '/settings/profile');
+        self::assertCount(0, $page->filter($hit));
+
+        $this->serving(true);
+
+        $page = $this->client->request('GET', '/settings/profile');
+        self::assertCount(1, $page->filter($hit));
+        self::assertCount(1, $page->filter('#card-libravatar'));
+    }
+
     public function testItStartsOffAndIsTurnedOnByTheUser(): void
     {
         $this->serving(true);

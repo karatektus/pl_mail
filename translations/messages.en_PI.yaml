@@ -4761,6 +4761,7 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
             labels: "folders tags unread all mail"
             language: "locale english german french chinese"
+            libravatar: 'libravatar avatar portrait likeness share public profile'
             list_content: 'cargo attachments chips paperclip files flags labels sender date hour tally answered'
             list_layout: 'rows one line compact dense peek preview stacked width'
             list_markers: 'mark star hover medallion avatar crew corner unread bold'

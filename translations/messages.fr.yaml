@@ -5012,6 +5012,7 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
             labels: "dossiers étiquettes non lus tous"
             language: "langue anglais allemand français chinois"
+            libravatar: 'libravatar avatar image photo partager public profil'
             list_content: 'pièces jointes puces trombone fichiers libellés expéditeur date heure nombre répondu'
             list_layout: 'lignes une ligne compact dense aperçu empilé largeur'
             list_markers: 'étoile survol avatar pastille compte coin non lu gras'

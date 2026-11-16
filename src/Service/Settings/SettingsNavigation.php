@@ -41,7 +41,9 @@ use App\Domain\DTO\Settings\SettingsPage;
  * entries depend on the request (an administrator's switches, the health
  * report), and the template already has both answers; this class lists every
  * page that can exist, and the template leaves out the two that should not be
- * drawn right now.
+ * drawn right now. Cards work the same way: the Libravatar card (#642) is listed
+ * here, and the search leaves it out while the administrator does not serve
+ * Libravatar, because the page does not draw it then either.
  */
 final class SettingsNavigation
 {
@@ -81,6 +83,7 @@ final class SettingsNavigation
         'account' => ['fa-solid fa-user', [
             'profile' => [
                 ['card-profile', 'settings.profile.heading', 'settings.search.keywords.profile'],
+                ['card-libravatar', 'settings.libravatar.heading', 'settings.search.keywords.libravatar'],
                 ['card-handwriting', 'settings.handwriting.heading', 'settings.search.keywords.handwriting'],
             ],
             'security' => [

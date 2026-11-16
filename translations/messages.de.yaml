@@ -4977,6 +4977,7 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
             labels: "ordner tags ungelesen alle e-mails"
             language: "sprache deutsch englisch französisch chinesisch"
+            libravatar: 'libravatar avatar bild foto teilen öffentlich profil'
             list_content: 'anhänge chips büroklammer dateien labels absender datum uhrzeit anzahl beantwortet'
             list_layout: 'zeilen einzeilig kompakt dicht vorschau gestapelt breite'
             list_markers: 'stern überfahren avatar kreis konto ecke ungelesen fett'

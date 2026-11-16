@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Settings;
 
+use App\Repository\System\SenderPictureSettings\SenderPictureSettingsRepository;
 use App\Repository\User\User\UserRepository;
 use App\Service\Settings\SettingsNavigation;
+use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -16,7 +19,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  * The claims, and what each one guards:
  *
  *   - Every page draws every card SettingsNavigation lists for it, under the
- *     anchor listed. The table and the templates are two copies of one fact —
+ *     anchor listed — with every administrator's switch that hides a card
+ *     turned on, since the table lists what a page can draw. The table and the templates are two copies of one fact —
  *     which cards a page has — and a card moved, renamed or dropped in a
  *     template leaves search pointing at an anchor that is not there. Nothing
  *     on screen says so: the page opens, it just does not scroll anywhere.
@@ -49,8 +53,28 @@ final class SettingsPageAnchorsTest extends WebTestCase
     #[DataProvider('pages')]
     public function testThePageDrawsEveryCardSearchLeadsTo(string $slug, array $anchors): void
     {
-        $client  = $this->signedIn();
-        $crawler = $client->request('GET', '/settings/' . $slug);
+        $client = $this->signedIn();
+        $client->disableReboot();
+
+        // Every card a page CAN draw, drawn: the cards that depend on an
+        // administrator's switch are switched on, inside a transaction this
+        // test rolls back, so a card that went missing from its template is
+        // still caught here. Search leaves such a card out while the switch is
+        // off; LibravatarSettingsTest pins that half.
+        $connection = static::getContainer()->get(Connection::class);
+        $connection->beginTransaction();
+
+        try {
+            $em                          = static::getContainer()->get(EntityManagerInterface::class);
+            $settings                    = static::getContainer()->get(SenderPictureSettingsRepository::class)->currentOrNew();
+            $settings->libravatarEnabled = true;
+            $em->persist($settings);
+            $em->flush();
+
+            $crawler = $client->request('GET', '/settings/' . $slug);
+        } finally {
+            $connection->rollBack();
+        }
 
         self::assertResponseIsSuccessful();
 
