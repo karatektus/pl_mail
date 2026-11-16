@@ -13,6 +13,8 @@ use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Job\JobNotifier;
+use App\Service\Mail\DiscardedView;
+use App\Service\Mail\DraftsView;
 use App\Service\Mail\ListViewResolver;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
@@ -103,6 +105,8 @@ final readonly class RunBulkStatusHandler
         private EntityManagerInterface  $em,
         private ManagerRegistry         $registry,
         private LoggerInterface         $logger,
+        private DraftsView              $draftsView,
+        private DiscardedView           $discardedView,
     ) {
     }
 
@@ -390,6 +394,12 @@ final readonly class RunBulkStatusHandler
         $byAccount = [];
         $owned     = [];
 
+        // Emptying a Drafts list throws away the drafts, not the conversations
+        // they answer, and restoring the whole bin or Spam brings back what is
+        // in there — the rules BulkStatusController keeps for ticked rows.
+        $draftsOnly    = 'trash' === $action && $this->draftsView->names($view['scope'], $view['value']);
+        $discardedOnly = 'restore' === $action && $this->discardedView->names($view['scope'], $view['value']);
+
         foreach ($this->threads->findBy(['id' => $threadIds]) as $thread) {
             // The last check before a write. The resolver selected these for
             // this user, but that is a query in another class.
@@ -411,7 +421,13 @@ final readonly class RunBulkStatusHandler
 
             $owned[] = $thread;
 
-            foreach ($thread->messages as $message) {
+            $messages = match (true) {
+                $draftsOnly    => DraftsView::draftsAmong($thread->messages),
+                $discardedOnly => DiscardedView::discardedAmong($thread->messages),
+                default        => $thread->messages,
+            };
+
+            foreach ($messages as $message) {
                 $byAccount[(int) $message->account?->id][] = $message;
             }
         }
