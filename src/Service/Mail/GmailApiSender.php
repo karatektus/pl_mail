@@ -19,6 +19,7 @@ use App\Domain\Helper\SendTransportFailure;
 use App\Domain\Interface\MailDeliveryInterface;
 use App\Domain\Interface\SentCopyLookupInterface;
 use App\Entity\Mail\Account;
+use App\Service\Mail\Mime\SealedEntityPart;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mime\Email;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
@@ -27,6 +28,10 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
  * Future-proof send path for Google accounts: POST the RFC822 message to the
  * Gmail API. Covered by the https://mail.google.com/ scope we already hold, and
  * Gmail files the Sent copy itself — no SMTP, no manual IMAP append.
+ *
+ * Except for a message the browser built (signed or encrypted): the API
+ * rewrites every message it sends, and that breaks OpenPGP, so those go out
+ * over Gmail's SMTP with the same token instead. See GmailSmtpDelivery (#651).
  *
  * Through GmailApiClient, so Gmail's answer is read the way every other Gmail
  * call reads it — a quota 403 is a quota, not a permissions failure — and
@@ -43,8 +48,9 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 class GmailApiSender implements MailDeliveryInterface, SentCopyLookupInterface
 {
     public function __construct(
-        private readonly GmailApiClient  $client,
-        private readonly LoggerInterface $logger,
+        private readonly GmailApiClient    $client,
+        private readonly GmailSmtpDelivery $smtp,
+        private readonly LoggerInterface   $logger,
     ) {
     }
 
@@ -80,6 +86,17 @@ class GmailApiSender implements MailDeliveryInterface, SentCopyLookupInterface
 
     public function deliver(Email $email, Account $account): void
     {
+        // Byte for byte or not at all, and the API does not do byte for byte:
+        // it parses what it is given and writes a new message (#651). Decided
+        // by the body rather than by a flag from the caller, because the body
+        // is the thing that must not change — whatever builds a sealed part
+        // in future gets the same path without having to know about this.
+        if ($email->getBody() instanceof SealedEntityPart) {
+            $this->smtp->deliver($email, $account);
+
+            return;
+        }
+
         // Not $email->toString(): that drops Bcc, and Gmail reads the
         // recipients from the raw message. See ApiMime.
         $raw = $this->toBase64Url(ApiMime::toString($email));
