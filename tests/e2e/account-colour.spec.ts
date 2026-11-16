@@ -183,6 +183,15 @@ test.describe("account colour", () => {
             await expect(light.getByText("Faint on this theme")).toBeVisible();
             await expect(dark.getByText("Easy to see")).toBeVisible();
 
+            // Back to a preset: the custom swatch is the colour wheel again,
+            // with no tick, rather than a second colour that looks chosen.
+            const customIcon = menu.locator('[data-settings--account-colour-target="customIcon"]');
+            await expect(customIcon).toHaveClass(/fa-check/);
+            await menu.locator('input[name="colour"][value="2"] + [data-swatch]').click();
+            await expect(customIcon).toHaveClass(/fa-plus/);
+            await expect(customIcon).not.toHaveClass(/fa-check/);
+            await menu.getByRole("radio", { name: "Custom colour" }).check({ force: true });
+
             // Previewed before it is saved, and put back by Cancel.
             await expect(dot).toHaveCSS("background-color", "rgb(230, 159, 0)");
             await menu.getByRole("button", { name: "Cancel" }).click();

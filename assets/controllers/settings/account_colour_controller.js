@@ -40,6 +40,7 @@ import { Controller } from "@hotwired/stimulus";
  */
 const LIGHT = [255, 255, 255];
 const DARK = [17, 24, 39];
+const WHEEL = "conic-gradient(#ef4444, #eab308, #22c55e, #06b6d4, #3b82f6, #a855f7, #ef4444)";
 
 export default class extends Controller {
     static targets = [
@@ -160,13 +161,21 @@ export default class extends Controller {
             this._contrast(hex);
         }
 
-        // The ninth swatch shows the colour wheel until a colour of the
-        // user's own is chosen, then that colour with a tick that reads on it.
+        // The ninth swatch wears the custom colour, with a tick that reads on
+        // it, only while it is the choice. Otherwise it is the colour wheel
+        // with a plus, whatever was typed: a swatch still showing the last
+        // custom colour after a preset was picked read as a second choice,
+        // and its tick said so.
         if (custom && null !== hex) {
             this.customSwatchTarget.style.background = hex;
             this.customIconTarget.classList.replace("fa-plus", "fa-check");
             this.customIconTarget.classList.remove("text-white");
             this.customIconTarget.style.color = 0.4 < this._luminance(this._channels(hex)) ? "#18181b" : "#ffffff";
+        } else if (false === custom) {
+            this.customSwatchTarget.style.background = WHEEL;
+            this.customIconTarget.classList.replace("fa-check", "fa-plus");
+            this.customIconTarget.classList.add("text-white");
+            this.customIconTarget.style.color = "";
         }
 
         if (false === preview || invalid) {
