@@ -306,7 +306,15 @@ final readonly class MoveToService
         // detached it is no longer the folder the mail sits in and the detach
         // is the database change it should be rather than a second move.
         if (LabelRole::Inbox === $target->role) {
-            $this->status->restore($messages);
+            // Out of the bin or Spam, only what is in there: the carriers.
+            // The rest of the conversation was never in the list the move
+            // started from, and restore() would pull archived mail and sent
+            // copies into the inbox with it (DiscardedView).
+            $restored = true === $fromTheBin ? $carriers : $messages;
+
+            if ([] !== $restored) {
+                $this->status->restore($restored);
+            }
 
             if ([] !== $carriers && null === $leaving?->role) {
                 $this->status->applyLabel($carriers, $leaving, false);

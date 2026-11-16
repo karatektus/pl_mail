@@ -16,6 +16,8 @@ use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\AllMailView;
+use App\Service\Mail\DiscardedView;
+use App\Service\Mail\DraftsView;
 use App\Service\Mail\InboxTabs;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
@@ -95,6 +97,8 @@ final class BulkStatusController extends AbstractController
         private readonly MailPlacement           $placement,
         private readonly InboxTabs               $inboxTabs,
         private readonly InboxCategoryRepository $inboxCategories,
+        private readonly DraftsView              $draftsView,
+        private readonly DiscardedView           $discardedView,
     ) {
     }
 
@@ -277,12 +281,26 @@ final class BulkStatusController extends AbstractController
         // selection as a whole, whichever account each part of it is on.
         $selected = [];
 
+        // Delete in a Drafts list takes the drafts, not the conversations they
+        // answer, and Restore in the bin or Spam takes what is in there — the
+        // rules ThreadStatusController::trash() and ::restore() keep for one row.
+        $draftsOnly = 'trash' === $action
+            && $this->draftsView->names((string) ($body['scope'] ?? ''), (string) ($body['value'] ?? ''));
+        $discardedOnly = 'restore' === $action
+            && $this->discardedView->names((string) ($body['scope'] ?? ''), (string) ($body['value'] ?? ''));
+
         foreach ($threads as $thread) {
             // Every thread, not just the first: the ids arrive from a browser
             // and a selection can be edited before it is posted.
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $thread);
 
-            foreach ($thread->messages as $message) {
+            $messages = match (true) {
+                $draftsOnly    => DraftsView::draftsAmong($thread->messages),
+                $discardedOnly => DiscardedView::discardedAmong($thread->messages),
+                default        => $thread->messages,
+            };
+
+            foreach ($messages as $message) {
                 $byAccount[(int) $message->account?->id][] = $message;
                 $selected[]                                 = $message;
             }

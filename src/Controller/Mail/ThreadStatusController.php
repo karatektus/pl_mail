@@ -15,6 +15,8 @@ use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\AllMailView;
+use App\Service\Mail\DiscardedView;
+use App\Service\Mail\DraftsView;
 use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
@@ -53,6 +55,8 @@ class ThreadStatusController extends AbstractController
         private readonly MailPlacement          $placement,
         private readonly StatusUndoService      $undo,
         private readonly AllMailView            $allMail,
+        private readonly DraftsView             $draftsView,
+        private readonly DiscardedView          $discardedView,
     ) {}
 
     #[Route('/star', name: 'star', methods: ['POST'])]
@@ -91,6 +95,22 @@ class ThreadStatusController extends AbstractController
     public function trash(Request $request, string $type, int $id): Response
     {
         $messages = $this->resolveMessages($request, $type, $id);
+        $subject  = 'message' === $type ? $messages[0] : $messages[0]->thread;
+
+        // In a Drafts list the row is a draft, and Delete takes the draft —
+        // not the conversation it answers. See DraftsView.
+        if ('thread' === $type && true === $this->inDraftsList($request)) {
+            $messages = DraftsView::draftsAmong($messages);
+
+            // Nothing in it is a draft any more (sent or discarded from another
+            // tab since the list was drawn), so nothing here is the user's to
+            // delete: the row goes, the conversation stays.
+            if ([] === $messages) {
+                return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
+                    $type => $subject,
+                ]);
+            }
+        }
 
         // Trash answers with an Undo, as archive does, and for the same reason:
         // the row is gone either way, and since #527 a swipe can do this with no
@@ -101,7 +121,7 @@ class ThreadStatusController extends AbstractController
         $this->status->trash($messages);
 
         return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
-            $type       => 'message' === $type ? $messages[0] : $messages[0]->thread,
+            $type       => $subject,
             'undoToken' => $undoToken,
             'undoToast' => 'toast.trashed',
         ]);
@@ -119,11 +139,24 @@ class ThreadStatusController extends AbstractController
     public function restore(Request $request, string $type, int $id): Response
     {
         $messages = $this->resolveMessages($request, $type, $id);
+        $subject  = 'message' === $type ? $messages[0] : $messages[0]->thread;
 
-        $this->status->restore($messages);
+        // From the bin or Spam, only what is in there comes back — the row
+        // showed nothing else (DiscardedView).
+        $body = $request->getPayload()->all();
+
+        if ('thread' === $type && true === $this->discardedView->names((string) ($body['scope'] ?? ''), (string) ($body['value'] ?? ''))) {
+            $messages = DiscardedView::discardedAmong($messages);
+        }
+
+        // Empty when it was restored from another tab since the list was
+        // drawn: nothing left to bring back, and the row goes either way.
+        if ([] !== $messages) {
+            $this->status->restore($messages);
+        }
 
         return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
-            $type => 'message' === $type ? $messages[0] : $messages[0]->thread,
+            $type => $subject,
         ]);
     }
 
@@ -370,6 +403,17 @@ class ThreadStatusController extends AbstractController
         foreach ($messages as $message) {
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
         }
+    }
+
+    /**
+     * Whether the request came from a Drafts list (DraftsView). The list names
+     * itself in the body, as it does for All Mail below.
+     */
+    private function inDraftsList(Request $request): bool
+    {
+        $body = $request->getPayload()->all();
+
+        return $this->draftsView->names((string) ($body['scope'] ?? ''), (string) ($body['value'] ?? ''));
     }
 
     /**
