@@ -9,6 +9,7 @@ use App\Entity\Mail\Account;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GmailApiSender;
+use App\Service\Mail\GmailSmtpDelivery;
 use App\Service\OAuth\OAuthTokenManager;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -40,7 +41,7 @@ final class ApiSenderBccTest extends TestCase
         $tokens = $this->createStub(OAuthTokenManager::class);
         $tokens->method('getValidAccessToken')->willReturn('token');
 
-        $sender = new GmailApiSender(new GmailApiClient($http, $tokens, new GmailQuotaPacer(new MockClock())), new NullLogger());
+        $sender = new GmailApiSender(new GmailApiClient($http, $tokens, new GmailQuotaPacer(new MockClock())), $this->createStub(GmailSmtpDelivery::class), new NullLogger());
 
         self::assertTrue($sender->send($this->email(), new Account()));
         self::assertIsString($captured);
