@@ -50,4 +50,10 @@ final readonly class SenderPictureRuntime implements RuntimeExtensionInterface
     {
         return $this->settings->lookupsEnabled();
     }
+
+    /** Whether the administrator runs the Libravatar route (#642); the profile's opt-in shows only then. */
+    public function libravatarServing(): bool
+    {
+        return $this->settings->libravatarEnabled();
+    }
 }

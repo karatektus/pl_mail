@@ -800,6 +800,30 @@ admin:
                 step_user: "Chaque utilisateur saisit cette adresse, un nom d’utilisateur si le serveur en demande un, et un mot de passe ou un jeton d’API. FileBrowser Quantum prend un jeton d’API comme mot de passe et ignore le nom d’utilisateur."
         tutorial_heading: 'Configuration'
         unimplemented_notice: 'plMail ne sait pas encore communiquer avec ce service. Vous pouvez enregistrer les identifiants dès maintenant — ils seront utilisés dès que la prise en charge arrivera.'
+    libravatar:
+        check_dns: 'Vérifier le DNS'
+        heading: 'Libravatar'
+        intro: 'Permet aux clients de messagerie du monde entier d''afficher la photo de profil que vos utilisateurs ont choisie ici. Les programmes compatibles Libravatar (modules Thunderbird, forges comme Forgejo, autres serveurs plMail) demandent au DNS du domaine d''une adresse quel serveur détient l''image. Activez ceci, faites pointer ce DNS ici, et plMail répond pour ses propres utilisateurs.'
+        need_own_dns: 'Un domaine dont vous gérez le DNS. Les adresses chez Gmail, Outlook.com et autres fournisseurs ne peuvent pas pointer ici ; leurs utilisateurs obtiennent leur image de Gravatar ou Libravatar.'
+        need_reachable: '%url% joignable depuis Internet, pas seulement depuis votre réseau. Si plMail est derrière un reverse proxy, celui-ci doit laisser passer /avatar/.'
+        need_tls: 'Un certificat TLS valide pour %host%, du type accepté par les navigateurs. Les clients refusent en silence un certificat auto-signé.'
+        needs_heading: 'Ce qu''il faut en plus du DNS'
+        no_address: 'Aucune adresse publique n''est définie. Définissez-en une d''abord dans Admin → Adresse : les enregistrements DNS doivent nommer l''hôte par lequel plMail est joignable de l''extérieur.'
+        no_domains: 'Aucun utilisateur n''a encore d''adresse.'
+        not_https: 'L''adresse publique est %url%, qui n''est pas en https. Les clients Libravatar ne récupèrent qu''en https ; définissez une adresse https dans Admin → Adresse.'
+        records_heading: 'Enregistrements DNS'
+        records_intro: 'Ajoutez chez votre fournisseur DNS un enregistrement SRV par domaine où vos utilisateurs ont des adresses, exactement comme indiqué. Vérifiez-les ensuite ici ; le DNS peut mettre un moment à se mettre à jour.'
+        saved_off: 'Libravatar est désactivé. Aucune image n''est servie, pour personne.'
+        saved_on: 'Libravatar est activé. Les utilisateurs peuvent maintenant partager leur image dans Réglages → Profil.'
+        serve: 'Servir les images des utilisateurs de ce serveur (Libravatar)'
+        serve_hint: 'Désactivé jusqu''à ce que vous l''activiez. Même alors, une image n''est servie que pour les utilisateurs qui l''activent eux-mêmes dans Réglages → Profil ; pour tous les autres, ce serveur répond comme s''il ne connaissait pas l''adresse.'
+        status:
+            elsewhere: 'Pointe vers %found%'
+            missing: 'Pas encore d''enregistrement'
+            not_yours: 'Domaine d''un fournisseur de messagerie'
+            ok: 'OK'
+            wrong_port: 'Mauvais port : %found%'
+        users_opt_in: 'Les utilisateurs choisissent eux-mêmes : chacun décide dans Réglages → Profil si son image est partagée. Une sauvegarde de configuration contient ce réglage et leurs choix.'
     loading: 'Chargement…'
     maintenance:
         heading: Maintenance
@@ -3756,6 +3780,12 @@ settings:
         with_keys: 'Vos clés vous accompagnent : le courrier chiffré s’ouvre tout de suite dans l’application.'
         expires: "Expire à %time%."
         open_in_app: "Ouvrir dans l’application"
+    libravatar:
+        heading: 'Libravatar'
+        no_picture: 'Vous n''avez pas encore de photo de profil ; ajoutez-en une ci-dessus pour que ceci affiche quelque chose.'
+        publish: 'Partager mon image via Libravatar'
+        publish_hint: 'Permet aux programmes et sites qui utilisent Libravatar d''afficher l''image ci-dessus à côté de vos adresses. Toute personne connaissant l''une de vos adresses peut alors récupérer l''image. Désactivé jusqu''à ce que vous l''activiez.'
+        subheading: 'Si d''autres programmes de messagerie peuvent afficher votre photo de profil.'
     message_list:
         always: 'Toujours'
         attachments:

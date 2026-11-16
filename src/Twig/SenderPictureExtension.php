@@ -25,6 +25,7 @@ final class SenderPictureExtension extends AbstractExtension
             new TwigFunction('sender_picture_keys', static fn (?string $address): array => SenderPictures::markupKeys($address)),
             new TwigFunction('sender_picture_choices', [SenderPictureRuntime::class, 'choices']),
             new TwigFunction('sender_picture_lookups_enabled', [SenderPictureRuntime::class, 'lookupsEnabled']),
+            new TwigFunction('libravatar_serving', [SenderPictureRuntime::class, 'libravatarServing']),
         ];
     }
 }

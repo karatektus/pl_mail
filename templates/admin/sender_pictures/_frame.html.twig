@@ -1,17 +1,27 @@
 {% import '_partials/_card_chrome.html.twig' as chrome %}
 {#
-admin/sender_pictures/_frame.html.twig — Admin → Sender pictures (#639).
+admin/sender_pictures/_frame.html.twig — Admin → Sender pictures (#639, #642).
 
 Accepts:
-  enabled — whether lookups on the internet are allowed
-  saved   — true immediately after a save
+  enabled            — whether lookups on the internet are allowed
+  libravatarEnabled  — whether this server answers Libravatar requests
+  saved              — 'lookups' | 'libravatar' right after a save, else null
+  publicUrl          — Admin → Address's URL, or null
+  publicHost         — its host, or null
+  httpsPublicUrl     — whether that URL is https
+  domains            — every domain a user here has an address at
+  checked            — domain => {status, found} after "Check DNS", else null
 
-One switch, in the same two-segment shape as the reading settings beside it.
-The intro says plainly what turning it on does to the server's traffic,
-because that is the whole of the decision: requests to Gravatar and to
-senders' own domains, on a schedule set by whoever mails the users. What
-stays on the server either way — contact photos and users' own pictures —
-is said too, so nobody turns this on to get those.
+Two cards, the two directions of the same question. The first is this
+server asking the internet for senders' pictures; the second is the internet
+asking this server for its users' pictures (Libravatar).
+
+The second card carries all the help there is to give, because its failure
+is silent: a client that finds no record, or a record it cannot reach, just
+draws its own fallback and nobody hears why. So it shows the exact record
+for every domain, the host that record must name, the two conditions DNS
+cannot check (a real certificate, reachable from outside), and a button that
+checks what DNS can.
 
 No auto-refresh wraps this frame — it is configuration.
 #}
@@ -20,7 +30,33 @@ No auto-refresh wraps this frame — it is configuration.
                   peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
                   transition-colors cursor-pointer' %}
 
+{% macro switch(name, on, label, segText) %}
+    <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+         role="radiogroup" aria-label="{{ label }}">
+        {% for value in [true, false] %}
+            <label>
+                <input type="radio" name="{{ name }}" class="peer sr-only"
+                       value="{{ value ? '1' : '0' }}"
+                       data-action="change->ui--auto-submit#submit"
+                       {{ on == value ? 'checked' : '' }}>
+                <span class="{{ segText }}">
+                    {{ (value ? 'admin.sender_pictures.on' : 'admin.sender_pictures.off')|trans }}
+                </span>
+            </label>
+        {% endfor %}
+    </div>
+{% endmacro %}
+
+{% macro saved(message) %}
+    <div role="status" class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
+        <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
+        <p class="leading-snug">{{ message }}</p>
+    </div>
+{% endmacro %}
+
 <turbo-frame id="admin-sender-pictures">
+
+    <div class="space-y-4">
 
     <div class="{{ chrome.shell() }}">
 
@@ -31,11 +67,8 @@ No auto-refresh wraps this frame — it is configuration.
 
         <div class="{{ chrome.body() }} space-y-4">
 
-            {% if saved %}
-                <div role="status" class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
-                    <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
-                    <p class="leading-snug">{{ (enabled ? 'admin.sender_pictures.saved_on' : 'admin.sender_pictures.saved_off')|trans }}</p>
-                </div>
+            {% if saved == 'lookups' %}
+                {{ _self.saved((enabled ? 'admin.sender_pictures.saved_on' : 'admin.sender_pictures.saved_off')|trans) }}
             {% endif %}
 
             <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.sender_pictures.intro'|trans }}</p>
@@ -50,28 +83,121 @@ No auto-refresh wraps this frame — it is configuration.
                         <span class="block text-xs text-ink-faint mt-0.5">{{ 'admin.sender_pictures.lookups_hint'|trans }}</span>
                     </span>
 
-                    <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
-                         role="radiogroup" aria-label="{{ 'admin.sender_pictures.lookups'|trans }}">
-                        {% for on in [true, false] %}
-                            <label>
-                                <input type="radio" name="lookupsEnabled" class="peer sr-only"
-                                       value="{{ on ? '1' : '0' }}"
-                                       data-action="change->ui--auto-submit#submit"
-                                       {{ enabled == on ? 'checked' : '' }}>
-                                <span class="{{ segText }}">
-                                    {{ (on ? 'admin.sender_pictures.on' : 'admin.sender_pictures.off')|trans }}
-                                </span>
-                            </label>
-                        {% endfor %}
-                    </div>
+                    {{ _self.switch('lookupsEnabled', enabled, 'admin.sender_pictures.lookups'|trans, segText) }}
                 </div>
             </form>
+
+            <p class="text-xs text-ink-faint leading-relaxed">
+                <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+                {{ 'admin.sender_pictures.always_local'|trans }}
+            </p>
+        </div>
+    </div>
+
+    <div class="{{ chrome.shell() }}">
+
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-tower-broadcast text-xs text-ink-faint" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.libravatar.heading'|trans }}</h2>
+        </div>
+
+        <div class="{{ chrome.body() }} space-y-4">
+
+            {% if saved == 'libravatar' %}
+                {{ _self.saved((libravatarEnabled ? 'admin.libravatar.saved_on' : 'admin.libravatar.saved_off')|trans) }}
+            {% endif %}
+
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.libravatar.intro'|trans }}</p>
+
+            <form method="post" action="{{ path('app_admin_sender_pictures_settings') }}"
+                  data-turbo-frame="admin-sender-pictures" data-controller="ui--auto-submit">
+                <input type="hidden" name="_token" value="{{ csrf_token('admin-sender-pictures') }}">
+
+                <div class="flex items-start justify-between gap-3">
+                    <span class="min-w-0">
+                        <span class="block text-sm font-medium text-ink">{{ 'admin.libravatar.serve'|trans }}</span>
+                        <span class="block text-xs text-ink-faint mt-0.5">{{ 'admin.libravatar.serve_hint'|trans }}</span>
+                    </span>
+
+                    {{ _self.switch('libravatarEnabled', libravatarEnabled, 'admin.libravatar.serve'|trans, segText) }}
+                </div>
+            </form>
+
+            {# What DNS cannot check, said before the records: a record that
+               resolves perfectly still serves nothing without these two. #}
+            <div class="space-y-2">
+                <h3 class="text-xs font-semibold text-ink">{{ 'admin.libravatar.needs_heading'|trans }}</h3>
+
+                {% if publicHost is null %}
+                    <p role="alert" class="rounded-lg bg-amber-500/10 px-3.5 py-3 text-sm text-amber-500 leading-snug">
+                        {{ 'admin.libravatar.no_address'|trans }}
+                    </p>
+                {% elseif not httpsPublicUrl %}
+                    <p role="alert" class="rounded-lg bg-amber-500/10 px-3.5 py-3 text-sm text-amber-500 leading-snug">
+                        {{ 'admin.libravatar.not_https'|trans({ '%url%': publicUrl }) }}
+                    </p>
+                {% endif %}
+
+                {# The first two name the host, so they wait for there to be one;
+                   the warning above says what is missing until then. #}
+                <ul class="list-disc pl-5 space-y-1 text-xs text-ink-soft leading-relaxed">
+                    {% if publicHost is not null %}
+                        <li>{{ 'admin.libravatar.need_tls'|trans({ '%host%': publicHost }) }}</li>
+                        <li>{{ 'admin.libravatar.need_reachable'|trans({ '%url%': publicUrl ~ '/avatar/' }) }}</li>
+                    {% endif %}
+                    <li>{{ 'admin.libravatar.need_own_dns'|trans }}</li>
+                </ul>
+            </div>
+
+            <div class="space-y-2">
+                <h3 class="text-xs font-semibold text-ink">{{ 'admin.libravatar.records_heading'|trans }}</h3>
+                <p class="text-xs text-ink-faint leading-relaxed">{{ 'admin.libravatar.records_intro'|trans }}</p>
+
+                {% if domains is empty %}
+                    <p class="text-xs text-ink-faint">{{ 'admin.libravatar.no_domains'|trans }}</p>
+                {% else %}
+                    <ul class="divide-y divide-line rounded-pane border border-line">
+                        {% for domain in domains %}
+                            {% set result = checked[domain] ?? null %}
+                            <li class="px-3 py-2 space-y-1">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-sm font-medium text-ink break-all">{{ domain }}</span>
+                                    {% if result %}
+                                        <span class="shrink-0 text-xs font-medium {{ result.status.fine ? 'text-emerald-500' : 'text-amber-500' }}">
+                                            <i class="fa-solid {{ result.status.fine ? 'fa-circle-check' : 'fa-triangle-exclamation' }} mr-1" aria-hidden="true"></i>
+                                            {{ ('admin.libravatar.status.' ~ result.status.value)|trans({ '%found%': result.found ?? '' }) }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                {# Without a public address the record still shows its
+                                   shape, with a placeholder plainly not a real host; the
+                                   warning above says where the real one comes from. #}
+                                {% if result is null or result.status.value != 'not_yours' %}
+                                    <code class="block text-xs text-ink-soft font-mono break-all select-all">_avatars-sec._tcp.{{ domain }}. 3600 IN SRV 0 0 443 {{ publicHost ?? 'your-plmail-host.example' }}.</code>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                    <form method="post" action="{{ path('app_admin_sender_pictures_libravatar_dns') }}"
+                          data-turbo-frame="admin-sender-pictures">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin-sender-pictures') }}">
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet hover:bg-hover transition-colors cursor-pointer">
+                            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                            {{ 'admin.libravatar.check_dns'|trans }}
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
         </div>
     </div>
 
     <p class="px-4 text-xs text-ink-faint leading-relaxed">
         <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
-        {{ 'admin.sender_pictures.always_local'|trans }}
+        {{ 'admin.libravatar.users_opt_in'|trans }}
     </p>
+
+    </div>
 
 </turbo-frame>

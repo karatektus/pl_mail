@@ -230,6 +230,10 @@ final readonly class ConfigBackupUsers
         // images switch, for the same reason: a choice about what may be
         // fetched on their behalf, and Gravatar's is a privacy one.
         User::SETTING_SENDER_PICTURES,
+        // Whether the user lets this server serve their picture to the
+        // internet (#642). Their consent to publishing their face; a restore
+        // must carry it, and must never invent it. A boolean, no id.
+        User::SETTING_LIBRAVATAR_PUBLISH,
         // Which tabs and labels notify, and whether a browser skips mail
         // already read (#369). Choices about how one wants to be interrupted,
         // which a restore must not quietly undo: back to Primary alone is

@@ -772,6 +772,37 @@ Contact photos and users' own profile pictures are shown either way: they are al
 server. Each user still chooses which kinds they want, under **Settings → Reading & writing →
 Reading**. A config backup carries this switch.
 
+### Serving your users' pictures (Libravatar)
+
+The second card on the same page turns the direction round: plMail answers other people's mail
+programs, forges and websites with the profile picture your users chose here, as a
+[Libravatar](https://www.libravatar.org) server. It is off until you turn it on, and even then it
+serves a user's picture only if they switch it on themselves under **Settings → Profile**. For
+everyone else, and with the switch off, plMail answers as if it did not know the address, so nobody
+can use it to find out who has an account here.
+
+A Libravatar client finds the server for an address by looking up one DNS record at the address's
+domain. The card lists every domain your users have addresses at, with the exact record each one
+needs, naming the host from **Admin → Address**:
+
+```
+_avatars-sec._tcp.example.com. 3600 IN SRV 0 0 443 mail.example.com.
+```
+
+**Check DNS** looks each one up and says what it found. **OK** means the record names this server on
+port 443. **No record yet** means it still needs adding. **Points to** names another server, which
+is either a typo or a domain that already has its own avatar server. **Wrong port** means the
+record names this server on a port other than 443. Domains at mail providers such as Gmail are
+marked as theirs: you cannot publish records there, and those users get their picture from Gravatar
+or Libravatar instead.
+
+DNS is not all it needs, and the card says so: the public address must be https, with a certificate
+browsers accept (clients refuse a self-signed one without saying why), and `/avatar/` on that host
+must be reachable from the internet. Behind a reverse proxy, let that path through. The route answers
+the spec's requests in full: a picture by MD5 or SHA-256 of an address, any size from 1 to 512
+pixels, and the client's `d=` default when there is no picture. Each client IP gets at most 600 requests per ten minutes. A
+config backup carries the switch and each user's choice.
+
 ## Users
 
 A searchable, paged list of everyone who can sign in, with when they last signed in and whether they

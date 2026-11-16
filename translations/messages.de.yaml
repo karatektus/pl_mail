@@ -804,6 +804,30 @@ admin:
                 step_user: "Jede Person trägt diese Adresse ein, einen Benutzernamen, falls der Server einen will, und ein Passwort oder API-Token. FileBrowser Quantum nimmt ein API-Token als Passwort und ignoriert den Benutzernamen."
         tutorial_heading: 'Einrichtung'
         unimplemented_notice: 'plMail kann diesen Dienst noch nicht ansprechen. Die Zugangsdaten können jetzt hinterlegt werden — sie greifen, sobald die Unterstützung erscheint.'
+    libravatar:
+        check_dns: 'DNS prüfen'
+        heading: 'Libravatar'
+        intro: 'Lässt Mailprogramme überall das Profilbild zeigen, das deine Benutzer hier ausgesucht haben. Programme mit Libravatar-Unterstützung (Thunderbird-Add-ons, Forges wie Forgejo, andere plMail-Server) fragen das DNS der Domain einer Adresse, welcher Server das Bild hat. Schalte das hier ein und richte das DNS auf diesen Server, dann antwortet plMail für seine eigenen Benutzer.'
+        need_own_dns: 'Eine Domain, deren DNS du verwaltest. Adressen bei Gmail, Outlook.com und anderen Anbietern können nicht hierher zeigen; deren Benutzer bekommen ihr Bild stattdessen von Gravatar oder Libravatar.'
+        need_reachable: '%url% aus dem Internet erreichbar, nicht nur aus deinem Netz. Steht plMail hinter einem Reverse Proxy, muss der /avatar/ durchreichen.'
+        need_tls: 'Ein gültiges TLS-Zertifikat für %host%, wie Browser es akzeptieren. Ein selbst signiertes lehnen die Programme stillschweigend ab.'
+        needs_heading: 'Was es außer DNS braucht'
+        no_address: 'Es ist keine öffentliche Adresse eingestellt. Stelle zuerst eine unter Admin → Adresse ein: Die DNS-Einträge müssen den Host nennen, unter dem plMail von außen erreichbar ist.'
+        no_domains: 'Noch kein Benutzer hat eine Adresse.'
+        not_https: 'Die öffentliche Adresse ist %url%, also kein https. Libravatar-Programme laden nur über https, stelle deshalb unter Admin → Adresse eine https-Adresse ein.'
+        records_heading: 'DNS-Einträge'
+        records_intro: 'Lege bei deinem DNS-Anbieter für jede Domain, unter der deine Benutzer Adressen haben, einen SRV-Eintrag genau wie gezeigt an. Prüfe sie dann hier; DNS kann eine Weile brauchen.'
+        saved_off: 'Libravatar ist aus. Es wird für niemanden ein Bild ausgeliefert.'
+        saved_on: 'Libravatar ist an. Benutzer können ihr Bild jetzt unter Einstellungen → Profil teilen.'
+        serve: 'Bilder der Benutzer dieses Servers ausliefern (Libravatar)'
+        serve_hint: 'Aus, bis du es einschaltest. Auch dann wird ein Bild nur für Benutzer ausgeliefert, die das selbst unter Einstellungen → Profil einschalten; für alle anderen antwortet der Server, als kenne er die Adresse nicht.'
+        status:
+            elsewhere: 'Zeigt auf %found%'
+            missing: 'Noch kein Eintrag'
+            not_yours: 'Domain eines Mailanbieters'
+            ok: 'OK'
+            wrong_port: 'Falscher Port: %found%'
+        users_opt_in: 'Die Benutzer entscheiden selbst: Jeder legt unter Einstellungen → Profil fest, ob sein Bild geteilt wird. Eine Konfigurationssicherung enthält diesen Schalter und ihre Entscheidungen.'
     loading: 'Wird geladen…'
     maintenance:
         heading: Wartung
@@ -3699,6 +3723,12 @@ settings:
         with_keys: "Deine Schlüssel kommen mit: Verschlüsselte Mails öffnen sich in der App sofort."
         expires: "Läuft um %time% ab."
         open_in_app: "In der App öffnen"
+    libravatar:
+        heading: 'Libravatar'
+        no_picture: 'Du hast noch kein Profilbild; füge oben eins hinzu, damit hier etwas erscheint.'
+        publish: 'Mein Bild über Libravatar teilen'
+        publish_hint: 'Lässt Mailprogramme und Websites, die Libravatar nutzen, das Bild oben neben deinen Adressen zeigen. Wer eine deiner Adressen kennt, kann das Bild dann abrufen. Aus, bis du es einschaltest.'
+        subheading: 'Ob andere Mailprogramme dein Profilbild zeigen dürfen.'
     message_list:
         always: 'Immer'
         attachments:

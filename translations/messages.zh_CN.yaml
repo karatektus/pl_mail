@@ -697,6 +697,30 @@ admin:
                 step_user: "每位用户输入该地址、服务器要求时的用户名，以及密码或 API 令牌。FileBrowser Quantum 将 API 令牌用作密码，并忽略用户名。"
         tutorial_heading: 设置步骤
         unimplemented_notice: 'plMail 暂不支持连接此服务。可以先注册凭据，支持发布后即可使用。'
+    libravatar:
+        check_dns: '检查 DNS'
+        heading: 'Libravatar'
+        intro: '让各地的邮件客户端显示你的用户在此选择的头像。支持 Libravatar 的程序（Thunderbird 插件、Forgejo 等代码托管平台、其他 plMail 服务器）会询问地址所属域名的 DNS，由哪台服务器提供图片。开启此项并将 DNS 指向这里，plMail 就会为其自己的用户应答。'
+        need_own_dns: '需要你能管理其 DNS 的域名。Gmail、Outlook.com 等服务商的地址无法指向这里；这些用户会从 Gravatar 或 Libravatar 获取头像。'
+        need_reachable: '%url% 需要能从互联网访问，而不仅限于你的网络。如果 plMail 位于反向代理之后，代理必须放行 /avatar/。'
+        need_tls: '%host% 需要浏览器认可的有效 TLS 证书。客户端会静默拒绝自签名证书。'
+        needs_heading: '除 DNS 外还需要什么'
+        no_address: '尚未设置公共地址。请先在“管理 → 地址”中设置：DNS 记录必须指向从外部访问 plMail 所用的主机。'
+        no_domains: '还没有用户拥有地址。'
+        not_https: '公共地址是 %url%，不是 https。Libravatar 客户端只通过 https 获取，请在“管理 → 地址”中设置 https 地址。'
+        records_heading: 'DNS 记录'
+        records_intro: '在你的 DNS 服务商处，为用户拥有地址的每个域名按所示内容添加一条 SRV 记录，然后在此检查；DNS 生效可能需要一些时间。'
+        saved_off: 'Libravatar 已关闭。不再为任何人提供图片。'
+        saved_on: 'Libravatar 已开启。用户现在可以在“设置 → 个人资料”中分享头像。'
+        serve: '提供此服务器用户的头像（Libravatar）'
+        serve_hint: '默认关闭。即使开启，也只为在“设置 → 个人资料”中自行开启的用户提供图片；对其他所有人，服务器的回应就像不认识该地址一样。'
+        status:
+            elsewhere: '指向 %found%'
+            missing: '尚无记录'
+            not_yours: '邮件服务商的域名'
+            ok: '正常'
+            wrong_port: '端口错误：%found%'
+        users_opt_in: '由用户自行决定：每位用户在“设置 → 个人资料”中选择是否分享头像。配置备份包含此开关和他们的选择。'
     loading: 加载中…
     maintenance:
         heading: 维护
@@ -3285,6 +3309,12 @@ settings:
         with_keys: "密钥会一同传输，加密邮件可立即在应用中打开。"
         expires: '于 %time% 过期。'
         open_in_app: '在应用中打开'
+    libravatar:
+        heading: 'Libravatar'
+        no_picture: '你还没有头像；请先在上方添加，此处才会显示内容。'
+        publish: '通过 Libravatar 分享我的头像'
+        publish_hint: '允许使用 Libravatar 的邮件程序和网站在你的地址旁显示上面的头像。之后任何知道你某个地址的人都能获取该图片。默认关闭，需你手动开启。'
+        subheading: '其他邮件程序是否可以显示你的头像。'
     message_list:
         always: '始终'
         attachments:

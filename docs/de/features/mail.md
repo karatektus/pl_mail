@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:959085498c734e0bb7a45c4ee449f68f53619f57 -->
+<!-- translated-from: features/mail.md sha1:da6b84025e470910ea3f7e4c3d87dd375962aca4 -->
 
 # Mail
 
@@ -1142,6 +1142,12 @@ auf dem Server, und ein gefundenes Bild ersetzt den Anfangsbuchstaben auf dem Bi
 da ist. Was gefunden wurde, wird etwa einmal im Monat neu geprüft, und Absender, die ein halbes Jahr
 nicht geschrieben haben, werden vergessen. Dein Browser spricht nie mit diesen Diensten; die Bilder
 kommen von plMail.
+
+Dein eigenes Bild kann auch den umgekehrten Weg gehen. Wenn die Administration Libravatar
+ausliefert, hat **Einstellungen → Profil** einen Schalter **Mein Bild über Libravatar teilen**, aus,
+bis du ihn einschaltest. Eingeschaltet zeigen Mailprogramme und Websites, die Libravatar nutzen, das
+Bild, das du hier ausgesucht hast, neben deinen Adressen. Wer eine deiner Adressen kennt, kann es dann
+abrufen.
 
 Mail in **Spam** oder im **Papierkorb** löst nie ein Nachschlagen aus. Die Domain eines Spammers nach
 ihrem Logo zu fragen, würde ihr verraten, dass die Adresse gelesen wird, genau wie ein externes Bild.

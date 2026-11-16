@@ -1641,6 +1641,26 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Whether this user's profile picture is served to the internet as their
+     * Libravatar (#642), for every address of theirs: OFF until they turn it
+     * on, and only offered while the administrator runs the Libravatar route.
+     *
+     * The user's own choice and not the administrator's, because what it
+     * does is personal: anybody who knows one of their addresses can fetch
+     * their face. The administrator decides the server answers; each person
+     * decides whether it answers for them. Only a stored true is on.
+     */
+    public const string SETTING_LIBRAVATAR_PUBLISH = 'libravatar.publish';
+
+    /** Virtual, out of the settings bag — see SETTING_LIBRAVATAR_PUBLISH. */
+    public bool $publishesLibravatar {
+        get => true === $this->getSetting(self::SETTING_LIBRAVATAR_PUBLISH, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_LIBRAVATAR_PUBLISH, $on ? true : null);
+        }
+    }
+
+    /**
      * Whether an account's own inbox (the account row in the sidebar) is shown
      * in the category tabs as well as the unified Inbox (#55).
      *
