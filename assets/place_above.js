@@ -92,7 +92,7 @@ function placeNear(panel, anchor) {
     style.maxWidth = `${window.innerWidth - margin * 2}px`;
     style.maxHeight = "";
 
-    const natural = panel.getBoundingClientRect();
+    const natural = measureOpened(panel);
     const roomAbove = box.top - margin * 2;
     const roomBelow = window.innerHeight - box.bottom - margin * 2;
     const below = natural.height > roomAbove && roomBelow > roomAbove;
@@ -109,4 +109,31 @@ function placeNear(panel, anchor) {
         style.top = "auto";
         style.bottom = `${Math.round(window.innerHeight - box.top + margin)}px`;
     }
+}
+
+/**
+ * The panel's box as if every part of it that may still open were open.
+ *
+ * A panel with a part that unfolds later (`data-place-reserve`, hidden for
+ * now: the account colour menu's custom colour form, #638) was placed from its
+ * folded height. Above the button it fitted; unfolded it did not, and the next
+ * placement moved the whole menu below the button under the user's pointer.
+ * Choosing the side from the unfolded height keeps it where it opened: above,
+ * it is held by its bottom edge and grows upward; below, by its top edge and
+ * grows downward.
+ */
+function measureOpened(panel) {
+    const folded = [...panel.querySelectorAll("[data-place-reserve][hidden]")];
+
+    for (const part of folded) {
+        part.hidden = false;
+    }
+
+    const box = panel.getBoundingClientRect();
+
+    for (const part of folded) {
+        part.hidden = true;
+    }
+
+    return box;
 }

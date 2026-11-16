@@ -154,16 +154,24 @@ and it is **not** a status light. Whether an account is actually working is answ
 
 You change it with the coloured swatch on the account's row, which opens the palette of eight.
 That control is on **every** account, Gmail and Outlook ones included, which is why it is not a
-field in **Edit account**: that form is closed to them. The sidebar dot changes at once, and every
-list you open afterwards wears the new colour on that account's messages; a list already open in
-another tab repaints when it reloads. Choosing a colour another account already wears is allowed,
-so two accounts can be made a pair.
+field in **Edit account**: that form is closed to them. Picking a colour previews it on the button
+and the sidebar dot; **Save** keeps it, and **Cancel**, Escape or a click elsewhere puts the old
+one back. Every list you open afterwards wears the new colour on that account's messages; a list
+already open in another tab repaints when it reloads. Choosing a colour another account already
+wears is allowed, so two accounts can be made a pair.
+
+If the eight are hard to tell apart for you, the ninth swatch is a **custom colour**: pick one with
+the colour well or type its hex code (`#0072b2`, with or without the `#`). A custom colour is one
+value on every theme, where each of the eight has a light and a dark shade, so the menu shows its
+contrast against your current theme's background and against plain light and dark ones (the current
+row is left out when your theme is one of those two). Below 3:1 a row says the colour is faint
+there; you can still save it. Choosing one of the eight again goes back to the palette.
 
 Each row offers:
 
 | Control | Effect |
 |---|---|
-| **Colour swatch** | Opens the palette; the colour you pick is the account's from then on — on any account |
+| **Colour swatch** | Opens the palette and a custom colour; the colour you save is the account's from then on — on any account |
 | **Make primary** | Sends new messages from this account by default — on any row but the primary's |
 | **Mail, calendar and contacts** (switch icon) | Switches receiving, sending, calendar and contacts on or off for this account, and removes synced mail while receiving is off; see [Mail, calendar and contacts](#mail-calendar-and-contacts) |
 | **Edit account** | Server settings and password — password accounts only |

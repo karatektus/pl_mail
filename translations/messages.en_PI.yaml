@@ -3366,6 +3366,17 @@ settings:
             title: 'Follow Outlook categories'
         colour:
             change: 'Change the colours o'' %account%'
+            contrast_current: 'Now'
+            contrast_dark: 'Dark'
+            contrast_light: 'Light'
+            contrast_low: 'Faint on these waters'
+            contrast_ok: 'Easy t'' spy'
+            custom: 'Yer own colour'
+            custom_format: 'Six hex digits, like #0072b2.'
+            custom_heading: 'Yer own'
+            custom_hex: 'Hex colour code'
+            custom_pick: 'Pick a colour'
+            presets: 'Ship''s colours'
             swatch:
                 '0': Orange
                 '1': Green

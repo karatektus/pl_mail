@@ -3502,6 +3502,17 @@ settings:
             title: 'Outlook-Kategorien folgen'
         colour:
             change: 'Farbe von %account% ändern'
+            contrast_current: 'Aktuell'
+            contrast_dark: 'Dunkel'
+            contrast_light: 'Hell'
+            contrast_low: 'Blass in diesem Theme'
+            contrast_ok: 'Gut erkennbar'
+            custom: 'Eigene Farbe'
+            custom_format: 'Sechs Hex-Ziffern, z. B. #0072b2.'
+            custom_heading: 'Eigene'
+            custom_hex: 'Hex-Farbcode'
+            custom_pick: 'Farbe wählen'
+            presets: 'Vorgaben'
             swatch:
                 '0': Orange
                 '1': Grün
