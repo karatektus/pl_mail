@@ -5,7 +5,7 @@ and a contact shows the photo on their card. If an administrator allows it under
 pictures**, plMail also looks up companies' BIMI logos and website icons and, for anyone who
 switches it on under **Settings → Reading & writing → Reading**, Gravatar and Libravatar. The
 lookups run in the background on the maintenance worker, and your browser never contacts these
-services. A company logo only appears on mail your server confirmed came from that company. Pictures
+services. A company logo only appears on mail your server confirmed came from that company. Mail in Spam or Trash never starts a lookup. Pictures
 found later replace the initials on screen as they arrive, and the apps get them through JMAP
 (`senderPicture` on `Email/get`).
 

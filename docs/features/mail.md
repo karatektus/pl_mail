@@ -1042,6 +1042,9 @@ on the server, and a picture they find replaces the initial on screen as it arri
 is re-checked about once a month, and senders who have not written for half a year are forgotten.
 Your browser never contacts any of these services; the pictures come from plMail.
 
+Mail in **Spam** or **Trash** never starts a lookup. Asking a spammer's domain for its logo would
+tell them the address is read, the same thing a remote image would.
+
 ## Snooze
 
 Snoozing is archiving with a timer. The conversation leaves the Inbox now — at the provider too,

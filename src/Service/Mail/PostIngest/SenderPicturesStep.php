@@ -26,6 +26,9 @@ use App\Service\Mail\SenderPicture\SenderPictureQueue;
  * decides whether anything may be asked at all and claims each lookup once
  * however many messages in the batch came from the same sender. Mail the
  * account sent itself is skipped: its own address needs no picture looked up.
+ * So is mail filed in Spam or Trash (Message::isSetAside()): asking a
+ * spammer's domain for its logo would confirm the mail arrived, and mail in
+ * the bin will not be looked at.
  *
  * Here rather than in a queued message, like HarvestContactsStep, because the
  * work is proportional to the batch and the batch is already in memory.
@@ -51,6 +54,14 @@ final readonly class SenderPicturesStep implements PostIngestStepInterface
 
             if (SenderVerdict::Pass === $this->authentication->verdict($message)) {
                 $verified[] = $message->id;
+            }
+
+            // Recorded above for every message, looked up only for mail that
+            // is not set aside. A request to a spammer's domain tells them the
+            // address is read — the tracking pixel, by another route — and
+            // mail already in the bin is mail nobody is going to look at.
+            if (true === $message->isSetAside()) {
+                continue;
             }
 
             $user = $message->account?->usr;

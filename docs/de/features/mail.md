@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:15da905fd38e2b301ca274f3046c91b94ab7aba4 -->
+<!-- translated-from: features/mail.md sha1:959085498c734e0bb7a45c4ee449f68f53619f57 -->
 
 # Mail
 
@@ -1142,6 +1142,9 @@ auf dem Server, und ein gefundenes Bild ersetzt den Anfangsbuchstaben auf dem Bi
 da ist. Was gefunden wurde, wird etwa einmal im Monat neu geprüft, und Absender, die ein halbes Jahr
 nicht geschrieben haben, werden vergessen. Dein Browser spricht nie mit diesen Diensten; die Bilder
 kommen von plMail.
+
+Mail in **Spam** oder im **Papierkorb** löst nie ein Nachschlagen aus. Die Domain eines Spammers nach
+ihrem Logo zu fragen, würde ihr verraten, dass die Adresse gelesen wird, genau wie ein externes Bild.
 
 ## Zurückstellen
 
