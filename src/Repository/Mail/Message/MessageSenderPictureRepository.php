@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository\Mail\Message;
 
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -47,6 +48,10 @@ class MessageSenderPictureRepository extends ServiceEntityRepository
      * first, lower-cased — what a backfill looks pictures up for when the
      * feature is switched on.
      *
+     * Not from mail in Spam or Trash, for SenderPicturesStep's reason: a
+     * lookup at a spammer's domain confirms the address is read. A sender
+     * whose only mail is set aside is not a sender worth a picture.
+     *
      * Most recent first so that a limit cuts off the people the user has not
      * heard from in a while rather than an arbitrary half of the alphabet.
      * Raw DBAL for the GROUP BY over an expression with an ORDER BY on an
@@ -66,15 +71,24 @@ class MessageSenderPictureRepository extends ServiceEntityRepository
                    AND m.from_address IS NOT NULL
                    AND m.vanished_at IS NULL
                    AND m.received_at >= :since
+                   AND NOT EXISTS (
+                       SELECT 1
+                         FROM message_label ml
+                         JOIN label l ON l.id = ml.label_id
+                        WHERE ml.message_id = m.id
+                          AND l.role IN (:setAside)
+                   )
                  GROUP BY LOWER(m.from_address)
                  ORDER BY MAX(m.received_at) DESC
                  LIMIT :limit
                 SQL,
             [
-                'userId' => $user->id,
-                'since'  => $since->format('Y-m-d H:i:s'),
-                'limit'  => $limit,
+                'userId'   => $user->id,
+                'since'    => $since->format('Y-m-d H:i:s'),
+                'limit'    => $limit,
+                'setAside' => [LabelRole::Spam->value, LabelRole::Trash->value],
             ],
+            ['setAside' => ArrayParameterType::STRING],
         );
     }
 }
