@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:476d9e55593947c3b9baabb6e7a3cde7516c2d1c -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:83e9eb426c83594e297d049fb9e4b45d99863059 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -805,7 +805,7 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `Core/echo` | |
 | `PushSubscription/get` / `PushSubscription/set` | Keine `accountId`; je Nutzerin. |
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
-| `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
+| `Email/get` / `Email/query` / `Email/changes` / `Email/set` | `/get` hat zwei plMail-Erweiterungen, jede nur, wenn sie mit Namen abgefragt wird: `replyFrom` und `senderPicture`. |
 | `Thread/get` / `Thread/changes` | `/get` trägt vier plMail-Erweiterungen: `snoozedUntil`, `category`, `inboxTab`, `isNew`. |
 | `Thread/set` | plMail-Erweiterung. `snoozedUntil`, `isNew`, `inboxTab` und die Anweisung `moveTo` — siehe [Verschieben](#verschieben-threadset-moveto) und §4. |
 | `InboxTab/get` / `InboxTab/changes` | `urn:plmail:params:jmap:inboxtabs`. Die Tabs der Nutzerin, an jedem Konto dieselben. Siehe [Posteingangs-Tabs](#posteingangs-tabs-urnplmailparamsjmapinboxtabs). |
@@ -1250,6 +1250,28 @@ Von-Auswahlfeld, das sonst nichts ändert, muss trotzdem speichern.
   `"draftIdentity": true` in der `urn:ietf:params:jmap:mail`-Capability des Kontos. Einer, der sie
   nicht kennt, lehnt den ganzen Update-Patch als `invalidPatch` ab, weil er eine Eigenschaft nennt,
   die er nicht ändern kann — lass den Schlüssel dort also weg.
+
+### Absenderbilder
+
+`senderPicture` ist eine zweite plMail-Eigenschaft von `Email/get`: das Bild, das das Web neben dem
+Absender der Nachricht zeigt, als Pfad auf diesem Server, oder `null` für Initialen. Es ist die Wahl
+des Webs, getroffen vom selben Code: das Profilbild eines anderen Benutzers, ein Foto an einem der
+Kontakte des Benutzers, dann was der Server nachgeschlagen hat und dieser Benutzer erlaubt (das
+BIMI-Logo einer Firma nur an einer Nachricht, die die Absenderprüfung bestanden hat, Gravatar oder
+Libravatar, ein Website-Symbol). Frag es mit Namen ab; ohne `properties` wird es weggelassen.
+
+```json
+["Email/get", {"accountId": "1", "ids": ["42"], "properties": ["from", "senderPicture"]}, "g"]
+```
+
+```json
+"senderPicture": "/jmap/sender-picture/s678-3f2a9c01b7de"
+```
+
+Lade es vom Origin des Servers mit demselben `Authorization`-Header wie jede JMAP-Anfrage. Der Pfad
+ändert sich, wann immer sich das Bild ändert, also darfst du die Bytes beliebig lange nach Pfad
+cachen. Die Antwort ist ein PNG, ein JPEG oder WebP (ein Profil- oder Kontaktbild) oder ein SVG (ein
+BIMI-Logo). Ein Pfad, der mit 404 antwortet, wurde ersetzt; frag `Email/get` erneut.
 
 ### Vorlagen
 

@@ -1013,6 +1013,35 @@ Mail in **Spam** stays blocked whatever you choose, trusted senders included: a 
 spam is your provider doubting it comes from who it says, and **Show images** is still there to
 load one message's pictures by hand.
 
+## Sender pictures
+
+The circle beside each sender shows a picture where plMail has one, and the sender's initial where
+it does not. In the order plMail looks:
+
+1. **Somebody on this server** shows the profile picture they chose for themselves.
+2. **One of your contacts** shows the photo on their card, whether you added it here or it came from
+   your CardDAV, Google or Outlook address book.
+3. **A company's logo** (BIMI), the one its domain publishes for its mail. Only on a message your
+   mail server said really came from that domain, so a forged sender never wears it, and only for a
+   domain whose DMARC policy tells servers to refuse forgeries. plMail does not check the trademark
+   certificate Gmail and Apple Mail ask for, so some logos show here that they would not show.
+4. **Gravatar or Libravatar**, the picture a person chose on one of those services. A domain that runs
+   its own Libravatar server is asked first.
+5. **The sender's website icon**, the largest icon their site declares. Never for addresses at mail
+   providers such as Gmail, whose icon would say nothing about the person.
+
+The first two are already on the server and are always shown. The other three are looked up on the
+internet, and only if the administrator allows it under **Admin → Sender pictures**. Then
+**Settings → Reading & writing → Reading → Sender pictures** has a switch for each. Company logos and
+website icons start on, since they come from the sender's own domain, which already knows it sent
+you mail. Gravatar starts off: it would send a hash of every address you hear from to a company
+that is neither you nor the sender.
+
+Nothing is fetched while you read. The lookups run in the background, once per sender for everybody
+on the server, and a picture they find replaces the initial on screen as it arrives. What they find
+is re-checked about once a month, and senders who have not written for half a year are forgotten.
+Your browser never contacts any of these services; the pictures come from plMail.
+
 ## Snooze
 
 Snoozing is archiving with a timer. The conversation leaves the Inbox now — at the provider too,

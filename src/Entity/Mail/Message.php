@@ -409,6 +409,21 @@ class Message extends MessageModel
     public ?string $signer = null;
 
     /**
+     * Whether the receiving server said this message really comes from the
+     * domain in its From line (SenderAuthentication) — true, or null for
+     * anything else: a failure, no believed verdict, or mail that arrived
+     * before this was recorded.
+     *
+     * Stored, not worked out when the row is drawn, because the list does not
+     * load headers (ThreadRows reads a handful of columns) and the answer is
+     * what decides whether a BIMI logo may be shown (#639): a logo is a claim
+     * about who sent the mail, and a forged From line must not borrow it.
+     * Only true is written, so mail that does not pass costs no write.
+     */
+    #[ORM\Column(name: 'sender_verified', nullable: true)]
+    public ?bool $senderVerified = null;
+
+    /**
      * A draft written to be encrypted keeps no body here: the browser seals
      * what was typed to the person's own key, and the sealed copy is kept in
      * SealedMessageStorage. bodyText and bodyHtml stay empty, so nothing the

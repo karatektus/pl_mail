@@ -225,6 +225,12 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // announced once, however often it is found.
                 RecurringMessage::cron('37 * * * *', new RunCommandMessage('app:updates:check')),
 
+                // Sender pictures (#639): re-ask about stale answers, forget
+                // senders gone quiet, delete files nothing names. Daily, at
+                // twenty to five, clear of the push renewal and the prunes. A
+                // run with lookups off still prunes; see the command.
+                RecurringMessage::cron('40 4 * * *', new RunCommandMessage('app:sender-pictures:refresh')),
+
                 // Expired JMAP uploads and files orphaned by deleted rows.
                 // Weekly: it walks three directory trees, and a week of
                 // orphans is a rounding error on disk.

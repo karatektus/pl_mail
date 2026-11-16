@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:df7a89a84f7dcf8d97c214ba2f76584fe3e6071c -->
+<!-- translated-from: features/admin.md sha1:c6d9d5edecebf95db233b2850519eb90f780cc22 -->
 
 # Administration
 
@@ -818,6 +818,31 @@ Ein Postfach, das weit hinterherhängt — die Funktion wurde letzte Woche einge
 das Such-Modell gewechselt —, ist nicht der Fall für den nächtlichen Durchlauf. Der hat mit Absicht
 eine Obergrenze pro Postfach. Nimm dafür `app:ai:embed-mailbox` von oben, und schau unter
 **Administration → KI**, wie weit er gekommen ist.
+
+## Absenderbilder
+
+Ob plMail Bilder für die Leute nachschlagen darf, die deinen Benutzern schreiben: Firmenlogos (BIMI)
+und Website-Symbole von der Domain des Absenders, und Gravatar oder Libravatar für Benutzer, die das
+möchten. Aus, bis du es einschaltest, denn danach schickt dein Server Anfragen, die er vorher nicht
+geschickt hat, an Hosts, die sich aussucht, wer deinen Benutzern schreibt.
+
+Das Nachschlagen läuft auf dem Maintenance-Worker, nie während eine Seite gezeichnet wird, und kein
+Browser eines Benutzers spricht mit diesen Diensten. Jede Adresse und jede Domain wird einmal für den
+ganzen Server nachgeschlagen. Beim Einschalten werden die Leute nachgeschlagen, die jedem Benutzer in
+den letzten 90 Tagen geschrieben haben, höchstens tausend pro Benutzer; danach neue Absender, sobald
+ihre Mail ankommt. Eine tägliche Runde (`app:sender-pictures:refresh`) fragt Antworten, die älter als
+einen Monat sind, erneut ab, vergisst Absender, die seit sechs Monaten nicht geschrieben haben, und
+löscht Dateien, die nichts mehr benutzt. Die Bilder liegen unter `uploads/sender-pictures` im
+Speicher-Volume.
+
+Jede Anfrage folgt denselben Regeln wie der Bild-Proxy: nur https, nie eine Adresse in einem privaten
+Netz, höchstens drei Weiterleitungen und eine Größengrenze. Ein Bild wird neu gezeichnet, bevor es
+gespeichert wird, und ein SVG-Logo wird auf seine Zeichnung zurückgeschnitten.
+
+Ausschalten stoppt neues Nachschlagen und nimmt alle nachgeschlagenen Bilder sofort von allen Seiten.
+Fotos an Kontakten und die eigenen Profilbilder der Benutzer werden in jedem Fall gezeigt: Sie liegen
+schon auf diesem Server. Welche Arten sie möchten, wählt jeder Benutzer weiterhin selbst unter
+**Einstellungen → Lesen & Schreiben → Lesen**. Eine Konfigurationssicherung enthält diesen Schalter.
 
 ## Benutzer
 

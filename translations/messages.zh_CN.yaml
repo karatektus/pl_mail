@@ -749,6 +749,7 @@ admin:
         performance: 性能
         push: 推送
         reset: 重置
+        sender_pictures: '发件人图片'
         sso: SSO
         system: 系统
         updates: 更新
@@ -928,6 +929,16 @@ admin:
         running_for: '已运行 %duration%'
         waiting_since: 开始等待时间
     refresh_hint: '实时面板每 10 秒刷新'
+    sender_pictures:
+        always_local: '用户联系人的照片和用户自己的头像无论如何都会显示：它们已在此服务器上。'
+        heading: '发件人图片'
+        intro: '开启后，plMail 会为给你的用户写信的人查找图片：从发件人自己的域名获取公司标志（BIMI）和网站图标，并为有需要的用户查找 Gravatar 或 Libravatar。查找在维护 worker 上于后台运行，任何用户的浏览器都不会连接这些服务。每位用户可自行选择需要哪些。'
+        lookups: '在互联网上查找发件人图片'
+        lookups_hint: '默认关闭。开启后会为每位用户查找过去 90 天内给其写信的人。'
+        'off': '关'
+        'on': '开'
+        saved_off: '查找已关闭。之前找到的图片不再显示。'
+        saved_on: '查找已开启。正在为最近的发件人查找图片。'
     sso:
         clear_secret: 移除已保存的客户端密钥
         clear_secret_help: '同时清空签发方和客户端 ID。登录将回退到环境中的 OIDC_* 变量；如果也未设置这些变量，则关闭单点登录。'
@@ -4102,6 +4113,17 @@ settings:
         'off': '关闭'
         'on': '开启'
         subheading: '是否需要手动允许邮件加载远程图片。'
+    sender_pictures:
+        admin_off: '管理员尚未允许此服务器在互联网上查找图片，因此这些开关暂时不起作用。你的选择会保留，待允许后生效。'
+        bimi: '公司标志'
+        bimi_hint: '公司为其邮件发布的标志（BIMI），从该公司自己的域名获取，仅显示在确实由该域名发出的邮件上。'
+        hashed: 'Gravatar 和 Libravatar'
+        hashed_hint: '某人在 Gravatar 或其域名自己的 Libravatar 服务器上选择的图片。给你发信的每个地址都会以哈希形式发送给该服务。默认关闭，需你手动开启。'
+        heading: '发件人图片'
+        intro: '联系人照片和此服务器上用户的头像始终显示。这里是 plMail 可以在后台为其他所有人查找的图片——打开邮件时从不加载任何内容。'
+        subheading: '哪些发件人旁的图片可以在互联网上查找。'
+        website: '网站图标'
+        website_hint: '发件人网站为自己声明的图标。不会用于 Gmail 等邮件服务商的地址，因为它们的图标与个人无关。'
     swipe_actions:
         heading: "滑动操作"
         hint: "拖动足够远或快速轻扫时触发操作。再次滑动可撤销已读状态和星标操作，归档和删除后也可选择撤销。删除会将会话移至废纸篓，不会永久删除。"
@@ -4228,6 +4250,7 @@ settings:
             profile: "姓名 头像 照片"
             read_receipts: "mdn 已读回执 确认"
             reading_pane: "预览 分栏 右侧 下方"
+            sender_pictures: '头像 图片 照片 gravatar libravatar bimi 标志 图标 发件人'
             sharing: "链接 公开 预约"
             shortcuts: "键盘 按键 快捷键"
             swipe_actions: "滑动 手势 手机 归档"

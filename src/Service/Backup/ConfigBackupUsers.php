@@ -226,6 +226,10 @@ final readonly class ConfigBackupUsers
         // what senders may learn of one's reading, so a restore must not
         // quietly undo it in either direction. A boolean, no id.
         User::SETTING_IMAGES_ALWAYS_SHOW,
+        // Which looked-up sender pictures the user wants (#639) — beside the
+        // images switch, for the same reason: a choice about what may be
+        // fetched on their behalf, and Gravatar's is a privacy one.
+        User::SETTING_SENDER_PICTURES,
         // Which tabs and labels notify, and whether a browser skips mail
         // already read (#369). Choices about how one wants to be interrupted,
         // which a restore must not quietly undo: back to Primary alone is

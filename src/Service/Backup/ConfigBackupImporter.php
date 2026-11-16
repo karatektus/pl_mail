@@ -294,6 +294,7 @@ final readonly class ConfigBackupImporter
         ConfigBackupDatabase::UPDATE_SETTINGS,
         ConfigBackupDatabase::OIDC_CONFIG,
         ConfigBackupDatabase::WORKER_SETTINGS,
+        ConfigBackupDatabase::SENDER_PICTURE_SETTINGS,
     ];
 
     private function databaseItems(array $database): array
@@ -449,6 +450,7 @@ final readonly class ConfigBackupImporter
                     ConfigBackupDatabase::UPDATE_SETTINGS => $this->database->restoreUpdateSettings($values),
                     ConfigBackupDatabase::OIDC_CONFIG     => $this->database->restoreOidcConfig($values),
                     ConfigBackupDatabase::WORKER_SETTINGS => $this->database->restoreWorkerSettings($values),
+                    ConfigBackupDatabase::SENDER_PICTURE_SETTINGS => $this->database->restoreSenderPictureSettings($values),
                 };
 
                 continue;

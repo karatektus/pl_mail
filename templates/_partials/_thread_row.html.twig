@@ -15,6 +15,7 @@ inside the reading pane.
 because of its draft, so it opens that draft even when the thread also holds
 the conversation it answers.
 #}
+{% import '_partials/_sender_picture.html.twig' as pictures %}
 {% set draft_scope = draft_scope|default(false) %}
 {# The Sent list, where the who column has the same problem the Drafts list had:
    every row is from you, so naming the sender fills the column with your own
@@ -193,6 +194,16 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
 
     {% set hasAttachment = row.narrowed ? row.hasAttachments : item.attachmentCount > 0 %}
     {% set senderSeed = latest ? (latest.fromAddress ?: sender) : sender %}
+    {# The sender picture (#639) belongs to the newest message somebody ELSE
+       wrote: a conversation you answered last would otherwise wear your own
+       face. None in Sent and Drafts, where every message is yours and the
+       column names the recipients instead. `|filter|last` yields false on an
+       empty list, which the `?` below reads as no picture. #}
+    {% set pictureMessage = (draft_scope or sent_scope)
+        ? null
+        : row.messages|filter(m => not m.filedAsSent and not m.isDraft)|last %}
+    {% set pictureAddress = pictureMessage ? pictureMessage.fromAddress : null %}
+    {% set pictureVerified = pictureMessage ? pictureMessage.senderVerified : false %}
 
     {# The message list settings' other answers (#608). Each is drawn and
        app.css shows the one <html> asks for — see MessageListRenderer.
@@ -221,6 +232,8 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set count = 1 %}
     {% set sender = item.fromName ?: item.fromAddress %}
     {% set senderSeed = item.fromAddress ?: sender %}
+    {% set pictureAddress = item.fromAddress %}
+    {% set pictureVerified = item.senderVerified ?? false %}
     {# Same source as the thread branch above, so the two cannot drift. #}
     {% set snippet = mail_snippet(item)|slice(0, 100) %}
     {% set encrypted = item.crypto is not null and item.crypto.encrypted %}
@@ -457,13 +470,18 @@ be a worse regression than the one this feature fixes.
             {# `data-row-avatar-face`: the hook the "sender discs off" setting
                paints a plain circle over. It cannot be hidden — see app.css —
                because this element's sibling input is the row's checkbox. #}
+            {# The picture, when there is one, sits inside the same circle over
+               the initial — so the hover tick and the "discs off" paint keep
+               working on exactly the element they always did. #}
+            {% set senderPicture = sender_picture(pictureAddress, pictureVerified) %}
             <span data-row-avatar-face
-                  class="flex items-center justify-center rounded-full
+                  {{ pictures.attributes(pictureAddress, pictureVerified, senderPicture) }}
+                  class="relative overflow-hidden flex items-center justify-center rounded-full
                          w-9 h-9 text-sm font-semibold select-none
                          transition-opacity
                          peer-checked:opacity-0 group-hover/avatar:opacity-0
                          {{ senderSeed|avatar_tone }}"
-                  aria-hidden="true">{{ sender|avatar_initial(senderSeed) }}</span>
+                  aria-hidden="true">{{ sender|avatar_initial(senderSeed) }}{{ pictures.image(senderPicture) }}</span>
 
             <span class="absolute inset-0 flex items-center justify-center rounded-full
                          bg-accent text-accent-ink

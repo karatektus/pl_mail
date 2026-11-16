@@ -317,6 +317,23 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                     } only %}
                                                 {% endblock %}
                                             {% endembed %}
+
+                                            {# Beside the images card because it is the same
+                                               question — what the server may fetch from
+                                               strangers for this reader — asked of the
+                                               pictures beside each sender (#639). #}
+                                            {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-sender-pictures',
+                                                heading:    'settings.sender_pictures.heading'|trans,
+                                                subheading: 'settings.sender_pictures.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_sender_pictures.html.twig' with {
+                                                        choices:        sender_picture_choices(),
+                                                        lookupsEnabled: sender_picture_lookups_enabled(),
+                                                    } only %}
+                                                {% endblock %}
+                                            {% endembed %}
                                         </div>
                                     {% elseif section == 'compose' %}
                                         {# What happens when a mail is written. Compose behaviour came

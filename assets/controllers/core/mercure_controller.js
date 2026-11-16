@@ -497,6 +497,13 @@ export default class extends Controller {
             // more, so a missed message costs a strip that is one sync stale
             // rather than a wrong one.
             this.dispatch("insights-changed", {detail: data});
+        } else if (data.type === "sender-picture.found") {
+            // Published by App\Service\Mail\SenderPicture\SenderPictureNotifier
+            // when a background lookup found a sender's picture (#639). Carries
+            // the answer — a key naming the rows and the picture's URL — because
+            // it is one string, and re-asking for it per tab would cost more
+            // than the message. mail--sender-pictures puts it on screen.
+            this.dispatch("sender-picture-found", {detail: data});
         }
     }
 }

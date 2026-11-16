@@ -1,0 +1,40 @@
+{#
+_partials/_sender_picture.html.twig — the sender picture inside an avatar
+circle (#639), as two macros the circle's own markup calls.
+
+  attributes(address, verified, picture)
+      What the circle carries for the live update (mail--sender-pictures):
+      the keys SenderPictureNotifier names rows by, whether this message
+      passed the sender check (only that admits a BIMI logo), and the rank of
+      the picture it already shows, 99 for initials. A later picture replaces
+      this one only if it ranks better.
+
+  image(picture)
+      The <img> itself, over the initial, or nothing when picture is null.
+
+Macros rather than an include because both halves belong INSIDE markup the
+caller owns — the attributes on its circle, the image in its body — and the
+row's circle doubles as its checkbox label, which no partial should redraw.
+
+The initial stays underneath the image. If the picture ever fails to load,
+the alt text is empty, so the broken image paints nothing and the initial
+shows through.
+#}
+{% macro attributes(address, verified, picture) %}
+    {%- set keys = sender_picture_keys(address) -%}
+    data-sender-picture
+    data-sender-picture-rank="{{ picture ? picture.rank : 99 }}"
+    data-sender-verified="{{ verified ? '1' : '0' }}"
+    {%- if keys.address %} data-sender-picture-address="{{ keys.address }}"{% endif %}
+    {%- if keys.domain %} data-sender-picture-domain="{{ keys.domain }}"{% endif %}
+    {%- if keys.site %} data-sender-picture-site="{{ keys.site }}"{% endif %}
+{% endmacro %}
+
+{% macro image(picture) %}
+    {%- if picture -%}
+        <img src="{{ path('app_sender_picture', { reference: picture.reference }) }}"
+             alt="" loading="lazy" decoding="async" draggable="false"
+             data-sender-picture-image
+             class="absolute inset-0 h-full w-full rounded-full object-cover bg-surface">
+    {%- endif -%}
+{% endmacro %}

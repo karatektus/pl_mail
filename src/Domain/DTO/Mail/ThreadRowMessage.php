@@ -60,6 +60,8 @@ final readonly class ThreadRowMessage
         public bool $answered = false,
         /** When the row last changed — for a draft written here, its last save. */
         public ?DateTimeImmutable $updatedAt = null,
+        /** Passed the sender check — Message::$senderVerified; what admits a BIMI logo (#639). */
+        public bool $senderVerified = false,
     ) {
     }
 
@@ -87,6 +89,7 @@ final readonly class ThreadRowMessage
             true === $message->hasAttachments,
             $message->hasFlag(MessageFlag::ANSWERED),
             $message->updatedAt,
+            true === $message->senderVerified,
         );
     }
 

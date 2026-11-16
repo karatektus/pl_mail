@@ -483,6 +483,8 @@ class MessageRepository extends ServiceEntityRepository
                     WHERE inBin.id = m.id AND trashLabel.role = :trashRole) AS trashed',
                 'm.seenAt',
                 'm.hasAttachments',
+                // Whether a BIMI logo may be shown on the row (#639).
+                'm.senderVerified',
             )
             ->where('m.thread IN (:threads)')
             ->setParameter('sentRoles', [LabelRole::Sent, LabelRole::Drafts])
