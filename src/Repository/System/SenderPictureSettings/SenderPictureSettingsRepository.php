@@ -47,4 +47,17 @@ class SenderPictureSettingsRepository extends ServiceEntityRepository
 
         return true === $stored || 1 === $stored || 't' === $stored || '1' === $stored;
     }
+
+    /**
+     * Whether the Libravatar route serves anybody (#642). Fresh on every call
+     * for lookupsEnabled()'s reason; a missing row reads as off.
+     */
+    public function libravatarEnabled(): bool
+    {
+        $stored = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT libravatar_enabled FROM sender_picture_settings ORDER BY id ASC LIMIT 1',
+        );
+
+        return true === $stored || 1 === $stored || 't' === $stored || '1' === $stored;
+    }
 }

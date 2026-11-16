@@ -1042,6 +1042,11 @@ on the server, and a picture they find replaces the initial on screen as it arri
 is re-checked about once a month, and senders who have not written for half a year are forgotten.
 Your browser never contacts any of these services; the pictures come from plMail.
 
+Your own picture can go the other way. When the administrator serves Libravatar, **Settings →
+Profile** has a **Share my picture through Libravatar** switch, off until you turn it on. Turned on,
+mail programs and websites that use Libravatar show the picture you chose here beside your
+addresses. Anybody who knows one of your addresses can then fetch it.
+
 Mail in **Spam** or **Trash** never starts a lookup. Asking a spammer's domain for its logo would
 tell them the address is read, the same thing a remote image would.
 

@@ -793,6 +793,30 @@ admin:
                 step_user: "Each user enters that address, a username if the server asks for one, and a password or API token. FileBrowser Quantum takes an API token as the password and ignores the username."
         tutorial_heading: 'Setup'
         unimplemented_notice: 'plMail cannot talk to this service yet. You can register the credentials now — they will be used as soon as support ships.'
+    libravatar:
+        check_dns: 'Check DNS'
+        heading: 'Libravatar'
+        intro: 'Lets mail clients anywhere show the profile picture your users chose here. Libravatar-aware programs (Thunderbird add-ons, forges such as Forgejo, other plMail servers) look up the picture for an address by asking its domain''s DNS which server holds it. Turn this on and point that DNS here, and plMail answers for its own users.'
+        need_own_dns: 'A domain whose DNS you control. Addresses at Gmail, Outlook.com and other providers cannot point here; their users get their picture from Gravatar or Libravatar instead.'
+        need_reachable: '%url% reachable from the internet, not only from your network. If plMail sits behind a reverse proxy, the proxy must pass /avatar/ through.'
+        need_tls: 'A valid TLS certificate for %host%, the kind browsers accept. Clients refuse a self-signed one without saying so.'
+        needs_heading: 'What it needs besides DNS'
+        no_address: 'No public address is set. Set one under Admin → Address first: the DNS records must name the host plMail is reached at from outside.'
+        no_domains: 'No user has an address yet.'
+        not_https: 'The public address is %url%, which is not https. Libravatar clients only fetch over https, so set an https address under Admin → Address.'
+        records_heading: 'DNS records'
+        records_intro: 'Add one SRV record per domain your users have addresses at, at your DNS provider, exactly as shown. Then check them here; DNS can take a while to update.'
+        saved_off: 'Libravatar is off. No picture is served, for anyone.'
+        saved_on: 'Libravatar is on. Users can now share their picture under Settings → Profile.'
+        serve: 'Serve this server''s users'' pictures (Libravatar)'
+        serve_hint: 'Off until you turn it on. Even then, a picture is served only for users who switch it on themselves under Settings → Profile; for everyone else this server answers as if it did not know the address.'
+        status:
+            elsewhere: 'Points to %found%'
+            missing: 'No record yet'
+            not_yours: 'A mail provider''s domain'
+            ok: 'OK'
+            wrong_port: 'Wrong port: %found%'
+        users_opt_in: 'Users choose for themselves: each one decides under Settings → Profile whether their picture is shared. A config backup carries both this switch and their choices.'
     loading: 'Loading…'
     maintenance:
         heading: Maintenance
@@ -3707,6 +3731,12 @@ settings:
         with_keys: "Your keys come along: encrypted mail opens in the app straight away."
         expires: "Expires at %time%."
         open_in_app: "Open in the app"
+    libravatar:
+        heading: 'Libravatar'
+        no_picture: 'You have no profile picture yet; add one above for this to show anything.'
+        publish: 'Share my picture through Libravatar'
+        publish_hint: 'Lets mail programs and websites that use Libravatar show the picture above next to your addresses. Anybody who knows one of your addresses can then fetch the picture. Off until you turn it on.'
+        subheading: 'Whether other mail programs may show your profile picture.'
     message_list:
         always: 'Always'
         attachments:
@@ -4921,6 +4951,7 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
             labels: "folders tags unread all mail"
             language: "locale english german french chinese"
+            libravatar: 'libravatar avatar picture photo share public profile'
             list_content: 'attachments chips paperclip files labels sender date time count replied answered'
             list_layout: 'rows one line compact dense preview snippet stacked lines width'
             list_markers: 'star hover avatar disc account corner unread bold'

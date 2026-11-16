@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:c6d9d5edecebf95db233b2850519eb90f780cc22 -->
+<!-- translated-from: features/admin.md sha1:47a183fce91620b3a538f077af1d9b921626b981 -->
 
 # Administration
 
@@ -843,6 +843,38 @@ Ausschalten stoppt neues Nachschlagen und nimmt alle nachgeschlagenen Bilder sof
 Fotos an Kontakten und die eigenen Profilbilder der Benutzer werden in jedem Fall gezeigt: Sie liegen
 schon auf diesem Server. Welche Arten sie möchten, wählt jeder Benutzer weiterhin selbst unter
 **Einstellungen → Lesen & Schreiben → Lesen**. Eine Konfigurationssicherung enthält diesen Schalter.
+
+### Die Bilder deiner Benutzer ausliefern (Libravatar)
+
+Die zweite Karte auf derselben Seite dreht die Richtung um: plMail beantwortet die Mailprogramme,
+Forges und Websites anderer Leute mit dem Profilbild, das deine Benutzer hier ausgesucht haben, als
+[Libravatar](https://www.libravatar.org)-Server. Es ist aus, bis du es einschaltest, und auch dann
+liefert es das Bild eines Benutzers nur aus, wenn er das selbst unter **Einstellungen → Profil**
+einschaltet. Für alle anderen, und solange der Schalter aus ist, antwortet plMail, als kenne es die
+Adresse nicht, damit niemand damit herausfinden kann, wer hier ein Konto hat.
+
+Ein Libravatar-Programm findet den Server für eine Adresse über einen DNS-Eintrag bei der Domain der
+Adresse. Die Karte listet jede Domain, unter der deine Benutzer Adressen haben, mit dem genauen
+Eintrag, den sie braucht, und dem Host aus **Admin → Adresse**:
+
+```
+_avatars-sec._tcp.example.com. 3600 IN SRV 0 0 443 mail.example.com.
+```
+
+**DNS prüfen** schlägt jeden nach und sagt, was es gefunden hat. **OK** heißt, der Eintrag nennt
+diesen Server auf Port 443. **Noch kein Eintrag** heißt, er muss noch angelegt werden. **Zeigt auf**
+nennt einen anderen Server, also entweder einen Tippfehler oder eine Domain mit eigenem
+Avatar-Server. **Falscher Port** heißt, der Eintrag nennt diesen Server auf einem anderen Port als
+443. Domains von Mailanbietern wie Gmail werden als deren markiert: Dort kannst du keine Einträge
+anlegen, und diese Benutzer bekommen ihr Bild stattdessen von Gravatar oder Libravatar.
+
+DNS ist nicht alles, und die Karte sagt das auch: Die öffentliche Adresse muss https sein, mit einem
+Zertifikat, das Browser akzeptieren (ein selbst signiertes lehnen die Programme stillschweigend ab),
+und `/avatar/` auf diesem Host muss aus dem Internet erreichbar sein. Hinter einem Reverse Proxy
+musst du diesen Pfad durchreichen. Die Route beantwortet die Anfragen der Spezifikation vollständig:
+ein Bild per MD5 oder SHA-256 einer Adresse, jede Größe von 1 bis 512 Pixeln und den `d=`-Standard
+des Programms, wenn es kein Bild gibt. Jede Client-IP bekommt höchstens 600 Anfragen in zehn Minuten. Eine Konfigurationssicherung
+enthält den Schalter und die Entscheidung jedes Benutzers.
 
 ## Benutzer
 

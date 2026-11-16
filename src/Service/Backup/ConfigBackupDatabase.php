@@ -110,9 +110,10 @@ final readonly class ConfigBackupDatabase
     public const string WORKER_SETTINGS = 'workerSettings';
 
     /**
-     * Whether sender pictures may be looked up on the internet — Admin →
-     * Sender pictures (#639). The switch only: the pictures themselves are
-     * a cache of public data, found again by the first refresh.
+     * Whether sender pictures may be looked up on the internet, and whether
+     * this server answers Libravatar requests — Admin → Sender pictures (#639,
+     * #642). The switches only: the pictures themselves are a cache of public
+     * data, found again by the first refresh.
      */
     public const string SENDER_PICTURE_SETTINGS = 'senderPictureSettings';
 
@@ -506,7 +507,10 @@ final readonly class ConfigBackupDatabase
     {
         $settings = $this->senderPictureSettings->current();
 
-        return null === $settings ? null : ['lookupsEnabled' => $settings->lookupsEnabled];
+        return null === $settings ? null : [
+            'lookupsEnabled'    => $settings->lookupsEnabled,
+            'libravatarEnabled' => $settings->libravatarEnabled,
+        ];
     }
 
     /**
@@ -518,7 +522,8 @@ final readonly class ConfigBackupDatabase
 
         // Only a stored true is on: a restore must never be what starts this
         // server making requests to strangers, unless the backup says it did.
-        $settings->lookupsEnabled = true === ($values['lookupsEnabled'] ?? false);
+        $settings->lookupsEnabled    = true === ($values['lookupsEnabled'] ?? false);
+        $settings->libravatarEnabled = true === ($values['libravatarEnabled'] ?? false);
 
         if (null === $settings->id) {
             $this->entityManager->persist($settings);

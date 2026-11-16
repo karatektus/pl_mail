@@ -736,6 +736,30 @@ admin:
                 step_user: "Each hand enters that address, a username if the hold asks for one, an' a password or API token. FileBrowser Quantum takes an API token as the password an' pays the username no mind."
         tutorial_heading: 'Riggin'''
         unimplemented_notice: 'plMail cannot hail this port yet. Stow th'' papers now — they be used th'' moment passage opens.'
+    libravatar:
+        check_dns: 'Check DNS'
+        heading: 'Libravatar'
+        intro: 'Lets mail ships across the seas show the portrait yer crew chose aboard. Libravatar-savvy vessels (Thunderbird add-ons, forges like Forgejo, other plMail ships) ask a port''s DNS which ship holds a sailor''s likeness. Hoist this an'' point that DNS here, an'' plMail answers fer its own crew.'
+        need_own_dns: 'A port whose DNS ye command. Addresses at Gmail, Outlook.com an'' other great harbours can''t point here; their sailors get their likeness from Gravatar or Libravatar instead.'
+        need_reachable: '%url% reachable from the open sea, not just yer own harbour. If plMail sits behind a reverse proxy, the proxy must let /avatar/ through.'
+        need_tls: 'A proper TLS certificate fer %host%, the kind browsers trust. Vessels quietly refuse a self-signed one.'
+        needs_heading: 'What it needs besides DNS'
+        no_address: 'No public address be set. Set one under Admin → Address first: the DNS records must name the host plMail be hailed at from outside.'
+        no_domains: 'No sailor has an address yet.'
+        not_https: 'The public address be %url%, which ain''t https. Libravatar vessels only fetch over https, so set an https address under Admin → Address.'
+        records_heading: 'DNS records'
+        records_intro: 'Add one SRV record fer each port yer crew have addresses at, with yer DNS provider, exactly as shown. Then check ''em here; DNS can take a tide or two.'
+        saved_off: 'Libravatar be off. No portrait be handed out, to anyone.'
+        saved_on: 'Libravatar be on. The crew can now share their portrait under Settings → Profile.'
+        serve: 'Hand out this ship''s crew portraits (Libravatar)'
+        serve_hint: 'Off till ye turn it on. Even then, a portrait be handed out only fer crew who turn it on themselves under Settings → Profile; fer everyone else this ship answers as if it never heard o'' the address.'
+        status:
+            elsewhere: 'Points to %found%'
+            missing: 'No record yet'
+            not_yours: 'A great harbour''s port'
+            ok: 'Shipshape'
+            wrong_port: 'Wrong port: %found%'
+        users_opt_in: 'The crew choose fer themselves: each decides under Settings → Profile whether their portrait be shared. A config backup carries this switch an'' their choices.'
     loading: 'Haulin'' aboard…'
     maintenance:
         heading: Shipkeepin'
@@ -3555,6 +3579,12 @@ settings:
         with_keys: "Yer keys sail along: ciphered letters open in the app straight away."
         expires: "Fades at %time%."
         open_in_app: "Open it in th' app"
+    libravatar:
+        heading: 'Libravatar'
+        no_picture: 'Ye have no portrait yet; add one above fer this to show anything.'
+        publish: 'Share me portrait through Libravatar'
+        publish_hint: 'Lets mail ships an'' sites that use Libravatar show the portrait above beside yer addresses. Anyone who knows one o'' yer addresses can then fetch it. Off till ye turn it on.'
+        subheading: 'Whether other mail ships may show yer portrait.'
     message_list:
         always: 'Always'
         attachments:
@@ -4731,6 +4761,7 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
             labels: "folders tags unread all mail"
             language: "locale english german french chinese"
+            libravatar: 'libravatar avatar portrait likeness share public profile'
             list_content: 'cargo attachments chips paperclip files flags labels sender date hour tally answered'
             list_layout: 'rows one line compact dense peek preview stacked width'
             list_markers: 'mark star hover medallion avatar crew corner unread bold'

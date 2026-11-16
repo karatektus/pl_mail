@@ -142,7 +142,11 @@ summary, for the badge on the Account health row.
             {% endif %}
         </a>
         <ul>
-            {% for card in page.cards %}
+            {# Every card the page can show is indexed; one the page is not
+               drawing right now is left out here too, so search never offers
+               an anchor that is not there. The Libravatar card exists only
+               while the administrator serves Libravatar (#642). #}
+            {% for card in page.cards|filter(card => card.anchor != 'card-libravatar' or libravatar_serving()) %}
                 <li hidden data-settings--nav-target="hit"
                     data-terms="{{ card.headingKey|trans }}"
                     data-keywords="{{ card.keywordsKey ? card.keywordsKey|trans : '' }}">

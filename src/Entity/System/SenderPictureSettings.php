@@ -45,4 +45,19 @@ class SenderPictureSettings
 
     #[ORM\Column(options: ['default' => false])]
     public bool $lookupsEnabled = false;
+
+    /**
+     * Whether this server answers Libravatar requests for its own users'
+     * profile pictures (#642) — the other direction from the lookups above:
+     * not plMail asking the internet for a picture, but the internet asking
+     * plMail.
+     *
+     * Beside the lookups because an administrator thinking about one is
+     * thinking about the other, and in the same row because it is the same
+     * kind of decision: what this server says to strangers. OFF until turned
+     * on, and even then only users who opted in are served
+     * (User::$publishesLibravatar) — see LibravatarController.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $libravatarEnabled = false;
 }
