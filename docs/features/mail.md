@@ -812,8 +812,8 @@ every page, and going to a different list starts with nothing selected.
 To select a run of conversations, click one avatar, then hold Shift and click another: both, and
 every conversation between them on the page, are selected. The run always starts at the avatar you
 last clicked without Shift, so another shift-click makes it longer or shorter, and conversations
-it no longer covers go back to how they were. To untick a run, click its first avatar to untick
-it, then shift-click the last. It works in either direction and leaves what you selected on other
+it no longer covers go back to how they were. Shift-clicking the avatar the run ended on again
+unticks the whole run, and once more ticks it again. It works in either direction and leaves what you selected on other
 pages as it is. Shift on the rest of the row opens the mail as before.
 
 Star, **Archive**, **Delete**, **Label as**, **Mark as read** / **Mark as unread** and **Snooze**

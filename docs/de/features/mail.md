@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:2f75c14230e101e3d9aa74fb9363f475b4eea3b2 -->
+<!-- translated-from: features/mail.md sha1:28fdb85b89b4cdcbb4e28e72818e5e717e240eea -->
 
 # Mail
 
@@ -888,8 +888,8 @@ Um mehrere Konversationen am Stück auszuwählen, klickst du einen Avatar an, h�
 gedrückt und klickst einen anderen: Beide und jede Konversation dazwischen auf der Seite sind
 ausgewählt. Die Reihe beginnt immer bei dem Avatar, den du zuletzt ohne Umschalt angeklickt hast.
 Ein weiterer Umschalt-Klick macht sie also länger oder kürzer, und was sie nicht mehr umfasst,
-bekommt seinen vorherigen Zustand zurück. Um die Haken einer Reihe wieder zu entfernen, klickst du
-ihren ersten Avatar an, damit er nicht mehr angehakt ist, und dann mit Umschalt den letzten. Das geht in beide Richtungen und lässt,
+bekommt seinen vorherigen Zustand zurück. Ein erneuter Umschalt-Klick auf den Avatar, bei dem die
+Reihe endet, entfernt alle Haken der Reihe, ein weiterer setzt sie wieder. Das geht in beide Richtungen und lässt,
 was du auf anderen Seiten ausgewählt hast, wie es ist. Umschalt auf dem Rest der Zeile öffnet die
 Mail wie bisher.
 

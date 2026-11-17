@@ -63,6 +63,14 @@ let anchor = null;
  */
 const beforeRange = new Map();
 
+/**
+ * The row the last shift-click ended on, by id, while the start is the same.
+ * Shift-clicking it again flips the whole range (see pick()).
+ *
+ * @type {string|null}
+ */
+let reach = null;
+
 function factsOf(checkbox) {
     const labelled = checkbox.closest("[data-label-ids]");
     const dragged = checkbox.closest("[data-dnd-thread]");
@@ -94,6 +102,7 @@ export function enterView(key) {
     if (key !== view) {
         carried.clear();
         anchor = null;
+        reach = null;
         beforeRange.clear();
         view = key;
     }
@@ -143,8 +152,16 @@ export function selection() {
  *
  * The range takes the START's state, not the flip the browser just gave the
  * shift-clicked box: shift-clicking row 8, already ticked, means "up to here",
- * not "untick". Unticking a run is therefore the same gesture from an
- * unticked start — click the first row to untick it, shift-click the last.
+ * not "untick".
+ *
+ * Except on the row the last range ended on. Shift-clicking that one again
+ * says nothing new about where the range ends, so it flips the whole range,
+ * start included: a run ticked by mistake is unticked by repeating the click
+ * that ticked it, and a third time ticks it again. What the rows were before
+ * is kept through the flips, so a shorter range afterwards still puts back
+ * the rows it leaves out.
+ * A run can also be unticked from an unticked start: click the first row to
+ * untick it, shift-click the last.
  *
  * Only the rows on screen, in the order they are on screen. A start left on
  * another page, or on a row that has since left the list, is no range at
@@ -166,20 +183,24 @@ export function pick(box, extend) {
 
     if (false === extend || -1 === from || -1 === to || from === to) {
         anchor = box.value;
+        reach = null;
         beforeRange.clear();
 
         return;
     }
 
-    const state = boxes[from].checked;
     const range = boxes.slice(Math.min(from, to), Math.max(from, to) + 1);
+    const repeat = box.value === reach;
+    const state = true === repeat ? false === boxes[from].checked : boxes[from].checked;
+
+    reach = box.value;
 
     // The shift-clicked box was flipped by the click itself; what it was
     // before is the opposite, and that is what it goes back to if a later
     // range leaves it out.
     const was = (candidate) => (candidate === box ? !candidate.checked : candidate.checked);
 
-    for (const candidate of boxes) {
+    for (const candidate of false === repeat ? boxes : []) {
         if (true === beforeRange.has(candidate.value) && false === range.includes(candidate)) {
             candidate.checked = beforeRange.get(candidate.value);
             beforeRange.delete(candidate.value);

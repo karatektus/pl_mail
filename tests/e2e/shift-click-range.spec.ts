@@ -64,6 +64,24 @@ test.describe("shift-clicking an avatar", () => {
         await expect.poll(() => ticked(page)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     });
 
+    test("shift-clicking the row the range ended on again flips the whole range", async ({ page }) => {
+        await openInbox(page);
+
+        await avatar(page, 0).click();
+        await avatar(page, 9).click({ modifiers: ["Shift"] });
+        await expect.poll(() => ticked(page)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+        await avatar(page, 9).click({ modifiers: ["Shift"] });
+        await expect.poll(() => ticked(page), "repeating the shift-click did not untick the run").toEqual([]);
+
+        await avatar(page, 9).click({ modifiers: ["Shift"] });
+        await expect.poll(() => ticked(page), "a third time did not tick it again").toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+        // A different end still redraws from the same start.
+        await avatar(page, 7).click({ modifiers: ["Shift"] });
+        await expect.poll(() => ticked(page)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    });
+
     test("works upwards as well", async ({ page }) => {
         await openInbox(page);
 
