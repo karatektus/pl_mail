@@ -44,8 +44,10 @@ account:
             heading: '发件 — SMTP'
             host: 主机
             password: 发件密码
-            same: 发件使用相同密码
-            separate: 发件使用不同密码
+            same: 发件使用相同的登录信息
+            separate: 发件使用不同的用户名或密码
+            username: 发件用户名
+            username_help: '留空则使用上方的用户名发件。'
         username: 用户名
     mail_purge_queued: '正在从 plMail 中移除此账户的邮件。服务器上的副本会保留。'
     oauth:

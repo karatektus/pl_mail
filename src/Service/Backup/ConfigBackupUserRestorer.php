@@ -407,6 +407,9 @@ final readonly class ConfigBackupUserRestorer
             // Absent from a backup made before the field existed, which reads
             // as null: one password for both, as that account had.
             $account->smtpPassword      = $this->text($row, 'smtpPassword');
+            // The same for the sending username (#660): absent is null, the
+            // account's own username.
+            $account->smtpUsername      = $this->text($row, 'smtpUsername');
             $account->authType          = $this->text($row, 'authType');
             $account->oauthProvider     = $this->text($row, 'oauthProvider');
             $account->oauthAccessToken  = $this->text($row, 'oauthAccessToken');

@@ -30,10 +30,12 @@ connection to come up, and about the handful of settings providers genuinely dis
    settings is a mailbox you can read and not send from, which is a legitimate thing to want for an
    archive.
 
-   The one password is used for both directions. Where the server wants a different one to send —
-   Zoho issues an app password per protocol, and some hosts put a relay with its own credentials in
-   front of SMTP — **Use a different password for sending** under the SMTP fields reveals a second
-   field. The username stays shared. **Use the same password for sending** takes it away again.
+   The one username and password are used for both directions. Where sending signs in differently —
+   Zoho issues an app password per protocol, and a relay or smarthost in front of SMTP has accounts
+   of its own — **Use a different username or password for sending** under the SMTP fields reveals a
+   sending username and password. Either left blank is the account's own, so a server that only
+   wants a second password needs nothing else. **Use the same sign-in for sending** takes them away
+   again.
 6. **Test connection** probes IMAP and SMTP separately and reports each one, so a working mailbox
    with a wrong SMTP port says so instead of failing at the first send.
 

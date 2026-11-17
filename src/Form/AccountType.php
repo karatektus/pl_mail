@@ -239,14 +239,20 @@ class AccountType extends AbstractType
                     ],
                 'label' => 'SMTP encryption',
             ])
-            // ── A second password, for sending ─────────────────────────────
-            // Two fields, and the first is the one that decides. A server that
-            // wants a different password to send is rare, so the form shows
-            // one password field and a button; the button ticks this box and
-            // reveals the second field (see settings--smtp-password and
-            // account/_fields.html.twig).
+            // ── A second sign-in, for sending ──────────────────────────────
+            // A box and two fields, and the box is the one that decides. A
+            // server that wants a different username or password to send is
+            // rare, so the form shows one sign-in and a button; the button
+            // ticks this box and reveals a sending username and password (see
+            // settings--smtp-password and account/_fields.html.twig). Either
+            // left blank is the account's own (#660 added the username; the
+            // password came with #42).
             //
-            // The box is what is believed, not the field. A password manager
+            // Still named for the password it was added for: renaming it
+            // would change what the connection test posts for no reader's
+            // benefit.
+            //
+            // The box is what is believed, not the fields. A password manager
             // will fill a password input it can find whether or not it is on
             // screen, and a blank field on the edit form means "keep what is
             // stored" — so neither "has a value" nor "is blank" says whether
@@ -255,6 +261,18 @@ class AccountType extends AbstractType
                 'mapped'   => false,
                 'required' => false,
                 'label'    => 'account.form.smtp.separate',
+            ])
+            // Not required, and blank means the account's username: a relay
+            // that only wants its own password needs nothing typed twice.
+            // Kept out of password managers' reach like the username above —
+            // one would fill it with the mailbox's address.
+            ->add('smtpUsername', TextType::class, [
+                'attr' => [
+                    'class'        => 'form-input',
+                    'autocomplete' => 'off',
+                ] + PasswordManagerIgnore::ATTR,
+                'label'    => 'account.form.smtp.username',
+                'required' => false,
             ])
             ->add('smtpPassword', SecretType::class, [
                 'attr' => [
@@ -366,8 +384,12 @@ class AccountType extends AbstractType
         $builder->addEventListener(FormEvents::POST_SET_DATA, static function (FormEvent $event) use (&$stored): void {
             $account = $event->getData();
             $stored  = $account instanceof Account ? $account->smtpPassword : null;
+            $user    = $account instanceof Account ? $account->smtpUsername : null;
 
-            $event->getForm()->get('separateSmtpPassword')->setData(null !== $stored && '' !== $stored);
+            // Ticked for an account that has either of the two.
+            $event->getForm()->get('separateSmtpPassword')->setData(
+                (null !== $stored && '' !== $stored) || (null !== $user && '' !== trim($user)),
+            );
         });
 
         $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event) use (&$stored): void {
@@ -377,12 +399,19 @@ class AccountType extends AbstractType
                 return;
             }
 
-            // Box clear: one password for both, whatever the hidden field
-            // was sent with.
+            // Box clear: one sign-in for both, whatever the hidden fields
+            // were sent with.
             if (true !== $event->getForm()->get('separateSmtpPassword')->getData()) {
+                $account->smtpUsername = null;
                 $account->smtpPassword = null;
 
                 return;
+            }
+
+            // Box ticked, username blank: the account's own. Stored as null
+            // rather than '' so "has none" has one spelling.
+            if (null !== $account->smtpUsername && '' === trim($account->smtpUsername)) {
+                $account->smtpUsername = null;
             }
 
             // Box ticked, field blank: keep the stored one — the same rule the

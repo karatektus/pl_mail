@@ -44,8 +44,10 @@ account:
             heading: Outgoin' — SMTP
             host: Port o' call
             password: "Password fer sendin'"
-            same: "Use th' same password fer sendin'"
-            separate: "Use a different password fer sendin'"
+            same: "Use th' same papers fer sendin'"
+            separate: "Use a different name or password fer sendin'"
+            username: "Name fer sendin'"
+            username_help: "Leave it bare t' sail under th' name above."
         username: Name ye go by
     mail_purge_queued: 'Heavin’ this ship’s letters out o’ plMail. The far port keeps its copy.'
     oauth:

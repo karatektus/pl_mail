@@ -169,9 +169,8 @@ class Account extends AccountModel
      * authentication with nothing in the form to put the second password in
      * (#42).
      *
-     * Only the password differs. The username is shared: nobody has asked for
-     * two, and the form stays one field shorter for everyone who has one.
-     * Read through $sendingPassword, never directly, by anything that sends.
+     * The username may differ too, since #660: see $smtpUsername. Read
+     * through $sendingPassword, never directly, by anything that sends.
      */
     #[ORM\Column(type: EncryptedStringType::NAME, nullable: true)]
     public ?string $smtpPassword = null;
@@ -189,6 +188,36 @@ class Account extends AccountModel
         get => null !== $this->smtpPassword && '' !== $this->smtpPassword
             ? $this->smtpPassword
             : $this->password;
+    }
+
+    /**
+     * A username for sending, where SMTP signs in as somebody else than the
+     * mailbox does. Null — again nearly always — means $username (#660).
+     *
+     * A mailbox at one host sending through another host's relay (a web
+     * host's mailbox sent out through a deliverability service, a self-hosted
+     * server sent out through a smarthost) signs in to that relay with an
+     * account of the relay's. #42 gave such an account its own password; the
+     * username stayed shared, so the relay was still asked for the mailbox's
+     * name and refused it.
+     *
+     * Behind the same "different sign-in for sending" switch as the password,
+     * and left blank there it is the account's username: a server that only
+     * wants a second password needs nothing typed twice. Not a secret, so a
+     * plain column. Read through $sendingUsername by anything that sends.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $smtpUsername = null;
+
+    /**
+     * What SMTP signs in as: the sending username if the account has one, the
+     * account's username otherwise. The one place that fallback is written,
+     * for the same reason as $sendingPassword's.
+     */
+    public ?string $sendingUsername {
+        get => null !== $this->smtpUsername && '' !== trim($this->smtpUsername)
+            ? $this->smtpUsername
+            : $this->username;
     }
 
     #[ORM\Column(length: 255, nullable: true)]

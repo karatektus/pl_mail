@@ -44,8 +44,10 @@ account:
             heading: Envoi — SMTP
             host: Serveur
             password: Mot de passe d’envoi
-            same: Utiliser le même mot de passe pour l’envoi
-            separate: Utiliser un autre mot de passe pour l’envoi
+            same: Utiliser les mêmes identifiants pour l’envoi
+            separate: Utiliser un autre nom d’utilisateur ou mot de passe pour l’envoi
+            username: Nom d’utilisateur d’envoi
+            username_help: 'Laissez vide pour envoyer avec le nom d’utilisateur ci-dessus.'
         username: Nom d’utilisateur
     mail_purge_queued: 'Suppression du courrier de ce compte dans plMail. Le serveur garde sa copie.'
     oauth:

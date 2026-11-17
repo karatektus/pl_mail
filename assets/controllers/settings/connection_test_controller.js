@@ -72,14 +72,15 @@ export default class extends Controller {
             jmapTokenAuth: this.element.querySelector('[name$="[jmapTokenAuth]"]')?.checked === true,
         };
 
-        // A second password for sending, only while the form is asking for
-        // one — see settings--smtp-password. Sent as a flag and a value, like
-        // the form itself: a blank value with the flag set means "the stored
-        // one" on the edit form.
+        // A second sign-in for sending, only while the form is asking for
+        // one — see settings--smtp-password. Sent as a flag and values, like
+        // the form itself: a blank password with the flag set means "the
+        // stored one" on the edit form, a blank username the account's own.
         const separate = this.element.querySelector('[name$="[separateSmtpPassword]"]');
 
         if (null !== separate && true === separate.checked) {
             payload.separateSmtpPassword = true;
+            payload.smtpUsername = this._value("smtpUsername");
             payload.smtpPassword = this._value("smtpPassword");
         }
 

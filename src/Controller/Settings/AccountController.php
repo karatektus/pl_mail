@@ -438,11 +438,14 @@ final class AccountController extends AbstractController
         $account->jmapSessionUrl   = (string) ($payload['jmapSessionUrl'] ?? '');
         $account->jmapTokenAuth    = true === ($payload['jmapTokenAuth'] ?? false);
 
-        // A second password for sending, only when the form says it wants one
-        // — the same flag-then-value the form itself submits. See AccountType.
+        // A second sign-in for sending, only when the form says it wants one
+        // — the same flag-then-values the form itself submits. See
+        // AccountType. A blank username is the account's own; that rule lives
+        // in Account::$sendingUsername, so it is not repeated here.
         $separateSmtp = true === ($payload['separateSmtpPassword'] ?? false);
 
         if (true === $separateSmtp) {
+            $account->smtpUsername = (string) ($payload['smtpUsername'] ?? '');
             $account->smtpPassword = (string) ($payload['smtpPassword'] ?? '');
         }
 
