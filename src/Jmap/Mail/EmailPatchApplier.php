@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Mail;
 
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
@@ -13,6 +14,7 @@ use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Repository\Label\Label\LabelRepository;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\ThreadLabelSynchronizer;
+use App\Service\Mail\ThreadPinService;
 use App\Service\Mail\ThreadStatusUpdater;
 
 /**
@@ -41,6 +43,7 @@ final class EmailPatchApplier
         private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
         private readonly JmapDraftWriter $draftWriter,
         private readonly ThreadStatusUpdater $status,
+        private readonly ThreadPinService $pins,
     ) {
     }
 
@@ -141,8 +144,9 @@ final class EmailPatchApplier
     }
 
     /**
-     * Only $seen and $flagged are settable: they are the two keywords with a
-     * dedicated column and a propagation path. $draft and $answered live in
+     * Only $seen, $flagged and $pinned are settable: the first two are the
+     * keywords with a dedicated column and a propagation path, and $pinned is
+     * the conversation's pin (#654), which has no provider to tell. $draft and $answered live in
      * the IMAP flags mirror, which the sync layer owns — a client clearing
      * $draft is therefore accepted and ignored rather than rejected, since
      * that is exactly what EmailSubmission/set's onSuccessUpdateEmail sends
@@ -157,6 +161,18 @@ final class EmailPatchApplier
 
         $isSeen = null !== $message->seenAt;
         $isFlagged = null !== $message->starredAt;
+
+        // The pin is the conversation's, so one email's keyword pins all of
+        // them — through the service the web's button uses, for the end time
+        // and the change log. Past the reminder count too: an app asks its own
+        // "pin anyway?" before it sends this.
+        $thread = $message->thread;
+
+        if (null !== $thread && (true === ($keywords['$pinned'] ?? false)) !== $thread->isPinned()) {
+            true === ($keywords['$pinned'] ?? false)
+                ? $this->pins->pin([$thread])
+                : $this->pins->unpin([$thread]);
+        }
 
         if ($wantSeen !== $isSeen) {
             // Through the same service as the web UI's read button, not by
@@ -254,6 +270,24 @@ final class EmailPatchApplier
             $this->propagator->detachLabel([$message], $label);
         }
 
+        // A change of mailboxes is a move made from an app, and a pin follows
+        // the owner's rule for moves exactly as it does on the web (#654): the
+        // bin and spam take it off, anywhere else it is "Keep the pin when
+        // moved". Nothing changed, nothing moved.
+        $moved = [] !== array_diff_key($current, $wanted) || [] !== array_diff_key($wanted, $current);
+
+        if (true === $moved && null !== $message->thread) {
+            $discarded = false;
+
+            foreach ($wanted as $label) {
+                if (LabelRole::Trash === $label->role || LabelRole::Spam === $label->role) {
+                    $discarded = true;
+                }
+            }
+
+            $this->pins->moved([$message->thread], $discarded);
+        }
+
         $this->threadLabelSynchronizer->sync($message->thread);
     }
 
@@ -270,6 +304,10 @@ final class EmailPatchApplier
 
         if (null !== $message->starredAt) {
             $keywords['$flagged'] = true;
+        }
+
+        if (true === $message->thread?->isPinned()) {
+            $keywords['$pinned'] = true;
         }
 
         return $keywords;

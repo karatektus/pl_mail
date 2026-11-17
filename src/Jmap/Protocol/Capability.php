@@ -174,6 +174,19 @@ final class Capability
     public const string UNIFIED_INBOXES = 'urn:plmail:params:jmap:unifiedinboxes';
 
     /**
+     * Vendor extension: pinned conversations (#654). The $pinned keyword on
+     * every email of a pinned conversation, settable through Email/set (it
+     * pins or unpins the whole conversation) and usable in hasKeyword, and the
+     * `pinned` sort property on Email/query.
+     *
+     * At the top level only, like NOTIFICATIONS: what it carries is the
+     * user's three choices and how many pins they have, so an app can ask
+     * "pin anyway?" itself. The server never refuses a pin over the count —
+     * the reminder is a question, and the person answers it.
+     */
+    public const string PINS = 'urn:plmail:params:jmap:pins';
+
+    /**
      * Capabilities a client is currently allowed to declare in "using".
      * Grow this list as new object types come online.
      *
@@ -199,5 +212,6 @@ final class Capability
         self::INBOX_TABS,
         self::NOTIFICATIONS,
         self::UNIFIED_INBOXES,
+        self::PINS,
     ];
 }

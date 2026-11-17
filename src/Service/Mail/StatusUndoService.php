@@ -94,7 +94,7 @@ final readonly class StatusUndoService
      */
     public function remember(iterable $messages): string
     {
-        $snapshot = ['messages' => [], 'threads' => []];
+        $snapshot = ['messages' => [], 'threads' => [], 'pins' => []];
 
         foreach ($messages as $message) {
             $snapshot['messages'][(int) $message->id] = array_values(
@@ -108,6 +108,13 @@ final readonly class StatusUndoService
 
             if (null !== $thread) {
                 $snapshot['threads'][(int) $thread->id] = $thread->snoozedUntil?->format(DATE_ATOM);
+
+                // And the bin takes a pin off (#654), which Undo puts back as
+                // it was, end time included — not as a fresh pin.
+                $snapshot['pins'][(int) $thread->id] = [
+                    $thread->pinnedAt?->format(DATE_ATOM),
+                    $thread->pinnedUntil?->format(DATE_ATOM),
+                ];
             }
         }
 
@@ -196,6 +203,8 @@ final readonly class StatusUndoService
             $this->returnUserLabels($messages, $before);
 
             $this->wakeTimes($messages, $snapshot['threads']);
+            // Absent from a snapshot an older build took, before pins.
+            $this->pins($messages, $snapshot['pins'] ?? []);
             $this->status->resetLabels($messages, $before);
         });
 
@@ -356,6 +365,28 @@ final readonly class StatusUndoService
             $until = $wakeTimes[(int) $thread->id];
 
             $thread->snoozedUntil = null === $until ? null : new DateTimeImmutable($until);
+        }
+    }
+
+    /**
+     * Put each conversation's pin back as the snapshot found it.
+     *
+     * @param list<Message>                                $messages
+     * @param array<int, array{0: string|null, 1: string|null}> $pins keyed by thread id
+     */
+    private function pins(array $messages, array $pins): void
+    {
+        foreach ($messages as $message) {
+            $thread = $message->thread;
+
+            if (null === $thread || false === array_key_exists((int) $thread->id, $pins)) {
+                continue;
+            }
+
+            [$at, $until] = $pins[(int) $thread->id];
+
+            $thread->pinnedAt    = null === $at ? null : new DateTimeImmutable($at);
+            $thread->pinnedUntil = null === $until ? null : new DateTimeImmutable($until);
         }
     }
 

@@ -153,6 +153,7 @@ final class SettingsNavigation
                 ['card-list-layout', 'settings.message_list.layout.heading', 'settings.search.keywords.list_layout'],
                 ['card-list-content', 'settings.message_list.content.heading', 'settings.search.keywords.list_content'],
                 ['card-list-markers', 'settings.message_list.markers.heading', 'settings.search.keywords.list_markers'],
+                ['card-pinning', 'settings.pinning.heading', 'settings.search.keywords.pinning'],
             ],
             'categories' => [
                 ['card-sorting', 'settings.sorting.heading', null],

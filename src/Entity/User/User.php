@@ -1343,6 +1343,78 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public const string SETTING_DISPOSAL_DELETE_NOW = 'disposal.delete_now';
 
+    /**
+     * Pinned conversations (#654), three keys in the bag: no column and no
+     * migration for a choice about how this person's lists behave.
+     *
+     * - reminder_at: how many pins before pinning asks "pin anyway?". A
+     *   reminder, never a limit; 0 switches it off.
+     * - duration_days: how long a new pin lasts; absent for forever.
+     * - keep_on_move: whether a pin survives the conversation being moved or
+     *   archived; absent for yes. Stored only when switched off, so the bag
+     *   carries nothing for anybody on the default.
+     */
+    public const string SETTING_PIN_REMINDER_AT = 'pins.reminder_at';
+    public const string SETTING_PIN_DURATION_DAYS = 'pins.duration_days';
+    public const string SETTING_PIN_KEEP_ON_MOVE = 'pins.keep_on_move';
+
+    /** Twenty: about a screenful of rows, past which the top of a list is no longer "the few I need". */
+    public const int PIN_REMINDER_DEFAULT = 20;
+
+    /**
+     * The longest a pin may be set to last: ten years, which is forever by
+     * another name, and keeps the end date a date the database can hold.
+     */
+    public const int PIN_DURATION_MAX_DAYS = 3650;
+
+    /** The reminder can go this high; past it, "off" is the honest setting. */
+    public const int PIN_REMINDER_MAX = 999;
+
+    /** Virtual, out of the settings bag — see SETTING_PIN_REMINDER_AT. Anything unreadable is the default. */
+    public int $pinReminderAt {
+        get {
+            $stored = $this->getSetting(self::SETTING_PIN_REMINDER_AT);
+
+            if (false === is_int($stored) || $stored < 0 || $stored > self::PIN_REMINDER_MAX) {
+                return self::PIN_REMINDER_DEFAULT;
+            }
+
+            return $stored;
+        }
+        set(int $count) {
+            $count = max(0, min(self::PIN_REMINDER_MAX, $count));
+
+            $this->setSetting(self::SETTING_PIN_REMINDER_AT, self::PIN_REMINDER_DEFAULT === $count ? null : $count);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_PIN_DURATION_DAYS. Null is forever. */
+    public ?int $pinDurationDays {
+        get {
+            $stored = $this->getSetting(self::SETTING_PIN_DURATION_DAYS);
+
+            if (false === is_int($stored) || $stored < 1 || $stored > self::PIN_DURATION_MAX_DAYS) {
+                return null;
+            }
+
+            return $stored;
+        }
+        set(?int $days) {
+            $this->setSetting(
+                self::SETTING_PIN_DURATION_DAYS,
+                null === $days ? null : max(1, min(self::PIN_DURATION_MAX_DAYS, $days)),
+            );
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_PIN_KEEP_ON_MOVE. On unless switched off. */
+    public bool $pinKeepOnMove {
+        get => false !== $this->getSetting(self::SETTING_PIN_KEEP_ON_MOVE, true);
+        set(bool $keep) {
+            $this->setSetting(self::SETTING_PIN_KEEP_ON_MOVE, $keep ? null : false);
+        }
+    }
+
     /** Virtual, out of the settings bag — see SETTING_DISPOSAL_DELETE_NOW. */
     public bool $deleteNowButtons {
         get => true === $this->getSetting(self::SETTING_DISPOSAL_DELETE_NOW, false);

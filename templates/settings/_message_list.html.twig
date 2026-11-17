@@ -204,4 +204,18 @@ Accepts nothing: reads message_list(), message_list_samples() and the
             </div>
         {% endblock %}
     {% endembed %}
+    {# Below what a row shows, because a pin is about where a row goes (#654). #}
+    {% embed 'settings/_card.html.twig' with {
+        id:         'card-pinning',
+        heading:    'settings.pinning.heading'|trans,
+        subheading: 'settings.pinning.subheading'|trans,
+    } %}
+        {% block body %}
+            {% include 'settings/_pinning.html.twig' with {
+                reminderAt: app.user.pinReminderAt,
+                days:       app.user.pinDurationDays,
+                keepOnMove: app.user.pinKeepOnMove,
+            } only %}
+        {% endblock %}
+    {% endembed %}
 </div>

@@ -62,6 +62,12 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // when nothing is due — which is almost always.
                 RecurringMessage::cron('* * * * *', new RunCommandMessage('app:mail:wake-snoozed')),
 
+                // Pins that ran out (#654). The lists already stop showing them
+                // at the top when they end; this tells JMAP clients. Every
+                // fifteen minutes: pins are set in days, and an app hearing a
+                // few minutes late costs nothing.
+                RecurringMessage::cron('*/15 * * * *', new RunCommandMessage('app:mail:unpin-ended')),
+
                 // The search index rebuild after an update that changed how
                 // search_vector is built (#477): a twenty-second pass, newest
                 // mail first, until no message is waiting. Then one probe of an

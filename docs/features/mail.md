@@ -840,6 +840,7 @@ keyboard button above a mail list; the ones worth knowing first:
 | `x` | Select the highlighted conversation. `*` then `a` selects the page, `*` then `n` clears. |
 | `e` · `#` · `!` | Archive · delete · mark as spam. |
 | `s` · `Shift`+`i` · `Shift`+`u` | Star · mark as read · mark as unread. |
+| `p` | Pin or unpin. |
 | `l` · `v` · `b` | Label as · move to · snooze. |
 | `r` · `a` · `f` | Reply · reply to all · forward, in an open conversation. |
 | `c` · `/` | Write a new message · search. |
@@ -1071,6 +1072,32 @@ genuinely lost.
 
 The Snoozed list is ordered by the conversation's last message, like every other list, rather than
 by wake time.
+
+## Pinning
+
+A pinned conversation stays at the top of every folder or label list it is in, above a thin line,
+whatever the list is sorted by. Pin one with the thumbtack beside the star on its row, the same
+button in the toolbar of an open conversation, `p`, a swipe (if you choose Pin for one in
+**Settings → General → Layout & controls**), or **Pin** under **More** above a selection. The same
+click takes the pin off.
+
+Pinning moves the row up at once and leaves the rest of the list where it was, so you can carry on
+from the row you were at.
+
+**Settings → Inbox → Message list → Pinned conversations** has three choices:
+
+- **Remind me at**, 20 unless you change it, counted across all your accounts. Past it, pinning
+  asks whether you want to pin another one, with a link to this setting. It never refuses. 0 turns
+  the reminder off.
+- **Pins last**: forever, or a number of days. A pin that runs out leaves the top on its own.
+  Changing this affects new pins only.
+- **Keep the pin when a conversation is moved**, on unless you switch it off. Archiving counts as
+  moving. Moving to the bin or to spam always takes the pin off, and Undo puts it back.
+
+A pin belongs to plMail and is never written to the mail server: IMAP, Gmail and Outlook have
+nothing it could be stored as. Moves another mail program makes never take a pin off.
+`app:mail:unpin-ended` clears pins that have run out every 15 minutes, which is how the apps hear
+of it; the web lists stop showing them at the top the moment they end.
 
 ## Attachments
 

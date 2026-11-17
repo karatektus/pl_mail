@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Jmap\Query;
 
-use App\Domain\Filter\FilterVocabulary;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\MessageFlag;
+use App\Domain\Filter\FilterVocabulary;
 use App\Jmap\Protocol\Exception\MethodException;
+use App\Repository\Mail\MessageThread\MessageThreadPinRepository;
 
 /**
  * Compiles a JMAP FilterCondition / FilterOperator tree (RFC 8621 §4.4.1) into
@@ -430,6 +431,12 @@ final class EmailFilterCompiler
     {
         if (false === is_string($value)) {
             throw new MethodException('invalidArguments', 'Keyword filters must be strings.');
+        }
+
+        // The conversation's pin (#654), not a column of the message: see
+        // MessageThreadPinRepository::PINNED_SQL.
+        if ('$pinned' === $value) {
+            return true === $present ? MessageThreadPinRepository::PINNED_SQL : 'NOT ' . MessageThreadPinRepository::PINNED_SQL;
         }
 
         $column = self::COLUMN_KEYWORDS[$value] ?? null;

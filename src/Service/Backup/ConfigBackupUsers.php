@@ -222,6 +222,14 @@ final readonly class ConfigBackupUsers
         // choice about irreversible deletion. A boolean, no id, means the same
         // on any install.
         User::SETTING_DISPOSAL_DELETE_NOW,
+        // Pinned conversations (#654): when pinning asks "pin anyway?", how
+        // long a pin lasts, and whether a move keeps it. Numbers and a
+        // boolean, no ids, so they mean the same on any install. The pins
+        // themselves are columns on the conversations, which a config backup
+        // does not carry.
+        User::SETTING_PIN_REMINDER_AT,
+        User::SETTING_PIN_DURATION_DAYS,
+        User::SETTING_PIN_KEEP_ON_MOVE,
         // Whether remote images load without being asked for. A choice about
         // what senders may learn of one's reading, so a restore must not
         // quietly undo it in either direction. A boolean, no id.

@@ -100,6 +100,9 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set unread = row.narrowed ? row.unread : item.unreadCount > 0 %}
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
+    {# The thumbtack (#654). isPinned() and not the column: a pin past its end
+       is no pin, whether or not the sweep has got to it. #}
+    {% set pinned = item.isPinned() %}
     {# In Drafts, the draft's own time: a draft does not move lastMessageAt
        (MessageThreader::recordActivity()), so a reply written just now showed
        the date of the mail it answers. The list is sorted the same way
@@ -228,6 +231,9 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set unread = item.seenAt is null %}
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
+    {# A message row (a search hit) shows its conversation's pin: a pin is the
+       conversation's, and pinning from here pins that. #}
+    {% set pinned = item.thread is not null and item.thread.isPinned() %}
     {% set date = item.receivedAt %}
     {% set count = 1 %}
     {% set sender = item.fromName ?: item.fromAddress %}
@@ -376,6 +382,13 @@ be a worse regression than the one this feature fixes.
        are claiming to be new; there is nothing to report about the others. #}
     {% if isNew %}data-new-id="{{ rowId }}"{% endif %}
     data-starred="{{ starred ? 'true' : 'false' }}"
+    {# Pinned rows sit above the rest (#654), and app.css draws the line under
+       the last of them from this, so no list template has to know where the
+       pins end. data-sort-at is the row's place in the list's own order, which
+       is what assets/pin.js puts a pinned or unpinned row back in by without
+       asking the server for the page again. #}
+    data-pinned="{{ pinned ? 'true' : 'false' }}"
+    {% if date %}data-sort-at="{{ date|date('U') }}"{% endif %}
 >
     {# Row swipe. One panel per direction that does something on this row, drawn
        from SwipeActionResolver, so a direction the strip would not offer has no
@@ -956,12 +969,17 @@ be a worse regression than the one this feature fixes.
                    Two things differ there, and both are because the strip is
                    wider than the time it stands in for. `right-0` without a
                    left edge, so it grows leftwards out of the time's cell instead
-                   of being squeezed into it; and `bg-surface`, because growing
+                   of being squeezed into it; and a background, because growing
                    leftwards puts it over the end of the sender or subject,
-                   which would otherwise show through between the buttons. One
-                   line, the column is as wide as the strip (`w-36`) and there
-                   is nothing underneath to cover. #}
-                <div class="hidden [@media(hover:hover)]:flex row-line:flex absolute inset-y-0 right-0 items-center justify-end invisible group-hover:visible has-[[aria-expanded=true]]:visible pointer-events-auto gap-1 rounded-lg bg-surface row-line:bg-transparent">
+                   which would otherwise show through between the buttons.
+
+                   On one line too, since the star and the thumbtack joined the
+                   strip's end (#654): it is wider than the date's column there
+                   and lands on the preview, which showed through between the
+                   buttons. `row-actions-bg` (app.css) is the hovered row's own
+                   colour made solid, with a short fade on its leading edge, so
+                   the strip reads as part of the row rather than a box on it. #}
+                <div class="hidden [@media(hover:hover)]:flex row-line:flex absolute inset-y-0 right-0 items-center justify-end invisible group-hover:visible has-[[aria-expanded=true]]:visible pointer-events-auto gap-1 rounded-lg row-actions-bg">
                 {% if false == draft and placement == 'normal' %}
                     <button type="button" data-action="click->mail--message-row#archive"
                             data-mail--message-row-archive-url-param="{{ path('app_status_archive', {'type': type, 'id': rowId}) }}"
@@ -1115,6 +1133,29 @@ be a worse regression than the one this feature fixes.
                         <i class="fa-solid fa-paperclip text-xs" aria-hidden="true"></i>
                     </span>
                     <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
+                {% endif %}
+
+                {# The thumbtack, before the star and drawn the same way: out of
+                   sight until the row is hovered, there for good once pinned.
+                   Conversations only, and not drafts — a draft is not a
+                   conversation anybody reads from the top of a list. #}
+                {% if false == draft and placement in ['normal', 'archive'] %}
+                <button
+                    type="button"
+                    data-row-pin
+                    data-action="click->mail--message-row#togglePin"
+                    data-mail--message-row-pin-url-param="{{ path('app_status_pin', {'type': type, 'id': rowId}) }}"
+                    class="z-10 pointer-events-auto cursor-pointer transition-colors
+                           hover:text-accent
+                           {{ pinned
+                              ? 'text-accent'
+                              : 'text-ink-faint opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:hidden' }}"
+                    aria-pressed="{{ pinned ? 'true' : 'false' }}"
+                    aria-label="{{ pinned ? 'thread_row.unpin'|trans : 'thread_row.pin'|trans }}"
+                    title="{{ pinned ? 'thread_row.unpin'|trans : 'thread_row.pin'|trans }}"
+                >
+                    <i class="fa-solid fa-thumbtack text-sm w-3.5 text-center {{ pinned ? '' : 'rotate-45 pin-outline' }}" aria-hidden="true"></i>
+                </button>
                 {% endif %}
 
                 <button

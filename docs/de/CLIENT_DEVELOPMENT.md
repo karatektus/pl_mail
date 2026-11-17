@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:83e9eb426c83594e297d049fb9e4b45d99863059 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:43630003124039e2a5ae3285a77491a61f515846 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -290,6 +290,30 @@ Posteingang tragen kann), und an jedem Konto; jedes Konto antwortet mit derselbe
   ohne Änderung hier: Hol die Posteingänge neu, wenn sich die Konten der Session ändern.
 
 Posteingänge anlegen, benennen, anordnen und Konten zwischen ihnen verschieben geht heute im Web.
+
+### Angeheftete Konversationen (`urn:plmail:params:jmap:pins`)
+
+Eine angeheftete Konversation steht oben in jeder Postfachliste, in der sie vorkommt (#654). Die
+Anheftung gehört zur Konversation und zu plMail: Kein Mailserver speichert sie.
+
+- **Das Keyword `$pinned`** steht an jeder E-Mail einer angehefteten Konversation. Setzt oder
+  löschst du es mit `Email/set` an einer einzigen E-Mail, heftest du die ganze Konversation an oder
+  löst sie; die anderen E-Mails ändern sich mit und kommen bei deinem nächsten `Email/changes`.
+  `hasKeyword: "$pinned"` filtert danach.
+- **Die Sortiereigenschaft `pinned` für `Email/query`** ist 1 für die E-Mails einer angehefteten
+  Konversation. Sortiere nach
+  `[{ "property": "pinned", "isAscending": false }, { "property": "receivedAt", "isAscending": false }]`,
+  um ein Postfach wie im Web mit den Anheftungen zuerst durchzublättern.
+- **Die Capability**, nur oben in der Session, trägt die Einstellungen des Nutzers:
+  `{ reminderAt, durationDays, keepOnMove, pinnedCount }`. `reminderAt` sagt, ab wie vielen
+  Anheftungen der Nutzer „Trotzdem anheften?“ gefragt werden will (0 heißt nie). `pinnedCount` sagt,
+  wie viele er hat, Stand der Session. Stell die Frage selbst, bevor du `$pinned` setzt: Der Server
+  lehnt nie eine Anheftung ab. `durationDays` (null für für immer) wendet der Server an, wenn die
+  Anheftung entsteht.
+- Eine Anheftung läuft nach `durationDays` von selbst ab. Der Server räumt abgelaufene alle 15
+  Minuten ab, und sie kommen als `Email/changes` wie jede andere Keyword-Änderung.
+- Eine Postfachänderung per `Email/set` folgt `keepOnMove`, wie ein Verschieben im Web. In
+  Papierkorb oder Spam verschieben löst die Anheftung immer.
 
 ### Benachrichtigungs-Einstellungen (`urn:plmail:params:jmap:notifications`)
 

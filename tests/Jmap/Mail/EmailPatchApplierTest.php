@@ -217,6 +217,21 @@ final class EmailPatchApplierTest extends KernelTestCase
         self::assertCount(1, $transport->getSent());
     }
 
+    /** $pinned is the conversation's (#654): one email's keyword pins every one of them. */
+    public function testPinnedKeywordPinsAndUnpinsTheWholeConversation(): void
+    {
+        $thread   = $this->thread(messages: 2);
+        $messages = $thread->messages->toArray();
+
+        $this->applier->apply($this->account, $messages[0], ['keywords/$pinned' => true]);
+
+        self::assertTrue($thread->isPinned(), 'the conversation is pinned');
+
+        $this->applier->apply($this->account, $messages[1], ['keywords/$pinned' => null]);
+
+        self::assertFalse($thread->isPinned(), 'and unpinned from its other email');
+    }
+
     public function testFlaggedKeywordTogglesStarred(): void
     {
         $message = $this->message(draft: false);

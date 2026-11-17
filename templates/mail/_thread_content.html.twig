@@ -104,6 +104,28 @@ self-contained: no {% extends %}, no block dependencies.
 
         {{ tbtn('click->mail--message-actions#markUnread', 'fa-regular fa-envelope', 'toolbar.actions.mark_unread'|trans) }}
 
+        {# Pin (#654), where the row offers it: not for mail in the bin or
+           spam, whose pins those places take off. A toggle that says which
+           way it is set, with both labels on it so the controller can swap
+           them without a round trip. `p` presses it — see ui--shortcuts. #}
+        {% if placement in ['normal', 'archive'] %}
+            {% set pinned = thread.isPinned() %}
+            <button type="button"
+                    data-action="click->mail--message-actions#pin"
+                    data-mail--message-actions-target="pin"
+                    data-pin-label="{{ 'toolbar.actions.pin'|trans }}"
+                    data-unpin-label="{{ 'toolbar.actions.unpin'|trans }}"
+                    aria-pressed="{{ pinned ? 'true' : 'false' }}"
+                    aria-label="{{ pinned ? 'toolbar.actions.unpin'|trans : 'toolbar.actions.pin'|trans }}"
+                    title="{{ pinned ? 'toolbar.actions.unpin'|trans : 'toolbar.actions.pin'|trans }}"
+                    class="action-btn flex items-center justify-center h-8 rounded-full
+                           text-ink-muted hover:text-ink hover:bg-hover
+                           transition-colors duration-100 cursor-pointer">
+                <i class="fa-solid fa-thumbtack text-[15px] {{ pinned ? 'text-accent' : 'rotate-45 pin-outline' }}" aria-hidden="true"></i>
+                <span class="action-btn-label">{{ pinned ? 'toolbar.actions.unpin'|trans : 'toolbar.actions.pin'|trans }}</span>
+            </button>
+        {% endif %}
+
         {# Snooze, which every row offered and the conversation itself did not:
            deciding "not now" is something done after reading a mail at least
            as often as before opening it, and from here it meant going back to

@@ -158,6 +158,13 @@ final readonly class ThreadMerger
         $survivor->starredAt    ??= $absorbed->starredAt;
         $survivor->snoozedUntil ??= $absorbed->snoozedUntil;
 
+        // A pin travels whole, its end with it (#654): taking the end from one
+        // side and the start from the other would make a pin nobody set.
+        if (null === $survivor->pinnedAt && null !== $absorbed->pinnedAt) {
+            $survivor->pinnedAt    = $absorbed->pinnedAt;
+            $survivor->pinnedUntil = $absorbed->pinnedUntil;
+        }
+
         // MessageThreader::recordArrival()'s rule for one message,
         // applied to the batch of them: unread mail joining makes the
         // conversation new again, and mail that was read already does not —

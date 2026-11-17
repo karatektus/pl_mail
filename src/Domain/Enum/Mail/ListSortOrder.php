@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Enum\Mail;
 
+use DateTimeImmutable;
 use Doctrine\ORM\QueryBuilder;
 
 /**
@@ -38,9 +39,38 @@ enum ListSortOrder: string
     {
         $direction = self::Oldest === $this ? 'ASC' : 'DESC';
 
-        return $qb
-            ->orderBy($alias . '.lastMessageAt', $direction)
+        return self::pinnedFirst($qb, $alias)
+            ->addOrderBy($alias . '.lastMessageAt', $direction)
             ->addOrderBy($alias . '.id', $direction);
+    }
+
+    /**
+     * Start the order with the pinned conversations (#654), whichever way the
+     * rest of it runs: a pin means "at the top", and with Oldest first the top
+     * is where the oldest mail is, which is no reason to put pins at the end.
+     *
+     * Replaces any order already on the query — it is the first key, so every
+     * caller adds its own after it. A HIDDEN select rather than an expression
+     * in ORDER BY because most list queries are DISTINCT, and Postgres refuses
+     * an ORDER BY expression that is not in the select list of one.
+     *
+     * The end time is compared here, not only by the sweep that clears it:
+     * a pin is over the moment it ends, and the list should not keep one at
+     * the top for however long the sweep takes to come round.
+     *
+     * A static beside applyTo() rather than inside it, for the one list that
+     * sorts by something else: Drafts orders by when the draft was written,
+     * and its pins go first all the same.
+     */
+    public static function pinnedFirst(QueryBuilder $qb, string $alias = 't'): QueryBuilder
+    {
+        return $qb
+            ->addSelect(sprintf(
+                'CASE WHEN %1$s.pinnedAt IS NOT NULL AND (%1$s.pinnedUntil IS NULL OR %1$s.pinnedUntil > :pinNow) THEN 0 ELSE 1 END AS HIDDEN pinRank',
+                $alias,
+            ))
+            ->setParameter('pinNow', new DateTimeImmutable())
+            ->orderBy('pinRank', 'ASC');
     }
 
     /** Translation key for this option's label in the sort menu. */

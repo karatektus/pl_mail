@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:da6b84025e470910ea3f7e4c3d87dd375962aca4 -->
+<!-- translated-from: features/mail.md sha1:2040bf35fc06904e1e76414e570b56a4b9e8d09e -->
 
 # Mail
 
@@ -921,6 +921,7 @@ kennen:
 | `x` | Die hervorgehobene Unterhaltung auswählen. `*` dann `a` wählt die Seite aus, `*` dann `n` hebt die Auswahl auf. |
 | `e` · `#` · `!` | Archivieren · löschen · als Spam markieren. |
 | `s` · `Shift`+`i` · `Shift`+`u` | Markieren · als gelesen markieren · als ungelesen markieren. |
+| `p` | Anheften oder lösen. |
 | `l` · `v` · `b` | Label vergeben · verschieben nach · zurückstellen. |
 | `r` · `a` · `f` | Antworten · allen antworten · weiterleiten, in einer geöffneten Unterhaltung. |
 | `c` · `/` | Neue Nachricht schreiben · suchen. |
@@ -1173,6 +1174,36 @@ bereits zu überscrollen gelernt. Der Lesestatus, den sie hatte, ist tatsächlic
 
 Die Liste Zurückgestellt ist nach der letzten Nachricht der Konversation sortiert, wie jede
 andere Liste auch, und nicht nach der Weckzeit.
+
+## Anheften
+
+Eine angeheftete Konversation bleibt oben in jeder Ordner- oder Labelliste, in der sie steht,
+über einer dünnen Linie, egal wie die Liste sortiert ist. Du heftest sie mit der Reißzwecke
+neben dem Stern in ihrer Zeile an, mit demselben Knopf in der Leiste einer geöffneten
+Konversation, mit `p`, mit einer Wischgeste (wenn du unter **Einstellungen → Allgemein → Layout &
+Bedienung** Anheften für eine wählst) oder über einer Auswahl unter **Mehr** mit **Anheften**.
+Derselbe Klick löst sie wieder.
+
+Beim Anheften rückt die Zeile sofort nach oben, und der Rest der Liste bleibt, wo er war, damit
+du bei der Zeile weitermachen kannst, bei der du warst.
+
+**Einstellungen → Posteingang → Nachrichtenliste → Angeheftete Konversationen** bietet drei
+Einstellungen:
+
+- **Erinnern ab**, 20, solange du es nicht änderst, über alle deine Konten gezählt. Darüber
+  fragt dich das Anheften, ob du wirklich noch eine anheften willst, mit einem Link zu dieser
+  Einstellung. Es verweigert nie. 0 schaltet die Erinnerung ab.
+- **Anheften gilt**: für immer oder eine Zahl von Tagen. Eine abgelaufene Anheftung verlässt die
+  Spitze von selbst. Eine Änderung gilt nur für neue Anheftungen.
+- **Angeheftet lassen, wenn eine Konversation verschoben wird**, an, solange du es nicht
+  ausschaltest. Archivieren zählt als Verschieben. In den Papierkorb oder in Spam verschieben
+  löst die Anheftung immer, und Rückgängig stellt sie wieder her.
+
+Eine Anheftung gehört plMail und wird nie auf den Mailserver geschrieben: IMAP, Gmail und Outlook
+haben nichts, worin sie gespeichert werden könnte. Verschieben in einem anderen Mailprogramm löst
+nie eine Anheftung. `app:mail:unpin-ended` räumt alle 15 Minuten abgelaufene Anheftungen ab, so
+erfahren die Apps davon; die Listen im Web zeigen sie ab dem Moment nicht mehr oben, in dem sie
+ablaufen.
 
 ## Anhänge
 
