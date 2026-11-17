@@ -114,3 +114,96 @@ test.describe("the snooze menu", () => {
         expect(label.replace(/\d{1,2}[:.]\d{2}/, ""), "no date in the label").toMatch(/\d/);
     });
 });
+
+/**
+ * "Pick a date and time" (#342): the picker the send menu uses, inside the
+ * snooze menu, posting through the same handler as a preset.
+ */
+test.describe("picking a date and time", () => {
+    test("unfolds at tomorrow 08:00 and snoozes until the day picked", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const row = mailRow(page, INBOX_SUBJECTS.read);
+        await openSnoozeMenu(page, INBOX_SUBJECTS.read);
+
+        const menu = page.locator("#row-snooze-menu");
+        await menu.getByRole("menuitem", { name: /Pick a date and time/ }).click();
+
+        const custom = menu.locator('[data-mail--snooze-menu-target="custom"]');
+        await expect(custom, "the picker did not unfold").toBeVisible();
+        await expect(menu, "unfolding the picker closed the menu").toBeVisible();
+        await expect(custom.locator('[data-when-part="time"]')).toHaveText(/\b0?8[:.]00/); // "08:00", or "8:00 am" on a 12-hour clock
+
+        // Three days out keeps the seeded time of day: choosing a day is one tap.
+        await custom.locator('button[data-when="day"][data-value="3"]').click();
+
+        const expected = await page.evaluate(() => {
+            const at = new Date();
+            at.setDate(at.getDate() + 3);
+            at.setHours(8, 0, 0, 0);
+
+            return at.getTime();
+        });
+
+        const id = (await row.getAttribute("id"))?.replace("thread_", "");
+        const posted = page.waitForRequest((request) => request.method() === "POST" && request.url().includes("/snooze"));
+
+        await custom.getByRole("button", { name: "Snooze", exact: true }).click();
+
+        const request = await posted;
+        expect(request.url(), "it snoozed a different conversation").toContain(`/status/thread/${id}/snooze`);
+        expect(Date.parse(JSON.parse(request.postData() ?? "{}").until), "not the moment picked").toBe(expected);
+
+        await expect(menu).toBeHidden();
+        await expect(row).toHaveCount(0);
+    });
+
+    test("refuses a moment that has already passed, and posts nothing", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        await openSnoozeMenu(page, INBOX_SUBJECTS.read);
+
+        const menu = page.locator("#row-snooze-menu");
+        await menu.getByRole("menuitem", { name: /Pick a date and time/ }).click();
+
+        // The picker offers nothing before now, so the way to a past moment is
+        // a menu left open while the clock moves on. Written straight into the
+        // field, as that would leave it.
+        await menu.locator('[data-mail--snooze-menu-target="input"]').evaluate((input: HTMLInputElement) => {
+            input.value = "2020-01-01T08:00";
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+
+        let snoozed = false;
+        page.on("request", (request) => {
+            if (request.method() === "POST" && request.url().includes("/snooze")) {
+                snoozed = true;
+            }
+        });
+
+        await menu.locator('[data-mail--snooze-menu-target="confirm"]').click();
+
+        await expect(menu.getByRole("alert")).toHaveText(/already passed/);
+        await expect(menu, "a refused moment closed the menu").toBeVisible();
+        expect(snoozed, "a past moment was posted").toBe(false);
+    });
+
+    test("folds again when the menu is reopened", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const row  = mailRow(page, INBOX_SUBJECTS.read);
+        const menu = page.locator("#row-snooze-menu");
+
+        await openSnoozeMenu(page, INBOX_SUBJECTS.read);
+        await menu.getByRole("menuitem", { name: /Pick a date and time/ }).click();
+        await expect(menu.locator('[data-mail--snooze-menu-target="custom"]')).toBeVisible();
+
+        await page.keyboard.press("Escape");
+        await expect(menu).toBeHidden();
+
+        await rowAction(row, /snooze/i);
+        await expect(menu).toBeVisible();
+        await expect(menu.locator('[data-mail--snooze-menu-target="custom"]')).toBeHidden();
+        await expect(menu.getByRole("menuitem", { name: /Pick a date and time/ })).toBeVisible();
+    });
+});

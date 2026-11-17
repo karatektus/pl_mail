@@ -5215,12 +5215,15 @@ sidebar:
     toggle: Raise or lower th' side riggin'
 
 snooze:
+    confirm: Let it drift
     later_today: Later this watch
     next_week: Next se'nnight
+    past: That hour be already astern.
     pick_date: Name th' day and th' hour
     this_weekend: Come th' weekend
     tomorrow: On th' morrow
     unsnooze: Haul it back up
+    until: Let it drift till
 
 snoozed:
     empty: Naught kept below deck.

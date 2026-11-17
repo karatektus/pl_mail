@@ -5453,12 +5453,15 @@ sidebar:
     toggle: Afficher ou masquer la barre latérale
 
 snooze:
+    confirm: Mettre en attente
     later_today: Plus tard aujourd’hui
     next_week: La semaine prochaine
+    past: Cette heure est déjà passée.
     pick_date: Choisir une date et une heure
     this_weekend: Ce week-end
     tomorrow: Demain
     unsnooze: Sortir de l’attente
+    until: En attente jusqu’au
 
 snoozed:
     empty: Rien n’est en attente.

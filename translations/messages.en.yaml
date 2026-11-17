@@ -5416,12 +5416,15 @@ sidebar:
     toggle: Show or hide the sidebar
 
 snooze:
+    confirm: Snooze
     later_today: Later today
     next_week: Next week
+    past: That time has already passed.
     pick_date: Pick a date and time
     this_weekend: This weekend
     tomorrow: Tomorrow
     unsnooze: Unsnooze
+    until: Snooze until
 
 snoozed:
     empty: Nothing is snoozed.

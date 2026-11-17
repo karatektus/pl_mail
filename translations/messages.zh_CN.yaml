@@ -4691,12 +4691,15 @@ sidebar:
         unread: '未读'
     toggle: '显示或隐藏侧边栏'
 snooze:
+    confirm: '稍后提醒'
     later_today: '今天晚些时候'
     next_week: '下周'
+    past: '此时间已过。'
     pick_date: '选择日期和时间'
     this_weekend: '本周末'
     tomorrow: '明天'
     unsnooze: '取消稍后提醒'
+    until: '提醒时间'
 snoozed:
     empty: '没有设置稍后提醒的邮件。'
 starred:
