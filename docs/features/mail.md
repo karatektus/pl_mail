@@ -809,6 +809,12 @@ next page, and the number beside the actions counts all of it. On a list longer 
 menu also offers **All … in this view**, which selects every conversation in it. **None** clears
 every page, and going to a different list starts with nothing selected.
 
+To select a run of conversations, click one avatar, then hold Shift and click another: both, and
+every conversation between them on the page, take the state of the one you shift-clicked. So it
+ticks the run, and shift-clicking the same avatar again unticks it. It works in either direction
+and leaves what you selected on other pages as it is. Shift on the rest of the row opens the mail as
+before.
+
 Star, **Archive**, **Delete**, **Label as**, **Mark as read** / **Mark as unread** and **Snooze**
 all apply to a whole conversation or to a single message, and all of them travel outward to the
 provider as well as changing what you see here. Archiving is modelled as removing the Inbox label

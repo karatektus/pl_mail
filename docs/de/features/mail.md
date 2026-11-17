@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:4de1c0365fe342c6a8d006ac109300e6bfa35914 -->
+<!-- translated-from: features/mail.md sha1:f5137f8f11f004e66cadbecac1b91d34ba5d0d00 -->
 
 # Mail
 
@@ -883,6 +883,13 @@ weiterblätterst, und die Zahl neben den Aktionen zählt alles mit. In einer Lis
 eine Seite ist, bietet das Menü außerdem **Alle … in dieser Ansicht** an — das wählt jede
 Unterhaltung darin aus. **Keine** leert jede Seite, und in einer anderen Liste beginnst du wieder
 ohne Auswahl.
+
+Um mehrere Konversationen am Stück auszuwählen, klickst du einen Avatar an, hältst dann Umschalt
+gedrückt und klickst ein anderes: Beide und jede Konversation dazwischen auf der Seite bekommen den
+Zustand des Avatars, den du mit Umschalt angeklickt hast. So hakst du die Reihe an, und ein zweiter
+Umschalt-Klick auf denselben Avatar hakt sie wieder ab. Das geht in beide Richtungen und lässt, was
+du auf anderen Seiten ausgewählt hast, wie es ist. Umschalt auf dem Rest der Zeile öffnet die Mail
+wie bisher.
 
 Markieren, **Archivieren**, **Löschen**, **Label vergeben**, **Als gelesen markieren** /
 **Als ungelesen markieren** und **Zurückstellen** gelten für eine ganze Konversation oder für

@@ -490,10 +490,14 @@ be a worse regression than the one this feature fixes.
            Colour comes from the address and is never stored, so it is the same
            circle for the same person on every device — see
            SenderAvatarExtension. #}
-        <label class="relative z-10 pointer-events-auto flex-shrink-0 cursor-pointer group/avatar">
+        <label class="relative z-10 pointer-events-auto flex-shrink-0 cursor-pointer group/avatar"
+               data-action="mousedown->mail--message-row#keepTextSelection">
+            {# `click` before `change`: the click knows whether Shift was held,
+               which is what makes it a range (#667); the change tells the
+               toolbar. Shift on the rest of the row still opens the mail. #}
             <input
                 type="checkbox"
-                data-action="change->mail--message-row#toggleSelect"
+                data-action="click->mail--message-row#pickSelect change->mail--message-row#toggleSelect"
                 data-thread-select value="{{ rowId }}"
                 class="peer sr-only"
                 aria-label="{{ 'thread_row.select'|trans({'%subject%': subject}) }}"

@@ -6,6 +6,7 @@ import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
 import { leavesList, rowOf, takeOut } from "../../optimistic_rows.js";
 import { postPin, redrawAndPlace, swingTack } from "../../pin.js";
+import { pick } from "../../mail_selection.js";
 
 /**
  * Handles per-row status actions in the message list.
@@ -26,6 +27,37 @@ export default class extends Controller {
 
     stop(event) {
         event.stopPropagation();
+    }
+
+    /**
+     * The avatar was clicked: a plain click marks where a range starts, a
+     * shift-click ticks or unticks every row from there to here (#667). See
+     * pick() in assets/mail_selection.js.
+     *
+     * On the checkbox's `click`, not its `change`: only the click carries
+     * Shift. A click on the label reaches the checkbox as a click with the
+     * modifier keys of the real one, and by then the box has already flipped,
+     * so its new state is the one the range takes. The `change` that follows
+     * is what tells the toolbar, once for the whole range.
+     *
+     * Not on the keyboard's `x`, which ticks by setting the box and firing
+     * `change` alone. Space on the focused checkbox is a click, so Shift+Space
+     * extends a range as a shift-click does.
+     */
+    pickSelect(event) {
+        pick(event.currentTarget, true === event.shiftKey);
+    }
+
+    /**
+     * Shift held on the avatar: keep the page's text selection where it is.
+     * A shift-press extends it to the pointer, which over a list paints
+     * every subject between the two clicks blue as if the text were the
+     * thing being picked. Only the press is stopped; the click still comes.
+     */
+    keepTextSelection(event) {
+        if (true === event.shiftKey) {
+            event.preventDefault();
+        }
     }
 
     toggleSelect(event) {

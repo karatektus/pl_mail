@@ -43,6 +43,16 @@ let view = null;
 /** @type {Map<string, {labelIds: string[], account: string|undefined}>} */
 const carried = new Map();
 
+/**
+ * The row whose avatar was clicked last, by id: where a shift-click's range
+ * starts (#667). An id rather than the element, because a background refresh
+ * or a row's own action redraws the row, and the same conversation on screen
+ * is still the same anchor to the person who clicked it.
+ *
+ * @type {string|null}
+ */
+let anchor = null;
+
 function factsOf(checkbox) {
     const labelled = checkbox.closest("[data-label-ids]");
     const dragged = checkbox.closest("[data-dnd-thread]");
@@ -73,6 +83,7 @@ export function enterView(key) {
 
     if (key !== view) {
         carried.clear();
+        anchor = null;
         view = key;
     }
 }
@@ -101,6 +112,49 @@ export function selection() {
     }
 
     return [...carried].map(([id, facts]) => ({ id: Number(id), ...facts }));
+}
+
+/**
+ * An avatar was clicked, and `box` (its checkbox) has just changed (#667).
+ *
+ * A plain click only marks the row as where the next range starts. A
+ * shift-click gives every row from that mark to this one, both included and
+ * in either direction, the state this one now has — so the same gesture ticks
+ * a run and, repeated, unticks it again, which is what makes a wrong range
+ * cheap enough not to need a preview while Shift is held.
+ *
+ * That is also why a shift-click leaves the mark where it was. Moving it to
+ * the row just shift-clicked (as some lists do) would make the repeat a range
+ * of one row, and the "undo" would untick that row and leave the rest ticked.
+ * Another shift-click, on any row, counts from the same start again.
+ *
+ * Only the rows on screen, in the order they are on screen. A mark left on
+ * another page, or on a row that has since left the list, is no range at
+ * all: the click then ticks its own row, as it always did, and becomes the
+ * new mark. What was carried over from other pages is never touched here.
+ *
+ * Rows held `hidden` (taken out ahead of a request, see optimistic_rows.js)
+ * are skipped, as the keyboard skips them: they are not on screen to be part
+ * of what the eye took in between the two clicks.
+ *
+ * The checkboxes are set without firing `change` each: the caller's own change
+ * event follows this click and tells the toolbar once, for all of them.
+ */
+export function pick(box, extend) {
+    const boxes = [...document.querySelectorAll(ROW_SELECT)]
+        .filter((candidate) => null === candidate.closest("[hidden]"));
+    const from = boxes.findIndex((candidate) => candidate.value === anchor);
+    const to = boxes.indexOf(box);
+
+    if (true === extend && -1 !== from && -1 !== to) {
+        for (const between of boxes.slice(Math.min(from, to), Math.max(from, to) + 1)) {
+            between.checked = box.checked;
+        }
+
+        return;
+    }
+
+    anchor = box.value;
 }
 
 /**
