@@ -44,14 +44,24 @@ let view = null;
 const carried = new Map();
 
 /**
- * The row whose avatar was clicked last, by id: where a shift-click's range
- * starts (#667). An id rather than the element, because a background refresh
- * or a row's own action redraws the row, and the same conversation on screen
- * is still the same anchor to the person who clicked it.
+ * The row whose avatar was last clicked WITHOUT Shift, by id: where every
+ * shift-click's range starts until the next plain click (#667). An id rather
+ * than the element, because a background refresh or a row's own action
+ * redraws the row, and the same conversation on screen is still the same
+ * start to the person who clicked it.
  *
  * @type {string|null}
  */
 let anchor = null;
+
+/**
+ * What the rows the current range changed were before it changed them, by
+ * id — so the next shift-click from the same start can put back the ones it
+ * no longer covers. Emptied whenever the start moves.
+ *
+ * @type {Map<string, boolean>}
+ */
+const beforeRange = new Map();
 
 function factsOf(checkbox) {
     const labelled = checkbox.closest("[data-label-ids]");
@@ -84,6 +94,7 @@ export function enterView(key) {
     if (key !== view) {
         carried.clear();
         anchor = null;
+        beforeRange.clear();
         view = key;
     }
 }
@@ -115,23 +126,30 @@ export function selection() {
 }
 
 /**
- * An avatar was clicked, and `box` (its checkbox) has just changed (#667).
+ * An avatar was clicked, and `box` (its checkbox) has just flipped (#667).
  *
- * A plain click only marks the row as where the next range starts. A
- * shift-click gives every row from that mark to this one, both included and
- * in either direction, the state this one now has — so the same gesture ticks
- * a run and, repeated, unticks it again, which is what makes a wrong range
- * cheap enough not to need a preview while Shift is held.
+ * A plain click ticks or unticks its own row, as it always did, and makes
+ * that row the start. A shift-click selects from the start to this row, both
+ * included and in either direction — the way a file manager does it:
  *
- * That is also why a shift-click leaves the mark where it was. Moving it to
- * the row just shift-clicked (as some lists do) would make the repeat a range
- * of one row, and the "undo" would untick that row and leave the rest ticked.
- * Another shift-click, on any row, counts from the same start again.
+ *   click row 1, shift-click row 10   rows 1–10 ticked
+ *   then shift-click row 8            rows 1–8 ticked, 9 and 10 back as they were
  *
- * Only the rows on screen, in the order they are on screen. A mark left on
+ * So the start stays where it is across shift-clicks; only a plain click
+ * moves it. Each shift-click redraws the range from that start: rows the last
+ * range changed and this one does not cover go back to what they were before
+ * (beforeRange), which is what makes a range too long simply shift-click
+ * shorter instead of something to untick by hand.
+ *
+ * The range takes the START's state, not the flip the browser just gave the
+ * shift-clicked box: shift-clicking row 8, already ticked, means "up to here",
+ * not "untick". Unticking a run is therefore the same gesture from an
+ * unticked start — click the first row to untick it, shift-click the last.
+ *
+ * Only the rows on screen, in the order they are on screen. A start left on
  * another page, or on a row that has since left the list, is no range at
- * all: the click then ticks its own row, as it always did, and becomes the
- * new mark. What was carried over from other pages is never touched here.
+ * all: the shift-click then behaves as a plain click and becomes the start.
+ * What was carried over from other pages is never touched here.
  *
  * Rows held `hidden` (taken out ahead of a request, see optimistic_rows.js)
  * are skipped, as the keyboard skips them: they are not on screen to be part
@@ -146,15 +164,35 @@ export function pick(box, extend) {
     const from = boxes.findIndex((candidate) => candidate.value === anchor);
     const to = boxes.indexOf(box);
 
-    if (true === extend && -1 !== from && -1 !== to) {
-        for (const between of boxes.slice(Math.min(from, to), Math.max(from, to) + 1)) {
-            between.checked = box.checked;
-        }
+    if (false === extend || -1 === from || -1 === to || from === to) {
+        anchor = box.value;
+        beforeRange.clear();
 
         return;
     }
 
-    anchor = box.value;
+    const state = boxes[from].checked;
+    const range = boxes.slice(Math.min(from, to), Math.max(from, to) + 1);
+
+    // The shift-clicked box was flipped by the click itself; what it was
+    // before is the opposite, and that is what it goes back to if a later
+    // range leaves it out.
+    const was = (candidate) => (candidate === box ? !candidate.checked : candidate.checked);
+
+    for (const candidate of boxes) {
+        if (true === beforeRange.has(candidate.value) && false === range.includes(candidate)) {
+            candidate.checked = beforeRange.get(candidate.value);
+            beforeRange.delete(candidate.value);
+        }
+    }
+
+    for (const candidate of range) {
+        if (false === beforeRange.has(candidate.value) && state !== was(candidate)) {
+            beforeRange.set(candidate.value, was(candidate));
+        }
+
+        candidate.checked = state;
+    }
 }
 
 /**

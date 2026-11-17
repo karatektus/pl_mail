@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:f5137f8f11f004e66cadbecac1b91d34ba5d0d00 -->
+<!-- translated-from: features/mail.md sha1:2f75c14230e101e3d9aa74fb9363f475b4eea3b2 -->
 
 # Mail
 
@@ -885,11 +885,13 @@ Unterhaltung darin aus. **Keine** leert jede Seite, und in einer anderen Liste b
 ohne Auswahl.
 
 Um mehrere Konversationen am Stück auszuwählen, klickst du einen Avatar an, hältst dann Umschalt
-gedrückt und klickst ein anderes: Beide und jede Konversation dazwischen auf der Seite bekommen den
-Zustand des Avatars, den du mit Umschalt angeklickt hast. So hakst du die Reihe an, und ein zweiter
-Umschalt-Klick auf denselben Avatar hakt sie wieder ab. Das geht in beide Richtungen und lässt, was
-du auf anderen Seiten ausgewählt hast, wie es ist. Umschalt auf dem Rest der Zeile öffnet die Mail
-wie bisher.
+gedrückt und klickst einen anderen: Beide und jede Konversation dazwischen auf der Seite sind
+ausgewählt. Die Reihe beginnt immer bei dem Avatar, den du zuletzt ohne Umschalt angeklickt hast.
+Ein weiterer Umschalt-Klick macht sie also länger oder kürzer, und was sie nicht mehr umfasst,
+bekommt seinen vorherigen Zustand zurück. Um die Haken einer Reihe wieder zu entfernen, klickst du
+ihren ersten Avatar an, damit er nicht mehr angehakt ist, und dann mit Umschalt den letzten. Das geht in beide Richtungen und lässt,
+was du auf anderen Seiten ausgewählt hast, wie es ist. Umschalt auf dem Rest der Zeile öffnet die
+Mail wie bisher.
 
 Markieren, **Archivieren**, **Löschen**, **Label vergeben**, **Als gelesen markieren** /
 **Als ungelesen markieren** und **Zurückstellen** gelten für eine ganze Konversation oder für

@@ -30,15 +30,15 @@ export default class extends Controller {
     }
 
     /**
-     * The avatar was clicked: a plain click marks where a range starts, a
-     * shift-click ticks or unticks every row from there to here (#667). See
-     * pick() in assets/mail_selection.js.
+     * The avatar was clicked: a plain click ticks its row and makes it where
+     * a range starts, a shift-click selects from that start to here (#667).
+     * See pick() in assets/mail_selection.js.
      *
      * On the checkbox's `click`, not its `change`: only the click carries
      * Shift. A click on the label reaches the checkbox as a click with the
-     * modifier keys of the real one, and by then the box has already flipped,
-     * so its new state is the one the range takes. The `change` that follows
-     * is what tells the toolbar, once for the whole range.
+     * modifier keys of the real one, already flipped, and pick() sets the
+     * range over that before anything is drawn. The `change` that follows is
+     * what tells the toolbar, once for the whole range.
      *
      * Not on the keyboard's `x`, which ticks by setting the box and firing
      * `change` alone. Space on the focused checkbox is a click, so Shift+Space
