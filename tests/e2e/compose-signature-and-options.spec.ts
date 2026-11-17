@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "./support/test";
 import { seed } from "./support/config";
+import { clearAccountSignature, setAccountSignature } from "./support/compose";
 
 /**
  * The last three controls in the compose toolbar: signature, more options,
@@ -31,74 +32,6 @@ async function openCompose(page: Page): Promise<void> {
     await page.goto("/mail/inbox");
     await page.getByRole("link", { name: "Compose" }).first().click();
     await expect(page.locator(`${DOCK} ${EDITOR}`)).toBeVisible();
-}
-
-/**
- * Give the first account a signature through the settings panel.
- *
- * ALWAYS pair with clearAccountSignature() in a `finally`. The signature is
- * stored on the account, so it outlives the test, the file and the browser
- * context — and the next spec on this worker opens compose to find a body that
- * is not empty. That is not hypothetical: it is why the two emoji tests in
- * compose-formatting.spec.ts failed on full runs and passed on their own. One
- * placed a caret at offset 6 of `editor.firstChild` and got
- * `IndexSizeError: there is no child at offset 6`, because a signature makes
- * the first child an element rather than the text node it had just filled in;
- * the other compared the whole editor's innerText to the string it typed and
- * found four extra lines of sign-off.
- */
-async function setAccountSignature(page: Page, text: string): Promise<void> {
-    await page.goto("/settings/signature");
-
-    // The account editor, which is the only one on the page until an address
-    // is given a signature of its own.
-    const form = page
-        .locator('form[action$="/signature"]')
-        .first();
-
-    const editor = form.locator('[contenteditable="true"]');
-
-    await editor.click();
-    await editor.fill(text);
-    await form.getByRole("button", { name: /Save signature/i }).click();
-
-    await expect(page.getByText("Saved.")).toBeVisible();
-}
-
-/**
- * Put the account back to signing with nothing.
- *
- * An empty signature is genuinely "no signature": SignatureProvider::block()
- * returns the empty string for anything that trims to nothing, so no
- * `[data-pl-signature]` block is written into a body — which is the state a
- * freshly seeded account is in.
- */
-async function clearAccountSignature(page: Page): Promise<void> {
-    await page.goto("/settings/signature");
-
-    const form = page.locator('form[action$="/signature"]').first();
-    const editor = form.locator('[contenteditable="true"]');
-
-    await editor.click();
-
-    // Emptied through the DOM, not with `fill("")`. A contenteditable that is
-    // cleared by typing keeps the `<br>` the browser puts in an empty block, so
-    // `fill("")` posts "<br>" — and "<br>" does not trim to nothing, so
-    // SignatureProvider::block() wraps it and every later compose body opens
-    // with an empty-looking but very real signature block. The account is then
-    // not back where it started, which is the whole point of this helper.
-    //
-    // The `input` event is what the toolbar controller listens for to mirror
-    // the editor into the hidden field the form actually submits, so this still
-    // goes through the real save path rather than around it.
-    await editor.evaluate((node) => {
-        node.innerHTML = "";
-        node.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-
-    await form.getByRole("button", { name: /Save signature/i }).click();
-
-    await expect(page.getByText("Saved.")).toBeVisible();
 }
 
 test.describe("writing above the signature", () => {
