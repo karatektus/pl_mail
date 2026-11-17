@@ -778,7 +778,6 @@ export default class extends Controller {
             ?.querySelector("[data-compose--compose-target='subject']")?.value ?? "";
     }
 
-    /** Put the caret at the very end, which is where the answer goes. */
     /**
      * The quoted original, and everything the composer stacks below it.
      *
@@ -789,6 +788,9 @@ export default class extends Controller {
     static QUOTE = '[data-quote-wrapped], [data-quoted], blockquote,'
         + ' div[style*="border-top"], div[style*="font-size:0.85em"]';
 
+    /** Where the writer's part of the body ends: the signature or the quote. */
+    static BOUNDARY = `${this.QUOTE}, [data-pl-signature]`;
+
     /**
      * The end of what the WRITER has written, which is not the end of the box.
      *
@@ -797,9 +799,20 @@ export default class extends Controller {
      * nobody scrolls to, sitting below the message it is answering. It was
      * reported exactly that way: "ai written text are inserted below the quote".
      *
-     * So the caret goes immediately BEFORE the first quoted block instead, which
-     * is where a person's cursor already is when they start typing a reply.
-     * With no quote — a new message — this is the end of the box, as before.
+     * The caret goes INSIDE the last block the writer owns above the signature
+     * or the quote, never in the gap between two blocks. That gap is what the
+     * first fix used (setStartBefore the quote), and it is a position the
+     * browser has to resolve into one of its neighbours before it can insert
+     * anything. On an untouched body Chrome picked the wrong one (#657): on a
+     * reply the answer went into the quote, and on a new message after a
+     * signature it went into fresh blocks carrying the signature's own
+     * `data-pl-signature` marker. Send strips both before counting, so the
+     * writer was told "this message has no text" under a message they could
+     * read — and every word they typed after it followed the caret in there.
+     *
+     * When the writer owns no block yet (a body that is all quote, or empty),
+     * a `<p><br></p>` is made for them, the same writing space a new window
+     * opens with and the composer's claimWritingSpace() makes.
      */
     #caretToWritingEnd(surface) {
         if (undefined !== surface.value) {
@@ -813,30 +826,54 @@ export default class extends Controller {
             return;
         }
 
-        const quote = surface.querySelector(this.constructor.QUOTE);
+        const boundary = this.#boundary(surface);
+        let space = null;
 
-        if (null === quote) {
-            this.#caretToEnd(surface);
+        for (const child of surface.childNodes) {
+            if (child === boundary) break;
 
-            return;
+            if (child.nodeType === Node.ELEMENT_NODE
+                || (child.nodeType === Node.TEXT_NODE && "" !== child.textContent.trim())) {
+                space = child;
+            }
         }
 
-        // The quote may be wrapped several layers deep; the caret belongs before
-        // the outermost child of the editor that contains it, or the separator
-        // lands inside the quotation.
-        let block = quote;
-
-        while (null !== block.parentElement && block.parentElement !== surface) {
-            block = block.parentElement;
+        if (null === space) {
+            space = document.createElement("p");
+            space.appendChild(document.createElement("br"));
+            surface.insertBefore(space, boundary);
         }
 
         const range = document.createRange();
-        range.setStartBefore(block);
-        range.collapse(true);
+
+        if (space.nodeType === Node.ELEMENT_NODE && "" === space.textContent.trim()
+            && null === space.querySelector("img")) {
+            // An empty paragraph holds a placeholder `<br>`; the caret goes
+            // before it, where the browser replaces it with the first line.
+            range.setStart(space, 0);
+        } else {
+            range.selectNodeContents(space);
+            range.collapse(false);
+        }
 
         const selection = document.getSelection();
         selection?.removeAllRanges();
         selection?.addRange(range);
+    }
+
+    /**
+     * The top-level child of the editor where the writer's part ends — the one
+     * holding the first signature or quote — or null when there is neither.
+     * Either may be wrapped several layers deep.
+     */
+    #boundary(surface) {
+        let block = surface.querySelector(this.constructor.BOUNDARY);
+
+        while (null !== block && block.parentElement !== surface) {
+            block = block.parentElement;
+        }
+
+        return block;
     }
 
     /**
@@ -864,40 +901,35 @@ export default class extends Controller {
         return lines.slice(0, cut).join("\n").length;
     }
 
-    /** What the writer has above the insertion point, for the separator. */
+    /**
+     * What the writer has above the insertion point: for the separator, and as
+     * the draft the model is sent. Same boundary as the caret, so neither the
+     * quote nor the signature is sent as the writer's draft.
+     */
     #writtenBefore(surface) {
         if (undefined !== surface.value) {
             return surface.value.slice(0, this.#plainQuoteStart(surface.value));
         }
 
-        const clone = surface.cloneNode(true);
+        const boundary = this.#boundary(surface);
+        const clone = document.createElement("div");
 
-        clone.querySelectorAll(this.constructor.QUOTE).forEach((node) => node.remove());
+        for (const child of surface.childNodes) {
+            if (child === boundary) break;
+            clone.appendChild(child.cloneNode(true));
+        }
 
         return clone.innerText ?? clone.textContent ?? "";
     }
 
-    #caretToEnd(surface) {
-        if (undefined !== surface.value) {
-            surface.selectionStart = surface.value.length;
-            surface.selectionEnd = surface.value.length;
-
-            return;
-        }
-
-        const range = document.createRange();
-        range.selectNodeContents(surface);
-        range.collapse(false);
-
-        const selection = document.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-    }
-
-    /** The last resort, for a browser that refused execCommand. */
+    /**
+     * The last resort, for a browser that refused execCommand: at the caret
+     * #caretToWritingEnd() placed, for the same reasons, rather than at the
+     * end of the box under the quote.
+     */
     #appendPlainly(surface, text) {
         if (undefined !== surface.value) {
-            surface.value += text;
+            surface.setRangeText(text, surface.selectionStart, surface.selectionEnd, "end");
 
             return;
         }
@@ -909,7 +941,26 @@ export default class extends Controller {
             block.appendChild(document.createTextNode(line));
         }
 
-        surface.appendChild(block);
+        const selection = document.getSelection();
+        const range = selection?.rangeCount > 0 ? selection.getRangeAt(0) : null;
+
+        if (null === range || false === surface.contains(range.startContainer)) {
+            surface.appendChild(block);
+
+            return;
+        }
+
+        // A block inside a paragraph is not valid HTML, so it goes after the
+        // writer's block rather than into it.
+        let host = range.startContainer;
+
+        while (host.parentNode !== surface) host = host.parentNode;
+
+        if (host.nodeType === Node.ELEMENT_NODE && "" === host.textContent.trim()) {
+            host.replaceWith(block);
+        } else {
+            host.after(block);
+        }
     }
 
     /**
