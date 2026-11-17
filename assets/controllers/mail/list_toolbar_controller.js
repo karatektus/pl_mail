@@ -11,7 +11,7 @@
 import { Controller } from "@hotwired/stimulus";
 import * as Turbo from "@hotwired/turbo";
 import { jsonCsrfHeaders } from "../../csrf.js";
-import { clearSelection, enterView, restoreSelection, selection } from "../../mail_selection.js";
+import { clearSelection, enterView, restoreSelection, rowType, selection } from "../../mail_selection.js";
 import { announceWrite } from "../../mail_writes.js";
 import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
@@ -459,6 +459,7 @@ export default class extends Controller {
                     ...body,
                     ...extra,
                     ids,
+                    type: rowType(),
                     all: this.#allInView,
                     scope: this.viewScopeValue,
                     value: this.viewValueValue,

@@ -230,6 +230,8 @@ final readonly class ConfigBackupUsers
         User::SETTING_PIN_REMINDER_AT,
         User::SETTING_PIN_DURATION_DAYS,
         User::SETTING_PIN_KEEP_ON_MOVE,
+        // Conversations or single emails in the lists (#615). A boolean.
+        User::SETTING_CONVERSATION_VIEW,
         // Whether remote images load without being asked for. A choice about
         // what senders may learn of one's reading, so a restore must not
         // quietly undo it in either direction. A boolean, no id.

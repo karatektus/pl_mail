@@ -1,10 +1,17 @@
-{% if (thread.snoozed and not stays|default(false)) or woken|default(false) %}
-    <turbo-stream action="remove" target="thread_{{ thread.id }}">
+{# `row` is what the list drew: the conversation, or one email of it in the
+   email list (#615), whose row is gone once that email — or the conversation
+   it is in — is snoozed. #}
+{% set row = row|default(thread) %}
+{% set snoozedNow = row.messages is defined
+    ? row.snoozed
+    : ((row.snoozedUntil is not null and row.snoozedUntil > date()) or (row.thread is not null and row.thread.snoozed)) %}
+{% if (snoozedNow and not stays|default(false)) or woken|default(false) %}
+    <turbo-stream action="remove" target="thread_{{ row.id }}">
     </turbo-stream>
 {% else %}
-    <turbo-stream action="replace" target="thread_{{ thread.id }}">
+    <turbo-stream action="replace" target="thread_{{ row.id }}">
         <template>
-            {% include '_partials/_thread_row.html.twig' with { thread: thread, unified: unified|default(not stays|default(false)) } %}
+            {% include '_partials/_thread_row.html.twig' with { thread: row, unified: unified|default(not stays|default(false)) } %}
         </template>
     </turbo-stream>
 {% endif %}

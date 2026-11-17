@@ -76,7 +76,8 @@ dozen other reasons while the conversation was open.
        Same shape as the calendar grid's pending/reverted announcements. Always
        plural because the pill it fills is only drawn for two or more; a single
        conversation drags a picture of its own row. #}
-    data-mail--dnd-dragging-value="{{ 'dnd.dragging'|trans }}"
+    {# Emails, not conversations, in the email list (#615). #}
+    data-mail--dnd-dragging-value="{{ (app.user and not app.user.conversationView ? 'dnd.dragging_emails' : 'dnd.dragging')|trans }}"
 {% endblock %}
 
 {# The one part of a view that varies within its scope: the category tab for the

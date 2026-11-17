@@ -125,6 +125,42 @@ final readonly class ThreadStatusUpdater
     }
 
     /**
+     * Star these emails — on, never off: starThreads() for the email list's
+     * selection (#615), a drop on Starred. Each conversation is starred as
+     * its emails are, the column the Starred conversation list reads.
+     *
+     * @param list<Message> $messages
+     */
+    public function starEmails(array $messages): void
+    {
+        $now     = new DateTimeImmutable();
+        $changed = [];
+
+        foreach ($messages as $message) {
+            if (null !== $message->starredAt) {
+                continue;
+            }
+
+            $message->addFlag(MessageFlag::FLAGGED);
+            $message->starredAt = $now;
+
+            if (null !== $message->thread) {
+                $message->thread->starredAt ??= $now;
+            }
+
+            $changed[] = $message;
+        }
+
+        if ([] === $changed) {
+            return;
+        }
+
+        $this->propagator->star($changed, true);
+        $this->recordJmapUpdates($changed);
+        $this->em->flush();
+    }
+
+    /**
      * Star these conversations — on, never off.
      *
      * star() above is the row's own button, and it toggles, reading the
@@ -206,7 +242,7 @@ final readonly class ThreadStatusUpdater
         }
 
         // Archiving is a move (#654): the pin goes only if its owner said so.
-        $this->pins->moved(self::threadsOf($messages), discarded: false);
+        $this->pins->moved($messages, discarded: false);
 
         $this->finish($messages);
     }
@@ -236,7 +272,7 @@ final readonly class ThreadStatusUpdater
         }
 
         // The bin always takes a pin off — see ThreadPinService::moved().
-        $this->pins->moved(self::threadsOf($messages), discarded: true);
+        $this->pins->moved($messages, discarded: true);
 
         $this->finish($messages);
     }
@@ -311,7 +347,7 @@ final readonly class ThreadStatusUpdater
 
         // Back to the inbox is a move too, out of the archive as much as out
         // of the bin — whose pins are already gone.
-        $this->pins->moved(self::threadsOf($messages), discarded: false);
+        $this->pins->moved($messages, discarded: false);
 
         $this->finish($messages);
     }
@@ -912,31 +948,11 @@ final readonly class ThreadStatusUpdater
         // Spam is the one discarding destination that comes through here;
         // Trash has its own arm in move(). Anywhere else is a plain move.
         $this->pins->moved(
-            self::threadsOf($messages),
+            $messages,
             discarded: LabelRole::Spam === $destination->role || LabelRole::Trash === $destination->role,
         );
 
         $this->finish($messages);
-    }
-
-    /**
-     * The conversations a set of messages belongs to, each once.
-     *
-     * @param list<Message> $messages
-     *
-     * @return list<MessageThread>
-     */
-    private static function threadsOf(array $messages): array
-    {
-        $threads = [];
-
-        foreach ($messages as $message) {
-            if (null !== $message->thread) {
-                $threads[spl_object_id($message->thread)] = $message->thread;
-            }
-        }
-
-        return array_values($threads);
     }
 
     private static function hasCopyIn(Message $message, Mailbox $folder): bool
@@ -1059,6 +1075,7 @@ final readonly class ThreadStatusUpdater
         // the second look un-snoozed and leave it holding the Snoozed label
         // the first one shed. Half a thread in a place that no longer exists.
         $snoozed = [];
+        $alone   = [];
 
         foreach ($messages as $message) {
             $thread = $message->thread;
@@ -1066,9 +1083,15 @@ final readonly class ThreadStatusUpdater
             if (null !== $thread && null !== $thread->snoozedUntil) {
                 $snoozed[spl_object_id($thread)] = $thread;
             }
+
+            // An email snoozed on its own (#615) is moved out of its snooze
+            // the same way, and only that email.
+            if (null !== $message->snoozedUntil) {
+                $alone[spl_object_id($message)] = $message;
+            }
         }
 
-        if ([] === $snoozed) {
+        if ([] === $snoozed && [] === $alone) {
             return;
         }
 
@@ -1081,6 +1104,10 @@ final readonly class ThreadStatusUpdater
             $thread->snoozedUntil = null;
         }
 
+        foreach ($alone as $message) {
+            $message->snoozedUntil = null;
+        }
+
         if (null === $snoozedLabel) {
             return;
         }
@@ -1088,7 +1115,7 @@ final readonly class ThreadStatusUpdater
         foreach ($messages as $message) {
             $thread = $message->thread;
 
-            if (null !== $thread && true === isset($snoozed[spl_object_id($thread)])) {
+            if ((null !== $thread && true === isset($snoozed[spl_object_id($thread)])) || true === isset($alone[spl_object_id($message)])) {
                 $message->removeLabel($snoozedLabel);
             }
         }

@@ -11,6 +11,7 @@ use App\Entity\Mail\MessageThread;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\Message\MessageListRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Mail\UnifiedInboxes;
 use App\Service\Mail\AllMailView;
@@ -48,6 +49,7 @@ final class ListViewResolverCustomTabTest extends KernelTestCase
         // Built by hand: a service with one consumer is inlined away.
         $this->resolver = new ListViewResolver(
             $container->get(MessageThreadRepository::class),
+            $container->get(MessageListRepository::class),
             $container->get(LabelRepository::class),
             new InboxTabs($container->get(InboxCategoryRepository::class)),
             new AllMailView($container->get(AccountRepository::class)),

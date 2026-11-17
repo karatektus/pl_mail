@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Enum\Mail;
 
+use App\Entity\Mail\Message;
 use DateTimeImmutable;
 use Doctrine\ORM\QueryBuilder;
 
@@ -61,16 +62,66 @@ enum ListSortOrder: string
      * A static beside applyTo() rather than inside it, for the one list that
      * sorts by something else: Drafts orders by when the draft was written,
      * and its pins go first all the same.
+     *
+     * A conversation is pinned by its own pin or by a pin on any email in it
+     * (#615), the email list's pins. Those are asked as one set — the ids of
+     * conversations holding a live email pin, off a partial index — rather
+     * than per row.
      */
     public static function pinnedFirst(QueryBuilder $qb, string $alias = 't'): QueryBuilder
     {
         return $qb
             ->addSelect(sprintf(
-                'CASE WHEN %1$s.pinnedAt IS NOT NULL AND (%1$s.pinnedUntil IS NULL OR %1$s.pinnedUntil > :pinNow) THEN 0 ELSE 1 END AS HIDDEN pinRank',
+                'CASE WHEN (%1$s.pinnedAt IS NOT NULL AND (%1$s.pinnedUntil IS NULL OR %1$s.pinnedUntil > :pinNow))'
+                    . ' OR %1$s.id IN (SELECT IDENTITY(pinnedEmail.thread) FROM %2$s pinnedEmail'
+                    . ' WHERE pinnedEmail.pinnedAt IS NOT NULL AND (pinnedEmail.pinnedUntil IS NULL OR pinnedEmail.pinnedUntil > :pinNow))'
+                    . ' THEN 0 ELSE 1 END AS HIDDEN pinRank',
                 $alias,
+                Message::class,
             ))
             ->setParameter('pinNow', new DateTimeImmutable())
             ->orderBy('pinRank', 'ASC');
+    }
+
+    /**
+     * Apply this order to an email list built over the alias `m` (#615):
+     * pinned emails first, then by the email's own date, then by id.
+     *
+     * Pinned is the email's own pin, or being one of $anchors — the newest
+     * received email of each pinned conversation, which is how a conversation
+     * pinned in the other view shows in this one
+     * (MessageThreadPinRepository::anchorIdsForUser()).
+     *
+     * In Drafts the date is when the draft was last written, as the
+     * conversation list orders Drafts: the provider's date for a synced
+     * draft, our last save for one written here.
+     *
+     * @param list<int> $anchors
+     */
+    public function applyToEmails(QueryBuilder $qb, array $anchors = [], bool $drafts = false): QueryBuilder
+    {
+        $direction = self::Oldest === $this ? 'ASC' : 'DESC';
+
+        $qb->addSelect(
+            'CASE WHEN (m.pinnedAt IS NOT NULL AND (m.pinnedUntil IS NULL OR m.pinnedUntil > :pinNow))'
+                . ([] === $anchors ? '' : ' OR m.id IN (:pinAnchors)')
+                . ' THEN 0 ELSE 1 END AS HIDDEN pinRank',
+        )
+            ->setParameter('pinNow', new DateTimeImmutable())
+            ->orderBy('pinRank', 'ASC');
+
+        if ([] !== $anchors) {
+            $qb->setParameter('pinAnchors', $anchors);
+        }
+
+        if (true === $drafts) {
+            $qb->addSelect('COALESCE(m.receivedAt, m.updatedAt) AS HIDDEN emailWrittenAt')
+                ->addOrderBy('emailWrittenAt', $direction);
+        } else {
+            $qb->addOrderBy('m.receivedAt', $direction);
+        }
+
+        return $qb->addOrderBy('m.id', $direction);
     }
 
     /** Translation key for this option's label in the sort menu. */

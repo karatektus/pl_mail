@@ -262,26 +262,49 @@ every account answers with the same list.
 
 Creating, naming and ordering inboxes, and moving an account between them, is done on the web today.
 
-### Pinned conversations (`urn:plmail:params:jmap:pins`)
+### Pins (`urn:plmail:params:jmap:pins`)
 
-A pinned conversation is drawn at the top of every mailbox list it is in (#654). The pin belongs to
-the conversation and to plMail: no mail server stores it.
+A pinned conversation or email is drawn at the top of every mailbox list it is in (#654, #615). A
+pin belongs to plMail: no mail server stores it. It is kept where it was made, on a conversation
+(from the conversation list) or on one email (from the email list, see
+[List view](#list-view-urnplmailparamsjmaplistview)), and each list shows both.
 
-- **Keyword `$pinned`** is on every email of a pinned conversation. Setting or clearing it on any
-  one email with `Email/set` pins or unpins the whole conversation; the other emails change too and
-  come back in your next `Email/changes`. `hasKeyword: "$pinned"` filters by it.
-- **`Email/query` sort property `pinned`** is 1 for a pinned conversation's emails. Sort
+- **Keyword `$pinned`** is on an email that is pinned on its own, or that is the newest received
+  email (not filed as Sent or Drafts) of a pinned conversation. So a conversation is pinned when any
+  of its emails carries it: in a conversation list, show it pinned if any of its emails does.
+- **Setting `$pinned`** with `Email/set` pins that email. **Clearing it** takes off whatever pinned
+  that email, the conversation's pin included, as the web's thumbtack does. To unpin a
+  conversation from a conversation list, clear it on every email of it that carries it. The emails
+  whose keyword changes come back in your next `Email/changes`. `hasKeyword: "$pinned"` filters by
+  it.
+- **`Email/query` sort property `pinned`** is 1 for an email carrying `$pinned`. Sort
   `[{ "property": "pinned", "isAscending": false }, { "property": "receivedAt", "isAscending": false }]`
-  to page a mailbox pinned-first, as the web does.
+  to page a mailbox pinned-first, as the web does; with `collapseThreads` the pinned email
+  represents its conversation.
 - **The capability**, at the top of the Session only, carries the user's choices:
   `{ reminderAt, durationDays, keepOnMove, pinnedCount }`. `reminderAt` is how many pins the user
-  wants before being asked "pin anyway?" (0 is never). `pinnedCount` is how many they have, as of
-  the Session. Ask the question yourself before you set `$pinned`: the server never refuses a pin.
-  `durationDays` (null for forever) is applied by the server when the pin is made.
+  wants before being asked "pin anyway?" (0 is never). `pinnedCount` is how many they have,
+  conversations and emails together, as of the Session. Ask the question yourself before you set
+  `$pinned`: the server never refuses a pin. `durationDays` (null for forever) is applied by the
+  server when the pin is made.
 - A pin ends on its own after `durationDays`. The server clears ended pins every 15 minutes, and
   they arrive as `Email/changes` like any other keyword change.
-- A mailbox change made with `Email/set` follows `keepOnMove`, as a move on the web does. Moving
-  into Trash or Spam always takes the pin off.
+- A mailbox change made with `Email/set` follows `keepOnMove` for that email's own pin, as a move
+  on the web does. Moving into Trash or Spam always takes the pin off.
+
+### List view (`urn:plmail:params:jmap:listview`)
+
+Whether the user reads mail as conversations or as single emails (#615), switched on the web from
+any list's sort menu or Settings. At the top of the Session only:
+`{ "conversationView": true }`.
+
+- `true`: list with `Email/query` and `collapseThreads: true`, one row per conversation.
+- `false`: list with `collapseThreads: false`, one row per email, and act on that email alone.
+  The mailbox filters already match each email by its own mailboxes, so your own replies are in
+  Sent and not in the Inbox. Unread counts are counted in emails.
+
+Like the other hints at the top of the Session, it is as of the Session: fetch the Session again
+when it changes.
 
 ### Notification settings (`urn:plmail:params:jmap:notifications`)
 

@@ -192,9 +192,6 @@ final class SessionBuilder
                         \App\Domain\Enum\Mail\UnifiedInboxIcon::cases(),
                     ),
                 ],
-                // What a scope key may look like, and the list a user who has
-                // not chosen gets — so a client can draw its switches before
-                // the first NotificationSettings/get answers.
                 // The pin choices and count (#654), so an app can ask "pin
                 // anyway?" as the web does. A hint, stale the way the
                 // appearance above is: the count is as of this Session.
@@ -204,6 +201,15 @@ final class SessionBuilder
                     'keepOnMove'   => $user->pinKeepOnMove,
                     'pinnedCount'  => $this->pins?->activeCount($user) ?? 0,
                 ],
+                // Conversations or single emails (#615), so an app lists the
+                // way the person chose on the web: Email/query with
+                // collapseThreads, or without.
+                Capability::LIST_VIEW => [
+                    'conversationView' => $user->conversationView,
+                ],
+                // What a scope key may look like, and the list a user who has
+                // not chosen gets — so a client can draw its switches before
+                // the first NotificationSettings/get answers.
                 Capability::NOTIFICATIONS => [
                     'scopePrefixes' => [NotifyScope::CATEGORY_PREFIX, NotifyScope::TAB_PREFIX, NotifyScope::LABEL_PREFIX],
                     'defaultScopes' => [NotifyScope::PRIMARY],

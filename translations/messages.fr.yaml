@@ -2450,6 +2450,7 @@ dnd:
     # in the translated string — see _layout/_mailbox.html.twig. Always
     # plural: a single conversation drags a picture of its own row instead.
     dragging: '%count% conversations'
+    dragging_emails: '%count% e-mails'
 
 drafts:
     empty: Aucun brouillon.
@@ -2965,6 +2966,7 @@ label:
         shown: Le libellé est maintenant visible.
 
 list:
+    conversation_view: 'Vue par conversation'
     sort:
         newest: Plus récents d’abord
         oldest: Plus anciens d’abord
@@ -3791,6 +3793,13 @@ settings:
                 brand: 'Sous le nom plMail'
                 sidebar: 'En bas de la barre latérale'
                 'off': 'Nulle part'
+    conversation_view:
+        conversations: 'Conversations'
+        emails: 'E-mails individuels'
+        heading: 'Vue par conversation'
+        hint: 'Aussi dans le menu de tri de chaque liste, et avec la touche t.'
+        label: 'Les listes affichent'
+        subheading: 'Regroupez les e-mails d''une conversation sur une seule ligne, ou affichez chaque e-mail séparément.'
     device_pairing:
         pair_device: "Associer un appareil"
         scan_title: "Scannez ceci avec l’application plMail"
@@ -5042,6 +5051,7 @@ settings:
             clock: "12 24 heures format am pm"
             compose_behaviour: "mailto liens e-mail messagerie par défaut transférer citation envoyer"
             contacts: "carddav carnet adresses"
+            conversation_view: 'fils conversations e-mails individuels regroupement liste simple'
             disposal: "supprimer corbeille définitivement vider"
             encryption: "pgp openpgp gpg clé"
             filters: "règles sieve automatique déplacer transférer"
@@ -5405,6 +5415,7 @@ shortcuts:
         archive: "Archiver"
         back: "Revenir à la liste"
         compose: "Écrire un nouveau message"
+        conversation_view: 'Basculer entre conversations et e-mails individuels'
         delete: "Supprimer"
         forward: "Transférer"
         go_archive: "Aller aux Archives"
@@ -5509,6 +5520,7 @@ tabs:
 
 thread:
     no_subject: (sans objet)
+    show_conversation: 'Afficher toute la conversation (%count% e-mails)'
     summary:
         button: 'Résumer cette conversation'
         disclaimer: 'Écrit par un modèle à partir des messages ci-dessous. Lisez-les si c’est important.'

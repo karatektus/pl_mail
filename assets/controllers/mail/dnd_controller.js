@@ -43,11 +43,13 @@ import { leavesList, rowOf, takeOut } from "../../optimistic_rows.js";
  *                               land. Absent means "any".
  *
  * Routes used:
- *   POST {moveUrl}      { ids, labelId }
- *   POST {labelUrl}     { ids, labelId }
- *   POST {categoryUrl}  { ids, category }
- *   POST {readUrl}      { ids, read: false }
- *   POST {starUrl}      { ids }
+ *   POST {moveUrl}      { ids, type, labelId }
+ *   POST {labelUrl}     { ids, type, labelId }
+ *   POST {categoryUrl}  { ids, type, category }
+ *   POST {readUrl}      { ids, type, read: false }
+ *   POST {starUrl}      { ids, type }
+ *
+ * `type` is "thread", or "message" for rows of the email list (#615).
  *
  * ── A DROP MEANS TWO DIFFERENT THINGS, DECIDED BY WHERE IT LANDS ────────────
  *
@@ -314,6 +316,9 @@ export default class extends Controller {
         event.preventDefault();
 
         const ids = this.#carrying.ids;
+        // Conversations, or emails from the email list (#615): what the ids
+        // are, which the endpoint cannot tell from the numbers.
+        const type = this.#carrying.type;
         const { dndFolder, dndLabel, dndCategory, dndUnread, dndStar } = target.dataset;
 
         this.#teardown();
@@ -322,7 +327,7 @@ export default class extends Controller {
         // unread, reached by pointer. It answers by redrawing the rows in
         // place, which is the feedback: they turn bold where they are.
         if (undefined !== dndUnread) {
-            await this.#post(this.readUrlValue, "read", { ids, read: false });
+            await this.#post(this.readUrlValue, "read", { ids, type, read: false });
 
             return;
         }
@@ -330,24 +335,24 @@ export default class extends Controller {
         // Stars, never unstars: a conversation that is already starred stays
         // so. The row's own star button is the toggle; this is a destination.
         if (undefined !== dndStar) {
-            await this.#post(this.starUrlValue, "star", { ids });
+            await this.#post(this.starUrlValue, "star", { ids, type });
 
             return;
         }
 
         if (undefined !== dndFolder) {
-            await this.#post(this.moveUrlValue, "move", { ids, labelId: Number(dndFolder) });
+            await this.#post(this.moveUrlValue, "move", { ids, type, labelId: Number(dndFolder) });
 
             return;
         }
 
         if (undefined !== dndLabel) {
-            await this.#post(this.labelUrlValue, "label", { ids, labelId: Number(dndLabel) });
+            await this.#post(this.labelUrlValue, "label", { ids, type, labelId: Number(dndLabel) });
 
             return;
         }
 
-        await this.#post(this.categoryUrlValue, "category", { ids, category: dndCategory });
+        await this.#post(this.categoryUrlValue, "category", { ids, type, category: dndCategory });
     }
 
     /**
@@ -371,6 +376,7 @@ export default class extends Controller {
         if (true !== own?.checked) {
             return {
                 ids: [Number(row.dataset.dndThread)],
+                type: row.dataset.rowType ?? "thread",
                 accounts: new Set([row.dataset.dndAccount]),
                 subject,
             };
@@ -398,6 +404,8 @@ export default class extends Controller {
                 ...rows.map((candidate) => Number(candidate.dataset.dndThread)),
                 ...elsewhere.map((selected) => selected.id),
             ],
+            // One list holds one kind of row; the selection is that list's.
+            type: row.dataset.rowType ?? "thread",
             accounts: new Set([
                 ...rows.map((candidate) => candidate.dataset.dndAccount),
                 ...elsewhere.map((selected) => selected.account),

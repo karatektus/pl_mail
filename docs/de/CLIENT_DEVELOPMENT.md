@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:43630003124039e2a5ae3285a77491a61f515846 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:d67fc7d04239b813f83582196f538250edb63246 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -291,29 +291,53 @@ Posteingang tragen kann), und an jedem Konto; jedes Konto antwortet mit derselbe
 
 Posteingänge anlegen, benennen, anordnen und Konten zwischen ihnen verschieben geht heute im Web.
 
-### Angeheftete Konversationen (`urn:plmail:params:jmap:pins`)
+### Anheftungen (`urn:plmail:params:jmap:pins`)
 
-Eine angeheftete Konversation steht oben in jeder Postfachliste, in der sie vorkommt (#654). Die
-Anheftung gehört zur Konversation und zu plMail: Kein Mailserver speichert sie.
+Eine angeheftete Konversation oder E-Mail steht oben in jeder Postfachliste, in der sie vorkommt
+(#654, #615). Eine Anheftung gehört plMail: Kein Mailserver speichert sie. Sie bleibt dort, wo sie
+gemacht wurde, an einer Konversation (aus der Konversationsliste) oder an einer E-Mail (aus der
+E-Mail-Liste, siehe [Listenansicht](#listenansicht-urnplmailparamsjmaplistview)), und jede Liste
+zeigt beide.
 
-- **Das Keyword `$pinned`** steht an jeder E-Mail einer angehefteten Konversation. Setzt oder
-  löschst du es mit `Email/set` an einer einzigen E-Mail, heftest du die ganze Konversation an oder
-  löst sie; die anderen E-Mails ändern sich mit und kommen bei deinem nächsten `Email/changes`.
+- **Das Keyword `$pinned`** steht an einer E-Mail, die selbst angeheftet ist oder die neueste
+  empfangene E-Mail (nicht unter Gesendet oder Entwürfe abgelegt) einer angehefteten Konversation
+  ist. Eine Konversation ist also angeheftet, wenn eine ihrer E-Mails es trägt: Zeig sie in einer
+  Konversationsliste angeheftet, sobald eine ihrer E-Mails es hat.
+- **`$pinned` setzen** per `Email/set` heftet diese E-Mail an. **Es löschen** löst alles, was diese
+  E-Mail angeheftet hat, auch die Anheftung der Konversation, wie die Reißzwecke im Web. Um eine
+  Konversation aus einer Konversationsliste zu lösen, lösche es an jeder ihrer E-Mails, die es
+  trägt. Die E-Mails, deren Keyword sich ändert, kommen bei deinem nächsten `Email/changes`.
   `hasKeyword: "$pinned"` filtert danach.
-- **Die Sortiereigenschaft `pinned` für `Email/query`** ist 1 für die E-Mails einer angehefteten
-  Konversation. Sortiere nach
+- **Die Sortiereigenschaft `pinned` für `Email/query`** ist 1 für eine E-Mail mit `$pinned`.
+  Sortiere nach
   `[{ "property": "pinned", "isAscending": false }, { "property": "receivedAt", "isAscending": false }]`,
-  um ein Postfach wie im Web mit den Anheftungen zuerst durchzublättern.
+  um ein Postfach wie im Web mit den Anheftungen zuerst durchzublättern; mit `collapseThreads` steht
+  die angeheftete E-Mail für ihre Konversation.
 - **Die Capability**, nur oben in der Session, trägt die Einstellungen des Nutzers:
   `{ reminderAt, durationDays, keepOnMove, pinnedCount }`. `reminderAt` sagt, ab wie vielen
   Anheftungen der Nutzer „Trotzdem anheften?“ gefragt werden will (0 heißt nie). `pinnedCount` sagt,
-  wie viele er hat, Stand der Session. Stell die Frage selbst, bevor du `$pinned` setzt: Der Server
-  lehnt nie eine Anheftung ab. `durationDays` (null für für immer) wendet der Server an, wenn die
-  Anheftung entsteht.
+  wie viele er hat, Konversationen und E-Mails zusammen, Stand der Session. Stell die Frage selbst,
+  bevor du `$pinned` setzt: Der Server lehnt nie eine Anheftung ab. `durationDays` (null für für
+  immer) wendet der Server an, wenn die Anheftung entsteht.
 - Eine Anheftung läuft nach `durationDays` von selbst ab. Der Server räumt abgelaufene alle 15
   Minuten ab, und sie kommen als `Email/changes` wie jede andere Keyword-Änderung.
-- Eine Postfachänderung per `Email/set` folgt `keepOnMove`, wie ein Verschieben im Web. In
-  Papierkorb oder Spam verschieben löst die Anheftung immer.
+- Eine Postfachänderung per `Email/set` folgt für die eigene Anheftung dieser E-Mail
+  `keepOnMove`, wie ein Verschieben im Web. In Papierkorb oder Spam verschieben löst die Anheftung
+  immer.
+
+### Listenansicht (`urn:plmail:params:jmap:listview`)
+
+Ob der Nutzer Mail als Konversationen oder als einzelne E-Mails liest (#615), im Web umgeschaltet über
+das Sortiermenü jeder Liste oder die Einstellungen. Nur oben in der Session:
+`{ "conversationView": true }`.
+
+- `true`: Liste mit `Email/query` und `collapseThreads: true`, eine Zeile pro Konversation.
+- `false`: Liste mit `collapseThreads: false`, eine Zeile pro E-Mail, und handle nur an dieser
+  E-Mail. Die Postfachfilter prüfen jede E-Mail schon an ihren eigenen Postfächern, deine eigenen
+  Antworten stehen also unter Gesendet und nicht im Posteingang. Ungelesenes wird in E-Mails gezählt.
+
+Wie die anderen Hinweise oben in der Session gilt er mit Stand der Session: Hol die Session neu,
+wenn er sich ändert.
 
 ### Benachrichtigungs-Einstellungen (`urn:plmail:params:jmap:notifications`)
 

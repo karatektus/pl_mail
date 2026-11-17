@@ -487,6 +487,31 @@ the same part, and so are its buttons: in the inbox it is live mail with **Delet
 deleted mail with **Move to inbox** and **Delete forever**. A conversation entirely in the bin is
 shown whole wherever it is opened.
 
+### Single emails instead of conversations
+
+If you would rather see every email on its own, turn conversation view off: **Conversation view**
+at the bottom of any list's sort menu, `t`, or **Settings → Inbox → Message list → Conversation
+view**. The switch takes effect at once, on the list you are looking at, and you can switch back
+and forth whenever you like.
+
+With it off, every list has one row per email, dated by that email:
+
+- **Each email is listed where it is filed.** Your own replies are in Sent, not in the Inbox
+  beside the mail they answer, and one email of a conversation thrown in the bin leaves the list
+  while the rest of the conversation stays.
+- **Opening a row shows that email**, with the same toolbar and reply buttons as a conversation.
+  **Show the whole conversation** above it opens the rest of it.
+- **Everything you do to a row is done to that email:** archive, delete, star, read and unread,
+  labels, Move to, pin and snooze, from the row, the toolbar, a swipe, the keyboard, a selection
+  or by dragging it onto a folder, a label, Starred or Unread. Spam is under Move to.
+- **The unread badges count emails**, so the number beside a folder is how many bold rows it
+  opens on.
+- **Category tabs stay a conversation's.** An email is in its conversation's tab, and moving mail
+  to another tab moves the conversation.
+
+Nothing is lost by switching: a pin or a snooze made in one view shows in the other (see
+[Pinning](#pinning) and [Snooze](#snooze)).
+
 **Show original** reconstructs the message from the stored header map and the decoded body — no
 raw RFC 822 blob is kept — and prints the SPF, DKIM and DMARC verdicts alongside it where the
 provider recorded an `Authentication-Results` header. Both it and **Print** open in their own tab.
@@ -841,6 +866,7 @@ keyboard button above a mail list; the ones worth knowing first:
 | `e` · `#` · `!` | Archive · delete · mark as spam. |
 | `s` · `Shift`+`i` · `Shift`+`u` | Star · mark as read · mark as unread. |
 | `p` | Pin or unpin. |
+| `t` | Switch between conversations and single emails. |
 | `l` · `v` · `b` | Label as · move to · snooze. |
 | `r` · `a` · `f` | Reply · reply to all · forward, in an open conversation. |
 | `c` · `/` | Write a new message · search. |
@@ -1070,6 +1096,12 @@ conversation is marked **unread** — that is the point of the feature, since a 
 the state you left it in is one you have already learned to scroll past. The read state it had is
 genuinely lost.
 
+With [conversation view off](#single-emails-instead-of-conversations), snoozing snoozes that one
+email: it leaves the Inbox with its own wake time, and the rest of its conversation stays. Snoozing
+in the conversation list snoozes every email of it. **Unsnooze** takes off everything that put the
+email away, so an email that is snoozed because its whole conversation is brings the whole
+conversation back.
+
 The Snoozed list is ordered by the conversation's last message, like every other list, rather than
 by wake time.
 
@@ -1083,6 +1115,13 @@ click takes the pin off.
 
 Pinning moves the row up at once and leaves the rest of the list where it was, so you can carry on
 from the row you were at.
+
+With [conversation view off](#single-emails-instead-of-conversations), a pin is the email's: only
+that email goes to the top. Each view shows the other's pins. A conversation with a pinned email
+in it is pinned in the conversation list, and a pinned conversation puts its newest received email
+(not your reply) at the top of the email list. Taking a pin off takes off everything that pinned
+that row: unpinning a conversation unpins its emails, and unpinning an email that is at the top
+because of its conversation unpins the conversation.
 
 **Settings → Inbox → Message list → Pinned conversations** has three choices:
 

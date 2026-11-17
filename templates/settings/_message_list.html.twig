@@ -114,6 +114,44 @@ Accepts nothing: reads message_list(), message_list_samples() and the
         {% endblock %}
     {% endembed %}
 
+    {# Conversations or single emails (#615) — the first question about a
+       list, so first after the preview. A form of its own, like Pinning's:
+       it changes what the lists hold, not how a row is drawn, so there is
+       nothing for the preview above to show live. The same switch is in every
+       list's sort menu. #}
+    {% embed 'settings/_card.html.twig' with {
+        id:         'card-conversation-view',
+        heading:    'settings.conversation_view.heading'|trans,
+        subheading: 'settings.conversation_view.subheading'|trans,
+    } %}
+        {% block body %}
+            <form method="post" action="{{ path('app_settings_conversation_view') }}"
+                  data-controller="ui--auto-submit"
+                  class="px-4 py-3 flex items-center justify-between gap-3">
+                <input type="hidden" name="_token" value="{{ csrf_token('conversation-view') }}">
+                <span class="min-w-0">
+                    <span class="block text-xs font-medium text-ink-muted">{{ 'settings.conversation_view.label'|trans }}</span>
+                    <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.conversation_view.hint'|trans }}</span>
+                </span>
+                <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+                     role="radiogroup" aria-label="{{ 'settings.conversation_view.label'|trans }}">
+                    {% for on in [true, false] %}
+                        <label>
+                            <input type="radio" name="conversations" class="peer sr-only"
+                                   value="{{ on ? '1' : '0' }}"
+                                   data-action="change->ui--auto-submit#submit"
+                                   {{ app.user.conversationView == on ? 'checked' : '' }}>
+                            <span class="flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                                         peer-checked:bg-accent peer-checked:text-accent-ink
+                                         peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                                         transition-colors cursor-pointer">{{ (on ? 'settings.conversation_view.conversations' : 'settings.conversation_view.emails')|trans }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </form>
+        {% endblock %}
+    {% endembed %}
+
     {% embed 'settings/_card.html.twig' with {
         id:         'card-list-layout',
         heading:    'settings.message_list.layout.heading'|trans,

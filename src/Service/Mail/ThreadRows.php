@@ -11,7 +11,9 @@ use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Enum\MessageList\AttachmentDisplay;
 use App\Entity\User\User;
+use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
+use App\Repository\Mail\Message\MessageListRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\MessagePart\MessagePartRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
@@ -78,6 +80,7 @@ final class ThreadRows implements ResetInterface
         private readonly MessagePartRepository $parts,
         private readonly Security $security,
         private readonly SenderPictures $senderPictures,
+        private readonly MessageListRepository $emails,
     ) {
     }
 
@@ -132,6 +135,24 @@ final class ThreadRows implements ResetInterface
         }
 
         $this->senderPictures->preload($addresses);
+    }
+
+    /**
+     * The same for a page of single-email rows (#615): their labels,
+     * accounts and conversations in one query, and their senders' pictures.
+     * A row reads the email itself, so there is no row to build.
+     *
+     * @param list<Message> $messages
+     */
+    public function preloadEmails(array $messages): void
+    {
+        if ([] === $messages) {
+            return;
+        }
+
+        $this->emails->preloadForRows($messages);
+
+        $this->senderPictures->preload(array_map(static fn (Message $message): ?string => $message->fromAddress, $messages));
     }
 
     public function for(MessageThread $thread): ThreadRow
@@ -193,6 +214,7 @@ final class ThreadRows implements ResetInterface
             true === $latest?->crypto?->isEncrypted(),
             count($kept) < count($all),
             $chips,
+            array_any($entities, static fn ($message): bool => $message->isPinned()),
         );
     }
 
@@ -288,8 +310,15 @@ final class ThreadRows implements ResetInterface
         /** @var array<int, list<ThreadRowMessage>> $byThread */
         $byThread = array_fill_keys($threadIds, []);
 
+        /** @var array<int, true> $emailPinned conversations holding a pinned email (#615) */
+        $emailPinned = [];
+
         foreach ($this->messages->findRowFieldsForThreads($threadIds) as $row) {
             $flags = is_array($row['flags']) ? $row['flags'] : [];
+
+            if ((int) ($row['pinned'] ?? 0) > 0) {
+                $emailPinned[(int) $row['threadId']] = true;
+            }
 
             /** @var DateTimeImmutable $createdAt */
             $createdAt = $row['createdAt'];
@@ -373,6 +402,7 @@ final class ThreadRows implements ResetInterface
                 null !== $preview && true === $preview['crypto']?->isEncrypted(),
                 $narrowed[$threadId],
                 $chips[$threadId] ?? [],
+                isset($emailPinned[$threadId]),
             );
         }
     }

@@ -156,11 +156,28 @@ final readonly class MoveToService
     }
 
     /**
-     * Carry a planned move out on a set of conversations.
+     * Carry a planned move out on a set of conversations: every email of each.
      *
      * @param list<MessageThread> $threads
      */
     public function move(array $threads, LabelMove $move): void
+    {
+        $messages = [];
+
+        foreach ($threads as $thread) {
+            array_push($messages, ...$thread->messages->toArray());
+        }
+
+        $this->moveEmails($messages, $move);
+    }
+
+    /**
+     * Carry a planned move out on single emails — the email list's selection
+     * (#615), and move() for whole conversations.
+     *
+     * @param list<Message> $messages
+     */
+    public function moveEmails(array $messages, LabelMove $move): void
     {
         if (true === $move->isNoop) {
             return;
@@ -172,10 +189,8 @@ final readonly class MoveToService
         // calls.
         $byAccount = [];
 
-        foreach ($threads as $thread) {
-            foreach ($thread->messages as $message) {
-                $byAccount[(int) $message->account->id][] = $message;
-            }
+        foreach ($messages as $message) {
+            $byAccount[(int) $message->account->id][] = $message;
         }
 
         $this->em->wrapInTransaction(function () use ($byAccount, $move): void {
@@ -205,7 +220,8 @@ final readonly class MoveToService
     }
 
     /**
-     * Whether a conversation still belongs in the list it was moved from.
+     * Whether a conversation, or one email in the email list (#615), still
+     * belongs in the list it was moved from.
      *
      * Asked after the move, of the labels the thread now carries, so the
      * answer cannot disagree with what was actually written. A list that is a
@@ -217,7 +233,7 @@ final readonly class MoveToService
      * The list frame is re-read after a bulk action either way, so this only
      * decides what the click looks like in the moment before that lands.
      */
-    public function staysInView(MessageThread $thread, User $user, string $scope, string $value): bool
+    public function staysInView(MessageThread|Message $thread, User $user, string $scope, string $value): bool
     {
         // All Mail is a query, not a label, so whether the row stays is
         // AllMailView's answer: anything outside Spam and the bin, in the

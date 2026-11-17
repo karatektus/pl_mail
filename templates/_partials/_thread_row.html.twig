@@ -70,12 +70,14 @@ mark-read) has no such set and asks the thread directly, which by then answers
 "already listed" — the badge goes when the row it belongs to is redrawn, rather
 than being resurrected by whichever redraw happened last.
 
-Threads only. A bare Message row is a message, and only a conversation arrives.
+A bare Message row is new while its conversation is (#615): "new" is kept per
+conversation, and the email list shows the conversation's arrival on its emails.
 #}
-{% set isNew = isThread
+{% set newOf = isThread ? item : item.thread %}
+{% set isNew = newOf is not null
     and (newThreadIds is defined
-        ? item.id in newThreadIds
-        : newMail.isNew(item)) %}
+        ? newOf.id in newThreadIds
+        : newMail.isNew(newOf)) %}
 
 {# An escalation of isNew, never a replacement: an answer IS new, and every
    count, dot and retirement path goes on treating it as exactly that. All this
@@ -101,8 +103,11 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
     {# The thumbtack (#654). isPinned() and not the column: a pin past its end
-       is no pin, whether or not the sweep has got to it. #}
-    {% set pinned = item.isPinned() %}
+       is no pin, whether or not the sweep has got to it. A pin on one of its
+       emails, made in the email list, pins the conversation too (#615). #}
+    {% set pinned = item.isPinned() or row.emailPinned %}
+    {# When it comes back, in the Snoozed list and on the snooze menu. #}
+    {% set snoozedUntil = item.snoozedUntil %}
     {# In Drafts, the draft's own time: a draft does not move lastMessageAt
        (MessageThreader::recordActivity()), so a reply written just now showed
        the date of the mail it answers. The list is sorted the same way
@@ -231,9 +236,12 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set unread = item.seenAt is null %}
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
-    {# A message row (a search hit) shows its conversation's pin: a pin is the
-       conversation's, and pinning from here pins that. #}
-    {% set pinned = item.thread is not null and item.thread.isPinned() %}
+    {# An email row — the email list (#615), or a search hit — shows its own
+       pin, or that it is the newest received email of a pinned conversation;
+       pinning from here pins this email. #}
+    {% set pinned = email_pinned(item) %}
+    {# Snoozed on its own (#615), or with its whole conversation. #}
+    {% set snoozedUntil = item.snoozedUntil ?? item.thread.snoozedUntil|default(null) %}
     {% set date = item.receivedAt %}
     {% set count = 1 %}
     {% set sender = item.fromName ?: item.fromAddress %}
@@ -329,6 +337,12 @@ be a worse regression than the one this feature fixes.
    thread ids. A bare Message row — which this partial also renders, for the
    streams under compose/ — has nothing to send.
 
+   Except in the email list (#615), where every row is an email and a drop
+   files that email: the drop says so with the row's `data-row-type`, and the
+   bulk endpoint reads the ids as emails. Only there — a compose stream's email
+   row inside a conversation list would otherwise be dropped as a conversation
+   of the same number.
+
    Not drafts. A draft's row opens the composer rather than the conversation,
    and filing an unsent message into Receipts is not a gesture anybody makes;
    the Drafts folder is where a draft lives until it is sent or thrown away.
@@ -338,7 +352,7 @@ be a worse regression than the one this feature fixes.
    and every mail client makes the row itself the thing you pick up. The gesture
    itself lives in mail--dnd, on <body> — see that controller for why the
    sidebar and the tab strip cannot be reached from here. #}
-{% set draggable = isThread and false == draft %}
+{% set draggable = (isThread or (app.user and not app.user.conversationView)) and false == draft %}
 <li
     data-enter-new="slide-down"
     id="thread_{{ rowId }}"
@@ -371,6 +385,9 @@ be a worse regression than the one this feature fixes.
        markup is one template per list; this is the only part that differs by row. #}
     data-sheet="{{ sheet_entries(item, draft)|json_encode }}"
     data-mail--message-row-id-value="{{ rowId }}"
+    {# Conversation or single email (#615): what the row's id means, read by
+       the selection before it posts ids (mail_selection.js, rowType()). #}
+    data-row-type="{{ type }}"
     data-unread="{{ unread ? 'true' : 'false' }}"
     {# Its own attribute beside data-unread rather than folded into it: the two
        are orthogonal, and a row that is `new="false" unread="true"` — scrolled
@@ -380,7 +397,7 @@ be a worse regression than the one this feature fixes.
        so a list Turbo served from its prefetch cache still retires its badges —
        see mail--new-marker and MailController::markListed(). Only on rows that
        are claiming to be new; there is nothing to report about the others. #}
-    {% if isNew %}data-new-id="{{ rowId }}"{% endif %}
+    {% if isNew %}data-new-id="{{ newOf.id }}"{% endif %}
     data-starred="{{ starred ? 'true' : 'false' }}"
     {# Pinned rows sit above the rest (#654), and app.css draws the line under
        the last of them from this, so no list template has to know where the
@@ -926,8 +943,8 @@ be a worse regression than the one this feature fixes.
                        is not about — without this there was no way to tell a
                        conversation returning in an hour from one returning in a
                        fortnight. #}
-                    {% set shown = snooze_scope and item.snoozedUntil is defined and item.snoozedUntil
-                        ? item.snoozedUntil
+                    {% set shown = snooze_scope and snoozedUntil
+                        ? snoozedUntil
                         : date %}
 
                     {% if shown %}
@@ -1089,7 +1106,7 @@ be a worse regression than the one this feature fixes.
                             data-action="click->mail--message-row#openMenu"
                             data-mail--message-row-menu-param="snooze"
                             data-mail--message-row-snooze-url-param="{{ path('app_status_snooze', {'type': type, 'id': rowId}) }}"
-                            data-mail--message-row-snoozed-param="{{ thread is defined and thread.snoozed|default(false) ? 'true' : 'false' }}"
+                            data-mail--message-row-snoozed-param="{{ snoozedUntil is not null and snoozedUntil > date('now') ? 'true' : 'false' }}"
                             aria-label="{{ 'thread_row.actions.snooze'|trans }}"
                             title="{{ 'thread_row.actions.snooze'|trans }}"
                             aria-haspopup="menu"

@@ -304,6 +304,9 @@ export default class extends Controller {
             case "/": return this.#focusSearch();
             case "?": return this.#press(document.querySelector("[data-shortcut='help']"));
             case "z": return this.#press(document.querySelector("#toast-region button[data-action$='#abort']"));
+            // Conversations or single emails (#615): the switch in the list's
+            // sort menu, which posts and comes back to this list regrouped.
+            case "t": return this.#press(document.querySelector("[data-shortcut='conversation-view']"));
 
             case "j": return this.#step(1);
             case "k": return this.#step(-1);
