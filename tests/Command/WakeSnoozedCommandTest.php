@@ -81,6 +81,24 @@ final class WakeSnoozedCommandTest extends KernelTestCase
         self::assertContains(LabelRole::Inbox, $this->rolesOn($thread));
     }
 
+    /** An email snoozed on its own (#615) is woken by the same sweep, at its own time. */
+    public function testAnEmailSnoozedOnItsOwnComesBack(): void
+    {
+        $thread = $this->snoozedThread('+2 days');
+        $this->snoozeService->wake($thread);
+        $email = $thread->messages->first();
+
+        self::assertInstanceOf(Message::class, $email);
+
+        $this->snoozeService->snoozeEmails([$email], new \DateTimeImmutable('-5 minutes'));
+
+        $this->command->execute([]);
+
+        self::assertStringContainsString('Woke 1', $this->command->getDisplay());
+        self::assertNull($email->snoozedUntil);
+        self::assertContains(LabelRole::Inbox, $this->rolesOn($thread));
+    }
+
     /** The whole point of a wake time: before it, nothing happens. */
     public function testAThreadStillInTheFutureIsLeftAlone(): void
     {

@@ -2317,6 +2317,7 @@ demo:
         source: 'plMail be free vessels, under th'' AGPL-3.0 articles:'
 dnd:
     dragging: '%count% parcels in tow'
+    dragging_emails: '%count% letters in tow'
 
 drafts:
     empty: No scrolls in the works.
@@ -2830,6 +2831,7 @@ label:
         shown: That flag flies again.
 
 list:
+    conversation_view: 'Yarn view'
     sort:
         newest: Freshest catch
         oldest: Oldest catch
@@ -3590,6 +3592,13 @@ settings:
                 brand: 'Under th'' plMail name'
                 sidebar: 'Down at th'' bottom o'' th'' sidebar'
                 'off': 'Nowhere, I''ll read th'' sun'
+    conversation_view:
+        conversations: 'Whole yarns'
+        emails: 'Single letters'
+        heading: 'Yarn view'
+        hint: 'Also in every list''s sortin'' menu, an'' on the t key.'
+        label: 'The lists be showin'''
+        subheading: 'Lash the letters o'' one yarn together in a single row, or let every letter sail alone.'
     device_pairing:
         pair_device: "Sign on a spyglass"
         scan_title: "Point th' plMail app at this"
@@ -4791,6 +4800,7 @@ settings:
             clock: "12 24 hour am pm time format"
             compose_behaviour: "mailto email links default mail program forward quote send"
             contacts: "carddav address book"
+            conversation_view: 'threads yarns conversations single letters groupin'' flat list'
             disposal: "delete trash bin forever empty"
             encryption: "pgp openpgp gpg key"
             filters: "rules sieve automatic move forward"
@@ -5167,6 +5177,7 @@ shortcuts:
         archive: "Stow in the hold"
         back: "Back to the list"
         compose: "Scribble a new message"
+        conversation_view: 'Switch ''twixt whole yarns an'' single letters'
         delete: "Feed to the fishes"
         forward: "Pass it on"
         go_archive: "Sail to the hold"
@@ -5271,6 +5282,7 @@ tabs:
 
 thread:
     no_subject: (no subject)
+    show_conversation: 'Show the whole yarn (%count% letters)'
     summary:
         button: 'Boil this yarn down'
         disclaimer: "Writ by th' oracle from th' messages below. Read 'em if it matters."

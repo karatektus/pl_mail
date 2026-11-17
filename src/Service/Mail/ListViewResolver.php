@@ -7,9 +7,11 @@ namespace App\Service\Mail;
 use App\Domain\DTO\Mail\InboxTab;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageListRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 
 /**
@@ -60,6 +62,7 @@ final readonly class ListViewResolver
 
     public function __construct(
         private MessageThreadRepository $threads,
+        private MessageListRepository   $emails,
         private LabelRepository         $labels,
         private InboxTabs               $tabs,
         private AllMailView             $allMail,
@@ -78,11 +81,36 @@ final readonly class ListViewResolver
      */
     public function threadsIn(User $user, string $scope, string $value, bool $unreadOnly): array
     {
+        /** @var list<MessageThread> */
+        return $this->drain($this->threads, $user, $scope, $value, $unreadOnly);
+    }
+
+    /**
+     * The same view one email per row (#615): what "select all" holds in the
+     * email list, where the replies of a conversation that the list did not
+     * show are not part of the selection.
+     *
+     * @return list<Message> at most self::LIMIT of them
+     */
+    public function emailsIn(User $user, string $scope, string $value, bool $unreadOnly): array
+    {
+        /** @var list<Message> */
+        return $this->drain($this->emails, $user, $scope, $value, $unreadOnly);
+    }
+
+    /**
+     * Every row of a view, page by page, at the level $lists lists — the two
+     * repositories answer the same methods (App\Service\Mail\MailLists).
+     *
+     * @return list<MessageThread|Message>
+     */
+    private function drain(MessageThreadRepository|MessageListRepository $lists, User $user, string $scope, string $value, bool $unreadOnly): array
+    {
         $page  = 1;
         $found = [];
 
         do {
-            $batch = $this->page($user, $scope, $value, $unreadOnly, $page);
+            $batch = $this->page($lists, $user, $scope, $value, $unreadOnly, $page);
 
             foreach ($batch as $thread) {
                 $found[] = $thread;
@@ -99,9 +127,9 @@ final readonly class ListViewResolver
     }
 
     /**
-     * @return list<MessageThread>
+     * @return list<MessageThread|Message>
      */
-    private function page(User $user, string $scope, string $value, bool $unreadOnly, int $page): array
+    private function page(MessageThreadRepository|MessageListRepository $lists, User $user, string $scope, string $value, bool $unreadOnly, int $page): array
     {
         // All Mail is not a label either: nothing wears it, the list is a
         // query. The value narrows it to one account, or to none for the list
@@ -111,8 +139,8 @@ final readonly class ListViewResolver
 
             return match (true) {
                 false === $account => [],
-                null === $account  => $this->threads->findForUnifiedAllMail($user, $page, self::CHUNK, unreadOnly: $unreadOnly),
-                default            => $this->threads->findForAccountAllMail($account, $page, self::CHUNK, unreadOnly: $unreadOnly),
+                null === $account  => $lists->findForUnifiedAllMail($user, $page, self::CHUNK, unreadOnly: $unreadOnly),
+                default            => $lists->findForAccountAllMail($account, $page, self::CHUNK, unreadOnly: $unreadOnly),
             };
         }
 
@@ -161,7 +189,7 @@ final readonly class ListViewResolver
                 $category ??= InboxTab::builtIn(MessageCategory::Primary);
             }
 
-            return $this->threads->findForUnifiedInbox(
+            return $lists->findForUnifiedInbox(
                 $user,
                 $category,
                 $page,
@@ -182,7 +210,7 @@ final readonly class ListViewResolver
                 return [];
             }
 
-            return $this->threads->findForLabel($label, page: $page, perPage: self::CHUNK, unreadOnly: $unreadOnly);
+            return $lists->findForLabel($label, page: $page, perPage: self::CHUNK, unreadOnly: $unreadOnly);
         }
 
         // Starred is not a label role — it is a column on the thread — so it
@@ -190,13 +218,13 @@ final readonly class ListViewResolver
         // Being asked for it is not exotic: "select every starred mail" is the
         // example the feature was asked for with.
         if ('starred' === $scope) {
-            return $this->threads->findForStarred($user, $page, self::CHUNK, unreadOnly: $unreadOnly);
+            return $lists->findForStarred($user, $page, self::CHUNK, unreadOnly: $unreadOnly);
         }
 
         // Not a label query either: nothing carries the Unread label, the view
         // is read off the unread counts. $unreadOnly has nothing left to narrow.
         if ('unread' === $scope) {
-            return $this->threads->findForUnread($user, $page, self::CHUNK);
+            return $lists->findForUnread($user, $page, self::CHUNK);
         }
 
         $role = self::ROLES[$scope] ?? null;
@@ -205,7 +233,7 @@ final readonly class ListViewResolver
             return [];
         }
 
-        return $this->threads->findForRole($user, $role, $page, self::CHUNK, unreadOnly: $unreadOnly);
+        return $lists->findForRole($user, $role, $page, self::CHUNK, unreadOnly: $unreadOnly);
     }
 
     /**

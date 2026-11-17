@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Repository\Mail\Message;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 
 /**
  * The writes app:test:seed-bulk makes: hundreds of thousands of rows, a chunk
@@ -75,6 +77,22 @@ final readonly class MessageBulkSeedRepository
     }
 
     /**
+     * Put one label on every email of these threads — the labels the thread
+     * rows above summarise. One INSERT … SELECT rather than rows built here,
+     * since the email ids are only known to the database.
+     *
+     * @param non-empty-list<int> $threadIds
+     */
+    public function labelMessagesOf(array $threadIds, int $labelId): void
+    {
+        $this->connection->executeStatement(
+            'INSERT INTO message_label (message_id, label_id) SELECT id, ? FROM message WHERE thread_id IN (?) ON CONFLICT DO NOTHING',
+            [$labelId, $threadIds],
+            [ParameterType::INTEGER, ArrayParameterType::INTEGER],
+        );
+    }
+
+    /**
      * @param non-empty-list<list<mixed>> $rows account_id, thread_id, subject, from_address, from_name, to_addresses,
      *                                          body_text, flags, has_attachments, cancelled, sent_at, received_at,
      *                                          seen_at, created_at, updated_at
@@ -105,6 +123,7 @@ final readonly class MessageBulkSeedRepository
         $this->connection->executeStatement('ANALYZE message');
         $this->connection->executeStatement('ANALYZE message_thread');
         $this->connection->executeStatement('ANALYZE thread_label');
+        $this->connection->executeStatement('ANALYZE message_label');
     }
 
     /** @param non-empty-list<list<mixed>> $rows */

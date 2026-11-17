@@ -184,6 +184,85 @@ final class ThreadPinServiceTest extends KernelTestCase
         self::assertNull($thread->pinnedUntil);
     }
 
+    // ── single emails (#615) ─────────────────────────────────────────────
+
+    public function testAPinnedEmailPinsItsConversationAndUnpinningTheConversationTakesItOff(): void
+    {
+        $thread = $this->inboxThread();
+        $email  = $this->addEmail($thread, '-10 minutes');
+
+        $this->pins->pinEmails([$email]);
+
+        self::assertTrue($email->isPinned());
+        self::assertFalse($thread->isPinned(), "the conversation's own column is untouched");
+        self::assertTrue(ThreadPinService::conversationPinned($thread), 'and the conversation list shows it pinned');
+        self::assertSame(1, $this->pins->activeCount($this->user), 'one pin toward the reminder');
+
+        self::assertFalse($this->pins->toggle($thread), 'the conversation thumbtack reads it as pinned, and unpins');
+        self::assertNull($email->pinnedAt, "taking the email's pin off with it");
+    }
+
+    /**
+     * Unpinning an email that shows pinned because its conversation is takes
+     * the conversation's pin off: all of what pinned the row.
+     */
+    public function testUnpinningTheEmailAConversationPinShowsOnTakesTheConversationPinOff(): void
+    {
+        $thread = $this->inboxThread();
+        $newest = $this->addEmail($thread, '-1 minute');
+        $this->pins->pin([$thread]);
+
+        self::assertTrue(ThreadPinService::emailPinned($newest), 'the newest received email carries the pin');
+
+        self::assertFalse($this->pins->toggleEmail($newest));
+        self::assertFalse($thread->isPinned());
+    }
+
+    public function testTheNewestReceivedEmailIsTheAnchorNotYourReply(): void
+    {
+        $thread   = $this->inboxThread();
+        $received = $this->addEmail($thread, '-30 minutes');
+        $reply    = $this->addEmail($thread, '-1 minute');
+        $reply->addLabel($this->labelResolver->systemLabel(LabelRole::Sent, $this->account));
+
+        self::assertSame($received, ThreadPinService::anchorOf($thread));
+    }
+
+    /** Archiving one email of a pinned conversation is not the conversation moving. */
+    public function testMovingOneEmailKeepsTheConversationPin(): void
+    {
+        $this->user->pinKeepOnMove = false;
+        $thread = $this->inboxThread();
+        $other  = $this->addEmail($thread, '-5 minutes');
+        $this->pins->pin([$thread]);
+        $this->pins->pinEmails([$other]);
+
+        $this->status->archive([$other]);
+
+        self::assertTrue($thread->isPinned(), 'the rest of the conversation did not move');
+        self::assertFalse($other->isPinned(), "the moved email's own pin follows the owner's rule");
+    }
+
+    private function addEmail(MessageThread $thread, string $at): Message
+    {
+        $message                 = new Message();
+        $message->account        = $this->account;
+        $message->subject        = 'Pin fixture reply';
+        $message->fromAddress    = 'sender@example.test';
+        $message->receivedAt     = new DateTimeImmutable($at);
+        $message->hasAttachments = false;
+        $message->messageId      = sprintf('<pin-%s@example.test>', uniqid('', true));
+        $message->mailbox        = $this->inboxMailbox;
+        $message->imapUid        = random_int(1000, 999999);
+        $message->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
+
+        $thread->addMessage($message);
+        $this->em->persist($message);
+        $this->em->flush();
+
+        return $message;
+    }
+
     // ── fixtures ─────────────────────────────────────────────────────────
 
     private function inboxThread(): MessageThread

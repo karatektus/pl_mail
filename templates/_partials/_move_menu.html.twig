@@ -23,6 +23,8 @@ Variables:
   labels      Label[]   the user's custom labels that are a place on the
                         account (move_labels(), LabelKinds), pre-ordered;
                         indentation derives from label.depth
+  targetType  string    'thread', or 'message' for an email opened from the
+                        email list (#615); 'thread' when not given
   targetId    int|null  the thread, in the reading pane; when null the pick is
                         handed to mail--list-toolbar, which owns the selection
   carried     int[]     ids of the labels the thread already has (reading pane
@@ -39,6 +41,7 @@ Variables:
 
 <div data-controller="mail--move-menu"
      {% if targetId is defined and targetId is not null %}data-mail--move-menu-target-id-value="{{ targetId }}"{% endif %}
+     {% if targetType is defined %}data-mail--move-menu-target-type-value="{{ targetType }}"{% endif %}
      data-mail--move-menu-carried-value="{{ carried|default([])|json_encode }}"
      data-mail--move-menu-placement-value="{{ placement|default('') }}"
      {# The bulk copy only announces what was picked. The toolbar it sits in

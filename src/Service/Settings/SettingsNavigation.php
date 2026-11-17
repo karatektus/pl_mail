@@ -150,6 +150,7 @@ final class SettingsNavigation
             ],
             'message-list' => [
                 ['card-list-preview', 'settings.message_list.preview.heading', null],
+                ['card-conversation-view', 'settings.conversation_view.heading', 'settings.search.keywords.conversation_view'],
                 ['card-list-layout', 'settings.message_list.layout.heading', 'settings.search.keywords.list_layout'],
                 ['card-list-content', 'settings.message_list.content.heading', 'settings.search.keywords.list_content'],
                 ['card-list-markers', 'settings.message_list.markers.heading', 'settings.search.keywords.list_markers'],

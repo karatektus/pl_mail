@@ -53,8 +53,24 @@ function factsOf(checkbox) {
     };
 }
 
+/**
+ * Whether the rows on screen are conversations or single emails (#615): the
+ * list says so on every row (`data-row-type`), and they are all one kind.
+ * "thread" when there are none, which is what every list was before.
+ *
+ * Part of the view key below, and sent with every bulk request, because the
+ * ids mean different things: email 42 is not conversation 42, and a
+ * selection carried across the switch would otherwise be posted as the other
+ * kind and act on other mail.
+ */
+export function rowType() {
+    return document.querySelector("li[data-row-type]")?.dataset.rowType ?? "thread";
+}
+
 /** The list now on screen. Forgets a selection made in any other. */
 export function enterView(key) {
+    key = `${key}|${rowType()}`;
+
     if (key !== view) {
         carried.clear();
         view = key;

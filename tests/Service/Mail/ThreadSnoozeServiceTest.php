@@ -209,6 +209,77 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
         self::assertNull($thread->snoozedUntil);
     }
 
+    // ── One email (#615) ──────────────────────────────────────────────────
+
+    /**
+     * Snoozed from the email list, one email goes away and the rest of its
+     * conversation stays in the inbox — which the conversation list then
+     * still shows, by the email still there.
+     */
+    public function testSnoozingOneEmailLeavesTheRestOfItsConversationInTheInbox(): void
+    {
+        $thread = $this->inboxThread(2);
+        [$away, $stays] = array_values($thread->messages->toArray());
+        $until  = new \DateTimeImmutable('+1 day');
+
+        $this->service->snoozeEmails([$away], $until);
+
+        self::assertTrue($away->labels->contains($this->role(LabelRole::Snoozed)));
+        self::assertFalse($away->labels->contains($this->role(LabelRole::Inbox)), 'the email left the inbox');
+        self::assertEquals($until, $away->snoozedUntil, 'with its own wake time');
+
+        self::assertTrue($stays->labels->contains($this->role(LabelRole::Inbox)), 'its sibling did not');
+        self::assertNull($thread->snoozedUntil, 'and the conversation is not snoozed');
+        self::assertTrue($thread->labels->contains($this->role(LabelRole::Inbox)), 'so the conversation list still has it');
+    }
+
+    public function testWakingOneEmailBringsOnlyItBackAndUnread(): void
+    {
+        $thread = $this->inboxThread(2);
+        [$away] = array_values($thread->messages->toArray());
+        $this->service->snoozeEmails([$away], new \DateTimeImmutable('+1 day'));
+
+        $this->service->wakeEmails([$away]);
+
+        self::assertTrue($away->labels->contains($this->role(LabelRole::Inbox)));
+        self::assertFalse($away->labels->contains($this->role(LabelRole::Snoozed)));
+        self::assertNull($away->snoozedUntil);
+        self::assertNull($away->seenAt, 'back unread, as a conversation comes back');
+        self::assertSame(MessageThread::unreadAmong($thread->messages), $thread->unreadCount, "and the conversation's count follows");
+    }
+
+    /**
+     * Unsnoozing an email that is away because its whole conversation was
+     * snoozed takes off the conversation's snooze: all of what put the row
+     * away, as decided for #615.
+     */
+    public function testUnsnoozingAnEmailOfASnoozedConversationWakesTheConversation(): void
+    {
+        $thread = $this->inboxThread(2);
+        $this->service->snooze($thread, new \DateTimeImmutable('+1 day'));
+        [$one] = array_values($thread->messages->toArray());
+
+        $this->service->wakeEmails([$one]);
+
+        self::assertNull($thread->snoozedUntil);
+
+        foreach ($thread->messages as $message) {
+            self::assertTrue($message->labels->contains($this->role(LabelRole::Inbox)), 'every email is back');
+        }
+    }
+
+    /** A conversation snoozed whole takes over its emails' own snoozes. */
+    public function testSnoozingTheConversationClearsItsEmailsOwnWakeTimes(): void
+    {
+        $thread = $this->inboxThread(2);
+        [$one] = array_values($thread->messages->toArray());
+        $this->service->snoozeEmails([$one], new \DateTimeImmutable('+3 days'));
+
+        $this->service->snooze($thread, new \DateTimeImmutable('+1 day'));
+
+        self::assertNull($one->snoozedUntil, 'one wake time for the conversation, not two');
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     private function role(LabelRole $role): object

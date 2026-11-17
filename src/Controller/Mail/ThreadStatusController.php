@@ -85,8 +85,9 @@ class ThreadStatusController extends AbstractController
      * rather than in the browser because the count is across every account,
      * which no page has on it.
      *
-     * A message row (a search hit) pins the conversation it is in: a pin is
-     * a conversation's, and a list draws conversations.
+     * A message row pins that email (#615): the email list's rows, and a
+     * search hit. Each list reads both levels, so it shows in the other view
+     * as well — see ThreadPinService.
      *
      * The answer redraws the row where it stands and says in X-Pinned which
      * way it went; moving the row into the pinned group is the client's (see
@@ -96,21 +97,23 @@ class ThreadStatusController extends AbstractController
     public function pin(Request $request, string $type, int $id): Response
     {
         $messages = $this->resolveMessages($request, $type, $id);
-        $thread   = $messages[0]->thread ?? throw $this->createNotFoundException();
+        $email    = $messages[0];
+        $thread   = $email->thread ?? throw $this->createNotFoundException();
 
         /** @var User $user */
         $user      = $this->getUser();
         $body      = json_decode($request->getContent(), true);
         $confirmed = true === (is_array($body) ? ($body['confirmed'] ?? false) : false);
+        $pinnedNow = 'message' === $type ? ThreadPinService::emailPinned($email) : ThreadPinService::conversationPinned($thread);
 
-        if (false === $thread->isPinned() && false === $confirmed && true === $this->pins->wouldPassReminder($user)) {
+        if (false === $pinnedNow && false === $confirmed && true === $this->pins->wouldPassReminder($user)) {
             return $this->json(
                 self::pinReminder($this->translator, $this->generateUrl('app_settings_page', ['page' => 'message-list']), $user->pinReminderAt),
                 Response::HTTP_CONFLICT,
             );
         }
 
-        $pinned = $this->pins->toggle($thread);
+        $pinned = 'message' === $type ? $this->pins->toggleEmail($email) : $this->pins->toggle($thread);
 
         $response = $this->renderTurboStream('thread/status/_pin.stream.html.twig', [
             $type => 'message' === $type ? $messages[0] : $thread,
@@ -348,7 +351,14 @@ class ThreadStatusController extends AbstractController
         // reason. The one deliberate difference is above: a form post gets the
         // "in 1 day" fallback on an unparseable date, where the JMAP method
         // refuses it — see ThreadSetMethod::snoozeDate().
-        if (null === $until) {
+        //
+        // An email row snoozes that email alone (#615), and waking it wakes
+        // whatever put it away, its conversation included when that was it.
+        if ('message' === $type) {
+            null === $until
+                ? $this->snoozeService->wakeEmails($messages)
+                : $this->snoozeService->snoozeEmails($messages, $until);
+        } elseif (null === $until) {
             $this->snoozeService->wake($thread);
         } else {
             $this->snoozeService->snooze($thread, $until);
@@ -367,6 +377,7 @@ class ThreadStatusController extends AbstractController
 
         return $this->renderTurboStream('thread/status/_snooze.stream.html.twig', [
             'thread' => $thread,
+            'row'    => 'message' === $type ? $messages[0] : $thread,
             'woken'  => null === $until && LabelRole::Snoozed->value === $view,
             ...$this->allMailRow($request, $thread),
         ]);

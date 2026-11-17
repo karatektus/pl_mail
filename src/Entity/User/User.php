@@ -1358,6 +1358,14 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_PIN_DURATION_DAYS = 'pins.duration_days';
     public const string SETTING_PIN_KEEP_ON_MOVE = 'pins.keep_on_move';
 
+    /**
+     * Whether the lists show conversations or single emails (#615). Absent
+     * for conversations, the default; a stored false lists one row per email.
+     * A display preference switched from the list toolbar as often as from
+     * Settings, so in the bag like the rest of them.
+     */
+    public const string SETTING_CONVERSATION_VIEW = 'list.conversations';
+
     /** Twenty: about a screenful of rows, past which the top of a list is no longer "the few I need". */
     public const int PIN_REMINDER_DEFAULT = 20;
 
@@ -1412,6 +1420,14 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         get => false !== $this->getSetting(self::SETTING_PIN_KEEP_ON_MOVE, true);
         set(bool $keep) {
             $this->setSetting(self::SETTING_PIN_KEEP_ON_MOVE, $keep ? null : false);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CONVERSATION_VIEW. On unless switched off. */
+    public bool $conversationView {
+        get => false !== $this->getSetting(self::SETTING_CONVERSATION_VIEW, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CONVERSATION_VIEW, $on ? null : false);
         }
     }
 

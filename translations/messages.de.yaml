@@ -2439,6 +2439,7 @@ demo:
         source: 'plMail ist freie Software unter der AGPL-3.0:'
 dnd:
     dragging: '%count% Unterhaltungen'
+    dragging_emails: '%count% E-Mails'
 
 drafts:
     empty: Keine Entwürfe.
@@ -2952,6 +2953,7 @@ label:
         shown: Label ist jetzt sichtbar.
 
 list:
+    conversation_view: 'Konversationsansicht'
     sort:
         newest: Neueste zuerst
         oldest: Älteste zuerst
@@ -3734,6 +3736,13 @@ settings:
                 brand: 'Unter dem plMail-Namen'
                 sidebar: 'Unten in der Seitenleiste'
                 'off': 'Nirgends'
+    conversation_view:
+        conversations: 'Konversationen'
+        emails: 'Einzelne E-Mails'
+        heading: 'Konversationsansicht'
+        hint: 'Auch im Sortiermenü jeder Liste und auf der Taste t.'
+        label: 'Listen zeigen'
+        subheading: 'Fasse die E-Mails einer Konversation in einer Zeile zusammen oder zeige jede E-Mail einzeln.'
     device_pairing:
         pair_device: "Gerät koppeln"
         scan_title: "Mit der plMail-App scannen"
@@ -5007,6 +5016,7 @@ settings:
             clock: "12 24 stunden uhrzeit format am pm"
             compose_behaviour: "mailto e-mail-links standard-mailprogramm weiterleiten zitat senden"
             contacts: "carddav adressbuch"
+            conversation_view: 'Threads Konversationen einzelne E-Mails gruppieren flache Liste'
             disposal: "löschen papierkorb endgültig leeren"
             encryption: "pgp openpgp gpg schlüssel"
             filters: "regeln sieve automatisch verschieben weiterleiten"
@@ -5400,6 +5410,7 @@ shortcuts:
         archive: "Archivieren"
         back: "Zurück zur Liste"
         compose: "Neue Nachricht schreiben"
+        conversation_view: 'Zwischen Konversationen und einzelnen E-Mails wechseln'
         delete: "Löschen"
         forward: "Weiterleiten"
         go_archive: "Zum Archiv"
@@ -5504,6 +5515,7 @@ tabs:
 
 thread:
     no_subject: (kein Betreff)
+    show_conversation: 'Ganze Konversation zeigen (%count% E-Mails)'
     summary:
         button: 'Gespräch zusammenfassen'
         disclaimer: 'Von einem Modell aus den Nachrichten unten geschrieben. Lies sie, wenn es darauf ankommt.'

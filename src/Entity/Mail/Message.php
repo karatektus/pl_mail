@@ -49,6 +49,10 @@ use Doctrine\ORM\Mapping as ORM;
 // The sidebar's unsent-draft warning counts these on every refresh; partial,
 // because nearly every row is null here and only the few marked ones matter.
 #[ORM\Index(name: 'idx_message_send_failed', columns: ['account_id'], options: ['where' => '(send_failed_at IS NOT NULL)'])]
+// Email-level pins and snoozes (#615): a handful of rows each, asked for as a
+// set ("which emails are pinned", "which are due to wake").
+#[ORM\Index(name: 'idx_message_pinned', columns: ['thread_id'], options: ['where' => '(pinned_at IS NOT NULL)'])]
+#[ORM\Index(name: 'idx_message_snoozed_until', columns: ['snoozed_until'], options: ['where' => '(snoozed_until IS NOT NULL)'])]
 // Threading reads both of these on every synced message. message_id is looked up
 // by value across an account (parent lookup for References threading); the
 // provider key is looked up account-scoped, so account trails it the same way
@@ -262,6 +266,38 @@ class Message extends MessageModel
 
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $starredAt = null;
+
+    /**
+     * When this one email was pinned, as opposed to its conversation (#615).
+     *
+     * A pin lives where it was made. Pinned from the list of emails, it is
+     * this email's, and only this email goes to the top of that list; pinned
+     * from the list of conversations, it is MessageThread::$pinnedAt. Each view
+     * reads both: a conversation with a pinned email in it is pinned in the
+     * conversation list, and a pinned conversation puts its newest received
+     * email at the top of the email list. Switching between the two views
+     * therefore loses nothing.
+     *
+     * Write it through ThreadPinService, which also knows that taking a pin
+     * off takes off every pin that put the row there.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $pinnedAt = null;
+
+    /** When this email's own pin runs out; see MessageThread::$pinnedUntil. */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $pinnedUntil = null;
+
+    /**
+     * When this one email comes back, if it was snoozed on its own (#615).
+     *
+     * Snoozing is labels — Inbox off, Snoozed on — on each email it covers, so
+     * snoozing one email of a conversation was always expressible; what was
+     * missing is a wake time that is not the conversation's. A conversation
+     * snoozed as a whole keeps using MessageThread::$snoozedUntil.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $snoozedUntil = null;
 
     /**
      * When a local flag change was made that the provider has not confirmed.
@@ -1073,6 +1109,16 @@ class Message extends MessageModel
     }
 
     /** Whether the message is in Spam. See isSetAside(). */
+    /** This email's own pin, and not past its end. See $pinnedAt. */
+    public function isPinned(?DateTimeImmutable $now = null): bool
+    {
+        if (null === $this->pinnedAt) {
+            return false;
+        }
+
+        return null === $this->pinnedUntil || $this->pinnedUntil > ($now ?? new DateTimeImmutable());
+    }
+
     public function isSpam(): bool
     {
         foreach ($this->labels as $label) {

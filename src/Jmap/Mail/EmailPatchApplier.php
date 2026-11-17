@@ -146,7 +146,7 @@ final class EmailPatchApplier
     /**
      * Only $seen, $flagged and $pinned are settable: the first two are the
      * keywords with a dedicated column and a propagation path, and $pinned is
-     * the conversation's pin (#654), which has no provider to tell. $draft and $answered live in
+     * plMail's own pin (#654, #615), which has no provider to tell. $draft and $answered live in
      * the IMAP flags mirror, which the sync layer owns — a client clearing
      * $draft is therefore accepted and ignored rather than rejected, since
      * that is exactly what EmailSubmission/set's onSuccessUpdateEmail sends
@@ -162,16 +162,19 @@ final class EmailPatchApplier
         $isSeen = null !== $message->seenAt;
         $isFlagged = null !== $message->starredAt;
 
-        // The pin is the conversation's, so one email's keyword pins all of
-        // them — through the service the web's button uses, for the end time
-        // and the change log. Past the reminder count too: an app asks its own
-        // "pin anyway?" before it sends this.
-        $thread = $message->thread;
+        // $pinned is the email list's pin (#615): the email's own, or its
+        // being the newest received email of a pinned conversation. Setting
+        // it pins this email; clearing it takes off whatever pinned it, the
+        // conversation's pin included — the web's thumbtack does the same.
+        // Through the service the web's button uses, for the end time and the
+        // change log. Past the reminder count too: an app asks its own "pin
+        // anyway?" before it sends this.
+        $wantPinned = true === ($keywords['$pinned'] ?? false);
 
-        if (null !== $thread && (true === ($keywords['$pinned'] ?? false)) !== $thread->isPinned()) {
-            true === ($keywords['$pinned'] ?? false)
-                ? $this->pins->pin([$thread])
-                : $this->pins->unpin([$thread]);
+        if ($wantPinned !== ThreadPinService::emailPinned($message)) {
+            $wantPinned
+                ? $this->pins->pinEmails([$message])
+                : $this->pins->unpinEmails([$message]);
         }
 
         if ($wantSeen !== $isSeen) {
@@ -276,7 +279,7 @@ final class EmailPatchApplier
         // moved". Nothing changed, nothing moved.
         $moved = [] !== array_diff_key($current, $wanted) || [] !== array_diff_key($wanted, $current);
 
-        if (true === $moved && null !== $message->thread) {
+        if (true === $moved) {
             $discarded = false;
 
             foreach ($wanted as $label) {
@@ -285,7 +288,7 @@ final class EmailPatchApplier
                 }
             }
 
-            $this->pins->moved([$message->thread], $discarded);
+            $this->pins->moved([$message], $discarded);
         }
 
         $this->threadLabelSynchronizer->sync($message->thread);
@@ -306,7 +309,7 @@ final class EmailPatchApplier
             $keywords['$flagged'] = true;
         }
 
-        if (true === $message->thread?->isPinned()) {
+        if (true === ThreadPinService::emailPinned($message)) {
             $keywords['$pinned'] = true;
         }
 

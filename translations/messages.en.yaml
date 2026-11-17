@@ -2433,6 +2433,7 @@ dnd:
     # in the translated string — see _layout/_mailbox.html.twig. Always
     # plural: a single conversation drags a picture of its own row instead.
     dragging: '%count% conversations'
+    dragging_emails: '%count% emails'
 
 drafts:
     empty: No drafts.
@@ -2948,6 +2949,7 @@ label:
         shown: Label is now visible.
 
 list:
+    conversation_view: 'Conversation view'
     sort:
         newest: Newest first
         oldest: Oldest first
@@ -3742,6 +3744,13 @@ settings:
                 brand: 'Under the plMail name'
                 sidebar: 'At the bottom of the sidebar'
                 'off': 'Nowhere'
+    conversation_view:
+        conversations: 'Conversations'
+        emails: 'Single emails'
+        heading: 'Conversation view'
+        hint: 'Also in every list''s sort menu, and on the t key.'
+        label: 'Lists show'
+        subheading: 'Group the emails of a conversation into one row, or list every email on its own.'
     device_pairing:
         pair_device: "Pair a device"
         scan_title: "Scan this with the plMail app"
@@ -4981,6 +4990,7 @@ settings:
             clock: "12 24 hour am pm time format"
             compose_behaviour: "mailto email links default mail program forward quote send"
             contacts: "carddav address book"
+            conversation_view: 'threads threading conversations single emails grouping flat list'
             disposal: "delete trash bin forever empty"
             encryption: "pgp openpgp gpg key"
             filters: "rules sieve automatic move forward"
@@ -5368,6 +5378,7 @@ shortcuts:
         archive: "Archive"
         back: "Back to the list"
         compose: "Write a new message"
+        conversation_view: 'Switch between conversations and single emails'
         delete: "Delete"
         forward: "Forward"
         go_archive: "Go to Archive"
@@ -5472,6 +5483,7 @@ tabs:
 
 thread:
     no_subject: (no subject)
+    show_conversation: 'Show the whole conversation (%count% emails)'
     summary:
         button: 'Summarise this conversation'
         disclaimer: 'Written by a model from the messages below. Read them if it matters.'

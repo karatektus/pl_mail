@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository\Mail\MessageThread;
 
 use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
@@ -97,6 +98,27 @@ class MessageThreadSnoozeRepository extends ServiceEntityRepository
             ->setParameter('ids', $ids)
             ->orderBy('t.snoozedUntil', 'ASC')
             ->addOrderBy('t.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Single emails snoozed on their own (#615) whose wake time has passed —
+     * findDueSnoozed()'s twin, in the same order and for the same reason.
+     *
+     * @return list<Message>
+     */
+    public function findDueSnoozedEmails(\DateTimeImmutable $now, int $limit): array
+    {
+        return $this->getEntityManager()->createQueryBuilder()
+            ->select('m')
+            ->from(Message::class, 'm')
+            ->where('m.snoozedUntil IS NOT NULL')
+            ->andWhere('m.snoozedUntil <= :now')
+            ->setParameter('now', $now)
+            ->orderBy('m.snoozedUntil', 'ASC')
+            ->addOrderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
     }

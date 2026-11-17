@@ -55,6 +55,9 @@ final readonly class ThreadRow
      *                                          row that names them (#608); empty
      *                                          when the row only needs to know
      *                                          there are some — see ThreadRows
+     * @param bool                   $emailPinned whether an email of the conversation
+     *                                          is pinned on its own (#615), which pins
+     *                                          the conversation in the conversation list
      */
     public function __construct(
         public array $messages,
@@ -62,6 +65,7 @@ final readonly class ThreadRow
         public bool $encrypted = false,
         public bool $narrowed = false,
         public array $attachments = [],
+        public bool $emailPinned = false,
     ) {
         $this->latest = [] === $messages ? null : $messages[count($messages) - 1];
 

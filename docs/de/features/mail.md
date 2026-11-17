@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:2040bf35fc06904e1e76414e570b56a4b9e8d09e -->
+<!-- translated-from: features/mail.md sha1:4de1c0365fe342c6a8d006ac109300e6bfa35914 -->
 
 # Mail
 
@@ -540,6 +540,32 @@ Nachrichten in der Zeile gehören zum selben Teil, ebenso ihre Knöpfe: Im Poste
 **Löschen**, im Papierkorb gelöschte Post mit **In den Posteingang** und **Endgültig löschen**. Eine
 Konversation, die ganz im Papierkorb liegt, wird überall vollständig gezeigt.
 
+### Einzelne E-Mails statt Konversationen
+
+Wenn du lieber jede E-Mail für sich siehst, schalte die Konversationsansicht aus: **Konversationsansicht**
+unten im Sortiermenü jeder Liste, `t` oder **Einstellungen → Posteingang → Nachrichtenliste →
+Konversationsansicht**. Der Wechsel wirkt sofort, in der Liste, die du gerade ansiehst, und du kannst
+jederzeit hin und her wechseln.
+
+Ist sie aus, hat jede Liste eine Zeile pro E-Mail, mit dem Datum dieser E-Mail:
+
+- **Jede E-Mail steht dort, wo sie abgelegt ist.** Deine eigenen Antworten stehen unter Gesendet,
+  nicht im Posteingang neben der Mail, auf die sie antworten, und eine E-Mail einer Konversation, die
+  im Papierkorb landet, verlässt die Liste, während der Rest der Konversation bleibt.
+- **Eine geöffnete Zeile zeigt diese E-Mail**, mit derselben Leiste und denselben Antwortknöpfen wie
+  eine Konversation. **Ganze Konversation zeigen** darüber öffnet den Rest.
+- **Alles, was du mit einer Zeile machst, betrifft diese E-Mail:** Archivieren, Löschen, Markieren,
+  gelesen und ungelesen, Labels, Verschieben nach, Anheften und Zurückstellen, aus der Zeile, der
+  Leiste, mit einer Wischgeste, der Tastatur, über eine Auswahl oder indem du sie auf einen Ordner,
+  ein Label, Markiert oder Ungelesen ziehst. Spam steht unter Verschieben nach.
+- **Die Zähler für Ungelesenes zählen E-Mails**, die Zahl neben einem Ordner ist also, wie viele
+  fette Zeilen er zeigt.
+- **Kategorie-Tabs bleiben Sache der Konversation.** Eine E-Mail steht im Tab ihrer Konversation, und
+  Mail in einen anderen Tab zu verschieben verschiebt die Konversation.
+
+Beim Wechseln geht nichts verloren: Eine Anheftung oder Zurückstellung aus der einen Ansicht zeigt
+sich in der anderen (siehe [Anheften](#anheften) und [Zurückstellen](#zurückstellen)).
+
 **Original anzeigen** setzt die Nachricht aus der gespeicherten Header-Zuordnung und dem
 dekodierten Text wieder zusammen — ein roher RFC-822-Blob wird nicht aufbewahrt — und stellt
 die SPF-, DKIM- und DMARC-Urteile daneben, sofern der Anbieter einen
@@ -922,6 +948,7 @@ kennen:
 | `e` · `#` · `!` | Archivieren · löschen · als Spam markieren. |
 | `s` · `Shift`+`i` · `Shift`+`u` | Markieren · als gelesen markieren · als ungelesen markieren. |
 | `p` | Anheften oder lösen. |
+| `t` | Zwischen Konversationen und einzelnen E-Mails wechseln. |
 | `l` · `v` · `b` | Label vergeben · verschieben nach · zurückstellen. |
 | `r` · `a` · `f` | Antworten · allen antworten · weiterleiten, in einer geöffneten Unterhaltung. |
 | `c` · `/` | Neue Nachricht schreiben · suchen. |
@@ -1172,6 +1199,12 @@ geweckte Konversation wird als **ungelesen** markiert — das ist der Sinn der F
 eine Konversation, die in dem Zustand wiederkommt, in dem du sie verlassen hast, hast du
 bereits zu überscrollen gelernt. Der Lesestatus, den sie hatte, ist tatsächlich verloren.
 
+Ist die [Konversationsansicht aus](#einzelne-e-mails-statt-konversationen), stellt Zurückstellen
+diese eine E-Mail zurück: Sie verlässt den Posteingang mit ihrer eigenen Weckzeit, und der Rest ihrer
+Konversation bleibt. In der Konversationsliste zurückstellen stellt jede E-Mail darin zurück.
+**Zurückholen** nimmt alles zurück, was die E-Mail weggelegt hat; eine E-Mail, die zurückgestellt ist,
+weil ihre ganze Konversation es ist, holt also die ganze Konversation zurück.
+
 Die Liste Zurückgestellt ist nach der letzten Nachricht der Konversation sortiert, wie jede
 andere Liste auch, und nicht nach der Weckzeit.
 
@@ -1186,6 +1219,13 @@ Derselbe Klick löst sie wieder.
 
 Beim Anheften rückt die Zeile sofort nach oben, und der Rest der Liste bleibt, wo er war, damit
 du bei der Zeile weitermachen kannst, bei der du warst.
+
+Ist die [Konversationsansicht aus](#einzelne-e-mails-statt-konversationen), gehört die Anheftung der
+E-Mail: Nur diese E-Mail rückt nach oben. Jede Ansicht zeigt die Anheftungen der anderen. Eine
+Konversation mit einer angehefteten E-Mail ist in der Konversationsliste angeheftet, und eine
+angeheftete Konversation setzt ihre neueste empfangene E-Mail (nicht deine Antwort) oben in die
+E-Mail-Liste. Lösen löst alles, was diese Zeile angeheftet hat: Eine Konversation zu lösen löst ihre
+E-Mails, und eine E-Mail zu lösen, die wegen ihrer Konversation oben steht, löst die Konversation.
 
 **Einstellungen → Posteingang → Nachrichtenliste → Angeheftete Konversationen** bietet drei
 Einstellungen:
