@@ -44,8 +44,10 @@ account:
             heading: Ausgehend — SMTP
             host: Server
             password: Passwort zum Senden
-            same: Zum Senden dasselbe Passwort verwenden
-            separate: Zum Senden ein anderes Passwort verwenden
+            same: Zum Senden dieselbe Anmeldung verwenden
+            separate: Zum Senden einen anderen Benutzernamen oder ein anderes Passwort verwenden
+            username: Benutzername zum Senden
+            username_help: 'Leer lassen, um mit dem Benutzernamen oben zu senden.'
         username: Benutzername
     mail_purge_queued: 'Die E-Mails dieses Kontos werden aus plMail entfernt. Auf dem Server bleiben sie.'
     oauth:

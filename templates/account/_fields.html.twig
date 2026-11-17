@@ -216,10 +216,11 @@ genuinely needed, merge onto form.<field>.vars.attr.
             </div>
             {{ form_row(form.smtpEncryption, { label: 'account.form.encryption'|trans }) }}
 
-            {# ── A different password for sending ──
-               Nearly every server takes one password for both directions, so this is
-               one line of text until somebody asks for more: a button, which ticks
-               the (unseen) box and reveals the field. See AccountType for why the box
+            {# ── A different sign-in for sending ──
+               Nearly every server takes one username and password for both directions,
+               so this is one line of text until somebody asks for more: a button, which
+               ticks the (unseen) box and reveals a sending username (#660) and password
+               (#42), either left blank meaning the account's own. See AccountType for why the box
                and not the field is what the server believes.
 
                The box is rendered by the form and hidden with the `hidden` attribute,
@@ -243,6 +244,13 @@ genuinely needed, merge onto form.<field>.vars.attr.
                 </button>
 
                 <div data-settings--smtp-password-target="fields" hidden class="space-y-2">
+                    {{ form_row(form.smtpUsername, {
+                        label: 'account.form.smtp.username'|trans,
+                        help: 'account.form.smtp.username_help'|trans,
+                        attr: form.smtpUsername.vars.attr|merge({
+                            'data-settings--smtp-password-target': 'username',
+                        })
+                    }) }}
                     {{ form_row(form.smtpPassword, {
                         label: 'account.form.smtp.password'|trans,
                         help: mode == 'edit' and form.separateSmtpPassword.vars.checked ? 'settings.accounts.password_help'|trans : null,

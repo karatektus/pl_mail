@@ -811,6 +811,7 @@ final readonly class ConfigBackupUsers
                 'username'          => $account->username,
                 'password'          => $account->password,
                 'smtpPassword'      => $account->smtpPassword,
+                'smtpUsername'      => $account->smtpUsername,
                 'authType'          => $account->authType,
                 'oauthProvider'     => $account->oauthProvider,
                 'oauthAccessToken'  => $account->oauthAccessToken,
