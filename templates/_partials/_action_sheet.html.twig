@@ -99,7 +99,11 @@ Variables: sidebarCounts (the list's own, for the move menu's labels).
                         <span>{{ 'thread_row.actions.snooze'|trans }}</span>
                     </button>
                     <div data-sheet-picker-scope="snooze" class="absolute inset-0">
-                        <div class="absolute inset-0" data-controller="ui--dropdown">
+                        {# In the top layer and over the entry, kept on screen: with
+                           "Pick a date and time" unfolded (#342) the menu is taller
+                           than the room left under the entry at the foot of the
+                           sheet, and hung from it, ran off the bottom. #}
+                        <div class="absolute inset-0" data-controller="ui--dropdown" data-ui--dropdown-place-value="above">
                             <button type="button" tabindex="-1" aria-hidden="true"
                                     data-action="click->ui--dropdown#toggle"
                                     class="block w-full h-full invisible"></button>

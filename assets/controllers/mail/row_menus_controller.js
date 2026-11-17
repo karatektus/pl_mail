@@ -124,6 +124,19 @@ export default class extends Controller {
         this.application.getControllerForElementAndIdentifier(row, "mail--message-row")?.perform(url, { until });
     }
 
+    /**
+     * The snooze menu grew while open — "Pick a date and time" unfolded its
+     * picker (#342). Placed again from its new size, so a menu hung below a row
+     * near the bottom of the list flips above it rather than running off.
+     */
+    replace() {
+        if (undefined === this._anchor) {
+            return;
+        }
+
+        this.#place(this.snoozeTarget, this._anchor);
+    }
+
     close({ restoreFocus = false } = {}) {
         const anchor = this._anchor;
 
@@ -187,14 +200,20 @@ export default class extends Controller {
                 panel.setAttribute("popover", "manual");
             }
 
-            panel.showPopover();
+            // Already up when placed again (replace()); showing it twice throws.
+            if (false === panel.matches(":popover-open")) {
+                panel.showPopover();
+            }
         }
 
         const margin = 8;
         const rect   = anchor.getBoundingClientRect();
         const below  = window.innerHeight - rect.bottom - margin;
         const above  = rect.top - margin;
-        const flip   = below < 200 && above > below;
+        // Its own height counts as well as the fixed 200: with the picker
+        // unfolded (#342) the menu is twice that, and hung below a row in the
+        // lower half it would only scroll inside a strip of the window.
+        const flip   = (below < 200 || below < panel.scrollHeight) && above > below;
         const width  = panel.getBoundingClientRect().width;
         const left   = Math.min(
             Math.max(margin, rect.right - width),

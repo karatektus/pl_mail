@@ -5448,12 +5448,15 @@ sidebar:
     toggle: Seitenleiste ein-/ausblenden
 
 snooze:
+    confirm: Zurückstellen
     later_today: Später heute
     next_week: Nächste Woche
+    past: Dieser Zeitpunkt liegt bereits in der Vergangenheit.
     pick_date: Datum und Uhrzeit wählen
     this_weekend: Dieses Wochenende
     tomorrow: Morgen
     unsnooze: Zurückholen
+    until: Zurückstellen bis
 
 snoozed:
     empty: Nichts ist zurückgestellt.
