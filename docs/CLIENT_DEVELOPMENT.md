@@ -262,6 +262,27 @@ every account answers with the same list.
 
 Creating, naming and ordering inboxes, and moving an account between them, is done on the web today.
 
+### Pinned conversations (`urn:plmail:params:jmap:pins`)
+
+A pinned conversation is drawn at the top of every mailbox list it is in (#654). The pin belongs to
+the conversation and to plMail: no mail server stores it.
+
+- **Keyword `$pinned`** is on every email of a pinned conversation. Setting or clearing it on any
+  one email with `Email/set` pins or unpins the whole conversation; the other emails change too and
+  come back in your next `Email/changes`. `hasKeyword: "$pinned"` filters by it.
+- **`Email/query` sort property `pinned`** is 1 for a pinned conversation's emails. Sort
+  `[{ "property": "pinned", "isAscending": false }, { "property": "receivedAt", "isAscending": false }]`
+  to page a mailbox pinned-first, as the web does.
+- **The capability**, at the top of the Session only, carries the user's choices:
+  `{ reminderAt, durationDays, keepOnMove, pinnedCount }`. `reminderAt` is how many pins the user
+  wants before being asked "pin anyway?" (0 is never). `pinnedCount` is how many they have, as of
+  the Session. Ask the question yourself before you set `$pinned`: the server never refuses a pin.
+  `durationDays` (null for forever) is applied by the server when the pin is made.
+- A pin ends on its own after `durationDays`. The server clears ended pins every 15 minutes, and
+  they arrive as `Email/changes` like any other keyword change.
+- A mailbox change made with `Email/set` follows `keepOnMove`, as a move on the web does. Moving
+  into Trash or Spam always takes the pin off.
+
 ### Notification settings (`urn:plmail:params:jmap:notifications`)
 
 Which mail is worth a notification, chosen once per **user** and not per device: the same switches

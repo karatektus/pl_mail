@@ -88,6 +88,7 @@ final readonly class ThreadStatusUpdater
         private ReadReceiptPolicy       $readReceipts,
         private MessageBusInterface     $bus,
         private LoggerInterface         $logger,
+        private ThreadPinService        $pins,
     ) {
     }
 
@@ -204,6 +205,9 @@ final readonly class ThreadStatusUpdater
             // could not reach and a sweep could not see (#427).
         }
 
+        // Archiving is a move (#654): the pin goes only if its owner said so.
+        $this->pins->moved(self::threadsOf($messages), discarded: false);
+
         $this->finish($messages);
     }
 
@@ -230,6 +234,9 @@ final readonly class ThreadStatusUpdater
 
             // The copy moves when the server has moved it; see archive().
         }
+
+        // The bin always takes a pin off — see ThreadPinService::moved().
+        $this->pins->moved(self::threadsOf($messages), discarded: true);
 
         $this->finish($messages);
     }
@@ -301,6 +308,10 @@ final readonly class ThreadStatusUpdater
 
             // The copy moves when the server has moved it; see archive().
         }
+
+        // Back to the inbox is a move too, out of the archive as much as out
+        // of the bin — whose pins are already gone.
+        $this->pins->moved(self::threadsOf($messages), discarded: false);
 
         $this->finish($messages);
     }
@@ -898,7 +909,34 @@ final readonly class ThreadStatusUpdater
             $this->propagator->detachLabel($source['messages'], $source['label'], moveOnImap: false);
         }
 
+        // Spam is the one discarding destination that comes through here;
+        // Trash has its own arm in move(). Anywhere else is a plain move.
+        $this->pins->moved(
+            self::threadsOf($messages),
+            discarded: LabelRole::Spam === $destination->role || LabelRole::Trash === $destination->role,
+        );
+
         $this->finish($messages);
+    }
+
+    /**
+     * The conversations a set of messages belongs to, each once.
+     *
+     * @param list<Message> $messages
+     *
+     * @return list<MessageThread>
+     */
+    private static function threadsOf(array $messages): array
+    {
+        $threads = [];
+
+        foreach ($messages as $message) {
+            if (null !== $message->thread) {
+                $threads[spl_object_id($message->thread)] = $message->thread;
+            }
+        }
+
+        return array_values($threads);
     }
 
     private static function hasCopyIn(Message $message, Mailbox $folder): bool

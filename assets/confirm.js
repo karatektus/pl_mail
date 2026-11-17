@@ -21,6 +21,9 @@ import * as Turbo from "@hotwired/turbo";
 /**
  * Ask the question, and answer true or false.
  *
+ * `options` (a button label of its own, a link) is passed to the dialog and
+ * dropped by the window.confirm fallback, which has room for neither.
+ *
  * Exported as well as registered with Turbo, because not every destructive
  * action in the app is a link or a form submission — `data-turbo-confirm` is
  * only consulted for those two, and a Stimulus controller that posts with
@@ -29,13 +32,14 @@ import * as Turbo from "@hotwired/turbo";
  * not each grow their own dialog.
  *
  * @param {string} message
+ * @param {{confirm?: string, link?: {href: string, text: string}}} [options]
  * @returns {Promise<boolean>}
  */
-export function askConfirm(message) {
+export function askConfirm(message, options = {}) {
     const dialog = document.getElementById("confirm-dialog");
 
     if (dialog?.plConfirm) {
-        return dialog.plConfirm(message);
+        return dialog.plConfirm(message, options);
     }
 
     // Not defensive noise: the sharing and booking pages use their own layout,

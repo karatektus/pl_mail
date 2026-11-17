@@ -1,0 +1,87 @@
+{#
+settings/_pinning.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Pinned conversations (#654): when pinning starts asking "pin anyway?", how
+long a pin lasts, and whether moving a conversation keeps its pin.
+
+A plain form that submits on change and redirects, like Disposal's: these
+decide what the next pin and the next move do, so nothing on this page is
+worth streaming back.
+
+How long a pin lasts is a select of the usual spans and "a number of days",
+and the day field appears once that is the choice. Picking it saves at once
+(with the days already set, or a week), so the field is drawn by the server
+rather than revealed by a script, and a value nobody can see is never saved.
+
+Accepts:
+  reminderAt  int        0 is off
+  days        int|null   null is forever
+  keepOnMove  bool
+#}
+{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  transition-colors cursor-pointer' %}
+{% set presets = { '': 'settings.pinning.duration.forever', 1: 'settings.pinning.duration.one_day', 3: 'settings.pinning.duration.three_days', 7: 'settings.pinning.duration.one_week', 14: 'settings.pinning.duration.two_weeks', 30: 'settings.pinning.duration.thirty_days' } %}
+{% set custom = days is not null and days not in [1, 3, 7, 14, 30] %}
+{% import '_partials/_select.html.twig' as select %}
+
+<form method="post" action="{{ path('app_settings_pinning_update') }}"
+      data-controller="ui--auto-submit" class="divide-y divide-line">
+    <input type="hidden" name="_token" value="{{ csrf_token('settings-pinning') }}">
+
+    <div class="px-4 py-3 flex items-start justify-between gap-3">
+        <label for="settings-pin-reminder" class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.pinning.reminder.label'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.pinning.reminder.hint'|trans }}</span>
+        </label>
+        <input type="number" id="settings-pin-reminder" name="reminderAt"
+               min="0" max="999" step="1" inputmode="numeric" required
+               value="{{ reminderAt }}"
+               data-action="change->ui--auto-submit#submit"
+               class="w-20 h-9 px-3 shrink-0 rounded-lg text-sm text-right bg-field border border-field-border text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+    </div>
+
+    <div class="px-4 py-3">
+        <label for="settings-pin-duration" class="block text-xs font-medium text-ink-muted">{{ 'settings.pinning.duration.label'|trans }}</label>
+        <span class="block text-[11px] text-ink-faint mt-0.5 mb-1.5">{{ 'settings.pinning.duration.hint'|trans }}</span>
+        <div class="flex items-center gap-2">
+            <select id="settings-pin-duration" name="duration"
+                    data-action="change->ui--auto-submit#submit"
+                    {{ select.enhance() }}
+                    class="select-field flex-1 min-w-0 h-9 text-sm">
+                {% for value, label in presets %}
+                    <option value="{{ value }}" {{ false == custom and (days ?? '') ~ '' == value ~ '' ? 'selected' : '' }}>{{ label|trans }}</option>
+                {% endfor %}
+                <option value="custom" {{ custom ? 'selected' : '' }}>{{ 'settings.pinning.duration.custom'|trans }}</option>
+            </select>
+            {% if custom %}
+                <input type="number" name="durationDays" min="1" max="3650" step="1" inputmode="numeric" required
+                       value="{{ days }}"
+                       aria-label="{{ 'settings.pinning.duration.custom_days'|trans }}"
+                       data-action="change->ui--auto-submit#submit"
+                       class="w-20 h-9 px-3 rounded-lg text-sm text-right bg-field border border-field-border text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <span class="text-xs text-ink-muted">{{ 'settings.pinning.duration.custom_days'|trans }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="px-4 py-3 flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.pinning.keep_on_move.label'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.pinning.keep_on_move.hint'|trans }}</span>
+        </span>
+        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+             role="radiogroup" aria-label="{{ 'settings.pinning.keep_on_move.label'|trans }}">
+            {% for on in [true, false] %}
+                <label>
+                    <input type="radio" name="keepOnMove" class="peer sr-only"
+                           value="{{ on ? '1' : '0' }}"
+                           data-action="change->ui--auto-submit#submit"
+                           {{ keepOnMove == on ? 'checked' : '' }}>
+                    <span class="{{ segText }}">{{ (on ? 'settings.disposal.on' : 'settings.disposal.off')|trans }}</span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+</form>

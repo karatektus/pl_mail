@@ -3329,6 +3329,12 @@ password_required:
     submitting: Enregistrement…
     tagline: Encore une étape
 
+pin:
+    reminder:
+        confirm: 'Épingler quand même'
+        question: '{1} Vous avez déjà une conversation épinglée. En épingler une autre quand même ?|]1,Inf[ Vous avez déjà %count% conversations épinglées. En épingler une autre quand même ?'
+        settings: 'Modifier le seuil de ce rappel'
+
 profile:
     avatar_current: Image actuelle
     avatar_from:
@@ -4862,6 +4868,26 @@ settings:
         show: Afficher le libellé
         subheading: Créez, renommez et organisez vos libellés, et choisissez lesquels apparaissent dans la barre latérale.
         system: Système
+    pinning:
+        duration:
+            custom: 'Un nombre de jours'
+            custom_days: 'jours'
+            forever: 'Pour toujours'
+            hint: 'Le changement s’applique aux épinglages faits à partir de maintenant.'
+            label: 'Durée d’un épinglage'
+            one_day: '1 jour'
+            one_week: '1 semaine'
+            thirty_days: '30 jours'
+            three_days: '3 jours'
+            two_weeks: '2 semaines'
+        heading: 'Conversations épinglées'
+        keep_on_move:
+            hint: 'L’archivage compte comme un déplacement. La corbeille et le spam retirent toujours l’épingle.'
+            label: 'Garder l’épingle quand une conversation est déplacée'
+        reminder:
+            hint: 'Au-delà de ce nombre, épingler demande d’abord confirmation, sans jamais refuser. 0 désactive le rappel.'
+            label: 'Me le rappeler à partir de'
+        subheading: 'Les conversations que vous épinglez restent en haut de chaque liste où elles apparaissent.'
     profile:
         heading: Votre profil
         save: Enregistrer le profil
@@ -4915,6 +4941,7 @@ settings:
         option:
             archive: Archiver
             none: Aucune action
+            pin: 'Épingler'
             read_unread: Lu / non lu
             star: Étoile
             trash: Supprimer
@@ -5031,6 +5058,7 @@ settings:
             list_markers: 'étoile survol avatar pastille compte coin non lu gras'
             notifications: "push navigateur téléphone son alerte"
             password: "connexion identifiant"
+            pinning: 'épingler épinglé punaise haut rappel pin'
             profile: "nom avatar photo image"
             read_receipts: "mdn accusé réception confirmation"
             reading_pane: "aperçu partagé droite bas"
@@ -5392,6 +5420,7 @@ shortcuts:
         next: "Descendre d’une conversation"
         next_conversation: "Ouvrir la conversation suivante"
         open: "Ouvrir la conversation en surbrillance"
+        pin: 'Épingler ou désépingler'
         previous: "Monter d’une conversation"
         previous_conversation: "Ouvrir la conversation précédente"
         reply: "Répondre"
@@ -5532,6 +5561,7 @@ thread_row:
     new_badge: Nouveau
     no_recipient: (sans destinataire)
     no_subject: (sans objet)
+    pin: 'Épingler en haut'
     replied: 'Répondu'
     send_failed:
         failed: Non envoyé
@@ -5548,6 +5578,7 @@ thread_row:
         select: Sélectionner
     star: Suivre ce message
     to: 'À : %recipients%'
+    unpin: 'Désépingler'
     unread: Non lu
     unstar: Ne plus suivre ce message
 
@@ -5609,10 +5640,12 @@ toolbar:
         more: Plus
         move_to: Déplacer vers
         not_spam: 'Pas un spam'
+        pin: 'Épingler'
         purge: Supprimer définitivement
         snooze: Mettre en attente
         spam: 'Marquer comme spam'
         star: Suivre
+        unpin: 'Désépingler'
     # Asked before a selection in Spam is deleted for good. Two sentences rather
     # than one with a number swapped in, because "1 conversations" is not English.
     purge_confirm:

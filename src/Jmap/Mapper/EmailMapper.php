@@ -209,6 +209,12 @@ final class EmailMapper
             $keywords['$flagged'] = true;
         }
 
+        // The conversation's pin, on every email of it (#654) — see
+        // Capability::PINS.
+        if (true === $message->thread?->isPinned()) {
+            $keywords['$pinned'] = true;
+        }
+
         $flags = $message->flags;
 
         if (true === in_array(MessageFlag::DRAFT->value, $flags, true)) {

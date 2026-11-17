@@ -418,8 +418,12 @@ class MessageThreadRepository extends ServiceEntityRepository
             Message::class,
         ))
             ->setParameter('sortDraftRole', LabelRole::Drafts)
-            ->setParameter('sortBinnedRole', LabelRole::Trash)
-            ->orderBy('draftWrittenAt', $direction)
+            ->setParameter('sortBinnedRole', LabelRole::Trash);
+
+        // Pins first here too: a pinned conversation is at the top of every
+        // list it is in (#654), and Drafts is one.
+        ListSortOrder::pinnedFirst($qb)
+            ->addOrderBy('draftWrittenAt', $direction)
             ->addOrderBy('t.id', $direction);
     }
 
@@ -820,12 +824,16 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function findForLabels(array $labels, int $page, int $perPage = 50): array
     {
-        return $this->createQueryBuilder('thread')
+        $qb = $this->createQueryBuilder('thread')
             ->innerJoin('thread.labels', 'label')
             ->where('label IN (:labels)')
             ->setParameter('labels', $labels)
-            ->groupBy('thread.id')
-            ->orderBy('thread.lastMessageAt', 'DESC')
+            ->groupBy('thread.id');
+
+        // Pins first, as in every folder list (#654) — see
+        // ListSortOrder::pinnedFirst().
+        return ListSortOrder::pinnedFirst($qb, 'thread')
+            ->addOrderBy('thread.lastMessageAt', 'DESC')
             // This one is paginated, which is the case the rule exists for:
             // LIMIT/OFFSET over a non-deterministic sort can show one
             // conversation on two pages and another on none. The folder lists

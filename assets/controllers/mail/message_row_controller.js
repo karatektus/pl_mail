@@ -5,6 +5,7 @@ import { announceWrite } from "../../mail_writes.js";
 import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
 import { leavesList, rowOf, takeOut } from "../../optimistic_rows.js";
+import { postPin, redrawAndPlace, swingTack } from "../../pin.js";
 
 /**
  * Handles per-row status actions in the message list.
@@ -43,6 +44,19 @@ export default class extends Controller {
         const { starUrl } = event.params;
         event.stopPropagation();
         await this.#post(starUrl);
+    }
+
+    /**
+     * Pin or unpin, one click (#654). The row moves into or out of the pinned
+     * group here, before the redrawn row arrives, so the stream replaces it
+     * where it already stands — see assets/pin.js for how the rest of the list
+     * is kept still.
+     */
+    async togglePin(event) {
+        const { pinUrl } = event.params;
+        event.stopPropagation();
+
+        await this.#pin(pinUrl);
     }
 
     async archive(event) {
@@ -169,10 +183,40 @@ export default class extends Controller {
      * @param {object} body  the JSON body the route reads; empty for most routes
      */
     async perform(url, body = {}) {
+        // A pin has its own path — the reminder and the move into place —
+        // and the swipe and the sheet reach it with nothing but its URL.
+        if ("pin" === new URL(url, window.location.origin).pathname.split("/").pop()) {
+            await this.#pin(url);
+
+            return;
+        }
+
         await this.#post(url, body);
     }
 
     // ── Private ───────────────────────────────────────────────────────────
+
+    /** The one path every pin on a row takes: button, swipe and sheet. */
+    async #pin(pinUrl) {
+        const response = await postPin(pinUrl);
+
+        if (null === response) {
+            return;
+        }
+
+        const pinned = "true" === response.headers.get("X-Pinned");
+        const row    = rowOf(this.element);
+
+        // The tack first, on the row as it stands — it swings down and stabs
+        // the row — then the redrawn row travels to its place (#654).
+        await swingTack(row?.querySelector("[data-row-pin] i") ?? null, pinned);
+
+        if (null !== row) {
+            await redrawAndPlace(row.id, await response.text(), pinned);
+        }
+
+        announceWrite();
+    }
 
     /**
      * Post to a status route on this row and draw the answer.

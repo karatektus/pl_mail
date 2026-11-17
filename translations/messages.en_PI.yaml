@@ -3173,6 +3173,12 @@ password_required:
     submitting: Stowin'…
     tagline: One more step
 
+pin:
+    reminder:
+        confirm: 'Nail it anyway'
+        question: '{1} Ye already have one bottle nailed to the mast. Nail another anyway, matey?|]1,Inf[ Ye already have %count% bottles nailed to the mast. Nail another anyway, matey?'
+        settings: 'Change when this nag be sounded'
+
 profile:
     avatar_current: Yer likeness at present
     avatar_from:
@@ -4620,6 +4626,26 @@ settings:
         show: Fly this flag
         subheading: Hoist, rename and order yer flags, and choose which fly in the sidebar.
         system: Ship's own
+    pinning:
+        duration:
+            custom: 'A count o’ days'
+            custom_days: 'days'
+            forever: 'Forever an’ a day'
+            hint: 'Changin’ this touches only the nails ye drive from now on.'
+            label: 'Nails hold for'
+            one_day: '1 day'
+            one_week: '1 week'
+            thirty_days: '30 days'
+            three_days: '3 days'
+            two_weeks: '2 weeks'
+        heading: 'Bottles nailed to the mast'
+        keep_on_move:
+            hint: 'Stowin’ in the hold counts as movin’. The brig an’ the bilge always pry the nail off.'
+            label: 'Keep the nail when a bottle be moved'
+        reminder:
+            hint: 'Nail more than this many an’ ye be asked first. Ye’re never refused. 0 silences the nag.'
+            label: 'Nag me at'
+        subheading: 'What ye nail to the mast stays atop every list it be in.'
     profile:
         heading: Yer colours
         save: Stow yer colours
@@ -4664,6 +4690,7 @@ settings:
         option:
             archive: "Stow it away"
             none: "Nowt"
+            pin: 'Nail to mast'
             read_unread: "Read / unread"
             star: "Star"
             trash: "Feed to the fishes"
@@ -4780,6 +4807,7 @@ settings:
             list_markers: 'mark star hover medallion avatar crew corner unread bold'
             notifications: "push browser phone sound alert"
             password: "login sign-in"
+            pinning: 'pin pinned nail mast top nag'
             profile: "name avatar photo picture"
             read_receipts: "mdn receipt confirmation"
             reading_pane: "preview split right bottom"
@@ -5154,6 +5182,7 @@ shortcuts:
         next: "Down one yarn"
         next_conversation: "Open the next yarn"
         open: "Open the marked yarn"
+        pin: 'Nail to the mast or pry it off'
         previous: "Up one yarn"
         previous_conversation: "Open the yarn afore"
         reply: "Answer"
@@ -5291,6 +5320,7 @@ thread_row:
     new_badge: Fresh
     no_recipient: (bound for nowhere)
     no_subject: (no subject)
+    pin: 'Nail it to the mast'
     replied: 'Answered'
     send_failed:
         failed: Never sailed
@@ -5307,6 +5337,7 @@ thread_row:
         select: Pick it
     star: Mark this bottle with an X
     to: 'Bound for: %recipients%'
+    unpin: 'Pry it off the mast'
     unread: Unread by any soul
     unstar: Rub out the X
 
@@ -5347,10 +5378,12 @@ toolbar:
         more: More besides
         move_to: Haul off to
         not_spam: 'Not bilge'
+        pin: 'Nail to mast'
         purge: "Send to Davy Jones for good"
         snooze: Let it drift
         spam: 'Call it bilge'
         star: Mark
+        unpin: 'Pry off'
     purge_confirm:
         one: "Sink this conversation for good? It can't be fished back up, and it be struck from the mail server too."
         many: "Sink these %count% conversations for good? They can't be fished back up, and they be struck from the mail server too."

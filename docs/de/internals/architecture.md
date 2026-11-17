@@ -1,4 +1,4 @@
-<!-- translated-from: internals/architecture.md sha1:875ca77084364dc2836a3267d84a421aea1a7c6d -->
+<!-- translated-from: internals/architecture.md sha1:fe017125bffb3c0f0bc7d14115bf639cf1811099 -->
 # Architektur
 
 Die Schichten, was wo liegt, und die Regeln, die das so halten. Diese Seite beschreibt die
@@ -250,6 +250,7 @@ war, in dem das Projekt vorher steckte: Logs und verwaiste Blobs wuchsen ohne Gr
 | `11-59/15 * * * *` | `app:contacts:sync --stale` | CardDAV-Adressbücher haben überhaupt keinen Push, also kommen Änderungen vom Handy nur so an. Gegen beide Durchläufe oben versetzt, aus demselben Grund des geteilten Workers |
 | `20 * * * *` | `app:calendar:push` | Stündlich, nicht weil so schnell etwas abliefe, sondern weil die Registrierung aus *Deployment*-Gründen scheitert, die mit dem Klick, der den Kalender verbunden hat, nichts zu tun haben |
 | `* * * * *` | `app:mail:wake-snoozed` | Eine Minute ist die Einheit, in der Menschen eine Weckzeit wählen |
+| `*/15 * * * *` | `app:mail:unpin-ended` | Die Listen lassen eine abgelaufene Anheftung selbst fallen; das hier sagt es nur den JMAP-Clients, und Anheftungen werden in Tagen gesetzt |
 | `* * * * *` | `app:calendar:alerts` | Dasselbe Argument, und zusätzlich ist das Intervall die Schranke dafür, wie spät eine Erinnerung kommen kann |
 | `0 4 * * *` | `app:push:renew --repair` | Gmail-Watches halten 7 Tage, Graph-Abonnements etwa 3 |
 | `50 3 * * *` | `app:calendar:materialise` | Rollt den Horizont der Termininstanzen vorwärts, damit einem Serientermin nicht klammheimlich die Termine ausgehen |

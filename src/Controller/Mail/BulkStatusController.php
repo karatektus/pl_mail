@@ -9,6 +9,7 @@ use App\Controller\RendersTurboStreams;
 use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Job\BackgroundJob;
+use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Label\Label\LabelRepository;
@@ -23,16 +24,18 @@ use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
 use App\Service\Mail\MoveToService;
 use App\Service\Mail\StatusUndoService;
+use App\Service\Mail\ThreadPinService;
 use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Bulk mail actions — one request for a whole selection.
@@ -69,7 +72,7 @@ final class BulkStatusController extends AbstractController
      *
      * @var list<string>
      */
-    private const array EXPLICIT_ONLY = ['move', 'label', 'category', 'star'];
+    private const array EXPLICIT_ONLY = ['move', 'label', 'category', 'star', 'pin'];
 
     /**
      * The views a delete for good may take whole.
@@ -99,6 +102,8 @@ final class BulkStatusController extends AbstractController
         private readonly InboxCategoryRepository $inboxCategories,
         private readonly DraftsView              $draftsView,
         private readonly DiscardedView           $discardedView,
+        private readonly ThreadPinService        $pins,
+        private readonly TranslatorInterface     $translator,
     ) {
     }
 
@@ -120,7 +125,7 @@ final class BulkStatusController extends AbstractController
      *      than as the URL the user is on — it is resolved by
      *      RunBulkStatusHandler now, where the work happens.
      */
-    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|move-to|label|category|star|purge'])]
+    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|move-to|label|category|star|pin|purge'])]
     public function bulk(Request $request, string $action): Response
     {
         $this->assertCsrf($request, 'ajax');
@@ -428,6 +433,35 @@ final class BulkStatusController extends AbstractController
         // it starred. It stays in the list it came from, redrawn with its star.
         if ('star' === $action) {
             $this->status->starThreads($threads);
+
+            return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
+                'count'   => count($threads),
+                'threads' => $threads,
+                'unified' => $unifiedRows,
+                'leaves'  => false,
+            ]);
+        }
+
+        // PINNING A SELECTION (#654), the toolbar's Pin and `p` over ticked rows.
+        //
+        // One answer for the lot, as a toggle reads on one row: if every
+        // ticked conversation is pinned, Pin takes the pins off; otherwise it
+        // pins the ones that are not, and leaves the pinned ones' end times
+        // alone. The reminder counts only what this would add, and is asked
+        // once for the selection rather than once per conversation.
+        if ('pin' === $action) {
+            $unpinned = array_values(array_filter($threads, static fn (MessageThread $thread): bool => false === $thread->isPinned()));
+
+            if ([] === $unpinned) {
+                $this->pins->unpin(array_values($threads));
+            } elseif (true !== ($body['confirmed'] ?? false) && true === $this->pins->wouldPassReminder($user, count($unpinned))) {
+                return $this->json(
+                    ThreadStatusController::pinReminder($this->translator, $this->generateUrl('app_settings_page', ['page' => 'message-list']), $user->pinReminderAt),
+                    Response::HTTP_CONFLICT,
+                );
+            } else {
+                $this->pins->pin($unpinned);
+            }
 
             return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
                 'count'   => count($threads),

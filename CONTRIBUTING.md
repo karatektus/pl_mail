@@ -984,6 +984,7 @@ php bin/mirror-wiki.php --check
 | `app:calendar:push [calendar-id] [--force] [--stop]` | Register and renew Google/Microsoft calendar push channels, so changes arrive instead of being polled for |
 | `app:calendar:alerts [--dry-run]` | Deliver the event reminders that have come due, and prune the records of ones long past. Runs every minute; `--dry-run` lists what is due without sending or recording anything |
 | `app:mail:wake-snoozed` | Return snoozed conversations whose time has come. Runs every minute |
+| `app:mail:unpin-ended` | Take the pin off conversations whose pin has run out. Runs every 15 minutes |
 | `app:search:index-pending [--seconds=N]` | Index the messages still waiting for search, newest first, for at most N seconds (20 by default). Runs every minute; after an update that rebuilds the index it works through the backlog, and otherwise finds nothing waiting. `app:backfill html-body-text` does the whole backlog at once |
 | `app:mail:release-held` | Show mail that has been held for the assistant longer than **Wait at most** allows. Runs every minute and finds nothing on an ordinary day — the live worker releases held mail itself. It is the backstop for that worker being down, and it warns when it has to act |
 | `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |

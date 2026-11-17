@@ -2944,6 +2944,12 @@ password_required:
     submit: "保存并继续"
     submitting: "正在保存…"
     tagline: "还差一步"
+pin:
+    reminder:
+        confirm: '仍然置顶'
+        question: '{1} 你已经置顶了 1 个会话。仍要再置顶一个吗？|]1,Inf[ 你已经置顶了 %count% 个会话。仍要再置顶一个吗？'
+        settings: '更改何时出现此提醒'
+
 profile:
     avatar_current: '当前头像'
     avatar_from:
@@ -4135,6 +4141,26 @@ settings:
         show: '显示标签'
         subheading: '创建、重命名和整理标签，并选择在侧边栏中显示哪些标签。'
         system: '系统'
+    pinning:
+        duration:
+            custom: '自定义天数'
+            custom_days: '天'
+            forever: '永久'
+            hint: '更改只对之后的置顶生效。'
+            label: '置顶持续时间'
+            one_day: '1 天'
+            one_week: '1 周'
+            thirty_days: '30 天'
+            three_days: '3 天'
+            two_weeks: '2 周'
+        heading: '置顶的会话'
+        keep_on_move:
+            hint: '归档也算移动。移到废纸篓或垃圾邮件总会取消置顶。'
+            label: '移动会话时保留置顶'
+        reminder:
+            hint: '置顶数量超过此值时会先询问，但不会拒绝。0 表示关闭提醒。'
+            label: '提醒阈值'
+        subheading: '你置顶的会话会停留在它所在的每个列表顶部。'
     profile:
         heading: '个人资料'
         save: '保存个人资料'
@@ -4175,6 +4201,7 @@ settings:
         option:
             archive: "归档"
             none: "无操作"
+            pin: '置顶'
             read_unread: "已读 / 未读"
             star: "星标"
             trash: "删除"
@@ -4291,6 +4318,7 @@ settings:
             list_markers: '星标 悬停 头像 圆圈 账户 角标 未读 粗体'
             notifications: "推送 浏览器 手机 声音 提醒"
             password: "密码 登录"
+            pinning: '置顶 固定 图钉 提醒 pin'
             profile: "姓名 头像 照片"
             read_receipts: "mdn 已读回执 确认"
             reading_pane: "预览 分栏 右侧 下方"
@@ -4632,6 +4660,7 @@ shortcuts:
         next: '向下移动一个会话'
         next_conversation: '打开下一个会话'
         open: '打开高亮的会话'
+        pin: '置顶或取消置顶'
         previous: '向上移动一个会话'
         previous_conversation: '打开上一个会话'
         reply: '回复'
@@ -4763,6 +4792,7 @@ thread_row:
     new_badge: '新'
     no_recipient: '（无收件人）'
     no_subject: '（无主题）'
+    pin: '置顶'
     replied: '已回复'
     send_failed:
         failed: '未发送'
@@ -4779,6 +4809,7 @@ thread_row:
         select: "选择"
     star: '为此邮件加星标'
     to: '收件人：%recipients%'
+    unpin: '取消置顶'
     unread: '未读'
     unstar: '移除此邮件的星标'
 toast:
@@ -4817,10 +4848,12 @@ toolbar:
         more: '更多'
         move_to: '移至'
         not_spam: "不是垃圾邮件"
+        pin: '置顶'
         purge: '永久删除'
         snooze: '稍后提醒'
         spam: '标为垃圾邮件'
         star: '加星标'
+        unpin: '取消置顶'
     purge_confirm:
         one: '永久删除此会话？此操作无法恢复，邮件服务器上的对应内容也会被删除。'
         many: '永久删除这 %count% 个会话？此操作无法恢复，邮件服务器上的对应内容也会被删除。'

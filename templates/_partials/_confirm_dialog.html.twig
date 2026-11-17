@@ -57,6 +57,14 @@ in the document. That is why the geometry and the dim live in app.css under
         <p class="text-sm leading-relaxed text-ink-soft whitespace-pre-line"
            data-ui--confirm-target="message"></p>
 
+        {# A link out of the question, for the one caller that has somewhere to
+           send the reader instead: the pin reminder points at the setting that
+           decides when it is asked (#654). Hidden unless a caller sets it. A
+           plain link, so following it closes the dialog by leaving the page. #}
+        <a href="#" hidden
+           data-ui--confirm-target="link"
+           class="-mt-2 text-sm text-accent hover:underline self-start"></a>
+
         <div class="flex items-center justify-end gap-2 pt-1">
             {# `value` is what <form method="dialog"> hands back as returnValue,
                which is how the controller learns which button was pressed

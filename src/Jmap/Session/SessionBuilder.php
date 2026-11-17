@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Jmap\Session;
 
 use App\Domain\DTO\Push\NotifyScope;
+use App\Domain\Enum\Template\DateFormatPreset;
+use App\Domain\Enum\Template\TemplateVariable;
 use App\Domain\Enum\Theme\ActionButtonStyle;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
@@ -19,8 +21,6 @@ use App\Entity\Embeddable\Appearance;
 use App\Entity\Embeddable\MessageList;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Domain\Enum\Template\DateFormatPreset;
-use App\Domain\Enum\Template\TemplateVariable;
 use App\Jmap\Account\CalendarAccountResolver;
 use App\Jmap\Mail\SubmissionEnvelope;
 use App\Jmap\Mapper\AppearanceMapper;
@@ -33,6 +33,7 @@ use App\Service\Crypto\DecryptedMail;
 use App\Service\Crypto\DecryptedMailPolicy;
 use App\Service\Crypto\RecipientKeys;
 use App\Service\Health\AccountHealthInspector;
+use App\Service\Mail\ThreadPinService;
 use App\Service\User\DevicePairingService;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -66,6 +67,7 @@ final class SessionBuilder
         private readonly AccountHealthInspector $health,
         private readonly string $vapidPublicKey,
         private readonly ?DecryptedMailPolicy $decryptedMail = null,
+        private readonly ?ThreadPinService $pins = null,
     ) {
     }
 
@@ -193,6 +195,15 @@ final class SessionBuilder
                 // What a scope key may look like, and the list a user who has
                 // not chosen gets — so a client can draw its switches before
                 // the first NotificationSettings/get answers.
+                // The pin choices and count (#654), so an app can ask "pin
+                // anyway?" as the web does. A hint, stale the way the
+                // appearance above is: the count is as of this Session.
+                Capability::PINS => [
+                    'reminderAt'   => $user->pinReminderAt,
+                    'durationDays' => $user->pinDurationDays,
+                    'keepOnMove'   => $user->pinKeepOnMove,
+                    'pinnedCount'  => $this->pins?->activeCount($user) ?? 0,
+                ],
                 Capability::NOTIFICATIONS => [
                     'scopePrefixes' => [NotifyScope::CATEGORY_PREFIX, NotifyScope::TAB_PREFIX, NotifyScope::LABEL_PREFIX],
                     'defaultScopes' => [NotifyScope::PRIMARY],

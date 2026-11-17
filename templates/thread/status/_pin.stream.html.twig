@@ -1,0 +1,12 @@
+{#
+The answer to a pin or an unpin (#654): the row redrawn where it stands, with
+its thumbtack and data-pinned changed. Moving it into or out of the pinned
+group is assets/pin.js's, which keeps the rest of the list still while it does.
+
+Accepts `thread` or `message`, as the star's stream does.
+#}
+<turbo-stream action="replace" target="thread_{{ message is defined ? message.id : thread.id }}">
+    <template>
+        {% include '_partials/_thread_row.html.twig' %}
+    </template>
+</turbo-stream>

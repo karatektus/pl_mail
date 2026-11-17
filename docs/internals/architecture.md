@@ -229,6 +229,7 @@ in before, with logs and orphaned blobs growing without bound.
 | `11-59/15 * * * *` | `app:contacts:sync --stale` | CardDAV address books have no push at all, so this is the only way changes made on a phone arrive. Offset off both sweeps above for the same shared-worker reason |
 | `20 * * * *` | `app:calendar:push` | Hourly, not because anything expires that fast, but because registration fails for *deployment* reasons that have nothing to do with the click that connected the calendar |
 | `* * * * *` | `app:mail:wake-snoozed` | A minute is the unit people pick a wake time in |
+| `*/15 * * * *` | `app:mail:unpin-ended` | The lists drop an ended pin themselves; this only tells JMAP clients, and pins are set in days |
 | `* * * * *` | `app:calendar:alerts` | Same argument, plus the interval is the bound on how late a reminder can be |
 | `0 4 * * *` | `app:push:renew --repair` | Gmail watches last 7 days, Graph subscriptions ~3 |
 | `50 3 * * *` | `app:calendar:materialise` | Rolls the occurrence horizon forward, so a repeating event does not quietly run out of dates |

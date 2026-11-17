@@ -100,6 +100,7 @@ one container consuming `scheduler_default`. **Without that container, none of t
 | Cadence | Command |
 |---|---|
 | every minute | `app:mail:wake-snoozed` |
+| `*/15` | `app:mail:unpin-ended` |
 | every minute | `app:calendar:alerts` |
 | `*/15` | `app:mail:sync` |
 | `7-59/15` | `app:calendar:sync --stale` |

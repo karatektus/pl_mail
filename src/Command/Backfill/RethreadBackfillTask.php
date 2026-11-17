@@ -157,7 +157,7 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
      * Per-thread state worth keeping, anchored to the thread's earliest message
      * so it can be found again once threads have been rebuilt.
      *
-     * @return list<array{anchor: int, starredAt: ?string, snoozedUntil: ?string, category: ?string, listedAt: ?string, labels: list<int>}>
+     * @return list<array{anchor: int, starredAt: ?string, snoozedUntil: ?string, pinnedAt: ?string, pinnedUntil: ?string, category: ?string, listedAt: ?string, labels: list<int>}>
      */
     private function snapshotThreadState(int $accountId): array
     {
@@ -180,6 +180,8 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
                 'anchor'       => (int) $row['anchor'],
                 'starredAt'    => $row['starred_at'],
                 'snoozedUntil' => $row['snoozed_until'],
+                'pinnedAt'     => $row['pinned_at'],
+                'pinnedUntil'  => $row['pinned_until'],
                 'category'     => $row['category'],
                 // Or the rebuild announces the account's whole history as new
                 // mail — see findCarriedOverStateForAccount().
@@ -247,7 +249,7 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
     }
 
     /**
-     * @param list<array{anchor: int, starredAt: ?string, snoozedUntil: ?string, category: ?string, listedAt: ?string, labels: list<int>}> $snapshots
+     * @param list<array{anchor: int, starredAt: ?string, snoozedUntil: ?string, pinnedAt: ?string, pinnedUntil: ?string, category: ?string, listedAt: ?string, labels: list<int>}> $snapshots
      */
     private function restoreThreadState(int $accountId, array $snapshots): int
     {
@@ -270,6 +272,8 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
                 $snapshot['snoozedUntil'],
                 $snapshot['category'],
                 $snapshot['listedAt'],
+                $snapshot['pinnedAt'],
+                $snapshot['pinnedUntil'],
             );
 
             foreach ($snapshot['labels'] as $labelId) {

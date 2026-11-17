@@ -105,13 +105,13 @@ class MessageThreadRebuildRepository extends ServiceEntityRepository
      * the migration's backfill exists to prevent, reachable from a console
      * command instead of a deploy.
      *
-     * @return list<array{id: int, starred_at: ?string, snoozed_until: ?string, category: ?string, listed_at: ?string, anchor: int}>
+     * @return list<array{id: int, starred_at: ?string, snoozed_until: ?string, pinned_at: ?string, pinned_until: ?string, category: ?string, listed_at: ?string, anchor: int}>
      */
     public function findCarriedOverStateForAccount(int $accountId): array
     {
-        /** @var list<array{id: int, starred_at: ?string, snoozed_until: ?string, category: ?string, listed_at: ?string, anchor: int}> */
+        /** @var list<array{id: int, starred_at: ?string, snoozed_until: ?string, pinned_at: ?string, pinned_until: ?string, category: ?string, listed_at: ?string, anchor: int}> */
         return $this->getEntityManager()->getConnection()->fetchAllAssociative(
-            'SELECT t.id, t.starred_at, t.snoozed_until, t.category, t.listed_at, MIN(m.id) AS anchor
+            'SELECT t.id, t.starred_at, t.snoozed_until, t.pinned_at, t.pinned_until, t.category, t.listed_at, MIN(m.id) AS anchor
              FROM message_thread t
              INNER JOIN message m ON m.thread_id = t.id
              WHERE t.account_id = :accountId
@@ -185,13 +185,17 @@ class MessageThreadRebuildRepository extends ServiceEntityRepository
         ?string $snoozedUntil,
         ?string $category,
         ?string $listedAt = null,
+        ?string $pinnedAt = null,
+        ?string $pinnedUntil = null,
     ): void {
         $this->getEntityManager()->getConnection()->executeStatement(
             'UPDATE message_thread
              SET starred_at    = COALESCE(starred_at, :starredAt),
                  snoozed_until = COALESCE(snoozed_until, :snoozedUntil),
                  category      = COALESCE(category, :category),
-                 listed_at     = COALESCE(listed_at, :listedAt)
+                 listed_at     = COALESCE(listed_at, :listedAt),
+                 pinned_until  = CASE WHEN pinned_at IS NULL THEN CAST(:pinnedUntil AS TIMESTAMP(0)) ELSE pinned_until END,
+                 pinned_at     = COALESCE(pinned_at, :pinnedAt)
              WHERE id = :threadId',
             [
                 'starredAt'    => $starredAt,
@@ -202,6 +206,13 @@ class MessageThreadRebuildRepository extends ServiceEntityRepository
                 // shown then the conversation is not news to anybody. The first
                 // non-null wins and later nulls cannot take it back.
                 'listedAt'     => $listedAt,
+                // A pin comes back whole (#654): its end only where its start
+                // does, so two collapsed threads cannot make a pin out of one's
+                // start and the other's end. pinned_until is assigned before
+                // pinned_at in the SET list, but Postgres reads every column as
+                // it was before the statement, so the order does not matter.
+                'pinnedAt'     => $pinnedAt,
+                'pinnedUntil'  => $pinnedUntil,
                 'threadId'     => $threadId,
             ],
         );

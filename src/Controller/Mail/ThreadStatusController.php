@@ -21,6 +21,7 @@ use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
 use App\Service\Mail\StatusUndoService;
+use App\Service\Mail\ThreadPinService;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -28,9 +29,10 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
- * The mail list's status buttons: star, archive, trash, label, snooze, read.
+ * The mail list's status buttons: star, pin, archive, trash, label, snooze, read.
  *
  * Each action resolves and authorises a set of messages, hands it to
  * ThreadStatusUpdater — which owns what these mutations mean — and renders the
@@ -57,6 +59,8 @@ class ThreadStatusController extends AbstractController
         private readonly AllMailView            $allMail,
         private readonly DraftsView             $draftsView,
         private readonly DiscardedView          $discardedView,
+        private readonly ThreadPinService       $pins,
+        private readonly TranslatorInterface    $translator,
     ) {}
 
     #[Route('/star', name: 'star', methods: ['POST'])]
@@ -70,6 +74,66 @@ class ThreadStatusController extends AbstractController
         return $this->renderTurboStream('thread/status/_star.stream.html.twig', [
             $type => 'message' === $type ? $message : $message->thread,
         ]);
+    }
+
+    /**
+     * Pin or unpin the conversation, one click (#654).
+     *
+     * Pinning past the owner's reminder count answers 409 with the question
+     * to ask instead of pinning: the reminder nags, it does not refuse, so the
+     * client asks "pin anyway?" and posts again with `confirmed`. Asked here
+     * rather than in the browser because the count is across every account,
+     * which no page has on it.
+     *
+     * A message row (a search hit) pins the conversation it is in: a pin is
+     * a conversation's, and a list draws conversations.
+     *
+     * The answer redraws the row where it stands and says in X-Pinned which
+     * way it went; moving the row into the pinned group is the client's (see
+     * assets/pin.js), so the rest of the list stays where it is.
+     */
+    #[Route('/pin', name: 'pin', methods: ['POST'])]
+    public function pin(Request $request, string $type, int $id): Response
+    {
+        $messages = $this->resolveMessages($request, $type, $id);
+        $thread   = $messages[0]->thread ?? throw $this->createNotFoundException();
+
+        /** @var User $user */
+        $user      = $this->getUser();
+        $body      = json_decode($request->getContent(), true);
+        $confirmed = true === (is_array($body) ? ($body['confirmed'] ?? false) : false);
+
+        if (false === $thread->isPinned() && false === $confirmed && true === $this->pins->wouldPassReminder($user)) {
+            return $this->json(
+                self::pinReminder($this->translator, $this->generateUrl('app_settings_page', ['page' => 'message-list']), $user->pinReminderAt),
+                Response::HTTP_CONFLICT,
+            );
+        }
+
+        $pinned = $this->pins->toggle($thread);
+
+        $response = $this->renderTurboStream('thread/status/_pin.stream.html.twig', [
+            $type => 'message' === $type ? $messages[0] : $thread,
+        ]);
+        $response->headers->set('X-Pinned', $pinned ? 'true' : 'false');
+
+        return $response;
+    }
+
+    /**
+     * The "pin anyway?" question, shared with the selection toolbar's Pin
+     * (BulkStatusController) so the two ask it in the same words.
+     *
+     * @return array{reminder: string, confirm: string, settings: string, settingsUrl: string}
+     */
+    public static function pinReminder(TranslatorInterface $translator, string $settingsUrl, int $reminderAt): array
+    {
+        return [
+            'reminder'    => $translator->trans('pin.reminder.question', ['%count%' => $reminderAt]),
+            'confirm'     => $translator->trans('pin.reminder.confirm'),
+            'settings'    => $translator->trans('pin.reminder.settings'),
+            'settingsUrl' => $settingsUrl . '#card-pinning',
+        ];
     }
 
     #[Route('/archive', name: 'archive', methods: ['POST'])]

@@ -3310,6 +3310,12 @@ password_required:
     submitting: Saving…
     tagline: One more step
 
+pin:
+    reminder:
+        confirm: 'Pin anyway'
+        question: '{1} You already have one pinned conversation. Pin another one anyway?|]1,Inf[ You already have %count% pinned conversations. Pin another one anyway?'
+        settings: 'Change when this reminder appears'
+
 profile:
     avatar_current: Current picture
     avatar_from:
@@ -4804,6 +4810,26 @@ settings:
         show: Show label
         subheading: Create, rename and organise your labels, and choose which appear in the sidebar.
         system: System
+    pinning:
+        duration:
+            custom: 'A number of days'
+            custom_days: 'days'
+            forever: 'Forever'
+            hint: 'Changing this affects pins you make from now on.'
+            label: 'Pins last'
+            one_day: '1 day'
+            one_week: '1 week'
+            thirty_days: '30 days'
+            three_days: '3 days'
+            two_weeks: '2 weeks'
+        heading: 'Pinned conversations'
+        keep_on_move:
+            hint: 'Archiving counts as moving. The bin and spam always take the pin off.'
+            label: 'Keep the pin when a conversation is moved'
+        reminder:
+            hint: 'Pinning more than this many conversations asks first. It never refuses. 0 turns the reminder off.'
+            label: 'Remind me at'
+        subheading: 'Conversations you pin stay at the top of every list they are in.'
     profile:
         heading: Your profile
         save: Save profile
@@ -4854,6 +4880,7 @@ settings:
         option:
             archive: Archive
             none: Nothing
+            pin: 'Pin'
             read_unread: Read / unread
             star: Star
             trash: Delete
@@ -4970,6 +4997,7 @@ settings:
             list_markers: 'star hover avatar disc account corner unread bold'
             notifications: "push browser phone sound alert"
             password: "login sign-in"
+            pinning: 'pin pinned thumbtack sticky top reminder'
             profile: "name avatar photo picture"
             read_receipts: "mdn receipt confirmation"
             reading_pane: "preview split right bottom"
@@ -5355,6 +5383,7 @@ shortcuts:
         next: "Down one conversation"
         next_conversation: "Open the next conversation"
         open: "Open the highlighted conversation"
+        pin: 'Pin or unpin'
         previous: "Up one conversation"
         previous_conversation: "Open the previous conversation"
         reply: "Reply"
@@ -5495,6 +5524,7 @@ thread_row:
     new_badge: New
     no_recipient: (no recipient)
     no_subject: (no subject)
+    pin: 'Pin to top'
     replied: 'Replied'
     send_failed:
         failed: Not sent
@@ -5512,6 +5542,7 @@ thread_row:
         select: Select
     star: Star this message
     to: 'To: %recipients%'
+    unpin: 'Unpin'
     unread: Unread
     unstar: Unstar this message
 
@@ -5573,10 +5604,12 @@ toolbar:
         more: More
         move_to: Move to
         not_spam: 'Not spam'
+        pin: 'Pin'
         purge: Delete forever
         snooze: Snooze
         spam: 'Mark as spam'
         star: Star
+        unpin: 'Unpin'
     # Asked before a selection in Spam is deleted for good. Two sentences rather
     # than one with a number swapped in, because "1 conversations" is not English.
     purge_confirm:
