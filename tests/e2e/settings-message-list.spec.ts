@@ -309,7 +309,7 @@ test.describe("settings — message list", () => {
         // Hidden, and still in the page, so it is right the moment it is back.
         await expect(count).toBeAttached();
         await expect(count).toBeHidden();
-        await expect(page.locator("nav > a[href*='tab=social']")).toBeVisible();
+        await expect(page.locator("nav a[data-category-tab-link][href*='tab=social']")).toBeVisible();
 
         seed("seed-mail");
     });

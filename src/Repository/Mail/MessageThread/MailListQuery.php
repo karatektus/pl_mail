@@ -80,8 +80,11 @@ final readonly class MailListQuery
      * One account's inbox, for its row in the sidebar. No mail-enabled check:
      * a switched-off account is still clickable, and answering it with
      * nothing would read as lost mail. See findForAccountInbox().
+     *
+     * `$unreadOnly` is what a tab's unread count opens (#670), as on the
+     * unified inbox: the same list, narrowed the same way.
      */
-    public function accountInbox(ListLevel $level, Account $account, MessageCategory|InboxTab|null $category = null): QueryBuilder
+    public function accountInbox(ListLevel $level, Account $account, MessageCategory|InboxTab|null $category = null, bool $unreadOnly = false): QueryBuilder
     {
         $qb = $this->base($level);
 
@@ -89,6 +92,7 @@ final readonly class MailListQuery
         $this->withRole($qb, $level, LabelRole::Inbox);
         self::narrowToCategory($qb, $category, MessageThreadListCriteria::switchedOffBy($account->usr));
         $this->notBinned($qb, $level);
+        $this->unreadOnly($qb, $level, $unreadOnly);
 
         return $qb;
     }

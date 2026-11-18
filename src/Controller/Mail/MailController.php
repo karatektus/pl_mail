@@ -602,7 +602,16 @@ final class MailController extends AbstractController
             : null;
         $tabbed = null !== $tab;
 
-        $total   = $this->lists()->countForAccountInbox($account, $tab);
+        // `?unread=1` is what a tab's unread count opens (#670), and the
+        // toolbar's "Show all" takes it off again, as on the unified inbox.
+        $unreadOnly = $this->unreadOnly($request);
+
+        // Every tab's total, for which tabs exist, and every tab's unread, for
+        // the numbers on them — one grouped read of THIS account's inbox, like
+        // countTabsForUnifiedInbox() on the unified one. Not made without tabs.
+        $tabCounts = $tabbed ? $this->lists()->countTabsForAccountInbox($account) : null;
+
+        $total   = $this->lists()->countForAccountInbox($account, $tab, $unreadOnly);
         $page    = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
@@ -610,29 +619,33 @@ final class MailController extends AbstractController
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->lists()->findForAccountInbox($account, $page, self::PER_PAGE, $sort, $tab);
+        $threads = $this->lists()->findForAccountInbox($account, $page, self::PER_PAGE, $sort, $tab, $unreadOnly);
 
         // Which tabs exist comes from THIS account's mail. The "new" pills and
         // the unread tint the unified inbox draws on them are not passed on
         // purpose: they are summed across every account, and the sidebar
         // controller rewrites them from that same payload, so on this page
-        // they would be wrong and then overwritten with the wrong thing.
+        // they would be wrong and then overwritten with the wrong thing. The
+        // unread NUMBERS are this account's own (#670) and carry no key the
+        // sidebar controller patches; the strip is re-rendered with the list.
         $tabs = $this->visibleTabs(
             $tabbed && $user instanceof User ? $this->inboxTabs->allFor($user) : [],
             $tab,
-            $tabbed ? $this->lists()->countByCategoryForAccountInbox($account) : [],
+            $tabCounts['threads'] ?? [],
         );
 
         $this->preloadRows($threads);
 
         return $this->renderList($request, 'mail/account.html.twig', $threads, [
-            'account'   => $account,
-            'tab'       => $tab,
-            'tabs'      => $tabs,
-            'page'      => $page,
-            'total'     => $total,
-            'per_page'  => self::PER_PAGE,
-            'list_sort' => $sort,
+            'account'     => $account,
+            'tab'         => $tab,
+            'tabs'        => $tabs,
+            'tab_unread'  => $tabCounts['unread'] ?? [],
+            'page'        => $page,
+            'total'       => $total,
+            'per_page'    => self::PER_PAGE,
+            'list_sort'   => $sort,
+            'unread_only' => $unreadOnly,
         ]);
     }
 

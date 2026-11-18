@@ -83,8 +83,9 @@ where you were rather than somewhere adjacent.
 
 **Trash** and **Drafts** are not links, and neither is the **Labels** roll-up. The first two carry a
 total rather than an unread count, so there is no unread question being asked there; the roll-up
-stands in for several lists at once and has no single one to open. **Unread**'s badge is not a link
-either: every row in that list is unread already.
+stands in for several lists at once and has no single one to open. **Unread**'s badge is part of
+the row's own link: every row in that list is unread already, so the number opens the same list the
+row does.
 
 A collapsed **Labels** heading carries the unread hidden underneath it, as a count of conversations.
 It is deliberately not the sum of the per-label numbers: a conversation filed under two labels would
@@ -129,7 +130,7 @@ until you turn it on, and then an Outlook or any other account has them, [tabs o
 own](#tabs-of-your-own) included; off, an account's page is its whole inbox in one list. The switch
 is there only while **Inbox tabs** is on, and a config backup carries it. A tab is there while it holds mail, and on an account's page it counts only that
 account's mail — so a tab of yours that holds mail only in another account is not on this one. The
-account page's tabs are plainer: no
+account page's tabs are plainer: an unread count of that account's own, but no
 "new" pills, sender hints or unread tint, because those add up every account and would describe the
 wrong mailbox there. Dragging a conversation onto a tab is on the top-level Inbox only.
 
@@ -267,7 +268,9 @@ a second line naming who that new mail is from, newest arrival first. "New" and 
 different questions, so a tab carries two numbers: the pill says what arrived that you have never
 been shown, and a plain **unread count** beside the tab's name says how many conversations in that
 category hold unread mail. The count is the sidebar's Inbox badge split by tab, so the tabs add up
-to it; it shows on every tab including the one you are on, and is hidden at zero. It can be
+to it; it shows on every tab including the one you are on, and is hidden at zero. Like the
+sidebar's badges, it is a link: clicking it opens that tab with only its unread conversations, while
+a click anywhere else on the tab opens the whole tab. It can be
 switched off under **Settings → Inbox → Categories**. (Earlier
 versions kept this number off the tabs, on the argument that the badge and the bold rows already
 say unread. They cannot say *where*: with the Inbox badge reading 1 and Primary open and empty,

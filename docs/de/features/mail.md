@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:28fdb85b89b4cdcbb4e28e72818e5e717e240eea -->
+<!-- translated-from: features/mail.md sha1:48c908f6e9f810a9a2698e44f881a20a03ef9f5f -->
 
 # Mail
 
@@ -97,8 +97,8 @@ bringt dich **Alle anzeigen** dorthin zurück, wo du warst, und nicht irgendwohi
 **Papierkorb** und **Entwürfe** sind keine Links, die Sammelzahl über **Labels** ebenfalls nicht.
 Die ersten beiden tragen eine Gesamtzahl statt eines Ungelesen-Zählers, dort wird also gar nicht
 nach Ungelesenem gefragt; die Sammelzahl steht für mehrere Listen auf einmal und hat keine einzelne,
-die sie öffnen könnte. Auch die Zahl an **Ungelesen** ist kein Link: In dieser Liste ist ohnehin
-jede Zeile ungelesen.
+die sie öffnen könnte. Die Zahl an **Ungelesen** gehört zum Link der Zeile selbst: In dieser Liste
+ist ohnehin jede Zeile ungelesen, die Zahl öffnet also dieselbe Liste wie die Zeile.
 
 Eine zugeklappte Überschrift **Labels** trägt das Ungelesene, das darunter verborgen ist, als
 Anzahl von Konversationen. Es ist bewusst nicht die Summe der einzelnen Zahlen: Eine Konversation
@@ -150,8 +150,8 @@ seinen ganzen Posteingang als eine Liste. Den Schalter gibt es nur, solange **Ta
 an ist, und eine Konfigurationssicherung enthält ihn. Ein Tab ist da, solange er Mail enthält, und auf der Seite
 eines Kontos zählt er nur dessen Mail — ein eigener Tab, der nur in einem anderen Konto Mail
 enthält, fehlt auf dieser Seite also. Die Tabs auf
-der Kontoseite sind schlichter: keine „neu“-Markierungen, keine Absenderhinweise und keine
-Ungelesen-Färbung, denn die zählen alle Konten zusammen und würden dort das falsche Postfach
+der Kontoseite sind schlichter: eine Ungelesen-Zahl nur dieses Kontos, aber keine
+„neu“-Markierungen, keine Absenderhinweise und keine Ungelesen-Färbung, denn die zählen alle Konten zusammen und würden dort das falsche Postfach
 beschreiben. Eine Konversation auf einen Tab zu ziehen geht nur im Posteingang ganz oben.
 
 Ein Tab-Wechsel ersetzt den Eintrag im Browser-Verlauf, statt einen neuen anzulegen, so wie in Gmail. Die Zurück-Taste des Browsers verlässt darum den Posteingang, statt dich durch die Tabs zurückzuführen, die du dir angesehen hast. Für die Tabs auf der Seite eines Kontos gilt dasselbe.
@@ -301,7 +301,9 @@ Das Fähnchen sagt, was angekommen ist, ohne dir gezeigt worden zu sein, und ein
 **Ungelesen-Zahl** neben dem Namen des Tabs sagt, in wie vielen Unterhaltungen dieser Kategorie
 Ungelesenes liegt. Die Zahl ist der Posteingangs-Badge der Seitenleiste, nach Tabs aufgeteilt — die
 Tabs ergeben zusammen also genau ihn. Sie steht auf jedem Tab, auch auf dem, auf dem du gerade bist,
-und ist bei null ausgeblendet. Abschalten lässt sie sich unter **Einstellungen → Posteingang →
+und ist bei null ausgeblendet. Wie die Badges der Seitenleiste ist sie ein Link: Ein Klick darauf
+öffnet den Tab mit nur seinen ungelesenen Unterhaltungen, ein Klick irgendwo sonst auf den Tab
+öffnet den ganzen Tab. Abschalten lässt sie sich unter **Einstellungen → Posteingang →
 Kategorien**. (Frühere Versionen hielten diese Zahl von den Tabs fern, mit dem
 Argument, Badge und fette Zeilen sagten Ungelesenes schon. Sie können aber nicht sagen, *wo*: Zeigt
 der Posteingangs-Badge 1, ist Primär geöffnet und leer, deutete nichts auf der Leiste auf den Tab
