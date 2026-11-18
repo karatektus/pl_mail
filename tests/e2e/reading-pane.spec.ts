@@ -290,7 +290,7 @@ test.describe("reading pane right", () => {
         await page.goto("/mail/inbox");
         await openMessage(page);
 
-        await swapList(page, "nav > a[href*='tab=social']");
+        await swapList(page, "nav a[data-category-tab-link][href*='tab=social']");
         await expect(page).toHaveURL(/tab=social/);
 
         // The list is the Social tab's: the thread moved there is on it and

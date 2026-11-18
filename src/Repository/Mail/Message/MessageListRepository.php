@@ -123,16 +123,16 @@ class MessageListRepository extends ServiceEntityRepository
     }
 
     /** @return list<Message> */
-    public function findForAccountInbox(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, MessageCategory|InboxTab|null $category = null): array
+    public function findForAccountInbox(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, MessageCategory|InboxTab|null $category = null, bool $unreadOnly = false): array
     {
-        return $this->page($this->lists()->accountInbox(ListLevel::Email, $account, $category), $sort, $page, $perPage, null, $account->usr);
+        return $this->page($this->lists()->accountInbox(ListLevel::Email, $account, $category, $unreadOnly), $sort, $page, $perPage, null, $account->usr);
     }
 
-    public function countForAccountInbox(Account $account, MessageCategory|InboxTab|null $category = null): int
+    public function countForAccountInbox(Account $account, MessageCategory|InboxTab|null $category = null, bool $unreadOnly = false): int
     {
         $lists = $this->lists();
 
-        return $lists->count($lists->accountInbox(ListLevel::Email, $account, $category), ListLevel::Email);
+        return $lists->count($lists->accountInbox(ListLevel::Email, $account, $category, $unreadOnly), ListLevel::Email);
     }
 
     /**
@@ -143,10 +143,21 @@ class MessageListRepository extends ServiceEntityRepository
      */
     public function countByCategoryForAccountInbox(Account $account): array
     {
+        return $this->countTabsForAccountInbox($account)['threads'];
+    }
+
+    /**
+     * Every tab's email count and unread count in one account's inbox —
+     * countTabsForAccountInbox() at the Email level.
+     *
+     * @return array{threads: array<string, int>, unread: array<string, int>}
+     */
+    public function countTabsForAccountInbox(Account $account): array
+    {
         $lists = $this->lists();
         $user  = $account->usr ?? throw new \LogicException('An account has an owner.');
 
-        return $lists->countEmailTabs($lists->accountInbox(ListLevel::Email, $account), $user)['threads'];
+        return $lists->countEmailTabs($lists->accountInbox(ListLevel::Email, $account), $user);
     }
 
     /** @return list<Message> */

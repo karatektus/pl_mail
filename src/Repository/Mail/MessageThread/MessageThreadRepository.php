@@ -264,19 +264,19 @@ class MessageThreadRepository extends ServiceEntityRepository
      * account is still in the sidebar and still clickable; answering with an
      * empty list because it is asleep would read as lost mail.
      */
-    public function findForAccountInbox(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, MessageCategory|InboxTab|null $category = null): array
+    public function findForAccountInbox(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, MessageCategory|InboxTab|null $category = null, bool $unreadOnly = false): array
     {
         $lists = $this->lists();
 
-        return $lists->page($lists->accountInbox(ListLevel::Conversation, $account, $category), ListLevel::Conversation, $sort, $page, $perPage);
+        return $lists->page($lists->accountInbox(ListLevel::Conversation, $account, $category, $unreadOnly), ListLevel::Conversation, $sort, $page, $perPage);
     }
 
     /** Same two conditions as findForAccountInbox(), so the same reason to keep it. */
-    public function countForAccountInbox(Account $account, MessageCategory|InboxTab|null $category = null): int
+    public function countForAccountInbox(Account $account, MessageCategory|InboxTab|null $category = null, bool $unreadOnly = false): int
     {
         $lists = $this->lists();
 
-        return $lists->count($lists->accountInbox(ListLevel::Conversation, $account, $category), ListLevel::Conversation);
+        return $lists->count($lists->accountInbox(ListLevel::Conversation, $account, $category, $unreadOnly), ListLevel::Conversation);
     }
 
     /**
@@ -350,11 +350,34 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function countByCategoryForAccountInbox(Account $account): array
     {
+        return $this->countTabsForAccountInbox($account)['threads'];
+    }
+
+    /**
+     * Every tab's thread count and unread count in one account's inbox, in one
+     * read — countTabsForUnifiedInbox() for a single account.
+     *
+     * The totals decide which tabs the account page shows (see
+     * countByCategoryForAccountInbox() above); the unread counts are the
+     * numbers on its tabs, each a link to that tab's unread view (#670). Same
+     * conditions as findForAccountInbox() with the unread filter on, so a tab
+     * saying 3 opens on 3. The Inbox label is tested with EXISTS for the
+     * reason countTabsForUnifiedInbox() gives: a join would need
+     * COUNT(DISTINCT), and the SUM beside it cannot be made distinct.
+     *
+     * @return array{threads: array<string, int>, unread: array<string, int>}
+     */
+    public function countTabsForAccountInbox(Account $account): array
+    {
         $qb = $this->createQueryBuilder('t')
-            ->select('t.category AS category', 'IDENTITY(t.userCategory) AS userCategory', 'COUNT(DISTINCT t.id) AS threadCount')
-            ->join('t.labels', 'l')
+            ->select(
+                't.category AS category',
+                'IDENTITY(t.userCategory) AS userCategory',
+                'COUNT(t.id) AS threadCount',
+                'SUM(CASE WHEN t.unreadCount > 0 THEN 1 ELSE 0 END) AS unreadCount',
+            )
             ->where('t.account = :account')
-            ->andWhere('l.role = :inbox')
+            ->andWhere('EXISTS (SELECT il.id FROM ' . Label::class . ' il WHERE il.role = :inbox AND il MEMBER OF t.labels)')
             ->groupBy('t.category')
             ->addGroupBy('t.userCategory')
             ->setParameter('account', $account)
@@ -362,7 +385,13 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         MessageThreadListCriteria::excludeTrashed($qb);
 
-        return MessageThreadListCriteria::foldByTab($qb->getQuery()->getResult(), 'threadCount', MessageThreadListCriteria::switchedOffBy($account->usr));
+        $rows     = $qb->getQuery()->getResult();
+        $absorbed = MessageThreadListCriteria::switchedOffBy($account->usr);
+
+        return [
+            'threads' => MessageThreadListCriteria::foldByTab($rows, 'threadCount', $absorbed),
+            'unread'  => array_filter(MessageThreadListCriteria::foldByTab($rows, 'unreadCount', $absorbed), static fn (int $count): bool => $count > 0),
+        ];
     }
 
     /**

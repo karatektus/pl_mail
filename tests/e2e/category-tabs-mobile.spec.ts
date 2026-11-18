@@ -16,8 +16,8 @@ import { INBOX_SUBJECTS, ajaxPost, mailRow, seed } from "./support/config";
  */
 test.use({ ...devices["Pixel 5"] });
 
-const STRIP = "nav:has(> a[href*='tab='])";
-const TABS = `${STRIP} > a[href*='tab=']`;
+const STRIP = "nav:has(> [data-category-tab])";
+const TABS = `${STRIP} > [data-category-tab]`;
 
 test.beforeEach(async ({ page }) => {
     seed("seed-mail");

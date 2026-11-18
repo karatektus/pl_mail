@@ -161,7 +161,7 @@ final class InboxCustomTabTest extends WebTestCase
     private function tabQueries(Crawler $crawler): array
     {
         return $crawler
-            ->filter('[data-list-region="tabs"] a[href*="/mail/inbox"]')
+            ->filter('[data-list-region="tabs"] a[data-category-tab-link]')
             ->each(static fn (Crawler $node): string => (string) parse_url((string) $node->attr('href'), PHP_URL_QUERY));
     }
 

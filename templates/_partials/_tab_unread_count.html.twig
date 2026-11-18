@@ -1,0 +1,50 @@
+{#
+The unread count on a category tab, and a way into that tab's unread mail (#670).
+
+The sidebar's unread badges have been links to their row's unread view for a
+while; the same round pill on a tab looked the same and did nothing of its own,
+so a click on "Updates 3" opened all of Updates and the three were still a
+toolbar click away. Now it opens them, and answers the pointer and the keyboard
+the way the sidebar's does.
+
+A SIBLING of the tab's own link, never inside it — an <a> inside an <a> is not
+markup a browser keeps, the reason the sidebar's rows are a .nav-item wrapping
+their anchor (see unread_badge() in _sidebar.html.twig). On the strips the tab
+link is stretched over the whole tab with an ::after, so a click anywhere else
+on the tab still opens the tab as it did, and this sits above that layer with
+`relative z-10`.
+
+  count  the number, rendered at zero too and hidden there, so the sidebar
+         controller can patch it after a sync.
+  href   the tab with `unread=1`.
+  key    the counts endpoint's key, when the number is one it emits. The
+         unified inbox's are; an account's own strip has no key, because the
+         endpoint's per-tab numbers are summed across every account and would
+         overwrite this one's with the wrong figure (see account.html.twig).
+
+`data-tab-unread` is what the Tab counts setting hides by (app.css), and what
+ui--sidebar patches by; the label template travels with it for that patcher.
+Replaces the history entry, as a tab switch does: it IS a tab switch, with the
+unread filter on.
+#}
+{% macro tab_unread_count(count, href, key = null) %}
+    <a href="{{ href }}"
+       data-turbo-frame="inbox-list-frame"
+       data-turbo-action="replace"
+       class="relative z-10 ml-1.5 text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 bg-accent text-accent-ink
+              transition-opacity hover:opacity-80
+              focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent{{ count > 0 ? '' : ' hidden' }}"
+       data-tab-unread
+       {% if key is not null %}data-count-key="{{ key }}"{% endif %}
+       data-label-template="{{ 'sidebar.badge.unread'|trans }}"
+       aria-label="{{ 'sidebar.badge.unread'|trans({ '%count%': count }) }}"
+    >{{ count }}</a>
+{% endmacro %}
+
+{#
+The classes that stretch a tab's own link over the whole tab, so the tab stays
+one big target with the count link above it. The focus ring is drawn on the
+stretched layer, so tabbing to a tab outlines the tab and not just its name.
+The tab box itself must be `relative`.
+#}
+{% macro tab_link_classes() %}after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-accent{% endmacro %}
