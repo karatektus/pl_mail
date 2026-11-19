@@ -127,29 +127,6 @@ test.describe("What's new screenshots", () => {
     test("permanent-delete", async ({ page }) => {
         await capture(page, "permanent-delete", await card(page, "disposal", "Disposal"));
     });
-
-    /** The pane beside the list, with a conversation open in it; put back to off afterwards. */
-    test("reading-pane", async ({ page }) => {
-        const pane = async (mode: "right" | "off"): Promise<void> => {
-            await page.goto("/settings/reading");
-            const option = page.locator(`input[name="readingPane"][value="${mode}"]`);
-
-            await page.locator("label", { has: option }).click();
-            await expect(option).toBeChecked();
-            await page.waitForLoadState("networkidle");
-        };
-
-        await pane("right");
-
-        try {
-            await page.goto("/mail/inbox");
-            await page.locator("#message-list li").first().click();
-            await page.waitForTimeout(800);
-            await capture(page, "reading-pane", page.locator(".main-pane").first());
-        } finally {
-            await pane("off");
-        }
-    });
 });
 
 /**

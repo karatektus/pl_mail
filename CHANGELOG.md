@@ -2577,7 +2577,7 @@ it is skipped with an error in the log naming the folder and the UID. A folder t
 way catches up by itself on the next poll after upgrading. No migration.
 [#45](https://github.com/karatektus/pl_mail/issues/45).
 
-<!-- highlight screenshot=reading-pane -->
+<!-- highlight -->
 **Reading pane.** Opening a message used to replace the list; Settings →
 Reading pane now offers **Right**, which puts the message beside the list on a screen
 that has room for both. The open row is marked, the back arrow closes the message and leaves the
