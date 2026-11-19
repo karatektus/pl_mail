@@ -180,14 +180,19 @@ export default class extends Controller {
                 this._collapseQuotedContent();
             }
 
-            // On a forward the body is already written - the quote - and the
-            // recipient is the one thing the mail cannot leave without.
+            // A window with nobody to send to starts in To: the recipient is
+            // the one thing the mail cannot leave without, and it is the
+            // first field of the form. That is a new message from Compose as
+            // much as a forward, whose body is already written (the quote).
+            // Only forwards did this until #688; a new message put the caret
+            // in the body, under an empty To, unlike every other mail client.
             //
-            // Unless it already has one. A forward is re-rendered whenever it
-            // comes back from something — a cancelled send, a refusal — and by
-            // then the recipient is usually the part that IS done, so putting
-            // the caret back in To would be taking it away from the writing.
-            if ('forward' === this.modeValue && false === this._alreadyAddressed()) {
+            // Whether it is addressed is the test, not the mode. A reply comes
+            // with its recipients and goes straight to the writing. A window
+            // re-rendered after a cancelled send or a refusal usually has its
+            // recipient by then, the part that IS done, so putting the caret
+            // back in To would be taking it away from the writing.
+            if (false === this._alreadyAddressed()) {
                 this._focusRecipients();
             } else {
                 this._focusCursorAtTop();
@@ -498,7 +503,7 @@ export default class extends Controller {
         // cannot answer.
         // And the same rule enforced where it cannot be raced. `openOnFocus`
         // is a setting read at focus time, so it only holds if this ran before
-        // the field was focused — and on a forward it does not: connect()
+        // the field was focused — and on a new message or a forward it does not: connect()
         // moves the caret into To immediately (see _focusRecipients), while
         // this arrives with the `autocomplete:connect` event that Tom Select
         // fires when the bundle has finished building the widget. Whichever
@@ -3976,7 +3981,8 @@ export default class extends Controller {
     }
 
     /**
-     * A blinking caret in a typable To — a forward's first missing piece.
+     * A blinking caret in a typable To — an unaddressed window's first missing
+     * piece, a new message's or a forward's.
      *
      * One obstacle is left between connect() and that caret. Tom Select owns
      * the row only once its enhancement has run, and connect() can beat it —
@@ -4006,7 +4012,27 @@ export default class extends Controller {
 
         const deadline = Date.now() + 1500;
 
+        // A retry is only a retry while nobody has picked a field: somebody
+        // who clicked into the body or the subject in the meantime has chosen
+        // where to type, and a late focus() would pull the caret out from
+        // under them mid-word. Once every new message came here, not only
+        // forwards, that stopped being hypothetical (#688: a phone spec lost
+        // the last letter it typed in the body to To). Asked of this window
+        // only: where the focus was before it opened, the Compose link on a
+        // sidebar that may already be gone, says nothing about a choice.
+        const elsewhere = () => {
+            const active = document.activeElement;
+
+            return null !== active
+                && this.element.contains(active)
+                && false === this.toFieldTarget.contains(active);
+        };
+
         const attempt = () => {
+            if (true === elsewhere()) {
+                return;
+            }
+
             const input = this.toFieldTarget.querySelector('.ts-control input');
 
             if (null !== input) {
