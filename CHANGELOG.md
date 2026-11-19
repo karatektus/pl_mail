@@ -10,6 +10,279 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## v0.4.4 — 2026-11-19
+
+Senders have pictures, conversations can be pinned to the top of the list, a snooze can last
+until any date and time you pick, and calendar events can have a colour of their own. Conversation
+view can be switched off for one row per email, the message list has a settings page with a live
+preview, an account can only send or only receive, and plMail can serve your users' pictures as a
+Libravatar server. One mail provider that stops answering no longer holds up the others, and Gmail
+imports, replies and encrypted mail from Google accounts work as they should.
+
+<!-- highlight screenshot=snooze-pick-date -->
+**Snooze until a date and time you pick (#342).** Every snooze menu now ends with **Pick a date
+and time**, in the list row, the list toolbar, an open conversation and the long-press sheet on a
+phone. It opens the same picker that **Send later** uses. It starts at 08:00 tomorrow, so if you
+only need a day, you just choose the day. Times that have already passed cannot be chosen.
+
+<!-- highlight -->
+**Single emails instead of conversations (#615).** Conversation view can be switched off, and back,
+at any time: **Conversation view** in any list's sort menu, `t`, or **Settings → Inbox → Message
+list → Conversation view**. With it off every list has one row per email, filed by that email's own
+folders (your replies are in Sent, not in the Inbox), opening a row shows that email with a link to
+the whole conversation, and every action, pin and snooze acts on that email. Unread badges count
+emails. Pins and snoozes are kept where they were made and each view shows the other's: a pinned
+email pins its conversation, a pinned conversation puts its newest received email on top, and
+taking a pin or snooze off takes off everything that put the row there. The apps learn the choice
+from `urn:plmail:params:jmap:listview`. [#615](https://github.com/karatektus/pl_mail/issues/615).
+
+<!-- highlight screenshot=event-colours -->
+**Events can have a colour of their own (#616).** Every entry used to be drawn in its calendar's
+colour, while the same Radicale or Nextcloud calendar on a phone showed each entry in its own. plMail
+now reads the event colour phones write over CalDAV, draws it in every view, and writes it back. A
+coloured dot in the event editor's title field picks one: your most used colours first, a palette, and
+a search by name. Colours set on Google and Outlook calendars stay in plMail for now.
+
+<!-- highlight screenshot=sender-pictures -->
+**Senders have pictures (#639).** The circle beside a sender shows a picture where plMail has one,
+and the initial where it does not. A colleague on the same server shows their own profile picture,
+and a contact shows the photo on their card. If an administrator allows it under **Admin → Sender
+pictures**, plMail also looks up companies' BIMI logos and website icons and, for anyone who
+switches it on under **Settings → Reading & writing → Reading**, Gravatar and Libravatar. The
+lookups run in the background on the maintenance worker, and your browser never contacts these
+services. A company logo only appears on mail your server confirmed came from that company. Mail in Spam or Trash never starts a lookup. Pictures
+found later replace the initials on screen as they arrive, and the apps get them through JMAP
+(`senderPicture` on `Email/get`).
+
+**Migration:** adds the `sender_picture` and `sender_picture_settings` tables and a nullable
+`message.sender_verified` column, which Postgres adds without rewriting the message table. Lookups
+are off until an administrator turns them on. Pictures are stored under `uploads/sender-pictures`
+in the existing storage volume.
+
+<!-- highlight -->
+**plMail can be its users' Libravatar server (#642).** Turn it on under **Admin → Sender pictures**,
+point your domains' DNS at it, and mail programs, forges and websites that use Libravatar show the
+profile picture your users chose here. The card lists every domain your users have addresses at,
+with the exact SRV record each one needs, and a **Check DNS** button that says which are right. It
+also says what DNS cannot check: an https address with a real certificate, reachable from outside.
+Each user still decides for themselves under **Settings → Profile**; until they do, plMail answers
+as if it did not know their address.
+
+**Migration:** `sender_picture_settings` gains `libravatar_enabled`, off. `/avatar/` is a new public
+route; behind a reverse proxy, let it through if you turn this on.
+
+<!-- highlight screenshot=pin-conversations -->
+**Pin conversations to the top of the list (#654).** One click on the thumbtack beside a row's star,
+the same button in an open conversation, `p`, a swipe or **Pin** above a selection keeps a
+conversation at the top of every folder or label list it is in, above a thin line. The row moves up
+at once and the rest of the list stays where it was. **Settings → Inbox → Message list → Pinned
+conversations** sets when pinning asks "pin anyway?" (20 unless changed; it never refuses), how
+long a pin lasts (forever, or a number of days), and whether moving a conversation keeps its pin.
+The bin and spam always take a pin off. Pins belong to plMail and are not written to the mail
+server; the apps see them as the `$pinned` keyword (`urn:plmail:params:jmap:pins`).
+[#654](https://github.com/karatektus/pl_mail/issues/654).
+
+**A logo of your own survives an upgrade (#600).** On a Docker Compose install the uploaded logo was
+kept inside the container rather than on a volume, so the next upgrade recreated the container and
+the logo went back to the motif underneath. It is now kept with the other uploads, which every
+install keeps. A logo already lost this way has to be uploaded once more; one that is still there
+is moved across on its own.
+
+**A Microsoft outage no longer leaves Outlook sync jobs to be put back by hand.** Graph answering
+500, 502 or 504 is Microsoft's side failing, and is now treated like its throttling: a sync still
+failing on its last attempt is dropped with one warning, since the next scheduled sync resumes
+from the same point, and a batch of messages is put back to wait instead of being parked on the
+failed queue at CRITICAL. [#603](https://github.com/karatektus/pl_mail/issues/603).
+
+**The "keeps failing to sync" card gives advice that fits the account.** It told every account to
+check the host, the port and the password, including Outlook and Gmail accounts, which have none of
+the three. Those now get their own text, and when the provider's servers are the ones failing the
+card says so and that there is nothing to change. [#602](https://github.com/karatektus/pl_mail/issues/602).
+
+**The message list has a settings page of its own, with a preview (#608).** Settings → Inbox →
+Message list decides what each row shows: when a row goes to one line, a preview after the subject
+or on one or two lines below it, attachments as a paperclip or as chips naming the files (a chip
+opens the file from the list), labels before the subject, as coloured dots or on their own line,
+everybody in a conversation or only the latest sender, the date with or without the time, the
+message count, an arrow on answered conversations, and whether the star of an unstarred
+conversation is always there. Four made-up rows at the top of the page change as you pick, at a
+phone's, a narrow or a wide list's width. The account corner, sender discs and unread emphasis
+moved here from Appearance, and the unread count on the inbox tabs moved to Inbox → Categories.
+Your list looks the same after the upgrade; an exported theme no longer carries these settings, and
+the Android and iOS apps keep reading the five they knew.
+
+**A mail provider that stops answering no longer holds up every other account.** All mail
+fetching ran through one worker, one job at a time, so a job stuck on a provider that was down
+held up every account on the installation: during a Microsoft outage, Gmail and IMAP accounts
+stopped syncing too. `worker-ingest` now handles each job in a process of its own, several
+accounts at once. Jobs for the same account still run one after another, and a job that runs past
+six minutes is ended. How many run at once is set on **Admin → Performance** (four by default).
+Calls to Microsoft Graph and the Gmail API also have a time limit now, and an Outlook sync during
+a Microsoft outage waits quietly instead of logging a warning with stack traces on every attempt.
+[#610](https://github.com/karatektus/pl_mail/issues/610).
+
+**Drafts lists the draft you wrote last at the top, with the time you wrote it.** A reply drafted
+just now to a mail from last week was listed a week down the Drafts list and showed that mail's
+date, because Drafts was ordered by the conversation's last message, which a draft does not move.
+Drafts is now ordered and dated by when each draft was last saved; a draft written in another app
+keeps the date that app gave it. Every other list is unchanged. No schema change.
+
+**Editing a Google birthday event no longer gets refused.** Google only lets a write change some
+fields of the events it makes itself, and refused a birthday edit over the visibility plMail sent.
+plMail now keeps the type of those events and sends only what Google accepts: the title and
+reminders of a birthday (always as private), the visibility and reminders of an event Gmail made
+from a mail, and the ordinary edit without visibility for focus time, out of office and working
+location. Events synced before this update pick up their type the next time Google changes them or
+the calendar is read again in full. [#622](https://github.com/karatektus/pl_mail/issues/622).
+
+**A dismissed reminder no longer sends the event back to your calendar provider.** Calendar apps
+connected over CalDAV save an event again when you dismiss its reminder, and plMail pushed every
+such save to Google or Microsoft although nothing had changed. That is what made a Google birthday
+fail on the day itself. Saves over CalDAV and JMAP that change nothing are no longer pushed.
+[#622](https://github.com/karatektus/pl_mail/issues/622).
+
+**One Google event that Google refuses no longer stops the whole calendar syncing.** When Google
+answered an edit with 400 (a request it will never accept, such as a birthday event with the wrong
+visibility), the sync job failed, was retried against the same event, and ended up on the failed
+queue, so nothing else on that calendar synced either. That event is now given up on and logged,
+and the rest of the calendar carries on. [#623](https://github.com/karatektus/pl_mail/issues/623).
+
+**A mail whose header banner is absolutely positioned no longer covers its own text.** Mail laid
+out like a print page, such as the notices some insurers send through Scriptura, puts the banner in
+a `position: absolute` box, so the text started at the top of the message and ran underneath the
+picture. The reading pane now drops `position: absolute` as the composer already did, which is also
+what Gmail does. Mail already in the mailbox is repaired on request:
+`php bin/console app:backfill safe-html-absolute-position` writes the shown copy of every message
+that kept it again from the sender's original. No schema change.
+[#626](https://github.com/karatektus/pl_mail/issues/626), by @phdelodder.
+
+**An account can only send, or only receive (#628).** An SMTP relay such as SMTP2go has no mailbox
+to read, and adding one meant inventing an incoming server that then failed every sync. The account
+form now has a **Receive mail** switch on its Incoming heading and a **Send mail** switch on its
+Outgoing one; switch one off and its fields fold away. A send-only account is offered in **From**,
+keeps what you send under Sent in plMail, and never tries to sync; a receive-only one syncs and is
+not offered as a sender. The same two switches are in an account's settings, beside calendar and
+contacts, and Gmail and Outlook can be connected for either.
+
+**Migration:** the account table gains `send_enabled`. It is switched on wherever mail was, except on
+a password account with no SMTP server that does not use JMAP — those were offered as senders and
+every send from them failed, so they now start out as receive-only.
+
+**Hostinger is in the provider list (#632).** Choosing it on the account form fills in Hostinger's IMAP,
+POP3 and SMTP servers (`imap.hostinger.com`, `pop.hostinger.com`, `smtp.hostinger.com`, all over
+SSL/TLS); the username is the full address.
+
+**Account colours of your own (#638).** The colour menu on an account's row in Settings → Accounts
+has a ninth swatch for a custom colour: pick any colour, or type its hex code. While you choose, the
+menu shows the colour's contrast against your current theme and against plain light and dark ones,
+and says where it is faint. Choosing now previews the colour on the sidebar dot first, and Save keeps
+it. The sidebar dot and the corner mark on message rows wear it; picking a preset again goes back to
+the palette. Requested for colour blindness, where the presets were hard to tell apart.
+
+**Deleting a draft from Drafts no longer deletes the conversation it answers (#649).** Ticking a
+draft in Drafts (or in an account's Drafts folder) and pressing Delete put the whole conversation in
+the bin, the mail you were replying to included. Only the draft goes to the bin now.
+
+**Restoring one message from the bin or Spam no longer pulls the rest of its conversation into the
+inbox (#649).** When one reply of an archived conversation was in the bin or in Spam, Restore and
+Not spam brought back every message of it, including the archived ones and your own sent replies.
+Only what was in the bin or in Spam comes back now.
+
+**Encrypted and signed mail from a Gmail account opens again at the other end (#651).** Gmail's API
+rewrites every message it sends, and turned a PGP/MIME message into an ordinary one with the
+ciphertext as its text: the recipient's program could not open it, while the copy in Sent looked
+fine. plMail now sends signed and encrypted mail from Gmail accounts through Gmail's SMTP server,
+signed in with the same Google sign-in, which delivers the message as it was written. Other mail
+still goes through the API. An installation that may only reach Google over HTTPS needs
+`smtp.gmail.com:465` allowed as well.
+[#651](https://github.com/karatektus/pl_mail/issues/651).
+
+**Text from Help me write counts as your message in a body you have not typed in yet (#657).** In
+a reply you had not clicked into, the accepted text went into the quoted message, so Send asked
+"This message has no text. Send it anyway?" and the words you typed after it went there too. In a
+new message with a signature, it went below the signature and was marked as part of it. It now goes
+where you would have started typing: above the signature and the quote. No schema change.
+[#657](https://github.com/karatektus/pl_mail/issues/657), reported by @knowever.
+
+**Sending can sign in with a username of its own (#660).** An account that sends through a relay or
+smarthost with accounts of its own — a web host's mailbox sent out through a deliverability
+service, a self-hosted server through a smarthost — can now be given the relay's username as well
+as its password: **Use a different username or password for sending** under the SMTP fields shows
+both. Left blank, either is the account's own, so accounts that only had a second password carry
+on as they were.
+
+**Shift-click an avatar to select a run of conversations (#667).** Click one avatar, then
+shift-click another: both, and every conversation between them on the page, are selected. The run
+starts at the avatar you last clicked without Shift, so another shift-click makes it longer or
+shorter, and shift-clicking the same avatar again unticks the run. It works in either direction and
+leaves what you selected on other pages alone.
+
+**A category tab's unread count opens that tab's unread mail (#670).** Clicking the number on a tab,
+like Updates 3, opens Updates with only its unread conversations, as the sidebar's counts do for
+their folders; clicking anywhere else on the tab opens the whole tab as before. An account's own
+inbox, when it shows tabs, now carries that account's unread count on each tab and the same
+shortcut. The count in the sidebar's Unread row is now part of the row's link, so clicking the
+number opens Unread too.
+
+**Removing a large account no longer fails with "something went wrong" (#672).** Removing an
+account deleted all of its mail inside the page request, and on a big mailbox — a Gmail account of
+a few tens of thousands of messages — that took longer than the thirty seconds a request may last,
+so the removal was undone and only a misleading Gmail warning was left in the log. Removing now
+runs in the background: the account stops syncing and sending at once, its row stays greyed out
+with how many messages are gone so far, the same progress shows under Background work in the top
+bar, and the row disappears when the account is gone. Deleting many messages at once, such as
+emptying the bin, is also faster: the database now updates each conversation's bin state once per
+deletion rather than once per message. The migration only replaces a trigger and touches no rows.
+
+**Importing contacts or a calendar file no longer fails on a large file (#672).** Both imports ran
+inside the page request; a thousand contacts took over forty seconds, past the thirty a request may
+last, so a modest address book failed with "something went wrong" and nothing was imported. Both now
+run in the background after the file has been checked, with progress under Background work in the
+top bar and a message with the result when they are done. The contacts import is also much faster,
+because it no longer slows down with every contact already imported. After a contacts import you
+stay on the contacts list; open Duplicates to merge anything imported twice.
+
+**Deleting an inbox tab of your own answers at once, whatever it held (#672).** The tab goes
+straight away, and putting its conversations back into the tabs they belong in runs in the
+background instead of inside the request, where a tab of tens of thousands of conversations could
+run out of time.
+
+**A Gmail import no longer stops for good on one attachment with a long name (#674).** An
+attachment name longer than 255 characters was refused by the database, and the 49 other messages
+fetched with it were lost too. The same batch was then fetched again every hour, so the import
+stayed one batch short of finished. Attachment names, types and content IDs now have no length
+limit. A long name that Gmail passes on in pieces is joined back into one name. If the database
+refuses a batch for any other reason, its messages are retried one at a time. A message that is
+still refused on its own is listed by `app:gmail:skipped`, and the rest are stored.
+
+**A reply sent from a Google account stays in its conversation (#676).** plMail sent mail through
+the Gmail API without saying which conversation it belonged to, so Gmail started a new one for every
+reply, and the other side's answer followed it there. A three-message exchange became three
+conversations, in plMail and in Gmail alike. Each reply was also listed twice: once where it was
+written and once where Gmail filed its copy. Replies now go into the conversation they answer, and
+Gmail's copy of mail sent from plMail is merged onto the message plMail already has. An encrypted
+reply, whose subject goes out hidden as "...", is still filed in a new conversation by Gmail, which
+groups mail by subject; plMail keeps it and the answers that follow it in the conversation it was
+written in, and `app:backfill rethread` keeps it there too. Conversations that were split before stay
+split, as they are in Gmail; a reply listed twice there can be deleted by hand. One migration adds
+`message.placed_by_headers`.
+
+**Every header now lines up, and the calendar and contacts panes match (#678).** The line under the
+sidebar's Compose button now runs straight on under the mail list, the calendar, the address book,
+Settings and Admin, where it used to step down at each one. Every button in those headers is the
+same size and shape. The calendar pane gets the full-width and close buttons the address book
+already had, and at full width both panes show a button that puts them back beside the mail.
+Before, the only way back was the topbar button. Contacts' Import, Export and New are now icons
+like the calendar's, and its search moved to its own row under the header. The mail's round header
+buttons are now rounded squares like the rest. The compose window, dialogs and the insight strip
+use the same buttons too.
+
+**Connecting Google Drive, Google Photos, OneDrive or Dropbox from Settings → Integrations works.**
+The Connect button opened a dialog that tried to load the provider's sign-in page in the
+background, which the browser's security policy blocks, so nothing happened and the console showed
+"Failed to fetch". The button now goes straight to the provider's sign-in page. The setup wizard's
+Connect links go there directly too.
+
 ## v0.4.3 — 2026-11-12
 
 Settings is now a tree with a search, `mailto:` links open in plMail's own composer — in a tab or
