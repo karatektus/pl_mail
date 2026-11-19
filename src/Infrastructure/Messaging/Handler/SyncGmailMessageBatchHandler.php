@@ -32,7 +32,10 @@ use App\Service\Mail\PostIngestPipeline;
 use App\Service\Mail\SyncNotifier;
 use App\Service\Mail\SyncOrigin;
 use App\Service\Mail\ThreadStatusUpdater;
+use Doctrine\DBAL\Exception\ConnectionException;
+use Doctrine\DBAL\Exception\RetryableException;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -69,7 +72,8 @@ final readonly class SyncGmailMessageBatchHandler
         private MessageThreader         $messageThreader,
         private SyncOrigin              $origin,
         private GmailQuotaPacer         $pacer,
-        private GmailSkippedMessageRepository $skipped
+        private GmailSkippedMessageRepository $skipped,
+        private ManagerRegistry         $registry,
     ) {}
 
     public function __invoke(SyncGmailMessageBatchMessage $message): void
@@ -430,7 +434,13 @@ final readonly class SyncGmailMessageBatchHandler
             return;
         }
 
-        $this->em->flush();
+        try {
+            $this->em->flush();
+        } catch (\Throwable $refused) {
+            $this->refused($refused, $message, $account, $payloads);
+
+            return;
+        }
 
         // Gmailify means the owning account is not always the carrier, so each
         // message carries its own — threading and JMAP state belong to the
@@ -459,6 +469,88 @@ final readonly class SyncGmailMessageBatchHandler
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The database refused the batch's flush: one message in it that it would not
+     * take, and the other 49 with it (#674).
+     *
+     * Rethrowing was all this did. The batch then failed its five retries, and
+     * the next hourly listing named the same 50 ids again, because none of
+     * them was stored and none was written down as skipped — an import that
+     * sat one batch short of done, for good, with the same error every hour.
+     *
+     * So a batch of several is put back as batches of one, and the one the
+     * database refuses on its own is written down as Unstorable: the rest of
+     * the batch is stored and the listing stops asking. Split rather than
+     * stored one at a time here, as MessageSyncer does for IMAP, because each
+     * of these is a whole fetch-and-build with its own retries; one message's
+     * second refusal should cost one message.
+     *
+     * A refusal that may pass — a lost connection, a deadlock, or anything
+     * that left the manager open and so was no refused write — is rethrown for
+     * the retry ladder, as before. Writing a message off for a hiccup would
+     * lose it until someone ran `app:gmail:skipped --forget`.
+     *
+     * @param array<array-key, array<string,mixed>> $payloads  as GmailApiClient::getMessages() returns them
+     */
+    private function refused(\Throwable $refused, SyncGmailMessageBatchMessage $message, Account $account, array $payloads): void
+    {
+        if (true === $this->em->isOpen()
+            || $refused instanceof RetryableException
+            || $refused instanceof ConnectionException
+        ) {
+            throw $refused;
+        }
+
+        $this->registry->resetManager();
+
+        $gmailIds = array_values(array_filter(
+            array_map(static fn (array $payload): string => (string) ($payload['id'] ?? ''), $payloads),
+            static fn (string $id): bool => '' !== $id,
+        ));
+
+        if (count($gmailIds) > 1) {
+            $this->logger->notice('SyncGmailMessageBatch: the database refused the batch; putting it back one message at a time', [
+                'accountId' => $account->id,
+                'count'     => count($gmailIds),
+                'error'     => $refused->getMessage(),
+            ]);
+
+            $stamps = true === $account->needsBackfill()
+                ? [new TransportNamesStamp([GmailApiSyncer::IMPORT_QUEUE])]
+                : [];
+
+            foreach ($gmailIds as $gmailId) {
+                $this->bus->dispatch(
+                    new SyncGmailMessageBatchMessage((int) $account->id, [$gmailId], $this->origin->current(), $message->onlyMissing ?? false),
+                    $stamps,
+                );
+            }
+
+            return;
+        }
+
+        // The account as the fresh manager knows it: the one in hand belonged
+        // to the manager the refusal closed.
+        $account = $this->accountRepository->find($message->accountId);
+        $gmailId = $gmailIds[0] ?? '';
+
+        if (null === $account || '' === $gmailId) {
+            throw $refused;
+        }
+
+        $this->logger->error('SyncGmailMessageBatch: the database refused a message; recording it as skipped', [
+            'accountId' => $account->id,
+            'gmailId'   => $gmailId,
+            'error'     => $refused->getMessage(),
+            'exception' => $refused,
+        ]);
+
+        if ([] === $this->skipped->findGmailIdsAmong($account, [$gmailId])) {
+            $this->em->persist(new GmailSkippedMessage($account, $gmailId, GmailSkipReason::Unstorable));
+            $this->em->flush();
+        }
+    }
 
     /**
      * Queue these ids to be fetched later: after the account's quota refusal

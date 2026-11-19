@@ -300,6 +300,7 @@ final class GmailSentCopyTest extends KernelTestCase
             new SyncOrigin(),
             new GmailQuotaPacer(new MockClock()),
             $container->get(GmailSkippedMessageRepository::class),
+            $container->get('doctrine'),
         );
 
         $handler(new SyncGmailMessageBatchMessage((int) $this->account->id, [$message['id']]));

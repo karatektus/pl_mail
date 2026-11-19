@@ -188,6 +188,7 @@ final class GmailDraftSentElsewhereTest extends KernelTestCase
             new \App\Service\Mail\SyncOrigin(),
             new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock()),
             $container->get(GmailSkippedMessageRepository::class),
+            $container->get('doctrine'),
         );
 
         $handler(new SyncGmailMessageBatchMessage((int) $this->account->id, [self::GMAIL_ID], null, $onlyMissing));

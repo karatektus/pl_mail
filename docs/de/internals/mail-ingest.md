@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:fa7506cb507c00540ad7a333364b9d81abebda7e -->
+<!-- translated-from: internals/mail-ingest.md sha1:bb313a4bb4ef1f8e1238b698ecb510b22a88db34 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -116,7 +116,11 @@ die Vorgeschichte gehört `App\Service\Mail\MailImporter`, auf der Warteschlange
   die `messages.list` sonst auslässt und `messagesTotal` mitzählt.
 - **Eine Gmail-Nachricht, die angesehen und nicht gespeichert wird, wird notiert.** Der
   Stapel-Handler lehnt einen Chat ab — die einzige Art, für die es keinen Platz gibt — und
-  kann eine Nachricht nicht speichern, die Gmail auflistet und mit 404 beantwortet. Jede
+  kann eine Nachricht nicht speichern, die Gmail auflistet und mit 404 beantwortet, und auch
+  keine, die die Datenbank ablehnt. Ein Stapel, dessen Flush abgelehnt wird, kommt als
+  Einzelstapel zurück in die Warteschlange, und die Nachricht, die auch allein abgelehnt wird,
+  wird als nicht speicherbar notiert, mit dem Fehler im Log: Eine Nachricht, die nicht passt,
+  hält nicht mehr jede Stunde ihre 49 Nachbarn auf. Jede
   bekommt eine Zeile in
   `gmail_skipped_message` (`App\Entity\Mail\GmailSkippedMessage`) mit dem Grund, ihren Labels
   und ihren Adress-Headern. Die Auflistung behandelt eine notierte id wie eine gespeicherte, die
