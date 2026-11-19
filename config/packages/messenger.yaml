@@ -314,6 +314,14 @@ framework:
             # Its server half waits by re-dispatching itself on a delay, so it
             # never holds the one consumer while it waits.
             App\Infrastructure\Messaging\Message\DeleteLabelMessage: bulk
+            # And removing a whole account (#672): its mail goes in batches that
+            # take as long as the mailbox is big, which is why it left the request.
+            App\Infrastructure\Messaging\Message\DeleteAccountMessage: bulk
+            # Imports of a file somebody just uploaded, and re-sorting what a
+            # removed tab held: the same reason, somebody is watching (#672).
+            App\Infrastructure\Messaging\Message\ImportContactsMessage: bulk
+            App\Infrastructure\Messaging\Message\ImportCalendarMessage: bulk
+            App\Infrastructure\Messaging\Message\ResortRemovedCategoryMessage: bulk
             # And so is filing a label's mail into the folder it has just become.
             App\Infrastructure\Messaging\Message\MakeLabelFolderMessage: bulk
             App\Infrastructure\Messaging\Message\MakeLabelTagMessage: bulk
@@ -378,6 +386,11 @@ framework:
             # than a retry on the worker.
             App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage: export
             App\Infrastructure\Messaging\Message\HarvestContactsMessage: maintenance
+            # Sender picture lookups (#639) are requests to strangers' servers
+            # that nobody is waiting on; behind live mail, beside the other
+            # housekeeping, and on a worker every install already runs.
+            App\Infrastructure\Messaging\Message\ResolveSenderPictureMessage: maintenance
+            App\Infrastructure\Messaging\Message\QueueSenderPicturesMessage: maintenance
             # A signed message's check: a raw fetch from Gmail or Microsoft at
             # worst, then OpenSSL or GnuPG. Per message and soon after it
             # arrives, which is what `enrich` is for.

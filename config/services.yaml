@@ -340,6 +340,13 @@ services:
             $client: '@http_client'
             $trustedHosts: '@app.push_trusted_hosts'
 
+    # Sender picture lookups (#639) reach hosts a stranger's DNS names, so
+    # nothing on a private network, ever — no trusted-host exemption either.
+    app.http_client.sender_pictures:
+        class: Symfony\Component\HttpClient\NoPrivateNetworkHttpClient
+        arguments:
+            $client: '@http_client'
+
     App\Service\Integration\Driver\NextcloudDriver:
         arguments:
             $httpClient: '@app.http_client.integration'

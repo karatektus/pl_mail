@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
-import { relabelSelection, selection } from "../../mail_selection.js";
+import { relabelSelection, rowType, selection } from "../../mail_selection.js";
 import { requestFailed } from "../../request_errors.js";
 
 /**
@@ -103,7 +103,7 @@ export default class extends Controller {
             )
             : await this._post(
                 "/status/bulk/label",
-                { ids: targets.map((target) => target.id), labelId: labelId, attach: attach },
+                { ids: targets.map((target) => target.id), type: rowType(), labelId: labelId, attach: attach },
             );
 
         // The tick below stays as it was instead of promising a change that
@@ -185,7 +185,7 @@ export default class extends Controller {
             return [{ type: this.targetTypeValue, id: this.targetIdValue }];
         }
 
-        return selection().map((selected) => ({ type: "thread", id: selected.id }));
+        return selection().map((selected) => ({ type: rowType(), id: selected.id }));
     }
 
     /** Answers false when the request failed, after saying so. */

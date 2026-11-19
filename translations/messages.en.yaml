@@ -44,8 +44,10 @@ account:
             heading: Outgoing — SMTP
             host: Host
             password: Sending password
-            same: Use the same password for sending
-            separate: Use a different password for sending
+            same: Use the same sign-in for sending
+            separate: Use a different username or password for sending
+            username: Sending username
+            username_help: 'Leave blank to send as the username above.'
         username: Username
     mail_purge_queued: 'Removing this account’s mail from plMail. The server keeps its copy.'
     oauth:
@@ -57,6 +59,7 @@ account:
             help: 'The next screen only asks for what you tick. You can change it later in Settings → Accounts.'
             legend: 'Use this account for'
     primary_set: Primary account changed
+    removal_started: 'Removing the account. Its mail goes in the background; the server keeps its copy.'
     removed: Account removed
     service:
         calendar:
@@ -66,8 +69,11 @@ account:
             off: 'Contacts switched off'
             on: 'Contacts switched on'
         mail:
-            off: 'Mail switched off. What is already here stays.'
-            on: 'Mail switched on'
+            off: 'Receiving switched off. What is already here stays.'
+            on: 'Receiving switched on'
+        send:
+            off: 'Sending switched off'
+            on: 'Sending switched on'
     sync_interval_set: Sync interval changed
     tabs:
         imap: IMAP / SMTP
@@ -85,10 +91,11 @@ account:
             failed: 'The connection did not work. Check the host, port and encryption.'
             host_invalid: 'Enter a host name or IP address only — no slashes, question marks or @.'
             imap_ok: 'Connected — %count% folders visible.'
+            incoming_none: 'No incoming server configured — this account only sends.'
             jmap_no_mail: 'The server speaks JMAP but offers no mail for this account.'
             jmap_ok: 'Connected — %count% mailboxes visible.'
             jmap_submission: 'Sending goes through the JMAP server.'
-            missing_fields: 'Enter at least an email address and an IMAP host first.'
+            missing_fields: 'Enter an email address and at least one server first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored password, which the test can only use once the account is saved.'
             pop3_ok: 'Connected — %count% messages in the mailbox.'
             private_network: 'This server is on a private network. An administrator has to allow it under Admin → Integrations → Servers on a private network before plMail may connect to it.'
@@ -789,6 +796,32 @@ admin:
                 step_user: "Each user enters that address, a username if the server asks for one, and a password or API token. FileBrowser Quantum takes an API token as the password and ignores the username."
         tutorial_heading: 'Setup'
         unimplemented_notice: 'plMail cannot talk to this service yet. You can register the credentials now — they will be used as soon as support ships.'
+    libravatar:
+        check_dns: 'Check DNS'
+        heading: 'Libravatar'
+        intro: 'Lets mail clients anywhere show the profile picture your users chose here. Libravatar-aware programs (Thunderbird add-ons, forges such as Forgejo, other plMail servers) look up the picture for an address by asking its domain''s DNS which server holds it. Turn this on and point that DNS here, and plMail answers for its own users.'
+        need_own_dns: 'A domain whose DNS you control. Addresses at Gmail, Outlook.com and other providers cannot point here; their users get their picture from Gravatar or Libravatar instead.'
+        need_reachable: '%url% reachable from the internet, not only from your network. If plMail sits behind a reverse proxy, the proxy must pass /avatar/ through.'
+        need_tls: 'A valid TLS certificate for %host%, the kind browsers accept. Clients refuse a self-signed one without saying so.'
+        needs_heading: 'What it needs besides DNS'
+        no_address: 'No public address is set. Set one under Admin → Address first: the DNS records must name the host plMail is reached at from outside.'
+        no_domains: 'No user has an address yet.'
+        no_own_domains: 'No user has an address at a domain of your own yet, only at mail providers.'
+        not_https: 'The public address is %url%, which is not https. Libravatar clients only fetch over https, so set an https address under Admin → Address.'
+        provider_domains: 'Nothing to add for %domains%: those are mail providers'' domains, and only the provider can publish records there. Users with addresses there get their picture from Gravatar or Libravatar instead.'
+        records_heading: 'DNS records'
+        records_intro: 'Add one SRV record per domain your users have addresses at, at your DNS provider, exactly as shown. Then check them here; DNS can take a while to update.'
+        saved_off: 'Libravatar is off. No picture is served, for anyone.'
+        saved_on: 'Libravatar is on. Users can now share their picture under Settings → Profile.'
+        serve: 'Serve this server''s users'' pictures (Libravatar)'
+        serve_hint: 'Off until you turn it on. Even then, a picture is served only for users who switch it on themselves under Settings → Profile; for everyone else this server answers as if it did not know the address.'
+        status:
+            elsewhere: 'Points to %found%'
+            missing: 'No record yet'
+            not_yours: 'A mail provider''s domain'
+            ok: 'OK'
+            wrong_port: 'Wrong port: %found%'
+        users_opt_in: 'Users choose for themselves: each one decides under Settings → Profile whether their picture is shared. A config backup carries both this switch and their choices.'
     loading: 'Loading…'
     maintenance:
         heading: Maintenance
@@ -846,6 +879,7 @@ admin:
         performance: Performance
         push: Push
         reset: Reset
+        sender_pictures: 'Sender pictures'
         sso: 'SSO'
         system: System
         updates: Updates
@@ -939,9 +973,13 @@ admin:
                 running_for: 'For'
                 waiting: 'Waiting'
                 worker: 'Worker'
+            concurrency:
+                default: 'Default (%count%)'
+                hint: 'worker-ingest runs each mail account''s jobs in processes of their own, this many side by side, so one provider that stops answering cannot hold up the other accounts. The same account''s jobs still run one after another. Each running job takes about 50 MB.'
+                label: 'Mail jobs at once'
             footnote: 'A reading of this moment, not of the period above: how long a job waited is not kept once it has been handled. A worker with two queues finishes the first before it looks at the second.'
             heading: 'What each worker has waiting'
-            lead: 'Which process is behind, and by how much. Every worker takes one job at a time.'
+            lead: 'Which process is behind, and by how much. worker-ingest runs several mail jobs at once, one per account; every other worker takes one job at a time.'
             refresh: 'Refresh'
     processes:
         empty: 'No heartbeats yet — processes report here after their first beat.'
@@ -1032,6 +1070,16 @@ admin:
         running_for: 'for %duration%'
         waiting_since: 'Waiting since'
     refresh_hint: 'Live panels refresh every 10s'
+    sender_pictures:
+        always_local: 'Photos on users'' contacts and users'' own profile pictures are shown either way: they are already on this server.'
+        heading: 'Sender pictures'
+        intro: 'With this on, plMail looks up pictures for the people who mail your users: company logos (BIMI) and website icons from the sender''s own domain, and Gravatar or Libravatar for users who ask for it. The lookups run in the background on the maintenance worker, and no user''s browser contacts these services. Each user chooses which of them they want.'
+        lookups: 'Look up sender pictures on the internet'
+        lookups_hint: 'Off until you turn it on. Turning it on looks up the people who wrote to each user in the last 90 days.'
+        'off': 'Off'
+        'on': 'On'
+        saved_off: 'Lookups are off. Pictures found earlier are no longer shown.'
+        saved_on: 'Lookups are on. Pictures for recent senders are being looked up now.'
     # Shown in a card's header while it is collapsed — short enough to read at
     # a glance, specific enough to be worth expanding for.
     sso:
@@ -1490,6 +1538,58 @@ calendar:
         all_day: All day
         calendar: Calendar
         cancel: Cancel
+        color:
+            all: All colours
+            button: 'Colour: %color%'
+            calendar: Calendar colour
+            custom: Custom
+            dialog: Event colour
+            names:
+                cadetblue: Cadet blue
+                chocolate: Chocolate
+                coral: Coral
+                cornflowerblue: Cornflower blue
+                crimson: Crimson
+                darkgoldenrod: Dark goldenrod
+                darkkhaki: Dark khaki
+                darkmagenta: Dark magenta
+                darkorange: Dark orange
+                darkturquoise: Dark turquoise
+                dimgray: Dim grey
+                dodgerblue: Dodger blue
+                firebrick: Firebrick
+                forestgreen: Forest green
+                gold: Gold
+                goldenrod: Goldenrod
+                hotpink: Hot pink
+                indigo: Indigo
+                lightseagreen: Light sea green
+                limegreen: Lime green
+                mediumpurple: Medium purple
+                mediumseagreen: Medium sea green
+                mediumvioletred: Medium violet red
+                midnightblue: Midnight blue
+                olivedrab: Olive drab
+                orchid: Orchid
+                palevioletred: Pale violet red
+                peru: Peru
+                rosybrown: Rosy brown
+                royalblue: Royal blue
+                saddlebrown: Saddle brown
+                seagreen: Sea green
+                sienna: Sienna
+                slateblue: Slate blue
+                slategray: Slate grey
+                steelblue: Steel blue
+                teal: Teal
+                tomato: Tomato
+                turquoise: Turquoise
+                yellowgreen: Yellow green
+            nearest: 'Nearest to %hex%'
+            none: No colour is called that.
+            often: Often used
+            results: Matching colours
+            search: Search colours
         copies:
             help: >-
                 Ticked calendars get this event and every change you save to it.
@@ -1557,6 +1657,7 @@ calendar:
         until: until %when%
     ics:
         error:
+            import_gone: 'The calendar or the uploaded file was gone by the time the import started. Upload the file again.'
             no_calendar: Choose a calendar to put the events on.
             no_file: >-
                 Choose an .ics file. If you did choose one, it may be larger
@@ -1610,6 +1711,7 @@ calendar:
             import_nothing_new: >-
                 Nothing to add — every event in that file is already on your
                 calendars.
+            import_started: 'Importing the file — this runs in the background. You will be told what it added.'
             imported: '%added% added, %updated% updated, %skipped% skipped.'
             subscribed: >-
                 Subscribed — the calendar will fill in within a minute.
@@ -1668,6 +1770,7 @@ calendar:
         previous: Previous
     open_day: 'Everything on %date%'
     pane:
+        close: 'Close the calendar'
         mode:
             calendar: Show the calendar full width
             mail: Show the mail
@@ -2336,6 +2439,7 @@ dnd:
     # in the translated string — see _layout/_mailbox.html.twig. Always
     # plural: a single conversation drags a picture of its own row instead.
     dragging: '%count% conversations'
+    dragging_emails: '%count% emails'
 
 drafts:
     empty: No drafts.
@@ -2771,6 +2875,10 @@ jobs:
         purge: Deleting for good
         reclassify: Sorting recent mail again
         delete_label: Deleting a label
+        delete_account: Removing an account
+        import_contacts: Importing contacts
+        import_calendar: Importing a calendar file
+        resort_removed_category: Re-sorting a removed tab's mail
     state:
         done: '%count% done'
         failed: failed
@@ -2851,6 +2959,7 @@ label:
         shown: Label is now visible.
 
 list:
+    conversation_view: 'Conversation view'
     sort:
         newest: Newest first
         oldest: Oldest first
@@ -3213,6 +3322,12 @@ password_required:
     submitting: Saving…
     tagline: One more step
 
+pin:
+    reminder:
+        confirm: 'Pin anyway'
+        question: '{1} You already have one pinned conversation. Pin another one anyway?|]1,Inf[ You already have %count% pinned conversations. Pin another one anyway?'
+        settings: 'Change when this reminder appears'
+
 profile:
     avatar_current: Current picture
     avatar_from:
@@ -3420,6 +3535,17 @@ settings:
             title: 'Follow Outlook categories'
         colour:
             change: 'Change the colour of %account%'
+            contrast_current: 'Current'
+            contrast_dark: 'Dark'
+            contrast_light: 'Light'
+            contrast_low: 'Faint on this theme'
+            contrast_ok: 'Easy to see'
+            custom: 'Custom colour'
+            custom_format: 'Six hex digits, like #0072b2.'
+            custom_heading: 'Custom'
+            custom_hex: 'Hex colour code'
+            custom_pick: 'Pick a colour'
+            presets: 'Presets'
             swatch:
                 '0': Orange
                 '1': Green
@@ -3550,6 +3676,8 @@ settings:
                 jmap: 'Changes arrive immediately: the JMAP server pushes them to plMail, over a webhook when it can reach this server and over a held-open connection when it cannot.'
                 microsoft: New mail arrives immediately via Microsoft push notifications.
             title: Instant delivery
+        removing: 'Being removed…'
+        removing_progress: '%done% of %total% messages removed'
         reorder: Drag to reorder
         services:
             allow: 'Allow…'
@@ -3561,12 +3689,16 @@ settings:
             contacts: 'Contacts'
             contacts_help: 'Its address books, kept in step both ways'
             intro: 'Switch off what you do not use this account for. plMail then stops talking to the server about it and keeps what is already here.'
-            mail: 'Mail'
-            mail_help: 'Syncing, sending and every change you make to its mail'
+            mail: 'Receive mail'
+            mail_help: 'Syncing its mail and every change you make to it'
             none: 'Everything switched off'
             purge: 'Remove synced mail from plMail'
             purge_confirm: 'Remove all mail plMail has synced for %account%? It stays on the server. If you switch mail back on, plMail downloads it again.'
             purge_help: 'Only plMail’s copy is removed. Nothing is deleted on the server.'
+            send: 'Send mail'
+            send_help: 'Offered as a sender when you write; mail, scheduled sends and read receipts go out through it'
+            setup: 'Set up…'
+            setup_explained: '%service% needs a server this account has not been given yet. Opens the account form to add it.'
             turn_off: 'Switch off %service% for %account%'
             turn_on: 'Switch on %service% for %account%'
             used_for: 'Used for %services%'
@@ -3624,6 +3756,13 @@ settings:
                 brand: 'Under the plMail name'
                 sidebar: 'At the bottom of the sidebar'
                 'off': 'Nowhere'
+    conversation_view:
+        conversations: 'Conversations'
+        emails: 'Single emails'
+        heading: 'Conversation view'
+        hint: 'Also in every list''s sort menu, and on the t key.'
+        label: 'Lists show'
+        subheading: 'Group the emails of a conversation into one row, or list every email on its own.'
     device_pairing:
         pair_device: "Pair a device"
         scan_title: "Scan this with the plMail app"
@@ -3632,6 +3771,109 @@ settings:
         with_keys: "Your keys come along: encrypted mail opens in the app straight away."
         expires: "Expires at %time%."
         open_in_app: "Open in the app"
+    libravatar:
+        heading: 'Libravatar'
+        no_picture: 'You have no profile picture yet; add one above for this to show anything.'
+        publish: 'Share my picture through Libravatar'
+        publish_hint: 'Lets mail programs and websites that use Libravatar show the picture above next to your addresses. Anybody who knows one of your addresses can then fetch the picture. Off until you turn it on.'
+        subheading: 'Whether other mail programs may show your profile picture.'
+    message_list:
+        always: 'Always'
+        attachments:
+            chips: 'Chips'
+            hint: 'Chips name up to three files under the preview and open one straight from the list.'
+            icon: 'Paperclip'
+            label: 'Attachments'
+        avatars:
+            hint: The coloured circle carrying the sender's initial. Switched off it becomes a plain circle rather than disappearing — it is also the row's checkbox.
+            label: Sender discs
+        content:
+            heading: 'Content'
+            subheading: 'What each row says about its conversation.'
+        corner:
+            hint: The coloured triangle in a row's corner, saying which account it arrived on. Only ever drawn in a list that mixes accounts.
+            label: Account corner
+        count:
+            hint: 'The number after a conversation''s subject.'
+            label: 'Message count'
+        date:
+            full: 'Date and time'
+            hint: 'Smart shows the time today, the day this year and the full date before that.'
+            label: 'Date'
+            smart: 'Smart'
+        hidden: 'Hidden'
+        labels:
+            dots: 'Dots'
+            hint: 'In front of the subject, as chips or as dots in the label''s colour, or on a line of their own.'
+            inline: 'Before the subject'
+            label: 'Labels'
+            line: 'Own line'
+        layout:
+            fit: 'As soon as they fit'
+            heading: 'Layout'
+            hint: 'A wide list puts the sender, the subject and the preview on one line. Narrower, a row stacks.'
+            label: 'One-line rows'
+            stacked: 'Never'
+            subheading: 'When a row goes to one line, and how much of the message it shows.'
+            wide: 'Only on wide lists'
+        markers:
+            heading: 'Markers'
+            subheading: 'The marks on each row.'
+        on_hover: 'On hover'
+        preview:
+            heading: 'Preview'
+            subheading: 'Made-up mail, drawn the way your list draws it. Pick a width to see a row change shape.'
+            width: 'Preview width'
+            widths:
+                narrow: 'Narrow'
+                phone: 'Phone'
+                wide: 'Wide'
+        preview_lines:
+            hint: 'How much of the message a stacked row shows. A one-line row always shows it after the subject.'
+            inline: 'After the subject'
+            label: 'Preview'
+            none: 'None'
+            one: 'One line'
+            two: 'Two lines'
+        replied:
+            hint: 'An arrow in front of the subject when the newest mail in the conversation has been answered.'
+            label: 'Replied arrow'
+        sample:
+            contract:
+                body: 'Here is the last round of changes. Could you sign by Friday so we can start on the first of the month?'
+                subject: 'Contract draft – final version'
+            digest:
+                body: 'Five things worth reading this week, a new episode, and the events coming up near you.'
+                subject: 'Your weekly digest'
+            flights:
+                body: 'I found two options for Tuesday morning. The earlier one is cheaper but lands an hour before the keynote.'
+                subject: 'Flights for the conference'
+            label:
+                travel: 'Travel'
+                work: 'Work'
+            offsite:
+                body: 'The lake house is free the second week of April. The city venue needs an answer by Monday.'
+                subject: 'Planning the spring offsite: venues and dates'
+        sender:
+            everyone: 'Everyone'
+            hint: 'In Sent and Drafts the row names the recipients either way.'
+            label: 'Sender'
+            latest: 'Latest'
+        shown: 'Shown'
+        star:
+            hint: 'For a conversation you have not starred. A starred one always shows its star.'
+            label: 'Star'
+        tab_counts:
+            heading: 'Tab counts'
+            hint: 'The number beside each tab''s name: how many conversations in that category hold unread mail. The tabs add up to the Inbox badge in the sidebar. The "3 new" pill is separate and stays.'
+            label: 'Unread count on inbox tabs'
+            subheading: 'The numbers on the inbox tabs.'
+        unread:
+            hint: 'How strongly an unread row is tinted. Bold stays at every setting.'
+            label: Unread rows
+            standard: Standard
+            strong: Strong
+            subtle: Subtle
     native_apps:
         android_hint: "Then pair it with the button below. Buying the app on Google Play is, for now, the main way this project supports itself."
         android_title: "Install plMail for Android first"
@@ -3668,6 +3910,12 @@ settings:
             solid: Solid colour
             theme: Theme default
             upload: Upload image
+        buttons:
+            both: 'Icons and text'
+            hint: 'What the buttons above a conversation or a selection show.'
+            icons: 'Icons'
+            label: 'Action buttons'
+            text: 'Text'
         density:
             comfortable: Comfortable
             compact: Compact
@@ -3704,30 +3952,6 @@ settings:
             flat: Flat
             heading: Layout
             subheading: How the interface is framed. Boxed floats every panel as a card; flat puts the top bar and sidebar straight on the background and keeps only the main pane boxed.
-        list:
-            accountCorner: Account corner
-            accountCornerHint: The coloured triangle in a row's corner, saying which account it arrived on. Only ever drawn in a list that mixes accounts.
-            actionButton:
-                both: 'Icons and text'
-                icons: 'Icons'
-                text: 'Text'
-            actionButtons: 'Action buttons'
-            actionButtonsHint: 'What the buttons above a conversation or a selection show.'
-            heading: Message list
-            listAvatars: Sender discs
-            listAvatarsHint: The coloured circle carrying the sender's initial. Switched off it becomes a plain circle rather than disappearing — it is also the row's checkbox.
-            tabUnreadCount: 'Unread count on inbox tabs'
-            tabUnreadCountHint: 'The number beside each tab''s name: how many conversations in that category hold unread mail. The tabs add up to the Inbox badge in the sidebar. The "3 new" pill is separate and stays.'
-            previewLines: Preview lines
-            previewLines0: None
-            previewLines1: One line
-            previewLines2: Two lines
-            subheading: What each row in the list shows.
-            unread:
-                standard: Standard
-                strong: Strong
-                subtle: Subtle
-            unreadEmphasis: Unread rows
         logo:
             colour: 'Colour'
             custom:
@@ -3799,8 +4023,6 @@ settings:
         seg:
             custom: 'Custom'
             default: 'Theme default'
-            hidden: 'Hidden'
-            shown: 'Shown'
         text:
             autoDerive: Auto-derive
             color: Text colour
@@ -4114,6 +4336,24 @@ settings:
                     The sign-in is fine, so this is the mail server refusing or
                     unreachable: check that it is up and that nothing has
                     changed about the host, the port or the password.
+                body_oauth: >-
+                    Several attempts in a row have failed, so new mail is not
+                    arriving for this account and anything that depends on it —
+                    filters that run on delivery, and the unread counts — is
+                    standing still. The mail already here is safe and unchanged.
+                    The sign-in is fine, so this is your provider refusing or not
+                    answering. It usually clears on its own and plMail keeps
+                    trying; if it lasts, check your provider's status page.
+                body_provider_down: >-
+                    New mail is not arriving for this account because your
+                    provider's servers are failing at their end — the technical
+                    detail below is their answer, not a problem with this
+                    account. Anything that depends on new mail, such as filters
+                    that run on delivery and the unread counts, is standing still
+                    until then. The mail already here is safe and unchanged, and
+                    there is nothing to change on your side: plMail keeps trying
+                    and catches up on its own once the provider has recovered.
+                    Your provider's status page says when that is likely.
                 title: '%account% keeps failing to sync'
             server_alert:
                 body: >-
@@ -4591,6 +4831,26 @@ settings:
         show: Show label
         subheading: Create, rename and organise your labels, and choose which appear in the sidebar.
         system: System
+    pinning:
+        duration:
+            custom: 'A number of days'
+            custom_days: 'days'
+            forever: 'Forever'
+            hint: 'Changing this affects pins you make from now on.'
+            label: 'Pins last'
+            one_day: '1 day'
+            one_week: '1 week'
+            thirty_days: '30 days'
+            three_days: '3 days'
+            two_weeks: '2 weeks'
+        heading: 'Pinned conversations'
+        keep_on_move:
+            hint: 'Archiving counts as moving. The bin and spam always take the pin off.'
+            label: 'Keep the pin when a conversation is moved'
+        reminder:
+            hint: 'Pinning more than this many conversations asks first. It never refuses. 0 turns the reminder off.'
+            label: 'Remind me at'
+        subheading: 'Conversations you pin stay at the top of every list they are in.'
     profile:
         heading: Your profile
         save: Save profile
@@ -4619,6 +4879,17 @@ settings:
         'off': 'Off'
         'on': 'On'
         subheading: Whether pictures that mail loads from elsewhere wait to be asked for.
+    sender_pictures:
+        admin_off: 'Your administrator has not allowed this server to look pictures up on the internet, so these switches do nothing for now. Your choice is kept for when they do.'
+        bimi: 'Company logos'
+        bimi_hint: 'The logo a company publishes for its mail (BIMI), fetched from the company''s own domain and shown only on mail that domain demonstrably sent.'
+        hashed: 'Gravatar and Libravatar'
+        hashed_hint: 'The picture a person chose on Gravatar, or on their domain''s own Libravatar server. Every address you hear from is sent to that service as a hash. Off until you turn it on.'
+        heading: 'Sender pictures'
+        intro: 'Photos on your contacts and the profile pictures of people on this server are always shown. These are the pictures plMail can look up for everyone else, in the background — opening a mail never fetches anything.'
+        subheading: 'Which pictures beside a sender may be looked up on the internet.'
+        website: 'Website icons'
+        website_hint: 'The icon a sender''s website declares for itself. Never for addresses at mail providers such as Gmail, whose icon would say nothing about the person.'
     swipe_actions:
         heading: Swipe actions
         hint: >-
@@ -4630,6 +4901,7 @@ settings:
         option:
             archive: Archive
             none: Nothing
+            pin: 'Pin'
             read_unread: Read / unread
             star: Star
             trash: Delete
@@ -4703,6 +4975,7 @@ settings:
         integrations: Integrations
         labels: Labels
         layout: "Layout & controls"
+        message_list: 'Message list'
         notifications: Notifications
         profile: Profile
         reading: "Reading"
@@ -4729,6 +5002,7 @@ settings:
             clock: "12 24 hour am pm time format"
             compose_behaviour: "mailto email links default mail program forward quote send"
             contacts: "carddav address book"
+            conversation_view: 'threads threading conversations single emails grouping flat list'
             disposal: "delete trash bin forever empty"
             encryption: "pgp openpgp gpg key"
             filters: "rules sieve automatic move forward"
@@ -4739,11 +5013,17 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
             labels: "folders tags unread all mail"
             language: "locale english german french chinese"
+            libravatar: 'libravatar avatar picture photo share public profile'
+            list_content: 'attachments chips paperclip files labels sender date time count replied answered'
+            list_layout: 'rows one line compact dense preview snippet stacked lines width'
+            list_markers: 'star hover avatar disc account corner unread bold'
             notifications: "push browser phone sound alert"
             password: "login sign-in"
+            pinning: 'pin pinned thumbtack sticky top reminder'
             profile: "name avatar photo picture"
             read_receipts: "mdn receipt confirmation"
             reading_pane: "preview split right bottom"
+            sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender'
             sharing: "link public booking"
             shortcuts: "keyboard hotkeys keys"
             swipe_actions: "swipe gesture phone archive"
@@ -4963,6 +5243,7 @@ settings:
         delete: Delete category
         delete_confirm: 'Delete "%name%"? Mail filed there goes back to the tab it would otherwise be in. No mail is deleted.'
         deleted: 'Deleted "%name%".'
+        deleted_resorting: 'Deleted "%name%". Its conversations go back to their tabs in the background.'
         error:
             empty: 'A category needs a name.'
             reserved: 'That name belongs to one of the built-in tabs.'
@@ -5110,6 +5391,7 @@ shortcuts:
         archive: "Archive"
         back: "Back to the list"
         compose: "Write a new message"
+        conversation_view: 'Switch between conversations and single emails'
         delete: "Delete"
         forward: "Forward"
         go_archive: "Go to Archive"
@@ -5125,6 +5407,7 @@ shortcuts:
         next: "Down one conversation"
         next_conversation: "Open the next conversation"
         open: "Open the highlighted conversation"
+        pin: 'Pin or unpin'
         previous: "Up one conversation"
         previous_conversation: "Open the previous conversation"
         reply: "Reply"
@@ -5186,12 +5469,15 @@ sidebar:
     toggle: Show or hide the sidebar
 
 snooze:
+    confirm: Snooze
     later_today: Later today
     next_week: Next week
+    past: That time has already passed.
     pick_date: Pick a date and time
     this_weekend: This weekend
     tomorrow: Tomorrow
     unsnooze: Unsnooze
+    until: Snooze until
 
 snoozed:
     empty: Nothing is snoozed.
@@ -5210,6 +5496,7 @@ tabs:
 
 thread:
     no_subject: (no subject)
+    show_conversation: 'Show the whole conversation (%count% emails)'
     summary:
         button: 'Summarise this conversation'
         disclaimer: 'Written by a model from the messages below. Read them if it matters.'
@@ -5262,9 +5549,11 @@ thread_row:
     new_badge: New
     no_recipient: (no recipient)
     no_subject: (no subject)
+    pin: 'Pin to top'
+    replied: 'Replied'
     send_failed:
         failed: Not sent
-        mail_off: 'Not sent: mail is switched off for this account'
+        mail_off: 'Not sent: sending is switched off for this account'
         may_have_sent: 'May have been sent: check Sent before sending it again'
         rate_limited: 'Not sent: your mail provider was limiting sends'
         refused: 'Not sent: the mail server refused it'
@@ -5278,6 +5567,7 @@ thread_row:
         select: Select
     star: Star this message
     to: 'To: %recipients%'
+    unpin: 'Unpin'
     unread: Unread
     unstar: Unstar this message
 
@@ -5306,7 +5596,7 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Too late — that message had already been sent.
     send_failed: 'That message could not be sent: %subject%'
-    send_failed_mail_off: 'That message could not be sent: %subject%. Mail is switched off for its account.'
+    send_failed_mail_off: 'That message could not be sent: %subject%. Sending is switched off for its account.'
     send_failed_may_have_sent: '%subject% may have been sent, but the answer was lost. Check Sent before sending it again.'
     send_failed_rate_limited: 'That message could not be sent: %subject%. Your mail provider is limiting sends right now; try again in a few minutes.'
     send_failed_refused: 'That message could not be sent: %subject%. The mail server refused it.'
@@ -5339,10 +5629,12 @@ toolbar:
         more: More
         move_to: Move to
         not_spam: 'Not spam'
+        pin: 'Pin'
         purge: Delete forever
         snooze: Snooze
         spam: 'Mark as spam'
         star: Star
+        unpin: 'Unpin'
     # Asked before a selection in Spam is deleted for good. Two sentences rather
     # than one with a number swapped in, because "1 conversations" is not English.
     purge_confirm:
@@ -5552,12 +5844,13 @@ contacts:
     import_bad_format: 'Only .vcf/.vcard and .csv files can be imported.'
     import_choose: 'Choose file'
     import_confirm: 'Import %count% contacts'
-    import_dedupe_note: 'After importing you land on the duplicates page to merge anything imported twice.'
+    import_dedupe_note: 'When the import is done, open Duplicates to merge anything imported twice.'
     import_expired: 'The staged import expired. Please upload the file again.'
     import_formats: '.vcf, .vcard or .csv'
     import_hint: 'A .vcf/.vcard address-book export or a .csv file. Duplicates are checked after import.'
     import_no_file: 'No file was uploaded.'
     import_preview_count: '%count% contacts found in the %format% file. Showing the first few:'
+    import_started: 'Importing %count% contacts — this runs in the background. You will be told when it is done.'
     import_step1: 'Step 1 — choose a file'
     import_step2: 'Step 2 — preview'
     import_upload: 'Upload & preview'

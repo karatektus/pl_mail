@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\Calendar;
 
 use App\Domain\Enum\Calendar\EventStatus;
+use App\Domain\Helper\EventColor;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
@@ -85,6 +86,7 @@ final class JmapEventWriter
         'status',
         'recurrenceRules',
         'recurrenceOverrides',
+        'color',
     ];
 
     public function __construct(
@@ -226,6 +228,10 @@ final class JmapEventWriter
             description:    $this->stringOrNull($values['description'] ?? null, 'description'),
             status:         $this->status($values['status'] ?? null),
             recurrenceRule: $this->recurrenceRule($values['recurrenceRules'] ?? null),
+            // From the patch only, never from $values: an update that does not
+            // name `color` has no opinion about it, and the writer keeps the
+            // stored one — including a value this server cannot draw.
+            color:          true === array_key_exists('color', $patch) ? $this->color($patch['color']) : null,
         );
 
         // After write(), which rebuilds the canonical object and carries the
@@ -501,6 +507,27 @@ final class JmapEventWriter
         }
 
         return $patches;
+    }
+
+    /**
+     * A `color` as the writer takes it: null on the wire clears it.
+     *
+     * Refused unless it is a colour EventColor can draw. RFC 8984 allows any
+     * CSS name or "#rrggbb", and every one of those passes; what fails is a
+     * value nothing would ever draw, which a client is better told about than
+     * left to wonder why its event stayed blue.
+     */
+    private function color(mixed $value): string
+    {
+        if (null === $value) {
+            return CalendarEventWriter::NO_COLOR;
+        }
+
+        if (false === is_string($value) || null === EventColor::hexOf($value)) {
+            throw new MethodException('invalidProperties', '"color" must be a CSS color name, "#rrggbb", or null.', ['properties' => ['color']]);
+        }
+
+        return trim($value);
     }
 
     private function bool(mixed $value, string $property): bool

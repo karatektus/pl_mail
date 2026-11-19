@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Contacts;
 
+use App\Domain\Helper\PersonalMailDomains;
+
 /**
  * Reads a contact out of text somebody pasted: an email signature, a
  * `Name <address>` header line, an address block, or a whole vCard.
@@ -35,13 +37,6 @@ final readonly class ContactTextParser
 
     /** How a line names the kind of phone on it. */
     private const string PHONE_PREFIX = '/^(?<kind>mobil(?:e|funk)?|handy|cell(?:ular)?|portable|m|tel(?:efon|ephone)?\.?|t|phone|fon|f|fax|t[ée]l\.?|direkt|direct|zentrale|office|privat|home|work|b[üu]ro)\b\s*[.:]?\s*/iu';
-
-    private const array PERSONAL_DOMAINS = [
-        'gmail.com', 'googlemail.com', 'gmx.de', 'gmx.net', 'gmx.at', 'gmx.ch', 'web.de', 't-online.de',
-        'outlook.com', 'outlook.de', 'hotmail.com', 'hotmail.de', 'live.com', 'icloud.com', 'me.com', 'mac.com',
-        'yahoo.com', 'yahoo.de', 'posteo.de', 'posteo.net', 'mailbox.org', 'proton.me', 'protonmail.com',
-        'freenet.de', 'arcor.de', 'aol.com', 'orange.fr', 'free.fr', 'laposte.net',
-    ];
 
     private const array NAME_PREFIXES = ['dr.', 'dr', 'prof.', 'prof', 'mr.', 'mr', 'mrs.', 'mrs', 'ms.', 'ms', 'herr', 'frau', 'dipl.-ing.', 'ing.', 'mag.', 'm.', 'mme', 'mme.'];
 
@@ -273,7 +268,7 @@ final readonly class ContactTextParser
     {
         $domain = mb_strtolower((string) substr((string) strrchr($email, '@'), 1));
 
-        return \in_array($domain, self::PERSONAL_DOMAINS, true) ? 'home' : 'work';
+        return true === PersonalMailDomains::contains($domain) ? 'home' : 'work';
     }
 
     private function fromVCard(string $text): ContactDraft

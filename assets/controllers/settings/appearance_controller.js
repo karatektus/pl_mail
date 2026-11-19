@@ -63,16 +63,6 @@ export default class extends Controller {
         this.queue();
     }
 
-    /**
-     * Preview lines: the variables, and the count on <html> that decides where
-     * a list row goes to one line (`row-line:` in app.css). No variable can do
-     * that part — a container query does not read custom properties.
-     */
-    applyPreviewLines(event) {
-        this.root.dataset.listPreviewLines = event.currentTarget.value;
-        this.applyVars(event);
-    }
-
     setVars(json) {
         if (!json) {
             return;
@@ -81,28 +71,6 @@ export default class extends Controller {
         Object.entries(JSON.parse(json)).forEach(([variable, value]) => {
             this.root.style.setProperty(variable, String(value));
         });
-    }
-
-    /**
-     * An on/off list setting, as a two-segment radio group.
-     *
-     * The radios are not the field: they carry no field attribute, so save()
-     * never reads them. Each change writes the hidden input named by
-     * `data-toggle-field`, which is what gets posted as '1'/'0' — the same
-     * contract the checkbox kept, with the radio's own value ('1' = shown)
-     * standing in for `checked`.
-     */
-    toggleListOption(event) {
-        const input = event.currentTarget;
-        const on = input.value === '1';
-        const field = this.element.querySelector(`[data-toggle-field="${input.dataset.toggles}"]`);
-
-        if (field) {
-            field.value = on ? '1' : '0';
-        }
-
-        this.setVars(on ? input.dataset.cssVarsOn : input.dataset.cssVarsOff);
-        this.queue();
     }
 
     /* ── Per-surface density ───────────────────────────────────────────────

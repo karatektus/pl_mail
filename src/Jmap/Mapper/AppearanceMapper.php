@@ -187,11 +187,6 @@ final class AppearanceMapper
             'inkFaint' => $appearance->inkFaint,
             'mainTint' => $appearance->mainTint,
             'mainAlpha' => $appearance->mainAlpha,
-            'accountCorner' => $appearance->accountCorner,
-            'listAvatars' => $appearance->listAvatars,
-            'tabUnreadCount' => $appearance->tabUnreadCount,
-            'previewLines' => $appearance->previewLines,
-            'unreadEmphasis' => $appearance->unreadEmphasis->value,
             'actionButtons' => $appearance->actionButtons->value,
             'fontFamily' => $appearance->fontFamily->value,
             'fontScale' => $appearance->fontScale,
@@ -210,6 +205,13 @@ final class AppearanceMapper
     /**
      * The object Appearance/get serves: the appearance, plus `inboxTabs`.
      *
+     * The five list properties are stored on MessageList since #608, where the
+     * web's Message list page writes them, and are served here because the
+     * apps were written against this object when they lived on the appearance.
+     * `previewLines` is the count MessageList's preview answers to
+     * (RowPreview::lines()). The options #608 added are not served: a phone's
+     * list is its own shape, and the apps decide whether to follow the web's.
+     *
      * `inboxTabs` is stored on CategorySorting::$tabs, not on the appearance,
      * because it belongs to the category settings card on the web. It is
      * served here because it answers the same question as every property
@@ -221,8 +223,15 @@ final class AppearanceMapper
      */
     public function forUser(User $user): array
     {
+        $list = $user->messageList;
+
         return [
             ...$this->toJmap($user->appearance),
+            'accountCorner' => $list->accountCorner,
+            'listAvatars' => $list->avatars,
+            'tabUnreadCount' => $list->tabUnreadCount,
+            'previewLines' => $list->preview->lines(),
+            'unreadEmphasis' => $list->unreadEmphasis->value,
             'inboxTabs' => $user->categorySorting->tabs,
         ];
     }

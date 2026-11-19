@@ -1,4 +1,4 @@
-<!-- translated-from: providers/imap-smtp.md sha1:fe428eb58bf0d11f2d18c18ba4e8aa1765a8890f -->
+<!-- translated-from: providers/imap-smtp.md sha1:b15e93cc008646708560333f3073e5c630ab91fc -->
 
 # IMAP und SMTP
 
@@ -35,11 +35,13 @@ Anbieter tatsächlich uneins sind.
    SMTP-Einstellungen ist ein Postfach, das du lesen und aus dem du nicht senden kannst, und das ist
    für ein Archiv ein legitimer Wunsch.
 
-   Das eine Passwort gilt für beide Richtungen. Wo der Server zum Senden ein anderes verlangt —
-   Zoho vergibt je Protokoll ein eigenes App-Passwort, und manche Anbieter stellen ein Relay mit
-   eigenen Zugangsdaten vor ihr SMTP —, blendet **Zum Senden ein anderes Passwort verwenden** unter
-   den SMTP-Feldern ein zweites Feld ein. Der Benutzername bleibt derselbe. **Zum Senden dasselbe
-   Passwort verwenden** nimmt es wieder weg.
+   Der eine Benutzername und das eine Passwort gelten für beide Richtungen. Wo das Senden eine
+   andere Anmeldung braucht — Zoho vergibt je Protokoll ein eigenes App-Passwort, und ein Relay oder
+   Smarthost vor dem SMTP hat eigene Konten —, blendet **Zum Senden einen anderen Benutzernamen oder
+   ein anderes Passwort verwenden** unter den SMTP-Feldern einen Benutzernamen und ein Passwort zum
+   Senden ein. Bleibt eins davon leer, gilt das des Kontos; ein Server, der nur ein zweites Passwort
+   will, braucht also nichts weiter. **Zum Senden dieselbe Anmeldung verwenden** nimmt beides wieder
+   weg.
 6. **Verbindung testen** prüft IMAP und SMTP getrennt und meldet beides einzeln, ein funktionierendes
    Postfach mit falschem SMTP-Port sagt das also, statt beim ersten Senden zu scheitern.
 

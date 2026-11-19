@@ -1,0 +1,41 @@
+{#
+settings/_tab_counts.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The unread count beside each inbox tab's name, on or off (#608). On the
+Categories page because that is where the tabs are; saved with the message
+list settings, through the same controller as that page, because that is
+where it is stored (MessageList::$tabUnreadCount).
+
+Accepts nothing: reads message_list().
+#}
+{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  transition-colors cursor-pointer' %}
+
+<div class="px-4 py-3"
+     data-controller="settings--message-list"
+     data-settings--message-list-url-value="{{ path('app_message_list_save') }}">
+    <div class="flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted" id="tab-counts-label">{{ 'settings.message_list.tab_counts.label'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.message_list.tab_counts.hint'|trans }}</span>
+        </span>
+
+        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+             role="radiogroup" aria-labelledby="tab-counts-label">
+            {% for shown in [true, false] %}
+                <label>
+                    <input type="radio" name="tabUnreadCount" class="peer sr-only"
+                           value="{{ shown ? '1' : '0' }}"
+                           data-action="change->settings--message-list#pick"
+                           aria-label="{{ 'settings.message_list.tab_counts.label'|trans }} — {{ (shown ? 'settings.message_list.shown' : 'settings.message_list.hidden')|trans }}"
+                           {{ message_list().tabUnreadCount == shown ? 'checked' : '' }}>
+                    <span class="{{ segText }}">
+                        {{ (shown ? 'settings.message_list.shown' : 'settings.message_list.hidden')|trans }}
+                    </span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+</div>

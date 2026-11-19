@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "./support/test";
+import { resetListSettings, saveListSettings } from "./support/message-list";
 
 /**
  * Screenshots for the appearance overhaul, plus the contrast measurements the
@@ -232,12 +233,10 @@ test.describe("appearance — screenshots and contrast", () => {
                         out.push({ what, ratio: m.ratio, ink: m.ink, ground: m.ground, text: m.text });
                     };
 
-                    check("list heading", document.querySelector('[id="preview-lines-label"]'));
-                    check("unread heading", document.querySelector('[id="unread-emphasis-label"]'));
                     check("surface label", document.querySelector('[id="surface-density-list"]'));
                     check(
                         "selected segment",
-                        document.querySelector('input[name="previewLines"]:checked + span'),
+                        document.querySelector('input[name="density"]:checked + span'),
                     );
 
                     return out;
@@ -328,14 +327,12 @@ test.describe("appearance — screenshots and contrast", () => {
                     await page.keyboard.press("Escape");
                 }
 
-                // And the list wearing the settings the user asked about.
-                await page.goto("/settings/appearance");
-                await page
-                    .locator(`${PANEL} input[type="radio"][data-toggles="accountCorner"][value="0"]`)
-                    .check({ force: true });
-                await page.waitForTimeout(700);
+                // And the list wearing the settings the user asked about,
+                // which are the Message list page's since #608.
+                await saveListSettings(page, { accountCorner: false });
                 await page.goto("/mail/inbox");
                 await page.screenshot({ path: `${OUT}/${label}-${theme}-list-no-corner.png` });
+                await resetListSettings(page);
             });
         }
     }

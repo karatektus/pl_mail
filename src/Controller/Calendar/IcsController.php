@@ -5,20 +5,22 @@ declare(strict_types=1);
 namespace App\Controller\Calendar;
 
 use App\Controller\ChecksCsrf;
-use App\Domain\DTO\Calendar\IcsImportResult;
+use App\Domain\Enum\Job\JobKind;
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\IntegrationException;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
+use App\Entity\Job\BackgroundJob;
 use App\Entity\User\User;
-use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
-use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
+use App\Infrastructure\Messaging\Message\ImportCalendarMessage;
 use App\Repository\Calendar\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\Ics\IcsExporter;
 use App\Service\Calendar\Ics\IcsFeedConnector;
 use App\Service\Calendar\Ics\IcsImporter;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
+use App\Service\Job\JobUploadStore;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -111,6 +113,7 @@ final class IcsController extends AbstractController
         private readonly TranslatorInterface     $translator,
         private readonly MessageBusInterface     $bus,
         private readonly EntityManagerInterface  $em,
+        private readonly JobUploadStore          $uploads,
     ) {
     }
 
@@ -204,30 +207,40 @@ final class IcsController extends AbstractController
             return $this->renderImportForm($user, 'calendar.ics.error.no_calendar', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        if (null === $bytes) {
+        if (null === $bytes || false === $upload instanceof UploadedFile) {
             return $this->renderImportForm($user, 'calendar.ics.error.no_file', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {
-            $result = $this->importer->import($calendar, $user, $bytes);
+            $this->importer->check($calendar, $bytes);
         } catch (CalendarSyncException $e) {
             // Rendered rather than thrown, at 422 so the modal stays open. The
             // message names what actually went wrong — "this is not a calendar
             // file" — and the person reading it is holding the file, which is
-            // the only place the mistake can be corrected.
+            // the only place the mistake can be corrected. Asked here, before
+            // the worker gets it, for exactly that reason.
             return $this->renderImportForm($user, null, Response::HTTP_UNPROCESSABLE_ENTITY, $e->getMessage());
         }
 
+        // The import itself is a worker's (#672): a file of a few years of
+        // meetings is thousands of rows, each looked up and written, and the
+        // request has thirty seconds. The file waits where the worker can read
+        // it; ImportCalendarHandler reports the counts when it is done.
+        $job       = new BackgroundJob($user, JobKind::ImportCalendar);
+        $job->view = [
+            'scope'      => 'calendar',
+            'value'      => (string) $calendar->id,
+            'unreadOnly' => false,
+            'calendarId' => $calendar->id,
+            'file'       => $this->uploads->keep((int) $user->id, $upload, 'ics'),
+        ];
+
+        $this->em->persist($job);
         $this->em->flush();
 
-        // After the flush, so the worker reads committed rows. Silent unless
-        // the calendar mirrors something writable, which is the only case where
-        // an import owes anybody a push.
-        if (true === $result->changedAnything() && true === $calendar->isSynced()) {
-            $this->bus->dispatch(new SyncCalendarMessage((int) $calendar->id));
-        }
+        $this->bus->dispatch(new ImportCalendarMessage((int) $job->id));
 
-        return $this->calendarListStream(...$this->importToast($result));
+        return $this->calendarListStream('calendar.ics.toast.import_started');
     }
 
     /**
@@ -297,38 +310,6 @@ final class IcsController extends AbstractController
         $bytes = @file_get_contents($upload->getPathname());
 
         return false === $bytes || '' === $bytes ? null : $bytes;
-    }
-
-    /**
-     * The toast for one import, and the numbers in it.
-     *
-     * Three outcomes, because two of them read as failures if they are not
-     * named. A file every one of whose events is already on the calendar
-     * changes nothing, and reporting that as "0 imported" is
-     * indistinguishable from an import that did not work — which is the normal
-     * result of importing an export, or of importing the same file twice.
-     *
-     * @return array{0: string, 1: array<string,int|string>}
-     */
-    private function importToast(IcsImportResult $result): array
-    {
-        if (0 === $result->read()) {
-            return ['calendar.ics.toast.import_empty', []];
-        }
-
-        if (false === $result->changedAnything()) {
-            return ['calendar.ics.toast.import_nothing_new', []];
-        }
-
-        return ['calendar.ics.toast.imported', [
-            '%added%'   => $result->imported,
-            '%updated%' => $result->updated,
-            // The two "not written" reasons are one number on screen. They are
-            // different facts (already on another calendar; nothing in the
-            // component to draw) and a person acting on the toast does the same
-            // thing about both, which is nothing.
-            '%skipped%' => $result->alreadyElsewhere + $result->skipped,
-        ]];
     }
 
     private function renderImportForm(

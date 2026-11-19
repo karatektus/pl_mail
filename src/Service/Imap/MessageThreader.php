@@ -76,7 +76,10 @@ final class MessageThreader
         //    has already put the replies where they belong.
         $providerThreadKey = $message->providerThreadKey;
 
-        if (null !== $providerThreadKey && '' !== $providerThreadKey) {
+        // Except a row plMail placed itself, in a conversation keyed otherwise
+        // than the thread the provider filed its copy in: its headers put it
+        // where it was written, as they did then. See Message::$placedByHeaders.
+        if (null !== $providerThreadKey && '' !== $providerThreadKey && false === $message->placedByHeaders) {
             $this->attachMessageToThread(
                 $message,
                 $this->providerThread($providerThreadKey, $account, $message),
@@ -294,6 +297,54 @@ final class MessageThreader
     }
 
     /**
+     * Give a message's thread the provider's conversation id, once the
+     * provider has told us which conversation the message is in (#676).
+     *
+     * For mail plMail sent itself. Its row was threaded when it was written,
+     * by its headers, into a thread that has no provider key when it is the
+     * start of a conversation, or one written before Gmail had a copy. When
+     * Gmail's copy of the Sent mail is synced it is merged onto that row
+     * rather than stored again, so the thread never got the key assignThread()
+     * would have given a new one, and the first answer, threaded by that key
+     * and nothing else, started a conversation of its own.
+     *
+     * Only into a thread that has no key yet: one that has a different key is
+     * a conversation the provider already knows by that name, and renaming it
+     * would take it away from the mail already filed under it. And only while
+     * no other thread of the account has this key, which the database refuses
+     * (uniq_message_thread_provider_key_account) — that conversation is already
+     * here, and the answer will join it there.
+     */
+    public function adoptProviderThreadKey(Message $message, string $providerThreadKey): void
+    {
+        $thread = $message->thread;
+
+        if ('' === $providerThreadKey || null === $thread || null !== $thread->providerThreadKey) {
+            return;
+        }
+
+        $account = $thread->account;
+
+        if (null === $account) {
+            return;
+        }
+
+        $cacheKey = $account->id . '|' . $providerThreadKey;
+        $cached   = $this->providerThreads[$cacheKey] ?? null;
+
+        if (null !== $cached && true === $this->entityManager->contains($cached)) {
+            return;
+        }
+
+        if (null !== $this->messageThreadRebuildRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account)) {
+            return;
+        }
+
+        $thread->providerThreadKey        = $providerThreadKey;
+        $this->providerThreads[$cacheKey] = $thread;
+    }
+
+    /**
      * The thread for a provider conversation id, created on first sight.
      *
      * The repository only sees what has been flushed, and a sync batch threads
@@ -303,6 +354,18 @@ final class MessageThreader
      * uniq_message_thread_provider_key_account — taking the whole batch with
      * it. Threads handed out here are remembered for exactly as long as the
      * unit of work still holds them.
+     *
+     * A conversation can be known by a second provider id, which it does not
+     * take as its own key (#676). Gmail puts mail it is given over SMTP into a
+     * conversation only when the subject matches, and an encrypted reply goes
+     * out as "..." (header protection, RFC 9788). So Gmail starts a new thread
+     * for it, and the answers, encrypted too, follow it there. The sync merges
+     * Gmail's copy onto the row plMail sent, in the conversation it was written
+     * in, and that row keeps the id of the thread Gmail filed it in. Mail in
+     * that thread finds the conversation through the row: Gmail shows two
+     * conversations, plMail one. Only that row: every other message carries
+     * the key of the thread it is in, so this lookup finds nothing new for
+     * them.
      */
     private function providerThread(string $providerThreadKey, Account $account, Message $message): MessageThread
     {
@@ -315,7 +378,8 @@ final class MessageThreader
             return $pending;
         }
 
-        $thread = $this->messageThreadRebuildRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account);
+        $thread = $this->messageThreadRebuildRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account)
+            ?? $this->messageThreadingRepository->findThreadHoldingProviderThreadKey($providerThreadKey, $account);
 
         if (null === $thread) {
             $thread = $this->createThread($message, $account, ThreadingMethod::Provider);

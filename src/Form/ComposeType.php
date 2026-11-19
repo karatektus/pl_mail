@@ -230,7 +230,7 @@ class ComposeType extends AbstractType
         if (
             null === $account
             || $account->usr !== $user
-            || false === $account->mailEnabled
+            || false === $account->sendEnabled
             || false === $account->catchesAddress($address)
         ) {
             return [];
@@ -247,7 +247,9 @@ class ComposeType extends AbstractType
         $choices = [];
 
         foreach ($this->accountRepository->findForUserOrdered($user) as $account) {
-            if (false === $account->mailEnabled) {
+            // Sending, not receiving (#628): a relay with no mailbox is a
+            // sender, and a mailbox whose provider offers no SMTP is not.
+            if (false === $account->sendEnabled) {
                 continue;
             }
 

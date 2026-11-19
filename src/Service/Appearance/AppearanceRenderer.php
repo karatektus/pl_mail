@@ -86,38 +86,11 @@ final readonly class AppearanceRenderer
             '--app-font-family' => $appearance->fontFamily->stack(),
             '--app-font-scale'  => self::number($appearance->fontScale),
 
-            // ── Mail list display ─────────────────────────────────────────
-            '--list-corner-display' => $appearance->accountCorner ? 'block' : 'none',
-            '--list-avatar-hide'    => $appearance->listAvatars ? '0' : '1',
-            '--tab-unread-display'  => $appearance->tabUnreadCount ? 'inline' : 'none',
-            '--unread-emphasis'     => self::number($appearance->unreadEmphasis->tintScale()),
-            '--unread-bar-w'        => $appearance->unreadEmphasis->barWidth(),
-
             // ── Action buttons ────────────────────────────────────────────
             '--action-icon-display'  => $appearance->actionButtons->iconDisplay(),
             '--action-label-display' => $appearance->actionButtons->labelDisplay(),
             '--action-btn-px'        => $appearance->actionButtons->paddingX(),
             '--action-btn-gap'       => $appearance->actionButtons->gap(),
-
-            // The preview is four variables rather than a line count, and each
-            // of them is a value CSS can use directly. Nothing in CSS derives
-            // "hidden" from a count (`-webkit-line-clamp: 0` shows the text),
-            // nothing derives the box display a clamp needs, and `truncate`'s
-            // `white-space: nowrap` has to be released for a second line to
-            // exist at all. Deriving those in PHP, where the count is known,
-            // beats three layers of var() guesswork in the stylesheet.
-            //
-            // The `-wide` one is the same switch minus the clamp: a wide row
-            // puts the subject and the preview on ONE line by design, so two
-            // lines is a stacked-row answer only. See app.css.
-            '--list-preview-display' => match ($appearance->previewLines) {
-                0 => 'none',
-                1 => 'block',
-                default => '-webkit-box',
-            },
-            '--list-preview-display-wide' => 0 === $appearance->previewLines ? 'none' : 'block',
-            '--list-preview-lines' => (string) max(1, $appearance->previewLines),
-            '--list-preview-wrap' => $appearance->previewLines > 1 ? 'normal' : 'nowrap',
 
             // ── Per-surface density ───────────────────────────────────────
             // Resolved here rather than left to a CSS fallback chain: a

@@ -15,10 +15,11 @@ use App\Entity\User\User;
 use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\Message\MessageSendRepository;
-use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Repository\Mail\MessageThread\MessageThreadSnoozeRepository;
+use App\Repository\Mail\Message\MessageListBadgeRepository;
 use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -120,7 +121,6 @@ class SidebarCounts implements ResetInterface
     }
 
     public function __construct(
-        private readonly MessageThreadRepository $threadRepository,
         private readonly MessageThreadBadgeRepository $messageThreadBadgeRepository,
         private readonly MessageThreadSnoozeRepository $messageThreadSnoozeRepository,
         private readonly LabelRepository         $labelRepository,
@@ -128,8 +128,20 @@ class SidebarCounts implements ResetInterface
         private readonly ChangeLogRepository     $changeLog,
         private readonly MessageSendRepository $messageSendRepository,
         private readonly LabelBindingRepository  $bindings,
-        private readonly UnifiedInboxes          $inboxes
+        private readonly UnifiedInboxes          $inboxes,
+        private readonly MailLists               $lists,
+        private readonly MessageListBadgeRepository $emailBadges,
     ) {}
+
+    /**
+     * Where the unread badges are counted: in conversations, or in emails
+     * for somebody with conversation view off (#615) — the unit of the list
+     * each badge opens.
+     */
+    private function badgeCounts(UserInterface $user): MessageThreadBadgeRepository|MessageListBadgeRepository
+    {
+        return $user instanceof User && false === $user->conversationView ? $this->emailBadges : $this->messageThreadBadgeRepository;
+    }
 
     /** @var array<int, int>|null account id => conversations holding unread mail in its Inbox */
     private ?array $inboxUnread = null;
@@ -180,7 +192,7 @@ class SidebarCounts implements ResetInterface
             return $this->forRole(LabelRole::Inbox);
         }
 
-        $this->inboxUnread ??= $this->messageThreadBadgeRepository->countUnreadInboxPerAccount($user);
+        $this->inboxUnread ??= $this->badgeCounts($user)->countUnreadInboxPerAccount($user);
 
         $count = 0;
 
@@ -369,7 +381,7 @@ class SidebarCounts implements ResetInterface
 
             $this->accountLabelCounts[$accountId] = null === $user
                 ? []
-                : $this->messageThreadBadgeRepository->countUnreadPerUserLabel($user, $account);
+                : $this->badgeCounts($user)->countUnreadPerUserLabel($user, $account);
         }
 
         return $this->accountLabelCounts[$accountId][(int) $label->id] ?? 0;
@@ -467,7 +479,7 @@ class SidebarCounts implements ResetInterface
 
             $this->roleTotals[$key] = null === $user
                 ? 0
-                : $this->threadRepository->countForRole($user, $role);
+                : $this->lists->for($user)->countForRole($user, $role);
         }
 
         return $this->roleTotals[$key];
@@ -481,7 +493,7 @@ class SidebarCounts implements ResetInterface
             if (null === $user) {
                 $this->roleCounts = [];
             } else {
-                $this->roleCounts = $this->messageThreadBadgeRepository->countUnreadPerRole($user);
+                $this->roleCounts = $this->badgeCounts($user)->countUnreadPerRole($user);
             }
         }
 
@@ -522,7 +534,7 @@ class SidebarCounts implements ResetInterface
 
             $this->labelsUnread = null === $user
                 ? 0
-                : $this->messageThreadBadgeRepository->countUnreadInUserLabels($user);
+                : $this->badgeCounts($user)->countUnreadInUserLabels($user);
         }
 
         return $this->labelsUnread;
@@ -554,7 +566,7 @@ class SidebarCounts implements ResetInterface
             if (null === $user) {
                 $this->starredCount = 0;
             } else {
-                $this->starredCount = $this->messageThreadBadgeRepository->countUnreadForStarred($user);
+                $this->starredCount = $this->badgeCounts($user)->countUnreadForStarred($user);
             }
         }
 
@@ -572,7 +584,7 @@ class SidebarCounts implements ResetInterface
 
             $this->unreadCount = null === $user
                 ? 0
-                : $this->threadRepository->countForUnread($user);
+                : $this->lists->for($user)->countForUnread($user);
         }
 
         return $this->unreadCount;
@@ -894,7 +906,7 @@ class SidebarCounts implements ResetInterface
         if (null === $user) {
             $this->labelCounts = [];
         } else {
-            $this->labelCounts = $this->messageThreadBadgeRepository->countUnreadPerUserLabel($user);
+            $this->labelCounts = $this->badgeCounts($user)->countUnreadPerUserLabel($user);
         }
     }
 

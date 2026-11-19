@@ -112,6 +112,7 @@ const SECTIONS = [
     "aliases",
     "health",
     "inboxes",
+    "message-list",
     "categories",
     "labels",
     "filters",

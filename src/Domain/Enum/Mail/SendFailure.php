@@ -30,9 +30,11 @@ enum SendFailure: string
     case MayHaveSent = 'may_have_sent';
 
     /**
-     * The account's mail was switched off before the message went out (#575):
-     * a scheduled send that came due afterwards, or a draft sent from a client
-     * that had not heard. Switching mail back on and sending again works.
+     * The account's sending was switched off before the message went out
+     * (#575, #628): a scheduled send that came due afterwards, or a draft sent
+     * from a client that had not heard. Switching sending back on and sending
+     * again works. The value predates the send switch — it was "mail off" when
+     * mail was one switch — and stays, because failures already stored carry it.
      */
     case MailOff = 'mail_off';
 

@@ -8,29 +8,37 @@ use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\ListLevel;
 use App\Entity\Job\BackgroundJob;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\AllMailView;
+use App\Service\Mail\DiscardedView;
+use App\Service\Mail\DraftsView;
 use App\Service\Mail\InboxTabs;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
 use App\Service\Mail\MoveToService;
 use App\Service\Mail\StatusUndoService;
+use App\Service\Mail\ThreadPinService;
 use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Bulk mail actions — one request for a whole selection.
@@ -67,7 +75,7 @@ final class BulkStatusController extends AbstractController
      *
      * @var list<string>
      */
-    private const array EXPLICIT_ONLY = ['move', 'label', 'category', 'star'];
+    private const array EXPLICIT_ONLY = ['move', 'label', 'category', 'star', 'pin'];
 
     /**
      * The views a delete for good may take whole.
@@ -84,6 +92,7 @@ final class BulkStatusController extends AbstractController
 
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageRepository       $messageRepository,
         private readonly LabelRepository         $labelRepository,
         private readonly ThreadStatusUpdater     $status,
         private readonly EntityManagerInterface  $entityManager,
@@ -95,6 +104,10 @@ final class BulkStatusController extends AbstractController
         private readonly MailPlacement           $placement,
         private readonly InboxTabs               $inboxTabs,
         private readonly InboxCategoryRepository $inboxCategories,
+        private readonly DraftsView              $draftsView,
+        private readonly DiscardedView           $discardedView,
+        private readonly ThreadPinService        $pins,
+        private readonly TranslatorInterface     $translator,
     ) {
     }
 
@@ -116,7 +129,7 @@ final class BulkStatusController extends AbstractController
      *      than as the URL the user is on — it is resolved by
      *      RunBulkStatusHandler now, where the work happens.
      */
-    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|move-to|label|category|star|purge'])]
+    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|move-to|label|category|star|pin|purge'])]
     public function bulk(Request $request, string $action): Response
     {
         $this->assertCsrf($request, 'ajax');
@@ -262,7 +275,28 @@ final class BulkStatusController extends AbstractController
             }
         }
 
-        $threads = $this->threadRepository->findBy(['id' => array_map(intval(...), (array) ($body['ids'] ?? []))]);
+        // THE ROWS ARE CONVERSATIONS — OR, IN THE EMAIL LIST, EMAILS (#615).
+        //
+        // The list says which. With conversation view off its rows carry
+        // email ids, and reading those as conversation ids would act on other
+        // mail entirely. Every row is authorised on its own below, whichever
+        // kind it is, so `type` decides only how the ids are read.
+        //
+        // $threads stays the conversations involved either way, for the one
+        // action that is a conversation's at both levels: the category tab.
+        $emailRows = 'message' === ($body['type'] ?? 'thread');
+        $ids       = array_map(intval(...), (array) ($body['ids'] ?? []));
+
+        if (true === $emailRows) {
+            /** @var list<Message> $emails */
+            $emails  = $this->messageRepository->findBy(['id' => $ids]);
+            $threads = self::threadsOf($emails);
+            $rows    = $emails;
+        } else {
+            $emails  = [];
+            $threads = $this->threadRepository->findBy(['id' => $ids]);
+            $rows    = $threads;
+        }
 
         // Grouped by account, and that is not an optimisation.
         // ThreadStatusUpdater resolves the destination label and its IMAP
@@ -277,12 +311,27 @@ final class BulkStatusController extends AbstractController
         // selection as a whole, whichever account each part of it is on.
         $selected = [];
 
-        foreach ($threads as $thread) {
-            // Every thread, not just the first: the ids arrive from a browser
-            // and a selection can be edited before it is posted.
-            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $thread);
+        // Delete in a Drafts list takes the drafts, not the conversations they
+        // answer, and Restore in the bin or Spam takes what is in there — the
+        // rules ThreadStatusController::trash() and ::restore() keep for one row.
+        $draftsOnly = 'trash' === $action
+            && $this->draftsView->names((string) ($body['scope'] ?? ''), (string) ($body['value'] ?? ''));
+        $discardedOnly = 'restore' === $action
+            && $this->discardedView->names((string) ($body['scope'] ?? ''), (string) ($body['value'] ?? ''));
 
-            foreach ($thread->messages as $message) {
+        foreach ($rows as $row) {
+            // Every row, not just the first: the ids arrive from a browser
+            // and a selection can be edited before it is posted.
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $row);
+
+            $among    = $row instanceof MessageThread ? $row->messages : [$row];
+            $messages = match (true) {
+                $draftsOnly    => DraftsView::draftsAmong($among),
+                $discardedOnly => DiscardedView::discardedAmong($among),
+                default        => $among,
+            };
+
+            foreach ($messages as $message) {
                 $byAccount[(int) $message->account?->id][] = $message;
                 $selected[]                                 = $message;
             }
@@ -314,9 +363,9 @@ final class BulkStatusController extends AbstractController
         if ('purge' === $action) {
             $doomed = [];
 
-            foreach ($threads as $thread) {
+            foreach ($rows as $row) {
                 $discarded = array_values(array_filter(
-                    $thread->messages->toArray(),
+                    $row instanceof MessageThread ? $row->messages->toArray() : [$row],
                     $this->placement->isDiscarded(...),
                 ));
 
@@ -329,9 +378,9 @@ final class BulkStatusController extends AbstractController
                 array_push($doomed, ...$discarded);
             }
 
-            // Before the purge, not after: a purged thread has no id left, and
-            // the stream that removes its row is addressed by it.
-            $threadIds = array_map(static fn ($thread): ?int => $thread->id, $threads);
+            // Before the purge, not after: a purged row has no id left, and
+            // the stream that removes it is addressed by it.
+            $threadIds = array_map(static fn ($row): ?int => $row->id, $rows);
 
             $this->purger->purge($doomed);
 
@@ -361,15 +410,17 @@ final class BulkStatusController extends AbstractController
 
             $undoToken = $this->undo->remember($selected);
 
-            $this->moveTo->move($threads, $move);
+            true === $emailRows
+                ? $this->moveTo->moveEmails($emails, $move)
+                : $this->moveTo->move($threads, $move);
 
             return $this->renderTurboStream('thread/status/_moved_to.stream.html.twig', [
-                'count'     => count($threads),
-                'threads'   => $threads,
+                'count'     => count($rows),
+                'threads'   => $rows,
                 'label'     => $target,
                 'staying'   => array_values(array_filter(
-                    $threads,
-                    fn ($thread): bool => $this->moveTo->staysInView($thread, $user, $scope, $value),
+                    $rows,
+                    fn ($row): bool => $this->moveTo->staysInView($row, $user, $scope, $value),
                 )),
                 'undoToken' => $undoToken,
             ]);
@@ -382,20 +433,29 @@ final class BulkStatusController extends AbstractController
         //
         // Both directions leave the list they were started from: a snoozed
         // conversation leaves the inbox, a woken one leaves Snoozed.
+        //
+        // Emails in the email list are snoozed one by one (#615), per account
+        // for the labels the service resolves from the first of them.
         if ('snooze' === $action) {
             $until = self::snoozeUntil($body);
 
-            foreach ($threads as $thread) {
-                if (null === $until) {
-                    $this->snoozeService->wake($thread);
-                } else {
-                    $this->snoozeService->snooze($thread, $until);
+            if (true === $emailRows) {
+                foreach ($byAccount as $messages) {
+                    null === $until
+                        ? $this->snoozeService->wakeEmails($messages)
+                        : $this->snoozeService->snoozeEmails($messages, $until);
+                }
+            } else {
+                foreach ($threads as $thread) {
+                    null === $until
+                        ? $this->snoozeService->wake($thread)
+                        : $this->snoozeService->snooze($thread, $until);
                 }
             }
 
             return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
-                'count'   => count($threads),
-                'threads' => $threads,
+                'count'   => count($rows),
+                'threads' => $rows,
                 'unified' => $unifiedRows,
                 'leaves'  => false === $fromAllMail,
             ]);
@@ -409,11 +469,52 @@ final class BulkStatusController extends AbstractController
         // toggles — dropping a starred conversation onto Starred must leave
         // it starred. It stays in the list it came from, redrawn with its star.
         if ('star' === $action) {
-            $this->status->starThreads($threads);
+            true === $emailRows
+                ? $this->status->starEmails($emails)
+                : $this->status->starThreads($threads);
 
             return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
-                'count'   => count($threads),
-                'threads' => $threads,
+                'count'   => count($rows),
+                'threads' => $rows,
+                'unified' => $unifiedRows,
+                'leaves'  => false,
+            ]);
+        }
+
+        // PINNING A SELECTION (#654), the toolbar's Pin and `p` over ticked rows.
+        //
+        // One answer for the lot, as a toggle reads on one row: if every
+        // ticked conversation is pinned, Pin takes the pins off; otherwise it
+        // pins the ones that are not, and leaves the pinned ones' end times
+        // alone. The reminder counts only what this would add, and is asked
+        // once for the selection rather than once per conversation.
+        //
+        // In the email list the pins are the emails' own (#615), as the row's
+        // thumbtack makes them.
+        if ('pin' === $action) {
+            $unpinned = array_values(array_filter(
+                $rows,
+                static fn (MessageThread|Message $row): bool => false === ($row instanceof Message
+                    ? ThreadPinService::emailPinned($row)
+                    : ThreadPinService::conversationPinned($row)),
+            ));
+
+            if ([] === $unpinned) {
+                true === $emailRows ? $this->pins->unpinEmails($emails) : $this->pins->unpin(array_values($threads));
+            } elseif (true !== ($body['confirmed'] ?? false) && true === $this->pins->wouldPassReminder($user, count($unpinned))) {
+                return $this->json(
+                    ThreadStatusController::pinReminder($this->translator, $this->generateUrl('app_settings_page', ['page' => 'message-list']), $user->pinReminderAt),
+                    Response::HTTP_CONFLICT,
+                );
+            } else {
+                true === $emailRows
+                    ? $this->pins->pinEmails(array_values(array_filter($unpinned, static fn ($row): bool => $row instanceof Message)))
+                    : $this->pins->pin(array_values(array_filter($unpinned, static fn ($row): bool => $row instanceof MessageThread)));
+            }
+
+            return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
+                'count'   => count($rows),
+                'threads' => $rows,
                 'unified' => $unifiedRows,
                 'leaves'  => false,
             ]);
@@ -442,8 +543,8 @@ final class BulkStatusController extends AbstractController
             }
 
             return $this->renderTurboStream('thread/status/_category.stream.html.twig', [
-                'count'    => count($threads),
-                'threads'  => $threads,
+                'count'    => count($rows),
+                'threads'  => $rows,
                 'category' => $category,
             ]);
         }
@@ -492,8 +593,8 @@ final class BulkStatusController extends AbstractController
             }
 
             return $this->renderTurboStream('thread/status/_labelled.stream.html.twig', [
-                'count'     => count($threads),
-                'threads'   => $threads,
+                'count'     => count($rows),
+                'threads'   => $rows,
                 'label'     => $label,
                 'attach'    => $attach,
                 'undoToken' => $undoToken,
@@ -529,8 +630,8 @@ final class BulkStatusController extends AbstractController
             // conversation gone from the list and nothing on screen saying
             // where it went.
             return $this->renderTurboStream('thread/status/_move.stream.html.twig', [
-                'count'     => count($threads),
-                'threads'   => $threads,
+                'count'     => count($rows),
+                'threads'   => $rows,
                 'label'     => $destination,
                 'undoToken' => $undoToken,
             ]);
@@ -563,8 +664,8 @@ final class BulkStatusController extends AbstractController
         }
 
         return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
-            'count'   => count($threads),
-            'threads' => $threads,
+            'count'   => count($rows),
+            'threads' => $rows,
             'unified' => $unifiedRows,
             // Whether the conversation is still in the list it was acted on
             // from. Archive, trash and restore all move it somewhere else;
@@ -597,6 +698,10 @@ final class BulkStatusController extends AbstractController
             'scope'      => (string) ($body['scope'] ?? ''),
             'value'      => (string) ($body['value'] ?? ''),
             'unreadOnly' => true === ($body['unreadOnly'] ?? false),
+            // What the list on screen held: its emails, in the email list
+            // (#615), or its conversations — "select all, delete" in the
+            // email list must not reach the replies it did not show.
+            'level'      => 'message' === ($body['type'] ?? 'thread') ? ListLevel::Email->value : ListLevel::Conversation->value,
         ];
 
         // The two actions with a payload the worker needs. On the job with the
@@ -618,6 +723,26 @@ final class BulkStatusController extends AbstractController
         return $this->renderTurboStream('mail/_job_started.stream.html.twig', [
             'job' => $job,
         ]);
+    }
+
+    /**
+     * The conversations a selection of emails is in, each once.
+     *
+     * @param list<Message> $emails
+     *
+     * @return list<MessageThread>
+     */
+    private static function threadsOf(array $emails): array
+    {
+        $threads = [];
+
+        foreach ($emails as $email) {
+            if (null !== $email->thread) {
+                $threads[(int) $email->thread->id] = $email->thread;
+            }
+        }
+
+        return array_values($threads);
     }
 
     /**

@@ -19,17 +19,19 @@ use Symfony\Component\HtmlSanitizer\Visitor\AttributeSanitizer\AttributeSanitize
  * mail could cover the composer with a page of its own the moment somebody
  * pressed Reply (issue #34).
  *
- * Two strengths, because the two places differ in what they can afford:
+ * `position: fixed`, `sticky` and `absolute` are dropped everywhere. Fixed and
+ * sticky mean nothing in mail — there is no viewport to be fixed to in a
+ * message. Absolute is dropped because without a positioned ancestor it is placed
+ * against the page, which in the composer is the app, and because in the reading
+ * pane it does the opposite of what the sender meant: generators that lay a mail
+ * out like a print page (Scriptura, for one) put the header banner in an
+ * absolutely positioned box, expecting an engine that reserves its space, and
+ * the text underneath then runs under the picture (issue #626). Gmail drops
+ * `position` too, so the banner lands above the text there.
  *
- *   everywhere   `position: fixed` and `sticky`. Neither means anything in
- *                mail — there is no viewport to be fixed to in a message — so
- *                nothing genuine is lost by dropping them at ingest.
- *
- *   composing    `position: absolute` and `z-index` as well. Absolutely
- *                positioned content with no positioned ancestor is placed
- *                against the page, which in the composer is the app. Some real
- *                newsletters do position absolutely, which is why this half is
- *                not applied to mail that is only being read.
+ * `z-index` is dropped as well where the message sits in the app's own document
+ * (`composing`): the reading pane is a sandboxed frame and it can only stack the
+ * message's own elements.
  *
  * This is one of two layers. The other is in the stylesheets: the composer's
  * editor and the print page's body are containing blocks that clip, so a
@@ -81,7 +83,7 @@ final readonly class EscapingStyleAttributeSanitizer implements AttributeSanitiz
         if ('position' === $property) {
             return true === str_contains($rest, 'fixed')
                 || true === str_contains($rest, 'sticky')
-                || (true === $this->composing && true === str_contains($rest, 'absolute'));
+                || true === str_contains($rest, 'absolute');
         }
 
         return true === $this->composing && 'z-index' === $property;

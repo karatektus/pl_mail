@@ -75,6 +75,12 @@ final readonly class OAuthAccountLinker
 
         if (true === $account->mailEnabled) {
             $this->registerPush($account);
+        }
+
+        // The send-as addresses are what sending offers in From, so an
+        // account connected to send only needs them as much as one that
+        // also receives (#628).
+        if (true === $account->mailEnabled || true === $account->sendEnabled) {
             $this->aliasSeeder->seed($account);
         }
 

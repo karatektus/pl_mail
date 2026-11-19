@@ -79,6 +79,36 @@ class Account extends AccountModel
     #[ORM\Column(options: ['default' => 0])]
     public int $colorIndex = 0;
 
+    /**
+     * A colour of the user's own, as `#rrggbb`, worn instead of the palette
+     * entry while it is set (#638).
+     *
+     * The eight palette entries are chosen to be told apart by most people,
+     * and "most" is the problem: a colour-blind user could not find three of
+     * them that they could tell apart, and had no way to pick one that they
+     * could. So the palette stays the default, and this is the way out of it.
+     *
+     * Beside $colorIndex rather than replacing it. The palette entries are a
+     * light AND a dark shade each, picked per theme; a custom colour is one
+     * value on every theme, which is what the user asked for and what they
+     * check against the contrast readout in the picker. Keeping the index
+     * also means choosing a palette entry again is a plain "clear this", and
+     * nothing that hands out or restores $colorIndex has to know about it.
+     *
+     * Always lower case and always the full six digits: AccountController::
+     * colour() refuses anything else, so a template may print it as a CSS
+     * colour without escaping it into anything but an attribute.
+     */
+    #[ORM\Column(length: 7, nullable: true)]
+    public ?string $customColor = null;
+
+    /**
+     * What $customColor may hold: `#` and six hex digits. Not the three-digit
+     * short form, and not a colour name — one spelling, so two accounts in the
+     * same colour store the same string and the picker can mark which one is on.
+     */
+    public const string CUSTOM_COLOR_PATTERN = '/^#[0-9a-fA-F]{6}$/';
+
     #[ORM\ManyToOne(inversedBy: 'accounts')]
     #[ORM\JoinColumn(nullable: false)]
     public ?User $usr = null;
@@ -139,9 +169,8 @@ class Account extends AccountModel
      * authentication with nothing in the form to put the second password in
      * (#42).
      *
-     * Only the password differs. The username is shared: nobody has asked for
-     * two, and the form stays one field shorter for everyone who has one.
-     * Read through $sendingPassword, never directly, by anything that sends.
+     * The username may differ too, since #660: see $smtpUsername. Read
+     * through $sendingPassword, never directly, by anything that sends.
      */
     #[ORM\Column(type: EncryptedStringType::NAME, nullable: true)]
     public ?string $smtpPassword = null;
@@ -159,6 +188,36 @@ class Account extends AccountModel
         get => null !== $this->smtpPassword && '' !== $this->smtpPassword
             ? $this->smtpPassword
             : $this->password;
+    }
+
+    /**
+     * A username for sending, where SMTP signs in as somebody else than the
+     * mailbox does. Null — again nearly always — means $username (#660).
+     *
+     * A mailbox at one host sending through another host's relay (a web
+     * host's mailbox sent out through a deliverability service, a self-hosted
+     * server sent out through a smarthost) signs in to that relay with an
+     * account of the relay's. #42 gave such an account its own password; the
+     * username stayed shared, so the relay was still asked for the mailbox's
+     * name and refused it.
+     *
+     * Behind the same "different sign-in for sending" switch as the password,
+     * and left blank there it is the account's username: a server that only
+     * wants a second password needs nothing typed twice. Not a secret, so a
+     * plain column. Read through $sendingUsername by anything that sends.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $smtpUsername = null;
+
+    /**
+     * What SMTP signs in as: the sending username if the account has one, the
+     * account's username otherwise. The one place that fallback is written,
+     * for the same reason as $sendingPassword's.
+     */
+    public ?string $sendingUsername {
+        get => null !== $this->smtpUsername && '' !== trim($this->smtpUsername)
+            ? $this->smtpUsername
+            : $this->username;
     }
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -225,8 +284,9 @@ class Account extends AccountModel
     public ?string $exportRefusedReason = null;
 
     /**
-     * Whether plMail talks to the mail server for this account: syncs it,
-     * listens for push, sends from it, and carries changes back (#575).
+     * Whether plMail talks to the incoming mail server for this account: syncs
+     * it, listens for push, and carries changes back (#575). Sending is
+     * $sendEnabled, its own switch since #628.
      *
      * The column that used to be `is_active`, renamed for what it always did —
      * the calendars never read it, so "switched off" only ever meant the mail.
@@ -238,6 +298,19 @@ class Account extends AccountModel
      */
     #[ORM\Column(options: ['default' => true])]
     public bool $mailEnabled = true;
+
+    /**
+     * Whether this account is offered as a sender and whether anything leaves
+     * through it — composed mail, scheduled sends, read receipts (#628).
+     *
+     * Apart from $mailEnabled so either half can exist alone: an SMTP relay
+     * with no mailbox behind it, or a mailbox whose provider offers no SMTP.
+     * Off is not a pause of something queued — a draft that comes due on an
+     * account that cannot send is refused and says why on the draft, as it
+     * did when mail as a whole was off.
+     */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $sendEnabled = true;
 
     /**
      * Whether this account's calendars sync. Off holds them still: the events
@@ -253,7 +326,7 @@ class Account extends AccountModel
     /**
      * The services that are switched on, in AccountService order.
      *
-     * Virtual: it is the three columns above read together, for the places
+     * Virtual: it is the columns above read together, for the places
      * that want them as a set — the OAuth scopes asked for, the health check
      * that measures a grant against what it should cover.
      *
@@ -274,8 +347,36 @@ class Account extends AccountModel
     {
         return match ($service) {
             AccountService::Mail     => $this->mailEnabled,
+            AccountService::Send     => $this->sendEnabled,
             AccountService::Calendar => $this->calendarEnabled,
             AccountService::Contacts => $this->contactsEnabled,
+        };
+    }
+
+    /**
+     * Whether this service needs a server the account has not been given
+     * (#628), so switching it on could only fail.
+     *
+     * Only a password account can be short of one: Gmail and Microsoft find
+     * their own servers. Receiving needs the incoming host. Sending needs the
+     * SMTP host, except on JMAP, whose server takes submissions itself. An
+     * account added to send through a relay has no incoming host, and one
+     * added to read a mailbox may have no SMTP; either has to be completed in
+     * the account form before the other half is switched on.
+     *
+     * Stays a method: it takes the service and answers for it.
+     */
+    public function lacksServerFor(AccountService $service): bool
+    {
+        if (AuthType::Password->value !== $this->authType) {
+            return false;
+        }
+
+        return match ($service) {
+            AccountService::Mail     => null === $this->imapHost || '' === trim($this->imapHost),
+            AccountService::Send     => false === $this->isJmap() && (null === $this->smtpHost || '' === trim($this->smtpHost)),
+            AccountService::Calendar => false,
+            AccountService::Contacts => false,
         };
     }
 
@@ -284,6 +385,7 @@ class Account extends AccountModel
     {
         match ($service) {
             AccountService::Mail     => $this->mailEnabled     = $enabled,
+            AccountService::Send     => $this->sendEnabled     = $enabled,
             AccountService::Calendar => $this->calendarEnabled = $enabled,
             AccountService::Contacts => $this->contactsEnabled = $enabled,
         };

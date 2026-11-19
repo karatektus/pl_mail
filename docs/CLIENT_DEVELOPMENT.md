@@ -262,6 +262,50 @@ every account answers with the same list.
 
 Creating, naming and ordering inboxes, and moving an account between them, is done on the web today.
 
+### Pins (`urn:plmail:params:jmap:pins`)
+
+A pinned conversation or email is drawn at the top of every mailbox list it is in (#654, #615). A
+pin belongs to plMail: no mail server stores it. It is kept where it was made, on a conversation
+(from the conversation list) or on one email (from the email list, see
+[List view](#list-view-urnplmailparamsjmaplistview)), and each list shows both.
+
+- **Keyword `$pinned`** is on an email that is pinned on its own, or that is the newest received
+  email (not filed as Sent or Drafts) of a pinned conversation. So a conversation is pinned when any
+  of its emails carries it: in a conversation list, show it pinned if any of its emails does.
+- **Setting `$pinned`** with `Email/set` pins that email. **Clearing it** takes off whatever pinned
+  that email, the conversation's pin included, as the web's thumbtack does. To unpin a
+  conversation from a conversation list, clear it on every email of it that carries it. The emails
+  whose keyword changes come back in your next `Email/changes`. `hasKeyword: "$pinned"` filters by
+  it.
+- **`Email/query` sort property `pinned`** is 1 for an email carrying `$pinned`. Sort
+  `[{ "property": "pinned", "isAscending": false }, { "property": "receivedAt", "isAscending": false }]`
+  to page a mailbox pinned-first, as the web does; with `collapseThreads` the pinned email
+  represents its conversation.
+- **The capability**, at the top of the Session only, carries the user's choices:
+  `{ reminderAt, durationDays, keepOnMove, pinnedCount }`. `reminderAt` is how many pins the user
+  wants before being asked "pin anyway?" (0 is never). `pinnedCount` is how many they have,
+  conversations and emails together, as of the Session. Ask the question yourself before you set
+  `$pinned`: the server never refuses a pin. `durationDays` (null for forever) is applied by the
+  server when the pin is made.
+- A pin ends on its own after `durationDays`. The server clears ended pins every 15 minutes, and
+  they arrive as `Email/changes` like any other keyword change.
+- A mailbox change made with `Email/set` follows `keepOnMove` for that email's own pin, as a move
+  on the web does. Moving into Trash or Spam always takes the pin off.
+
+### List view (`urn:plmail:params:jmap:listview`)
+
+Whether the user reads mail as conversations or as single emails (#615), switched on the web from
+any list's sort menu or Settings. At the top of the Session only:
+`{ "conversationView": true }`.
+
+- `true`: list with `Email/query` and `collapseThreads: true`, one row per conversation.
+- `false`: list with `collapseThreads: false`, one row per email, and act on that email alone.
+  The mailbox filters already match each email by its own mailboxes, so your own replies are in
+  Sent and not in the Inbox. Unread counts are counted in emails.
+
+Like the other hints at the top of the Session, it is as of the Session: fetch the Session again
+when it changes.
+
 ### Notification settings (`urn:plmail:params:jmap:notifications`)
 
 Which mail is worth a notification, chosen once per **user** and not per device: the same switches
@@ -734,7 +778,7 @@ Everything registered in [`src/Jmap/Method/`](../src/Jmap/Method/):
 | `Core/echo` | |
 | `PushSubscription/get` / `PushSubscription/set` | No `accountId`; per-user. |
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
-| `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
+| `Email/get` / `Email/query` / `Email/changes` / `Email/set` | `/get` carries two plMail extensions, each only when asked for by name: `replyFrom` and `senderPicture`. |
 | `Thread/get` / `Thread/changes` | `/get` carries four plMail extensions: `snoozedUntil`, `category`, `inboxTab`, `isNew`. |
 | `Thread/set` | plMail extension. `snoozedUntil`, `isNew`, `inboxTab`, and the instruction `moveTo` — see [Moving](#moving-threadset-moveto) and §4. |
 | `InboxTab/get` / `InboxTab/changes` | `urn:plmail:params:jmap:inboxtabs`. The user's tabs, the same on every account. See [Inbox tabs](#inbox-tabs-urnplmailparamsjmapinboxtabs). |
@@ -1138,6 +1182,28 @@ that a draft has unsaved changes — a From menu that changes nothing else must 
 - **Check the session first.** A server that knows the property says so with `"draftIdentity": true`
   in the account's `urn:ietf:params:jmap:mail` capability. One that does not refuses the whole
   update patch as `invalidPatch` for naming a property it cannot change, so leave the key out there.
+
+### Sender pictures
+
+`senderPicture` is a second plMail property of `Email/get`: the picture the web shows beside the
+message's sender, as a path on this server, or `null` for initials. It is the web's choice, made by
+the same code: another user's profile picture, a photo on one of the user's contacts, then what the
+server looked up and this user allows (a company's BIMI logo only on a message that passed the
+sender check, Gravatar or Libravatar, a website icon). Ask for it by name; it is left out of a get
+with no `properties`.
+
+```json
+["Email/get", {"accountId": "1", "ids": ["42"], "properties": ["from", "senderPicture"]}, "g"]
+```
+
+```json
+"senderPicture": "/jmap/sender-picture/s678-3f2a9c01b7de"
+```
+
+Fetch it from the server's origin with the same `Authorization` header as every JMAP request. The
+path changes whenever the picture does, so cache the bytes by path for as long as you like. The
+answer is a PNG, a JPEG or WebP (a profile or contact picture), or an SVG (a BIMI logo). A path
+that answers 404 has been replaced; ask `Email/get` again.
 
 ### Templates
 
@@ -1670,7 +1736,12 @@ Ordered roughly by how much users will miss them.
 - Appearance — `Appearance/get` and `Appearance/set` serve the whole object, including `fontFamily`,
   `fontScale`, `previewLines`, `unreadEmphasis`, `actionButtons`, `accountCorner`, `listAvatars`, `tabUnreadCount`, the three
   per-surface densities and the read-only `logoStyle`, `logoMotif` and `logoPaint` (see [§2](#2-look-and-feel)). Build the token system regardless; read the
-  server's values into it rather than inventing your own defaults.
+  server's values into it rather than inventing your own defaults. The five list properties
+  (`previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`, `tabUnreadCount`) are the web's
+  Settings → Inbox → Message list since #608 and are served here unchanged for existing clients;
+  the web's other row options (layout, attachment chips, label placement and so on) are not on the
+  wire. `previewLines` reads 1 for the web's inline preview, and writing the number already stored
+  leaves an inline preview alone.
 - Account list and order.
 - Templates — list, edit and insert them over `Template/*` and `TemplateFolder/*`; see
   [Templates](#templates). Insert through `Template/render`, and ask before sending with a

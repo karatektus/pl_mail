@@ -30,4 +30,12 @@ enum GmailSkipReason: string
      * SyncGmailMessageBatchHandler::mayTakeGmailId().
      */
     case HeldElsewhere = 'held_elsewhere';
+
+    /**
+     * Fetched and built, and refused by the database on its own — after the
+     * batch it came in was refused and split (#674). Something in it does not
+     * fit a column; the error is in the log. `app:gmail:skipped --forget`
+     * asks for it again once that is fixed.
+     */
+    case Unstorable = 'unstorable';
 }

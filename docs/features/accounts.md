@@ -42,6 +42,21 @@ behind it.
 
 See [IMAP and SMTP](../providers/imap-smtp.md) for the settings servers disagree about.
 
+### An account that only sends, or only receives
+
+The **Incoming** and **Outgoing** headings each carry a switch, **Receive mail** and **Send mail**,
+both on. Switch one off and its fields fold away; its server is then not needed. At least one stays
+on.
+
+- **Receive mail** off is for an account that only sends, such as an SMTP relay like SMTP2go, which
+  has no mailbox to read. plMail never tries to sync it, offers it in **From**, and keeps what you
+  send through it under Sent in plMail, since there is no server folder to put a copy in.
+- **Send mail** off is for an account that only receives. It syncs as usual and is not offered in
+  **From**.
+
+The same two switches are on **Edit account**, so either half can be switched on later with its
+server filled in; see [Mail, calendar and contacts](#mail-calendar-and-contacts).
+
 ## Adding a POP3 mailbox
 
 Some providers serve POP3 and SMTP and no IMAP at all. For those, choose **POP3** under **Incoming
@@ -90,8 +105,9 @@ button does anything. Once that is done, **Add account** offers **Continue with 
 **Continue with Microsoft** on the **OAuth** tab, and the whole flow is the provider's own consent
 screen — no password is stored here at all.
 
-Above the two buttons, tick what the account is for: **Mail**, **Calendar** and **Contacts**, all
-three by default. The consent screen then asks only for those. A Google account connected for its
+Above the two buttons, tick what the account is for: **Receive mail**, **Send mail**, **Calendar**
+and **Contacts**, all four by default. Sending asks Google or Microsoft for the same permission as
+receiving. The consent screen then asks only for those. A Google account connected for its
 calendar alone is never asked for access to its mail, and does not show up in the mail sidebar. You
 can switch the others on later; see [Mail, calendar and contacts](#mail-calendar-and-contacts).
 
@@ -138,18 +154,26 @@ and it is **not** a status light. Whether an account is actually working is answ
 
 You change it with the coloured swatch on the account's row, which opens the palette of eight.
 That control is on **every** account, Gmail and Outlook ones included, which is why it is not a
-field in **Edit account**: that form is closed to them. The sidebar dot changes at once, and every
-list you open afterwards wears the new colour on that account's messages; a list already open in
-another tab repaints when it reloads. Choosing a colour another account already wears is allowed,
-so two accounts can be made a pair.
+field in **Edit account**: that form is closed to them. Picking a colour previews it on the button
+and the sidebar dot; **Save** keeps it, and **Cancel**, Escape or a click elsewhere puts the old
+one back. Every list you open afterwards wears the new colour on that account's messages; a list
+already open in another tab repaints when it reloads. Choosing a colour another account already
+wears is allowed, so two accounts can be made a pair.
+
+If the eight are hard to tell apart for you, the ninth swatch is a **custom colour**: pick one with
+the colour well or type its hex code (`#0072b2`, with or without the `#`). A custom colour is one
+value on every theme, where each of the eight has a light and a dark shade, so the menu shows its
+contrast against your current theme's background and against plain light and dark ones (the current
+row is left out when your theme is one of those two). Below 3:1 a row says the colour is faint
+there; you can still save it. Choosing one of the eight again goes back to the palette.
 
 Each row offers:
 
 | Control | Effect |
 |---|---|
-| **Colour swatch** | Opens the palette; the colour you pick is the account's from then on — on any account |
+| **Colour swatch** | Opens the palette and a custom colour; the colour you save is the account's from then on — on any account |
 | **Make primary** | Sends new messages from this account by default — on any row but the primary's |
-| **Mail, calendar and contacts** (switch icon) | Switches each of the three on or off for this account, and removes synced mail while mail is off; see [Mail, calendar and contacts](#mail-calendar-and-contacts) |
+| **Mail, calendar and contacts** (switch icon) | Switches receiving, sending, calendar and contacts on or off for this account, and removes synced mail while receiving is off; see [Mail, calendar and contacts](#mail-calendar-and-contacts) |
 | **Edit account** | Server settings and password — password accounts only |
 | **Folders** | The account's IMAP folders: switch each on or off, and make, rename or delete your own — IMAP accounts only; see [Folders](#folders) |
 | **Follow Outlook categories** (tags icon) | Off by default; on, a category put on or taken off in Outlook puts the label on or takes it off here — Microsoft accounts only; see [Labels as Outlook categories](#labels-as-outlook-categories) |
@@ -163,6 +187,15 @@ Removing an account deletes its synced mail from plMail's database and nothing a
 also tries to tear down any push registration it had, so nothing is left pointing at an account
 that no longer exists.
 
+Removing runs in the background, because a large mailbox takes longer to delete than a page request
+is allowed to last. As soon as you confirm, every service of the account is switched off, so it
+stops syncing and sending, and the primary moves to another account if it has to. The row stays
+in the list, greyed out with nothing to press, and shows how many messages are gone so far; the
+same progress shows under **Background work** in the top bar. The row disappears when the account is
+gone. If the removal fails, the indicator says why, and the account comes back as an ordinary row
+with its services off and part of its mail removed; pressing **Remove account** again continues
+from there.
+
 Anything else that takes a registration away now hands it back to the provider the same way —
 deleting a calendar, unticking one, disconnecting a connection, and an administrator's data reset.
 The attempt is best-effort: a provider that refuses, that has already expired the channel, or that
@@ -174,33 +207,39 @@ On the edit form, leaving the password field blank keeps the stored one.
 
 ### Mail, calendar and contacts
 
-Each account is used for up to three things — its mail, its calendars and its contacts — and each
-is switched on or off on its own, from the switch icon on the account's row. All three are on for
-an account you add, unless you untick some when connecting Gmail or Outlook.
+Each account is used for up to four things — receiving mail, sending mail, its calendars and its
+contacts — and each is switched on or off on its own, from the switch icon on the account's row.
+All four are on for an account you add, except what you switch off on the form or untick when
+connecting Gmail or Outlook.
 
 Switching something off stops plMail talking to the server about it, in both directions. It never
 removes what is already here:
 
 | Switched off | What stops | What stays |
 |---|---|---|
-| **Mail** | Syncing, push, sending from the account, and every change going back to the server — read, archive, move, delete, folders | The mail already synced. The account stays in the sidebar while it holds any, and its own pages list it; the unified inboxes, badge counts, search across accounts and new-mail notifications leave it out |
+| **Receive mail** | Syncing, push, and every change going back to the server — read, archive, move, delete, folders | The mail already synced. The account stays in the sidebar while it holds any, and its own pages list it; the unified inboxes, badge counts, search across accounts and new-mail notifications leave it out |
+| **Send mail** | The account in **From**, and everything going out through it — mail you send, scheduled sends that come due, read receipts | Drafts. A scheduled message that comes due is marked as not sent, with the reason |
 | **Calendar** | Syncing the account's calendars | Their events. An edit made meanwhile waits, and goes out when you switch the calendar back on |
 | **Contacts** | Syncing the account's address books | Their contacts. An edit waits the same way; a contact deleted outright comes back with the first sync |
 
-Changes you make to mail while it is off stay in plMail. When you switch mail back on, the next sync
-reads the server again, and where the two disagree the server wins.
+Changes you make to mail while receiving is off stay in plMail. When you switch it back on, the next
+sync reads the server again, and where the two disagree the server wins.
 
-An account whose mail is off cannot be the one new mail is sent from. If it was the primary, the
-primary moves to the first account whose mail is on.
+An account whose sending is off cannot be the one new mail is sent from. If it was the primary, the
+primary moves to the first account that sends.
+
+A password account that was never given a server for one half — no incoming server on a relay, no
+SMTP server on a mailbox without one — shows **Set up…** instead of that switch. It opens the
+account form, where the half has the same switch; switch it on, fill in the server and save.
 
 On a Gmail or Outlook account, switching on something the account was not connected for needs
 the provider's permission first. The switch then says **Allow…** and opens the provider's consent
 screen; when you come back, it is on.
 
-**Remove synced mail from plMail** appears under the switches while mail is off. It deletes this
+**Remove synced mail from plMail** appears under the switches while receiving is off. It deletes this
 account's mail from plMail's database — threads, messages, attachments — and nothing on the server,
-whether mail is on or off. It runs in the background. Folders and labels stay. If you switch mail
-back on afterwards, plMail downloads the mailbox again from the start.
+whether receiving is on or off. It runs in the background. Folders and labels stay. If you switch
+receiving back on afterwards, plMail downloads the mailbox again from the start.
 
 ## Per-account settings
 

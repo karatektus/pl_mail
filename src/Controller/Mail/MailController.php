@@ -20,6 +20,7 @@ use App\Repository\Insight\MailInsight\MailInsightRepository;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageListRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
@@ -29,10 +30,12 @@ use App\Service\Ai\ThreadSummaryStore;
 use App\Service\Ai\ThreadTranscript;
 use App\Service\Mail\BinView;
 use App\Service\Mail\InboxTabs;
+use App\Service\Mail\MailLists;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\NewMailMarkers;
 use App\Service\Mail\SidebarCounts;
 use App\Service\Mail\ThreadListRenderer;
+use App\Service\Mail\SenderPicture\SenderPictures;
 use App\Service\Mail\ThreadRows;
 use App\Service\Mail\ThreadSenderFacts;
 use App\Service\Mail\UnifiedInboxes;
@@ -59,7 +62,6 @@ final class MailController extends AbstractController
     public function __construct(
         private readonly MailboxRepository $mailboxRepository,
         private readonly MessageRepository $messageRepository,
-        private readonly MessageThreadRepository $threadRepository,
         private readonly MessageThreadBadgeRepository $messageThreadBadgeRepository,
         private readonly LabelRepository $labelRepository,
         private readonly AccountRepository $accountRepository,
@@ -75,8 +77,40 @@ final class MailController extends AbstractController
         private readonly BinView $bin,
         private readonly UnifiedInboxes $unifiedInboxes,
         private readonly NewMailMarkers $newMail,
+        private readonly SenderPictures $senderPictures,
+        private readonly MailLists $mailLists,
     )
     {
+    }
+
+    /**
+     * The reader's lists: conversations, or one row per email when they have
+     * switched conversation view off (#615). Both answer the same methods, so
+     * every list action below reads the same either way.
+     */
+    private function lists(): MessageThreadRepository|MessageListRepository
+    {
+        $user = $this->getUser();
+
+        if (false === $user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        return $this->mailLists->for($user);
+    }
+
+    /**
+     * What a page of rows reads besides the rows, for either kind of row.
+     *
+     * @param list<MessageThread>|list<Message> $rows
+     */
+    private function preloadRows(array $rows): void
+    {
+        $threads = array_values(array_filter($rows, static fn (object $row): bool => $row instanceof MessageThread));
+        $emails  = array_values(array_filter($rows, static fn (object $row): bool => $row instanceof Message));
+
+        $this->threadRows->preload($threads);
+        $this->threadRows->preloadEmails($emails);
     }
 
     /**
@@ -303,12 +337,12 @@ final class MailController extends AbstractController
         //
         // Not made without tabs: there is no strip to decide the shape of and
         // no icon to tint, and the one list's total is a single count.
-        $tabCounts = $tabbed ? $this->threadRepository->countTabsForUnifiedInbox($user, $accountIds) : null;
+        $tabCounts = $tabbed ? $this->lists()->countTabsForUnifiedInbox($user, $accountIds) : null;
         $tabTotals = $tabCounts['threads'] ?? [];
         $tabUnread = $tabCounts['unread'] ?? [];
 
         $total = null === $tab
-            ? $this->threadRepository->countForUnifiedInbox($user, null, $unreadOnly, $accountIds)
+            ? $this->lists()->countForUnifiedInbox($user, null, $unreadOnly, $accountIds)
             : (true === $unreadOnly ? $tabUnread : $tabTotals)[$tab->value] ?? 0;
         $page  = $this->pageOrRedirect($request, $total);
 
@@ -317,7 +351,7 @@ final class MailController extends AbstractController
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForUnifiedInbox($user, $tab, $page, self::PER_PAGE, $sort, $unreadOnly, $accountIds);
+        $threads = $this->lists()->findForUnifiedInbox($user, $tab, $page, self::PER_PAGE, $sort, $unreadOnly, $accountIds);
 
         // Which tabs the strip shows is visibleTabs()' rule, which the account
         // page draws its own strip by as well.
@@ -340,7 +374,7 @@ final class MailController extends AbstractController
             static fn (InboxTab $case): bool => false === in_array($case->value, $shownKeys, true),
         ));
 
-        $this->threadRows->preload($threads);
+        $this->preloadRows($threads);
 
         return $this->renderList($request, 'mail/inbox.html.twig', $threads, [
             'unified_inbox' => $unified,
@@ -458,7 +492,7 @@ final class MailController extends AbstractController
     {
         $account    = $this->requestedAccount($request);
         $unreadOnly = $this->unreadOnly($request);
-        $total      = $this->threadRepository->countForLabel($label, $account, $unreadOnly);
+        $total      = $this->lists()->countForLabel($label, $account, $unreadOnly);
         $page       = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
@@ -466,9 +500,9 @@ final class MailController extends AbstractController
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForLabel($label, $account, $page, self::PER_PAGE, $sort, $unreadOnly);
+        $threads = $this->lists()->findForLabel($label, $account, $page, self::PER_PAGE, $sort, $unreadOnly);
 
-        $this->threadRows->preload($threads);
+        $this->preloadRows($threads);
 
         return $this->renderList($request, 'mail/label.html.twig', $threads, [
             'label'       => $label,
@@ -568,7 +602,16 @@ final class MailController extends AbstractController
             : null;
         $tabbed = null !== $tab;
 
-        $total   = $this->threadRepository->countForAccountInbox($account, $tab);
+        // `?unread=1` is what a tab's unread count opens (#670), and the
+        // toolbar's "Show all" takes it off again, as on the unified inbox.
+        $unreadOnly = $this->unreadOnly($request);
+
+        // Every tab's total, for which tabs exist, and every tab's unread, for
+        // the numbers on them — one grouped read of THIS account's inbox, like
+        // countTabsForUnifiedInbox() on the unified one. Not made without tabs.
+        $tabCounts = $tabbed ? $this->lists()->countTabsForAccountInbox($account) : null;
+
+        $total   = $this->lists()->countForAccountInbox($account, $tab, $unreadOnly);
         $page    = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
@@ -576,29 +619,33 @@ final class MailController extends AbstractController
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForAccountInbox($account, $page, self::PER_PAGE, $sort, $tab);
+        $threads = $this->lists()->findForAccountInbox($account, $page, self::PER_PAGE, $sort, $tab, $unreadOnly);
 
         // Which tabs exist comes from THIS account's mail. The "new" pills and
         // the unread tint the unified inbox draws on them are not passed on
         // purpose: they are summed across every account, and the sidebar
         // controller rewrites them from that same payload, so on this page
-        // they would be wrong and then overwritten with the wrong thing.
+        // they would be wrong and then overwritten with the wrong thing. The
+        // unread NUMBERS are this account's own (#670) and carry no key the
+        // sidebar controller patches; the strip is re-rendered with the list.
         $tabs = $this->visibleTabs(
             $tabbed && $user instanceof User ? $this->inboxTabs->allFor($user) : [],
             $tab,
-            $tabbed ? $this->threadRepository->countByCategoryForAccountInbox($account) : [],
+            $tabCounts['threads'] ?? [],
         );
 
-        $this->threadRows->preload($threads);
+        $this->preloadRows($threads);
 
         return $this->renderList($request, 'mail/account.html.twig', $threads, [
-            'account'   => $account,
-            'tab'       => $tab,
-            'tabs'      => $tabs,
-            'page'      => $page,
-            'total'     => $total,
-            'per_page'  => self::PER_PAGE,
-            'list_sort' => $sort,
+            'account'     => $account,
+            'tab'         => $tab,
+            'tabs'        => $tabs,
+            'tab_unread'  => $tabCounts['unread'] ?? [],
+            'page'        => $page,
+            'total'       => $total,
+            'per_page'    => self::PER_PAGE,
+            'list_sort'   => $sort,
+            'unread_only' => $unreadOnly,
         ]);
     }
 
@@ -616,7 +663,7 @@ final class MailController extends AbstractController
         /** @var User $user */
         $user       = $this->getUser();
         $unreadOnly = $this->unreadOnly($request);
-        $total      = $this->threadRepository->countForUnifiedAllMail($user, $unreadOnly);
+        $total      = $this->lists()->countForUnifiedAllMail($user, $unreadOnly);
         $page       = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
@@ -624,9 +671,9 @@ final class MailController extends AbstractController
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForUnifiedAllMail($user, $page, self::PER_PAGE, $sort, $unreadOnly);
+        $threads = $this->lists()->findForUnifiedAllMail($user, $page, self::PER_PAGE, $sort, $unreadOnly);
 
-        $this->threadRows->preload($threads);
+        $this->preloadRows($threads);
 
         return $this->renderList($request, 'mail/unified_all_mail.html.twig', $threads, [
             'page'        => $page,
@@ -648,7 +695,7 @@ final class MailController extends AbstractController
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         $unreadOnly = $this->unreadOnly($request);
-        $total      = $this->threadRepository->countForAccountAllMail($account, $unreadOnly);
+        $total      = $this->lists()->countForAccountAllMail($account, $unreadOnly);
         $page       = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
@@ -656,9 +703,9 @@ final class MailController extends AbstractController
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForAccountAllMail($account, $page, self::PER_PAGE, $sort, $unreadOnly);
+        $threads = $this->lists()->findForAccountAllMail($account, $page, self::PER_PAGE, $sort, $unreadOnly);
 
-        $this->threadRows->preload($threads);
+        $this->preloadRows($threads);
 
         return $this->renderList($request, 'mail/all_mail.html.twig', $threads, [
             'account'     => $account,
@@ -675,7 +722,7 @@ final class MailController extends AbstractController
     {
         $user       = $this->getUser();
         $unreadOnly = $this->unreadOnly($request);
-        $total      = $this->threadRepository->countForStarred($user, $unreadOnly);
+        $total      = $this->lists()->countForStarred($user, $unreadOnly);
         $page       = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
@@ -683,9 +730,9 @@ final class MailController extends AbstractController
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForStarred($user, $page, self::PER_PAGE, $sort, $unreadOnly);
+        $threads = $this->lists()->findForStarred($user, $page, self::PER_PAGE, $sort, $unreadOnly);
 
-        $this->threadRows->preload($threads);
+        $this->preloadRows($threads);
 
         return $this->renderList($request, 'mail/starred.html.twig', $threads, [
             'page'        => $page,
@@ -707,7 +754,7 @@ final class MailController extends AbstractController
     public function unread(Request $request): Response
     {
         $user  = $this->getUser();
-        $total = $this->threadRepository->countForUnread($user);
+        $total = $this->lists()->countForUnread($user);
         $page  = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
@@ -715,9 +762,9 @@ final class MailController extends AbstractController
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForUnread($user, $page, self::PER_PAGE, $sort);
+        $threads = $this->lists()->findForUnread($user, $page, self::PER_PAGE, $sort);
 
-        $this->threadRows->preload($threads);
+        $this->preloadRows($threads);
 
         return $this->renderList($request, 'mail/unread.html.twig', $threads, [
             'page'      => $page,
@@ -795,7 +842,7 @@ final class MailController extends AbstractController
     {
         $user       = $this->getUser();
         $unreadOnly = $this->unreadOnly($request);
-        $total      = $this->threadRepository->countForRole($user, $role, $unreadOnly);
+        $total      = $this->lists()->countForRole($user, $role, $unreadOnly);
         $page       = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
@@ -803,9 +850,9 @@ final class MailController extends AbstractController
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForRole($user, $role, $page, self::PER_PAGE, $sort, $unreadOnly);
+        $threads = $this->lists()->findForRole($user, $role, $page, self::PER_PAGE, $sort, $unreadOnly);
 
-        $this->threadRows->preload($threads);
+        $this->preloadRows($threads);
 
         return $this->renderList($request, $template, $threads, [
             'page'        => $page,
@@ -1018,7 +1065,7 @@ final class MailController extends AbstractController
 
         $newMail->scopeTabsTo($stripInbox);
 
-        $tabUnread  = $tabbed ? $this->threadRepository->countUnreadByCategoryForUnifiedInbox($countsUser, $stripAccounts) : [];
+        $tabUnread  = $tabbed ? $this->lists()->countUnreadByCategoryForUnifiedInbox($countsUser, $stripAccounts) : [];
 
         // One badge and one dot per unified inbox in the sidebar, keyed by
         // its id. `role:inbox` stays below as well: the browser title counts
@@ -1090,6 +1137,15 @@ final class MailController extends AbstractController
 
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
+        // From the email list (#615): the conversation's pane over this one
+        // email, with the toolbar, the reply and the way to the rest of the
+        // conversation that the email deserves when it is what a row opens.
+        $user = $this->getUser();
+
+        if ($user instanceof User && false === $user->conversationView) {
+            return $this->renderConversation($request, $thread, $this->messageRepository->forThreadViewOf($message), $message);
+        }
+
         // The conversation's insight cards, drawn above the body — one indexed
         // read by thread, empty for almost every thread and cheap when it is.
         $insights = $this->insightCards($thread);
@@ -1135,7 +1191,20 @@ final class MailController extends AbstractController
         // forThreadView(): the same list with each message's labels and parts
         // loaded alongside, so the pane does not lazy-load them one by one.
         $messages = $this->side($this->messageRepository->forThreadView($thread));
-        $latest   = [] === $messages ? null : $messages[array_key_last($messages)];
+
+        return $this->renderConversation($request, $thread, $messages);
+    }
+
+    /**
+     * The reading pane over some emails of a conversation: all of it on its
+     * side of the bin (thread()), or one email opened from the email list
+     * (#615), whose toolbar then acts on that email alone.
+     *
+     * @param list<Message> $messages
+     */
+    private function renderConversation(Request $request, MessageThread $thread, array $messages, ?Message $email = null): Response
+    {
+        $latest = [] === $messages ? null : $messages[array_key_last($messages)];
 
         // The allowlist and correspondent checks every message's render asks,
         // answered for the whole conversation in two reads.
@@ -1144,6 +1213,10 @@ final class MailController extends AbstractController
         if ($user instanceof User) {
             $this->senderFacts->prime($user, $messages);
         }
+
+        // And every sender's picture (#639), in one read per source rather
+        // than a few per message header.
+        $this->senderPictures->preload(array_map(static fn (Message $message): ?string => $message->fromAddress, $messages));
 
         // Same read as message() above, for the same card in the same place.
         $insights = $this->insightCards($thread);
@@ -1157,16 +1230,18 @@ final class MailController extends AbstractController
                 'latest'   => $latest,
                 'insights' => $insights,
                 'summary'  => $summary,
+                'email'    => $email,
             ]);
         }
 
         return $this->render('mail/thread.html.twig', [
             'thread'   => $thread,
-            'account'  => $account,
+            'account'  => $thread->account,
             'messages' => $messages,
             'latest'   => $latest,
             'insights' => $insights,
             'summary'  => $summary,
+            'email'    => $email,
         ]);
     }
 

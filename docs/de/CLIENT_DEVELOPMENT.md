@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:6fdd29f9b66c78b052193cdf5c7bd33cc52bc324 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:d67fc7d04239b813f83582196f538250edb63246 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -290,6 +290,54 @@ Posteingang tragen kann), und an jedem Konto; jedes Konto antwortet mit derselbe
   ohne Änderung hier: Hol die Posteingänge neu, wenn sich die Konten der Session ändern.
 
 Posteingänge anlegen, benennen, anordnen und Konten zwischen ihnen verschieben geht heute im Web.
+
+### Anheftungen (`urn:plmail:params:jmap:pins`)
+
+Eine angeheftete Konversation oder E-Mail steht oben in jeder Postfachliste, in der sie vorkommt
+(#654, #615). Eine Anheftung gehört plMail: Kein Mailserver speichert sie. Sie bleibt dort, wo sie
+gemacht wurde, an einer Konversation (aus der Konversationsliste) oder an einer E-Mail (aus der
+E-Mail-Liste, siehe [Listenansicht](#listenansicht-urnplmailparamsjmaplistview)), und jede Liste
+zeigt beide.
+
+- **Das Keyword `$pinned`** steht an einer E-Mail, die selbst angeheftet ist oder die neueste
+  empfangene E-Mail (nicht unter Gesendet oder Entwürfe abgelegt) einer angehefteten Konversation
+  ist. Eine Konversation ist also angeheftet, wenn eine ihrer E-Mails es trägt: Zeig sie in einer
+  Konversationsliste angeheftet, sobald eine ihrer E-Mails es hat.
+- **`$pinned` setzen** per `Email/set` heftet diese E-Mail an. **Es löschen** löst alles, was diese
+  E-Mail angeheftet hat, auch die Anheftung der Konversation, wie die Reißzwecke im Web. Um eine
+  Konversation aus einer Konversationsliste zu lösen, lösche es an jeder ihrer E-Mails, die es
+  trägt. Die E-Mails, deren Keyword sich ändert, kommen bei deinem nächsten `Email/changes`.
+  `hasKeyword: "$pinned"` filtert danach.
+- **Die Sortiereigenschaft `pinned` für `Email/query`** ist 1 für eine E-Mail mit `$pinned`.
+  Sortiere nach
+  `[{ "property": "pinned", "isAscending": false }, { "property": "receivedAt", "isAscending": false }]`,
+  um ein Postfach wie im Web mit den Anheftungen zuerst durchzublättern; mit `collapseThreads` steht
+  die angeheftete E-Mail für ihre Konversation.
+- **Die Capability**, nur oben in der Session, trägt die Einstellungen des Nutzers:
+  `{ reminderAt, durationDays, keepOnMove, pinnedCount }`. `reminderAt` sagt, ab wie vielen
+  Anheftungen der Nutzer „Trotzdem anheften?“ gefragt werden will (0 heißt nie). `pinnedCount` sagt,
+  wie viele er hat, Konversationen und E-Mails zusammen, Stand der Session. Stell die Frage selbst,
+  bevor du `$pinned` setzt: Der Server lehnt nie eine Anheftung ab. `durationDays` (null für für
+  immer) wendet der Server an, wenn die Anheftung entsteht.
+- Eine Anheftung läuft nach `durationDays` von selbst ab. Der Server räumt abgelaufene alle 15
+  Minuten ab, und sie kommen als `Email/changes` wie jede andere Keyword-Änderung.
+- Eine Postfachänderung per `Email/set` folgt für die eigene Anheftung dieser E-Mail
+  `keepOnMove`, wie ein Verschieben im Web. In Papierkorb oder Spam verschieben löst die Anheftung
+  immer.
+
+### Listenansicht (`urn:plmail:params:jmap:listview`)
+
+Ob der Nutzer Mail als Konversationen oder als einzelne E-Mails liest (#615), im Web umgeschaltet über
+das Sortiermenü jeder Liste oder die Einstellungen. Nur oben in der Session:
+`{ "conversationView": true }`.
+
+- `true`: Liste mit `Email/query` und `collapseThreads: true`, eine Zeile pro Konversation.
+- `false`: Liste mit `collapseThreads: false`, eine Zeile pro E-Mail, und handle nur an dieser
+  E-Mail. Die Postfachfilter prüfen jede E-Mail schon an ihren eigenen Postfächern, deine eigenen
+  Antworten stehen also unter Gesendet und nicht im Posteingang. Ungelesenes wird in E-Mails gezählt.
+
+Wie die anderen Hinweise oben in der Session gilt er mit Stand der Session: Hol die Session neu,
+wenn er sich ändert.
 
 ### Benachrichtigungs-Einstellungen (`urn:plmail:params:jmap:notifications`)
 
@@ -805,7 +853,7 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `Core/echo` | |
 | `PushSubscription/get` / `PushSubscription/set` | Keine `accountId`; je Nutzerin. |
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
-| `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
+| `Email/get` / `Email/query` / `Email/changes` / `Email/set` | `/get` hat zwei plMail-Erweiterungen, jede nur, wenn sie mit Namen abgefragt wird: `replyFrom` und `senderPicture`. |
 | `Thread/get` / `Thread/changes` | `/get` trägt vier plMail-Erweiterungen: `snoozedUntil`, `category`, `inboxTab`, `isNew`. |
 | `Thread/set` | plMail-Erweiterung. `snoozedUntil`, `isNew`, `inboxTab` und die Anweisung `moveTo` — siehe [Verschieben](#verschieben-threadset-moveto) und §4. |
 | `InboxTab/get` / `InboxTab/changes` | `urn:plmail:params:jmap:inboxtabs`. Die Tabs der Nutzerin, an jedem Konto dieselben. Siehe [Posteingangs-Tabs](#posteingangs-tabs-urnplmailparamsjmapinboxtabs). |
@@ -1250,6 +1298,28 @@ Von-Auswahlfeld, das sonst nichts ändert, muss trotzdem speichern.
   `"draftIdentity": true` in der `urn:ietf:params:jmap:mail`-Capability des Kontos. Einer, der sie
   nicht kennt, lehnt den ganzen Update-Patch als `invalidPatch` ab, weil er eine Eigenschaft nennt,
   die er nicht ändern kann — lass den Schlüssel dort also weg.
+
+### Absenderbilder
+
+`senderPicture` ist eine zweite plMail-Eigenschaft von `Email/get`: das Bild, das das Web neben dem
+Absender der Nachricht zeigt, als Pfad auf diesem Server, oder `null` für Initialen. Es ist die Wahl
+des Webs, getroffen vom selben Code: das Profilbild eines anderen Benutzers, ein Foto an einem der
+Kontakte des Benutzers, dann was der Server nachgeschlagen hat und dieser Benutzer erlaubt (das
+BIMI-Logo einer Firma nur an einer Nachricht, die die Absenderprüfung bestanden hat, Gravatar oder
+Libravatar, ein Website-Symbol). Frag es mit Namen ab; ohne `properties` wird es weggelassen.
+
+```json
+["Email/get", {"accountId": "1", "ids": ["42"], "properties": ["from", "senderPicture"]}, "g"]
+```
+
+```json
+"senderPicture": "/jmap/sender-picture/s678-3f2a9c01b7de"
+```
+
+Lade es vom Origin des Servers mit demselben `Authorization`-Header wie jede JMAP-Anfrage. Der Pfad
+ändert sich, wann immer sich das Bild ändert, also darfst du die Bytes beliebig lange nach Pfad
+cachen. Die Antwort ist ein PNG, ein JPEG oder WebP (ein Profil- oder Kontaktbild) oder ein SVG (ein
+BIMI-Logo). Ein Pfad, der mit 404 antwortet, wurde ersetzt; frag `Email/get` erneut.
 
 ### Vorlagen
 
@@ -1835,7 +1905,13 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
   `fontFamily`, `fontScale`, `previewLines`, `unreadEmphasis`, `actionButtons`, `accountCorner`, `listAvatars`, `tabUnreadCount`,
   den drei Dichten pro Oberfläche und den nur lesbaren `logoStyle`, `logoMotif` und `logoPaint`
   (siehe [§2](#2-aussehen-und-verhalten)). Bau das Token-System
-  trotzdem; lies die Werte des Servers hinein, statt eigene Vorgaben zu erfinden.
+  trotzdem; lies die Werte des Servers hinein, statt eigene Vorgaben zu erfinden. Die fünf
+  Listen-Eigenschaften (`previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`,
+  `tabUnreadCount`) gehören seit #608 zur Web-Seite Einstellungen → Posteingang → Nachrichtenliste
+  und werden hier für bestehende Clients unverändert ausgeliefert; die übrigen Zeilen-Optionen des
+  Webs (Aufbau, Anhang-Chips, Platz der Labels und so weiter) sind nicht auf der Leitung.
+  `previewLines` liest für die Inline-Vorschau des Webs 1, und die bereits gespeicherte Zahl zu
+  schreiben lässt eine Inline-Vorschau in Ruhe.
 - Kontoliste und -reihenfolge.
 - Vorlagen — auflisten, bearbeiten und einfügen über `Template/*` und `TemplateFolder/*`; siehe
   [Vorlagen](#vorlagen). Füg über `Template/render` ein und frag vor dem Senden nach, solange eine

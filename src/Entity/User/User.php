@@ -14,6 +14,7 @@ use App\Domain\Enum\Crypto\KeyringRoot;
 use App\Domain\Enum\Mail\ComposeAction;
 use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SearchSortOrder;
+use App\Domain\Enum\Mail\SenderPictureKind;
 use App\Domain\Enum\Mail\SidebarRow;
 use App\Domain\Enum\Mail\SwipeAction;
 use App\Domain\Enum\Mail\SwipeDirection;
@@ -24,6 +25,7 @@ use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Embeddable\AiPreferences;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\Embeddable\CategorySorting;
+use App\Entity\Embeddable\MessageList;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Repository\User\User\UserRepository;
@@ -108,6 +110,10 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     #[ORM\Embedded(class: Appearance::class, columnPrefix: 'appearance_')]
     public private(set) Appearance $appearance;
+
+    /** What a row in the message list shows (#608); see MessageList. */
+    #[ORM\Embedded(class: MessageList::class, columnPrefix: 'message_list_')]
+    public private(set) MessageList $messageList;
 
     /**
      * What this person has decided about the AI features an administrator
@@ -465,6 +471,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         $this->updatedAt = new \DateTimeImmutable();
         $this->accounts = new ArrayCollection();
         $this->appearance = new Appearance();
+        $this->messageList = new MessageList();
         $this->aiPreferences = new AiPreferences();
         $this->categorySorting = new CategorySorting();
     }
@@ -1336,6 +1343,94 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public const string SETTING_DISPOSAL_DELETE_NOW = 'disposal.delete_now';
 
+    /**
+     * Pinned conversations (#654), three keys in the bag: no column and no
+     * migration for a choice about how this person's lists behave.
+     *
+     * - reminder_at: how many pins before pinning asks "pin anyway?". A
+     *   reminder, never a limit; 0 switches it off.
+     * - duration_days: how long a new pin lasts; absent for forever.
+     * - keep_on_move: whether a pin survives the conversation being moved or
+     *   archived; absent for yes. Stored only when switched off, so the bag
+     *   carries nothing for anybody on the default.
+     */
+    public const string SETTING_PIN_REMINDER_AT = 'pins.reminder_at';
+    public const string SETTING_PIN_DURATION_DAYS = 'pins.duration_days';
+    public const string SETTING_PIN_KEEP_ON_MOVE = 'pins.keep_on_move';
+
+    /**
+     * Whether the lists show conversations or single emails (#615). Absent
+     * for conversations, the default; a stored false lists one row per email.
+     * A display preference switched from the list toolbar as often as from
+     * Settings, so in the bag like the rest of them.
+     */
+    public const string SETTING_CONVERSATION_VIEW = 'list.conversations';
+
+    /** Twenty: about a screenful of rows, past which the top of a list is no longer "the few I need". */
+    public const int PIN_REMINDER_DEFAULT = 20;
+
+    /**
+     * The longest a pin may be set to last: ten years, which is forever by
+     * another name, and keeps the end date a date the database can hold.
+     */
+    public const int PIN_DURATION_MAX_DAYS = 3650;
+
+    /** The reminder can go this high; past it, "off" is the honest setting. */
+    public const int PIN_REMINDER_MAX = 999;
+
+    /** Virtual, out of the settings bag — see SETTING_PIN_REMINDER_AT. Anything unreadable is the default. */
+    public int $pinReminderAt {
+        get {
+            $stored = $this->getSetting(self::SETTING_PIN_REMINDER_AT);
+
+            if (false === is_int($stored) || $stored < 0 || $stored > self::PIN_REMINDER_MAX) {
+                return self::PIN_REMINDER_DEFAULT;
+            }
+
+            return $stored;
+        }
+        set(int $count) {
+            $count = max(0, min(self::PIN_REMINDER_MAX, $count));
+
+            $this->setSetting(self::SETTING_PIN_REMINDER_AT, self::PIN_REMINDER_DEFAULT === $count ? null : $count);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_PIN_DURATION_DAYS. Null is forever. */
+    public ?int $pinDurationDays {
+        get {
+            $stored = $this->getSetting(self::SETTING_PIN_DURATION_DAYS);
+
+            if (false === is_int($stored) || $stored < 1 || $stored > self::PIN_DURATION_MAX_DAYS) {
+                return null;
+            }
+
+            return $stored;
+        }
+        set(?int $days) {
+            $this->setSetting(
+                self::SETTING_PIN_DURATION_DAYS,
+                null === $days ? null : max(1, min(self::PIN_DURATION_MAX_DAYS, $days)),
+            );
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_PIN_KEEP_ON_MOVE. On unless switched off. */
+    public bool $pinKeepOnMove {
+        get => false !== $this->getSetting(self::SETTING_PIN_KEEP_ON_MOVE, true);
+        set(bool $keep) {
+            $this->setSetting(self::SETTING_PIN_KEEP_ON_MOVE, $keep ? null : false);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CONVERSATION_VIEW. On unless switched off. */
+    public bool $conversationView {
+        get => false !== $this->getSetting(self::SETTING_CONVERSATION_VIEW, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CONVERSATION_VIEW, $on ? null : false);
+        }
+    }
+
     /** Virtual, out of the settings bag — see SETTING_DISPOSAL_DELETE_NOW. */
     public bool $deleteNowButtons {
         get => true === $this->getSetting(self::SETTING_DISPOSAL_DELETE_NOW, false);
@@ -1586,6 +1681,70 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         get => true === $this->getSetting(self::SETTING_IMAGES_ALWAYS_SHOW, false);
         set(bool $on) {
             $this->setSetting(self::SETTING_IMAGES_ALWAYS_SHOW, $on ? true : null);
+        }
+    }
+
+    /**
+     * Which looked-up sender pictures this reader wants (#639), kind value =>
+     * on/off, out of the settings bag. Only what differs from the kind's own
+     * default is stored — see SenderPictureKind::onByDefault() for why
+     * Gravatar alone starts off — so a later release that changes a default
+     * reaches everyone who never chose.
+     *
+     * Per user, beside the remote images switch it resembles: Settings →
+     * Reading & writing → Reading. None of it applies until the administrator
+     * allows lookups at all (SenderPictureSettings).
+     */
+    public const string SETTING_SENDER_PICTURES = 'sender_pictures';
+
+    /**
+     * Stays a method: it takes the kind and asks the stored choices about it.
+     * Contact photos and other users' pictures are not lookups and are always
+     * on.
+     */
+    public function allowsSenderPicture(SenderPictureKind $kind): bool
+    {
+        if (false === $kind->isLookup()) {
+            return true;
+        }
+
+        $chosen = $this->getSetting(self::SETTING_SENDER_PICTURES, []);
+        $value  = is_array($chosen) ? ($chosen[$kind->value] ?? null) : null;
+
+        return is_bool($value) ? $value : $kind->onByDefault();
+    }
+
+    public function allowSenderPicture(SenderPictureKind $kind, bool $on): static
+    {
+        $chosen = $this->getSetting(self::SETTING_SENDER_PICTURES, []);
+        $chosen = is_array($chosen) ? $chosen : [];
+
+        if ($on === $kind->onByDefault()) {
+            unset($chosen[$kind->value]);
+        } else {
+            $chosen[$kind->value] = $on;
+        }
+
+        return $this->setSetting(self::SETTING_SENDER_PICTURES, [] === $chosen ? null : $chosen);
+    }
+
+    /**
+     * Whether this user's profile picture is served to the internet as their
+     * Libravatar (#642), for every address of theirs: OFF until they turn it
+     * on, and only offered while the administrator runs the Libravatar route.
+     *
+     * The user's own choice and not the administrator's, because what it
+     * does is personal: anybody who knows one of their addresses can fetch
+     * their face. The administrator decides the server answers; each person
+     * decides whether it answers for them. Only a stored true is on.
+     */
+    public const string SETTING_LIBRAVATAR_PUBLISH = 'libravatar.publish';
+
+    /** Virtual, out of the settings bag — see SETTING_LIBRAVATAR_PUBLISH. */
+    public bool $publishesLibravatar {
+        get => true === $this->getSetting(self::SETTING_LIBRAVATAR_PUBLISH, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_LIBRAVATAR_PUBLISH, $on ? true : null);
         }
     }
 

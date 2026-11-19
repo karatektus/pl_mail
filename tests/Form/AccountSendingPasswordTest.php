@@ -117,6 +117,60 @@ final class AccountSendingPasswordTest extends KernelTestCase
         self::assertFalse($this->form($this->saved(), false)->get('separateSmtpPassword')->getData());
     }
 
+    /**
+     * #660: a relay with accounts of its own wants its own username too. With
+     * the box ticked the sending username is what SMTP signs in as, and the
+     * mailbox keeps signing in as itself.
+     */
+    public function testWithTheBoxTheSendingUsernameIsWhatSmtpSignsInAs(): void
+    {
+        $account = new Account();
+
+        $this->form($account)->submit(self::FIELDS + [
+            'separateSmtpPassword' => '1',
+            'smtpUsername'         => 'relay-user',
+            'smtpPassword'         => 'the-relay-password',
+        ]);
+
+        self::assertSame('relay-user', $account->smtpUsername);
+        self::assertSame('someone@example.test', $account->username, 'the mailbox signs in as before');
+
+        $dsn = static::getContainer()->get(SmtpDsnFactory::class)->forAccount($account);
+
+        self::assertStringStartsWith('smtps://relay-user:the-relay-password@', $dsn);
+    }
+
+    /** Only a second password wanted: a blank username is the account's own. */
+    public function testABlankSendingUsernameIsTheAccountsOwn(): void
+    {
+        $account = new Account();
+
+        $this->form($account)->submit(self::FIELDS + [
+            'separateSmtpPassword' => '1',
+            'smtpUsername'         => '   ',
+            'smtpPassword'         => 'the-sending-password',
+        ]);
+
+        self::assertNull($account->smtpUsername);
+        self::assertSame('someone@example.test', $account->sendingUsername);
+    }
+
+    /** Hidden, the field is ignored like the password — a password manager may fill it. */
+    public function testWithoutTheBoxTheSendingUsernameIsDropped(): void
+    {
+        $account               = $this->saved();
+        $account->smtpUsername = 'relay-user';
+
+        $form = $this->form($account, false);
+
+        self::assertTrue($form->get('separateSmtpPassword')->getData(), 'a sending username alone opens with the box ticked');
+
+        $form->submit(self::FIELDS + ['smtpUsername' => 'relay-user']);
+
+        self::assertNull($account->smtpUsername);
+        self::assertSame($account->username, $account->sendingUsername);
+    }
+
     /** An error that quotes the address it failed on must not print either password. */
     public function testBothPasswordsAreKeptOutOfAnErrorThatQuotesThem(): void
     {

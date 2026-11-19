@@ -77,6 +77,7 @@ const BULK = {
     trash:   "[data-action~='click->mail--list-toolbar#deleteSelected']",
     spam:    "[data-action~='click->mail--list-toolbar#spamSelected']",
     star:    "[data-action~='click->mail--list-toolbar#starSelected']",
+    pin:     "[data-action~='click->mail--list-toolbar#pinSelected']",
     read:    "[data-action~='click->mail--list-toolbar#markReadSelected']",
     unread:  "[data-action~='click->mail--list-toolbar#markUnreadSelected']",
     label:   "[data-toolbar-flyout='label']",
@@ -91,6 +92,7 @@ const OPEN = {
     spam:     "[data-action='click->mail--spam-menu#toggle']",
     unread:   "[data-action='click->mail--message-actions#markUnread']",
     star:     "[data-action*='mail--message-actions#star']",
+    pin:      "[data-action='click->mail--message-actions#pin']",
     label:    "[data-action='click->mail--label-menu#toggle']",
     move:     "[data-action='click->mail--move-menu#toggle']",
     snooze:   "[data-shortcut='snooze']",
@@ -106,6 +108,7 @@ const ON_ROW = {
     trash:   "[data-action='click->mail--message-row#trash']",
     spam:    "[data-action='click->mail--message-row#openMenu'][data-mail--message-row-menu-param='spam']",
     star:    "[data-action='click->mail--message-row#toggleStar']",
+    pin:     "[data-action='click->mail--message-row#togglePin']",
     read:    "[data-action='click->mail--message-row#markRead'][data-mail--message-row-read-param='true']",
     unread:  "[data-action='click->mail--message-row#markRead'][data-mail--message-row-read-param='false']",
 };
@@ -301,6 +304,9 @@ export default class extends Controller {
             case "/": return this.#focusSearch();
             case "?": return this.#press(document.querySelector("[data-shortcut='help']"));
             case "z": return this.#press(document.querySelector("#toast-region button[data-action$='#abort']"));
+            // Conversations or single emails (#615): the switch in the list's
+            // sort menu, which posts and comes back to this list regrouped.
+            case "t": return this.#press(document.querySelector("[data-shortcut='conversation-view']"));
 
             case "j": return this.#step(1);
             case "k": return this.#step(-1);
@@ -313,6 +319,7 @@ export default class extends Controller {
             case "#": return this.#act("trash");
             case "!": return this.#act("spam");
             case "s": return this.#act("star");
+            case "p": return this.#act("pin");
             case "I": return this.#act("read");
             case "U": return this.#act("unread");
             case "l": return this.#act("label");

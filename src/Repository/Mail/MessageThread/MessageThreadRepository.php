@@ -8,6 +8,7 @@ namespace App\Repository\Mail\MessageThread;
 use App\Domain\DTO\Ai\SemanticSearch;
 use App\Domain\DTO\Mail\InboxTab;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\ListLevel;
 use App\Domain\Enum\Mail\ListSortOrder;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Label\Label;
@@ -39,6 +40,15 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
+     * The list definitions both views share (#615); this repository builds
+     * them at the Conversation level, MessageListRepository at the Email one.
+     */
+    private function lists(): MailListQuery
+    {
+        return new MailListQuery($this->getEntityManager());
+    }
+
+    /**
      * The inbox as one list across every active account.
      *
      * QueryBuilder because the filter spans three entities: the owner is on
@@ -59,77 +69,9 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function findForUnifiedInbox(UserInterface $user, MessageCategory|InboxTab|null $category, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false, ?array $accountIds = null): array
     {
-        $offset = ($page - 1) * $perPage;
+        $lists = $this->lists();
 
-        $qb = $this->createQueryBuilder('t')
-            ->join('t.account', 'a')
-            ->join('t.labels', 'l')
-            ->where('a.usr = :user')
-            ->andWhere('a.mailEnabled = true')
-            ->andWhere('l.role = :inbox')
-            ->setParameter('user', $user)
-            ->setParameter('inbox', LabelRole::Inbox)
-            ->setFirstResult($offset)
-            ->setMaxResults($perPage)
-            ->distinct();
-
-        $this->narrowToCategory($qb, $category, MessageThreadListCriteria::switchedOffBy($user));
-        MessageThreadListCriteria::narrowToAccounts($qb, $accountIds);
-
-        MessageThreadListCriteria::excludeTrashed($qb);
-        $this->narrowToUnread($qb, $unreadOnly);
-
-        $sort->applyTo($qb);
-
-        return $qb->getQuery()->getResult();
-    }
-
-    /**
-     * One tab of the inbox, or all of it for null. Shared by the list and its
-     * count so the two cannot come to mean different things — a pager offering
-     * a page the list does not have is what that looks like.
-     */
-    /**
-     * @param list<string> $absorbed built-in values switched off — their
-     *                               conversations are listed under Primary
-     */
-    private function narrowToCategory(QueryBuilder $qb, MessageCategory|InboxTab|null $category, array $absorbed = []): void
-    {
-        if (null === $category) {
-            return;
-        }
-
-        $tab = $category instanceof MessageCategory ? InboxTab::builtIn($category) : $category;
-
-        // A thread is in exactly ONE tab: the reader's own when it has been
-        // filed in one, else the built-in one. So a custom tab is a plain match
-        // on the reader's column, and a built-in tab must also exclude whatever
-        // has left it for one of the reader's — otherwise a carrier's notice is
-        // listed in Promotions AND in Shipping, and the tab counts stop adding
-        // up to the inbox.
-        if (true === $tab->isCustom()) {
-            $qb->andWhere('IDENTITY(t.userCategory) = :userCategory')
-                ->setParameter('userCategory', $tab->categoryId);
-
-            return;
-        }
-
-        // Primary also holds whatever is in a category the reader switched
-        // off. The re-sort a switch queues moves those messages for good, but
-        // it takes minutes on a big mailbox, and a conversation somebody
-        // pinned there is not its to move: until then they would be in no tab
-        // at all.
-        if (MessageCategory::Primary === $tab->builtIn && [] !== $absorbed) {
-            $qb->andWhere('t.userCategory IS NULL')
-                ->andWhere('t.category IN (:categories)')
-                ->setParameter('categories', [MessageCategory::Primary->value, ...$absorbed]);
-
-            return;
-        }
-
-        $qb->andWhere('t.userCategory IS NULL')
-            ->andWhere('t.category = :category')
-            ->setParameter('category', $tab->builtIn);
+        return $lists->page($lists->inbox(ListLevel::Conversation, $user, $category, $unreadOnly, $accountIds), ListLevel::Conversation, $sort, $page, $perPage);
     }
 
     /**
@@ -139,36 +81,9 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function countForUnifiedInbox(UserInterface $user, MessageCategory|InboxTab|null $category, bool $unreadOnly = false, ?array $accountIds = null): int
     {
-        // COUNT(DISTINCT t.id), not select-DISTINCT: the label join is to-many,
-        // and ->distinct() would put the DISTINCT on the aggregate rather than
-        // on the rows being aggregated. A thread carrying two labels of the
-        // inbox role would then be counted twice while findForUnifiedInbox()
-        // -- which dedupes properly -- returns it once, and the paginator would
-        // offer a page that does not exist. countForRole() below has always
-        // spelled it this way.
-        $qb = $this->createQueryBuilder('t')
-            ->select('COUNT(DISTINCT t.id)')
-            ->join('t.account', 'a')
-            ->join('t.labels', 'l')
-            ->where('a.usr = :user')
-            ->andWhere('a.mailEnabled = true')
-            ->andWhere('l.role = :inbox')
-            ->setParameter('user', $user)
-            ->setParameter('inbox', LabelRole::Inbox);
+        $lists = $this->lists();
 
-        $this->narrowToCategory($qb, $category, MessageThreadListCriteria::switchedOffBy($user));
-        MessageThreadListCriteria::narrowToAccounts($qb, $accountIds);
-
-        // The same exclusion findForUnifiedInbox() applies, and it was missing
-        // here. A thread keeps its Inbox label when it goes to the bin — the
-        // Trash label is added, not swapped — so without this the total counted
-        // conversations the list beside it refuses to show. That is the failure
-        // the DISTINCT above is written out to prevent, arriving by the other
-        // road: a paginator offering a page that does not exist.
-        MessageThreadListCriteria::excludeTrashed($qb);
-        $this->narrowToUnread($qb, $unreadOnly);
-
-        return (int) $qb->getQuery()->getSingleScalarResult();
+        return $lists->count($lists->inbox(ListLevel::Conversation, $user, $category, $unreadOnly, $accountIds), ListLevel::Conversation);
     }
 
     /**
@@ -282,57 +197,16 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function findForRole(UserInterface $user, LabelRole $role, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
     {
-        $offset = ($page - 1) * $perPage;
+        $lists = $this->lists();
 
-        $qb = $this->createQueryBuilder('t')
-            ->join('t.account', 'a')
-            ->join('t.labels', 'l')
-            ->where('a.usr = :user')
-            ->andWhere('a.mailEnabled = true')
-            ->andWhere('l.role = :role')
-            ->setParameter('user', $user)
-            ->setParameter('role', $role)
-            ->setFirstResult($offset)
-            ->setMaxResults($perPage)
-            ->distinct();
-
-        // Every system view except the bin itself. Archive and Sent are the
-        // ones this matters most for: trashing a sent message left it listed
-        // under Sent, because trashing does not take Sent away.
-        if (LabelRole::Trash !== $role) {
-            MessageThreadListCriteria::excludeTrashed($qb);
-        }
-
-        $this->onlyLiveDrafts($qb, $role);
-
-        $this->narrowToUnread($qb, $unreadOnly);
-
-        $sort->applyTo($qb);
-
-        return $qb->getQuery()->getResult();
+        return $lists->page($lists->role(ListLevel::Conversation, $user, $role, $unreadOnly), ListLevel::Conversation, $sort, $page, $perPage, $role);
     }
     /** Same joins as findForRole(). */
     public function countForRole(UserInterface $user, LabelRole $role, bool $unreadOnly = false): int
     {
-        $qb = $this->createQueryBuilder('t')
-            ->select('COUNT(DISTINCT t.id)')
-            ->join('t.account', 'a')
-            ->join('t.labels', 'l')
-            ->where('a.usr = :user')
-            ->andWhere('a.mailEnabled = true')
-            ->andWhere('l.role = :role')
-            ->setParameter('user', $user)
-            ->setParameter('role', $role);
+        $lists = $this->lists();
 
-        if (LabelRole::Trash !== $role) {
-            MessageThreadListCriteria::excludeTrashed($qb);
-        }
-
-        $this->onlyLiveDrafts($qb, $role);
-
-        $this->narrowToUnread($qb, $unreadOnly);
-
-        return (int) $qb->getQuery()->getSingleScalarResult();
+        return $lists->count($lists->role(ListLevel::Conversation, $user, $role, $unreadOnly), ListLevel::Conversation);
     }
     /**
      * Threads carrying a label, optionally narrowed to one account.
@@ -348,91 +222,17 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function findForLabel(Label $label, ?Account $account = null, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
     {
-        $offset = ($page - 1) * $perPage;
+        $lists = $this->lists();
 
-        $qb = $this->createQueryBuilder('t')
-            ->join('t.labels', 'l')
-            ->where('l = :label')
-            ->setParameter('label', $label)
-            ->setFirstResult($offset)
-            ->setMaxResults($perPage);
-
-        MessageThreadListCriteria::narrowToAccount($qb, $account);
-        $this->excludeTrashedUnlessBin($qb, $label);
-        $this->onlyLiveDrafts($qb, $label->role);
-        $this->narrowToUnread($qb, $unreadOnly);
-
-        $sort->applyTo($qb);
-
-        return $qb->getQuery()->getResult();
+        return $lists->page($lists->label(ListLevel::Conversation, $label, $account, $unreadOnly), ListLevel::Conversation, $sort, $page, $perPage, $label->role);
     }
 
     /** Same to-many filter as findForLabel(). */
     public function countForLabel(Label $label, ?Account $account = null, bool $unreadOnly = false): int
     {
-        $qb = $this->createQueryBuilder('t')
-            ->select('COUNT(t.id)')
-            ->join('t.labels', 'l')
-            ->where('l = :label')
-            ->setParameter('label', $label);
+        $lists = $this->lists();
 
-        MessageThreadListCriteria::narrowToAccount($qb, $account);
-        $this->excludeTrashedUnlessBin($qb, $label);
-        $this->onlyLiveDrafts($qb, $label->role);
-        $this->narrowToUnread($qb, $unreadOnly);
-
-        return (int) $qb->getQuery()->getSingleScalarResult();
-    }
-
-    /**
-     * Drafts lists a conversation for a draft that is still a draft, and not
-     * for one in the bin.
-     *
-     * A thread's labels are its messages' together (ThreadLabelSynchronizer),
-     * so a draft thrown away into Trash keeps Drafts on its conversation, and
-     * the conversation is not wholly in the bin while the mail it answers is
-     * not — excludeTrashed() lets it through. It was listed in Drafts, opened
-     * on the live side (BinView), and the draft it was listed for was not in
-     * it. A thrown-away draft is not one being worked on: it is in Trash, and
-     * back here once it is restored.
-     *
-     * A correlated sub-query, which excludeTrashed() stopped being for speed
-     * (#223). Only the Drafts lists pay it, over the few conversations that
-     * carry Drafts at all.
-     */
-    private function onlyLiveDrafts(QueryBuilder $qb, ?LabelRole $role): void
-    {
-        if (LabelRole::Drafts !== $role) {
-            return;
-        }
-
-        $qb->andWhere(sprintf(
-            'EXISTS (SELECT liveDraft.id FROM %1$s liveDraft JOIN liveDraft.labels liveDraftLabel
-                WHERE liveDraft.thread = t AND liveDraftLabel.role = :liveDraftRole
-                AND NOT EXISTS (SELECT binnedDraft.id FROM %1$s binnedDraft JOIN binnedDraft.labels binnedDraftLabel
-                    WHERE binnedDraft = liveDraft AND binnedDraftLabel.role = :binnedDraftRole))',
-            Message::class,
-        ))
-            ->setParameter('liveDraftRole', LabelRole::Drafts)
-            ->setParameter('binnedDraftRole', LabelRole::Trash);
-    }
-
-    /**
-     * The exclusion, skipped for the bin's own row.
-     *
-     * findForLabel() serves two lists that look unrelated and are not: the
-     * sidebar's custom labels, and the per-account folder rows, which are built
-     * from the labels bound to that account and therefore include its Trash
-     * folder. Excluding trashed threads unconditionally would render that
-     * folder permanently empty.
-     */
-    private function excludeTrashedUnlessBin(QueryBuilder $qb, Label $label): void
-    {
-        if (LabelRole::Trash === $label->role) {
-            return;
-        }
-
-        MessageThreadListCriteria::excludeTrashed($qb);
+        return $lists->count($lists->label(ListLevel::Conversation, $label, $account, $unreadOnly), ListLevel::Conversation);
     }
 
     /**
@@ -464,48 +264,19 @@ class MessageThreadRepository extends ServiceEntityRepository
      * account is still in the sidebar and still clickable; answering with an
      * empty list because it is asleep would read as lost mail.
      */
-    public function findForAccountInbox(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, MessageCategory|InboxTab|null $category = null): array
+    public function findForAccountInbox(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, MessageCategory|InboxTab|null $category = null, bool $unreadOnly = false): array
     {
-        $qb = $this->createQueryBuilder('t')
-            ->join('t.labels', 'l')
-            ->where('t.account = :account')
-            ->andWhere('l.role = :inbox')
-            ->setParameter('account', $account)
-            ->setParameter('inbox', LabelRole::Inbox)
-            ->setFirstResult(($page - 1) * $perPage)
-            ->setMaxResults($perPage)
-            ->distinct();
+        $lists = $this->lists();
 
-        $this->narrowToCategory($qb, $category, MessageThreadListCriteria::switchedOffBy($account->usr));
-
-        MessageThreadListCriteria::excludeTrashed($qb);
-
-        $sort->applyTo($qb);
-
-        return $qb->getQuery()->getResult();
+        return $lists->page($lists->accountInbox(ListLevel::Conversation, $account, $category, $unreadOnly), ListLevel::Conversation, $sort, $page, $perPage);
     }
 
     /** Same two conditions as findForAccountInbox(), so the same reason to keep it. */
-    public function countForAccountInbox(Account $account, MessageCategory|InboxTab|null $category = null): int
+    public function countForAccountInbox(Account $account, MessageCategory|InboxTab|null $category = null, bool $unreadOnly = false): int
     {
-        // COUNT(DISTINCT t.id) for the reason countForUnifiedInbox() spells
-        // out: the label join is to-many, and a thread carrying two labels of
-        // the inbox role would otherwise be counted twice while the listing
-        // returns it once — and the paginator would offer a page that is not
-        // there.
-        $qb = $this->createQueryBuilder('t')
-            ->select('COUNT(DISTINCT t.id)')
-            ->join('t.labels', 'l')
-            ->where('t.account = :account')
-            ->andWhere('l.role = :inbox')
-            ->setParameter('account', $account)
-            ->setParameter('inbox', LabelRole::Inbox);
+        $lists = $this->lists();
 
-        $this->narrowToCategory($qb, $category, MessageThreadListCriteria::switchedOffBy($account->usr));
-
-        MessageThreadListCriteria::excludeTrashed($qb);
-
-        return (int) $qb->getQuery()->getSingleScalarResult();
+        return $lists->count($lists->accountInbox(ListLevel::Conversation, $account, $category, $unreadOnly), ListLevel::Conversation);
     }
 
     /**
@@ -519,22 +290,17 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function findForAccountAllMail(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
     {
-        $qb = $this->allMailQuery($account, $unreadOnly)
-            ->setFirstResult(($page - 1) * $perPage)
-            ->setMaxResults($perPage);
+        $lists = $this->lists();
 
-        $sort->applyTo($qb);
-
-        return $qb->getQuery()->getResult();
+        return $lists->page($lists->allMail(ListLevel::Conversation, $account, $unreadOnly), ListLevel::Conversation, $sort, $page, $perPage);
     }
 
     /** Same query as findForAccountAllMail(), so the pager counts what it lists. */
     public function countForAccountAllMail(Account $account, bool $unreadOnly = false): int
     {
-        return (int) $this->allMailQuery($account, $unreadOnly)
-            ->select('COUNT(t.id)')
-            ->getQuery()
-            ->getSingleScalarResult();
+        $lists = $this->lists();
+
+        return $lists->count($lists->allMail(ListLevel::Conversation, $account, $unreadOnly), ListLevel::Conversation);
     }
 
     /**
@@ -546,57 +312,17 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function findForUnifiedAllMail(User $user, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
     {
-        $qb = $this->allMailQuery($user, $unreadOnly)
-            ->setFirstResult(($page - 1) * $perPage)
-            ->setMaxResults($perPage);
+        $lists = $this->lists();
 
-        $sort->applyTo($qb);
-
-        return $qb->getQuery()->getResult();
+        return $lists->page($lists->allMail(ListLevel::Conversation, $user, $unreadOnly), ListLevel::Conversation, $sort, $page, $perPage);
     }
 
     /** Same query as findForUnifiedAllMail(). */
     public function countForUnifiedAllMail(User $user, bool $unreadOnly = false): int
     {
-        return (int) $this->allMailQuery($user, $unreadOnly)
-            ->select('COUNT(t.id)')
-            ->getQuery()
-            ->getSingleScalarResult();
-    }
+        $lists = $this->lists();
 
-    /**
-     * The one definition of All Mail, for one account or for a user's.
-     *
-     * Spam and the bin are left out by a subquery rather than by a join on
-     * the labels. Labels are per thread and a thread can wear several, so a
-     * join would list a conversation once per label — and would lose old mail
-     * that wears no label at all, which is precisely the archived mail this
-     * view is for. Any Spam label takes the whole conversation out; the bin
-     * takes it out once all of it is there, the rule every other list follows
-     * (excludeTrashed()).
-     */
-    private function allMailQuery(Account|User $owner, bool $unreadOnly): QueryBuilder
-    {
-        $qb = $this->createQueryBuilder('t')
-            ->andWhere('t.id NOT IN (SELECT excluded.id FROM ' . MessageThread::class
-                . ' excluded JOIN excluded.labels excludedLabel WHERE excludedLabel.role = :spamRole)')
-            ->setParameter('spamRole', LabelRole::Spam);
-
-        MessageThreadListCriteria::excludeTrashed($qb);
-
-        if ($owner instanceof Account) {
-            $qb->andWhere('t.account = :account')
-                ->setParameter('account', $owner);
-        } else {
-            $qb->join('t.account', 'allAccount')
-                ->andWhere('allAccount.usr = :user')
-                ->andWhere('allAccount.mailEnabled = true')
-                ->setParameter('user', $owner);
-        }
-
-        $this->narrowToUnread($qb, $unreadOnly);
-
-        return $qb;
+        return $lists->count($lists->allMail(ListLevel::Conversation, $user, $unreadOnly), ListLevel::Conversation);
     }
 
     /**
@@ -624,11 +350,34 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function countByCategoryForAccountInbox(Account $account): array
     {
+        return $this->countTabsForAccountInbox($account)['threads'];
+    }
+
+    /**
+     * Every tab's thread count and unread count in one account's inbox, in one
+     * read — countTabsForUnifiedInbox() for a single account.
+     *
+     * The totals decide which tabs the account page shows (see
+     * countByCategoryForAccountInbox() above); the unread counts are the
+     * numbers on its tabs, each a link to that tab's unread view (#670). Same
+     * conditions as findForAccountInbox() with the unread filter on, so a tab
+     * saying 3 opens on 3. The Inbox label is tested with EXISTS for the
+     * reason countTabsForUnifiedInbox() gives: a join would need
+     * COUNT(DISTINCT), and the SUM beside it cannot be made distinct.
+     *
+     * @return array{threads: array<string, int>, unread: array<string, int>}
+     */
+    public function countTabsForAccountInbox(Account $account): array
+    {
         $qb = $this->createQueryBuilder('t')
-            ->select('t.category AS category', 'IDENTITY(t.userCategory) AS userCategory', 'COUNT(DISTINCT t.id) AS threadCount')
-            ->join('t.labels', 'l')
+            ->select(
+                't.category AS category',
+                'IDENTITY(t.userCategory) AS userCategory',
+                'COUNT(t.id) AS threadCount',
+                'SUM(CASE WHEN t.unreadCount > 0 THEN 1 ELSE 0 END) AS unreadCount',
+            )
             ->where('t.account = :account')
-            ->andWhere('l.role = :inbox')
+            ->andWhere('EXISTS (SELECT il.id FROM ' . Label::class . ' il WHERE il.role = :inbox AND il MEMBER OF t.labels)')
             ->groupBy('t.category')
             ->addGroupBy('t.userCategory')
             ->setParameter('account', $account)
@@ -636,28 +385,13 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         MessageThreadListCriteria::excludeTrashed($qb);
 
-        return MessageThreadListCriteria::foldByTab($qb->getQuery()->getResult(), 'threadCount', MessageThreadListCriteria::switchedOffBy($account->usr));
-    }
+        $rows     = $qb->getQuery()->getResult();
+        $absorbed = MessageThreadListCriteria::switchedOffBy($account->usr);
 
-    /**
-     * Narrow a thread list to the conversations a badge counted.
-     *
-     * `unreadCount` is per-thread and counts MESSAGES, so "> 0" is "this
-     * conversation holds something unread" — which is exactly what the badges
-     * count now (see countUnreadPerRole). One predicate shared by every list
-     * that can be filtered, so a badge and the list it opens cannot drift into
-     * two different ideas of unread.
-     *
-     * A no-op when the flag is false, so every caller passes it unconditionally
-     * rather than branching around it.
-     */
-    private function narrowToUnread(QueryBuilder $qb, bool $unreadOnly): void
-    {
-        if (false === $unreadOnly) {
-            return;
-        }
-
-        $qb->andWhere('t.unreadCount > 0');
+        return [
+            'threads' => MessageThreadListCriteria::foldByTab($rows, 'threadCount', $absorbed),
+            'unread'  => array_filter(MessageThreadListCriteria::foldByTab($rows, 'unreadCount', $absorbed), static fn (int $count): bool => $count > 0),
+        ];
     }
 
     /**
@@ -666,23 +400,9 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function findForStarred(UserInterface $user, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
     {
-        $offset = ($page - 1) * $perPage;
+        $lists = $this->lists();
 
-        $qb = $this->createQueryBuilder('t')
-            ->join('t.account', 'a')
-            ->where('a.usr = :user')
-            ->andWhere('a.mailEnabled = true')
-            ->andWhere('t.starredAt IS NOT NULL')
-            ->setParameter('user', $user)
-            ->setFirstResult($offset)
-            ->setMaxResults($perPage);
-
-        MessageThreadListCriteria::excludeTrashed($qb);
-        $this->narrowToUnread($qb, $unreadOnly);
-
-        $sort->applyTo($qb);
-
-        return $qb->getQuery()->getResult();
+        return $lists->page($lists->starred(ListLevel::Conversation, $user, $unreadOnly), ListLevel::Conversation, $sort, $page, $perPage);
     }
 
     /**
@@ -701,65 +421,25 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function findForUnread(UserInterface $user, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
     {
-        $qb = $this->unreadQuery($user)
-            ->setFirstResult(($page - 1) * $perPage)
-            ->setMaxResults($perPage);
+        $lists = $this->lists();
 
-        $sort->applyTo($qb);
-
-        return $qb->getQuery()->getResult();
+        return $lists->page($lists->unread(ListLevel::Conversation, $user), ListLevel::Conversation, $sort, $page, $perPage);
     }
 
     /** Same query as findForUnread() — the view's pager and its sidebar badge. */
     public function countForUnread(UserInterface $user): int
     {
-        return (int) $this->unreadQuery($user)
-            ->select('COUNT(t.id)')
-            ->getQuery()
-            ->getSingleScalarResult();
-    }
+        $lists = $this->lists();
 
-    private function unreadQuery(UserInterface $user): QueryBuilder
-    {
-        $qb = $this->createQueryBuilder('t')
-            ->join('t.account', 'a')
-            ->where('a.usr = :user')
-            ->andWhere('a.mailEnabled = true')
-            ->andWhere('t.unreadCount > 0')
-            ->setParameter('user', $user);
-
-        $qb->andWhere(
-            $qb->expr()->notIn(
-                't.id',
-                'SELECT setAside.id FROM ' . MessageThread::class . ' setAside'
-                    . ' JOIN setAside.labels setAsideLabel'
-                    . ' WHERE setAsideLabel.role IN (:setAsideRoles)',
-            ),
-        )->setParameter('setAsideRoles', [LabelRole::Spam, LabelRole::Snoozed]);
-
-        // The bin by the rule every list uses: all of the conversation, not
-        // one message of it, or a reply that arrived in a half-deleted thread
-        // is unread mail this view cannot show (#268).
-        MessageThreadListCriteria::excludeTrashed($qb);
-
-        return $qb;
+        return $lists->count($lists->unread(ListLevel::Conversation, $user), ListLevel::Conversation);
     }
 
     /** Same join as findForStarred(). */
     public function countForStarred(UserInterface $user, bool $unreadOnly = false): int
     {
-        $qb = $this->createQueryBuilder('t')
-            ->select('COUNT(t.id)')
-            ->join('t.account', 'a')
-            ->where('a.usr = :user')
-            ->andWhere('a.mailEnabled = true')
-            ->andWhere('t.starredAt IS NOT NULL')
-            ->setParameter('user', $user);
+        $lists = $this->lists();
 
-        MessageThreadListCriteria::excludeTrashed($qb);
-        $this->narrowToUnread($qb, $unreadOnly);
-
-        return (int) $qb->getQuery()->getSingleScalarResult();
+        return $lists->count($lists->starred(ListLevel::Conversation, $user, $unreadOnly), ListLevel::Conversation);
     }
     // ── the new-mail marker ───────────────────────────────────────────────
     //
@@ -781,12 +461,16 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function findForLabels(array $labels, int $page, int $perPage = 50): array
     {
-        return $this->createQueryBuilder('thread')
+        $qb = $this->createQueryBuilder('thread')
             ->innerJoin('thread.labels', 'label')
             ->where('label IN (:labels)')
             ->setParameter('labels', $labels)
-            ->groupBy('thread.id')
-            ->orderBy('thread.lastMessageAt', 'DESC')
+            ->groupBy('thread.id');
+
+        // Pins first, as in every folder list (#654) — see
+        // ListSortOrder::pinnedFirst().
+        return ListSortOrder::pinnedFirst($qb, 'thread')
+            ->addOrderBy('thread.lastMessageAt', 'DESC')
             // This one is paginated, which is the case the rule exists for:
             // LIMIT/OFFSET over a non-deterministic sort can show one
             // conversation on two pages and another on none. The folder lists

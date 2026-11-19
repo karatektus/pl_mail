@@ -28,8 +28,8 @@ form, and HTML has no nested forms.
                         {{ 'onboarding.integrations.connected'|trans }}
                     </span>
                 {% elseif provider.authKind.value == 'oauth2' %}
-                    <a href="{{ path('app_settings_integrations_connect', { provider: provider.value }) }}"
-                       data-turbo-frame="_top"
+                    <a href="{{ path('app_integration_oauth_connect', { provider: provider.value }) }}"
+                       data-turbo="false"
                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
                               text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
                         {{ 'onboarding.integrations.connect'|trans }}

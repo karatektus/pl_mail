@@ -219,6 +219,11 @@ final class SeedBulkMailCommand extends Command
                 $threadIds = $this->insertThreads($account, $inboxLabelId, (int) ceil($size / 3), $now);
 
                 $this->insertMessages($account, $threadIds, $senders, $size, $now);
+
+                // And on every email of them, as sync files a real one: a
+                // conversation's labels are its emails' together, and the
+                // email list (#615) reads the emails'.
+                $this->seedRepository->labelMessagesOf($threadIds, $inboxLabelId);
             });
 
             $made += $size;

@@ -400,13 +400,30 @@ class MessageRepository extends ServiceEntityRepository
      */
     public function forThreadView(MessageThread $thread): array
     {
+        return $this->forView('m.thread = :subject', $thread);
+    }
+
+    /**
+     * The same for one email opened from the email list (#615): the pane
+     * shows that email alone, loaded the way the conversation's are.
+     *
+     * @return list<Message>
+     */
+    public function forThreadViewOf(Message $message): array
+    {
+        return $this->forView('m = :subject', $message);
+    }
+
+    /** @return list<Message> */
+    private function forView(string $condition, MessageThread|Message $subject): array
+    {
         /** @var list<Message> $messages */
         $messages = $this->createQueryBuilder('m')
             ->addSelect('l')
             ->leftJoin('m.labels', 'l')
             ->addSelect('COALESCE(m.receivedAt, m.sentAt, m.createdAt) AS HIDDEN effectiveAt')
-            ->where('m.thread = :thread')
-            ->setParameter('thread', $thread)
+            ->where($condition)
+            ->setParameter('subject', $subject)
             ->orderBy('effectiveAt', 'ASC')
             ->addOrderBy('m.id', 'ASC')
             ->getQuery()
@@ -463,6 +480,8 @@ class MessageRepository extends ServiceEntityRepository
                 'm.receivedAt',
                 'm.sentAt',
                 'm.createdAt',
+                // A draft's last save, for ThreadRowMessage::writtenAt().
+                'm.updatedAt',
                 'm.submissionSendAt',
                 // The warning a draft whose send failed wears in the list (#125).
                 'm.sendFailure',
@@ -481,8 +500,15 @@ class MessageRepository extends ServiceEntityRepository
                     WHERE inBin.id = m.id AND trashLabel.role = :trashRole) AS trashed',
                 'm.seenAt',
                 'm.hasAttachments',
+                // Whether a BIMI logo may be shown on the row (#639).
+                'm.senderVerified',
+                // Whether the email is pinned on its own (#615), which pins
+                // its conversation in the conversation list. In this read
+                // rather than a query of its own, for filedAsSent's reason.
+                'CASE WHEN m.pinnedAt IS NOT NULL AND (m.pinnedUntil IS NULL OR m.pinnedUntil > :rowNow) THEN 1 ELSE 0 END AS pinned',
             )
             ->where('m.thread IN (:threads)')
+            ->setParameter('rowNow', new \DateTimeImmutable())
             ->setParameter('sentRoles', [LabelRole::Sent, LabelRole::Drafts])
             ->setParameter('trashRole', LabelRole::Trash)
             ->setParameter('threads', $threadIds)

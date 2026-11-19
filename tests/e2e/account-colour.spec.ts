@@ -9,11 +9,13 @@ import { acceptConfirm } from "./support/confirm";
  * palette's bounds, OAuth accounts. What cannot move there is everything that
  * needs a stylesheet and a layout engine:
  *
- *   - the menu has to be INSIDE the card it opens from. The card around the
- *     account list is overflow-hidden and only as tall as its rows, so the
+ *   - the menu must not be cut off by the card it opens from. The card around
+ *     the account list is overflow-hidden and only as tall as its rows, so the
  *     first version, which hung below its button, was cut off at the card's
  *     edge on the last row. The markup was right and every phpunit assertion
- *     passed; the swatches were simply not there to click.
+ *     passed; the swatches were simply not there to click. Since the custom
+ *     colour form (#638) made it taller it opens in the top layer, where no
+ *     card can clip it, so it is checked against the window instead.
  *   - the sidebar dot has to repaint to the colour that was picked, which is a
  *     computed style, and has to do it without a reload — the picker streams
  *     the list back.
@@ -42,6 +44,8 @@ async function addAccount(page: Page, label: string, stamp: number): Promise<voi
     await imapHost.fill(`colour-${stamp}.example.test`);
     await page.locator('input[name="account[imapPort]"]').fill("993");
     await page.locator('select[name="account[imapEncryption]"]').selectOption("ssl");
+    // Sending is on by default and needs its server (#628).
+    await page.locator('input[name="account[smtpHost]"]').fill(`smtp-${stamp}.example.test`);
     await page.locator("#modal button[type=submit]").click();
 
     // Not the 5s default: POST /account/new measured 4-8s on a fresh stack
@@ -61,7 +65,9 @@ async function removeAccount(page: Page, label: string): Promise<void> {
     for (let remaining = await row.count(); remaining > 0; remaining -= 1) {
         await row.getByRole("button", { name: "Remove account" }).first().click();
         await acceptConfirm(page);
-        await expect(row).toHaveCount(remaining - 1);
+        // Removing runs on the bulk worker now (#672): the row greys out at once
+        // and goes when the job is done, which is a worker round-trip away.
+        await expect(row).toHaveCount(remaining - 1, { timeout: 20_000 });
     }
 }
 
@@ -82,45 +88,44 @@ test.describe("account colour", () => {
             const row = page
                 .locator("#settings-account-list li")
                 .filter({ hasText: new RegExp(label, "i") });
-            const card = page
-                .locator("section")
-                .filter({ has: page.locator("#settings-account-list") });
-
             await row.getByRole("button", { name: /Change the colour of/ }).click();
 
             const menu = row.getByRole("group", { name: /Change the colour of/ });
             await expect(menu).toBeVisible();
 
-            // Inside the card: a menu cut off by its overflow-hidden parent
-            // still has a bounding box, but one that runs past the card.
+            // In the top layer, so no overflow-hidden parent clips it, and
+            // inside the window.
+            expect(await menu.evaluate((el: Element) => el.matches(":popover-open"))).toBe(true);
             const menuBox = await menu.boundingBox();
-            const cardBox = await card.boundingBox();
+            const viewport = page.viewportSize();
             expect(menuBox, "the menu is laid out").not.toBeNull();
-            expect(cardBox, "the card is laid out").not.toBeNull();
-            expect(menuBox!.y).toBeGreaterThanOrEqual(cardBox!.y);
-            expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(cardBox!.y + cardBox!.height);
+            expect(menuBox!.y).toBeGreaterThanOrEqual(0);
+            expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(viewport!.height);
 
-            // The whole palette, with one entry marked as the current one.
-            await expect(menu.locator('button[name="colour"]')).toHaveCount(8);
-            await expect(menu.locator('button[aria-pressed="true"]')).toHaveCount(1);
+            // The whole palette and the custom swatch (#638), one checked.
+            const radios = menu.locator('input[type="radio"][name="colour"]');
+            await expect(radios).toHaveCount(9);
+            await expect(menu.locator('input[name="colour"]:checked')).toHaveCount(1);
 
-            const current = await menu
-                .locator('button[aria-pressed="true"]')
-                .getAttribute("value");
+            const current = await menu.locator('input[name="colour"]:checked').getAttribute("value");
             const target = "3" === current ? "4" : "3";
-            const swatch = menu.locator(`button[value="${target}"]`);
+            const radio = menu.locator(`input[name="colour"][value="${target}"]`);
+            const swatch = radio.locator("xpath=following-sibling::span[@data-swatch]");
             const swatchColour = await swatch.evaluate(
                 (el: Element) => getComputedStyle(el).backgroundColor,
             );
 
+            // Picking previews on the sidebar dot; Save commits it.
             await swatch.click();
+            const dot = page.locator(
+                `#sidebar [role="img"][aria-label*="${label}" i]`,
+            );
+            await expect(dot).toHaveCSS("background-color", swatchColour);
+            await menu.getByRole("button", { name: "Save" }).click();
             await expect(page.getByText("Account colour changed")).toBeVisible();
 
             // The sidebar dot is the colour that was picked, and no reload
             // happened in between: the list was streamed back.
-            const dot = page.locator(
-                `#sidebar [role="img"][aria-label*="${label}" i]`,
-            );
             await expect(dot).toHaveCSS("background-color", swatchColour);
 
             // And it is stored, not merely painted.
@@ -132,8 +137,79 @@ test.describe("account colour", () => {
             await expect(
                 row
                     .getByRole("group", { name: /Change the colour of/ })
-                    .locator('button[aria-pressed="true"]'),
+                    .locator('input[name="colour"]:checked'),
             ).toHaveAttribute("value", target);
+        } finally {
+            await removeAccount(page, label);
+        }
+    });
+    /**
+     * #638: a colour of the user's own. The hex field and the colour well are
+     * wired together and the contrast readout is worked out from the theme,
+     * all in the browser — and the dot is an inline style, which only a
+     * layout engine turns into the colour asserted here.
+     */
+    test("a custom colour typed as a hex code repaints the sidebar dot", async ({ page }) => {
+        test.setTimeout(60_000);
+
+        const stamp = Date.now();
+        const label = `E2E Custom ${stamp}`;
+
+        try {
+            await addAccount(page, label, stamp);
+            await page.goto("/settings/accounts");
+
+            const row = page
+                .locator("#settings-account-list li")
+                .filter({ hasText: new RegExp(label, "i") });
+
+            await row.getByRole("button", { name: /Change the colour of/ }).click();
+            const menu = row.getByRole("group", { name: /Change the colour of/ });
+            await expect(menu).toBeVisible();
+
+            const dot = page.locator(`#sidebar [role="img"][aria-label*="${label}" i]`);
+            const before = await dot.evaluate((el: Element) => getComputedStyle(el).backgroundColor);
+
+            await menu.getByRole("radio", { name: "Custom colour" }).check({ force: true });
+
+            const hex = menu.getByRole("textbox", { name: "Hex colour code" });
+            await expect(hex).toBeFocused();
+            // Without the #, as it comes from most palette sites.
+            await hex.fill("e69f00");
+            await expect(menu.locator('input[type="color"]')).toHaveValue("#e69f00");
+
+            // Orange: below 3:1 on the plain light background, above it on the
+            // dark one. The rows say so in words, not by colour alone.
+            const light = menu.locator('[data-mode="light"]');
+            const dark = menu.locator('[data-mode="dark"]');
+            await expect(light.getByText("Faint on this theme")).toBeVisible();
+            await expect(dark.getByText("Easy to see")).toBeVisible();
+
+            // Back to a preset: the custom swatch is the colour wheel again,
+            // with no tick, rather than a second colour that looks chosen.
+            const customIcon = menu.locator('[data-settings--account-colour-target="customIcon"]');
+            await expect(customIcon).toHaveClass(/fa-check/);
+            await menu.locator('input[name="colour"][value="2"] + [data-swatch]').click();
+            await expect(customIcon).toHaveClass(/fa-plus/);
+            await expect(customIcon).not.toHaveClass(/fa-check/);
+            await menu.getByRole("radio", { name: "Custom colour" }).check({ force: true });
+
+            // Previewed before it is saved, and put back by Cancel.
+            await expect(dot).toHaveCSS("background-color", "rgb(230, 159, 0)");
+            await menu.getByRole("button", { name: "Cancel" }).click();
+            await expect(menu).toBeHidden();
+            await expect(dot).toHaveCSS("background-color", before);
+
+            await row.getByRole("button", { name: /Change the colour of/ }).click();
+            await menu.getByRole("radio", { name: "Custom colour" }).check({ force: true });
+            await hex.fill("#e69f00");
+            await menu.getByRole("button", { name: "Save" }).click();
+            await expect(page.getByText("Account colour changed")).toBeVisible();
+
+            await expect(dot).toHaveCSS("background-color", "rgb(230, 159, 0)");
+
+            await page.reload();
+            await expect(dot).toHaveCSS("background-color", "rgb(230, 159, 0)");
         } finally {
             await removeAccount(page, label);
         }

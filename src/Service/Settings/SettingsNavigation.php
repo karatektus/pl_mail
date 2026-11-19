@@ -41,7 +41,9 @@ use App\Domain\DTO\Settings\SettingsPage;
  * entries depend on the request (an administrator's switches, the health
  * report), and the template already has both answers; this class lists every
  * page that can exist, and the template leaves out the two that should not be
- * drawn right now.
+ * drawn right now. Cards work the same way: the Libravatar card (#642) is listed
+ * here, and the search leaves it out while the administrator does not serve
+ * Libravatar, because the page does not draw it then either.
  */
 final class SettingsNavigation
 {
@@ -58,7 +60,7 @@ final class SettingsNavigation
     public const string PAGE_REQUIREMENT = 'profile|security|app-passwords|encryption'
         . '|region|appearance|layout|notifications|whats-new'
         . '|accounts|aliases|health'
-        . '|inboxes|categories|labels|filters|disposal'
+        . '|inboxes|message-list|categories|labels|filters|disposal'
         . '|reading|compose|signature|templates'
         . '|calendars|calendar-behaviour|sharing|contacts'
         . '|ai|insights'
@@ -74,12 +76,14 @@ final class SettingsNavigation
      *
      * Order within an area is the order someone meets the pages, not the
      * alphabet: Profile before Security, the inbox's own setup (unified inboxes,
-     * tabs) before what files mail away (labels, filters, disposal).
+     * how its rows read, tabs) before what files mail away (labels, filters,
+     * disposal).
      */
     private const array TABLE = [
         'account' => ['fa-solid fa-user', [
             'profile' => [
                 ['card-profile', 'settings.profile.heading', 'settings.search.keywords.profile'],
+                ['card-libravatar', 'settings.libravatar.heading', 'settings.search.keywords.libravatar'],
                 ['card-handwriting', 'settings.handwriting.heading', 'settings.search.keywords.handwriting'],
             ],
             'security' => [
@@ -144,9 +148,18 @@ final class SettingsNavigation
                 ['card-unified-inboxes', 'settings.unified_inboxes.heading', null],
                 ['card-unified-inbox-accounts', 'settings.unified_inboxes.accounts_heading', null],
             ],
+            'message-list' => [
+                ['card-list-preview', 'settings.message_list.preview.heading', null],
+                ['card-conversation-view', 'settings.conversation_view.heading', 'settings.search.keywords.conversation_view'],
+                ['card-list-layout', 'settings.message_list.layout.heading', 'settings.search.keywords.list_layout'],
+                ['card-list-content', 'settings.message_list.content.heading', 'settings.search.keywords.list_content'],
+                ['card-list-markers', 'settings.message_list.markers.heading', 'settings.search.keywords.list_markers'],
+                ['card-pinning', 'settings.pinning.heading', 'settings.search.keywords.pinning'],
+            ],
             'categories' => [
                 ['card-sorting', 'settings.sorting.heading', null],
                 ['card-inbox-tabs', 'settings.categories.heading', 'settings.search.keywords.inbox_tabs'],
+                ['card-tab-counts', 'settings.message_list.tab_counts.heading', null],
             ],
             'labels' => [
                 ['card-labels', 'settings.labels.heading', 'settings.search.keywords.labels'],
@@ -162,6 +175,7 @@ final class SettingsNavigation
             'reading' => [
                 ['card-reading-pane', 'settings.reading_pane.heading', 'settings.search.keywords.reading_pane'],
                 ['card-images', 'settings.images.heading', 'settings.search.keywords.images'],
+                ['card-sender-pictures', 'settings.sender_pictures.heading', 'settings.search.keywords.sender_pictures'],
             ],
             'compose' => [
                 ['card-compose-behaviour', 'settings.compose_behavior.heading', 'settings.search.keywords.compose_behaviour'],

@@ -421,6 +421,16 @@ export default class extends Controller {
             // indicator re-reads it — so a nudge that is missed costs one stale
             // render rather than a wrong number.
             this.dispatch("jobs-changed", {detail: data});
+        } else if (data.type === "job.outcome") {
+            // How a background job ended, as a toast the server rendered —
+            // the same shape as mail.send-outcome below, for the same reason.
+            // Published by App\Service\Job\JobNotifier::outcome() for the
+            // jobs whose result is a sentence (an import's counts, #672): a
+            // finished job leaves the indicator at once, so this is the only
+            // place that sentence can go.
+            if ("string" === typeof data.stream && "" !== data.stream) {
+                Turbo.renderStreamMessage(data.stream);
+            }
         } else if (data.type === "mail.send-outcome") {
             // The one branch here that renders rather than dispatches, and it
             // is deliberate: the payload carries a turbo-stream the SERVER
@@ -497,6 +507,13 @@ export default class extends Controller {
             // more, so a missed message costs a strip that is one sync stale
             // rather than a wrong one.
             this.dispatch("insights-changed", {detail: data});
+        } else if (data.type === "sender-picture.found") {
+            // Published by App\Service\Mail\SenderPicture\SenderPictureNotifier
+            // when a background lookup found a sender's picture (#639). Carries
+            // the answer — a key naming the rows and the picture's URL — because
+            // it is one string, and re-asking for it per tab would cost more
+            // than the message. mail--sender-pictures puts it on screen.
+            this.dispatch("sender-picture-found", {detail: data});
         }
     }
 }

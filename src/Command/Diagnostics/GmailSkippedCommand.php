@@ -241,6 +241,10 @@ final class GmailSkippedCommand extends Command
             return 'Another Gmail account here holds it already';
         }
 
+        if (GmailSkipReason::Unstorable === $row->reason) {
+            return 'The database refused it; the error is in the log';
+        }
+
         $labels = $row->labelIds;
 
         if (true === in_array('CHAT', $labels, true)) {

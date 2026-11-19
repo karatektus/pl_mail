@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:0e018770e5ed6f04b1ecc2b0cdc13102af56e0ce -->
+<!-- translated-from: features/mail.md sha1:48c908f6e9f810a9a2698e44f881a20a03ef9f5f -->
 
 # Mail
 
@@ -97,8 +97,8 @@ bringt dich **Alle anzeigen** dorthin zurück, wo du warst, und nicht irgendwohi
 **Papierkorb** und **Entwürfe** sind keine Links, die Sammelzahl über **Labels** ebenfalls nicht.
 Die ersten beiden tragen eine Gesamtzahl statt eines Ungelesen-Zählers, dort wird also gar nicht
 nach Ungelesenem gefragt; die Sammelzahl steht für mehrere Listen auf einmal und hat keine einzelne,
-die sie öffnen könnte. Auch die Zahl an **Ungelesen** ist kein Link: In dieser Liste ist ohnehin
-jede Zeile ungelesen.
+die sie öffnen könnte. Die Zahl an **Ungelesen** gehört zum Link der Zeile selbst: In dieser Liste
+ist ohnehin jede Zeile ungelesen, die Zahl öffnet also dieselbe Liste wie die Zeile.
 
 Eine zugeklappte Überschrift **Labels** trägt das Ungelesene, das darunter verborgen ist, als
 Anzahl von Konversationen. Es ist bewusst nicht die Summe der einzelnen Zahlen: Eine Konversation
@@ -150,8 +150,8 @@ seinen ganzen Posteingang als eine Liste. Den Schalter gibt es nur, solange **Ta
 an ist, und eine Konfigurationssicherung enthält ihn. Ein Tab ist da, solange er Mail enthält, und auf der Seite
 eines Kontos zählt er nur dessen Mail — ein eigener Tab, der nur in einem anderen Konto Mail
 enthält, fehlt auf dieser Seite also. Die Tabs auf
-der Kontoseite sind schlichter: keine „neu“-Markierungen, keine Absenderhinweise und keine
-Ungelesen-Färbung, denn die zählen alle Konten zusammen und würden dort das falsche Postfach
+der Kontoseite sind schlichter: eine Ungelesen-Zahl nur dieses Kontos, aber keine
+„neu“-Markierungen, keine Absenderhinweise und keine Ungelesen-Färbung, denn die zählen alle Konten zusammen und würden dort das falsche Postfach
 beschreiben. Eine Konversation auf einen Tab zu ziehen geht nur im Posteingang ganz oben.
 
 Ein Tab-Wechsel ersetzt den Eintrag im Browser-Verlauf, statt einen neuen anzulegen, so wie in Gmail. Die Zurück-Taste des Browsers verlässt darum den Posteingang, statt dich durch die Tabs zurückzuführen, die du dir angesehen hast. Für die Tabs auf der Seite eines Kontos gilt dasselbe.
@@ -301,8 +301,10 @@ Das Fähnchen sagt, was angekommen ist, ohne dir gezeigt worden zu sein, und ein
 **Ungelesen-Zahl** neben dem Namen des Tabs sagt, in wie vielen Unterhaltungen dieser Kategorie
 Ungelesenes liegt. Die Zahl ist der Posteingangs-Badge der Seitenleiste, nach Tabs aufgeteilt — die
 Tabs ergeben zusammen also genau ihn. Sie steht auf jedem Tab, auch auf dem, auf dem du gerade bist,
-und ist bei null ausgeblendet. Abschalten lässt sie sich unter **Einstellungen → Erscheinungsbild →
-Nachrichtenliste**. (Frühere Versionen hielten diese Zahl von den Tabs fern, mit dem
+und ist bei null ausgeblendet. Wie die Badges der Seitenleiste ist sie ein Link: Ein Klick darauf
+öffnet den Tab mit nur seinen ungelesenen Unterhaltungen, ein Klick irgendwo sonst auf den Tab
+öffnet den ganzen Tab. Abschalten lässt sie sich unter **Einstellungen → Posteingang →
+Kategorien**. (Frühere Versionen hielten diese Zahl von den Tabs fern, mit dem
 Argument, Badge und fette Zeilen sagten Ungelesenes schon. Sie können aber nicht sagen, *wo*: Zeigt
 der Posteingangs-Badge 1, ist Primär geöffnet und leer, deutete nichts auf der Leiste auf den Tab
 mit der Post.) Die Leiste ist live — Fähnchen, Zahlen und Absendernamen aktualisieren sich an Ort und
@@ -340,6 +342,59 @@ Ist es schlicht falsch, sagst du mit **Melden** unten im Bereich, wohin es gehö
 bei deiner Administration unter [Gemeldete Mails](admin.md#gemeldete-mails), zusammen mit den drei
 Urteilen und den Belegen dahinter — daraus wird eine Regel oder eine Anweisung geändert. Gesendet
 werden Absender, Betreff und die Entscheidung; die Nachricht selbst nicht.
+
+## Was eine Listenzeile zeigt
+
+**Einstellungen → Posteingang → Nachrichtenliste** entscheidet, was jede Zeile der Mailliste trägt.
+Jede Vorgabe ist das, was die Liste tat, bevor es die Option gab — es bewegt sich also nichts, bis du
+etwas änderst. Oben auf der Seite steht eine Vorschau: vier erfundene Unterhaltungen, von derselben
+Vorlage gezeichnet wie deine Liste, die sich beim Auswählen ändern. **Telefon**, **Schmal** und
+**Breit** stellen ein, wie breit die Vorschauliste ist, denn wie eine Zeile aufgebaut ist, hängt von
+der Breite der Liste ab.
+
+| Bedienelement | Was es tut |
+|---|---|
+| **Einzeilige Darstellung** | Wann eine Zeile Absender, Betreff und Vorschau in eine Zeile setzt. **Sobald sie passt** ab mittlerer Listenbreite, wie bei Gmail, mit etwas engeren Zeilen; **Nur bei breiten Listen** ab einer sehr breiten; **Nie**. Schmaler wird die Zeile gestapelt: drei Zeilen auf dem Handy, dazwischen Absender und Betreff über der Vorschau |
+| **Vorschau** | Was eine gestapelte Zeile von der Nachricht zeigt: **Keine**, **Hinter dem Betreff** in dessen eigener Zeile, **Eine Zeile** oder **Zwei Zeilen** darunter. Eine einzeilige Zeile zeigt die Vorschau immer hinter dem Betreff |
+| **Anhänge** | **Ausgeblendet**, eine **Büroklammer** oder **Chips**: bis zu drei Dateien mit Namen unter der Vorschau, dann „+N“. Ein Chip öffnet den Betrachter für PDF, Bild oder Video und lädt alles andere herunter |
+| **Labels** | **Vor dem Betreff** als Chips, als **Punkte** in der Farbe des Labels (der Name erscheint beim Überfahren), in einer **Eigenen Zeile** oder **Ausgeblendet** |
+| **Absender** | **Alle**, die in der Unterhaltung geschrieben haben, oder nur der **Zuletzt** schreibende. In Gesendet und Entwürfe nennt eine Zeile so oder so die Empfänger |
+| **Datum** | **Intelligent** — heute die Uhrzeit, in diesem Jahr der Tag, davor das ganze Datum — oder **Datum und Uhrzeit** in jeder Zeile |
+| **Anzahl der Nachrichten** | Die Zahl hinter dem Betreff einer Unterhaltung |
+| **Pfeil für Beantwortet** | Ein Pfeil vor dem Betreff, wenn die neueste Mail der Unterhaltung beantwortet ist. Standardmäßig aus |
+| **Stern** | Ob eine Unterhaltung ohne Stern ihren Umriss **Beim Überfahren** oder **Immer** zeigt |
+| **Absenderkreise** | Der farbige Kreis mit der Initiale des Absenders — siehe den Fallstrick unten, dieser hier verschwindet nicht |
+| **Konto-Ecke** | Das farbige Dreieck unten links in einer Zeile, das sagt, über welches Konto die Nachricht eingegangen ist. Standardmäßig an; gezeichnet wird es ohnehin nur in einer Liste, die mehrere Konten mischt |
+| **Ungelesene Zeilen** | **Dezent**, **Standard** oder **Stark** — wie laut die Liste sagt, dass eine Zeile ungelesen ist |
+
+**Ungelesene Zeilen** ändert den Farbton hinter der Zeile und den Akzentbalken daneben, und sonst
+nichts. Der fette Absender und der fette Betreff bleiben bei jeder Einstellung, und zwar mit Absicht:
+Fettschrift ist das Signal, das eine farbenblinde Leserin, eine lichtdurchlässige Fläche über einem
+Foto und einen Ausdruck übersteht. Dezent nimmt den Farbton ganz weg, Stark vertieft ihn und setzt
+einen Balken an die vordere Kante der Zeile.
+
+Zwei Vorschauzeilen sind die Obergrenze, weil eine gestapelte Zeile für zwei Platz hat. Die Knöpfe
+zum Archivieren, Löschen, als Spam Melden, Zurückstellen und Gelesen-Markieren erscheinen, wenn der
+Mauszeiger über einer Zeile steht; eine Einstellung, sie in jeder Zeile zu zeigen, gibt es nicht,
+denn in jeder Liste, die nicht sehr breit ist, verdrängen sie den Betreff.
+
+Die Ungelesen-Zahl neben dem Namen jedes Posteingangs-Tabs stellst du unter **Einstellungen →
+Posteingang → Kategorien** ein, neben den Tabs, die sie zählt.
+
+Diese Einstellungen gehören zu deinem Konto, nicht zum Browser, und standen früher auf der Seite
+Erscheinungsbild. Sie sagen, was eine Zeile dir mitteilt, nicht, wie die App aussieht — ein
+exportiertes Theme trägt sie deshalb nicht, ein Konfigurations-Backup schon. Die Android- und
+iOS-Apps haben ihre eigene Liste und lesen von hier nur Konto-Ecke, Absenderkreise, Hervorhebung
+ungelesener Zeilen und die Zahl der Vorschauzeilen.
+
+**Absenderkreise lassen sich nicht abschalten, nur leeren.** Dieser Kreis *ist* das Auswahlkästchen
+der Zeile: Das eigentliche Eingabefeld sitzt dahinter, und jede Sammelaktion in der Werkzeugleiste
+liest es. Ihn auszuschalten übermalt die Identität — Farbe und Buchstabe gehen — und lässt einen
+schlichten umrandeten Kreis an derselben Stelle stehen, sodass Auswahlfläche und Geometrie der Zeile
+genau dort bleiben, wo sie waren.
+
+**Die Konto-Ecke taucht nur in einer Liste auf, die Konten mischt.** Auf einer Installation mit einem
+einzigen Konto wurde sie nie gezeichnet, und sie einzuschalten lässt sie nicht erscheinen.
 
 ## Die Markierung „Neu“
 
@@ -486,6 +541,32 @@ gelöschten Nachrichten, von überall sonst nur die anderen. Absender, Vorschau,
 Nachrichten in der Zeile gehören zum selben Teil, ebenso ihre Knöpfe: Im Posteingang ist sie Post mit
 **Löschen**, im Papierkorb gelöschte Post mit **In den Posteingang** und **Endgültig löschen**. Eine
 Konversation, die ganz im Papierkorb liegt, wird überall vollständig gezeigt.
+
+### Einzelne E-Mails statt Konversationen
+
+Wenn du lieber jede E-Mail für sich siehst, schalte die Konversationsansicht aus: **Konversationsansicht**
+unten im Sortiermenü jeder Liste, `t` oder **Einstellungen → Posteingang → Nachrichtenliste →
+Konversationsansicht**. Der Wechsel wirkt sofort, in der Liste, die du gerade ansiehst, und du kannst
+jederzeit hin und her wechseln.
+
+Ist sie aus, hat jede Liste eine Zeile pro E-Mail, mit dem Datum dieser E-Mail:
+
+- **Jede E-Mail steht dort, wo sie abgelegt ist.** Deine eigenen Antworten stehen unter Gesendet,
+  nicht im Posteingang neben der Mail, auf die sie antworten, und eine E-Mail einer Konversation, die
+  im Papierkorb landet, verlässt die Liste, während der Rest der Konversation bleibt.
+- **Eine geöffnete Zeile zeigt diese E-Mail**, mit derselben Leiste und denselben Antwortknöpfen wie
+  eine Konversation. **Ganze Konversation zeigen** darüber öffnet den Rest.
+- **Alles, was du mit einer Zeile machst, betrifft diese E-Mail:** Archivieren, Löschen, Markieren,
+  gelesen und ungelesen, Labels, Verschieben nach, Anheften und Zurückstellen, aus der Zeile, der
+  Leiste, mit einer Wischgeste, der Tastatur, über eine Auswahl oder indem du sie auf einen Ordner,
+  ein Label, Markiert oder Ungelesen ziehst. Spam steht unter Verschieben nach.
+- **Die Zähler für Ungelesenes zählen E-Mails**, die Zahl neben einem Ordner ist also, wie viele
+  fette Zeilen er zeigt.
+- **Kategorie-Tabs bleiben Sache der Konversation.** Eine E-Mail steht im Tab ihrer Konversation, und
+  Mail in einen anderen Tab zu verschieben verschiebt die Konversation.
+
+Beim Wechseln geht nichts verloren: Eine Anheftung oder Zurückstellung aus der einen Ansicht zeigt
+sich in der anderen (siehe [Anheften](#anheften) und [Zurückstellen](#zurückstellen)).
 
 **Original anzeigen** setzt die Nachricht aus der gespeicherten Header-Zuordnung und dem
 dekodierten Text wieder zusammen — ein roher RFC-822-Blob wird nicht aufbewahrt — und stellt
@@ -805,6 +886,15 @@ eine Seite ist, bietet das Menü außerdem **Alle … in dieser Ansicht** an —
 Unterhaltung darin aus. **Keine** leert jede Seite, und in einer anderen Liste beginnst du wieder
 ohne Auswahl.
 
+Um mehrere Konversationen am Stück auszuwählen, klickst du einen Avatar an, hältst dann Umschalt
+gedrückt und klickst einen anderen: Beide und jede Konversation dazwischen auf der Seite sind
+ausgewählt. Die Reihe beginnt immer bei dem Avatar, den du zuletzt ohne Umschalt angeklickt hast.
+Ein weiterer Umschalt-Klick macht sie also länger oder kürzer, und was sie nicht mehr umfasst,
+bekommt seinen vorherigen Zustand zurück. Ein erneuter Umschalt-Klick auf den Avatar, bei dem die
+Reihe endet, entfernt alle Haken der Reihe, ein weiterer setzt sie wieder. Das geht in beide Richtungen und lässt,
+was du auf anderen Seiten ausgewählt hast, wie es ist. Umschalt auf dem Rest der Zeile öffnet die
+Mail wie bisher.
+
 Markieren, **Archivieren**, **Löschen**, **Label vergeben**, **Als gelesen markieren** /
 **Als ungelesen markieren** und **Zurückstellen** gelten für eine ganze Konversation oder für
 eine einzelne Nachricht, und alle wandern zusätzlich nach außen zum Anbieter, statt nur zu
@@ -868,6 +958,8 @@ kennen:
 | `x` | Die hervorgehobene Unterhaltung auswählen. `*` dann `a` wählt die Seite aus, `*` dann `n` hebt die Auswahl auf. |
 | `e` · `#` · `!` | Archivieren · löschen · als Spam markieren. |
 | `s` · `Shift`+`i` · `Shift`+`u` | Markieren · als gelesen markieren · als ungelesen markieren. |
+| `p` | Anheften oder lösen. |
+| `t` | Zwischen Konversationen und einzelnen E-Mails wechseln. |
 | `l` · `v` · `b` | Label vergeben · verschieben nach · zurückstellen. |
 | `r` · `a` · `f` | Antworten · allen antworten · weiterleiten, in einer geöffneten Unterhaltung. |
 | `c` · `/` | Neue Nachricht schreiben · suchen. |
@@ -1058,6 +1150,47 @@ Mail im **Spam** bleibt blockiert, egal was du wählst, auch von vertrauten Abse
 abgelegte Mail ist dein Anbieter, der bezweifelt, dass sie von dem kommt, der sie zu sein vorgibt.
 **Bilder anzeigen** ist dort trotzdem da, um die Bilder einer Mail von Hand zu laden.
 
+## Absenderbilder
+
+Der Kreis neben jedem Absender zeigt ein Bild, wenn plMail eins hat, und sonst den Anfangsbuchstaben.
+In der Reihenfolge, in der plMail sucht:
+
+1. **Jemand auf diesem Server** zeigt das Profilbild, das er sich selbst ausgesucht hat.
+2. **Einer deiner Kontakte** zeigt das Foto auf seiner Karte, egal ob du es hier hinzugefügt hast
+   oder ob es aus deinem CardDAV-, Google- oder Outlook-Adressbuch kam.
+3. **Das Logo einer Firma** (BIMI), das ihre Domain für ihre Mails veröffentlicht. Nur an einer Mail,
+   von der dein Mailserver gesagt hat, dass sie wirklich von dieser Domain kommt, damit ein
+   gefälschter Absender es nie trägt, und nur für Domains, deren DMARC-Richtlinie Server anweist,
+   Fälschungen abzulehnen. plMail prüft das Markenzertifikat nicht, das Gmail und Apple Mail
+   verlangen, deshalb erscheinen hier manche Logos, die dort nicht erscheinen würden.
+4. **Gravatar oder Libravatar**, das Bild, das jemand bei einem dieser Dienste ausgesucht hat. Eine
+   Domain mit eigenem Libravatar-Server wird zuerst gefragt.
+5. **Das Symbol der Website** des Absenders, das größte Symbol, das seine Seite angibt. Nie für
+   Adressen bei Mailanbietern wie Gmail, deren Symbol nichts über die Person sagt.
+
+Die ersten beiden liegen schon auf dem Server und werden immer gezeigt. Die anderen drei werden im
+Internet nachgeschlagen, und nur, wenn die Administration das unter **Admin → Absenderbilder**
+erlaubt. Dann hat **Einstellungen → Lesen & Schreiben → Lesen → Absenderbilder** für jedes einen
+Schalter. Firmenlogos und Website-Symbole sind zu Beginn an, weil sie von der Domain des Absenders
+kommen, die ohnehin weiß, dass sie dir geschrieben hat. Gravatar ist zu Beginn aus: Es würde einen
+Hash jeder Adresse, von der du Mail bekommst, an eine Firma schicken, die weder du noch der Absender
+ist.
+
+Beim Lesen wird nichts geladen. Das Nachschlagen läuft im Hintergrund, einmal pro Absender für alle
+auf dem Server, und ein gefundenes Bild ersetzt den Anfangsbuchstaben auf dem Bildschirm, sobald es
+da ist. Was gefunden wurde, wird etwa einmal im Monat neu geprüft, und Absender, die ein halbes Jahr
+nicht geschrieben haben, werden vergessen. Dein Browser spricht nie mit diesen Diensten; die Bilder
+kommen von plMail.
+
+Dein eigenes Bild kann auch den umgekehrten Weg gehen. Wenn die Administration Libravatar
+ausliefert, hat **Einstellungen → Profil** einen Schalter **Mein Bild über Libravatar teilen**, aus,
+bis du ihn einschaltest. Eingeschaltet zeigen Mailprogramme und Websites, die Libravatar nutzen, das
+Bild, das du hier ausgesucht hast, neben deinen Adressen. Wer eine deiner Adressen kennt, kann es dann
+abrufen.
+
+Mail in **Spam** oder im **Papierkorb** löst nie ein Nachschlagen aus. Die Domain eines Spammers nach
+ihrem Logo zu fragen, würde ihr verraten, dass die Adresse gelesen wird, genau wie ein externes Bild.
+
 ## Zurückstellen
 
 Zurückstellen ist Archivieren mit Wecker. Die Konversation verlässt den Posteingang sofort —
@@ -1077,8 +1210,51 @@ geweckte Konversation wird als **ungelesen** markiert — das ist der Sinn der F
 eine Konversation, die in dem Zustand wiederkommt, in dem du sie verlassen hast, hast du
 bereits zu überscrollen gelernt. Der Lesestatus, den sie hatte, ist tatsächlich verloren.
 
+Ist die [Konversationsansicht aus](#einzelne-e-mails-statt-konversationen), stellt Zurückstellen
+diese eine E-Mail zurück: Sie verlässt den Posteingang mit ihrer eigenen Weckzeit, und der Rest ihrer
+Konversation bleibt. In der Konversationsliste zurückstellen stellt jede E-Mail darin zurück.
+**Zurückholen** nimmt alles zurück, was die E-Mail weggelegt hat; eine E-Mail, die zurückgestellt ist,
+weil ihre ganze Konversation es ist, holt also die ganze Konversation zurück.
+
 Die Liste Zurückgestellt ist nach der letzten Nachricht der Konversation sortiert, wie jede
 andere Liste auch, und nicht nach der Weckzeit.
+
+## Anheften
+
+Eine angeheftete Konversation bleibt oben in jeder Ordner- oder Labelliste, in der sie steht,
+über einer dünnen Linie, egal wie die Liste sortiert ist. Du heftest sie mit der Reißzwecke
+neben dem Stern in ihrer Zeile an, mit demselben Knopf in der Leiste einer geöffneten
+Konversation, mit `p`, mit einer Wischgeste (wenn du unter **Einstellungen → Allgemein → Layout &
+Bedienung** Anheften für eine wählst) oder über einer Auswahl unter **Mehr** mit **Anheften**.
+Derselbe Klick löst sie wieder.
+
+Beim Anheften rückt die Zeile sofort nach oben, und der Rest der Liste bleibt, wo er war, damit
+du bei der Zeile weitermachen kannst, bei der du warst.
+
+Ist die [Konversationsansicht aus](#einzelne-e-mails-statt-konversationen), gehört die Anheftung der
+E-Mail: Nur diese E-Mail rückt nach oben. Jede Ansicht zeigt die Anheftungen der anderen. Eine
+Konversation mit einer angehefteten E-Mail ist in der Konversationsliste angeheftet, und eine
+angeheftete Konversation setzt ihre neueste empfangene E-Mail (nicht deine Antwort) oben in die
+E-Mail-Liste. Lösen löst alles, was diese Zeile angeheftet hat: Eine Konversation zu lösen löst ihre
+E-Mails, und eine E-Mail zu lösen, die wegen ihrer Konversation oben steht, löst die Konversation.
+
+**Einstellungen → Posteingang → Nachrichtenliste → Angeheftete Konversationen** bietet drei
+Einstellungen:
+
+- **Erinnern ab**, 20, solange du es nicht änderst, über alle deine Konten gezählt. Darüber
+  fragt dich das Anheften, ob du wirklich noch eine anheften willst, mit einem Link zu dieser
+  Einstellung. Es verweigert nie. 0 schaltet die Erinnerung ab.
+- **Anheften gilt**: für immer oder eine Zahl von Tagen. Eine abgelaufene Anheftung verlässt die
+  Spitze von selbst. Eine Änderung gilt nur für neue Anheftungen.
+- **Angeheftet lassen, wenn eine Konversation verschoben wird**, an, solange du es nicht
+  ausschaltest. Archivieren zählt als Verschieben. In den Papierkorb oder in Spam verschieben
+  löst die Anheftung immer, und Rückgängig stellt sie wieder her.
+
+Eine Anheftung gehört plMail und wird nie auf den Mailserver geschrieben: IMAP, Gmail und Outlook
+haben nichts, worin sie gespeichert werden könnte. Verschieben in einem anderen Mailprogramm löst
+nie eine Anheftung. `app:mail:unpin-ended` räumt alle 15 Minuten abgelaufene Anheftungen ab, so
+erfahren die Apps davon; die Listen im Web zeigen sie ab dem Moment nicht mehr oben, in dem sie
+ablaufen.
 
 ## Anhänge
 

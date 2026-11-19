@@ -13,46 +13,55 @@ synced address books), book ('' for all, 'local', or a book id).
 {% block title %}{{ 'contacts.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block contacts_content %}
-    {# Wraps rather than hides: in the docked pane (or a phone) the search
-       drops to a full-width row of its own under the title and actions, and
-       is never the thing that goes missing. Container breakpoints, so the
-       pane and the page each decide by their own width — see _layout. #}
-    <div class="flex flex-wrap items-center gap-x-2 gap-y-2 px-4 @2xl:px-6 py-2.5 min-h-14 border-b border-line shrink-0">
-        {# The title never shrinks below its own width (no min-w-0): when the
-           row is too narrow for it and the buttons, the buttons wrap to a line
-           of their own instead of sliding under the title, which is what a
-           shrinking flex item with unshrinkable text did in the docked pane. #}
-        <nav class="flex items-center gap-1 flex-1 shrink-0 text-sm whitespace-nowrap" aria-label="{{ 'contacts.title'|trans }}">
+    {# One row, always: title and actions, as tall as every other pane's header
+       so the rule under it continues the mail's and the calendar's (#678).
+       The search is the strip under it rather than a part of it. It used to
+       wrap into the header in the docked pane, which made the header two rows
+       tall there and dropped its rule 24px below its neighbours'. #}
+    <div class="flex items-center gap-2 pane-header px-4 @2xl:px-6 border-b border-line shrink-0">
+        {# The title may shrink, the actions may not: one row means the
+           buttons can no longer wrap away from a narrow pane, so the count
+           goes first (it is @lg only) and then the title truncates. #}
+        <nav class="flex items-center gap-1 flex-1 min-w-0 text-sm whitespace-nowrap" aria-label="{{ 'contacts.title'|trans }}">
             <i class="fa-solid fa-address-book text-ink-faint mr-1.5" aria-hidden="true"></i>
-            <h1 class="text-base font-semibold text-ink">{{ 'contacts.title'|trans }}</h1>
+            <h1 class="text-base font-semibold text-ink truncate">{{ 'contacts.title'|trans }}</h1>
             <span class="hidden @lg:inline text-xs text-ink-faint ml-1 whitespace-nowrap">{{ 'contacts.count'|trans({'%count%': total}) }}</span>
         </nav>
 
-        <form method="get" action="{{ path('app_contacts_list') }}" class="relative order-last w-full @2xl:order-none @2xl:w-auto" role="search">
+        {# The actions as one group, at the end.
+
+           Icons, all three, as the calendar pane's are (#678). Import was a
+           bordered button that grew a word on a wide page and New a pill that
+           grew one sooner, beside an Export with neither: three styles in one
+           row, and none of them the calendar's. The words are in the labels. #}
+        <div class="flex items-center gap-0.5 ml-auto shrink-0">
+        <a href="{{ path('app_contacts_import') }}" class="{{ iconBtn }}" title="{{ 'contacts.import'|trans }}" aria-label="{{ 'contacts.import'|trans }}">
+            <i class="fa-solid fa-file-import text-sm" aria-hidden="true"></i>
+        </a>
+        {# A download, not a page: Turbo would fetch it into the pane's
+           frame and find no frame in it. #}
+        <a href="{{ path('app_contacts_export_vcf') }}" data-turbo="false" class="{{ iconBtn }}" title="{{ 'contacts.export_vcf'|trans }}" aria-label="{{ 'contacts.export_vcf'|trans }}">
+            <i class="fa-solid fa-file-export text-sm" aria-hidden="true"></i>
+        </a>
+        <a href="{{ path('app_contacts_new') }}" class="{{ iconBtn }} icon-btn-primary ml-1" title="{{ 'contacts.new'|trans }}" aria-label="{{ 'contacts.new'|trans }}">
+            <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
+        </a>
+        {% include 'contacts/_pane_actions.html.twig' %}
+        </div>
+    </div>
+
+    {# The search, a strip of its own under the header at every width — see
+       the header's comment above. #}
+    <div class="px-4 @2xl:px-6 py-2 border-b border-line shrink-0">
+        <form method="get" action="{{ path('app_contacts_list') }}" class="relative w-full @2xl:max-w-sm" role="search">
             {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
             {% if book %}<input type="hidden" name="book" value="{{ book }}">{% endif %}
             <span class="sr-only">{{ 'contacts.search'|trans }}</span>
             <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint pointer-events-none" aria-hidden="true"></i>
             <input type="search" name="q" value="{{ q }}"
                    placeholder="{{ 'contacts.search_placeholder'|trans }}"
-                   class="h-8 w-full @2xl:w-44 @4xl:w-56 rounded-lg border border-field-border bg-field pl-7 pr-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                   class="h-8 w-full rounded-lg border border-field-border bg-field pl-7 pr-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
         </form>
-
-        {# The actions as one group, so they wrap together and stay at the end. #}
-        <div class="flex items-center gap-2 ml-auto shrink-0">
-        <a href="{{ path('app_contacts_import') }}" class="{{ btnGhost }}" title="{{ 'contacts.import'|trans }}" aria-label="{{ 'contacts.import'|trans }}">
-            <i class="fa-solid fa-file-import text-xs" aria-hidden="true"></i><span class="hidden @3xl:inline">{{ 'contacts.import'|trans }}</span>
-        </a>
-        {# A download, not a page: Turbo would fetch it into the pane's
-           frame and find no frame in it. #}
-        <a href="{{ path('app_contacts_export_vcf') }}" data-turbo="false" class="{{ iconBtn }}" title="{{ 'contacts.export_vcf'|trans }}">
-            <i class="fa-solid fa-file-export text-sm" aria-hidden="true"></i>
-        </a>
-        <a href="{{ path('app_contacts_new') }}" class="{{ btnPrimary }}" title="{{ 'contacts.new'|trans }}">
-            <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i><span class="hidden @md:inline">{{ 'contacts.new'|trans }}</span>
-        </a>
-        {% include 'contacts/_pane_actions.html.twig' %}
-        </div>
     </div>
 
     {% set chipOn = 'bg-accent-soft text-accent border-accent' %}

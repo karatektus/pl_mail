@@ -48,9 +48,11 @@ final class WakeSnoozedCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $due = $this->messageThreadSnoozeRepository->findDueSnoozed(new \DateTimeImmutable(), self::BATCH);
+        $now    = new \DateTimeImmutable();
+        $due    = $this->messageThreadSnoozeRepository->findDueSnoozed($now, self::BATCH);
+        $emails = $this->messageThreadSnoozeRepository->findDueSnoozedEmails($now, self::BATCH);
 
-        if ([] === $due) {
+        if ([] === $due && [] === $emails) {
             return Command::SUCCESS;
         }
 
@@ -75,7 +77,24 @@ final class WakeSnoozedCommand extends Command
             }
         }
 
-        $io->success(sprintf('Woke %d conversation(s).', $woken));
+        // Emails snoozed on their own (#615), one at a time for the same
+        // reason as the conversations above.
+        foreach ($emails as $message) {
+            try {
+                $this->snoozeService->wakeEmails([$message]);
+                ++$woken;
+            } catch (\Throwable $error) {
+                $io->warning(sprintf(
+                    'Could not wake email %d: %s',
+                    (int) $message->id,
+                    $error->getMessage(),
+                ));
+
+                $this->entityManager->clear();
+            }
+        }
+
+        $io->success(sprintf('Woke %d conversation(s) or email(s).', $woken));
 
         return Command::SUCCESS;
     }

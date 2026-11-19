@@ -472,6 +472,16 @@ final readonly class JmapEmailSyncer
                     $existing->jmapId = $emailId;
                     $existing->providerThreadKey ??= is_string($email['threadId'] ?? null) ? $email['threadId'] : null;
 
+                    // Kept in the conversation it is in when the server's
+                    // thread is another, as the Gmail sync does (#676).
+                    if (
+                        null !== $existing->providerThreadKey
+                        && null !== $existing->thread
+                        && $existing->providerThreadKey !== $existing->thread->providerThreadKey
+                    ) {
+                        $existing->placedByHeaders = true;
+                    }
+
                     $this->apply($existing, $email, $account);
                     $this->em->flush();
 

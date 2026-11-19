@@ -18,8 +18,45 @@
         data-settings--account-order-url-value="{{ path('app_account_reorder') }}"
         data-settings--account-order-csrf-value="{{ csrf_token('account_reorder') }}"
         data-settings--account-order-target="list">
+        {# Accounts on their way out (#672), by id. Removing runs on a worker,
+           and until it finishes the row stays — greyed out, with how far it has
+           got and nothing to press: every control on it would act on an
+           account that is being emptied. settings--account-removal re-reads
+           the list while one is there, so the row goes when the job does, or
+           comes back as an ordinary row if the job fails.
+
+           Passed in by AccountController when it renders this after a change,
+           read before the list for the reason AccountController::accountLists()
+           gives; asked here only on an ordinary page load. #}
+        {% set removals = removals ?? account_removals() %}
         {% for account in manageableAccounts %}
             {% set isPassword = account.authType == 'password' %}
+            {% set removal = removals[account.id] ?? null %}
+            {% if removal %}
+            <li class="flex items-center gap-3 px-4 py-3.5 opacity-70" data-account-id="{{ account.id }}"
+                data-account-removing aria-busy="true"
+                data-controller="settings--account-removal"
+                data-settings--account-removal-url-value="{{ path('app_account_lists') }}">
+                <span class="w-8 h-8 flex items-center justify-center shrink-0 text-ink-faint">
+                    <i class="fa-solid fa-arrows-rotate fa-spin text-xs" aria-hidden="true"></i>
+                </span>
+                <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-medium text-ink">{{ account.displayAddress }}</p>
+                    <p class="truncate text-xs text-ink-faint">
+                        {% if removal.total > 0 %}
+                            {{ 'settings.accounts.removing_progress'|trans({ '%done%': removal.processed|number_format, '%total%': removal.total|number_format }) }}
+                        {% else %}
+                            {{ 'settings.accounts.removing'|trans }}
+                        {% endif %}
+                    </p>
+                    {% if removal.total > 0 %}
+                        <div class="mt-1.5 h-1 rounded-full bg-line overflow-hidden">
+                            <div class="h-full bg-accent transition-all duration-300" style="width: {{ removal.percent() }}%"></div>
+                        </div>
+                    {% endif %}
+                </div>
+            </li>
+            {% else %}
             <li class="flex items-center gap-3 px-4 py-3.5" data-account-id="{{ account.id }}">
 
                 {# Buttons as well as a handle: a drag is unreachable from a
@@ -46,9 +83,10 @@
                     </button>
                 </div>
 
-                {# On while any of the three services is (#575): an account
-                   kept for its calendar alone is working, not switched off. #}
-                {% set anyOn = account.mailEnabled or account.calendarEnabled or account.contactsEnabled %}
+                {# On while any of the services is (#575): an account kept
+                   for its calendar alone, or to send through a relay, is
+                   working, not switched off. #}
+                {% set anyOn = account.services is not empty %}
                 <span class="w-2.5 h-2.5 rounded-full shrink-0 {{ anyOn ? 'bg-green-400' : 'bg-ink-faint' }}"
                       title="{{ anyOn ? 'settings.accounts.status.active'|trans : 'settings.accounts.status.disabled'|trans }}"></span>
 
@@ -73,7 +111,9 @@
                             </span>
                         {% endif %}
                     </p>
-                    <p class="truncate text-xs text-ink-faint">{{ account.username }} · {{ account.imapHost }}</p>
+                    {# The server it sends through when it has no incoming one —
+                       an SMTP relay added to send only (#628). #}
+                    <p class="truncate text-xs text-ink-faint">{{ account.username }} · {{ account.imapHost ?: account.smtpHost }}</p>
                     {# Said only when something is off, so the common case — an
                        account used for everything — reads as it always did. #}
                     {% if account.services|length < account_services()|length %}
@@ -105,9 +145,9 @@
                        never said it would do.
 
                        Only offered on an account that could actually send —
-                       an account with its mail switched off as the default
+                       an account with its sending switched off as the default
                        From would be a From nothing can go out of. #}
-                    {% if not account.isPrimary and account.mailEnabled %}
+                    {% if not account.isPrimary and account.sendEnabled %}
                         <form method="post" action="{{ path('app_account_primary', { id: account.id }) }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('account-primary' ~ account.id) }}">
                             <button
@@ -127,16 +167,35 @@
                        included, which is why it is not a field in the edit
                        modal: edit() is closed to them.
 
-                       Each entry is its own submit button, so choosing is one
-                       click and needs no script beyond the menu opening. The
-                       current entry is marked by aria-pressed and a tick, not
-                       by its hue alone.
+                       The current entry is marked by a ring and a tick, not by
+                       its hue alone. #}
+                    {% set dot = account_dot(account) %}
+                    {% set custom = account.customColor %}
+                    {% set customValue = custom ?? '#0072b2' %}
+                    {% set heading = 'text-[11px] font-semibold uppercase tracking-wide text-ink-muted' %}
+                    {# The colour menu (#638): the palette, a colour of the
+                       user's own beside it, and Save.
 
-                       It opens UPWARD. The list sits in a card with
-                       overflow-hidden that is only as tall as its rows, so a
-                       menu hanging below the last row was cut off at the
-                       card's edge; above, there is always room. #}
-                    <div class="relative" data-controller="ui--dropdown">
+                       Choosing no longer posts by itself. A colour is picked by
+                       looking at it, so the menu previews it first — on the
+                       button, the sidebar dot and the contrast rows — and Save
+                       commits it; Cancel, Escape or a click elsewhere puts the
+                       old one back. One radio group, name="colour", so the
+                       palette entries and the custom swatch are one choice: the
+                       custom radio's value IS the hex code, kept in step with
+                       the colour well and the hex field, and the route already
+                       tells an index from a hex value.
+
+                       place=above: the menu goes into the top layer over its
+                       button. Pinned with bottom-full inside the card it fitted
+                       while it was two rows of swatches; this is taller than a
+                       card holding one account, whose overflow-hidden cut its
+                       top off. #}
+                    <div class="relative"
+                         data-controller="ui--dropdown settings--account-colour"
+                         data-ui--dropdown-place-value="above"
+                         data-action="ui--dropdown:closed->settings--account-colour#restore"
+                         data-settings--account-colour-account-value="{{ account.id }}">
                         <button
                             type="button"
                             data-action="click->ui--dropdown#toggle"
@@ -145,26 +204,123 @@
                             aria-label="{{ 'settings.accounts.colour.change'|trans({ '%account%': account.displayAddress }) }}"
                             title="{{ 'settings.accounts.colour.change'|trans({ '%account%': account.displayAddress }) }}"
                         >
-                            <span class="w-3 h-3 rounded-full {{ account.colorIndex|account_color }}" aria-hidden="true"></span>
+                            <span data-account-dot="{{ account.id }}" class="w-3 h-3 rounded-full {{ dot.class }}" style="{{ dot.style }}" aria-hidden="true"></span>
                         </button>
 
                         <form method="post" action="{{ path('app_account_colour', { id: account.id }) }}"
                               data-ui--dropdown-target="menu" hidden data-enter="rise"
+                              data-settings--account-colour-target="form"
+                              data-action="submit->settings--account-colour#commit reset->settings--account-colour#reverted"
                               role="group"
                               aria-label="{{ 'settings.accounts.colour.change'|trans({ '%account%': account.displayAddress }) }}"
-                              class="absolute bottom-full mb-1 right-0 z-30 popover p-2 grid grid-cols-[repeat(4,1.75rem)] gap-2">
+                              class="absolute bottom-full mb-1 right-0 z-30 popover w-[300px] p-3 flex flex-col gap-3 text-left">
                             <input type="hidden" name="_token" value="{{ csrf_token('account-colour' ~ account.id) }}">
-                            {% for index in 0..(constant('App\\Twig\\SenderAvatarExtension::ACCOUNT_COLOURS') - 1) %}
-                                {% set swatchName = ('settings.accounts.colour.swatch.' ~ index)|trans %}
-                                <button
-                                    type="submit" name="colour" value="{{ index }}"
-                                    aria-pressed="{{ index == account.colorIndex ? 'true' : 'false' }}"
-                                    aria-label="{{ swatchName }}" title="{{ swatchName }}"
-                                    class="w-7 h-7 flex items-center justify-center rounded-full cursor-pointer transition-transform hover:scale-110 {{ index|account_color }}"
-                                >
-                                    <i class="fa-solid fa-check text-[11px] text-white dark:text-black {{ index == account.colorIndex ? '' : 'invisible' }}" aria-hidden="true"></i>
+
+                            <fieldset class="flex flex-col gap-2.5">
+                                <legend class="{{ heading }} mb-2.5">{{ 'settings.accounts.colour.presets'|trans }}</legend>
+                                <div class="grid grid-cols-5 gap-2 justify-items-center">
+                                    {% for index in 0..(constant('App\\Twig\\SenderAvatarExtension::ACCOUNT_COLOURS') - 1) %}
+                                        {% set swatchName = ('settings.accounts.colour.swatch.' ~ index)|trans %}
+                                        <label class="relative cursor-pointer" title="{{ swatchName }}">
+                                            <input type="radio" name="colour" value="{{ index }}" class="peer sr-only"
+                                                   data-action="settings--account-colour#choose"
+                                                   aria-label="{{ swatchName }}"
+                                                   {{ custom is null and index == account.colorIndex ? 'checked' : '' }}>
+                                            <span data-swatch
+                                                  class="w-7 h-7 rounded-full flex items-center justify-center transition-[transform,box-shadow] hover:scale-110 {{ index|account_color }}
+                                                         peer-checked:ring-2 peer-checked:ring-ink peer-checked:ring-offset-2 peer-checked:ring-offset-surface
+                                                         peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface
+                                                         [&>i]:invisible peer-checked:[&>i]:visible">
+                                                <i class="fa-solid fa-check text-[11px] text-white dark:text-black" aria-hidden="true"></i>
+                                            </span>
+                                        </label>
+                                    {% endfor %}
+
+                                    {# The ninth swatch: a colour wheel until the
+                                       account has a colour of its own, then
+                                       that colour. #}
+                                    <label class="relative cursor-pointer" title="{{ 'settings.accounts.colour.custom'|trans }}">
+                                        <input type="radio" name="colour" value="{{ customValue }}" class="peer sr-only"
+                                               data-settings--account-colour-target="customRadio"
+                                               data-action="settings--account-colour#choose"
+                                               aria-label="{{ 'settings.accounts.colour.custom'|trans }}"
+                                               {{ custom is null ? '' : 'checked' }}>
+                                        <span data-swatch data-settings--account-colour-target="customSwatch"
+                                              class="w-7 h-7 rounded-full flex items-center justify-center transition-[transform,box-shadow] hover:scale-110
+                                                     peer-checked:ring-2 peer-checked:ring-ink peer-checked:ring-offset-2 peer-checked:ring-offset-surface
+                                                     peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface"
+                                              style="background: {{ custom ?? 'conic-gradient(#ef4444, #eab308, #22c55e, #06b6d4, #3b82f6, #a855f7, #ef4444)' }}">
+                                            <i data-settings--account-colour-target="customIcon"
+                                               class="fa-solid {{ custom is null ? 'fa-plus text-white' : 'fa-check' }} text-[11px]"
+                                               aria-hidden="true"></i>
+                                        </span>
+                                    </label>
+                                </div>
+                            </fieldset>
+
+                            {# data-place-reserve: the menu is placed as if this were open, so
+                               opening it does not move the menu (place_above.js). #}
+                            <div data-settings--account-colour-target="panel" data-place-reserve {{ custom is null ? 'hidden' : '' }}
+                                 class="border-t border-line pt-3 flex flex-col gap-2.5">
+                                <div class="{{ heading }}">{{ 'settings.accounts.colour.custom_heading'|trans }}</div>
+                                <div class="flex items-center gap-2">
+                                    <label class="relative w-9 h-9 shrink-0 cursor-pointer">
+                                        <span data-settings--account-colour-target="wellFace"
+                                              class="absolute inset-0 rounded-lg ring-1 ring-inset ring-black/10 dark:ring-white/15"
+                                              style="background-color: {{ customValue }}"></span>
+                                        <input type="color" value="{{ customValue }}"
+                                               data-settings--account-colour-target="well"
+                                               data-action="input->settings--account-colour#pickWell"
+                                               aria-label="{{ 'settings.accounts.colour.custom_pick'|trans }}"
+                                               class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                                    </label>
+                                    <input type="text" value="{{ customValue }}"
+                                           maxlength="7" spellcheck="false" autocomplete="off"
+                                           data-settings--account-colour-target="hex"
+                                           data-action="input->settings--account-colour#typeHex change->settings--account-colour#complete"
+                                           aria-label="{{ 'settings.accounts.colour.custom_hex'|trans }}"
+                                           aria-describedby="account-colour-format-{{ account.id }}"
+                                           class="flex-1 min-w-0 h-9 px-2.5 rounded-lg text-[13px] font-mono bg-field border border-field-border text-ink
+                                                  aria-invalid:border-danger">
+                                </div>
+                                <p id="account-colour-format-{{ account.id }}" data-settings--account-colour-target="invalid" hidden
+                                   class="text-xs text-danger">{{ 'settings.accounts.colour.custom_format'|trans }}</p>
+
+                                {# Against the theme in use and against the plain
+                                   light and dark ones, because a custom colour is
+                                   one value on every theme, where a preset has a
+                                   shade for each. The current row is dropped when
+                                   the theme's background is one of the other two,
+                                   so no row says the same thing twice. #}
+                                <div class="flex flex-col gap-1.5">
+                                    {% for mode in ['current', 'light', 'dark'] %}
+                                        <div data-settings--account-colour-target="row" data-mode="{{ mode }}" class="flex items-center gap-2 text-xs">
+                                            <span data-chip class="w-11 h-[22px] shrink-0 rounded-md flex items-center justify-center ring-1 ring-inset ring-black/10 dark:ring-white/15">
+                                                <span data-chip-dot class="w-2 h-2 rounded-full"></span>
+                                            </span>
+                                            <span class="w-14 text-ink-muted">{{ ('settings.accounts.colour.contrast_' ~ mode)|trans }}</span>
+                                            <span data-ratio class="w-12 font-mono tabular-nums text-ink"></span>
+                                            <span data-ok hidden class="flex items-center gap-1 text-success">
+                                                <i class="fa-solid fa-check text-[10px]" aria-hidden="true"></i>{{ 'settings.accounts.colour.contrast_ok'|trans }}
+                                            </span>
+                                            <span data-low hidden class="flex items-center gap-1 text-warning">
+                                                <i class="fa-solid fa-triangle-exclamation text-[10px]" aria-hidden="true"></i>{{ 'settings.accounts.colour.contrast_low'|trans }}
+                                            </span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end gap-2 border-t border-line pt-2.5">
+                                <button type="reset" data-action="ui--dropdown#close"
+                                        class="h-8 px-3 rounded-lg text-[13px] text-ink-soft hover:bg-hover transition-colors cursor-pointer">
+                                    {{ 'form.cancel'|trans }}
                                 </button>
-                            {% endfor %}
+                                <button type="submit" data-settings--account-colour-target="save"
+                                        class="h-8 px-3.5 rounded-lg text-[13px] font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer disabled:opacity-40 disabled:pointer-events-none">
+                                    {{ 'form.submit'|trans }}
+                                </button>
+                            </div>
                         </form>
                     </div>
 
@@ -309,6 +465,7 @@
                     </form>
                 </div>
             </li>
+            {% endif %}
         {% endfor %}
     </ul>
 {% endif %}

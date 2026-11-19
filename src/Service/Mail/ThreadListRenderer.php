@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
 use Symfony\Component\HttpFoundation\Request;
@@ -46,7 +47,7 @@ final class ThreadListRenderer
     }
 
     /**
-     * @param MessageThread[]      $threads
+     * @param list<MessageThread|Message> $threads rows of either kind (#615)
      * @param array<string, mixed> $parameters
      */
     public function render(Request $request, string $template, array $threads, array $parameters): Response
@@ -54,11 +55,18 @@ final class ThreadListRenderer
         $now = new \DateTimeImmutable();
         $new = [];
 
-        foreach ($threads as $thread) {
-            if (true === $thread->isNewAt($now)) {
-                $new[] = (int) $thread->id;
+        foreach ($threads as $row) {
+            // An email row (#615) is new while its conversation is: "new"
+            // is kept per conversation, and showing one of its emails is
+            // showing that it arrived.
+            $thread = $row instanceof Message ? $row->thread : $row;
+
+            if (null !== $thread && true === $thread->isNewAt($now)) {
+                $new[(int) $thread->id] = (int) $thread->id;
             }
         }
+
+        $new = array_values($new);
 
         $parameters['threads']      = $threads;
         $parameters['newThreadIds'] = $new;

@@ -222,10 +222,28 @@ final readonly class ConfigBackupUsers
         // choice about irreversible deletion. A boolean, no id, means the same
         // on any install.
         User::SETTING_DISPOSAL_DELETE_NOW,
+        // Pinned conversations (#654): when pinning asks "pin anyway?", how
+        // long a pin lasts, and whether a move keeps it. Numbers and a
+        // boolean, no ids, so they mean the same on any install. The pins
+        // themselves are columns on the conversations, which a config backup
+        // does not carry.
+        User::SETTING_PIN_REMINDER_AT,
+        User::SETTING_PIN_DURATION_DAYS,
+        User::SETTING_PIN_KEEP_ON_MOVE,
+        // Conversations or single emails in the lists (#615). A boolean.
+        User::SETTING_CONVERSATION_VIEW,
         // Whether remote images load without being asked for. A choice about
         // what senders may learn of one's reading, so a restore must not
         // quietly undo it in either direction. A boolean, no id.
         User::SETTING_IMAGES_ALWAYS_SHOW,
+        // Which looked-up sender pictures the user wants (#639) — beside the
+        // images switch, for the same reason: a choice about what may be
+        // fetched on their behalf, and Gravatar's is a privacy one.
+        User::SETTING_SENDER_PICTURES,
+        // Whether the user lets this server serve their picture to the
+        // internet (#642). Their consent to publishing their face; a restore
+        // must carry it, and must never invent it. A boolean, no id.
+        User::SETTING_LIBRAVATAR_PUBLISH,
         // Which tabs and labels notify, and whether a browser skips mail
         // already read (#369). Choices about how one wants to be interrupted,
         // which a restore must not quietly undo: back to Primary alone is
@@ -504,6 +522,10 @@ final readonly class ConfigBackupUsers
             // provider, and whether there are tabs at all. Carried the way the
             // two above are, so the next decision added to it travels too.
             'categorySorting' => $user->categorySorting->toArray(),
+            // What a list row shows (#608). Five of these were in
+            // `appearance` before; the restorer still reads them from there
+            // for a document written before this key existed.
+            'messageList' => $user->messageList->toArray(),
             'settings'   => $this->settingsOf($user),
             'createdAt'  => $user->createdAt->format(DateTimeInterface::ATOM),
             // Carried for the reason export() gives about deletedAt: being
@@ -777,6 +799,9 @@ final readonly class ConfigBackupUsers
                 // keeps the mark the user recognises it by; leave it out and
                 // they all come back sharing colour 0.
                 'colorIndex'        => $account->colorIndex,
+                // The user's own colour, when they picked one (#638). Absent
+                // from older files, which restore with the palette entry above.
+                'customColor'       => $account->customColor,
                 'imapHost'          => $account->imapHost,
                 'imapPort'          => $account->imapPort,
                 'imapEncryption'    => $account->imapEncryption,
@@ -786,6 +811,7 @@ final readonly class ConfigBackupUsers
                 'username'          => $account->username,
                 'password'          => $account->password,
                 'smtpPassword'      => $account->smtpPassword,
+                'smtpUsername'      => $account->smtpUsername,
                 'authType'          => $account->authType,
                 'oauthProvider'     => $account->oauthProvider,
                 'oauthAccessToken'  => $account->oauthAccessToken,
@@ -798,10 +824,12 @@ final readonly class ConfigBackupUsers
                 // again and the health card built on it goes quiet for
                 // connections that are working fine.
                 'oauthGrantedScopes' => $account->oauthGrantedScopes,
-                // Three switches since #575. The old single `isActive` is not
-                // written any more; the restorer still reads it from files
-                // made before, as what it governed — mail and contacts.
+                // Three switches since #575, four since #628. The old single
+                // `isActive` is not written any more; the restorer still reads
+                // it from files made before, as what it governed — mail and
+                // contacts.
                 'mailEnabled'       => $account->mailEnabled,
+                'sendEnabled'       => $account->sendEnabled,
                 'calendarEnabled'   => $account->calendarEnabled,
                 'contactsEnabled'   => $account->contactsEnabled,
                 'pushEnabled'       => $account->pushEnabled,

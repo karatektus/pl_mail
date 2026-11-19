@@ -6,13 +6,18 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Job\JobState;
+use App\Domain\Enum\Mail\ListLevel;
 use App\Entity\Job\BackgroundJob;
+use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
 use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Job\JobNotifier;
+use App\Service\Mail\DiscardedView;
+use App\Service\Mail\DraftsView;
 use App\Service\Mail\ListViewResolver;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
@@ -92,6 +97,7 @@ final readonly class RunBulkStatusHandler
     public function __construct(
         private BackgroundJobRepository  $jobs,
         private MessageThreadRepository  $threads,
+        private MessageRepository        $messages,
         private ListViewResolver        $views,
         private ThreadStatusUpdater     $status,
         private ThreadSnoozeService     $snooze,
@@ -103,6 +109,8 @@ final readonly class RunBulkStatusHandler
         private EntityManagerInterface  $em,
         private ManagerRegistry         $registry,
         private LoggerInterface         $logger,
+        private DraftsView              $draftsView,
+        private DiscardedView           $discardedView,
     ) {
     }
 
@@ -215,12 +223,13 @@ final readonly class RunBulkStatusHandler
             throw new \LogicException('Deleting for good was switched off before this job ran.');
         }
 
-        $threads = $this->views->threadsIn(
-            $job->usr,
-            (string) $job->view['scope'],
-            (string) $job->view['value'],
-            true === $job->view['unreadOnly'],
-        );
+        // The list's rows: its emails in the email list (#615), else its
+        // conversations. A job started before the level was recorded is a
+        // conversation job, which is what every job was.
+        $emails  = ListLevel::Email->value === ($job->view['level'] ?? null);
+        $threads = true === $emails
+            ? $this->views->emailsIn($job->usr, (string) $job->view['scope'], (string) $job->view['value'], true === $job->view['unreadOnly'])
+            : $this->views->threadsIn($job->usr, (string) $job->view['scope'], (string) $job->view['value'], true === $job->view['unreadOnly']);
 
         // begin() stamps lastProgressAt along with the total, and that stamp is
         // the point: resolving a whole view into threads is itself minutes of
@@ -246,6 +255,7 @@ final readonly class RunBulkStatusHandler
             'scope'   => (string) $job->view['scope'],
             'value'   => (string) $job->view['value'],
             'labelId' => (int) ($job->view['labelId'] ?? 0),
+            'emails'  => $emails,
         ];
 
         // IDS, NOT ENTITIES, and this is the whole correctness argument for the
@@ -261,7 +271,7 @@ final readonly class RunBulkStatusHandler
         // A bulk action over one chunk therefore worked and the same action over
         // two did not, which is the shape that survives a hurried test.
         // Scalars survive a clear; managed objects do not.
-        $ids = array_map(static fn (MessageThread $thread): int => (int) $thread->id, $threads);
+        $ids = array_map(static fn (MessageThread|Message $row): int => (int) $row->id, $threads);
 
         unset($threads);
 
@@ -340,8 +350,8 @@ final readonly class RunBulkStatusHandler
      * wait that timed out. Anything else is a real failure and goes straight
      * up, unretried.
      *
-     * @param list<int>                                           $chunk
-     * @param array{scope: string, value: string, labelId: int} $view
+     * @param list<int>                                                         $chunk
+     * @param array{scope: string, value: string, labelId: int, emails: bool} $view
      */
     private function applyWithRetry(array $chunk, string $action, bool $read, int $userId, ?DateTimeImmutable $until, array $view): void
     {
@@ -382,13 +392,28 @@ final readonly class RunBulkStatusHandler
      * Takes IDS and loads the threads itself, because the caller's list does
      * not survive the clear at the foot of this method. See run().
      *
-     * @param list<int>                                           $threadIds
-     * @param array{scope: string, value: string, labelId: int} $view
+     * In the email list (#615) the ids are emails, and each is acted on
+     * alone — applyToEmails().
+     *
+     * @param list<int>                                                         $threadIds
+     * @param array{scope: string, value: string, labelId: int, emails: bool} $view
      */
     private function apply(array $threadIds, string $action, bool $read, int $userId, ?DateTimeImmutable $until, array $view): void
     {
+        if (true === $view['emails']) {
+            $this->applyToEmails($threadIds, $action, $read, $userId, $until, $view);
+
+            return;
+        }
+
         $byAccount = [];
         $owned     = [];
+
+        // Emptying a Drafts list throws away the drafts, not the conversations
+        // they answer, and restoring the whole bin or Spam brings back what is
+        // in there — the rules BulkStatusController keeps for ticked rows.
+        $draftsOnly    = 'trash' === $action && $this->draftsView->names($view['scope'], $view['value']);
+        $discardedOnly = 'restore' === $action && $this->discardedView->names($view['scope'], $view['value']);
 
         foreach ($this->threads->findBy(['id' => $threadIds]) as $thread) {
             // The last check before a write. The resolver selected these for
@@ -411,7 +436,13 @@ final readonly class RunBulkStatusHandler
 
             $owned[] = $thread;
 
-            foreach ($thread->messages as $message) {
+            $messages = match (true) {
+                $draftsOnly    => DraftsView::draftsAmong($thread->messages),
+                $discardedOnly => DiscardedView::discardedAmong($thread->messages),
+                default        => $thread->messages,
+            };
+
+            foreach ($messages as $message) {
                 $byAccount[(int) $message->account?->id][] = $message;
             }
         }
@@ -481,6 +512,75 @@ final readonly class RunBulkStatusHandler
         // The whole point of chunking: without this a run over thousands of
         // threads holds every entity it has ever touched and is killed for
         // memory rather than finishing.
+        $this->em->clear();
+    }
+
+    /**
+     * One chunk of the email list's rows (#615): apply() for single emails.
+     *
+     * The same rules, applied to each email rather than to every email of a
+     * conversation: a Drafts list throws away its drafts, the bin and Spam
+     * give back what is in them, a snooze is the email's own, and a purge
+     * takes only what is still thrown away.
+     *
+     * @param list<int>                                                         $messageIds
+     * @param array{scope: string, value: string, labelId: int, emails: bool} $view
+     */
+    private function applyToEmails(array $messageIds, string $action, bool $read, int $userId, ?DateTimeImmutable $until, array $view): void
+    {
+        $draftsOnly    = 'trash' === $action && $this->draftsView->names($view['scope'], $view['value']);
+        $discardedOnly = 'restore' === $action && $this->discardedView->names($view['scope'], $view['value']);
+        $byAccount     = [];
+
+        foreach ($this->messages->findBy(['id' => $messageIds]) as $message) {
+            // The last check before a write, as apply() makes it.
+            if ((int) $message->account->usr?->id !== $userId) {
+                continue;
+            }
+
+            $kept = match (true) {
+                $draftsOnly    => DraftsView::draftsAmong([$message]),
+                $discardedOnly => DiscardedView::discardedAmong([$message]),
+                'purge' === $action => true === $this->placement->isDiscarded($message) ? [$message] : [],
+                default        => [$message],
+            };
+
+            foreach ($kept as $email) {
+                $byAccount[(int) $email->account->id][] = $email;
+            }
+        }
+
+        if ('move-to' === $action) {
+            $target = $this->labels->find($view['labelId']);
+
+            if (null === $target || (int) $target->usr?->id !== $userId || false === $this->moveTo->accepts($target)) {
+                throw new \LogicException('The label this move was started for is no longer one mail can be moved to.');
+            }
+
+            foreach ($byAccount as $emails) {
+                $this->moveTo->moveEmails(
+                    $emails,
+                    $this->moveTo->plan($emails[0]->account->usr, $target, $view['scope'], $view['value']),
+                );
+            }
+
+            $this->em->clear();
+
+            return;
+        }
+
+        foreach ($byAccount as $emails) {
+            match ($action) {
+                'snooze'  => null === $until ? $this->snooze->wakeEmails($emails) : $this->snooze->snoozeEmails($emails, $until),
+                'purge'   => $this->purger->purge($emails),
+                'archive' => $this->status->archive($emails),
+                'trash'   => $this->status->trash($emails),
+                'restore' => $this->status->restore($emails),
+                'read'    => $this->status->markRead($emails, $read),
+                default   => throw new \LogicException(sprintf('Unknown bulk action "%s".', $action)),
+            };
+        }
+
         $this->em->clear();
     }
 }

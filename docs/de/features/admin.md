@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:df7a89a84f7dcf8d97c214ba2f76584fe3e6071c -->
+<!-- translated-from: features/admin.md sha1:324a314460bc99f31831b3de7c113a6ff9c42520 -->
 
 # Administration
 
@@ -818,6 +818,64 @@ Ein Postfach, das weit hinterherhängt — die Funktion wurde letzte Woche einge
 das Such-Modell gewechselt —, ist nicht der Fall für den nächtlichen Durchlauf. Der hat mit Absicht
 eine Obergrenze pro Postfach. Nimm dafür `app:ai:embed-mailbox` von oben, und schau unter
 **Administration → KI**, wie weit er gekommen ist.
+
+## Absenderbilder
+
+Ob plMail Bilder für die Leute nachschlagen darf, die deinen Benutzern schreiben: Firmenlogos (BIMI)
+und Website-Symbole von der Domain des Absenders, und Gravatar oder Libravatar für Benutzer, die das
+möchten. Aus, bis du es einschaltest, denn danach schickt dein Server Anfragen, die er vorher nicht
+geschickt hat, an Hosts, die sich aussucht, wer deinen Benutzern schreibt.
+
+Das Nachschlagen läuft auf dem Maintenance-Worker, nie während eine Seite gezeichnet wird, und kein
+Browser eines Benutzers spricht mit diesen Diensten. Jede Adresse und jede Domain wird einmal für den
+ganzen Server nachgeschlagen. Beim Einschalten werden die Leute nachgeschlagen, die jedem Benutzer in
+den letzten 90 Tagen geschrieben haben, höchstens tausend pro Benutzer; danach neue Absender, sobald
+ihre Mail ankommt. Eine tägliche Runde (`app:sender-pictures:refresh`) fragt Antworten, die älter als
+einen Monat sind, erneut ab, vergisst Absender, die seit sechs Monaten nicht geschrieben haben, und
+löscht Dateien, die nichts mehr benutzt. Die Bilder liegen unter `uploads/sender-pictures` im
+Speicher-Volume.
+
+Jede Anfrage folgt denselben Regeln wie der Bild-Proxy: nur https, nie eine Adresse in einem privaten
+Netz, höchstens drei Weiterleitungen und eine Größengrenze. Ein Bild wird neu gezeichnet, bevor es
+gespeichert wird, und ein SVG-Logo wird auf seine Zeichnung zurückgeschnitten.
+
+Ausschalten stoppt neues Nachschlagen und nimmt alle nachgeschlagenen Bilder sofort von allen Seiten.
+Fotos an Kontakten und die eigenen Profilbilder der Benutzer werden in jedem Fall gezeigt: Sie liegen
+schon auf diesem Server. Welche Arten sie möchten, wählt jeder Benutzer weiterhin selbst unter
+**Einstellungen → Lesen & Schreiben → Lesen**. Eine Konfigurationssicherung enthält diesen Schalter.
+
+### Die Bilder deiner Benutzer ausliefern (Libravatar)
+
+Die zweite Karte auf derselben Seite dreht die Richtung um: plMail beantwortet die Mailprogramme,
+Forges und Websites anderer Leute mit dem Profilbild, das deine Benutzer hier ausgesucht haben, als
+[Libravatar](https://www.libravatar.org)-Server. Es ist aus, bis du es einschaltest, und auch dann
+liefert es das Bild eines Benutzers nur aus, wenn er das selbst unter **Einstellungen → Profil**
+einschaltet. Für alle anderen, und solange der Schalter aus ist, antwortet plMail, als kenne es die
+Adresse nicht, damit niemand damit herausfinden kann, wer hier ein Konto hat.
+
+Ein Libravatar-Programm findet den Server für eine Adresse über einen DNS-Eintrag bei der Domain der
+Adresse. Die Karte listet jede Domain, unter der deine Benutzer Adressen haben, mit dem genauen
+Eintrag, den sie braucht, und dem Host aus **Admin → Adresse**:
+
+```
+_avatars-sec._tcp.example.com. 3600 IN SRV 0 0 443 mail.example.com.
+```
+
+**DNS prüfen** schlägt jeden nach und sagt, was es gefunden hat. **OK** heißt, der Eintrag nennt
+diesen Server auf Port 443. **Noch kein Eintrag** heißt, er muss noch angelegt werden. **Zeigt auf**
+nennt einen anderen Server, also entweder einen Tippfehler oder eine Domain mit eigenem
+Avatar-Server. **Falscher Port** heißt, der Eintrag nennt diesen Server auf einem anderen Port als
+443. Domains von Mailanbietern wie Gmail oder Fastmail stehen ohne Eintrag unter der Liste: Dort kann nur
+der Anbieter Einträge anlegen, und diese Benutzer bekommen ihr Bild stattdessen von Gravatar oder
+Libravatar.
+
+DNS ist nicht alles, und die Karte sagt das auch: Die öffentliche Adresse muss https sein, mit einem
+Zertifikat, das Browser akzeptieren (ein selbst signiertes lehnen die Programme stillschweigend ab),
+und `/avatar/` auf diesem Host muss aus dem Internet erreichbar sein. Hinter einem Reverse Proxy
+musst du diesen Pfad durchreichen. Die Route beantwortet die Anfragen der Spezifikation vollständig:
+ein Bild per MD5 oder SHA-256 einer Adresse, jede Größe von 1 bis 512 Pixeln und den `d=`-Standard
+des Programms, wenn es kein Bild gibt. Jede Client-IP bekommt höchstens 600 Anfragen in zehn Minuten. Eine Konfigurationssicherung
+enthält den Schalter und die Entscheidung jedes Benutzers.
 
 ## Benutzer
 

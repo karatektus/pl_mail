@@ -23,23 +23,37 @@
                    for the rows' buttons to point at, is placed by its host
                    rather than by CSS, and always carries "Unsnooze", which the
                    host shows or hides for the row it was opened for.
+
+    Below the presets, "Pick a date and time" (#342) unfolds calendar--when in
+    place. Its confirm button is one more option to the surface: it carries the
+    same `until` param and fires the same action, after mail--snooze-menu#confirm
+    has had the chance to refuse a moment that has already passed.
 #}
 {% set snoozed = snoozed|default(false) %}
 {% set shared = shared|default(false) %}
 {% set url = url|default(null) %}
 {% set fire = 'click->' ~ controller ~ '#' ~ method ~ (shared ? '' : ' click->ui--dropdown#close') %}
+{# While the picker is open the menu is the picker: it widens, because a
+   six-day strip does not fit fourteen rem (as the send menu does,
+   compose/_send_pill), and everything but the heading and the picker steps
+   aside (`data-picking`, set by mail--snooze-menu#showCustom). The presets
+   above it made the menu too tall to keep its own Snooze button on screen
+   under a row, or at all on a phone. #}
+{% set widen = 'has-[[data-mail--snooze-menu-target=custom]:not([hidden])]:w-80 [&[data-picking]>:not([data-keep])]:hidden overflow-y-auto' %}
 
 <div {% if shared %}id="row-snooze-menu" role="menu" aria-label="{{ 'thread_row.actions.snooze'|trans }}"
      data-mail--row-menus-target="snooze"
-     class="fixed z-50 min-w-56 popover py-1"
+     data-action="mail--snooze-menu:expanded->mail--row-menus#replace"
+     class="fixed z-50 min-w-56 {{ widen }} popover py-1"
      {% else %}data-ui--dropdown-target="menu"
      data-action="ui--dropdown:opened->mail--snooze-menu#refresh"
-     class="absolute top-full mt-1 {{ 'left' == align|default('right') ? 'left-0' : 'right-0' }} z-20 min-w-56 popover py-1"
+     class="absolute top-full mt-1 {{ 'left' == align|default('right') ? 'left-0' : 'right-0' }} z-20 min-w-56 {{ widen }} popover py-1"
      {% endif %}
      hidden
-     data-controller="mail--snooze-menu">
+     data-controller="mail--snooze-menu"
+     data-mail--snooze-menu-past-value="{{ 'snooze.past'|trans }}">
 
-    <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+    <p data-keep class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
         {{ 'thread_row.actions.snooze'|trans }}
     </p>
 
@@ -69,6 +83,62 @@
             <span data-snooze-when class="text-xs text-ink-faint tabular-nums whitespace-nowrap shrink-0"></span>
         </button>
     {% endfor %}
+
+    <div class="my-1 border-t border-line"></div>
+
+    {# Only the menu's own action: unfolding the picker is not a choice, so the
+       surface's handler and the dropdown's close stay out of it. #}
+    <button type="button"
+            data-mail--snooze-menu-target="toggle"
+            data-action="click->mail--snooze-menu#showCustom"
+            {% if shared %}role="menuitem"{% endif %}
+            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
+                   hover:bg-hover hover:text-ink transition-colors text-left">
+        <i class="fa-regular fa-calendar w-4 text-center" aria-hidden="true"></i>
+        <span>{{ 'snooze.pick_date'|trans }}</span>
+    </button>
+
+    {# The picker the send menu and the event editor draw, with one card. No
+       `today`: it then counts days from the browser's own date, which is the
+       clock every snooze time is on. The hidden input is never submitted — the
+       confirm button carries the moment as its `until` param, written by
+       mail--snooze-menu#changed. `data-place-reserve` so a lifted dropdown
+       picks its side from the unfolded height (place_above.js). #}
+    {% import 'calendar/_when.html.twig' as when %}
+    <div data-mail--snooze-menu-target="custom" data-keep data-place-reserve hidden class="px-3 py-2 space-y-2">
+        <div {{ when.attrs(null) }} class="flex flex-col gap-2">
+            <input type="hidden"
+                   data-calendar--when-target="start"
+                   data-mail--snooze-menu-target="input"
+                   data-action="change->mail--snooze-menu#changed">
+            <div data-calendar--when-target="startCard" tabindex="-1"
+                 role="status" aria-label="{{ 'snooze.pick_date'|trans }}"
+                 class="flex flex-col gap-0.5 rounded-xl border px-3 py-2 focus:outline-none">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                    {{ 'snooze.until'|trans }}
+                </span>
+                <span class="flex items-baseline gap-2">
+                    <span data-when-part="day" class="text-[13px] text-ink-muted"></span>
+                    <span data-when-part="time" class="text-lg font-semibold tracking-tight text-ink tabular-nums"></span>
+                </span>
+            </div>
+            <div data-calendar--when-target="panel"
+                 class="flex flex-col gap-2.5 rounded-xl border border-line bg-sunken p-2.5"></div>
+        </div>
+        {# role="alert": a refusal is the only thing that happens on the click,
+           and a screen reader would otherwise be told nothing. #}
+        <p data-mail--snooze-menu-target="error" hidden
+           role="alert" aria-live="assertive"
+           class="text-xs text-danger"></p>
+        <button type="button"
+                data-mail--snooze-menu-target="confirm"
+                {% if url %}data-{{ controller }}-snooze-url-param="{{ url }}"{% endif %}
+                data-action="click->mail--snooze-menu#confirm {{ fire }}"
+                class="w-full rounded-full bg-accent text-accent-ink text-sm font-semibold
+                       px-3 py-1.5 hover:bg-accent-strong transition-colors">
+            {{ 'snooze.confirm'|trans }}
+        </button>
+    </div>
 
     {% if snoozed or shared %}
         <div class="my-1 border-t border-line" {% if shared %}data-mail--row-menus-target="unsnooze"{% endif %}></div>

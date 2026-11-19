@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:47ba29081569784f245ca20eefff10803643e6d0 -->
+<!-- translated-from: features/accounts.md sha1:62da6ef95e256b92e983cc39412c57814c53401a -->
 
 # Konten und Aliase
 
@@ -50,6 +50,22 @@ Durchlauf alle fünfzehn Minuten dahinter.
 
 Siehe [IMAP und SMTP](../providers/imap-smtp.md) für die Einstellungen, über die sich die
 Server uneinig sind.
+
+### Ein Konto, das nur sendet oder nur empfängt
+
+Die Überschriften **Eingehend** und **Ausgehend** tragen je einen Schalter, **E-Mail empfangen** und
+**E-Mail senden**, beide an. Schaltest du einen aus, klappen seine Felder weg, und sein Server wird
+nicht mehr gebraucht. Mindestens einer bleibt an.
+
+- **E-Mail empfangen** aus ist für ein Konto, das nur sendet, etwa ein SMTP-Relay wie SMTP2go, das
+  kein Postfach zum Lesen hat. plMail versucht nie, es zu synchronisieren, bietet es unter **Von**
+  an und behält, was du darüber sendest, in plMail unter Gesendet, weil es keinen Serverordner für
+  eine Kopie gibt.
+- **E-Mail senden** aus ist für ein Konto, das nur empfängt. Es synchronisiert wie gewohnt und wird
+  unter **Von** nicht angeboten.
+
+Dieselben zwei Schalter stehen auch unter **Konto bearbeiten**, so kannst du jede Hälfte später mit
+ihrem Server einschalten; siehe [E-Mail, Kalender und Kontakte](#e-mail-kalender-und-kontakte).
 
 ## Ein POP3-Postfach hinzufügen
 
@@ -105,8 +121,9 @@ beim Anbieter registrieren, bevor der Knopf überhaupt etwas tut. Ist das erledi
 Microsoft** an, und der gesamte Ablauf ist die Zustimmungsseite des Anbieters selbst — hier
 wird überhaupt kein Passwort gespeichert.
 
-Kreuz über den beiden Knöpfen an, wofür das Konto da ist: **E-Mail**, **Kalender** und
-**Kontakte**, vorgegeben sind alle drei. Die Zustimmungsseite fragt dann nur danach. Ein
+Kreuz über den beiden Knöpfen an, wofür das Konto da ist: **E-Mail empfangen**, **E-Mail senden**,
+**Kalender** und **Kontakte**, vorgegeben sind alle vier. Für das Senden fragt plMail Google oder
+Microsoft um dieselbe Erlaubnis wie für das Empfangen. Die Zustimmungsseite fragt dann nur danach. Ein
 Google-Konto, das du nur für seinen Kalender verbindest, wird nie um Zugriff auf seine E-Mails
 gebeten und taucht in der Mail-Seitenleiste nicht auf. Die anderen kannst du später einschalten;
 siehe [E-Mail, Kalender und Kontakte](#e-mail-kalender-und-kontakte).
@@ -159,19 +176,28 @@ nichts um, und sie ist **keine** Statusanzeige. Ob ein Konto tatsächlich funkti
 
 Ändern kannst du sie mit dem Farbfeld in der Zeile des Kontos, das die Palette mit den acht Farben
 öffnet. Dieses Bedienelement gibt es bei **jedem** Konto, auch bei Gmail- und Outlook-Konten — deshalb
-ist es kein Feld in **Konto bearbeiten**: Dieses Formular ist für sie gesperrt. Der Punkt in der
-Seitenleiste ändert sich sofort, und jede Liste, die du danach öffnest, zeigt die neue Farbe an den
-Nachrichten des Kontos; eine Liste, die schon in einem anderen Tab offen ist, wird beim Neuladen
-umgefärbt. Eine Farbe zu wählen, die ein anderes Konto schon trägt, ist erlaubt — so lassen sich
-zwei Konten zu einem Paar machen.
+ist es kein Feld in **Konto bearbeiten**: Dieses Formular ist für sie gesperrt. Eine gewählte Farbe
+siehst du sofort als Vorschau am Knopf und am Punkt in der Seitenleiste; **Speichern** behält sie,
+**Abbrechen**, Escape oder ein Klick daneben stellt die alte wieder her. Jede Liste, die du danach
+öffnest, zeigt die neue Farbe an den Nachrichten des Kontos; eine Liste, die schon in einem anderen
+Tab offen ist, wird beim Neuladen umgefärbt. Eine Farbe zu wählen, die ein anderes Konto schon
+trägt, ist erlaubt — so lassen sich zwei Konten zu einem Paar machen.
+
+Wenn du die acht schlecht auseinanderhalten kannst, ist das neunte Feld eine **eigene Farbe**: Wähle
+sie mit dem Farbwähler oder tippe ihren Hex-Code (`#0072b2`, mit oder ohne `#`). Eine eigene Farbe
+ist in jedem Theme derselbe Wert, während jede der acht einen hellen und einen dunklen Ton hat.
+Deshalb zeigt das Menü ihren Kontrast zum Hintergrund deines aktuellen Themes und zu einem schlichten
+hellen und dunklen (die Zeile „Aktuell“ entfällt, wenn dein Theme einer der beiden ist). Unter 3:1
+sagt eine Zeile, dass die Farbe dort blass ist; speichern kannst du sie trotzdem. Wählst du wieder
+eine der acht, gilt wieder die Palette.
 
 Jede Zeile bietet:
 
 | Bedienelement | Wirkung |
 |---|---|
-| **Farbfeld** | Öffnet die Palette; die gewählte Farbe gehört dem Konto von da an — bei jedem Konto |
+| **Farbfeld** | Öffnet die Palette und eine eigene Farbe; die gespeicherte Farbe gehört dem Konto von da an — bei jedem Konto |
 | **Als primär festlegen** | Verfasst neue Nachrichten künftig aus diesem Konto — in jeder Zeile außer der primären |
-| **E-Mail, Kalender und Kontakte** (Schalter-Symbol) | Schaltet jedes der drei für dieses Konto ein oder aus und entfernt synchronisierte E-Mails, solange E-Mail aus ist; siehe [E-Mail, Kalender und Kontakte](#e-mail-kalender-und-kontakte) |
+| **E-Mail, Kalender und Kontakte** (Schalter-Symbol) | Schaltet Empfangen, Senden, Kalender und Kontakte für dieses Konto ein oder aus und entfernt synchronisierte E-Mails, solange Empfangen aus ist; siehe [E-Mail, Kalender und Kontakte](#e-mail-kalender-und-kontakte) |
 | **Konto bearbeiten** | Servereinstellungen und Passwort — nur bei Konten mit Passwort |
 | **Ordner** | Die IMAP-Ordner des Kontos: jeden ein- oder ausschalten und deine eigenen anlegen, umbenennen oder löschen — nur bei IMAP-Konten; siehe [Ordner](#ordner) |
 | **Outlook-Kategorien folgen** (Schlagwort-Symbol) | Standardmäßig aus; an, setzt eine in Outlook gesetzte oder entfernte Kategorie das Label hier oder nimmt es ab — nur bei Microsoft-Konten; siehe [Labels als Outlook-Kategorien](#labels-als-outlook-kategorien) |
@@ -186,6 +212,16 @@ Ein Konto zu entfernen löscht dessen synchronisierte Mail aus plMails Datenbank
 Anbieter nichts. Außerdem wird versucht, jede Push-Registrierung abzubauen, die es hatte, damit
 nichts zurückbleibt, das auf ein Konto zeigt, das es nicht mehr gibt.
 
+Das Entfernen läuft im Hintergrund, weil ein großes Postfach länger zum Löschen braucht, als eine
+Seitenanfrage dauern darf. Sobald du bestätigst, werden alle Dienste des Kontos ausgeschaltet: Es
+synchronisiert und sendet nicht mehr, und die Kennzeichnung als primär geht nötigenfalls an ein
+anderes Konto. Die Zeile bleibt in der Liste, ausgegraut und ohne Schaltflächen, und zeigt, wie
+viele Nachrichten schon entfernt sind; derselbe Fortschritt steht unter **Hintergrundarbeit** in der
+oberen Leiste. Die Zeile verschwindet, sobald das Konto entfernt ist. Schlägt das Entfernen fehl,
+nennt die Anzeige den Grund, und das Konto erscheint wieder als normale Zeile, mit ausgeschalteten
+Diensten und einem Teil seiner Mail schon entfernt; ein erneutes **Konto entfernen** macht dort
+weiter.
+
 Alles andere, was eine Registrierung wegnimmt, gibt sie dem Anbieter inzwischen genauso zurück —
 einen Kalender löschen, einen abwählen, eine Verbindung trennen und das Zurücksetzen der Daten durch
 eine Administratorin. Der Versuch ist ein Versuch nach bestem Vermögen: Ein Anbieter, der sich
@@ -197,35 +233,41 @@ Lässt du im Bearbeitungsformular das Passwortfeld leer, bleibt das gespeicherte
 
 ### E-Mail, Kalender und Kontakte
 
-Jedes Konto ist für bis zu drei Dinge da — seine E-Mails, seine Kalender und seine Kontakte — und
-jedes davon schaltest du einzeln ein oder aus, über das Schalter-Symbol in der Zeile des Kontos. Bei
-einem neuen Konto sind alle drei an, außer du nimmst beim Verbinden von Gmail oder Outlook Häkchen
-heraus.
+Jedes Konto ist für bis zu vier Dinge da — E-Mails empfangen, E-Mails senden, seine Kalender und
+seine Kontakte — und jedes davon schaltest du einzeln ein oder aus, über das Schalter-Symbol in der
+Zeile des Kontos. Bei einem neuen Konto sind alle vier an, außer was du im Formular ausschaltest oder beim Verbinden
+von Gmail oder Outlook abwählst.
 
 Ausschalten heißt: plMail spricht mit dem Server darüber nicht mehr, in keine Richtung. Was schon da
 ist, wird nie entfernt:
 
 | Ausgeschaltet | Was aufhört | Was bleibt |
 |---|---|---|
-| **E-Mail** | Synchronisieren, Push, Senden von diesem Konto und jede Änderung, die zum Server zurückgeht — gelesen, archivieren, verschieben, löschen, Ordner | Die schon synchronisierten E-Mails. Das Konto bleibt in der Seitenleiste, solange es welche hat, und seine eigenen Seiten zeigen sie; die gemeinsamen Posteingänge, die Zähler, die kontoübergreifende Suche und die Benachrichtigungen über neue E-Mails lassen es aus |
+| **E-Mail empfangen** | Synchronisieren, Push und jede Änderung, die zum Server zurückgeht — gelesen, archivieren, verschieben, löschen, Ordner | Die schon synchronisierten E-Mails. Das Konto bleibt in der Seitenleiste, solange es welche hat, und seine eigenen Seiten zeigen sie; die gemeinsamen Posteingänge, die Zähler, die kontoübergreifende Suche und die Benachrichtigungen über neue E-Mails lassen es aus |
+| **E-Mail senden** | Das Konto unter **Von** und alles, was darüber hinausgeht — gesendete E-Mails, fällig werdende geplante Sendungen, Lesebestätigungen | Entwürfe. Eine geplante Nachricht, die fällig wird, wird als nicht gesendet markiert, mit dem Grund |
 | **Kalender** | Das Synchronisieren der Kalender des Kontos | Ihre Termine. Eine Änderung in der Zwischenzeit wartet und geht raus, sobald du den Kalender wieder einschaltest |
 | **Kontakte** | Das Synchronisieren der Adressbücher des Kontos | Ihre Kontakte. Eine Änderung wartet genauso; ein ganz gelöschter Kontakt kommt mit der ersten Synchronisierung zurück |
 
-Änderungen an E-Mails, solange E-Mail aus ist, bleiben in plMail. Schaltest du E-Mail wieder ein,
+Änderungen an E-Mails, solange Empfangen aus ist, bleiben in plMail. Schaltest du es wieder ein,
 liest die nächste Synchronisierung den Server neu, und wo sich beide unterscheiden, gewinnt der
 Server.
 
-Ein Konto mit ausgeschalteter E-Mail kann nicht das sein, von dem neue E-Mails gesendet werden. War
-es das Hauptkonto, geht das an das erste Konto, bei dem E-Mail an ist.
+Ein Konto mit ausgeschaltetem Senden kann nicht das sein, von dem neue E-Mails gesendet werden. War
+es das Hauptkonto, geht das an das erste Konto, das sendet.
+
+Ein Konto mit Passwort, dem für eine Hälfte nie ein Server gegeben wurde — kein
+Posteingangsserver bei einem Relay, kein SMTP-Server bei einem Postfach ohne —, zeigt statt dieses
+Schalters **Einrichten…**. Das öffnet das Kontoformular, in dem die Hälfte denselben Schalter hat;
+schalte sie ein, trag den Server ein und speichere.
 
 Bei einem Gmail- oder Outlook-Konto braucht es für etwas, wofür das Konto nicht verbunden wurde,
 erst die Erlaubnis des Anbieters. Der Schalter zeigt dann **Erlauben…** und öffnet die
 Zustimmungsseite des Anbieters; kommst du zurück, ist er an.
 
-**Synchronisierte E-Mails aus plMail entfernen** erscheint unter den Schaltern, solange E-Mail aus
+**Synchronisierte E-Mails aus plMail entfernen** erscheint unter den Schaltern, solange Empfangen aus
 ist. Es löscht die E-Mails dieses Kontos aus der Datenbank von plMail — Unterhaltungen, Nachrichten,
-Anhänge — und nichts auf dem Server, egal ob E-Mail an oder aus ist. Es läuft im Hintergrund. Ordner
-und Labels bleiben. Schaltest du E-Mail danach wieder ein, lädt plMail das Postfach von vorn herunter.
+Anhänge — und nichts auf dem Server, egal ob Empfangen an oder aus ist. Es läuft im Hintergrund. Ordner
+und Labels bleiben. Schaltest du Empfangen danach wieder ein, lädt plMail das Postfach von vorn herunter.
 
 ## Einstellungen pro Konto
 

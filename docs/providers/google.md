@@ -296,6 +296,14 @@ omit it, the account connects, works for an hour, and then cannot refresh.
 screen lets the user untick it. The symptom is an account that appears under *Where calendars come
 from* with no calendars on it. Reconnect and leave the box ticked.
 
+**Signed and encrypted mail leaves through `smtp.gmail.com`, not the Gmail API.** The API rewrites
+every message it sends, and for OpenPGP that is fatal: a PGP/MIME message arrives as an ordinary
+one with the ciphertext as its text, which the recipient's program cannot open, while the copy in
+Sent looks fine. So plMail sends those messages over Gmail's SMTP server on port 465, signed in with
+the same OAuth token; everything else still goes through the API. A server that may only reach
+Google over HTTPS has to be allowed out to `smtp.gmail.com:465` as well, or signed and encrypted
+mail from Gmail accounts will wait and then fail.
+
 **Enabling the Calendar API is not the same as adding the calendar scope**, and doing one without
 the other fails in two different ways: the scope without the API is a 403 on every calendar call,
 and the API without the scope is a token that was never granted calendar access. The same goes for

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\DTO\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Helper\OwnAddressHelper;
 use App\Entity\Mail\Message;
@@ -55,6 +56,12 @@ final readonly class ThreadRowMessage
         /** Unread — what MessageThread::$unreadCount counts. */
         public bool $unread = false,
         public bool $hasAttachments = false,
+        /** Carries \Answered: somebody replied to it from this mailbox (#608). */
+        public bool $answered = false,
+        /** When the row last changed — for a draft written here, its last save. */
+        public ?DateTimeImmutable $updatedAt = null,
+        /** Passed the sender check — Message::$senderVerified; what admits a BIMI logo (#639). */
+        public bool $senderVerified = false,
     ) {
     }
 
@@ -80,6 +87,9 @@ final readonly class ThreadRowMessage
             self::wearsTrash($message),
             null === $message->seenAt,
             true === $message->hasAttachments,
+            $message->hasFlag(MessageFlag::ANSWERED),
+            $message->updatedAt,
+            true === $message->senderVerified,
         );
     }
 
@@ -87,6 +97,18 @@ final readonly class ThreadRowMessage
     public function effectiveAt(): DateTimeImmutable
     {
         return $this->receivedAt ?? $this->sentAt ?? $this->createdAt;
+    }
+
+    /**
+     * When a draft was last written: the provider's date for one synced from
+     * elsewhere (a re-save there is a new message with a new date), our last
+     * save for one written here, which has no receivedAt. effectiveAt() falls
+     * back to createdAt instead and would date every draft by its first save.
+     * MessageThreadRepository::sortList() orders Drafts by the same rule.
+     */
+    public function writtenAt(): DateTimeImmutable
+    {
+        return $this->receivedAt ?? $this->updatedAt ?? $this->createdAt;
     }
 
     private static function wearsTrash(Message $message): bool

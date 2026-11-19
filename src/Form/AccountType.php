@@ -184,7 +184,10 @@ class AccountType extends AbstractType
                     'class' => 'form-input',
                 ] + PasswordManagerIgnore::ATTR,
                 'label' => 'IMAP host',
-                'constraints' => [new NotBlank(), self::hostConstraint()],
+                // Not NotBlank (#628): required only while receiving is
+                // switched on. See requiredWhile().
+                'required'    => false,
+                'constraints' => [self::requiredWhile('receiving', 'account.incoming_required'), self::hostConstraint()],
             ])
             ->add('imapPort', IntegerType::class, [
                 'attr' => [
@@ -194,7 +197,8 @@ class AccountType extends AbstractType
                     'class'       => 'form-input',
                 ],
                 'label' => 'account.form.port',
-                'constraints' => [new NotBlank(), new Range(min: 1, max: 65535)],
+                'required'    => false,
+                'constraints' => [self::requiredWhile('receiving', 'account.port_required'), new Range(min: 1, max: 65535)],
             ])
             ->add('imapEncryption', ChoiceType::class, [
                 'choices' => [
@@ -212,7 +216,7 @@ class AccountType extends AbstractType
                     'class' => 'form-input',
                 ] + PasswordManagerIgnore::ATTR,
                 'label' => 'SMTP host',
-                'constraints' => [self::hostConstraint()],
+                'constraints' => [self::requiredWhile('sending', 'account.smtp_required'), self::hostConstraint()],
             ])
             ->add('smtpPort', IntegerType::class, [
                 'required' => false,
@@ -235,14 +239,20 @@ class AccountType extends AbstractType
                     ],
                 'label' => 'SMTP encryption',
             ])
-            // ── A second password, for sending ─────────────────────────────
-            // Two fields, and the first is the one that decides. A server that
-            // wants a different password to send is rare, so the form shows
-            // one password field and a button; the button ticks this box and
-            // reveals the second field (see settings--smtp-password and
-            // account/_fields.html.twig).
+            // ── A second sign-in, for sending ──────────────────────────────
+            // A box and two fields, and the box is the one that decides. A
+            // server that wants a different username or password to send is
+            // rare, so the form shows one sign-in and a button; the button
+            // ticks this box and reveals a sending username and password (see
+            // settings--smtp-password and account/_fields.html.twig). Either
+            // left blank is the account's own (#660 added the username; the
+            // password came with #42).
             //
-            // The box is what is believed, not the field. A password manager
+            // Still named for the password it was added for: renaming it
+            // would change what the connection test posts for no reader's
+            // benefit.
+            //
+            // The box is what is believed, not the fields. A password manager
             // will fill a password input it can find whether or not it is on
             // screen, and a blank field on the edit form means "keep what is
             // stored" — so neither "has a value" nor "is blank" says whether
@@ -252,6 +262,18 @@ class AccountType extends AbstractType
                 'required' => false,
                 'label'    => 'account.form.smtp.separate',
             ])
+            // Not required, and blank means the account's username: a relay
+            // that only wants its own password needs nothing typed twice.
+            // Kept out of password managers' reach like the username above —
+            // one would fill it with the mailbox's address.
+            ->add('smtpUsername', TextType::class, [
+                'attr' => [
+                    'class'        => 'form-input',
+                    'autocomplete' => 'off',
+                ] + PasswordManagerIgnore::ATTR,
+                'label'    => 'account.form.smtp.username',
+                'required' => false,
+            ])
             ->add('smtpPassword', SecretType::class, [
                 'attr' => [
                     'placeholder'  => '••••••••',
@@ -260,6 +282,55 @@ class AccountType extends AbstractType
                 'label'        => 'account.form.smtp.password',
                 'required'     => false,
             ]);
+
+        // ── Receive, send, or both (#628) ──────────────────────────────────
+        // An explicit choice, drawn as a switch on the Incoming and the
+        // Outgoing heading; switched off, the section's fields fold away.
+        // Not mapped: on an account that exists, switching goes through
+        // AccountServiceSwitch, which the edit action calls with these
+        // values, because switching sending off can move the primary and
+        // switching receiving off hands back push. Only a new account, which
+        // has nothing to follow from yet, takes them straight onto its
+        // columns — below.
+        //
+        // Both on for a new account. The server fields are required only for
+        // a half that is on (requiredWhile()), and one half has to stay on.
+        $builder
+            ->add('receiving', CheckboxType::class, [
+                'mapped'   => false,
+                'required' => false,
+                'label'    => 'settings.accounts.services.mail',
+            ])
+            ->add('sending', CheckboxType::class, [
+                'mapped'      => false,
+                'required'    => false,
+                'label'       => 'settings.accounts.services.send',
+                'constraints' => [new Callback(static function (mixed $sending, ExecutionContextInterface $context): void {
+                    if (true !== $sending && true !== $context->getRoot()->get('receiving')->getData()) {
+                        $context->buildViolation('account.services_none')->addViolation();
+                    }
+                })],
+            ]);
+
+        $builder->addEventListener(FormEvents::POST_SET_DATA, static function (FormEvent $event): void {
+            $account = $event->getData();
+
+            if ($account instanceof Account) {
+                $event->getForm()->get('receiving')->setData($account->mailEnabled);
+                $event->getForm()->get('sending')->setData($account->sendEnabled);
+            }
+        });
+
+        $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event): void {
+            $account = $event->getData();
+
+            if (false === $account instanceof Account || null !== $account->id) {
+                return;
+            }
+
+            $account->mailEnabled = true === $event->getForm()->get('receiving')->getData();
+            $account->sendEnabled = true === $event->getForm()->get('sending')->getData();
+        });
 
         // ── The POP3 delete mode: a form field, a jsonb setting ────────────
         // Not a column, so it cannot be mapped. The value lives in the
@@ -313,8 +384,12 @@ class AccountType extends AbstractType
         $builder->addEventListener(FormEvents::POST_SET_DATA, static function (FormEvent $event) use (&$stored): void {
             $account = $event->getData();
             $stored  = $account instanceof Account ? $account->smtpPassword : null;
+            $user    = $account instanceof Account ? $account->smtpUsername : null;
 
-            $event->getForm()->get('separateSmtpPassword')->setData(null !== $stored && '' !== $stored);
+            // Ticked for an account that has either of the two.
+            $event->getForm()->get('separateSmtpPassword')->setData(
+                (null !== $stored && '' !== $stored) || (null !== $user && '' !== trim($user)),
+            );
         });
 
         $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event) use (&$stored): void {
@@ -324,12 +399,19 @@ class AccountType extends AbstractType
                 return;
             }
 
-            // Box clear: one password for both, whatever the hidden field
-            // was sent with.
+            // Box clear: one sign-in for both, whatever the hidden fields
+            // were sent with.
             if (true !== $event->getForm()->get('separateSmtpPassword')->getData()) {
+                $account->smtpUsername = null;
                 $account->smtpPassword = null;
 
                 return;
+            }
+
+            // Box ticked, username blank: the account's own. Stored as null
+            // rather than '' so "has none" has one spelling.
+            if (null !== $account->smtpUsername && '' === trim($account->smtpUsername)) {
+                $account->smtpUsername = null;
             }
 
             // Box ticked, field blank: keep the stored one — the same rule the
@@ -344,11 +426,44 @@ class AccountType extends AbstractType
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
-            'data_class' => Account::class,
+            'data_class'       => Account::class,
             'require_password' => true,
         ]);
 
         $resolver->setAllowedTypes('require_password', 'bool');
+    }
+
+    /**
+     * Blank refused only while the half the field belongs to is switched on
+     * (#628): the incoming server and port while receiving is, the SMTP
+     * server while sending is. Switched off, the section is folded away and
+     * whatever it still holds is kept but not asked for.
+     *
+     * Read off the switch on the form, not off the account: on the edit form
+     * the account still carries the position from before the submit, and the
+     * switch is what the person is asking for. JMAP sends through its own
+     * server when it takes submissions, so an SMTP host is never required of
+     * it — Account::lacksServerFor() makes the same exception.
+     */
+    private static function requiredWhile(string $switch, string $message): Callback
+    {
+        return new Callback(static function (mixed $value, ExecutionContextInterface $context) use ($switch, $message): void {
+            $form = $context->getRoot();
+
+            if (true !== $form->get($switch)->getData()) {
+                return;
+            }
+
+            $account = $form->getData();
+
+            if ('sending' === $switch && $account instanceof Account && true === $account->isJmap()) {
+                return;
+            }
+
+            if (null === $value || '' === trim((string) $value)) {
+                $context->buildViolation($message)->addViolation();
+            }
+        });
     }
 
     /**

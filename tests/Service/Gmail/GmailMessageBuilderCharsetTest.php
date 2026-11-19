@@ -165,6 +165,43 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
         self::assertSame('Gebühren.pdf', $this->attachmentPart($message)?->filename);
     }
 
+    /**
+     * #674: Gmail handed over a filename written as RFC 2231 continuations as
+     * the whole unjoined header, over 255 characters, and the INSERT was
+     * refused — with the 49 other messages of its batch, every hour. Joined,
+     * it is the name the sender wrote, and the column takes it at any length.
+     */
+    public function testAFilenameInRfc2231ContinuationsIsJoinedAndStoredWhole(): void
+    {
+        $pieces = [
+            'Regulamin Promocji „Pakiet CANAL+ za 45 zl',
+            ' swiadczony przez CANAL+ Polska S.A. w zestawie',
+            ' z pakietem Player swiadczonym przez TVN spolka',
+            ' akcyjna sp. j. (dawniej: TVN Digital S.A.)',
+            ' i jeszcze troche tekstu, zeby przekroczyc limit',
+            ' dwustu piecdziesieciu pieciu znakow.pdf',
+        ];
+
+        $raw = $pieces[0];
+
+        foreach (array_slice($pieces, 1) as $i => $piece) {
+            $raw .= "\";\n    filename*" . ($i + 1) . '="' . $piece;
+        }
+
+        $payload = $this->payload(charset: 'UTF-8', text: 'x', html: '<p>x</p>');
+        $payload['payload']['parts'][] = [
+            'mimeType' => 'application/pdf',
+            'filename' => $raw,
+            'body'     => ['attachmentId' => 'att-674', 'size' => 1024],
+        ];
+
+        $message  = $this->build($payload);
+        $filename = (string) $this->attachmentPart($message)?->filename;
+
+        self::assertSame(implode('', $pieces), $filename);
+        self::assertGreaterThan(255, mb_strlen($filename), 'longer than the column used to be');
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /**

@@ -10,6 +10,8 @@ use App\Domain\Enum\Ai\AiProvider;
 use App\Domain\Enum\Ai\PromptSlot;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Mail\CategorySource;
+use App\Domain\Enum\MessageList\AttachmentDisplay;
+use App\Domain\Enum\MessageList\RowPreview;
 use App\Entity\Ai\AiSettings;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\Integration\MailProviderConfig;
@@ -170,7 +172,9 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('user.timezone', 'Europe/Berlin', $user->timezone);
         $this->check('user.appearance.accent', '#123456', $user->appearance->accent);
         $this->check('user.appearance.fontScale', 1.125, $user->appearance->fontScale);
-        $this->check('user.appearance.previewLines', 2, $user->appearance->previewLines);
+        $this->check('user.messageList.preview', RowPreview::Two, $user->messageList->preview);
+        $this->check('user.messageList.attachments', AttachmentDisplay::Chips, $user->messageList->attachments);
+        $this->check('user.messageList.replied', true, $user->messageList->replied);
         $this->check('user.aiPreferences.aboutMe', 'Ich baue Fahrräder.', $user->aiPreferences->aboutMe);
         $this->check('user.categorySorting.source', CategorySource::Assistant->value, $user->categorySorting->source);
         $this->check('user.categorySorting.overrideProvider', true, $user->categorySorting->overrideProvider);
@@ -254,8 +258,10 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         // ── The account ───────────────────────────────────────────────────
         $this->check('account.password (IMAP)', self::MAILBOX_PASSWORD, $account->password);
         $this->check('account.smtpPassword', 'the-smtp-password-4c1e', $account->smtpPassword);
+        $this->check('account.smtpUsername', 'relay-user-4c1e', $account->smtpUsername);
         $this->check('account.imapHost', 'imap.audit.test', $account->imapHost);
         $this->check('account.colorIndex', 3, $account->colorIndex);
+        $this->check('account.customColor', '#0072b2', $account->customColor);
         $this->check('account.oauthGrantedScopes', 'https://mail.google.com/ openid', $account->oauthGrantedScopes);
         // NOT carried: a settled 0 from the source would tell the target's
         // Gmail sync that its still-empty mailbox is complete.
@@ -457,7 +463,10 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
 
         $user->appearance->accent       = '#123456';
         $user->appearance->fontScale    = 1.125;
-        $user->appearance->previewLines = 2;
+
+        $user->messageList->preview     = RowPreview::Two;
+        $user->messageList->attachments = AttachmentDisplay::Chips;
+        $user->messageList->replied     = true;
 
         $user->aiPreferences->aboutMe = 'Ich baue Fahrräder.';
 
@@ -496,6 +505,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $account->username           = 'anna@work.audit.test';
         $account->password           = self::MAILBOX_PASSWORD;
         $account->smtpPassword       = 'the-smtp-password-4c1e';
+        $account->smtpUsername       = 'relay-user-4c1e';
         $account->imapHost           = 'imap.audit.test';
         $account->imapPort           = 993;
         $account->smtpHost           = 'smtp.audit.test';
@@ -504,6 +514,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $account->mailEnabled        = true;
         $account->isPrimary          = true;
         $account->colorIndex         = 3;
+        $account->customColor        = '#0072b2';
         $account->oauthGrantedScopes = 'https://mail.google.com/ openid';
         $account->setSetting(Account::SETTING_BACKFILL_TARGET, 0);
         $account->setSetting(Account::SETTING_SIGNATURE, '<p>Viele Grüße, Anna</p>');

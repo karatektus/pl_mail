@@ -11,7 +11,7 @@
 import { Controller } from "@hotwired/stimulus";
 import * as Turbo from "@hotwired/turbo";
 import { jsonCsrfHeaders } from "../../csrf.js";
-import { clearSelection, enterView, restoreSelection, selection } from "../../mail_selection.js";
+import { clearSelection, enterView, restoreSelection, rowType, selection } from "../../mail_selection.js";
 import { announceWrite } from "../../mail_writes.js";
 import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
@@ -233,6 +233,19 @@ export default class extends Controller {
     }
 
     /**
+     * Pins the ticked conversations, or unpins them if every one is pinned
+     * already (#654). Ticked rows only: a whole view pinned at once would put
+     * the whole view at the top, which is no top at all.
+     */
+    async pinSelected() {
+        if (true === this.#allInView) {
+            return;
+        }
+
+        await this._bulkPost("pin");
+    }
+
+    /**
      * Deletes the ticked conversations for good — offered only in Spam, where
      * it stands in for Delete.
      *
@@ -439,18 +452,40 @@ export default class extends Controller {
         this.dispatch("writing");
 
         try {
-            const response = await fetch(`${STATUS_BASE}/bulk/${action}`, {
+            const send = (extra = {}) => fetch(`${STATUS_BASE}/bulk/${action}`, {
                 method: "POST",
                 headers: jsonCsrfHeaders(),
                 body: JSON.stringify({
                     ...body,
+                    ...extra,
                     ids,
+                    type: rowType(),
                     all: this.#allInView,
                     scope: this.viewScopeValue,
                     value: this.viewValueValue,
                     unreadOnly: this.unreadOnlyValue,
                 }),
             });
+
+            let response = await send();
+
+            // The pin reminder (#654): the server asks instead of pinning, and
+            // a yes sends the same selection again, confirmed. A no is not a
+            // failure — nothing was meant to happen, so there is no toast.
+            if (409 === response.status && "pin" === action) {
+                const question = await response.json();
+                const confirmed = await askConfirm(question.reminder, {
+                    confirm: question.confirm,
+                    link: { href: question.settingsUrl, text: question.settings },
+                });
+
+                if (false === confirmed) {
+                    gone?.putBack();
+                    return;
+                }
+
+                response = await send({ confirmed: true });
+            }
 
             // Nothing moved, and the toast is the only thing that can say so
             // — together with the rows coming back where they were.

@@ -10,6 +10,7 @@ use App\Domain\Exception\GmailThrottledException;
 use App\Entity\Mail\Account;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\OAuth\OAuthTokenManager;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -65,6 +66,7 @@ final class GmailApiClient
     ];
 
     public function __construct(
+        #[Target('gmail.client')]
         private readonly HttpClientInterface $httpClient,
         private readonly OAuthTokenManager  $tokenManager,
         private readonly GmailQuotaPacer    $pacer,
@@ -83,14 +85,25 @@ final class GmailApiClient
      *
      * A network failure is left as the HttpClient's TransportException, for
      * GmailApiSender to tell "never left" from "answer lost".
+     *
+     * $threadId puts the mail in that Gmail thread. Gmail does not work it out
+     * from In-Reply-To and References for a send the way it does for mail it
+     * receives: without the id a reply starts a thread of its own, and the
+     * other side's answer follows it there (#676).
      */
-    public function sendRaw(Account $account, string $raw): void
+    public function sendRaw(Account $account, string $raw, ?string $threadId = null): void
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
+        $body = ['raw' => $raw];
+
+        if (null !== $threadId && '' !== $threadId) {
+            $body['threadId'] = $threadId;
+        }
+
         $response = $this->httpClient->request('POST', self::BASE . '/messages/send', [
             'auth_bearer' => $token,
-            'json'        => ['raw' => $raw],
+            'json'        => $body,
         ]);
 
         $this->assertSuccess($account, $response, 'messages.send');

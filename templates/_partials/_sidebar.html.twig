@@ -341,7 +341,9 @@ row, and is in the table below rather than in a branch per row.
   shape  `pill` is a .nav-item DIV around its own link, so that the unread
          badge can be a link of its own — an <a> inside an <a> is not markup a
          browser keeps. `link` is the anchor itself, for the rows whose badge
-         is a plain span.
+         is a plain span. Unread is one: its unread view IS the row, so the
+         number is part of the row's link rather than a dead span beside it
+         that a click on the number fell through.
   mark   a state, not a folder: a drop stars or un-reads the mail and leaves it
          where it is. See mail--dnd.
   dot    which "new mail here" dot rides on the row.
@@ -379,7 +381,7 @@ the row.
     {% else %}
     {% set _t = {
         inbox:   { shape: 'pill', icon: 'fa-inbox',       dot: 'role',    badge: 'unread', href: true },
-        unread:  { shape: 'pill', icon: 'fa-envelope',    badge: 'unread', mark: 'data-dnd-unread', count: 'unread' },
+        unread:  { shape: 'link', icon: 'fa-envelope',    badge: 'unread', mark: 'data-dnd-unread', count: 'unread' },
         starred: { shape: 'pill', icon: 'fa-star',        dot: 'starred', badge: 'unread', href: true, mark: 'data-dnd-star', count: 'starred' },
         sent:    { shape: 'link', icon: 'fa-paper-plane', dot: 'role',    badge: 'unread' },
         drafts:  { shape: 'link', icon: 'fa-file-lines',  dot: 'role',    badge: 'total', unsent: true },
@@ -433,6 +435,7 @@ the row.
         <a href="{{ _href }}"
            {{ macros.list_frame() }}
            class="{{ _class }}"
+           {{ _t.mark ?? '' }}
            {{ _drop }}
            data-sidebar-row="{{ row.value }}"
            data-nav-tier="row"
@@ -622,8 +625,11 @@ controller instead — the scroll position and which trees are open.
               transition-[width] duration-200
               {{ _drawerMode is defined and _drawerMode ? '' : 'shell-chrome' }}">
 
-    {# Compose #}
-    <div class="compose-wrap px-3 py-3 border-b border-line">
+    {# Compose. The strip is a pane header's height (pane-header), so the rule
+       under it continues the one under the mail's and the calendar's
+       toolbars rather than sitting eight pixels below them (#678). The
+       button is centred in it, and at its tallest density is 36px of 44. #}
+    <div class="compose-wrap pane-header flex items-center px-3 border-b border-line">
         <a href="{{ path('app_compose_new') }}"
            data-turbo-frame="compose_dock"
            data-shortcut="compose"

@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-sync.md sha1:86f9d9e067468c420433595984c981709680f476 -->
+<!-- translated-from: features/calendar-sync.md sha1:9cec58ffb9d7150f437c435f71a043320b457611 -->
 
 # Verbundene Kalender
 
@@ -112,13 +112,16 @@ unterscheiden, bis etwas versucht, eine davon zu lesen.
 Für Google, Microsoft und CalDAV wandern Änderungen in beide Richtungen. Was hinübergeht, ist die
 Besprechung selbst: Titel, Beginn und Ende, Zeitzone, Ganztägigkeit, Ort, Beschreibung, Status, die
 Wiederholungsregel samt jeder gegen sie abgelegten Änderung einzelner Termininstanzen, Teilnehmende
-und Erinnerungen. Eine Buchung, die über eine deiner Buchungsseiten hereinkam, und ein Termin, den du
-in zwei Kalendern zugleich angelegt hast, wandern wie jeder andere Termin.
+und Erinnerungen. Bei CalDAV geht auch die eigene Farbe eines Termins hinüber, als die
+`COLOR`-Eigenschaft, die Telefone schreiben. Eine Buchung, die über eine deiner Buchungsseiten
+hereinkam, und ein Termin, den du in zwei Kalendern zugleich angelegt hast, wandern wie jeder andere
+Termin.
 
 Was nicht hinübergeht:
 
 - **Alles darüber, wie plMail ihn zeichnet.** Die Farbe eines Kalenders, seine Sichtbarkeit, seine
-  Position in deiner Liste, ob er dein Standard ist — das gehört dir.
+  Position in deiner Liste, ob er dein Standard ist — das gehört dir. Die eigene Farbe eines Termins
+  bleibt bei Google- und Microsoft-Kalendern in plMail, weil beide Farben in eigenen Modellen führen.
 - **Woher ein Termin kam.** plMail hält fest, ob ein Termin getippt, aus einer Nachricht gelesen,
   gespiegelt oder gebucht wurde; ein Anbieter hat dafür kein Feld, und nichts trägt es zurück.
 - **Anhänge an einem Termin.**
@@ -268,7 +271,9 @@ Kalender gewählt, und eine Zeile in einem anderen umzuschreiben ist nicht das, 
 hast — am allerwenigsten, wenn der andere eine Spiegelung ist, wo das Umschreiben zum Anbieter
 hinausgeschoben würde. Noch nirgends: angelegt.
 
-Das Ergebnis wird als *N hinzugefügt, N aktualisiert, N übersprungen* gemeldet, oder, wenn es nichts
+Der Import läuft im Hintergrund, sobald die Datei als Kalender gelesen ist, damit auch ein großer Export
+nicht in eine Zeitüberschreitung läuft; **Hintergrundarbeit** in der oberen Leiste zeigt den Fortschritt.
+Ist er fertig, wird das Ergebnis als *N hinzugefügt, N aktualisiert, N übersprungen* gemeldet, oder, wenn es nichts
 zu tun gab, als *Nichts hinzuzufügen — jeder Termin aus dieser Datei steht schon in deinen Kalendern.*
 Eine Datei, die plMail nicht als Kalender lesen kann, sagt das, statt stillschweigend null Termine zu
 importieren.

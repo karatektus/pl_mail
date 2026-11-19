@@ -81,7 +81,11 @@ final readonly class OccurrenceCluster implements TimeGridEntryInterface
             // calendar, and the nullsafe in front of it is the redundancy
             // PHPStan refuses. The column is NOT NULL; the property is
             // nullable only because Doctrine constructs before it fills in.
-            $colors[] = $member->calendar->color ?? Calendar::DEFAULT_COLOR;
+            //
+            // The event's own colour first (#616): a meeting coloured on the
+            // phone is drawn in that colour on every calendar it is on, and a
+            // split dot whose slices are all one colour is simply that colour.
+            $colors[] = $member->event->displayColor ?? $member->calendar->color ?? Calendar::DEFAULT_COLOR;
             $names[]  = $member->calendar->name ?? '';
         }
 

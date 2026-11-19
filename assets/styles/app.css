@@ -202,15 +202,11 @@
        no account at all (the login screen, a shared calendar). */
     --list-corner-display:  block;
     --list-avatar-hide:     0;
-    --list-preview-display:      block;
-    --list-preview-display-wide: block;
-    --list-preview-lines:        1;
-    --list-preview-wrap:         nowrap;
 
     /* How loudly an unread row is tinted. --unread-tint-alpha is the THEME's
        base (it is in the palette inventory below, declared by every block);
        the multiplier and the bar are the USER's, written inline by
-       AppearanceRenderer from the emphasis setting. */
+       MessageListRenderer from the emphasis setting. */
     --unread-emphasis:  1;
     --unread-bar-w:     0px;
 
@@ -236,7 +232,10 @@
 
     /* One height for every pane's header row. The mail toolbar and the
        calendar toolbar sit side by side once the pane is docked, so two
-       independently-derived heights are visibly two heights. */
+       independently-derived heights are visibly two heights. The ROW: the
+       header is this with 0.25rem above and below it, which is how the
+       mail's list and reading pane build theirs, and the pane-header utility
+       builds every other one that way (#678). */
     --pane-header-h: 2.75rem;
 }
 
@@ -2743,8 +2742,10 @@
    mail, or splits it on a notebook, hides the dock, and its .main-pane rule
    catches the dock's pane as well. Same specificity, later in the file.
 
-   The dock's own way out to the full page, its × and its handle go while it
-   has the row — each of them is about a boundary that is not there. */
+   The handle goes while it has the row — it is about a boundary that is not
+   there. Its window controls stay, with ↙ in place of ↗ (see the next
+   section): they used to go as well, and full width had no way back but the
+   topbar (#678). */
 [data-contacts-full] [data-mail-column] {
     display: none;
 }
@@ -2756,9 +2757,38 @@
     width: auto;
 }
 
-[data-contacts-full] [data-side-pane="contacts"] [data-ui--side-split-target="handle"],
-[data-contacts-full] [data-contacts-pane-actions] {
+[data-contacts-full] [data-side-pane="contacts"] [data-ui--side-split-target="handle"] {
     display: none;
+}
+
+/* ═══ A docked pane's window controls ════════════════════════════════════════
+   _pane_window_controls.html.twig renders ↗ and ↙ both; which one shows is the
+   position the shell is in. Each pane reads its own attribute, scoped to its
+   own dock, so the calendar at full width does not turn the address book's ↗
+   round as well. Below lg there is no "beside the mail" for either to go to or
+   come back from, so both go and the × is left. */
+[data-pane-restore] {
+    display: none;
+}
+
+[data-calendar-mode="calendar"] [data-side-pane="calendar"] [data-pane-expand],
+[data-contacts-full] [data-side-pane="contacts"] [data-pane-expand] {
+    display: none;
+}
+
+/* From lg only, rather than shown everywhere and hidden again below it: the
+   rule that shows ↙ is more specific than any that could hide it. */
+@media (min-width: 1024px) {
+    [data-calendar-mode="calendar"] [data-side-pane="calendar"] [data-pane-restore],
+    [data-contacts-full] [data-side-pane="contacts"] [data-pane-restore] {
+        display: inline-flex;
+    }
+}
+
+@media (max-width: 1023px) {
+    [data-pane-window-controls] [data-pane-expand] {
+        display: none;
+    }
 }
 
 /* Leaving it — a message opened from the contact — is a view transition (see
@@ -3473,8 +3503,10 @@ html {
    for the contact layer. Changing the gutter without revisiting these numbers
    brings the arc back.
 */
-/* An action button: a 32px circle holding an icon until the user asks for words
-   (#459). min-width rather than the w-8 these used to carry, because a label has
+/* An action button: a 32px rounded square holding an icon until the user asks
+   for words (#459). A circle until #678, the one header in the app that was
+   round; the shape is icon-btn's now, below, so the mail's headers and the
+   panes beside them are drawn alike. min-width rather than the w-8 these used to carry, because a label has
    to be able to widen it. `:not(label)` and not `i`, because Move draws an <svg>. */
 @utility action-btn {
     min-width: 2rem;
@@ -3492,6 +3524,104 @@ html {
 @utility action-btn-label {
     display: var(--action-label-display);
     font-size: 0.8125rem;
+}
+
+/* An icon button in a pane's header: the calendar pane, the address book, the
+   compose window, a modal, the insight strip (#678).
+
+   Each of those used to spell its own class string, and they drifted: 24, 28
+   and 32px, circles beside rounded squares, a border on one and not on its
+   neighbour. Side by side, the calendar and the address book looked like two
+   apps. One definition is the fix, and this is it.
+
+   32px, the size of the mail headers' action-btn, and the same rounded square.
+   28px inside a container narrower than 37rem — a docked pane at its usual
+   width, or a phone — which is the step the calendar toolbar already took
+   there (it went to 24px, which is smaller than a fingertip and smaller than
+   anything else on screen), and 24px below 22rem, a 320px phone or a pane
+   dragged to its minimum, where the calendar's row does not fit otherwise
+   (calendar-month-narrow.spec.ts measures it). An unnamed container query, so it answers to
+   whichever container the button is in: the calendar's `toolbar` and the
+   address book's page are both one. Outside any container it stays 32px.
+
+   `icon-btn-primary` is the one accented action a header may have — New event,
+   New contact. Same box, so the + in both panes is the same + . */
+@utility icon-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--radius-lg, 0.5rem);
+    color: var(--color-ink-muted);
+    cursor: pointer;
+    transition: color 150ms, background-color 150ms;
+
+    &:hover {
+        background-color: var(--color-hover);
+        color: var(--color-ink);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: -2px;
+    }
+
+    /* A toggle that is on — the contact editor's preferred star. Said here
+       rather than by a `text-accent` beside the class: two utilities setting
+       one property is decided by their order in the sheet, which Tailwind
+       does not promise, so the star could come out grey. */
+    &[aria-pressed="true"] {
+        color: var(--color-accent);
+    }
+
+    @container (width < 37rem) {
+        width: 1.75rem;
+        height: 1.75rem;
+    }
+
+    @container (width < 22rem) {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+}
+
+/* A header that lines up with the mail's: a row of --pane-header-h with
+   0.25rem above and below it, the rule under it beneath that. Every pane's
+   header and the strip under the sidebar's Compose button, so the one line
+   runs straight across the whole window (#678).
+
+   They were three heights: the calendar's 44px (its padding inside the
+   minimum rather than around it), the mail's 52px and the Compose strip's
+   60, and the rule under them stepped down twice across the screen.
+
+   content-box, so the minimum is the row's alone and the padding and the
+   border go on top of it, as they do on the mail's toolbar, whose row is a
+   child with that minimum. A border-box minimum would swallow the border and
+   leave the rule a hairline above the mail's. */
+@utility pane-header {
+    box-sizing: content-box;
+    min-height: var(--pane-header-h);
+    padding-block: 0.25rem;
+}
+
+/* `:is(.icon-btn)` for the specificity: Tailwind does not promise which of two
+   utilities comes later in the sheet, and the quiet colours must not win. */
+@utility icon-btn-primary {
+    &:is(.icon-btn) {
+        background-color: var(--color-accent);
+        color: var(--color-accent-ink);
+    }
+
+    &:is(.icon-btn):hover {
+        background-color: var(--color-accent-strong);
+        color: var(--color-accent-ink);
+    }
+
+    &:is(.icon-btn):focus-visible {
+        outline-color: var(--color-accent-ink);
+    }
 }
 
 /* The STRUCTURAL surfaces read --pane-alpha: the sidebar, the top bar and the
@@ -5436,35 +5566,45 @@ html {
 /*
    `row-line:` and `row-band:`, the one-line and the two-line row. The row
    template writes these rather than `@rowwide:` and `@xl:@max-rowwide:`,
-   because where one line starts depends on the preview-lines setting.
+   because where one line starts is the reader's choice (#608), carried on
+   <html> as `data-list-layout` — a container query cannot read a custom
+   property, but a selector can read an attribute:
 
-   With ONE preview line the row is one line from `--container-rowsnug` (48rem)
-   up, the way Gmail's list reads: sender, subject, and the preview after the
-   subject on the same line, cut wherever the row ends. That is the trade the
-   75rem line above refused for everybody, and it is still refused for the
-   other two settings: two preview lines need a line of their own, and with
-   none the two-line row loses nothing by keeping its band. Choosing one line
-   is choosing the denser list.
+     wide     one line from `--container-rowwide` (75rem), the width measured
+              above for a subject and a usable preview side by side
+     fit      one line from `--container-rowsnug` (48rem), the way Gmail's
+              list reads: sender, subject, and the preview after the subject
+              cut wherever the row ends. Choosing it is choosing the denser
+              list. The default, because it is what one preview line meant
+              before the layout was a setting of its own.
+     stacked  never one line; two lines from `@xl` up
 
-   48rem rather than `@xl`: at 36rem the sender and date columns leave the
-   subject and the preview about 80px each ("E2E Remot…", "Your weekly …"),
-   which is not a preview of anything. At 48rem they share about 350px. Between
-   the two this setting keeps the two-line band like the others.
+   48rem rather than `@xl` for fit: at 36rem the sender and date columns
+   leave the subject and the preview about 80px each ("E2E Remot…", "Your
+   weekly …"), which is not a preview of anything. At 48rem they share about
+   350px.
 
-   `row-snug:` is the one-line-from-48rem case on its own, for what only it
-   gets: a tighter row (`list-row-y-snug`).
+   `row-snug:` is fit's one-line row on its own, for what only it gets: a
+   tighter row (`list-row-y-snug`).
 
-   The setting comes from `data-list-preview-lines` on <html>, because a
-   container query cannot read a custom property. The appearance settings
-   rewrite it as you click, like the variables. A page without the attribute
-   gets the 75rem line.
+   `row-inline:` is the one-line row's arrangement of the subject and the
+   preview — side by side, the preview after the subject — which an inline
+   preview (`data-list-preview="inline"`) asks for at every width.
+   `row-split:` is the two-line row when the preview has a line of its own,
+   which is every preview but inline. Between them the two-line row can put
+   the preview under the subject, or beside it.
+
+   A page without the attributes is three lines at every width. Every page
+   the layout draws has them (MessageListRenderer writes all of them, always).
 */
 @custom-variant row-line {
-    @container (width >= theme(--container-rowwide)) {
-        @slot;
+    &:where(html[data-list-layout="wide"] *) {
+        @container (width >= theme(--container-rowwide)) {
+            @slot;
+        }
     }
 
-    &:where(html[data-list-preview-lines="1"] *) {
+    &:where(html[data-list-layout="fit"] *) {
         @container (width >= theme(--container-rowsnug)) {
             @slot;
         }
@@ -5472,22 +5612,66 @@ html {
 }
 
 @custom-variant row-band {
-    &:where(html:not([data-list-preview-lines="1"]) *) {
+    &:where(html[data-list-layout="wide"] *) {
         @container (theme(--container-xl) <= width < theme(--container-rowwide)) {
             @slot;
         }
     }
 
-    &:where(html[data-list-preview-lines="1"] *) {
+    &:where(html[data-list-layout="fit"] *) {
         @container (theme(--container-xl) <= width < theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
+
+    &:where(html[data-list-layout="stacked"] *) {
+        @container (width >= theme(--container-xl)) {
             @slot;
         }
     }
 }
 
 @custom-variant row-snug {
-    &:where(html[data-list-preview-lines="1"] *) {
+    &:where(html[data-list-layout="fit"] *) {
         @container (width >= theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
+}
+
+@custom-variant row-inline {
+    &:where(html[data-list-layout="wide"] *) {
+        @container (width >= theme(--container-rowwide)) {
+            @slot;
+        }
+    }
+
+    &:where(html[data-list-layout="fit"] *) {
+        @container (width >= theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
+
+    &:where(html[data-list-preview="inline"] *) {
+        @slot;
+    }
+}
+
+@custom-variant row-split {
+    &:where(html[data-list-layout="wide"]:not([data-list-preview="inline"]) *) {
+        @container (theme(--container-xl) <= width < theme(--container-rowwide)) {
+            @slot;
+        }
+    }
+
+    &:where(html[data-list-layout="fit"]:not([data-list-preview="inline"]) *) {
+        @container (theme(--container-xl) <= width < theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
+
+    &:where(html[data-list-layout="stacked"]:not([data-list-preview="inline"]) *) {
+        @container (width >= theme(--container-xl)) {
             @slot;
         }
     }
@@ -5541,53 +5725,121 @@ html {
 }
 
 /*
-   The preview line, and how many of it there are.
+   The preview, and how much of it (#608).
 
-   Stacked, the row has room for a second line and the clamp engages. Wide, it
-   does not: the subject and the preview share one line by design, and a second
-   preview line there pushes the subject onto a row of its own, which is the
-   arrangement the wide layout exists to avoid. So the wide branch takes the
-   same on/off switch without the clamp.
+   One line, cut with an ellipsis, is the row's own `truncate`. These rules
+   only change it, and only for the two settings that differ: two lines, and
+   none. Two is a stacked-row answer: wherever the row is one line, or the
+   preview sits after the subject, there is one line to give it and the clamp
+   comes off again. Those overrides are written per layout because the width
+   at which a row is one line is per layout, and a plain rule cannot use the
+   `row-inline:` variant. None comes last and wins everywhere.
 
-   `@container`, matching the row's own `@rowwide` (the 75rem container width
-   declared by --container-rowwide in the "Mail list display" block above). A
-   plain rule cannot use the variant, and a custom property means nothing inside
-   a query, so the number comes through `theme()`, which Tailwind resolves at
-   build time. It was written out by hand once, with a comment asking for the
-   two to be changed together, which is the kind of promise that gets kept
-   until it does not: the
-   row switches on the LIST's width, not the viewport's — the list is narrower
-   than a phone whenever the calendar pane is docked wide.
+   Unlayered, like the rules around it: Tailwind's `truncate` is in a layer
+   and would win over anything here that was not.
+
+   `:not(.hidden)` is load-bearing. A scheduled draft's row carries
+   `hidden @xl:inline-block` on this very element — the badge saying when it
+   goes has already eaten the line, and what is left of the snippet at 393px
+   is two characters and an ellipsis. Unlayered rules would otherwise beat
+   that `.hidden` and put the fragment back.
 */
-/*
-   `:not(.hidden)` is load-bearing, and only on the stacked branch. A scheduled
-   draft's row carries `hidden @xl:inline-block` on this very element — the
-   badge saying when it goes has already eaten the line, and what is left of
-   the snippet at 393px is two characters and an ellipsis. These rules are
-   unlayered and would otherwise beat that `.hidden` and put the fragment back.
-   From `@xl` up, where the row shows both, the element still carries
-   `.hidden`, so it stays out of this rule and its one line is Tailwind's
-   `truncate`.
-*/
-[data-row-snippet]:not(.hidden) {
-    display: var(--list-preview-display);
-    -webkit-line-clamp: var(--list-preview-lines);
+html[data-list-preview="two"] [data-row-snippet]:not(.hidden) {
+    display: -webkit-box;
     -webkit-box-orient: vertical;
-    white-space: var(--list-preview-wrap);
-    overflow: hidden;
+    -webkit-line-clamp: 2;
+    white-space: normal;
 }
 
-@container (min-width: theme(--container-rowwide)) {
-    /* `:not(.hidden)` for SPECIFICITY, not for the exemption above: a container
-       query adds none, so a bare `[data-row-snippet]` (0,1,0) lost to the
-       stacked rule's `[data-row-snippet]:not(.hidden)` (0,2,0) and the
-       "wide is always one line" override never applied — with the two-line
-       setting on, a one-line row wrapped its preview anyway. */
-    [data-row-snippet]:not(.hidden) {
-        display: var(--list-preview-display-wide);
+@container (width >= theme(--container-rowwide)) {
+    html[data-list-preview="two"][data-list-layout="wide"] [data-row-snippet]:not(.hidden) {
+        display: block;
         -webkit-line-clamp: 1;
         white-space: nowrap;
     }
+}
+
+@container (width >= theme(--container-rowsnug)) {
+    html[data-list-preview="two"][data-list-layout="fit"] [data-row-snippet]:not(.hidden) {
+        display: block;
+        -webkit-line-clamp: 1;
+        white-space: nowrap;
+    }
+}
+
+html[data-list-preview="none"] [data-row-snippet]:not(.hidden) {
+    display: none;
+}
+
+/* With no preview beside it, the subject keeps the whole line. The cap is
+   what leaves the preview room when they share one. */
+html[data-list-preview="none"] [data-row-subject] {
+    max-width: none;
+}
+
+/* With the preview beside the subject, a stacked row is one line shorter and
+   has no line for the unread dot to sit on. The bold sender and subject still
+   say it. */
+html[data-list-preview="inline"] [data-row-unread-dot],
+html[data-list-preview="none"] [data-row-unread-dot] {
+    display: none;
+}
+
+/*
+   The rest of the row's choices (#608), each one a part of the row the
+   template always draws and this either shows or does not. Unlayered, so a
+   `display: none` here beats the Tailwind display utility on the same element.
+*/
+
+/* Labels: three copies, one shown. `line` is in front of the preview on a
+   stacked row and on a line of its own under a one-line one (the template
+   picks between those two); `inline` and `dots` are in front of the subject. */
+html:not([data-list-labels="line"]) [data-row-labels="line"],
+html:not([data-list-labels="line"]) [data-row-labels="below"],
+html:not([data-list-labels="inline"]):not([data-list-labels="dots"]) [data-row-labels="inline"] {
+    display: none;
+}
+
+/* A dot in the label's own ink, which every theme already holds legible. The
+   name goes, and stays in the chip's title. */
+html[data-list-labels="dots"] [data-row-labels="inline"] [data-label-chip] {
+    width: 0.5rem;
+    height: 0.5rem;
+    padding: 0;
+    border: 0;
+    background-color: currentColor;
+}
+
+html[data-list-labels="dots"] [data-row-labels="inline"] [data-label-chip] > * {
+    display: none;
+}
+
+/* Attachments: the paperclip, the chips, or neither. */
+html:not([data-list-attachments="icon"]) [data-row-clip],
+html:not([data-list-attachments="chips"]) [data-row-attachments] {
+    display: none;
+}
+
+/* Sender: everybody in the conversation, or the newest message's. */
+html:not([data-list-sender="latest"]) [data-row-sender-name="latest"],
+html[data-list-sender="latest"] [data-row-sender-name="everyone"] {
+    display: none;
+}
+
+/* Date: the list's own, or the day and the time on every row. */
+html:not([data-list-date="full"]) [data-row-date="full"],
+html[data-list-date="full"] [data-row-date="smart"] {
+    display: none;
+}
+
+html[data-list-count="off"] [data-row-count],
+html:not([data-list-replied="on"]) [data-row-replied] {
+    display: none;
+}
+
+/* The star of a conversation that is not starred, there before the pointer. */
+html[data-list-star="always"] [data-row-star] {
+    opacity: 1;
 }
 
 /*
@@ -5648,6 +5900,60 @@ html {
     width: var(--unread-bar-w);
     background-color: rgb(var(--rgb-accent));
     pointer-events: none;
+}
+
+/*
+   The line under the pinned conversations (#654): drawn on the first row that
+   is not pinned, when the row before it is. From the rows' own data-pinned, so
+   no list template has to know where the pins end — and when assets/pin.js
+   moves a row in or out of the group, the line follows without a redraw.
+
+   A box-shadow inset rather than a border: a border would add a pixel to the
+   row's height, and the list is meant to stay where it is when a pin moves.
+*/
+[data-pinned="true"] + [data-pinned="false"] {
+    box-shadow: inset 0 1px 0 0 rgb(var(--rgb-accent) / 0.45);
+}
+
+/*
+   The hover strip on a list row: the colour of a hovered row, solid (#654).
+
+   A hovered row is hover:bg-white/60 (dark: white/[0.06]) over the list's
+   surface — translucent, so a strip painted with it would still let the
+   preview underneath show through. color-mix() makes the same colour opaque.
+   The ::before is a fade into it on the strip's leading edge, so the text it
+   covers trails off instead of being cut at a hard line.
+*/
+.row-actions-bg {
+    --row-actions-bg: color-mix(in srgb, rgb(255 255 255) 60%, rgb(var(--rgb-surface)));
+    background-color: var(--row-actions-bg);
+}
+
+.dark .row-actions-bg {
+    --row-actions-bg: color-mix(in srgb, rgb(255 255 255) 6%, rgb(var(--rgb-surface)));
+}
+
+.row-actions-bg::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    right: 100%;
+    width: 1.5rem;
+    background: linear-gradient(to right, transparent, var(--row-actions-bg));
+    pointer-events: none;
+}
+
+/*
+   An unpinned thumbtack drawn in outline (#654), like the star beside it.
+   Font Awesome Free has no outline thumbtack — fa-regular draws a missing-
+   glyph box for it — so the solid glyph is stroked and left unfilled. The
+   stroke is currentColor, so the button's hover colour reaches it as it
+   reaches the star. One pixel because that is the star's own line at the
+   row's 14px: thicker, and the narrow parts of the tack fill in solid.
+*/
+.pin-outline {
+    -webkit-text-fill-color: transparent;
+    -webkit-text-stroke: 1px currentColor;
 }
 
 /* A link in the body has to LOOK like one.

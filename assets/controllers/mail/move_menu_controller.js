@@ -35,6 +35,7 @@ export default class extends LabelMenuController {
     static targets = ["panel"];
 
     static values = {
+        targetType: { type: String, default: "thread" },
         targetId: Number,
         carried:  { type: Array, default: [] },
         placement: { type: String, default: "" },
@@ -66,6 +67,9 @@ export default class extends LabelMenuController {
                 headers: jsonCsrfHeaders(),
                 body: JSON.stringify({
                     ids: [this.targetIdValue],
+                    // An email opened from the email list (#615) is moved on
+                    // its own, not with its conversation.
+                    type: this.targetTypeValue,
                     ...target,
                     scope: view.scope,
                     value: view.value,

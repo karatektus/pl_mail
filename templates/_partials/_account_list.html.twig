@@ -64,7 +64,10 @@
                    account, and now says so out loud. The one piece of state it
                    does carry — switched off — is named too, and agrees with the
                    toggle in Settings that put it there. #}
-                <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.colorIndex|account_color }}{{ account.mailEnabled ? '' : ' opacity-40' }}"
+                {% set dot = account_dot(account) %}
+                {# data-account-dot: the colour menu in Settings previews on it (#638). #}
+                <span data-account-dot="{{ account.id }}" class="w-2 h-2 rounded-full flex-shrink-0 {{ dot.class }}{{ account.mailEnabled ? '' : ' opacity-40' }}"
+                      style="{{ dot.style }}"
                       role="img"
                       title="{{ account.mailEnabled
                           ? 'sidebar.accounts.colour'|trans({ '%account%': account.displayAddress })

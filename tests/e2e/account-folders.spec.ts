@@ -196,6 +196,8 @@ async function addAccount(page: Page, label: string, stamp: number): Promise<voi
     await imapHost.fill(`folders-${stamp}.example.test`);
     await page.locator('input[name="account[imapPort]"]').fill("993");
     await page.locator('select[name="account[imapEncryption]"]').selectOption("ssl");
+    // Sending is on by default and needs its server (#628).
+    await page.locator('input[name="account[smtpHost]"]').fill(`smtp-${stamp}.example.test`);
     await page.locator("#modal button[type=submit]").click();
 
     await expect(page.getByText("Account added successfully")).toBeVisible();
@@ -209,6 +211,8 @@ async function removeAccount(page: Page, label: string): Promise<void> {
     for (let remaining = await row.count(); remaining > 0; remaining -= 1) {
         await row.getByRole("button", { name: "Remove account" }).first().click();
         await acceptConfirm(page);
-        await expect(row).toHaveCount(remaining - 1);
+        // Removing runs on the bulk worker now (#672): the row greys out at once
+        // and goes when the job is done, which is a worker round-trip away.
+        await expect(row).toHaveCount(remaining - 1, { timeout: 20_000 });
     }
 }

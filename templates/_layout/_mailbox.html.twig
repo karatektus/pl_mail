@@ -52,7 +52,9 @@ dozen other reasons while the conversation was open.
    server rendered at page load and then sat there, for as long as it existed
    (#42 is where it was finally noticed). Whatever the base layout mounts, the
    mailbox mounts too. #}
-{% block body_controllers %}{{ parent() }} mail--mail-pane mail--dnd{% endblock %}
+{# mail--sender-pictures here and not in the base layout: the avatars it
+   updates exist only on mail pages (#639). #}
+{% block body_controllers %}{{ parent() }} mail--mail-pane mail--dnd mail--sender-pictures{% endblock %}
 
 {% block body_values %}
     {# The list to draw beside a message that was opened by its own address.
@@ -74,7 +76,8 @@ dozen other reasons while the conversation was open.
        Same shape as the calendar grid's pending/reverted announcements. Always
        plural because the pill it fills is only drawn for two or more; a single
        conversation drags a picture of its own row. #}
-    data-mail--dnd-dragging-value="{{ 'dnd.dragging'|trans }}"
+    {# Emails, not conversations, in the email list (#615). #}
+    data-mail--dnd-dragging-value="{{ (app.user and not app.user.conversationView ? 'dnd.dragging_emails' : 'dnd.dragging')|trans }}"
 {% endblock %}
 
 {# The one part of a view that varies within its scope: the category tab for the

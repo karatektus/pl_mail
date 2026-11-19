@@ -1,5 +1,9 @@
 # Symfony be translatin' validation messages in the `validators` domain.
 account.host_invalid: A host name or IP address only, sailor — no slashes, question marks nor @.
+account.incoming_required: 'Name the incomin’ server — this account receives letters.'
+account.port_required: 'Name the port.'
+account.services_none: 'Raise receivin’, sendin’, or both.'
+account.smtp_required: 'Name the SMTP server — this account sends letters.'
 admin.ai.keep_alive_invalid: "Give a spell like 5m, 30m or 4h, a plain count o' seconds, or -1 to keep it aboard for good — leave it empty an' the host's own word stands."
 admin.integrations.client_id_missing: Name th' client ID that goes with this secret.
 admin.integrations.secret_missing: Enter th' client secret an' all — an ID alone signs nobody aboard.

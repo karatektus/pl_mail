@@ -89,26 +89,10 @@ mail list or a message, open the inbox in another tab; it picks the change up on
 
 ## What a list row shows
 
-**Message list** decides how much each row in the mail list carries. Every default is what the list
-already did before these controls existed, so nothing moves until you change something.
-
-| Control | What it does |
-|---|---|
-| **Account corner** | The coloured triangle in a row's lower-left saying which account the message arrived on. On by default; it is only ever drawn in a list that mixes accounts anyway |
-| **Sender discs** | The coloured circle carrying the sender's initial — see the trap below, this one does not disappear |
-| **Unread count on inbox tabs** | The number beside each category tab's name: how many conversations in it hold unread mail. On by default. Off hides the number only; the tint on a tab's icon and the "3 new" pill stay |
-| **Preview lines** | **None**, **One line** or **Two lines** of the message body. With **One line**, a list of medium width or more shows each message on one slightly tighter line, the preview following the subject, as Gmail does. On a phone, and with the other two settings until the list is very wide, the preview sits under the subject |
-| **Unread rows** | **Subtle**, **Standard** or **Strong** — how loudly the list says a row is unread |
-
-**Unread rows** changes the tint behind the row and the accent bar beside it, and nothing else. The
-bold sender and subject stay at every setting on purpose: bold is the signal that survives a
-colour-blind reader, a translucent pane over a photograph, and a printout, and it is not worth
-trading away. Subtle removes the tint entirely, Strong deepens it and adds a bar down the row's
-leading edge.
-
-Two lines is the ceiling because the row only has room for two, and the second line is only ever
-drawn in the stacked layout — on a wide screen the subject and the preview share a single line by
-design, so a second one there would push the subject off its own row.
+What a row in the mail list carries — the preview, attachments, labels, sender, date and the marks on
+it — is set under **Settings → Inbox → Message list** now, described in
+[Mail → What a list row shows](mail.md#what-a-list-row-shows). Those settings say what a row tells
+you rather than how the app looks, so an exported theme no longer carries them.
 
 ## Typography
 
@@ -247,8 +231,7 @@ the next reload.
 defaults** puts everything back where a new account starts.
 
 The export carries the version, the theme, the layout, the logo (icon and colour), the accent, all
-five glass numbers, the density and the three per-surface density overrides, the mail-list
-settings, the typeface and text scale, the background choice, the text colours and the main pane
+five glass numbers, the density and the three per-surface density overrides, the typeface and text scale, the background choice, the text colours and the main pane
 settings. It deliberately does
 **not** carry your uploaded background image: a filename on someone else's install means nothing, so
 a custom background exports as **Theme default**. The same goes for a logo of your own: the export
@@ -343,16 +326,6 @@ therefore leaves you on the theme default until you upload the image again.
 **The opacity slider stops mattering under a photograph.** Anything below 0.45 is silently raised
 while a non-theme background is in use — including a flat colour. The slider still moves; the
 rendering does not follow it all the way down.
-
-**Sender discs cannot be switched off, only emptied.** That disc *is* the row's checkbox: the real
-input sits behind it and every bulk action in the toolbar reads it. Switching it off paints over the
-identity — the colour and the letter go — and leaves a plain outlined circle in the same place, so
-the selection target and the row's geometry are exactly where they were. A row with no disc at all
-would be a row you cannot select.
-
-**The account corner only ever appears in a list that mixes accounts.** On a single-account install
-it has never been drawn, and switching it on will not make it appear. Nothing is broken; there is
-simply no ambiguity for it to resolve.
 
 **Text size does not reach the compose window.** The editor keeps its own font and size on purpose,
 because that size is formatting that ends up in the sent HTML. Making the interface larger will not

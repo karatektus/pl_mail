@@ -58,9 +58,23 @@ calendar has no ends, so it never does.
            data-action="click->ui--modal#open"
            data-ui--modal-src-value="{{ path('app_calendar_event_new') }}"
            data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
-           class="w-7 h-7 flex items-center justify-center rounded-lg shrink-0 @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-6
-                  bg-accent text-accent-ink hover:opacity-90 transition-opacity"
+           class="icon-btn icon-btn-primary"
            aria-label="{{ 'calendar.event.new'|trans }}"
+           title="{{ 'calendar.event.new'|trans }}"
         ><i class="fa-solid fa-plus text-xs" aria-hidden="true"></i></button>
+
+        {# The docked pane's ends — full width or back, and close — the same
+           pair the address book has (#678). Only in the pane: the calendar
+           page is a page, and has nothing to dock back into. The actions are
+           ui--split's, which is on the row this pane is in. #}
+        {% if compact %}
+            {% include '_partials/_pane_window_controls.html.twig' with {
+                controller:   'ui--split',
+                expandUrl:    path('app_calendar_index'),
+                expandLabel:  'calendar.pane.mode.calendar'|trans,
+                restoreLabel: 'calendar.pane.mode.split'|trans,
+                closeLabel:   'calendar.pane.close'|trans,
+            } only %}
+        {% endif %}
     {% endblock %}
 {% endembed %}

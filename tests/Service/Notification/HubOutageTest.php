@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Notification;
 
+use App\Domain\Enum\Job\JobKind;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Domain\Enum\Job\JobKind;
 use App\Service\Job\JobNotifier;
 use App\Service\Mail\SyncNotifier;
 use App\Tests\Support\Mercure\RecordingHub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
+use Twig\Environment;
+use Twig\Loader\ArrayLoader;
 
 /**
  * A hub that is down must not fail the work it was asked to announce.
@@ -92,7 +94,7 @@ final class HubOutageTest extends TestCase
         $reflection = new \ReflectionProperty(User::class, 'id');
         $reflection->setValue($user, 42);
 
-        (new JobNotifier(RecordingHub::refusing(), $logger))->changed($job);
+        (new JobNotifier(RecordingHub::refusing(), $logger, new Environment(new ArrayLoader())))->changed($job);
 
         self::assertSame(1, $logger->count, 'the outage is recorded rather than thrown');
     }

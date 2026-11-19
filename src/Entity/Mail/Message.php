@@ -49,6 +49,10 @@ use Doctrine\ORM\Mapping as ORM;
 // The sidebar's unsent-draft warning counts these on every refresh; partial,
 // because nearly every row is null here and only the few marked ones matter.
 #[ORM\Index(name: 'idx_message_send_failed', columns: ['account_id'], options: ['where' => '(send_failed_at IS NOT NULL)'])]
+// Email-level pins and snoozes (#615): a handful of rows each, asked for as a
+// set ("which emails are pinned", "which are due to wake").
+#[ORM\Index(name: 'idx_message_pinned', columns: ['thread_id'], options: ['where' => '(pinned_at IS NOT NULL)'])]
+#[ORM\Index(name: 'idx_message_snoozed_until', columns: ['snoozed_until'], options: ['where' => '(snoozed_until IS NOT NULL)'])]
 // Threading reads both of these on every synced message. message_id is looked up
 // by value across an account (parent lookup for References threading); the
 // provider key is looked up account-scoped, so account trails it the same way
@@ -200,6 +204,29 @@ class Message extends MessageModel
     public ?string $providerThreadKey = null;
 
     /**
+     * Threaded by its headers, not by $providerThreadKey (#676).
+     *
+     * Mail plMail sent is placed when it is written, in the conversation it
+     * answers. Gmail may file its copy in a thread of its own: an encrypted
+     * reply goes out over SMTP as "...", and Gmail groups SMTP mail only when
+     * the subject matches. The sync merges that copy onto the row, which then
+     * carries the id of a thread its conversation is not keyed by, and the
+     * answers Gmail files there find the conversation through it (see
+     * MessageThreader::providerThread()).
+     *
+     * Recorded, because nothing else on the row says so once its thread is
+     * gone. The rethread backfill throws every thread away and threads each
+     * message again; by its provider key, this row would have started a
+     * conversation of its own, and taken the answers with it.
+     *
+     * Set where a sync merges a provider's copy onto a row whose conversation
+     * is keyed otherwise, and by Version20261119120000 on the rows that were
+     * already so. Never cleared: the placement it records does not change.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $placedByHeaders = false;
+
+    /**
      * @var list<string>|null
      */
     #[ORM\Column(type: 'json', nullable: true)]
@@ -262,6 +289,38 @@ class Message extends MessageModel
 
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $starredAt = null;
+
+    /**
+     * When this one email was pinned, as opposed to its conversation (#615).
+     *
+     * A pin lives where it was made. Pinned from the list of emails, it is
+     * this email's, and only this email goes to the top of that list; pinned
+     * from the list of conversations, it is MessageThread::$pinnedAt. Each view
+     * reads both: a conversation with a pinned email in it is pinned in the
+     * conversation list, and a pinned conversation puts its newest received
+     * email at the top of the email list. Switching between the two views
+     * therefore loses nothing.
+     *
+     * Write it through ThreadPinService, which also knows that taking a pin
+     * off takes off every pin that put the row there.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $pinnedAt = null;
+
+    /** When this email's own pin runs out; see MessageThread::$pinnedUntil. */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $pinnedUntil = null;
+
+    /**
+     * When this one email comes back, if it was snoozed on its own (#615).
+     *
+     * Snoozing is labels — Inbox off, Snoozed on — on each email it covers, so
+     * snoozing one email of a conversation was always expressible; what was
+     * missing is a wake time that is not the conversation's. A conversation
+     * snoozed as a whole keeps using MessageThread::$snoozedUntil.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $snoozedUntil = null;
 
     /**
      * When a local flag change was made that the provider has not confirmed.
@@ -407,6 +466,21 @@ class Message extends MessageModel
      */
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $signer = null;
+
+    /**
+     * Whether the receiving server said this message really comes from the
+     * domain in its From line (SenderAuthentication) — true, or null for
+     * anything else: a failure, no believed verdict, or mail that arrived
+     * before this was recorded.
+     *
+     * Stored, not worked out when the row is drawn, because the list does not
+     * load headers (ThreadRows reads a handful of columns) and the answer is
+     * what decides whether a BIMI logo may be shown (#639): a logo is a claim
+     * about who sent the mail, and a forged From line must not borrow it.
+     * Only true is written, so mail that does not pass costs no write.
+     */
+    #[ORM\Column(name: 'sender_verified', nullable: true)]
+    public ?bool $senderVerified = null;
 
     /**
      * A draft written to be encrypted keeps no body here: the browser seals
@@ -1058,6 +1132,16 @@ class Message extends MessageModel
     }
 
     /** Whether the message is in Spam. See isSetAside(). */
+    /** This email's own pin, and not past its end. See $pinnedAt. */
+    public function isPinned(?DateTimeImmutable $now = null): bool
+    {
+        if (null === $this->pinnedAt) {
+            return false;
+        }
+
+        return null === $this->pinnedUntil || $this->pinnedUntil > ($now ?? new DateTimeImmutable());
+    }
+
     public function isSpam(): bool
     {
         foreach ($this->labels as $label) {

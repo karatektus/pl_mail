@@ -44,8 +44,10 @@ account:
             heading: '发件 — SMTP'
             host: 主机
             password: 发件密码
-            same: 发件使用相同密码
-            separate: 发件使用不同密码
+            same: 发件使用相同的登录信息
+            separate: 发件使用不同的用户名或密码
+            username: 发件用户名
+            username_help: '留空则使用上方的用户名发件。'
         username: 用户名
     mail_purge_queued: '正在从 plMail 中移除此账户的邮件。服务器上的副本会保留。'
     oauth:
@@ -57,6 +59,7 @@ account:
             help: '下一页只会请求你勾选的权限。之后可在“设置 → 账户”中更改。'
             legend: '此账户用于'
     primary_set: 主账户已更改
+    removal_started: '正在移除此账户。其邮件将在后台删除，服务器上的副本会保留。'
     removed: 账户已移除
     service:
         calendar:
@@ -66,8 +69,11 @@ account:
             off: '联系人已关闭'
             on: '联系人已开启'
         mail:
-            off: '邮件已关闭。已有的邮件会保留。'
-            on: '邮件已开启'
+            off: '接收已关闭。已有的邮件会保留。'
+            on: '接收已开启'
+        send:
+            off: '发送已关闭'
+            on: '发送已开启'
     sync_interval_set: 同步间隔已更改
     tabs:
         imap: 'IMAP / SMTP'
@@ -85,10 +91,11 @@ account:
             failed: 连接失败，请检查主机、端口及加密方式。
             host_invalid: '请仅输入主机名或 IP 地址，不要包含斜杠、问号或 @。'
             imap_ok: '已连接，可见 %count% 个文件夹。'
+            incoming_none: '未配置收信服务器，此账户只发送邮件。'
             jmap_no_mail: '服务器支持 JMAP，但没有为此账户提供邮件。'
             jmap_ok: '已连接，可见 %count% 个邮箱。'
             jmap_submission: '通过 JMAP 服务器发送。'
-            missing_fields: '请先至少输入电子邮件地址和 IMAP 主机。'
+            missing_fields: '请先输入电子邮件地址和至少一个服务器。'
             missing_password: 没有可用于测试的密码。请在上方输入密码；编辑表单中留空会保留已保存的密码，但需先保存账户，测试才能使用该密码。
             pop3_ok: '已连接，邮箱中有 %count% 封邮件。'
             private_network: '该服务器位于私有网络中。必须先由管理员在“管理 → 集成 → 私有网络中的服务器”中允许它，plMail 才能连接。'
@@ -693,6 +700,32 @@ admin:
                 step_user: "每位用户输入该地址、服务器要求时的用户名，以及密码或 API 令牌。FileBrowser Quantum 将 API 令牌用作密码，并忽略用户名。"
         tutorial_heading: 设置步骤
         unimplemented_notice: 'plMail 暂不支持连接此服务。可以先注册凭据，支持发布后即可使用。'
+    libravatar:
+        check_dns: '检查 DNS'
+        heading: 'Libravatar'
+        intro: '让各地的邮件客户端显示你的用户在此选择的头像。支持 Libravatar 的程序（Thunderbird 插件、Forgejo 等代码托管平台、其他 plMail 服务器）会询问地址所属域名的 DNS，由哪台服务器提供图片。开启此项并将 DNS 指向这里，plMail 就会为其自己的用户应答。'
+        need_own_dns: '需要你能管理其 DNS 的域名。Gmail、Outlook.com 等服务商的地址无法指向这里；这些用户会从 Gravatar 或 Libravatar 获取头像。'
+        need_reachable: '%url% 需要能从互联网访问，而不仅限于你的网络。如果 plMail 位于反向代理之后，代理必须放行 /avatar/。'
+        need_tls: '%host% 需要浏览器认可的有效 TLS 证书。客户端会静默拒绝自签名证书。'
+        needs_heading: '除 DNS 外还需要什么'
+        no_address: '尚未设置公共地址。请先在“管理 → 地址”中设置：DNS 记录必须指向从外部访问 plMail 所用的主机。'
+        no_domains: '还没有用户拥有地址。'
+        no_own_domains: '还没有用户拥有你自己域名下的地址，只有邮件服务商的地址。'
+        not_https: '公共地址是 %url%，不是 https。Libravatar 客户端只通过 https 获取，请在“管理 → 地址”中设置 https 地址。'
+        provider_domains: '%domains% 无需添加：这些是邮件服务商的域名，只有服务商才能在那里发布记录。在那里拥有地址的用户会从 Gravatar 或 Libravatar 获取头像。'
+        records_heading: 'DNS 记录'
+        records_intro: '在你的 DNS 服务商处，为用户拥有地址的每个域名按所示内容添加一条 SRV 记录，然后在此检查；DNS 生效可能需要一些时间。'
+        saved_off: 'Libravatar 已关闭。不再为任何人提供图片。'
+        saved_on: 'Libravatar 已开启。用户现在可以在“设置 → 个人资料”中分享头像。'
+        serve: '提供此服务器用户的头像（Libravatar）'
+        serve_hint: '默认关闭。即使开启，也只为在“设置 → 个人资料”中自行开启的用户提供图片；对其他所有人，服务器的回应就像不认识该地址一样。'
+        status:
+            elsewhere: '指向 %found%'
+            missing: '尚无记录'
+            not_yours: '邮件服务商的域名'
+            ok: '正常'
+            wrong_port: '端口错误：%found%'
+        users_opt_in: '由用户自行决定：每位用户在“设置 → 个人资料”中选择是否分享头像。配置备份包含此开关和他们的选择。'
     loading: 加载中…
     maintenance:
         heading: 维护
@@ -745,6 +778,7 @@ admin:
         performance: 性能
         push: 推送
         reset: 重置
+        sender_pictures: '发件人图片'
         sso: SSO
         system: 系统
         updates: 更新
@@ -838,9 +872,13 @@ admin:
                 running_for: 持续时间
                 waiting: 等待中
                 worker: 后台工作进程
+            concurrency:
+                default: 默认（%count%）
+                hint: worker-ingest 会在独立进程中运行每个邮件账户的任务，并按此数量并行运行，因此某个服务商无响应时不会拖慢其他账户。同一账户的任务仍按顺序逐个运行。每个运行中的任务约占用 50 MB 内存。
+                label: 同时运行的邮件任务
             footnote: 这是当前时刻的状态，与上方时段无关：任务处理完成后不会保留其等待时长。负责两个队列的工作进程会先处理完第一个队列，再查看第二个。
             heading: 各后台工作进程的待处理任务
-            lead: 查看哪些进程存在积压以及积压程度。每个后台工作进程一次处理一个任务。
+            lead: 查看哪些进程存在积压以及积压程度。worker-ingest 可同时运行多个邮件任务（每个账户一个）；其他后台工作进程一次处理一个任务。
             refresh: 刷新
     processes:
         empty: 暂无心跳，进程首次报告心跳后会显示在此处。
@@ -920,6 +958,16 @@ admin:
         running_for: '已运行 %duration%'
         waiting_since: 开始等待时间
     refresh_hint: '实时面板每 10 秒刷新'
+    sender_pictures:
+        always_local: '用户联系人的照片和用户自己的头像无论如何都会显示：它们已在此服务器上。'
+        heading: '发件人图片'
+        intro: '开启后，plMail 会为给你的用户写信的人查找图片：从发件人自己的域名获取公司标志（BIMI）和网站图标，并为有需要的用户查找 Gravatar 或 Libravatar。查找在维护 worker 上于后台运行，任何用户的浏览器都不会连接这些服务。每位用户可自行选择需要哪些。'
+        lookups: '在互联网上查找发件人图片'
+        lookups_hint: '默认关闭。开启后会为每位用户查找过去 90 天内给其写信的人。'
+        'off': '关'
+        'on': '开'
+        saved_off: '查找已关闭。之前找到的图片不再显示。'
+        saved_on: '查找已开启。正在为最近的发件人查找图片。'
     sso:
         clear_secret: 移除已保存的客户端密钥
         clear_secret_help: '同时清空签发方和客户端 ID。登录将回退到环境中的 OIDC_* 变量；如果也未设置这些变量，则关闭单点登录。'
@@ -1330,6 +1378,58 @@ calendar:
         all_day: 全天
         calendar: 日历
         cancel: 取消
+        color:
+            all: 所有颜色
+            button: '颜色：%color%'
+            calendar: 日历颜色
+            custom: 自定义
+            dialog: 事件颜色
+            names:
+                cadetblue: 军校蓝
+                chocolate: 巧克力色
+                coral: 珊瑚色
+                cornflowerblue: 矢车菊蓝
+                crimson: 深红
+                darkgoldenrod: 深金菊色
+                darkkhaki: 深卡其色
+                darkmagenta: 深洋红
+                darkorange: 深橙色
+                darkturquoise: 深绿松石色
+                dimgray: 暗灰色
+                dodgerblue: 道奇蓝
+                firebrick: 砖红色
+                forestgreen: 森林绿
+                gold: 金色
+                goldenrod: 金菊色
+                hotpink: 亮粉色
+                indigo: 靛青
+                lightseagreen: 浅海绿色
+                limegreen: 酸橙绿
+                mediumpurple: 中紫色
+                mediumseagreen: 中海绿色
+                mediumvioletred: 中紫红色
+                midnightblue: 午夜蓝
+                olivedrab: 橄榄褐色
+                orchid: 兰花紫
+                palevioletred: 浅紫红色
+                peru: 秘鲁色
+                rosybrown: 玫瑰褐
+                royalblue: 品蓝色
+                saddlebrown: 马鞍棕
+                seagreen: 海绿色
+                sienna: 赭色
+                slateblue: 石板蓝
+                slategray: 石板灰
+                steelblue: 钢蓝色
+                teal: 水鸭色
+                tomato: 番茄红
+                turquoise: 绿松石色
+                yellowgreen: 黄绿色
+            nearest: '最接近 %hex%'
+            none: 没有叫这个名字的颜色。
+            often: 常用
+            results: 匹配的颜色
+            search: 搜索颜色
         copies:
             help: 勾选的日历会收到此日程及你保存的所有更改。取消勾选不会删除日程：该日历会保留当前副本并停止接收更新。当两个副本不再一致时，它们将分别显示。
             hidden: 此日历已隐藏，显示日历后才能看到日程
@@ -1380,6 +1480,7 @@ calendar:
         until: '截至 %when%'
     ics:
         error:
+            import_gone: '导入开始时日历或上传的文件已不存在。请重新上传文件。'
             no_calendar: 请选择用于保存日程的日历。
             no_file: '请选择 .ics 文件。如果已选择，文件可能超过 plMail 可读取的大小限制。'
             no_url: 请输入日历的发布地址。
@@ -1409,6 +1510,7 @@ calendar:
         toast:
             import_empty: '此文件中没有 plMail 可读取的日程。请确认它是日历导出文件。'
             import_nothing_new: 无需添加，文件中的所有日程均已在你的日历中。
+            import_started: '正在导入文件——在后台进行，完成后会告诉你新增了什么。'
             imported: '已添加 %added% 项，更新 %updated% 项，跳过 %skipped% 项。'
             subscribed: 已订阅，日历将在一分钟内加载完成。
     invite:
@@ -1464,6 +1566,7 @@ calendar:
         previous: 上一个
     open_day: '%date% 的所有日程'
     pane:
+        close: '关闭日历'
         mode:
             calendar: 全宽显示日历
             mail: 显示邮件
@@ -2035,6 +2138,7 @@ demo:
         source: 'plMail 是自由软件，采用 AGPL-3.0 许可协议：'
 dnd:
     dragging: '%count% 个会话'
+    dragging_emails: '%count% 封邮件'
 drafts:
     empty: 没有草稿。
     heading: 草稿
@@ -2457,6 +2561,10 @@ jobs:
         purge: 正在永久删除
         reclassify: 正在重新分类近期邮件
         delete_label: 正在删除标签
+        delete_account: 正在移除账户
+        import_contacts: 正在导入联系人
+        import_calendar: 正在导入日历文件
+        resort_removed_category: 正在重新归类已删除标签页的邮件
     state:
         done: '已完成 %count% 项'
         failed: 失败
@@ -2536,6 +2644,7 @@ label:
         hidden: '标签已隐藏。'
         shown: '标签已显示。'
 list:
+    conversation_view: '会话视图'
     sort:
         newest: '最新优先'
         oldest: '最早优先'
@@ -2847,6 +2956,12 @@ password_required:
     submit: "保存并继续"
     submitting: "正在保存…"
     tagline: "还差一步"
+pin:
+    reminder:
+        confirm: '仍然置顶'
+        question: '{1} 你已经置顶了 1 个会话。仍要再置顶一个吗？|]1,Inf[ 你已经置顶了 %count% 个会话。仍要再置顶一个吗？'
+        settings: '更改何时出现此提醒'
+
 profile:
     avatar_current: '当前头像'
     avatar_from:
@@ -3026,6 +3141,17 @@ settings:
             title: '跟随 Outlook 类别'
         colour:
             change: '更改 %account% 的颜色'
+            contrast_current: '当前'
+            contrast_dark: '深色'
+            contrast_light: '浅色'
+            contrast_low: '在此主题下较暗淡'
+            contrast_ok: '清晰可见'
+            custom: '自定义颜色'
+            custom_format: '六位十六进制数字，例如 #0072b2。'
+            custom_heading: '自定义'
+            custom_hex: '十六进制颜色代码'
+            custom_pick: '选择颜色'
+            presets: '预设'
             swatch:
                 '0': '橙色'
                 '1': '绿色'
@@ -3128,6 +3254,8 @@ settings:
                 jmap: '更改会立即到达：JMAP 服务器把它们推送给 plMail——能访问本服务器时通过 webhook，否则通过保持打开的连接。'
                 microsoft: '通过 Microsoft 推送通知即时收取新邮件。'
             title: '即时收取'
+        removing: '正在移除…'
+        removing_progress: '已移除 %done% / %total% 封邮件'
         reorder: '拖动以排序'
         services:
             allow: '授权…'
@@ -3139,12 +3267,16 @@ settings:
             contacts: '联系人'
             contacts_help: '其通讯录，双向同步'
             intro: '关闭此账户不需要的功能。plMail 将不再就此与服务器通信，已有的内容会保留。'
-            mail: '邮件'
-            mail_help: '同步、发送以及对其邮件的每一项更改'
+            mail: '接收邮件'
+            mail_help: '同步其邮件以及你对其所做的每一项更改'
             none: '全部已关闭'
             purge: '从 plMail 移除已同步的邮件'
             purge_confirm: '移除 plMail 为 %account% 同步的所有邮件？服务器上的邮件会保留。重新开启邮件后，plMail 会重新下载。'
             purge_help: '只移除 plMail 中的副本，服务器上不会删除任何内容。'
+            send: '发送邮件'
+            send_help: '撰写时可选作发件人；邮件、定时发送和已读回执都通过它发出'
+            setup: '设置…'
+            setup_explained: '%service% 需要一个此账户尚未配置的服务器。打开账户表单进行添加。'
             turn_off: '关闭 %account% 的%service%'
             turn_on: '开启 %account% 的%service%'
             used_for: '用于：%services%'
@@ -3202,6 +3334,13 @@ settings:
                 brand: 'plMail 名称下方'
                 sidebar: '侧边栏底部'
                 'off': '不显示'
+    conversation_view:
+        conversations: '会话'
+        emails: '单封邮件'
+        heading: '会话视图'
+        hint: '也可在每个列表的排序菜单中切换，或按 t 键。'
+        label: '列表显示'
+        subheading: '将同一会话的邮件合并为一行，或单独列出每封邮件。'
     device_pairing:
         pair_device: '配对设备'
         scan_title: '使用 plMail 应用扫描'
@@ -3210,6 +3349,109 @@ settings:
         with_keys: "密钥会一同传输，加密邮件可立即在应用中打开。"
         expires: '于 %time% 过期。'
         open_in_app: '在应用中打开'
+    libravatar:
+        heading: 'Libravatar'
+        no_picture: '你还没有头像；请先在上方添加，此处才会显示内容。'
+        publish: '通过 Libravatar 分享我的头像'
+        publish_hint: '允许使用 Libravatar 的邮件程序和网站在你的地址旁显示上面的头像。之后任何知道你某个地址的人都能获取该图片。默认关闭，需你手动开启。'
+        subheading: '其他邮件程序是否可以显示你的头像。'
+    message_list:
+        always: '始终'
+        attachments:
+            chips: '文件标签'
+            hint: '文件标签在预览下方列出最多三个文件，可直接从列表中打开。'
+            icon: '回形针'
+            label: '附件'
+        avatars:
+            hint: '显示发件人姓名首字母的彩色圆圈。关闭后会变为普通圆圈而非消失，因为它同时也是该行的复选框。'
+            label: '发件人圆形头像'
+        content:
+            heading: '内容'
+            subheading: '每一行展示的会话信息。'
+        corner:
+            hint: '每行角落的彩色三角形，表示邮件所属账户。仅在混合多个账户的列表中显示。'
+            label: '账户角标'
+        count:
+            hint: '会话主题后面的数字。'
+            label: '邮件数'
+        date:
+            full: '日期和时间'
+            hint: '智能：今天显示时间，今年显示日期，更早显示完整日期。'
+            label: '日期'
+            smart: '智能'
+        hidden: '隐藏'
+        labels:
+            dots: '圆点'
+            hint: '在主题前以标签或标签颜色的圆点显示，或单独一行。'
+            inline: '主题前'
+            label: '标签'
+            line: '单独一行'
+        layout:
+            fit: '放得下时'
+            heading: '布局'
+            hint: '较宽的列表把发件人、主题和预览放在一行。较窄时分行显示。'
+            label: '单行显示'
+            stacked: '从不'
+            subheading: '行何时变为单行，以及显示多少邮件内容。'
+            wide: '仅宽列表'
+        markers:
+            heading: '标记'
+            subheading: '每一行上的标记。'
+        on_hover: '悬停时'
+        preview:
+            heading: '预览'
+            subheading: '虚构的邮件，按你的列表方式绘制。选择宽度，查看行如何变化。'
+            width: '预览宽度'
+            widths:
+                narrow: '窄'
+                phone: '手机'
+                wide: '宽'
+        preview_lines:
+            hint: '分行显示时显示多少邮件内容。单行时始终显示在主题之后。'
+            inline: '主题之后'
+            label: '摘要'
+            none: '无'
+            one: '一行'
+            two: '两行'
+        replied:
+            hint: '会话中最新的邮件已回复时，在主题前显示箭头。'
+            label: '已回复箭头'
+        sample:
+            contract:
+                body: '这是最后一轮修改。能否在周五前签字，以便我们下月一号开始？'
+                subject: '合同草案 – 最终版'
+            digest:
+                body: '本周值得一读的五件事、新的一期节目，以及你附近的活动。'
+                subject: '你的每周摘要'
+            flights:
+                body: '我找到了周二上午的两个选择。较早的那班更便宜，但在主题演讲前一小时才落地。'
+                subject: '会议的航班'
+            label:
+                travel: '旅行'
+                work: '工作'
+            offsite:
+                body: '湖边小屋四月第二周有空。市区场地需要在周一前答复。'
+                subject: '春季团建规划：场地和日期'
+        sender:
+            everyone: '所有人'
+            hint: '在已发送和草稿中，始终显示收件人。'
+            label: '发件人'
+            latest: '最新'
+        shown: '显示'
+        star:
+            hint: '针对未加星标的会话。已加星标的会话始终显示星标。'
+            label: '星标'
+        tab_counts:
+            heading: '标签页计数'
+            hint: '每个选项卡名称旁的数字，表示该分类中含有未读邮件的会话数。各选项卡的数字之和等于侧边栏的收件箱角标数。“3 封新邮件”提示独立显示，不受此设置影响。'
+            label: '收件箱选项卡的未读数'
+            subheading: '收件箱标签页上的数字。'
+        unread:
+            hint: '未读行的着色强度。粗体在任何设置下都保留。'
+            label: '未读行样式'
+            standard: '标准'
+            strong: '醒目'
+            subtle: '柔和'
     native_apps:
         android_hint: '然后用下面的按钮完成配对。目前，在 Google Play 上购买这个应用是支持本项目的主要方式。'
         android_title: '请先安装 Android 版 plMail'
@@ -3239,6 +3481,12 @@ settings:
             solid: '纯色'
             theme: '主题默认'
             upload: '上传图片'
+        buttons:
+            both: '图标和文字'
+            hint: '会话或所选邮件上方的按钮显示的内容。'
+            icons: '图标'
+            label: '操作按钮'
+            text: '文字'
         density:
             comfortable: '宽松'
             compact: '紧凑'
@@ -3275,30 +3523,6 @@ settings:
             flat: '平面式'
             heading: '布局'
             subheading: '界面的框架样式。卡片式将每个面板显示为悬浮卡片；平面式将顶栏和侧边栏直接放在背景上，仅主面板保留卡片边框。'
-        list:
-            accountCorner: '账户角标'
-            accountCornerHint: '每行角落的彩色三角形，表示邮件所属账户。仅在混合多个账户的列表中显示。'
-            actionButton:
-                both: '图标和文字'
-                icons: '图标'
-                text: '文字'
-            actionButtons: '操作按钮'
-            actionButtonsHint: '会话或所选邮件上方的按钮显示的内容。'
-            heading: '邮件列表'
-            listAvatars: '发件人圆形头像'
-            listAvatarsHint: '显示发件人姓名首字母的彩色圆圈。关闭后会变为普通圆圈而非消失，因为它同时也是该行的复选框。'
-            tabUnreadCount: '收件箱选项卡的未读数'
-            tabUnreadCountHint: '每个选项卡名称旁的数字，表示该分类中含有未读邮件的会话数。各选项卡的数字之和等于侧边栏的收件箱角标数。“3 封新邮件”提示独立显示，不受此设置影响。'
-            previewLines: '预览行数'
-            previewLines0: '无'
-            previewLines1: '一行'
-            previewLines2: '两行'
-            subheading: '列表每行显示的内容。'
-            unread:
-                standard: '标准'
-                strong: '醒目'
-                subtle: '柔和'
-            unreadEmphasis: '未读行样式'
         logo:
             colour: '颜色'
             custom:
@@ -3370,8 +3594,6 @@ settings:
         seg:
             custom: '自定义'
             default: '主题默认'
-            hidden: '隐藏'
-            shown: '显示'
         text:
             autoDerive: '自动推导'
             color: '文字颜色'
@@ -3601,6 +3823,8 @@ settings:
                 title: '%account% 的新邮件同步滞后'
             account_sync_failing:
                 body: '连续多次同步失败，此账户无法收到新邮件，依赖收信运行的过滤器和未读计数也已停止更新。已有邮件安全保留，没有变化。登录正常，因此问题在于邮件服务器拒绝连接或无法访问：请检查服务器是否在线，以及主机、端口或密码是否发生变化。'
+                body_oauth: '连续多次同步失败，此账户无法收到新邮件，依赖收信运行的过滤器和未读计数也已停止更新。已有邮件安全保留，没有变化。登录正常，因此是服务商拒绝请求或没有响应。这通常会自行恢复，plMail 会继续重试；如果持续存在，请查看服务商的状态页面。'
+                body_provider_down: '此账户收不到新邮件，是因为服务商的服务器在其自身一侧出错——下方的技术详情是对方的回复，并非此账户的问题。在此之前，依赖新邮件的过滤器和未读计数都会停止更新。已有邮件安全保留，没有变化，你也无需更改任何设置：plMail 会继续重试，并在服务商恢复后自动补上。恢复时间请查看服务商的状态页面。'
                 title: '%account% 持续同步失败'
             server_alert:
                 body: '你的邮件服务器发来了以下通知，在此原样显示：“%alert%”。plMail 无法代为处理；邮箱已满、密码即将过期或服务器即将迁移等问题，需要你或服务商解决。在服务器停止发送前，此通知会一直显示。'
@@ -3938,6 +4162,26 @@ settings:
         show: '显示标签'
         subheading: '创建、重命名和整理标签，并选择在侧边栏中显示哪些标签。'
         system: '系统'
+    pinning:
+        duration:
+            custom: '自定义天数'
+            custom_days: '天'
+            forever: '永久'
+            hint: '更改只对之后的置顶生效。'
+            label: '置顶持续时间'
+            one_day: '1 天'
+            one_week: '1 周'
+            thirty_days: '30 天'
+            three_days: '3 天'
+            two_weeks: '2 周'
+        heading: '置顶的会话'
+        keep_on_move:
+            hint: '归档也算移动。移到废纸篓或垃圾邮件总会取消置顶。'
+            label: '移动会话时保留置顶'
+        reminder:
+            hint: '置顶数量超过此值时会先询问，但不会拒绝。0 表示关闭提醒。'
+            label: '提醒阈值'
+        subheading: '你置顶的会话会停留在它所在的每个列表顶部。'
     profile:
         heading: '个人资料'
         save: '保存个人资料'
@@ -3959,6 +4203,17 @@ settings:
         'off': '关闭'
         'on': '开启'
         subheading: '是否需要手动允许邮件加载远程图片。'
+    sender_pictures:
+        admin_off: '管理员尚未允许此服务器在互联网上查找图片，因此这些开关暂时不起作用。你的选择会保留，待允许后生效。'
+        bimi: '公司标志'
+        bimi_hint: '公司为其邮件发布的标志（BIMI），从该公司自己的域名获取，仅显示在确实由该域名发出的邮件上。'
+        hashed: 'Gravatar 和 Libravatar'
+        hashed_hint: '某人在 Gravatar 或其域名自己的 Libravatar 服务器上选择的图片。给你发信的每个地址都会以哈希形式发送给该服务。默认关闭，需你手动开启。'
+        heading: '发件人图片'
+        intro: '联系人照片和此服务器上用户的头像始终显示。这里是 plMail 可以在后台为其他所有人查找的图片——打开邮件时从不加载任何内容。'
+        subheading: '哪些发件人旁的图片可以在互联网上查找。'
+        website: '网站图标'
+        website_hint: '发件人网站为自己声明的图标。不会用于 Gmail 等邮件服务商的地址，因为它们的图标与个人无关。'
     swipe_actions:
         heading: "滑动操作"
         hint: "拖动足够远或快速轻扫时触发操作。再次滑动可撤销已读状态和星标操作，归档和删除后也可选择撤销。删除会将会话移至废纸篓，不会永久删除。"
@@ -3967,6 +4222,7 @@ settings:
         option:
             archive: "归档"
             none: "无操作"
+            pin: '置顶'
             read_unread: "已读 / 未读"
             star: "星标"
             trash: "删除"
@@ -4040,6 +4296,7 @@ settings:
         integrations: '集成'
         labels: '标签'
         layout: "布局与操作"
+        message_list: '邮件列表'
         notifications: '通知'
         profile: '个人资料'
         reading: "阅读"
@@ -4066,6 +4323,7 @@ settings:
             clock: "12 24 小时 时间 格式"
             compose_behaviour: "mailto 邮件链接 默认邮件程序 转发 引用 发送"
             contacts: "carddav 通讯录"
+            conversation_view: '会话 线程 单封邮件 分组 平铺列表'
             disposal: "删除 回收站 彻底 清空"
             encryption: "pgp openpgp gpg 密钥"
             filters: "规则 sieve 自动 移动 转发"
@@ -4076,11 +4334,17 @@ settings:
             integrations: "nextcloud dropbox drive onedrive immich paperless 云 webdav"
             labels: "文件夹 标签 未读 所有邮件"
             language: "语言 中文 英语 德语 法语"
+            libravatar: 'libravatar 头像 图片 照片 分享 公开 个人资料'
+            list_content: '附件 文件标签 回形针 文件 标签 发件人 日期 时间 数量 已回复'
+            list_layout: '行 单行 紧凑 预览 摘要 分行 宽度'
+            list_markers: '星标 悬停 头像 圆圈 账户 角标 未读 粗体'
             notifications: "推送 浏览器 手机 声音 提醒"
             password: "密码 登录"
+            pinning: '置顶 固定 图钉 提醒 pin'
             profile: "姓名 头像 照片"
             read_receipts: "mdn 已读回执 确认"
             reading_pane: "预览 分栏 右侧 下方"
+            sender_pictures: '头像 图片 照片 gravatar libravatar bimi 标志 图标 发件人'
             sharing: "链接 公开 预约"
             shortcuts: "键盘 按键 快捷键"
             swipe_actions: "滑动 手势 手机 归档"
@@ -4260,6 +4524,7 @@ settings:
         delete: '删除分类'
         delete_confirm: '要删除“%name%”吗？其中的邮件会回到原本应归入的选项卡，不会删除任何邮件。'
         deleted: '已删除“%name%”。'
+        deleted_resorting: '已删除“%name%”。其中的会话会在后台回到各自的标签页。'
         error:
             empty: '分类必须有名称。'
             reserved: '此名称已由内置选项卡使用。'
@@ -4403,6 +4668,7 @@ shortcuts:
         archive: '归档'
         back: '返回列表'
         compose: '撰写新邮件'
+        conversation_view: '在会话和单封邮件之间切换'
         delete: '删除'
         forward: '转发'
         go_archive: '前往归档'
@@ -4418,6 +4684,7 @@ shortcuts:
         next: '向下移动一个会话'
         next_conversation: '打开下一个会话'
         open: '打开高亮的会话'
+        pin: '置顶或取消置顶'
         previous: '向上移动一个会话'
         previous_conversation: '打开上一个会话'
         reply: '回复'
@@ -4477,12 +4744,15 @@ sidebar:
         unread: '未读'
     toggle: '显示或隐藏侧边栏'
 snooze:
+    confirm: '稍后提醒'
     later_today: '今天晚些时候'
     next_week: '下周'
+    past: '此时间已过。'
     pick_date: '选择日期和时间'
     this_weekend: '本周末'
     tomorrow: '明天'
     unsnooze: '取消稍后提醒'
+    until: '提醒时间'
 snoozed:
     empty: '没有设置稍后提醒的邮件。'
 starred:
@@ -4497,6 +4767,7 @@ tabs:
     updates: '动态'
 thread:
     no_subject: '（无主题）'
+    show_conversation: '显示整个会话（%count% 封邮件）'
     summary:
         button: '总结此会话'
         disclaimer: '由模型根据下方邮件生成。重要内容请阅读原文。'
@@ -4546,9 +4817,11 @@ thread_row:
     new_badge: '新'
     no_recipient: '（无收件人）'
     no_subject: '（无主题）'
+    pin: '置顶'
+    replied: '已回复'
     send_failed:
         failed: '未发送'
-        mail_off: '未发送：此账户的邮件已关闭'
+        mail_off: '未发送：此账户已关闭发送'
         may_have_sent: '可能已发送：再次发送前请检查已发送文件夹'
         rate_limited: '未发送：邮件服务商限制了发送频率'
         refused: '未发送：邮件服务器拒绝接收'
@@ -4561,6 +4834,7 @@ thread_row:
         select: "选择"
     star: '为此邮件加星标'
     to: '收件人：%recipients%'
+    unpin: '取消置顶'
     unread: '未读'
     unstar: '移除此邮件的星标'
 toast:
@@ -4572,7 +4846,7 @@ toast:
     schedule_cancelled: '已取消定时发送。'
     send_too_late: '来不及了——此邮件已经发出。'
     send_failed: '此邮件未能发送：%subject%'
-    send_failed_mail_off: '无法发送此邮件：%subject%。其账户的邮件已关闭。'
+    send_failed_mail_off: '无法发送该邮件：%subject%。其账户已关闭发送。'
     send_failed_may_have_sent: '%subject% 可能已经发送，但响应丢失。再次发送前请检查已发送文件夹。'
     send_failed_rate_limited: '此邮件未能发送：%subject%。邮件服务商目前限制了发送频率，请几分钟后重试。'
     send_failed_refused: '此邮件未能发送：%subject%。邮件服务器拒绝接收。'
@@ -4599,10 +4873,12 @@ toolbar:
         more: '更多'
         move_to: '移至'
         not_spam: "不是垃圾邮件"
+        pin: '置顶'
         purge: '永久删除'
         snooze: '稍后提醒'
         spam: '标为垃圾邮件'
         star: '加星标'
+        unpin: '取消置顶'
     purge_confirm:
         one: '永久删除此会话？此操作无法恢复，邮件服务器上的对应内容也会被删除。'
         many: '永久删除这 %count% 个会话？此操作无法恢复，邮件服务器上的对应内容也会被删除。'
@@ -4796,12 +5072,13 @@ contacts:
     import_bad_format: "只能导入 .vcf/.vcard 和 .csv 文件。"
     import_choose: "选择文件"
     import_confirm: "导入 %count% 位联系人"
-    import_dedupe_note: "导入后将进入重复联系人页面，可合并重复导入的内容。"
+    import_dedupe_note: '导入完成后，打开“重复联系人”合并重复导入的内容。'
     import_expired: "暂存的导入已过期。请重新上传文件。"
     import_formats: ".vcf、.vcard 或 .csv"
     import_hint: "支持 .vcf/.vcard 格式的通讯录导出文件或 .csv 文件。导入后会检查重复联系人。"
     import_no_file: "未上传文件。"
     import_preview_count: "在 %format% 文件中找到 %count% 位联系人。以下显示前几位："
+    import_started: '正在导入 %count% 位联系人——在后台进行，完成后会通知你。'
     import_step1: "第 1 步 — 选择文件"
     import_step2: "第 2 步 — 预览"
     import_upload: "上传并预览"

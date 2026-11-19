@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Backup;
 
+use App\Domain\Enum\Account\AccountService;
 use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Crypto\AddressKeyOrigin;
 use App\Domain\Enum\Crypto\AddressKeyStatus;
@@ -22,6 +23,7 @@ use App\Domain\Enum\Calendar\ShareWindow;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Calendar\BookingPage;
+use App\Entity\Embeddable\MessageList;
 use App\Entity\Crypto\AddressKey;
 use App\Entity\Crypto\ContactCertificate;
 use App\Entity\Crypto\ContactKey;
@@ -301,6 +303,15 @@ final readonly class ConfigBackupUserRestorer
         // inbox: what such a restore has always produced, so an old file does
         // not start behaving differently.
         $user->categorySorting->applyArray($this->map($document, 'categorySorting'));
+        // A document from before #608 has no `messageList`, and five of its
+        // settings in `appearance` under their old names; they are read from
+        // there first, so such a restore keeps the list it had. A document
+        // that has both is one written since, whose `appearance` no longer
+        // carries them, so the order only matters for the old kind.
+        $user->messageList->applyArray([
+            ...MessageList::fromLegacyAppearance($this->map($document, 'appearance')),
+            ...$this->map($document, 'messageList'),
+        ]);
 
         foreach ($this->map($document, 'settings') as $key => $value) {
             $user->setSetting($key, $value);
@@ -378,6 +389,13 @@ final readonly class ConfigBackupUserRestorer
             // restores the colours that backup's accounts were actually wearing.
             $account->colorIndex        = $this->number($row, 'colorIndex')
                 ?? $account->sortOrder;
+            // Held to the same shape AccountController::colour() accepts, since
+            // templates print it as a CSS colour: a hand-edited file must not
+            // be a way to put anything else there.
+            $customColor                = $this->text($row, 'customColor');
+            $account->customColor       = null !== $customColor && 1 === preg_match(Account::CUSTOM_COLOR_PATTERN, $customColor)
+                ? strtolower($customColor)
+                : null;
             $account->imapHost          = $this->text($row, 'imapHost');
             $account->imapPort          = $this->number($row, 'imapPort');
             $account->imapEncryption    = $this->text($row, 'imapEncryption');
@@ -389,6 +407,9 @@ final readonly class ConfigBackupUserRestorer
             // Absent from a backup made before the field existed, which reads
             // as null: one password for both, as that account had.
             $account->smtpPassword      = $this->text($row, 'smtpPassword');
+            // The same for the sending username (#660): absent is null, the
+            // account's own username.
+            $account->smtpUsername      = $this->text($row, 'smtpUsername');
             $account->authType          = $this->text($row, 'authType');
             $account->oauthProvider     = $this->text($row, 'oauthProvider');
             $account->oauthAccessToken  = $this->text($row, 'oauthAccessToken');
@@ -402,6 +423,11 @@ final readonly class ConfigBackupUserRestorer
             $account->mailEnabled       = true === ($row['mailEnabled'] ?? $legacyActive);
             $account->calendarEnabled   = true === ($row['calendarEnabled'] ?? true);
             $account->contactsEnabled   = true === ($row['contactsEnabled'] ?? $legacyActive);
+            // A file made before #628 has no send switch: read as the
+            // migration filled it — on where mail was, unless the account
+            // had no server to send through.
+            $account->sendEnabled       = true === ($row['sendEnabled']
+                ?? (true === $account->mailEnabled && false === $account->lacksServerFor(AccountService::Send)));
             $account->pushEnabled       = true === ($row['pushEnabled'] ?? false);
 
             foreach ($this->map($row, 'settings') as $key => $value) {

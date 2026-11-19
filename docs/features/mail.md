@@ -83,8 +83,9 @@ where you were rather than somewhere adjacent.
 
 **Trash** and **Drafts** are not links, and neither is the **Labels** roll-up. The first two carry a
 total rather than an unread count, so there is no unread question being asked there; the roll-up
-stands in for several lists at once and has no single one to open. **Unread**'s badge is not a link
-either: every row in that list is unread already.
+stands in for several lists at once and has no single one to open. **Unread**'s badge is part of
+the row's own link: every row in that list is unread already, so the number opens the same list the
+row does.
 
 A collapsed **Labels** heading carries the unread hidden underneath it, as a count of conversations.
 It is deliberately not the sum of the per-label numbers: a conversation filed under two labels would
@@ -129,7 +130,7 @@ until you turn it on, and then an Outlook or any other account has them, [tabs o
 own](#tabs-of-your-own) included; off, an account's page is its whole inbox in one list. The switch
 is there only while **Inbox tabs** is on, and a config backup carries it. A tab is there while it holds mail, and on an account's page it counts only that
 account's mail — so a tab of yours that holds mail only in another account is not on this one. The
-account page's tabs are plainer: no
+account page's tabs are plainer: an unread count of that account's own, but no
 "new" pills, sender hints or unread tint, because those add up every account and would describe the
 wrong mailbox there. Dragging a conversation onto a tab is on the top-level Inbox only.
 
@@ -267,8 +268,10 @@ a second line naming who that new mail is from, newest arrival first. "New" and 
 different questions, so a tab carries two numbers: the pill says what arrived that you have never
 been shown, and a plain **unread count** beside the tab's name says how many conversations in that
 category hold unread mail. The count is the sidebar's Inbox badge split by tab, so the tabs add up
-to it; it shows on every tab including the one you are on, and is hidden at zero. It can be
-switched off under **Settings → Appearance → Message list**. (Earlier
+to it; it shows on every tab including the one you are on, and is hidden at zero. Like the
+sidebar's badges, it is a link: clicking it opens that tab with only its unread conversations, while
+a click anywhere else on the tab opens the whole tab. It can be
+switched off under **Settings → Inbox → Categories**. (Earlier
 versions kept this number off the tabs, on the argument that the badge and the bold rows already
 say unread. They cannot say *where*: with the Inbox badge reading 1 and Primary open and empty,
 nothing on the strip pointed at the tab holding the mail.) The strip is live — pills, counts and
@@ -303,6 +306,54 @@ If it is simply wrong, **Report** at the bottom of the panel says where it shoul
 goes to your administrator under [Reported mail](admin.md#reported-mail), with the three verdicts and
 the evidence behind them — which is what a rule or a prompt gets changed on the strength of. It sends
 the sender, the subject and the decision; it does not send the message.
+
+## What a list row shows
+
+**Settings → Inbox → Message list** decides what each row in the mail list carries. Every default is
+what the list did before the option existed, so nothing moves until you change something. At the top
+of the page is a preview: four made-up conversations, drawn by the same template as your list, that
+change as you pick. **Phone**, **Narrow** and **Wide** set how wide the preview list is, because how a
+row is laid out depends on how wide the list is.
+
+| Control | What it does |
+|---|---|
+| **One-line rows** | When a row puts the sender, the subject and the preview on one line. **As soon as they fit** from a list of medium width, the way Gmail's list reads, with slightly tighter rows; **Only on wide lists** from a very wide one; **Never**. Narrower than that a row stacks: three lines on a phone, the sender and subject over the preview in between |
+| **Preview** | What a stacked row shows of the message: **None**, **After the subject** on the subject's own line, **One line** or **Two lines** under it. A one-line row always shows the preview after the subject |
+| **Attachments** | **Hidden**, a **Paperclip**, or **Chips**: up to three files named under the preview, then "+N". A chip opens the viewer for a PDF, picture or video and downloads anything else |
+| **Labels** | **Before the subject** as chips, as **Dots** in the label's colour (its name shows on hover), on their **Own line**, or **Hidden** |
+| **Sender** | **Everyone** who wrote in the conversation, or the **Latest** sender alone. In Sent and Drafts a row names the recipients either way |
+| **Date** | **Smart** — the time today, the day this year, the full date before that — or **Date and time** on every row |
+| **Message count** | The number after a conversation's subject |
+| **Replied arrow** | An arrow in front of the subject when the newest mail in the conversation has been answered. Off by default |
+| **Star** | Whether a conversation you have not starred shows its outline **On hover** or **Always** |
+| **Sender discs** | The coloured circle carrying the sender's initial — see the trap below, this one does not disappear |
+| **Account corner** | The coloured triangle in a row's lower-left saying which account the message arrived on. On by default; it is only ever drawn in a list that mixes accounts anyway |
+| **Unread rows** | **Subtle**, **Standard** or **Strong** — how loudly the list says a row is unread |
+
+**Unread rows** changes the tint behind the row and the accent bar beside it, and nothing else. The
+bold sender and subject stay at every setting on purpose: bold is the signal that survives a
+colour-blind reader, a translucent pane over a photograph, and a printout. Subtle removes the tint
+entirely, Strong deepens it and adds a bar down the row's leading edge.
+
+Two preview lines is the ceiling because a stacked row has room for two. The archive, delete, spam,
+snooze and read buttons on a row appear when the pointer is over it; there is no setting to show
+them on every row, because on any list short of very wide they crowd out the subject.
+
+The unread count beside each inbox tab's name is set on **Settings → Inbox → Categories**, beside
+the tabs it counts.
+
+These settings are your account's, not the browser's, and they used to be on the Appearance page.
+They say what a row tells you rather than how the app looks, so an exported theme does not carry
+them; a config backup does. The Android and iOS apps have their own list, and read only the account
+corner, sender discs, unread emphasis and number of preview lines from here.
+
+**Sender discs cannot be switched off, only emptied.** That disc *is* the row's checkbox: the real
+input sits behind it and every bulk action in the toolbar reads it. Switching it off paints over the
+identity — the colour and the letter go — and leaves a plain outlined circle in the same place, so
+the selection target and the row's geometry are exactly where they were.
+
+**The account corner only ever appears in a list that mixes accounts.** On a single-account install
+it has never been drawn, and switching it on will not make it appear.
 
 ## The "New" marker
 
@@ -438,6 +489,31 @@ from anywhere else, only the others. The row's sender, preview, date and message
 the same part, and so are its buttons: in the inbox it is live mail with **Delete**, in Trash it is
 deleted mail with **Move to inbox** and **Delete forever**. A conversation entirely in the bin is
 shown whole wherever it is opened.
+
+### Single emails instead of conversations
+
+If you would rather see every email on its own, turn conversation view off: **Conversation view**
+at the bottom of any list's sort menu, `t`, or **Settings → Inbox → Message list → Conversation
+view**. The switch takes effect at once, on the list you are looking at, and you can switch back
+and forth whenever you like.
+
+With it off, every list has one row per email, dated by that email:
+
+- **Each email is listed where it is filed.** Your own replies are in Sent, not in the Inbox
+  beside the mail they answer, and one email of a conversation thrown in the bin leaves the list
+  while the rest of the conversation stays.
+- **Opening a row shows that email**, with the same toolbar and reply buttons as a conversation.
+  **Show the whole conversation** above it opens the rest of it.
+- **Everything you do to a row is done to that email:** archive, delete, star, read and unread,
+  labels, Move to, pin and snooze, from the row, the toolbar, a swipe, the keyboard, a selection
+  or by dragging it onto a folder, a label, Starred or Unread. Spam is under Move to.
+- **The unread badges count emails**, so the number beside a folder is how many bold rows it
+  opens on.
+- **Category tabs stay a conversation's.** An email is in its conversation's tab, and moving mail
+  to another tab moves the conversation.
+
+Nothing is lost by switching: a pin or a snooze made in one view shows in the other (see
+[Pinning](#pinning) and [Snooze](#snooze)).
 
 **Show original** reconstructs the message from the stored header map and the decoded body — no
 raw RFC 822 blob is kept — and prints the SPF, DKIM and DMARC verdicts alongside it where the
@@ -736,6 +812,13 @@ next page, and the number beside the actions counts all of it. On a list longer 
 menu also offers **All … in this view**, which selects every conversation in it. **None** clears
 every page, and going to a different list starts with nothing selected.
 
+To select a run of conversations, click one avatar, then hold Shift and click another: both, and
+every conversation between them on the page, are selected. The run always starts at the avatar you
+last clicked without Shift, so another shift-click makes it longer or shorter, and conversations
+it no longer covers go back to how they were. Shift-clicking the avatar the run ended on again
+unticks the whole run, and once more ticks it again. It works in either direction and leaves what you selected on other
+pages as it is. Shift on the rest of the row opens the mail as before.
+
 Star, **Archive**, **Delete**, **Label as**, **Mark as read** / **Mark as unread** and **Snooze**
 all apply to a whole conversation or to a single message, and all of them travel outward to the
 provider as well as changing what you see here. Archiving is modelled as removing the Inbox label
@@ -792,6 +875,8 @@ keyboard button above a mail list; the ones worth knowing first:
 | `x` | Select the highlighted conversation. `*` then `a` selects the page, `*` then `n` clears. |
 | `e` · `#` · `!` | Archive · delete · mark as spam. |
 | `s` · `Shift`+`i` · `Shift`+`u` | Star · mark as read · mark as unread. |
+| `p` | Pin or unpin. |
+| `t` | Switch between conversations and single emails. |
 | `l` · `v` · `b` | Label as · move to · snooze. |
 | `r` · `a` · `f` | Reply · reply to all · forward, in an open conversation. |
 | `c` · `/` | Write a new message · search. |
@@ -965,6 +1050,43 @@ Mail in **Spam** stays blocked whatever you choose, trusted senders included: a 
 spam is your provider doubting it comes from who it says, and **Show images** is still there to
 load one message's pictures by hand.
 
+## Sender pictures
+
+The circle beside each sender shows a picture where plMail has one, and the sender's initial where
+it does not. In the order plMail looks:
+
+1. **Somebody on this server** shows the profile picture they chose for themselves.
+2. **One of your contacts** shows the photo on their card, whether you added it here or it came from
+   your CardDAV, Google or Outlook address book.
+3. **A company's logo** (BIMI), the one its domain publishes for its mail. Only on a message your
+   mail server said really came from that domain, so a forged sender never wears it, and only for a
+   domain whose DMARC policy tells servers to refuse forgeries. plMail does not check the trademark
+   certificate Gmail and Apple Mail ask for, so some logos show here that they would not show.
+4. **Gravatar or Libravatar**, the picture a person chose on one of those services. A domain that runs
+   its own Libravatar server is asked first.
+5. **The sender's website icon**, the largest icon their site declares. Never for addresses at mail
+   providers such as Gmail, whose icon would say nothing about the person.
+
+The first two are already on the server and are always shown. The other three are looked up on the
+internet, and only if the administrator allows it under **Admin → Sender pictures**. Then
+**Settings → Reading & writing → Reading → Sender pictures** has a switch for each. Company logos and
+website icons start on, since they come from the sender's own domain, which already knows it sent
+you mail. Gravatar starts off: it would send a hash of every address you hear from to a company
+that is neither you nor the sender.
+
+Nothing is fetched while you read. The lookups run in the background, once per sender for everybody
+on the server, and a picture they find replaces the initial on screen as it arrives. What they find
+is re-checked about once a month, and senders who have not written for half a year are forgotten.
+Your browser never contacts any of these services; the pictures come from plMail.
+
+Your own picture can go the other way. When the administrator serves Libravatar, **Settings →
+Profile** has a **Share my picture through Libravatar** switch, off until you turn it on. Turned on,
+mail programs and websites that use Libravatar show the picture you chose here beside your
+addresses. Anybody who knows one of your addresses can then fetch it.
+
+Mail in **Spam** or **Trash** never starts a lookup. Asking a spammer's domain for its logo would
+tell them the address is read, the same thing a remote image would.
+
 ## Snooze
 
 Snoozing is archiving with a timer. The conversation leaves the Inbox now — at the provider too,
@@ -984,8 +1106,47 @@ conversation is marked **unread** — that is the point of the feature, since a 
 the state you left it in is one you have already learned to scroll past. The read state it had is
 genuinely lost.
 
+With [conversation view off](#single-emails-instead-of-conversations), snoozing snoozes that one
+email: it leaves the Inbox with its own wake time, and the rest of its conversation stays. Snoozing
+in the conversation list snoozes every email of it. **Unsnooze** takes off everything that put the
+email away, so an email that is snoozed because its whole conversation is brings the whole
+conversation back.
+
 The Snoozed list is ordered by the conversation's last message, like every other list, rather than
 by wake time.
+
+## Pinning
+
+A pinned conversation stays at the top of every folder or label list it is in, above a thin line,
+whatever the list is sorted by. Pin one with the thumbtack beside the star on its row, the same
+button in the toolbar of an open conversation, `p`, a swipe (if you choose Pin for one in
+**Settings → General → Layout & controls**), or **Pin** under **More** above a selection. The same
+click takes the pin off.
+
+Pinning moves the row up at once and leaves the rest of the list where it was, so you can carry on
+from the row you were at.
+
+With [conversation view off](#single-emails-instead-of-conversations), a pin is the email's: only
+that email goes to the top. Each view shows the other's pins. A conversation with a pinned email
+in it is pinned in the conversation list, and a pinned conversation puts its newest received email
+(not your reply) at the top of the email list. Taking a pin off takes off everything that pinned
+that row: unpinning a conversation unpins its emails, and unpinning an email that is at the top
+because of its conversation unpins the conversation.
+
+**Settings → Inbox → Message list → Pinned conversations** has three choices:
+
+- **Remind me at**, 20 unless you change it, counted across all your accounts. Past it, pinning
+  asks whether you want to pin another one, with a link to this setting. It never refuses. 0 turns
+  the reminder off.
+- **Pins last**: forever, or a number of days. A pin that runs out leaves the top on its own.
+  Changing this affects new pins only.
+- **Keep the pin when a conversation is moved**, on unless you switch it off. Archiving counts as
+  moving. Moving to the bin or to spam always takes the pin off, and Undo puts it back.
+
+A pin belongs to plMail and is never written to the mail server: IMAP, Gmail and Outlook have
+nothing it could be stored as. Moves another mail program makes never take a pin off.
+`app:mail:unpin-ended` clears pins that have run out every 15 minutes, which is how the apps hear
+of it; the web lists stop showing them at the top the moment they end.
 
 ## Attachments
 

@@ -34,6 +34,24 @@ class MailboxRepository extends ServiceEntityRepository
         return $indexed;
     }
 
+    /**
+     * The account a folder belongs to, by id, without loading either.
+     *
+     * Asked by the ingest worker for every IMAP folder job it takes off the
+     * queue, to run it after the account's other jobs rather than beside them
+     * (see IsolationKeys). A long-running process, so the connection and not
+     * the identity map: nothing is kept between calls.
+     */
+    public function accountIdOf(int $mailboxId): ?int
+    {
+        $accountId = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT account_id FROM mailbox WHERE id = :id',
+            ['id' => $mailboxId],
+        );
+
+        return false === $accountId || null === $accountId ? null : (int) $accountId;
+    }
+
     public function findSentMailboxForAccount(Account $account): ?Mailbox
     {
         return $this->findOneBy(['account' => $account, 'specialUse' => MailboxSpecialUse::SENT]);

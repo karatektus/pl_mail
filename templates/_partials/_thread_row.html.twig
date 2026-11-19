@@ -15,6 +15,7 @@ inside the reading pane.
 because of its draft, so it opens that draft even when the thread also holds
 the conversation it answers.
 #}
+{% import '_partials/_sender_picture.html.twig' as pictures %}
 {% set draft_scope = draft_scope|default(false) %}
 {# The Sent list, where the who column has the same problem the Drafts list had:
    every row is from you, so naming the sender fills the column with your own
@@ -69,12 +70,14 @@ mark-read) has no such set and asks the thread directly, which by then answers
 "already listed" — the badge goes when the row it belongs to is redrawn, rather
 than being resurrected by whichever redraw happened last.
 
-Threads only. A bare Message row is a message, and only a conversation arrives.
+A bare Message row is new while its conversation is (#615): "new" is kept per
+conversation, and the email list shows the conversation's arrival on its emails.
 #}
-{% set isNew = isThread
+{% set newOf = isThread ? item : item.thread %}
+{% set isNew = newOf is not null
     and (newThreadIds is defined
-        ? item.id in newThreadIds
-        : newMail.isNew(item)) %}
+        ? newOf.id in newThreadIds
+        : newMail.isNew(newOf)) %}
 
 {# An escalation of isNew, never a replacement: an answer IS new, and every
    count, dot and retirement path goes on treating it as exactly that. All this
@@ -99,7 +102,19 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set unread = row.narrowed ? row.unread : item.unreadCount > 0 %}
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
-    {% set date = row.narrowed ? row.lastAt : item.lastMessageAt %}
+    {# The thumbtack (#654). isPinned() and not the column: a pin past its end
+       is no pin, whether or not the sweep has got to it. A pin on one of its
+       emails, made in the email list, pins the conversation too (#615). #}
+    {% set pinned = item.isPinned() or row.emailPinned %}
+    {# When it comes back, in the Snoozed list and on the snooze menu. #}
+    {% set snoozedUntil = item.snoozedUntil %}
+    {# In Drafts, the draft's own time: a draft does not move lastMessageAt
+       (MessageThreader::recordActivity()), so a reply written just now showed
+       the date of the mail it answers. The list is sorted the same way
+       (MessageThreadRepository::sortList()). #}
+    {% set date = draft_scope and row.draftAt is not null
+        ? row.draftAt
+        : (row.narrowed ? row.lastAt : item.lastMessageAt) %}
     {% set count = row.narrowed ? row.count : item.messageCount %}
     {# Everyone who has written in the conversation, oldest first — not the
        newest sender, which made every thread you had answered look like it
@@ -187,6 +202,28 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
 
     {% set hasAttachment = row.narrowed ? row.hasAttachments : item.attachmentCount > 0 %}
     {% set senderSeed = latest ? (latest.fromAddress ?: sender) : sender %}
+    {# The sender picture (#639) belongs to the newest message somebody ELSE
+       wrote: a conversation you answered last would otherwise wear your own
+       face. None in Sent and Drafts, where every message is yours and the
+       column names the recipients instead. `|filter|last` yields false on an
+       empty list, which the `?` below reads as no picture. #}
+    {% set pictureMessage = (draft_scope or sent_scope)
+        ? null
+        : row.messages|filter(m => not m.filedAsSent and not m.isDraft)|last %}
+    {% set pictureAddress = pictureMessage ? pictureMessage.fromAddress : null %}
+    {% set pictureVerified = pictureMessage ? pictureMessage.senderVerified : false %}
+
+    {# The message list settings' other answers (#608). Each is drawn and
+       app.css shows the one <html> asks for — see MessageListRenderer.
+       `latestSender` is the newest message's sender alone; in Sent and Drafts
+       both answers are the recipients, because every row there is yours.
+       `attachmentChips` is empty unless the reader's list shows chips, since
+       only then are the names read (ThreadRows). #}
+    {% set latestSender = (draft_scope or sent_scope or latest is null)
+        ? sender
+        : (latest.filedAsSent ? 'thread_row.me'|trans : (latest.fromName ?: latest.fromAddress ?: sender)) %}
+    {% set replied = row.replied %}
+    {% set attachmentChips = row.attachments %}
 
     {# Opened from Trash, the conversation shows its deleted side; the thread
        route has no list behind it, so the link says so. #}
@@ -199,15 +236,30 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set unread = item.seenAt is null %}
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
+    {# An email row — the email list (#615), or a search hit — shows its own
+       pin, or that it is the newest received email of a pinned conversation;
+       pinning from here pins this email. #}
+    {% set pinned = email_pinned(item) %}
+    {# Snoozed on its own (#615), or with its whole conversation. #}
+    {% set snoozedUntil = item.snoozedUntil ?? item.thread.snoozedUntil|default(null) %}
     {% set date = item.receivedAt %}
     {% set count = 1 %}
     {% set sender = item.fromName ?: item.fromAddress %}
     {% set senderSeed = item.fromAddress ?: sender %}
+    {% set pictureAddress = item.fromAddress %}
+    {% set pictureVerified = item.senderVerified ?? false %}
     {# Same source as the thread branch above, so the two cannot drift. #}
     {% set snippet = mail_snippet(item)|slice(0, 100) %}
     {% set encrypted = item.crypto is not null and item.crypto.encrypted %}
 
     {% set hasAttachment = item.hasAttachments %}
+    {# A single message has one sender, so both sender answers are it. No
+       chips: a message row is a search hit or a compose stream's redraw, and
+       reading its parts would be a query per row for the one list where the
+       setting is least likely to be what the reader is looking at. #}
+    {% set latestSender = sender %}
+    {% set replied = '\\Answered' in item.flags %}
+    {% set attachmentChips = [] %}
 
     {% set draft = item.isDraft %}
     {% set draftId = item.id %}
@@ -285,6 +337,12 @@ be a worse regression than the one this feature fixes.
    thread ids. A bare Message row — which this partial also renders, for the
    streams under compose/ — has nothing to send.
 
+   Except in the email list (#615), where every row is an email and a drop
+   files that email: the drop says so with the row's `data-row-type`, and the
+   bulk endpoint reads the ids as emails. Only there — a compose stream's email
+   row inside a conversation list would otherwise be dropped as a conversation
+   of the same number.
+
    Not drafts. A draft's row opens the composer rather than the conversation,
    and filing an unsent message into Receipts is not a gesture anybody makes;
    the Drafts folder is where a draft lives until it is sent or thrown away.
@@ -294,7 +352,7 @@ be a worse regression than the one this feature fixes.
    and every mail client makes the row itself the thing you pick up. The gesture
    itself lives in mail--dnd, on <body> — see that controller for why the
    sidebar and the tab strip cannot be reached from here. #}
-{% set draggable = isThread and false == draft %}
+{% set draggable = (isThread or (app.user and not app.user.conversationView)) and false == draft %}
 <li
     data-enter-new="slide-down"
     id="thread_{{ rowId }}"
@@ -327,6 +385,9 @@ be a worse regression than the one this feature fixes.
        markup is one template per list; this is the only part that differs by row. #}
     data-sheet="{{ sheet_entries(item, draft)|json_encode }}"
     data-mail--message-row-id-value="{{ rowId }}"
+    {# Conversation or single email (#615): what the row's id means, read by
+       the selection before it posts ids (mail_selection.js, rowType()). #}
+    data-row-type="{{ type }}"
     data-unread="{{ unread ? 'true' : 'false' }}"
     {# Its own attribute beside data-unread rather than folded into it: the two
        are orthogonal, and a row that is `new="false" unread="true"` — scrolled
@@ -336,8 +397,15 @@ be a worse regression than the one this feature fixes.
        so a list Turbo served from its prefetch cache still retires its badges —
        see mail--new-marker and MailController::markListed(). Only on rows that
        are claiming to be new; there is nothing to report about the others. #}
-    {% if isNew %}data-new-id="{{ rowId }}"{% endif %}
+    {% if isNew %}data-new-id="{{ newOf.id }}"{% endif %}
     data-starred="{{ starred ? 'true' : 'false' }}"
+    {# Pinned rows sit above the rest (#654), and app.css draws the line under
+       the last of them from this, so no list template has to know where the
+       pins end. data-sort-at is the row's place in the list's own order, which
+       is what assets/pin.js puts a pinned or unpinned row back in by without
+       asking the server for the page again. #}
+    data-pinned="{{ pinned ? 'true' : 'false' }}"
+    {% if date %}data-sort-at="{{ date|date('U') }}"{% endif %}
 >
     {# Row swipe. One panel per direction that does something on this row, drawn
        from SwipeActionResolver, so a direction the strip would not offer has no
@@ -390,8 +458,10 @@ be a worse regression than the one this feature fixes.
            corner optional: app.css sets its `display` from --list-corner-display,
            which AppearanceRenderer writes on <html> from the user's setting.
            No branch here, because the condition is not a fact about the row. #}
+        {% set accountDot = account_dot(rowAccount) %}
         <span data-account-corner
-              class="pointer-events-none absolute bottom-0 left-0 h-2.5 w-2.5 {{ rowAccount.colorIndex|account_color }} [clip-path:polygon(0_0,0_100%,100%_100%)]"
+              class="pointer-events-none absolute bottom-0 left-0 h-2.5 w-2.5 {{ accountDot.class }} [clip-path:polygon(0_0,0_100%,100%_100%)]"
+              style="{{ accountDot.style }}"
               title="{{ 'thread_row.account'|trans({ '%account%': accountName }) }}"
               aria-hidden="true"></span>
     {% endif %}
@@ -420,10 +490,14 @@ be a worse regression than the one this feature fixes.
            Colour comes from the address and is never stored, so it is the same
            circle for the same person on every device — see
            SenderAvatarExtension. #}
-        <label class="relative z-10 pointer-events-auto flex-shrink-0 cursor-pointer group/avatar">
+        <label class="relative z-10 pointer-events-auto flex-shrink-0 cursor-pointer group/avatar"
+               data-action="mousedown->mail--message-row#keepTextSelection">
+            {# `click` before `change`: the click knows whether Shift was held,
+               which is what makes it a range (#667); the change tells the
+               toolbar. Shift on the rest of the row still opens the mail. #}
             <input
                 type="checkbox"
-                data-action="change->mail--message-row#toggleSelect"
+                data-action="click->mail--message-row#pickSelect change->mail--message-row#toggleSelect"
                 data-thread-select value="{{ rowId }}"
                 class="peer sr-only"
                 aria-label="{{ 'thread_row.select'|trans({'%subject%': subject}) }}"
@@ -432,13 +506,18 @@ be a worse regression than the one this feature fixes.
             {# `data-row-avatar-face`: the hook the "sender discs off" setting
                paints a plain circle over. It cannot be hidden — see app.css —
                because this element's sibling input is the row's checkbox. #}
+            {# The picture, when there is one, sits inside the same circle over
+               the initial — so the hover tick and the "discs off" paint keep
+               working on exactly the element they always did. #}
+            {% set senderPicture = sender_picture(pictureAddress, pictureVerified) %}
             <span data-row-avatar-face
-                  class="flex items-center justify-center rounded-full
+                  {{ pictures.attributes(pictureAddress, pictureVerified, senderPicture) }}
+                  class="relative overflow-hidden flex items-center justify-center rounded-full
                          w-9 h-9 text-sm font-semibold select-none
                          transition-opacity
                          peer-checked:opacity-0 group-hover/avatar:opacity-0
                          {{ senderSeed|avatar_tone }}"
-                  aria-hidden="true">{{ sender|avatar_initial(senderSeed) }}</span>
+                  aria-hidden="true">{{ sender|avatar_initial(senderSeed) }}{{ pictures.image(senderPicture) }}</span>
 
             <span class="absolute inset-0 flex items-center justify-center rounded-full
                          bg-accent text-accent-ink
@@ -560,7 +639,8 @@ be a worse regression than the one this feature fixes.
                     {% endif %}
 
                     <span class="truncate text-sm {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-muted' }}">
-                        {{ sender }}
+                        <span data-row-sender-name="everyone">{{ sender }}</span>
+                        <span data-row-sender-name="latest">{{ latestSender }}</span>
                     </span>
                 </span>
             </div>
@@ -579,9 +659,31 @@ be a worse regression than the one this feature fixes.
                that are already competing for one line, so they drop to a line
                of their own underneath. #}
             <div class="min-w-0 flex-1 flex flex-col row-band:contents">
-                <div class="min-w-0 flex flex-col row-band:contents row-line:flex-row row-line:items-baseline row-line:gap-2">
-                    <span data-row-subject class="truncate text-sm mt-1 row-band:mt-0 row-line:mt-0 row-line:flex-shrink-0 row-line:max-w-[45%]
+                {# `row-inline:` is the one-line row's arrangement of the
+                   subject and the preview — side by side, the preview cut
+                   where the line ends — and it is also what an inline preview
+                   asks for at any width (#608). `row-split:` is the two-line
+                   row when the preview has a line of its own. Both variants
+                   are in app.css. The air above the subject when stacked is
+                   on this box rather than on the subject, so the two sit level
+                   when they share a line. #}
+                <div class="min-w-0 flex flex-col mt-1 row-band:mt-0 row-line:mt-0 row-split:contents row-inline:flex-row row-inline:items-baseline row-inline:gap-2">
+                    <span data-row-subject class="truncate text-sm row-inline:flex-shrink-0 row-inline:max-w-[45%]
                                  {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-soft' }}">
+                        {# Labels in front of the subject, as Gmail's list has
+                           them — or as coloured dots in the same place. One of
+                           three copies of the labels in this row; app.css
+                           shows the one the reader chose (#608). #}
+                        {% include '_partials/_thread_labels.html.twig' with { item: item, account: rowAccount, hook: 'inline', class: 'mr-1.5' } %}
+                        {# Answered: the newest mail in it is yours or carries
+                           \Answered. Shown only for somebody who asked for it. #}
+                        {% if replied %}
+                            <span data-row-replied class="mr-1 text-[11px] text-ink-faint"
+                                  title="{{ 'thread_row.replied'|trans }}">
+                                <i class="fa-solid fa-reply" aria-hidden="true"></i>
+                                <span class="sr-only">{{ 'thread_row.replied'|trans }}</span>
+                            </span>
+                        {% endif %}
                         {# An encrypted message: a lock in front of its subject.
                            It used to be said by the preview, which read
                            "Encrypted message" after the subject — the server
@@ -601,7 +703,7 @@ be a worse regression than the one this feature fixes.
                         {% endif %}
                         {{ subjectLine }}
                         {% if count > 1 %}
-                            <span class="ml-1 text-xs font-medium text-ink-faint">{{ 'thread_row.message_count'|trans({'{ count }': count}) }}</span>
+                            <span data-row-count class="ml-1 text-xs font-medium text-ink-faint">{{ 'thread_row.message_count'|trans({'{ count }': count}) }}</span>
                         {% endif %}
                     </span>
 
@@ -610,7 +712,7 @@ be a worse regression than the one this feature fixes.
                        the same margin so the dot stays level with it. #}
                     {# Two lines: the whole second row, under the sender as
                        well as the subject. The grid's row gap is the air. #}
-                    <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 row-band:mt-0 row-band:col-span-2 row-line:mt-0">
+                    <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 row-band:mt-0 row-split:col-span-2 row-inline:mt-0">
                         {# A draft with a send time on it. Without this the
                            Drafts list is the one place a scheduled message
                            lives and the only place that does not say so — the
@@ -700,7 +802,7 @@ be a worse regression than the one this feature fixes.
                                 </button>
                             </span>
                         {% endif %}
-                        <span class="row-line:hidden contents">
+                        <span data-row-labels="line" class="row-inline:hidden contents">
                             {% include '_partials/_thread_labels.html.twig' with { item: item, account: rowAccount } %}
                         </span>
                         {# A three-line row has one short line for the preview,
@@ -745,9 +847,47 @@ be a worse regression than the one this feature fixes.
                    outranks `.hidden`, which a plain container variant does
                    not need to — see the note on `hidden @xl:inline-block`
                    above. #}
-                <div class="hidden row-line:has-[*]:flex items-center mt-1">
+                <div data-row-labels="below" class="hidden row-inline:has-[*]:flex items-center mt-1 row-band:col-span-2">
                     {% include '_partials/_thread_labels.html.twig' with { item: item, account: rowAccount } %}
                 </div>
+
+                {# The files, by name (#608): under everything else at every
+                   width, since a one-line row has no room for them and a
+                   stacked one has no better place. Each opens the viewer for
+                   what it can show and downloads the rest, as its chip in the
+                   reading pane does; lifted over the row's own link (`z-10`)
+                   so a click lands on the file and not on the conversation. #}
+                {% if attachmentChips is not empty %}
+                    {% set chipLimit = constant('App\\Domain\\Enum\\MessageList\\AttachmentDisplay::CHIP_LIMIT') %}
+                    <div data-row-attachments class="flex flex-wrap items-center gap-1.5 mt-1.5 row-band:col-span-2">
+                        {% for chip in attachmentChips|slice(0, chipLimit) %}
+                            {% set chipClass = 'relative z-10 pointer-events-auto inline-flex items-center gap-1.5 max-w-48 px-2 py-0.5 rounded-full
+                                                border border-line bg-sunken text-[11px] text-ink-soft hover:bg-hover transition-colors cursor-pointer
+                                                focus:outline-none focus-visible:ring-2 focus-visible:ring-accent' %}
+                            {% set chipFace %}
+                                <i class="fa-regular {{ chip.icon }} text-[11px] text-ink-faint" aria-hidden="true"></i>
+                                <span class="truncate">{{ chip.filename ?: 'attachment' }}</span>
+                            {% endset %}
+                            {% if chip.previewKind is not null %}
+                                <button type="button"
+                                        data-controller="ui--modal"
+                                        data-action="click->ui--modal#open"
+                                        data-ui--modal-size-value="full"
+                                        data-ui--modal-src-value="{{ path('app_mail_attachment_preview', { id: chip.id }) }}"
+                                        data-ui--modal-title-value="{{ chip.filename ?: 'attachment.preview.untitled'|trans }}"
+                                        class="{{ chipClass }}">{{ chipFace }}</button>
+                            {% else %}
+                                <a href="{{ path('app_mail_attachment', { id: chip.id }) }}?download=1"
+                                   download="{{ chip.filename ?: 'attachment' }}"
+                                   aria-label="{{ 'attachment.download_named'|trans({ '%name%': chip.filename ?: 'attachment' }) }}"
+                                   class="{{ chipClass }}">{{ chipFace }}</a>
+                            {% endif %}
+                        {% endfor %}
+                        {% if attachmentChips|length > chipLimit %}
+                            <span class="text-[11px] text-ink-faint">+{{ attachmentChips|length - chipLimit }}</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
             </div>
         </div>
 
@@ -797,7 +937,7 @@ be a worse regression than the one this feature fixes.
                        Every other icon in this file is wrapped for the same
                        reason. #}
                     {% if hasAttachment %}
-                        <span class="hidden row-line:inline" aria-hidden="true">
+                        <span data-row-clip class="hidden row-line:inline" aria-hidden="true">
                             <i class="fa-solid fa-paperclip text-[11px]"></i>
                         </span>
                     {% endif %}
@@ -807,11 +947,18 @@ be a worse regression than the one this feature fixes.
                        is not about — without this there was no way to tell a
                        conversation returning in an hour from one returning in a
                        fortnight. #}
-                    {% set shown = snooze_scope and item.snoozedUntil is defined and item.snoozedUntil
-                        ? item.snoozedUntil
+                    {% set shown = snooze_scope and snoozedUntil
+                        ? snoozedUntil
                         : date %}
 
                     {% if shown %}
+                        {# Smart, as the list always dated a row; and the day
+                           with the time on every row, for somebody who reads a
+                           list by when things came (#608). #}
+                        <span data-row-date="full">
+                            {{ shown|intl_date(shown|date('Y') == 'now'|date('Y') ? 'dMMM' : 'dMMMy') }}, {{ shown|date(clock.time) }}
+                        </span>
+                        <span data-row-date="smart">
                         {% if snooze_scope and shown is not same as(date) %}
                             <span class="text-accent">
                                 {{ shown|intl_date('dMMM') }}, {{ shown|date(clock.time) }}
@@ -823,6 +970,7 @@ be a worse regression than the one this feature fixes.
                         {% else %}
                             {{ shown|intl_date('dMMMy') }}
                         {% endif %}
+                        </span>
                     {% endif %}
                 </span>
 
@@ -842,12 +990,17 @@ be a worse regression than the one this feature fixes.
                    Two things differ there, and both are because the strip is
                    wider than the time it stands in for. `right-0` without a
                    left edge, so it grows leftwards out of the time's cell instead
-                   of being squeezed into it; and `bg-surface`, because growing
+                   of being squeezed into it; and a background, because growing
                    leftwards puts it over the end of the sender or subject,
-                   which would otherwise show through between the buttons. One
-                   line, the column is as wide as the strip (`w-36`) and there
-                   is nothing underneath to cover. #}
-                <div class="hidden [@media(hover:hover)]:flex row-line:flex absolute inset-y-0 right-0 items-center justify-end invisible group-hover:visible has-[[aria-expanded=true]]:visible pointer-events-auto gap-1 rounded-lg bg-surface row-line:bg-transparent">
+                   which would otherwise show through between the buttons.
+
+                   On one line too, since the star and the thumbtack joined the
+                   strip's end (#654): it is wider than the date's column there
+                   and lands on the preview, which showed through between the
+                   buttons. `row-actions-bg` (app.css) is the hovered row's own
+                   colour made solid, with a short fade on its leading edge, so
+                   the strip reads as part of the row rather than a box on it. #}
+                <div class="hidden [@media(hover:hover)]:flex row-line:flex absolute inset-y-0 right-0 items-center justify-end invisible group-hover:visible has-[[aria-expanded=true]]:visible pointer-events-auto gap-1 rounded-lg row-actions-bg">
                 {% if false == draft and placement == 'normal' %}
                     <button type="button" data-action="click->mail--message-row#archive"
                             data-mail--message-row-archive-url-param="{{ path('app_status_archive', {'type': type, 'id': rowId}) }}"
@@ -957,7 +1110,7 @@ be a worse regression than the one this feature fixes.
                             data-action="click->mail--message-row#openMenu"
                             data-mail--message-row-menu-param="snooze"
                             data-mail--message-row-snooze-url-param="{{ path('app_status_snooze', {'type': type, 'id': rowId}) }}"
-                            data-mail--message-row-snoozed-param="{{ thread is defined and thread.snoozed|default(false) ? 'true' : 'false' }}"
+                            data-mail--message-row-snoozed-param="{{ snoozedUntil is not null and snoozedUntil > date('now') ? 'true' : 'false' }}"
                             aria-label="{{ 'thread_row.actions.snooze'|trans }}"
                             title="{{ 'thread_row.actions.snooze'|trans }}"
                             aria-haspopup="menu"
@@ -997,14 +1150,38 @@ be a worse regression than the one this feature fixes.
                    better with its two marks together than with one stranded
                    beside the time. The wide copy lives with the date. #}
                 {% if hasAttachment %}
-                    <span class="row-line:hidden text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
+                    <span data-row-clip class="row-line:hidden text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
                         <i class="fa-solid fa-paperclip text-xs" aria-hidden="true"></i>
                     </span>
                     <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
                 {% endif %}
 
+                {# The thumbtack, before the star and drawn the same way: out of
+                   sight until the row is hovered, there for good once pinned.
+                   Conversations only, and not drafts — a draft is not a
+                   conversation anybody reads from the top of a list. #}
+                {% if false == draft and placement in ['normal', 'archive'] %}
                 <button
                     type="button"
+                    data-row-pin
+                    data-action="click->mail--message-row#togglePin"
+                    data-mail--message-row-pin-url-param="{{ path('app_status_pin', {'type': type, 'id': rowId}) }}"
+                    class="z-10 pointer-events-auto cursor-pointer transition-colors
+                           hover:text-accent
+                           {{ pinned
+                              ? 'text-accent'
+                              : 'text-ink-faint opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:hidden' }}"
+                    aria-pressed="{{ pinned ? 'true' : 'false' }}"
+                    aria-label="{{ pinned ? 'thread_row.unpin'|trans : 'thread_row.pin'|trans }}"
+                    title="{{ pinned ? 'thread_row.unpin'|trans : 'thread_row.pin'|trans }}"
+                >
+                    <i class="fa-solid fa-thumbtack text-sm w-3.5 text-center {{ pinned ? '' : 'rotate-45 pin-outline' }}" aria-hidden="true"></i>
+                </button>
+                {% endif %}
+
+                <button
+                    type="button"
+                    data-row-star
                     data-action="click->mail--message-row#toggleStar"
                     data-mail--message-row-star-url-param="{{ path('app_status_star', {'type': type, 'id': rowId}) }}"
                     class="z-10 pointer-events-auto cursor-pointer transition-colors
@@ -1028,7 +1205,7 @@ be a worse regression than the one this feature fixes.
                the dot is 8px and the star glyph is 14, so aligning their right
                edges puts their centres 3px apart. #}
             {% if unread %}
-                <span class="@xl:hidden h-5 mt-1.5 w-3.5 flex items-center justify-center shrink-0" aria-hidden="true">
+                <span data-row-unread-dot class="@xl:hidden h-5 mt-1.5 w-3.5 flex items-center justify-center shrink-0" aria-hidden="true">
                     <span class="w-2 h-2 rounded-full bg-success"></span>
                 </span>
                 {# No |default: a missing key comes back from |trans as the key

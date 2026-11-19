@@ -6,6 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\Mail\Account\AccountRepository;
@@ -93,7 +94,7 @@ final readonly class AllMailView
      * bin is not. The unified list leaves out switched-off accounts, as its
      * query does (MessageThreadRepository::allMailQuery()).
      */
-    public function holds(MessageThread $thread, User $user, string $value): bool
+    public function holds(MessageThread|Message $thread, User $user, string $value): bool
     {
         $account = $thread->account;
 

@@ -23,8 +23,9 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Throwable;
 
 /**
- * Switching one of an account's services — mail, calendar, contacts — on or
- * off, and everything that has to follow from it (#575).
+ * Switching one of an account's services — receiving and sending mail,
+ * calendar, contacts — on or off, and everything that has to follow from it
+ * (#575, #628).
  *
  * The column is the easy part. What makes this a service is what each switch
  * means beyond its own column, kept in one place so the settings page and the
@@ -32,9 +33,10 @@ use Throwable;
  * two ways:
  *
  *   - Mail off hands back the provider-side push registration for Gmail and
- *     Outlook, which only ever announces mail, and moves the primary to an
- *     account that can still send. A JMAP account keeps its stream: the server
- *     pushes calendar and contact changes down the same one.
+ *     Outlook, which only ever announces mail. A JMAP account keeps its
+ *     stream: the server pushes calendar and contact changes down the same one.
+ *   - Send on or off moves the primary, if it has to, to an account that can
+ *     send. Nothing else follows: sending has no connection held open.
  *   - Mail on registers push again where the account had it, seeds aliases a
  *     mailbox may have gained meanwhile, and asks for a sync straight away
  *     rather than leaving the account stale until the next poll.
@@ -46,7 +48,9 @@ use Throwable;
  *
  * Whether switching on needs a wider grant first is a separate question —
  * needsConsent() — because the answer sends the person to the provider rather
- * than changing anything here. Asking it is the caller's job; this never
+ * than changing anything here. So is whether it needs a server the account was
+ * never given (Account::lacksServerFor()): that answer sends the person to the
+ * account form. Asking it is the caller's job; this never
  * switches a service on that the grant cannot serve without saying so.
  */
 final readonly class AccountServiceSwitch
@@ -106,6 +110,7 @@ final readonly class AccountServiceSwitch
 
         match ($service) {
             AccountService::Mail     => true === $enabled ? $this->mailOn($account) : $this->mailOff($account),
+            AccountService::Send     => $this->sendChanged($account),
             AccountService::Calendar => true === $enabled ? $this->calendarOn($account) : null,
             AccountService::Contacts => true === $enabled ? $this->contactsOn($account) : null,
         };
@@ -124,7 +129,10 @@ final readonly class AccountServiceSwitch
         if (false === $account->isJmap()) {
             $this->unsubscribePush($account);
         }
+    }
 
+    private function sendChanged(Account $account): void
+    {
         $this->accountCreator->ensurePrimary($this->accounts->findForUserOrdered($account->usr));
     }
 
@@ -140,9 +148,6 @@ final readonly class AccountServiceSwitch
                 ]);
             }
         }
-
-        $this->accountCreator->ensurePrimary($this->accounts->findForUserOrdered($account->usr));
-        $this->em->flush();
 
         // Idempotent; a mailbox can gain a send-as address while mail is off.
         $this->aliasSeeder->seed($account);

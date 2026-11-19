@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\Query;
 
 use App\Jmap\Protocol\Exception\MethodException;
+use App\Repository\Mail\MessageThread\MessageThreadPinRepository;
 use App\Repository\Mail\Message\MessageJmapRepository;
 
 /**
@@ -29,6 +30,10 @@ final class EmailQueryRunner
         'subject' => 'm.subject',
         'from' => 'm.from_address',
         'to' => 'm.to_addresses::text',
+        // plMail extension, urn:plmail:params:jmap:pins (#654): 1 for a
+        // message whose conversation is pinned. Descending first, then
+        // receivedAt, pages a mailbox the way the web lists draw it.
+        'pinned' => '(CASE WHEN ' . MessageThreadPinRepository::PINNED_SQL . ' THEN 1 ELSE 0 END)',
     ];
 
     public function __construct(

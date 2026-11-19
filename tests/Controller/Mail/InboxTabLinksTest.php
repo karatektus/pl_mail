@@ -127,7 +127,7 @@ final class InboxTabLinksTest extends WebTestCase
     private function tabHrefs(\Symfony\Component\DomCrawler\Crawler $crawler): array
     {
         return $crawler
-            ->filter('[data-list-region="tabs"] a[href*="/mail/inbox"]')
+            ->filter('[data-list-region="tabs"] a[data-category-tab-link]')
             ->each(static fn ($node): string => (string) $node->attr('href'));
     }
 }

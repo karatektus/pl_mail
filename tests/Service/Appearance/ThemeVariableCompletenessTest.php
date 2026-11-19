@@ -120,8 +120,9 @@ final class ThemeVariableCompletenessTest extends TestCase
         '--density-gap',
         '--scrim-alpha',
         // Typography, the mail list and the per-surface densities. Knobs by
-        // the same test as the ones above: AppearanceRenderer writes every one
-        // of them inline on <html> from the stored appearance, so a theme
+        // the same test as the ones above: AppearanceRenderer (and, for the
+        // list's, MessageListRenderer) writes every one of them inline on
+        // <html> from the stored settings, so a theme
         // block that set one would be stating something the cascade will not
         // let it enforce. The values in :root are what the app did before
         // these settings existed, which is also the right answer for a page
@@ -130,10 +131,6 @@ final class ThemeVariableCompletenessTest extends TestCase
         '--app-font-scale',
         '--list-corner-display',
         '--list-avatar-hide',
-        '--list-preview-display',
-        '--list-preview-display-wide',
-        '--list-preview-lines',
-        '--list-preview-wrap',
         '--unread-emphasis',
         '--unread-bar-w',
         '--action-icon-display',

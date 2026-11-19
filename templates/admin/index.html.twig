@@ -36,7 +36,7 @@
                     <div class="flex flex-col flex-1 overflow-hidden">
 
                         {# Pane header #}
-                        <div class="flex items-center gap-3 px-6 h-14 border-b border-line shrink-0">
+                        <div class="pane-header flex items-center gap-3 px-6 border-b border-line shrink-0">
                             <i class="fa-solid fa-gauge-high text-ink-faint" aria-hidden="true"></i>
                             <h1 class="text-base font-semibold text-ink">{{ 'admin.title'|trans }}</h1>
 
@@ -98,7 +98,7 @@
                                 </a>
                             {% endif %}
 
-                            {% if section not in ['performance', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'sso', 'ai', 'backup', 'updates', 'reset', 'demo'] %}
+                            {% if section not in ['performance', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'sso', 'ai', 'sender-pictures', 'backup', 'updates', 'reset', 'demo'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}
                         </div>
@@ -197,6 +197,14 @@
                                        class="{{ section == 'ai' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-wand-magic-sparkles w-4 {{ section == 'ai' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.ai'|trans }}
+                                    </a>
+                                    {# After the AI, and for the same reason it
+                                       sits where it does: it decides what this
+                                       server may ask of the outside world. #}
+                                    <a href="{{ path('app_admin_dashboard', { section: 'sender-pictures' }) }}"
+                                       class="{{ section == 'sender-pictures' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-circle-user w-4 {{ section == 'sender-pictures' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.sender_pictures'|trans }}
                                     </a>
                                     <a href="{{ path('app_admin_dashboard', { section: 'users' }) }}"
                                        class="{{ section == 'users' ? navActive : navInactive }}">
@@ -347,6 +355,19 @@
                                         <turbo-frame id="admin-ai"
                                                      class="block space-y-3"
                                                      src="{{ path('app_admin_ai_settings') }}"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'sender-pictures' %}
+
+                                        {# No auto-refresh: configuration, like
+                                           the frames around it. #}
+                                        <turbo-frame id="admin-sender-pictures"
+                                                     class="block space-y-3"
+                                                     src="{{ path('app_admin_sender_pictures_settings') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}

@@ -35,6 +35,18 @@ final readonly class AccountMailPurgeRepository
     }
 
     /**
+     * How many messages the account holds — the total a removal's progress is
+     * measured against (#672).
+     */
+    public function countMessages(int $accountId): int
+    {
+        return (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM message WHERE account_id = ?',
+            [$accountId],
+        );
+    }
+
+    /**
      * The next batch of the account's thread ids, lowest first.
      *
      * @return list<int>
@@ -103,6 +115,22 @@ final readonly class AccountMailPurgeRepository
             [$threadIds],
             [ArrayParameterType::INTEGER],
         );
+    }
+
+    /**
+     * deleteThreads() in a transaction of its own, for a caller with no unit of
+     * work around it (DeleteAccountHandler).
+     *
+     * On the connection rather than through EntityManager::wrapInTransaction(),
+     * which closes the manager when the statement fails. The likeliest failure
+     * here is a lock collision with a sync still finishing on the account, and
+     * the caller retries that — on a manager that is still open.
+     *
+     * @param list<int> $threadIds
+     */
+    public function deleteThreadsAtomically(array $threadIds): void
+    {
+        $this->connection->transactional(fn () => $this->deleteThreads($threadIds));
     }
 
     /**

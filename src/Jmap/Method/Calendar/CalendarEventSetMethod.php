@@ -235,7 +235,8 @@ final class CalendarEventSetMethod implements JmapMethod
             // Where the event is NOW, not where the patch may be moving it: a
             // read-only calendar refuses to give an event up as firmly as it
             // refuses to take one.
-            $from = $event->calendar;
+            $from   = $event->calendar;
+            $before = $this->writer->snapshot($event);
 
             try {
                 // What a draft client echoes back is judged against what this
@@ -255,7 +256,10 @@ final class CalendarEventSetMethod implements JmapMethod
             // from later mail about the same booking — the same call the web
             // editor makes, and a no-op on anything not extracted.
             $this->writer->markUserEdited($event);
-            $this->writer->markLocallyChanged($event);
+
+            // Only a patch that changed something is owed to the remote: a
+            // client saving an event it did not touch is not an edit to push.
+            $this->writer->markLocallyChangedIfChanged($event, $before);
 
             $this->remember($touched, $event);
 

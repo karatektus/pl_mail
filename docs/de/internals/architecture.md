@@ -1,4 +1,4 @@
-<!-- translated-from: internals/architecture.md sha1:f092616b374273166f571a14bcd7a8ea45a8ff4d -->
+<!-- translated-from: internals/architecture.md sha1:fe017125bffb3c0f0bc7d14115bf639cf1811099 -->
 # Architektur
 
 Die Schichten, was wo liegt, und die Regeln, die das so halten. Diese Seite beschreibt die
@@ -190,6 +190,17 @@ dieser Reihenfolge — siehe [Mail-Ingest](mail-ingest.md#was-auf-eine-nachricht
 weitergeführt, damit Envelopes, die vor der Aufteilung eingereiht wurden, noch irgendwo landen
 können; der Maintenance-Worker leert ihn.
 
+Ein Prozess pro Queue reicht für `ingest` trotzdem nicht, denn diese Queue enthält jeden Job, der
+für irgendein Konto mit einem Mailanbieter spricht. Als Microsoft Graph am 13. November 2026 nicht
+richtig antwortete, steckte ein Job für ein Outlook-Konto in einem Aufruf fest, und eine Stunde lang
+synchronisierte kein Konto, Gmail und IMAP eingeschlossen. Deshalb führt `worker-ingest`
+`app:messenger:consume-isolated` aus: derselbe Symfony-Worker, aber jede Nachricht wird von einem
+eigenen Kindprozess bearbeitet (`ChildProcessExecutionStrategy`). Mehrere laufen gleichzeitig, so
+viele wie Admin → Performance erlaubt (standardmäßig vier). Jobs desselben Kontos laufen weiterhin
+nacheinander, in der Reihenfolge ihres Eintreffens, und ein Kindprozess, der länger als sechs
+Minuten läuft, wird beendet. Ein so beendeter Sync wird verworfen, weil der Zeitplan ihn ohnehin
+wieder anstößt; alles andere landet wie jeder andere Fehler auf der Retry-Leiter.
+
 `bulk` ist der jüngste davon und derjenige, den du am ehesten mit `maintenance` verwechselst:
 Er trägt Mark-Read- und Archiv-Läufe über eine ganze Ansicht. Die dauern so lange wie eine
 nachträgliche Verarbeitung, sind aber im entscheidenden Punkt nicht dasselbe — jemand hat einen
@@ -239,6 +250,7 @@ war, in dem das Projekt vorher steckte: Logs und verwaiste Blobs wuchsen ohne Gr
 | `11-59/15 * * * *` | `app:contacts:sync --stale` | CardDAV-Adressbücher haben überhaupt keinen Push, also kommen Änderungen vom Handy nur so an. Gegen beide Durchläufe oben versetzt, aus demselben Grund des geteilten Workers |
 | `20 * * * *` | `app:calendar:push` | Stündlich, nicht weil so schnell etwas abliefe, sondern weil die Registrierung aus *Deployment*-Gründen scheitert, die mit dem Klick, der den Kalender verbunden hat, nichts zu tun haben |
 | `* * * * *` | `app:mail:wake-snoozed` | Eine Minute ist die Einheit, in der Menschen eine Weckzeit wählen |
+| `*/15 * * * *` | `app:mail:unpin-ended` | Die Listen lassen eine abgelaufene Anheftung selbst fallen; das hier sagt es nur den JMAP-Clients, und Anheftungen werden in Tagen gesetzt |
 | `* * * * *` | `app:calendar:alerts` | Dasselbe Argument, und zusätzlich ist das Intervall die Schranke dafür, wie spät eine Erinnerung kommen kann |
 | `0 4 * * *` | `app:push:renew --repair` | Gmail-Watches halten 7 Tage, Graph-Abonnements etwa 3 |
 | `50 3 * * *` | `app:calendar:materialise` | Rollt den Horizont der Termininstanzen vorwärts, damit einem Serientermin nicht klammheimlich die Termine ausgehen |
