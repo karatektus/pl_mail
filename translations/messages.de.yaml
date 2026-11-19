@@ -59,6 +59,7 @@ account:
             help: 'Auf der nächsten Seite wird nur das angefragt, was du ankreuzt. Ändern kannst du es später unter Einstellungen → Konten.'
             legend: 'Konto verwenden für'
     primary_set: Primäres Konto geändert
+    removal_started: 'Das Konto wird entfernt. Seine E-Mails werden im Hintergrund gelöscht; auf dem Server bleiben sie.'
     removed: Konto entfernt
     service:
         calendar:
@@ -2875,6 +2876,7 @@ jobs:
         purge: Endgültig löschen
         reclassify: Sortiert neueste Mail neu
         delete_label: Löscht ein Label
+        delete_account: Konto wird entfernt
     state:
         done: '%count% erledigt'
         failed: fehlgeschlagen
@@ -3660,6 +3662,8 @@ settings:
                 jmap: 'Änderungen kommen sofort an: Der JMAP-Server schickt sie an plMail – per Webhook, wenn er diesen Server erreicht, sonst über eine offen gehaltene Verbindung.'
                 microsoft: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
             title: Sofortige Zustellung
+        removing: 'Wird entfernt …'
+        removing_progress: '%done% von %total% Nachrichten entfernt'
         reorder: Zum Umsortieren ziehen
         services:
             allow: 'Erlauben…'

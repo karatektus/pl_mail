@@ -70,6 +70,19 @@ enum JobKind: string
      */
     case DeleteLabel = 'delete_label';
 
+    /**
+     * Removing a mail account and everything synced for it (#672). See
+     * DeleteAccountHandler.
+     *
+     * A job for the reason the two above are: it used to happen inside the
+     * request, and an account's mail is tens of thousands of rows whose
+     * deletion outlasted PHP's thirty seconds — the request died, the
+     * transaction rolled back, and the person was told only that something had
+     * gone wrong. Here it takes as long as it takes, and the indicator says how
+     * far it has got.
+     */
+    case DeleteAccount = 'delete_account';
+
     /** What the indicator calls it while it runs. */
     public function labelKey(): string
     {
@@ -98,7 +111,7 @@ enum JobKind: string
             // and only ever holds a kind it was dispatched for. Throwing beats
             // inventing a string, which would be silently accepted by a
             // switch somewhere and act on somebody's mail.
-            self::Reclassify, self::DeleteLabel => throw new \LogicException(
+            self::Reclassify, self::DeleteLabel, self::DeleteAccount => throw new \LogicException(
                 sprintf('%s is not a bulk action; nothing should be asking it for one.', $this->name),
             ),
         };

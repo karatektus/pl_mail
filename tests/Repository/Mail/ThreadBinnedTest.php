@@ -142,6 +142,35 @@ final class ThreadBinnedTest extends KernelTestCase
         self::assertTrue($this->binned($thread));
     }
 
+    /**
+     * One DELETE reaching into several conversations settles every one of them
+     * (#672). The trigger fires once for the statement now, not once per row,
+     * so it has to find each thread the removed messages were in — the bulk
+     * deletes (emptying the bin, removing an account) are exactly this shape.
+     */
+    public function testOneStatementDeletingFromSeveralConversationsSettlesEachOfThem(): void
+    {
+        $first  = $this->thread(2);
+        $second = $this->thread(2);
+
+        [$firstDeleted, $firstLive]   = $this->messagesOf($first);
+        [$secondDeleted, $secondLive] = $this->messagesOf($second);
+
+        $this->moveToTrash($firstDeleted);
+        $this->moveToTrash($secondDeleted);
+
+        self::assertFalse($this->binned($first));
+        self::assertFalse($this->binned($second));
+
+        $this->connection->executeStatement(
+            'DELETE FROM message WHERE id IN (?, ?)',
+            [$firstLive->id, $secondLive->id],
+        );
+
+        self::assertTrue($this->binned($first));
+        self::assertTrue($this->binned($second));
+    }
+
     /** What the lists see: a deleted conversation is out of the Inbox, a live one in it. */
     public function testTheInboxReadsIt(): void
     {

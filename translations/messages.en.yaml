@@ -59,6 +59,7 @@ account:
             help: 'The next screen only asks for what you tick. You can change it later in Settings → Accounts.'
             legend: 'Use this account for'
     primary_set: Primary account changed
+    removal_started: 'Removing the account. Its mail goes in the background; the server keeps its copy.'
     removed: Account removed
     service:
         calendar:
@@ -2871,6 +2872,7 @@ jobs:
         purge: Deleting for good
         reclassify: Sorting recent mail again
         delete_label: Deleting a label
+        delete_account: Removing an account
     state:
         done: '%count% done'
         failed: failed
@@ -3668,6 +3670,8 @@ settings:
                 jmap: 'Changes arrive immediately: the JMAP server pushes them to plMail, over a webhook when it can reach this server and over a held-open connection when it cannot.'
                 microsoft: New mail arrives immediately via Microsoft push notifications.
             title: Instant delivery
+        removing: 'Being removed…'
+        removing_progress: '%done% of %total% messages removed'
         reorder: Drag to reorder
         services:
             allow: 'Allow…'

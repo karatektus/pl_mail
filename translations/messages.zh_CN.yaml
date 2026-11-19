@@ -59,6 +59,7 @@ account:
             help: '下一页只会请求你勾选的权限。之后可在“设置 → 账户”中更改。'
             legend: '此账户用于'
     primary_set: 主账户已更改
+    removal_started: '正在移除此账户。其邮件将在后台删除，服务器上的副本会保留。'
     removed: 账户已移除
     service:
         calendar:
@@ -2557,6 +2558,7 @@ jobs:
         purge: 正在永久删除
         reclassify: 正在重新分类近期邮件
         delete_label: 正在删除标签
+        delete_account: 正在移除账户
     state:
         done: '已完成 %count% 项'
         failed: 失败
@@ -3246,6 +3248,8 @@ settings:
                 jmap: '更改会立即到达：JMAP 服务器把它们推送给 plMail——能访问本服务器时通过 webhook，否则通过保持打开的连接。'
                 microsoft: '通过 Microsoft 推送通知即时收取新邮件。'
             title: '即时收取'
+        removing: '正在移除…'
+        removing_progress: '已移除 %done% / %total% 封邮件'
         reorder: '拖动以排序'
         services:
             allow: '授权…'

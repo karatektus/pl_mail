@@ -59,6 +59,7 @@ account:
             help: 'The next screen only asks for what ye tick. Ye can change it later under Settings → Accounts.'
             legend: 'Sail this ship for'
     primary_set: A new flagship be named
+    removal_started: 'Scuttlin’ this ship. Her letters go overboard below decks; the far port keeps its copy.'
     removed: Crew member put ashore
     service:
         calendar:
@@ -2753,6 +2754,7 @@ jobs:
         purge: Sendin' to Davy Jones for good
         reclassify: Stowin' recent post again
         delete_label: "Strikin' a flag"
+        delete_account: Scuttlin’ a ship
     state:
         done: '%count% done'
         failed: foundered
@@ -3516,6 +3518,8 @@ settings:
                 jmap: 'Changes come aboard at once: the JMAP server sends ''em to plMail, by webhook when it can reach this port an'' over a line held open when it can''t.'
                 microsoft: New mail lands the instant Microsoft fires the cannon.
             title: Word the moment it lands
+        removing: 'Bein’ scuttled…'
+        removing_progress: '%done% o’ %total% letters overboard'
         reorder: Drag to reorder the line
         services:
             allow: 'Ask leave…'

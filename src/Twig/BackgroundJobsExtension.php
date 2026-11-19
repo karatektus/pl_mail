@@ -8,6 +8,7 @@ use App\Entity\Job\BackgroundJob;
 use App\Domain\DTO\Mail\ImportLine;
 use App\Entity\User\User;
 use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
+use App\Service\Mail\AccountRemovalState;
 use App\Service\Mail\ImportProgress;
 use Symfony\Bundle\SecurityBundle\Security;
 use Twig\Extension\AbstractExtension;
@@ -32,6 +33,7 @@ final class BackgroundJobsExtension extends AbstractExtension
         private readonly Security                $security,
         private readonly BackgroundJobRepository $jobs,
         private readonly ImportProgress          $imports,
+        private readonly AccountRemovalState     $removals,
     ) {
     }
 
@@ -40,6 +42,7 @@ final class BackgroundJobsExtension extends AbstractExtension
         return [
             new TwigFunction('background_jobs', $this->forCurrentUser(...)),
             new TwigFunction('mail_imports', $this->importsForCurrentUser(...)),
+            new TwigFunction('account_removals', $this->removalsForCurrentUser(...)),
         ];
     }
 
@@ -67,5 +70,19 @@ final class BackgroundJobsExtension extends AbstractExtension
         $user = $this->security->getUser();
 
         return $user instanceof User ? $this->imports->forUser($user) : [];
+    }
+
+    /**
+     * The accounts of the person looking that are being removed, by id — for
+     * the settings list, which greys those rows out and shows the job's
+     * progress instead of the controls (#672). See AccountRemovalState.
+     *
+     * @return array<int, BackgroundJob>
+     */
+    public function removalsForCurrentUser(): array
+    {
+        $user = $this->security->getUser();
+
+        return null === $user ? [] : $this->removals->activeFor($user);
     }
 }

@@ -187,6 +187,15 @@ Removing an account deletes its synced mail from plMail's database and nothing a
 also tries to tear down any push registration it had, so nothing is left pointing at an account
 that no longer exists.
 
+Removing runs in the background, because a large mailbox takes longer to delete than a page request
+is allowed to last. As soon as you confirm, every service of the account is switched off, so it
+stops syncing and sending, and the primary moves to another account if it has to. The row stays
+in the list, greyed out with nothing to press, and shows how many messages are gone so far; the
+same progress shows under **Background work** in the top bar. The row disappears when the account is
+gone. If the removal fails, the indicator says why, and the account comes back as an ordinary row
+with its services off and part of its mail removed; pressing **Remove account** again continues
+from there.
+
 Anything else that takes a registration away now hands it back to the provider the same way —
 deleting a calendar, unticking one, disconnecting a connection, and an administrator's data reset.
 The attempt is best-effort: a provider that refuses, that has already expired the channel, or that
