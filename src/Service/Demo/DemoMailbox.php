@@ -744,22 +744,24 @@ final readonly class DemoMailbox
         $today    = new DateTimeImmutable('today', $zone);
 
         // Day offset from today, start hour, duration in minutes, title,
-        // location, all-day. Kept inside the working week either side of today
-        // so the default view has something in it whichever day it is opened.
+        // location, all-day, the event's own colour (#616). Kept inside the
+        // working week either side of today so the default view has something
+        // in it whichever day it is opened. Some keep the calendar's colour, so
+        // the week shows both, the way a calendar shared with a phone does.
         $plan = [
-            [0,  9,  30, 'Stand-up',                 'Jitsi',            false],
-            [0, 14,  60, 'Call with Marek — trim',   'Phone',            false],
-            [1, 11,  45, 'Dentist',                  'Praxis Dr. Ilg',   false],
-            [1, 18,  90, 'Reading group',            'Sofia\'s place',   false],
-            [2,  0,   0, 'Jonas — birthday',         null,               true],
-            [2, 10, 120, 'Workshop: sharpening',     'Werkstatt Nord',   false],
-            [3,  8,  30, 'Meter reading due',        null,               false],
-            [4, 16,  60, 'Pick up the shelves',      'Nowak Schreinerei', false],
+            [0,  9,  30, 'Stand-up',                 'Jitsi',            false, null],
+            [0, 14,  60, 'Call with Marek — trim',   'Phone',            false, 'darkorange'],
+            [1, 11,  45, 'Dentist',                  'Praxis Dr. Ilg',   false, 'crimson'],
+            [1, 18,  90, 'Reading group',            'Sofia\'s place',   false, 'mediumpurple'],
+            [2,  0,   0, 'Jonas — birthday',         null,               true,  'goldenrod'],
+            [2, 10, 120, 'Workshop: sharpening',     'Werkstatt Nord',   false, 'seagreen'],
+            [3,  8,  30, 'Meter reading due',        null,               false, null],
+            [4, 16,  60, 'Pick up the shelves',      'Nowak Schreinerei', false, 'darkorange'],
         ];
 
         $written = 0;
 
-        foreach ($plan as [$dayOffset, $hour, $minutes, $title, $location, $allDay]) {
+        foreach ($plan as [$dayOffset, $hour, $minutes, $title, $location, $allDay, $color]) {
             $day = $today->modify(sprintf('+%d days', $dayOffset));
 
             if (true === $allDay) {
@@ -780,6 +782,7 @@ final readonly class DemoMailbox
                 timeZone: $zone->getName(),
                 isAllDay: $allDay,
                 location: $location,
+                color:    $color,
             );
 
             ++$written;

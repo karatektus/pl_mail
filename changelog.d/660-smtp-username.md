@@ -1,4 +1,3 @@
-<!-- highlight -->
 **Sending can sign in with a username of its own (#660).** An account that sends through a relay or
 smarthost with accounts of its own — a web host's mailbox sent out through a deliverability
 service, a self-hosted server through a smarthost — can now be given the relay's username as well

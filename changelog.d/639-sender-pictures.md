@@ -1,4 +1,4 @@
-<!-- highlight -->
+<!-- highlight screenshot=sender-pictures -->
 **Senders have pictures (#639).** The circle beside a sender shows a picture where plMail has one,
 and the initial where it does not. A colleague on the same server shows their own profile picture,
 and a contact shows the photo on their card. If an administrator allows it under **Admin → Sender

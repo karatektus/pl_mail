@@ -1,3 +1,4 @@
+<!-- highlight screenshot=event-colours -->
 **Events can have a colour of their own (#616).** Every entry used to be drawn in its calendar's
 colour, while the same Radicale or Nextcloud calendar on a phone showed each entry in its own. plMail
 now reads the event colour phones write over CalDAV, draws it in every view, and writes it back. A

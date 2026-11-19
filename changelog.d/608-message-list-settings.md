@@ -1,4 +1,3 @@
-<!-- highlight -->
 **The message list has a settings page of its own, with a preview (#608).** Settings → Inbox →
 Message list decides what each row shows: when a row goes to one line, a preview after the subject
 or on one or two lines below it, attachments as a paperclip or as chips naming the files (a chip
