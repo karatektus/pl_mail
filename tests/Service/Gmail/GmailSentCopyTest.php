@@ -135,6 +135,41 @@ final class GmailSentCopyTest extends KernelTestCase
         self::assertSame('gmail-thread-0', $sent->thread?->providerThreadKey);
     }
 
+    /**
+     * An encrypted reply goes out as "...", over SMTP, and Gmail files it in a
+     * thread of its own because the subject does not match. The answers follow
+     * it there. plMail keeps them in the conversation the reply was written in.
+     */
+    public function testAnswersInTheThreadGmailFiledTheReplyInJoinTheConversation(): void
+    {
+        $sent                            = $this->seedSentRow();
+        $sent->thread->providerThreadKey = 'gmail-thread-0';
+        $this->em->flush();
+
+        $this->handle($this->sentCopy());
+        $this->handle([
+            'id'       => 'gmail-answer-1',
+            'threadId' => self::THREAD_ID,
+            'labelIds' => ['INBOX', 'UNREAD'],
+            'headers'  => [
+                'Message-ID'  => '<answer-1@example.test>',
+                'In-Reply-To' => '<' . self::SENT_ID . '>',
+                'Subject'     => '...',
+                'From'        => 'friend@example.test',
+                'To'          => 'gmail@example.test',
+            ],
+        ]);
+
+        $this->em->refresh($sent);
+
+        $answer = $this->em->getRepository(Message::class)->findOneBy(['messageId' => 'answer-1@example.test']);
+
+        self::assertNotNull($answer);
+        self::assertSame($sent->thread?->id, $answer->thread?->id);
+        self::assertSame('gmail-thread-0', $answer->thread?->providerThreadKey, 'the conversation keeps its own key');
+        self::assertSame(self::THREAD_ID, $answer->providerThreadKey);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     /** @return array{id: string, threadId: string, labelIds: list<string>, headers: array<string, string>} */

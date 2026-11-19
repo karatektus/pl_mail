@@ -351,6 +351,18 @@ final class MessageThreader
      * uniq_message_thread_provider_key_account — taking the whole batch with
      * it. Threads handed out here are remembered for exactly as long as the
      * unit of work still holds them.
+     *
+     * A conversation can be known by a second provider id, which it does not
+     * take as its own key (#676). Gmail puts mail it is given over SMTP into a
+     * conversation only when the subject matches, and an encrypted reply goes
+     * out as "..." (header protection, RFC 9788). So Gmail starts a new thread
+     * for it, and the answers, encrypted too, follow it there. The sync merges
+     * Gmail's copy onto the row plMail sent, in the conversation it was written
+     * in, and that row keeps the id of the thread Gmail filed it in. Mail in
+     * that thread finds the conversation through the row: Gmail shows two
+     * conversations, plMail one. Only that row: every other message carries
+     * the key of the thread it is in, so this lookup finds nothing new for
+     * them.
      */
     private function providerThread(string $providerThreadKey, Account $account, Message $message): MessageThread
     {
@@ -363,7 +375,8 @@ final class MessageThreader
             return $pending;
         }
 
-        $thread = $this->messageThreadRebuildRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account);
+        $thread = $this->messageThreadRebuildRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account)
+            ?? $this->messageThreadingRepository->findThreadHoldingProviderThreadKey($providerThreadKey, $account);
 
         if (null === $thread) {
             $thread = $this->createThread($message, $account, ThreadingMethod::Provider);

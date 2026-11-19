@@ -118,6 +118,33 @@ class MessageThreadingRepository extends ServiceEntityRepository
     }
 
     /**
+     * The conversation a message of this provider thread is in, when the
+     * thread is not its key (#676).
+     *
+     * A message carries the key of the provider thread it is in. It sits in
+     * a conversation keyed otherwise when it is mail plMail sent that Gmail
+     * filed in a thread of its own: see MessageThreader::providerThread().
+     * Served by idx_message_provider_thread_key_account. Oldest row first, so
+     * the answer does not change as more arrive.
+     */
+    public function findThreadHoldingProviderThreadKey(string $providerThreadKey, Account $account): ?MessageThread
+    {
+        $message = $this->createQueryBuilder('message')
+            ->innerJoin('message.thread', 'thread')
+            ->where('message.providerThreadKey = :key')
+            ->andWhere('message.account = :account')
+            ->andWhere('thread.account = :account')
+            ->setParameter('key', $providerThreadKey)
+            ->setParameter('account', $account)
+            ->orderBy('message.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $message?->thread;
+    }
+
+    /**
      * The row plMail wrote when it sent this mail from this account, while
      * Gmail's copy of it has not been synced onto it yet (#676).
      *
