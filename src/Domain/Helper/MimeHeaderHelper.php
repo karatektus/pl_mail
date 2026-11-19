@@ -63,6 +63,84 @@ final class MimeHeaderHelper
     }
 
     /**
+     * A parameter value split into RFC 2231 continuations, put back together.
+     *
+     * A long filename is written as `filename*0="…"; filename*1="…"; …`, and
+     * the Gmail API's part `filename` is not always the joined value: it can
+     * be everything from the first piece's value to the end of the header,
+     * separators and all (#674):
+     *
+     *     Regulamin Promocji „Pakiet CANAL+ za 45 zl";
+     *         filename*1=" swiadczony przez CANAL+ …";
+     *         filename*2="€.pdf
+     *
+     * That reached the attachment chip as is, and the database refused it for
+     * its length. Pieces are put in the order their numbers give, which RFC
+     * 2231 §3 does not promise the header keeps.
+     *
+     * A piece written `name*N*=` is percent-encoded, in the charset the first
+     * piece names (`UTF-8''…`); those are decoded and the whole converted. A
+     * value that has no continuation in it comes back unchanged, so this is
+     * safe to run over every filename.
+     *
+     * Before decode(), not after: an encoded word can be split across two
+     * pieces, and only the joined value has it whole.
+     */
+    public static function joinContinuations(string $value): string
+    {
+        $pieces = preg_split(
+            '/"?\s*;\s*[A-Za-z0-9!#$&+.^_`|~-]+\*(\d+)(\*?)\s*=\s*"?/',
+            $value,
+            -1,
+            PREG_SPLIT_DELIM_CAPTURE,
+        );
+
+        if (false === $pieces || count($pieces) < 4) {
+            return $value;
+        }
+
+        $first   = ltrim((string) array_shift($pieces), '"');
+        $ordered = [0 => ['value' => $first, 'extended' => false]];
+        $anyExtended = false;
+
+        foreach (array_chunk($pieces, 3) as $chunk) {
+            if (3 !== count($chunk)) {
+                return $value;
+            }
+
+            [$number, $star, $piece] = $chunk;
+            $ordered[(int) $number]  = ['value' => $piece, 'extended' => '*' === $star];
+            $anyExtended             = $anyExtended || '*' === $star;
+        }
+
+        ksort($ordered);
+
+        // The quote that closed the last piece is the end of the header, not
+        // part of the name.
+        $lastKey = array_key_last($ordered);
+        $ordered[$lastKey]['value'] = rtrim($ordered[$lastKey]['value'], '"');
+
+        // Only an extended first piece carries a charset, and only if one of
+        // the pieces is extended can the first have been: a plain quoted name
+        // that happens to contain two apostrophes is left alone.
+        $charset = null;
+
+        if (true === $anyExtended && 1 === preg_match("/^([A-Za-z0-9!#$%&+^_`{}~.-]*)'[^']*'(.*)$/s", $first, $m)) {
+            $charset                = '' !== $m[1] ? $m[1] : null;
+            $ordered[0]['value']    = $m[2];
+            $ordered[0]['extended'] = true;
+        }
+
+        $bytes = '';
+
+        foreach ($ordered as $piece) {
+            $bytes .= true === $piece['extended'] ? rawurldecode($piece['value']) : $piece['value'];
+        }
+
+        return null === $charset ? $bytes : CharsetHelper::toUtf8($bytes, $charset);
+    }
+
+    /**
      * One or more adjacent encoded words, decoded and concatenated.
      *
      * Each word is decoded individually rather than by handing the run to

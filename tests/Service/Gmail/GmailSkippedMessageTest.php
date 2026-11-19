@@ -146,6 +146,65 @@ final class GmailSkippedMessageTest extends KernelTestCase
         self::assertSame(0, $this->skipped->countForAccount($this->account));
     }
 
+    // ── a batch the database refuses (#674) ──────────────────────────────────
+
+    /**
+     * One message in a batch the database will not take used to sink the
+     * other 49 with it, and the listing named the same batch again every
+     * hour. Now the batch is put back as batches of one.
+     */
+    public function testARefusedBatchIsPutBackOneMessageAtATime(): void
+    {
+        $this->handleBatch([
+            ['id' => 'gmail-674-fine', 'threadId' => 'thread-fine'],
+            ['id' => 'gmail-674-long', 'threadId' => str_repeat('t', 300)],
+        ]);
+
+        self::assertSame(0, $this->storedCount(), 'refused together, as before');
+        self::assertSame(0, $this->skipped->countForAccount($this->account), 'nothing written off on a batch\'s word');
+
+        $requeued = [];
+
+        foreach (['ingest', 'ingest_backlog'] as $name) {
+            foreach (self::getContainer()->get('messenger.transport.' . $name)->getSent() as $envelope) {
+                $sent = $envelope->getMessage();
+
+                if ($sent instanceof SyncGmailMessageBatchMessage && $sent->accountId === (int) $this->account->id) {
+                    $requeued[] = $sent->gmailIds;
+                }
+            }
+        }
+
+        sort($requeued);
+
+        self::assertSame([['gmail-674-fine'], ['gmail-674-long']], $requeued);
+    }
+
+    /**
+     * And the one refused on its own is written down, so the listing stops
+     * asking for it, instead of failing its retries into the failed queue.
+     */
+    public function testAMessageTheDatabaseRefusesOnItsOwnIsRecordedAsUnstorable(): void
+    {
+        $this->handleBatch([['id' => 'gmail-674-long', 'threadId' => str_repeat('t', 300)]]);
+
+        $rows = $this->skipped->findForAccount($this->account);
+
+        self::assertCount(1, $rows);
+        self::assertSame('gmail-674-long', $rows[0]->gmailId);
+        self::assertSame(GmailSkipReason::Unstorable, $rows[0]->reason);
+        self::assertSame(0, $this->storedCount());
+    }
+
+    /** Its neighbour, handled alone, is stored as usual. */
+    public function testItsNeighbourHandledAloneIsStored(): void
+    {
+        $this->handleBatch([['id' => 'gmail-674-fine', 'threadId' => 'thread-fine']]);
+
+        self::assertSame(1, $this->storedCount());
+        self::assertSame(0, $this->skipped->countForAccount($this->account));
+    }
+
     // ── who a message belongs to (#90) ───────────────────────────────────────
 
     /**
@@ -448,10 +507,70 @@ final class GmailSkippedMessageTest extends KernelTestCase
             ]);
         });
 
+        $handler = $this->handler($httpClient);
+
+        $handler(new SyncGmailMessageBatchMessage((int) $this->account->id, [self::GMAIL_ID], null, $onlyMissing));
+
+        $this->em->flush();
+    }
+
+    /**
+     * Run the batch handler for these messages, all of which Gmail answers.
+     *
+     * @param list<array{id: string, threadId: string}> $messages
+     */
+    private function handleBatch(array $messages): void
+    {
+        $boundary = 'batch_plmail_test';
+        $body     = '';
+
+        foreach ($messages as $message) {
+            $payload = json_encode([
+                'id'           => $message['id'],
+                'threadId'     => $message['threadId'],
+                'labelIds'     => ['INBOX'],
+                'internalDate' => (string) (time() * 1000),
+                'payload'      => [
+                    'headers' => [
+                        ['name' => 'Message-ID', 'value' => '<' . $message['id'] . '@example.test>'],
+                        ['name' => 'Subject', 'value' => 'About the invoice'],
+                        ['name' => 'From', 'value' => 'sender@example.test'],
+                        ['name' => 'To', 'value' => 'gmail@example.test'],
+                    ],
+                ],
+            ], JSON_THROW_ON_ERROR);
+
+            $body .= "--{$boundary}\r\n"
+                . "Content-Type: application/http\r\n"
+                . "Content-ID: <response-" . $message['id'] . ">\r\n"
+                . "\r\n"
+                . "HTTP/1.1 200 OK\r\n"
+                . "Content-Type: application/json\r\n"
+                . "\r\n"
+                . $payload . "\r\n";
+        }
+
+        $body .= "--{$boundary}--";
+
+        $httpClient = new MockHttpClient(function () use ($body, $boundary): MockResponse {
+            ++$this->requests;
+
+            return new MockResponse($body, [
+                'response_headers' => ['content-type' => 'multipart/mixed; boundary="' . $boundary . '"'],
+            ]);
+        });
+
+        $handler = $this->handler($httpClient);
+
+        $handler(new SyncGmailMessageBatchMessage((int) $this->account->id, array_column($messages, 'id')));
+    }
+
+    private function handler(MockHttpClient $httpClient): SyncGmailMessageBatchHandler
+    {
         $container = self::getContainer();
         $pacer     = new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock());
 
-        $handler = new SyncGmailMessageBatchHandler(
+        return new SyncGmailMessageBatchHandler(
             self::getContainer()->get(MessageThreadingRepository::class),
             self::getContainer()->get(MessageProviderIdRepository::class),
             $container->get('App\Repository\Mail\Account\AccountRepository'),
@@ -472,11 +591,8 @@ final class GmailSkippedMessageTest extends KernelTestCase
             new \App\Service\Mail\SyncOrigin(),
             $pacer,
             $this->skipped,
+            $container->get('doctrine'),
         );
-
-        $handler(new SyncGmailMessageBatchMessage((int) $this->account->id, [self::GMAIL_ID], null, $onlyMissing));
-
-        $this->em->flush();
     }
 
     private function seedAccount(): Account

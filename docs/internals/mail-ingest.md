@@ -102,7 +102,10 @@ The two are separate now. A sync arranges for new mail to be seen and stops; the
   (`includeSpamTrash`), which `messages.list` otherwise leaves out and `messagesTotal` counts.
 - **A Gmail message that is looked at and not stored is written down.** The batch handler
   declines a chat — the one kind left with nowhere to go — and cannot store a message Gmail
-  lists and answers 404 for. Each gets a row
+  lists and answers 404 for, nor one the database refuses. A batch whose flush is refused is
+  put back as batches of one, and the one refused again on its own is recorded as unstorable,
+  with the error in the log: one message that does not fit no longer holds its 49 neighbours
+  back every hour. Each gets a row
   in `gmail_skipped_message` (`App\Entity\Mail\GmailSkippedMessage`) with the reason, its labels
   and its address headers. The listing treats a recorded id like a stored one, so the message
   is not fetched again every hour and an import whose every outstanding message has an answer
