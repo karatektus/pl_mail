@@ -42,6 +42,14 @@ compact is set by the docked pane. It gets the same four views, as icons rather
 than words: the pane is ~380px and "Day Week Month Agenda" spelled out leaves no
 room for the date, but dropping the switcher entirely meant the pane could only
 ever show its agenda — there was no way to reach the month from it at all.
+"Today" is the date in a box there as well, as below 22rem, which is what
+makes room for the pane's window controls at the end of the row (#678).
+
+**The buttons are the app's icon-btn**: 32px, 28px below 37rem of the row's
+width and 24px below 22rem, as every pane header's are. The view switcher's segments are 2px
+shorter than that because the group's border adds the 2px back, so the group
+lines up with the buttons beside it. They were 28 and 24px, and beside the
+address book's 32px the two panes looked like different apps.
 
 Variables:
   view       CalendarView  which one is current
@@ -87,16 +95,16 @@ Blocks:
 } %}
 
 <div class="@container/toolbar border-b border-line shrink-0">
-<div class="flex items-center gap-2 px-3 py-1 min-h-[var(--pane-header-h)] @max-[37rem]/toolbar:gap-1 @max-[37rem]/toolbar:px-2 @max-[22rem]/toolbar:px-1">
+<div class="pane-header flex items-center gap-2 px-3 @max-[37rem]/toolbar:gap-1 @max-[37rem]/toolbar:px-2 @max-[22rem]/toolbar:px-1">
     <div class="flex items-center gap-0.5 shrink-0">
         {% if prevUrl is not null %}
             <a href="{{ prevUrl }}"
                {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
-               class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-6"
+               class="icon-btn"
                aria-label="{{ 'calendar.nav.previous'|trans }}"
             ><i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i></a>
         {% else %}
-            <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40 @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-6"
+            <span class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint opacity-40 @max-[37rem]/toolbar:w-7 @max-[37rem]/toolbar:h-7 @max-[22rem]/toolbar:w-6 @max-[22rem]/toolbar:h-6"
                   aria-hidden="true"
             ><i class="fa-solid fa-chevron-left text-xs"></i></span>
         {% endif %}
@@ -104,12 +112,15 @@ Blocks:
         {% if todayUrl is not null %}
             <a href="{{ todayUrl }}"
                {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
-               class="px-2 h-7 flex items-center rounded-lg text-xs text-ink-muted hover:bg-hover hover:text-ink transition-colors @max-[37rem]/toolbar:px-1.5 @max-[37rem]/toolbar:h-6"
+               {% if compact %}title="{{ 'calendar.today'|trans }}"{% endif %}
+               class="px-2 h-8 flex items-center rounded-lg text-xs text-ink-muted hover:bg-hover hover:text-ink transition-colors @max-[37rem]/toolbar:px-1.5 @max-[37rem]/toolbar:h-7 @max-[22rem]/toolbar:h-6"
             >
                 {#- Under 22rem the word is today's date in a box, the way phone
-                    calendars draw it, and stays readable to a screen reader. -#}
-                <span class="@max-[22rem]/toolbar:sr-only">{{ 'calendar.today'|trans }}</span>
-                <span class="hidden @max-[22rem]/toolbar:flex w-5 h-5 items-center justify-center rounded border border-current text-[10px] font-medium tabular-nums"
+                    calendars draw it, and stays readable to a screen reader.
+                    In the docked pane always: the pane's own window controls
+                    took the room the word had (#678). -#}
+                <span class="{{ compact ? 'sr-only' : '@max-[22rem]/toolbar:sr-only' }}">{{ 'calendar.today'|trans }}</span>
+                <span class="{{ compact ? 'flex' : 'hidden @max-[22rem]/toolbar:flex' }} w-5 h-5 items-center justify-center rounded border border-current text-[10px] font-medium tabular-nums"
                       aria-hidden="true">{{ 'now'|date('j') }}</span>
             </a>
         {% endif %}
@@ -117,11 +128,11 @@ Blocks:
         {% if nextUrl is not null %}
             <a href="{{ nextUrl }}"
                {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
-               class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-6"
+               class="icon-btn"
                aria-label="{{ 'calendar.nav.next'|trans }}"
             ><i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i></a>
         {% else %}
-            <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40 @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-6"
+            <span class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint opacity-40 @max-[37rem]/toolbar:w-7 @max-[37rem]/toolbar:h-7 @max-[22rem]/toolbar:w-6 @max-[22rem]/toolbar:h-6"
                   aria-hidden="true"
             ><i class="fa-solid fa-chevron-right text-xs"></i></span>
         {% endif %}
@@ -278,7 +289,7 @@ Blocks:
                               focus:outline-none focus-visible:ring-2 focus-visible:ring-inset
                               {{ shown|first == candidate.value ? 'rounded-l-lg' : '' }}
                               {{ shown|last == candidate.value ? 'rounded-r-lg' : '' }}
-                              {{ compact ? 'w-7 h-7' : 'px-2.5 py-1 @max-[37rem]/toolbar:px-0 @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-6' }}
+                              {{ compact ? 'w-8 h-[1.875rem] @max-[37rem]/toolbar:w-7 @max-[37rem]/toolbar:h-[1.625rem] @max-[22rem]/toolbar:w-6 @max-[22rem]/toolbar:h-[1.375rem]' : 'px-2.5 h-[1.875rem] @max-[37rem]/toolbar:px-0 @max-[37rem]/toolbar:w-7 @max-[37rem]/toolbar:h-[1.625rem] @max-[22rem]/toolbar:w-6 @max-[22rem]/toolbar:h-[1.375rem]' }}
                               {{ candidate == view
                                   ? 'bg-accent text-accent-ink focus-visible:ring-accent-ink'
                                   : 'text-ink-muted hover:bg-hover hover:text-ink focus-visible:ring-accent' }}"

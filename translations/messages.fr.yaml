@@ -1780,6 +1780,7 @@ calendar:
         previous: Précédent
     open_day: 'Tout le %date%'
     pane:
+        close: 'Fermer le calendrier'
         mode:
             calendar: Afficher l’agenda en pleine largeur
             mail: Afficher le courrier

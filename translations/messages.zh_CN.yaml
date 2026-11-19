@@ -1566,6 +1566,7 @@ calendar:
         previous: 上一个
     open_day: '%date% 的所有日程'
     pane:
+        close: '关闭日历'
         mode:
             calendar: 全宽显示日历
             mail: 显示邮件

@@ -1770,6 +1770,7 @@ calendar:
         previous: Previous
     open_day: 'Everything on %date%'
     pane:
+        close: 'Close the calendar'
         mode:
             calendar: Show the calendar full width
             mail: Show the mail

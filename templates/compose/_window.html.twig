@@ -28,8 +28,10 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
    which conversation we're in, and which message we're answering. #}
 {% set params = ctx.urlParams %}
 
-{# Window-chrome button. Larger below md so it clears the 44px touch target. #}
-{% set hc = "w-9 h-9 md:w-7 md:h-7 flex items-center justify-center rounded-lg
+{# Window-chrome button. Larger below md so it clears the 44px touch target.
+   32px from md up, the size of every pane header's icon-btn (#678): it was
+   28px, and the dock's ↗ and × were the smallest of the app's three pairs. #}
+{% set hc = "w-9 h-9 md:w-8 md:h-8 flex items-center justify-center rounded-lg
              text-ink-muted hover:text-ink hover:bg-hover transition-colors shrink-0" %}
 {# Formatting-toolbar button: shrink-0 so it keeps its own width when the
    toolbar wraps onto a second row rather than being squeezed thin. #}

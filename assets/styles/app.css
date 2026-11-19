@@ -232,7 +232,10 @@
 
     /* One height for every pane's header row. The mail toolbar and the
        calendar toolbar sit side by side once the pane is docked, so two
-       independently-derived heights are visibly two heights. */
+       independently-derived heights are visibly two heights. The ROW: the
+       header is this with 0.25rem above and below it, which is how the
+       mail's list and reading pane build theirs, and the pane-header utility
+       builds every other one that way (#678). */
     --pane-header-h: 2.75rem;
 }
 
@@ -2739,8 +2742,10 @@
    mail, or splits it on a notebook, hides the dock, and its .main-pane rule
    catches the dock's pane as well. Same specificity, later in the file.
 
-   The dock's own way out to the full page, its × and its handle go while it
-   has the row — each of them is about a boundary that is not there. */
+   The handle goes while it has the row — it is about a boundary that is not
+   there. Its window controls stay, with ↙ in place of ↗ (see the next
+   section): they used to go as well, and full width had no way back but the
+   topbar (#678). */
 [data-contacts-full] [data-mail-column] {
     display: none;
 }
@@ -2752,9 +2757,38 @@
     width: auto;
 }
 
-[data-contacts-full] [data-side-pane="contacts"] [data-ui--side-split-target="handle"],
-[data-contacts-full] [data-contacts-pane-actions] {
+[data-contacts-full] [data-side-pane="contacts"] [data-ui--side-split-target="handle"] {
     display: none;
+}
+
+/* ═══ A docked pane's window controls ════════════════════════════════════════
+   _pane_window_controls.html.twig renders ↗ and ↙ both; which one shows is the
+   position the shell is in. Each pane reads its own attribute, scoped to its
+   own dock, so the calendar at full width does not turn the address book's ↗
+   round as well. Below lg there is no "beside the mail" for either to go to or
+   come back from, so both go and the × is left. */
+[data-pane-restore] {
+    display: none;
+}
+
+[data-calendar-mode="calendar"] [data-side-pane="calendar"] [data-pane-expand],
+[data-contacts-full] [data-side-pane="contacts"] [data-pane-expand] {
+    display: none;
+}
+
+/* From lg only, rather than shown everywhere and hidden again below it: the
+   rule that shows ↙ is more specific than any that could hide it. */
+@media (min-width: 1024px) {
+    [data-calendar-mode="calendar"] [data-side-pane="calendar"] [data-pane-restore],
+    [data-contacts-full] [data-side-pane="contacts"] [data-pane-restore] {
+        display: inline-flex;
+    }
+}
+
+@media (max-width: 1023px) {
+    [data-pane-window-controls] [data-pane-expand] {
+        display: none;
+    }
 }
 
 /* Leaving it — a message opened from the contact — is a view transition (see
@@ -3469,8 +3503,10 @@ html {
    for the contact layer. Changing the gutter without revisiting these numbers
    brings the arc back.
 */
-/* An action button: a 32px circle holding an icon until the user asks for words
-   (#459). min-width rather than the w-8 these used to carry, because a label has
+/* An action button: a 32px rounded square holding an icon until the user asks
+   for words (#459). A circle until #678, the one header in the app that was
+   round; the shape is icon-btn's now, below, so the mail's headers and the
+   panes beside them are drawn alike. min-width rather than the w-8 these used to carry, because a label has
    to be able to widen it. `:not(label)` and not `i`, because Move draws an <svg>. */
 @utility action-btn {
     min-width: 2rem;
@@ -3488,6 +3524,104 @@ html {
 @utility action-btn-label {
     display: var(--action-label-display);
     font-size: 0.8125rem;
+}
+
+/* An icon button in a pane's header: the calendar pane, the address book, the
+   compose window, a modal, the insight strip (#678).
+
+   Each of those used to spell its own class string, and they drifted: 24, 28
+   and 32px, circles beside rounded squares, a border on one and not on its
+   neighbour. Side by side, the calendar and the address book looked like two
+   apps. One definition is the fix, and this is it.
+
+   32px, the size of the mail headers' action-btn, and the same rounded square.
+   28px inside a container narrower than 37rem — a docked pane at its usual
+   width, or a phone — which is the step the calendar toolbar already took
+   there (it went to 24px, which is smaller than a fingertip and smaller than
+   anything else on screen), and 24px below 22rem, a 320px phone or a pane
+   dragged to its minimum, where the calendar's row does not fit otherwise
+   (calendar-month-narrow.spec.ts measures it). An unnamed container query, so it answers to
+   whichever container the button is in: the calendar's `toolbar` and the
+   address book's page are both one. Outside any container it stays 32px.
+
+   `icon-btn-primary` is the one accented action a header may have — New event,
+   New contact. Same box, so the + in both panes is the same + . */
+@utility icon-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--radius-lg, 0.5rem);
+    color: var(--color-ink-muted);
+    cursor: pointer;
+    transition: color 150ms, background-color 150ms;
+
+    &:hover {
+        background-color: var(--color-hover);
+        color: var(--color-ink);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: -2px;
+    }
+
+    /* A toggle that is on — the contact editor's preferred star. Said here
+       rather than by a `text-accent` beside the class: two utilities setting
+       one property is decided by their order in the sheet, which Tailwind
+       does not promise, so the star could come out grey. */
+    &[aria-pressed="true"] {
+        color: var(--color-accent);
+    }
+
+    @container (width < 37rem) {
+        width: 1.75rem;
+        height: 1.75rem;
+    }
+
+    @container (width < 22rem) {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+}
+
+/* A header that lines up with the mail's: a row of --pane-header-h with
+   0.25rem above and below it, the rule under it beneath that. Every pane's
+   header and the strip under the sidebar's Compose button, so the one line
+   runs straight across the whole window (#678).
+
+   They were three heights: the calendar's 44px (its padding inside the
+   minimum rather than around it), the mail's 52px and the Compose strip's
+   60, and the rule under them stepped down twice across the screen.
+
+   content-box, so the minimum is the row's alone and the padding and the
+   border go on top of it, as they do on the mail's toolbar, whose row is a
+   child with that minimum. A border-box minimum would swallow the border and
+   leave the rule a hairline above the mail's. */
+@utility pane-header {
+    box-sizing: content-box;
+    min-height: var(--pane-header-h);
+    padding-block: 0.25rem;
+}
+
+/* `:is(.icon-btn)` for the specificity: Tailwind does not promise which of two
+   utilities comes later in the sheet, and the quiet colours must not win. */
+@utility icon-btn-primary {
+    &:is(.icon-btn) {
+        background-color: var(--color-accent);
+        color: var(--color-accent-ink);
+    }
+
+    &:is(.icon-btn):hover {
+        background-color: var(--color-accent-strong);
+        color: var(--color-accent-ink);
+    }
+
+    &:is(.icon-btn):focus-visible {
+        outline-color: var(--color-accent-ink);
+    }
 }
 
 /* The STRUCTURAL surfaces read --pane-alpha: the sidebar, the top bar and the

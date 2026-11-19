@@ -39,7 +39,7 @@ words (Settings → Appearance; see @utility action-btn).
         aria-label="{{ label }}"
         title="{{ label }}"
         class="action-btn flex items-center justify-center
-           h-8 rounded-full
+           h-8 rounded-lg
            text-ink-muted
            hover:text-ink
            hover:bg-hover
@@ -75,7 +75,7 @@ closes the menu: ui--dropdown closes on a click OUTSIDE it, and a row is inside.
 {# Same treatment for pagination nav links (they're <a> not <button>) #}
 {% macro pgnav(href, icon, label, disabled) %}
     {% if disabled %}
-        <span class="flex items-center justify-center w-8 h-8 rounded-full
+        <span class="flex items-center justify-center w-8 h-8 rounded-lg
              text-ink-faint cursor-not-allowed"
               aria-disabled="true">
     <i class="{{ icon }} text-[13px]" aria-hidden="true"></i>
@@ -87,7 +87,7 @@ closes the menu: ui--dropdown closes on a click OUTSIDE it, and a row is inside.
             data-turbo-action="advance"
             aria-label="{{ label }}"
             title="{{ label }}"
-            class="flex items-center justify-center w-8 h-8 rounded-full
+            class="flex items-center justify-center w-8 h-8 rounded-lg
            text-ink-muted
            hover:text-ink
            hover:bg-hover
@@ -325,7 +325,7 @@ closes the menu: ui--dropdown closes on a click OUTSIDE it, and a row is inside.
                 aria-haspopup="menu"
                 aria-label="{{ 'toolbar.actions.more'|trans }}"
                 title="{{ 'toolbar.actions.more'|trans }}"
-                class="action-btn flex items-center justify-center h-8 rounded-full
+                class="action-btn flex items-center justify-center h-8 rounded-lg
                        text-ink-muted hover:text-ink hover:bg-hover
                        transition-colors duration-100 cursor-pointer"
             >
@@ -453,7 +453,7 @@ closes the menu: ui--dropdown closes on a click OUTSIDE it, and a row is inside.
                 aria-label="{{ 'shortcuts.title'|trans }}"
                 title="{{ 'shortcuts.title'|trans }} (?)"
                 class="hidden md:flex items-center justify-center shrink-0
-                       w-8 h-8 mr-1 rounded-full
+                       w-8 h-8 mr-1 rounded-lg
                        text-ink-faint hover:text-ink hover:bg-hover
                        transition-colors duration-100 cursor-pointer">
             <i class="fa-regular fa-keyboard text-[15px]" aria-hidden="true"></i>

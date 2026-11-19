@@ -490,6 +490,34 @@ export default class extends Controller {
     }
 
     /**
+     * The pane's own window controls (_pane_window_controls.html.twig, #678):
+     * ↗ full width, ↙ back beside the mail, × the mail alone. The same three
+     * positions the switch steps through, reached directly, so the pane has
+     * the ends the address book's has instead of only the topbar's way out.
+     *
+     * ↗ is a link to the calendar page, so a middle or modified click is a new
+     * tab and is left alone.
+     */
+    expand(event) {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || 1 === event.button) {
+            return;
+        }
+
+        event.preventDefault();
+        this._setMode("calendar");
+    }
+
+    restore(event) {
+        event.preventDefault();
+        this._setMode("split");
+    }
+
+    close(event) {
+        event.preventDefault();
+        this._setMode("mail");
+    }
+
+    /**
      * Another docked pane needs the room: back to the mail, if the calendar
      * is showing at all. Dispatched by contacts--pane, which has already
      * decided the row cannot hold both.

@@ -625,8 +625,11 @@ controller instead — the scroll position and which trees are open.
               transition-[width] duration-200
               {{ _drawerMode is defined and _drawerMode ? '' : 'shell-chrome' }}">
 
-    {# Compose #}
-    <div class="compose-wrap px-3 py-3 border-b border-line">
+    {# Compose. The strip is a pane header's height (pane-header), so the rule
+       under it continues the one under the mail's and the calendar's
+       toolbars rather than sitting eight pixels below them (#678). The
+       button is centred in it, and at its tallest density is 36px of 44. #}
+    <div class="compose-wrap pane-header flex items-center px-3 border-b border-line">
         <a href="{{ path('app_compose_new') }}"
            data-turbo-frame="compose_dock"
            data-shortcut="compose"
