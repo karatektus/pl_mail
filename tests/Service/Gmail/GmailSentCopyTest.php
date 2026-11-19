@@ -6,6 +6,7 @@ namespace App\Tests\Service\Gmail;
 
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Mail\ThreadingMethod;
+use App\Command\Backfill\RethreadBackfillTask;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
@@ -25,6 +26,9 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
+use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Mercure\HubInterface;
@@ -168,6 +172,54 @@ final class GmailSentCopyTest extends KernelTestCase
         self::assertSame($sent->thread?->id, $answer->thread?->id);
         self::assertSame('gmail-thread-0', $answer->thread?->providerThreadKey, 'the conversation keeps its own key');
         self::assertSame(self::THREAD_ID, $answer->providerThreadKey);
+        self::assertTrue($sent->placedByHeaders, 'recorded, so a rebuild keeps it there');
+    }
+
+    /**
+     * Rebuilding the threads must not undo it: by its Gmail thread alone the
+     * reply would start a conversation of its own and take the answers along.
+     */
+    public function testRebuildingTheThreadsKeepsTheConversationTogether(): void
+    {
+        $original                            = $this->seedSentRow();
+        $original->messageId                 = 'original-1@example.test';
+        $original->gmailId                   = 'gmail-original-1';
+        $original->providerThreadKey         = 'gmail-thread-0';
+        $original->thread->providerThreadKey = 'gmail-thread-0';
+        $original->receivedAt                = new DateTimeImmutable('-2 hours');
+
+        $reply             = $this->seedSentRow($original->thread);
+        $reply->inReplyTo  = ['original-1@example.test'];
+        $reply->references = ['original-1@example.test'];
+        $this->em->flush();
+
+        $this->handle($this->sentCopy());
+        $this->handle([
+            'id'       => 'gmail-answer-1',
+            'threadId' => self::THREAD_ID,
+            'labelIds' => ['INBOX'],
+            'headers'  => [
+                'Message-ID'  => '<answer-1@example.test>',
+                'In-Reply-To' => '<' . self::SENT_ID . '>',
+                'References'  => '<original-1@example.test> <' . self::SENT_ID . '>',
+                'Subject'     => '...',
+                'From'        => 'friend@example.test',
+                'To'          => 'gmail@example.test',
+            ],
+        ]);
+
+        $rethread = self::getContainer()->get(RethreadBackfillTask::class);
+        $rebuild  = new \ReflectionMethod($rethread, 'runForAccount');
+        $rebuild->invoke($rethread, new SymfonyStyle(new ArrayInput([]), new BufferedOutput()), $this->account);
+
+        $this->em->clear();
+
+        $threads = $this->connection->fetchFirstColumn(
+            'SELECT DISTINCT thread_id FROM message WHERE account_id = :account',
+            ['account' => $this->account->id],
+        );
+
+        self::assertCount(1, $threads, 'original, reply and answer stay one conversation');
     }
 
     // ── helpers ───────────────────────────────────────────────────────────
@@ -268,14 +320,16 @@ final class GmailSentCopyTest extends KernelTestCase
      * Message-ID it went out under, no Gmail id, in a thread of its own that
      * Gmail has not named yet.
      */
-    private function seedSentRow(): Message
+    private function seedSentRow(?MessageThread $thread = null): Message
     {
-        $thread                    = new MessageThread();
-        $thread->account           = $this->account;
-        $thread->subject           = 'Flight';
-        $thread->normalizedSubject = 'flight';
-        $thread->threadingMethod   = ThreadingMethod::SubjectFallback;
-        $thread->lastMessageAt     = new DateTimeImmutable('-1 hour');
+        if (null === $thread) {
+            $thread                    = new MessageThread();
+            $thread->account           = $this->account;
+            $thread->subject           = 'Flight';
+            $thread->normalizedSubject = 'flight';
+            $thread->threadingMethod   = ThreadingMethod::SubjectFallback;
+            $thread->lastMessageAt     = new DateTimeImmutable('-1 hour');
+        }
 
         $message                 = new Message();
         $message->account        = $this->account;

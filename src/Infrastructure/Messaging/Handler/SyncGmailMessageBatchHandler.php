@@ -313,6 +313,14 @@ final readonly class SyncGmailMessageBatchHandler
                     if ('' !== $gmailThreadId) {
                         $sentRow->providerThreadKey ??= $gmailThreadId;
                         $this->messageThreader->adoptProviderThreadKey($sentRow, $gmailThreadId);
+
+                        // Gmail filed it apart from the conversation it was
+                        // written in: an encrypted reply, whose subject went
+                        // out as "...". Recorded, so rebuilding the threads
+                        // leaves it there. See Message::$placedByHeaders.
+                        if (null !== $sentRow->thread && $sentRow->providerThreadKey !== $sentRow->thread->providerThreadKey) {
+                            $sentRow->placedByHeaders = true;
+                        }
                     }
 
                     $enriched++;

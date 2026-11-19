@@ -76,7 +76,10 @@ final class MessageThreader
         //    has already put the replies where they belong.
         $providerThreadKey = $message->providerThreadKey;
 
-        if (null !== $providerThreadKey && '' !== $providerThreadKey) {
+        // Except a row plMail placed itself, in a conversation keyed otherwise
+        // than the thread the provider filed its copy in: its headers put it
+        // where it was written, as they did then. See Message::$placedByHeaders.
+        if (null !== $providerThreadKey && '' !== $providerThreadKey && false === $message->placedByHeaders) {
             $this->attachMessageToThread(
                 $message,
                 $this->providerThread($providerThreadKey, $account, $message),

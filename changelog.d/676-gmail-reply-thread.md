@@ -6,5 +6,6 @@ written and once where Gmail filed its copy. Replies now go into the conversatio
 Gmail's copy of mail sent from plMail is merged onto the message plMail already has. An encrypted
 reply, whose subject goes out hidden as "...", is still filed in a new conversation by Gmail, which
 groups mail by subject; plMail keeps it and the answers that follow it in the conversation it was
-written in. Conversations that were split before stay split, as they are in Gmail; a reply listed
-twice there can be deleted by hand. No schema change.
+written in, and `app:backfill rethread` keeps it there too. Conversations that were split before stay
+split, as they are in Gmail; a reply listed twice there can be deleted by hand. One migration adds
+`message.placed_by_headers`.

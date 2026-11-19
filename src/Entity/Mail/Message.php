@@ -204,6 +204,29 @@ class Message extends MessageModel
     public ?string $providerThreadKey = null;
 
     /**
+     * Threaded by its headers, not by $providerThreadKey (#676).
+     *
+     * Mail plMail sent is placed when it is written, in the conversation it
+     * answers. Gmail may file its copy in a thread of its own: an encrypted
+     * reply goes out over SMTP as "...", and Gmail groups SMTP mail only when
+     * the subject matches. The sync merges that copy onto the row, which then
+     * carries the id of a thread its conversation is not keyed by, and the
+     * answers Gmail files there find the conversation through it (see
+     * MessageThreader::providerThread()).
+     *
+     * Recorded, because nothing else on the row says so once its thread is
+     * gone. The rethread backfill throws every thread away and threads each
+     * message again; by its provider key, this row would have started a
+     * conversation of its own, and taken the answers with it.
+     *
+     * Set where a sync merges a provider's copy onto a row whose conversation
+     * is keyed otherwise, and by Version20261119120000 on the rows that were
+     * already so. Never cleared: the placement it records does not change.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $placedByHeaders = false;
+
+    /**
      * @var list<string>|null
      */
     #[ORM\Column(type: 'json', nullable: true)]
