@@ -6,15 +6,18 @@ namespace App\Controller\Contacts;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Contacts\ContactsPaneMode;
+use App\Domain\Enum\Job\JobKind;
 use App\Domain\Exception\ContactReadOnlyException;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
+use App\Entity\Job\BackgroundJob;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Message\ImportContactsMessage;
 use App\Repository\AddressBook\AddressBook\AddressBookRepository;
+use App\Repository\Contacts\Contact\ContactRepository;
 use App\Repository\Contacts\ContactMergeRecord\ContactMergeRecordRepository;
 use App\Repository\Contacts\ContactRelation\ContactRelationRepository;
-use App\Repository\Contacts\Contact\ContactRepository;
 use App\Service\Contacts\ContactFields;
 use App\Service\Contacts\ContactManager;
 use App\Service\Contacts\ContactMerger;
@@ -22,20 +25,20 @@ use App\Service\Contacts\ContactPhotoStore;
 use App\Service\Contacts\CsvExporter;
 use App\Service\Contacts\CsvImporter;
 use App\Service\Contacts\DuplicateFinder;
-use App\Service\Contacts\ImportRunner;
 use App\Service\Contacts\ParsedContact;
 use App\Service\Contacts\ReferenceEmailFinder;
 use App\Service\Contacts\VCardExporter;
 use App\Service\Contacts\VCardImporter;
 use App\Service\Contacts\VCardMapper;
+use App\Service\Job\JobUploadStore;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -76,7 +79,6 @@ final class ContactController extends AbstractController
         private readonly ContactPhotoStore $photos,
         private readonly VCardImporter $vcardImporter,
         private readonly CsvImporter $csvImporter,
-        private readonly ImportRunner $importRunner,
         private readonly VCardExporter $vcardExporter,
         private readonly CsvExporter $csvExporter,
         private readonly DuplicateFinder $duplicateFinder,
@@ -86,8 +88,8 @@ final class ContactController extends AbstractController
         private readonly VCardMapper $mapper,
         private readonly TranslatorInterface $translator,
         private readonly EntityManagerInterface $em,
-        #[Autowire('%kernel.project_dir%')]
-        private readonly string $projectDir,
+        private readonly JobUploadStore $uploads,
+        private readonly MessageBusInterface $bus,
         private readonly ContactRelationRepository $contactRelationRepository,
         private readonly ContactMergeRecordRepository $contactMergeRecordRepository,
     ) {}
@@ -443,14 +445,12 @@ final class ContactController extends AbstractController
             return $this->redirectToRoute('app_contacts_import', [], Response::HTTP_SEE_OTHER);
         }
 
-        $dir = $this->stagingDir((int) $user->id);
-        $this->pruneStaging($dir);
-
-        $stored = bin2hex(random_bytes(8)) . '.' . $format;
-        $file->move($dir, $stored);
+        // Where the worker can read it too — see JobUploadStore for why that
+        // is not anywhere under var/contacts.
+        $stored = $this->uploads->keep((int) $user->id, $file, $format);
         $request->getSession()->set('contacts_import', ['file' => $stored, 'format' => $format]);
 
-        $dtos = $this->parseImportFile($dir . '/' . $stored, $format);
+        $dtos = $this->parseImportFile((string) $this->uploads->path((int) $user->id, $stored), $format);
 
         return $this->render('contacts/import.html.twig', [
             'preview'      => \array_slice($dtos, 0, self::PREVIEW_ROWS),
@@ -474,9 +474,9 @@ final class ContactController extends AbstractController
             return $this->redirectToRoute('app_contacts_import', [], Response::HTTP_SEE_OTHER);
         }
 
-        $path = $this->stagingDir((int) $user->id) . '/' . basename((string) $staged['file']);
+        $path = $this->uploads->path((int) $user->id, (string) $staged['file']);
 
-        if (!is_file($path)) {
+        if (null === $path) {
             $request->getSession()->remove('contacts_import');
             $this->addFlash('error', $this->trans('contacts.import_expired'));
 
@@ -491,15 +491,31 @@ final class ContactController extends AbstractController
             return $this->redirectToRoute('app_contacts_import', [], Response::HTTP_SEE_OTHER);
         }
 
-        $dtos = $this->parseImportFile($path, (string) $staged['format']);
-        $result = $this->importRunner->run($user, $dtos, $source);
+        // Read once more for the count the message gives, which is cheap; the
+        // import itself is a worker's (#672) — a thousand contacts took over
+        // forty seconds here. The file stays where it is until the worker is
+        // done with it.
+        $count = \count($this->parseImportFile($path, (string) $staged['format']));
 
-        @unlink($path);
+        $job       = new BackgroundJob($user, JobKind::ImportContacts);
+        $job->view = [
+            'scope'      => 'contacts',
+            'value'      => '',
+            'unreadOnly' => false,
+            'file'       => (string) $staged['file'],
+            'format'     => (string) $staged['format'],
+        ];
+
+        $this->em->persist($job);
+        $this->em->flush();
+
+        $this->bus->dispatch(new ImportContactsMessage((int) $job->id));
+
         $request->getSession()->remove('contacts_import');
 
-        $this->addFlash('success', $this->trans('contacts.imported', ['%count%' => \count($result['imported'])]));
+        $this->addFlash('success', $this->trans('contacts.import_started', ['%count%' => $count]));
 
-        return $this->redirectToRoute('app_contacts_duplicates', [], Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('app_contacts_list', [], Response::HTTP_SEE_OTHER);
     }
 
     #[Route('/export.vcf', name: 'export_vcf', methods: ['GET'])]
@@ -850,29 +866,6 @@ final class ContactController extends AbstractController
             'csv' => 'csv',
             default => null,
         };
-    }
-
-    private function stagingDir(int $userId): string
-    {
-        $dir = $this->projectDir . '/var/contacts/_staging/' . $userId;
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        return $dir;
-    }
-
-    /**
-     * Old staged uploads are abandoned imports; sweep them so a forgotten
-     * preview cannot be confirmed days later against a changed address book.
-     */
-    private function pruneStaging(string $dir): void
-    {
-        foreach (glob($dir . '/*') ?: [] as $file) {
-            if (is_file($file) && filemtime($file) < time() - 86400) {
-                @unlink($file);
-            }
-        }
     }
 
     /**

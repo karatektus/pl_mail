@@ -1657,6 +1657,7 @@ calendar:
         until: until %when%
     ics:
         error:
+            import_gone: 'The calendar or the uploaded file was gone by the time the import started. Upload the file again.'
             no_calendar: Choose a calendar to put the events on.
             no_file: >-
                 Choose an .ics file. If you did choose one, it may be larger
@@ -1710,6 +1711,7 @@ calendar:
             import_nothing_new: >-
                 Nothing to add — every event in that file is already on your
                 calendars.
+            import_started: 'Importing the file — this runs in the background. You will be told what it added.'
             imported: '%added% added, %updated% updated, %skipped% skipped.'
             subscribed: >-
                 Subscribed — the calendar will fill in within a minute.
@@ -2873,6 +2875,9 @@ jobs:
         reclassify: Sorting recent mail again
         delete_label: Deleting a label
         delete_account: Removing an account
+        import_contacts: Importing contacts
+        import_calendar: Importing a calendar file
+        resort_removed_category: Re-sorting a removed tab's mail
     state:
         done: '%count% done'
         failed: failed
@@ -5237,6 +5242,7 @@ settings:
         delete: Delete category
         delete_confirm: 'Delete "%name%"? Mail filed there goes back to the tab it would otherwise be in. No mail is deleted.'
         deleted: 'Deleted "%name%".'
+        deleted_resorting: 'Deleted "%name%". Its conversations go back to their tabs in the background.'
         error:
             empty: 'A category needs a name.'
             reserved: 'That name belongs to one of the built-in tabs.'
@@ -5837,12 +5843,13 @@ contacts:
     import_bad_format: 'Only .vcf/.vcard and .csv files can be imported.'
     import_choose: 'Choose file'
     import_confirm: 'Import %count% contacts'
-    import_dedupe_note: 'After importing you land on the duplicates page to merge anything imported twice.'
+    import_dedupe_note: 'When the import is done, open Duplicates to merge anything imported twice.'
     import_expired: 'The staged import expired. Please upload the file again.'
     import_formats: '.vcf, .vcard or .csv'
     import_hint: 'A .vcf/.vcard address-book export or a .csv file. Duplicates are checked after import.'
     import_no_file: 'No file was uploaded.'
     import_preview_count: '%count% contacts found in the %format% file. Showing the first few:'
+    import_started: 'Importing %count% contacts — this runs in the background. You will be told when it is done.'
     import_step1: 'Step 1 — choose a file'
     import_step2: 'Step 2 — preview'
     import_upload: 'Upload & preview'

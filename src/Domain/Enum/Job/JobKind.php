@@ -83,6 +83,23 @@ enum JobKind: string
      */
     case DeleteAccount = 'delete_account';
 
+    /**
+     * Importing a .vcf or .csv of contacts, after the preview was confirmed.
+     * See ImportContactsHandler: a thousand contacts took over forty seconds
+     * inside the request.
+     */
+    case ImportContacts = 'import_contacts';
+
+    /** Importing an uploaded .ics onto a calendar. See ImportCalendarHandler. */
+    case ImportCalendar = 'import_calendar';
+
+    /**
+     * Putting the conversations of a removed inbox category back into the tabs
+     * they belong in. The tab itself goes in the request; this is the re-sort,
+     * which is a conversation at a time. See ResortRemovedCategoryHandler.
+     */
+    case ResortRemovedCategory = 'resort_removed_category';
+
     /** What the indicator calls it while it runs. */
     public function labelKey(): string
     {
@@ -111,7 +128,7 @@ enum JobKind: string
             // and only ever holds a kind it was dispatched for. Throwing beats
             // inventing a string, which would be silently accepted by a
             // switch somewhere and act on somebody's mail.
-            self::Reclassify, self::DeleteLabel, self::DeleteAccount => throw new \LogicException(
+            self::Reclassify, self::DeleteLabel, self::DeleteAccount, self::ImportContacts, self::ImportCalendar, self::ResortRemovedCategory => throw new \LogicException(
                 sprintf('%s is not a bulk action; nothing should be asking it for one.', $this->name),
             ),
         };

@@ -203,9 +203,14 @@ final class InboxCategoryController extends AbstractController
 
         $name = $category->name;
 
-        $this->manager->remove($category);
+        // The tab goes now; its conversations are re-sorted by a job when there
+        // were any (#672), and the message says so.
+        $resort = $this->manager->remove($category);
 
-        $this->addFlash('success', $this->translator->trans('settings.categories.deleted', ['%name%' => $name]));
+        $this->addFlash('success', $this->translator->trans(
+            null === $resort ? 'settings.categories.deleted' : 'settings.categories.deleted_resorting',
+            ['%name%' => $name],
+        ));
 
         return $this->back();
     }

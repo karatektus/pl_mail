@@ -1576,6 +1576,7 @@ calendar:
         until: till %when%
     ics:
         error:
+            import_gone: 'The chart or the scroll ye sent was gone by the time the haul began. Send the scroll again.'
             no_calendar: Pick an almanac to stow the dates in.
             no_file: >-
                 Pick an .ics scroll. If ye did pick one, it may be fatter than
@@ -1627,6 +1628,7 @@ calendar:
             import_nothing_new: >-
                 Naught to add — every date in that scroll be already in yer
                 almanacs.
+            import_started: 'Haulin’ in the chart — the crew works below decks. Ye’ll hear what she added.'
             imported: '%added% added, %updated% mended, %skipped% passed over.'
             subscribed: >-
                 Followed — the almanac fills in within the minute.
@@ -2755,6 +2757,9 @@ jobs:
         reclassify: Stowin' recent post again
         delete_label: "Strikin' a flag"
         delete_account: Scuttlin’ a ship
+        import_contacts: Haulin’ aboard sailors
+        import_calendar: Haulin’ in a chart
+        resort_removed_category: Re-stowin’ a scuttled tab’s letters
     state:
         done: '%count% done'
         failed: foundered
@@ -5036,6 +5041,7 @@ settings:
         delete: Scuttle the hold
         delete_confirm: 'Scuttle "%name%"? Post stowed there goes back to the hold it would be in otherwise. No post goes over the side.'
         deleted: 'Scuttled "%name%".'
+        deleted_resorting: 'Scuttled "%name%". Her conversations go back to their tabs below decks.'
         error:
             empty: 'A hold needs a name.'
             reserved: 'That name belongs to one o'' the holds the ship came with.'
@@ -5608,12 +5614,13 @@ contacts:
     import_bad_format: 'Only .vcf/.vcard and .csv files be hauled in.'
     import_choose: 'Pick file'
     import_confirm: 'Haul in %count% shipmates'
-    import_dedupe_note: 'After the haul ye land on the doubles page to merge any sailor hauled twice.'
+    import_dedupe_note: 'When the haul is done, open the doubles page to merge any sailor hauled twice.'
     import_expired: 'The haul went stale. Hoist the file again.'
     import_formats: '.vcf, .vcard or .csv'
     import_hint: 'A .vcf/.vcard crew list or a .csv file. Doubles be checked after the haul.'
     import_no_file: 'No file came aboard.'
     import_preview_count: '%count% shipmates found in the %format% file. The first few:'
+    import_started: 'Haulin’ aboard %count% sailors — the crew works below decks. Ye’ll be told when she’s done.'
     import_step1: 'Step 1 — pick a file'
     import_step2: 'Step 2 — a look'
     import_upload: 'Hoist & look'

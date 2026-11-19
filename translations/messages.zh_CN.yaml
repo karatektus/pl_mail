@@ -1480,6 +1480,7 @@ calendar:
         until: '截至 %when%'
     ics:
         error:
+            import_gone: '导入开始时日历或上传的文件已不存在。请重新上传文件。'
             no_calendar: 请选择用于保存日程的日历。
             no_file: '请选择 .ics 文件。如果已选择，文件可能超过 plMail 可读取的大小限制。'
             no_url: 请输入日历的发布地址。
@@ -1509,6 +1510,7 @@ calendar:
         toast:
             import_empty: '此文件中没有 plMail 可读取的日程。请确认它是日历导出文件。'
             import_nothing_new: 无需添加，文件中的所有日程均已在你的日历中。
+            import_started: '正在导入文件——在后台进行，完成后会告诉你新增了什么。'
             imported: '已添加 %added% 项，更新 %updated% 项，跳过 %skipped% 项。'
             subscribed: 已订阅，日历将在一分钟内加载完成。
     invite:
@@ -2559,6 +2561,9 @@ jobs:
         reclassify: 正在重新分类近期邮件
         delete_label: 正在删除标签
         delete_account: 正在移除账户
+        import_contacts: 正在导入联系人
+        import_calendar: 正在导入日历文件
+        resort_removed_category: 正在重新归类已删除标签页的邮件
     state:
         done: '已完成 %count% 项'
         failed: 失败
@@ -4518,6 +4523,7 @@ settings:
         delete: '删除分类'
         delete_confirm: '要删除“%name%”吗？其中的邮件会回到原本应归入的选项卡，不会删除任何邮件。'
         deleted: '已删除“%name%”。'
+        deleted_resorting: '已删除“%name%”。其中的会话会在后台回到各自的标签页。'
         error:
             empty: '分类必须有名称。'
             reserved: '此名称已由内置选项卡使用。'
@@ -5065,12 +5071,13 @@ contacts:
     import_bad_format: "只能导入 .vcf/.vcard 和 .csv 文件。"
     import_choose: "选择文件"
     import_confirm: "导入 %count% 位联系人"
-    import_dedupe_note: "导入后将进入重复联系人页面，可合并重复导入的内容。"
+    import_dedupe_note: '导入完成后，打开“重复联系人”合并重复导入的内容。'
     import_expired: "暂存的导入已过期。请重新上传文件。"
     import_formats: ".vcf、.vcard 或 .csv"
     import_hint: "支持 .vcf/.vcard 格式的通讯录导出文件或 .csv 文件。导入后会检查重复联系人。"
     import_no_file: "未上传文件。"
     import_preview_count: "在 %format% 文件中找到 %count% 位联系人。以下显示前几位："
+    import_started: '正在导入 %count% 位联系人——在后台进行，完成后会通知你。'
     import_step1: "第 1 步 — 选择文件"
     import_step2: "第 2 步 — 预览"
     import_upload: "上传并预览"

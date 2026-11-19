@@ -221,7 +221,9 @@ there whatever a filter says.
 When two filters would file the same message, the one that runs **last** decides; **Stop after this
 filter** on the earlier one is how you keep its choice.
 
-Deleting a tab puts its mail back in the tab it would otherwise be in. No mail is deleted, and a
+Deleting a tab puts its mail back in the tab it would otherwise be in. The tab goes at once; putting a
+large tab's conversations back takes a while and runs in the background, shown under **Background
+work** in the top bar. No mail is deleted, and a
 filter that filed into it keeps its place and reads **(deleted category)** until you point it
 somewhere else.
 
