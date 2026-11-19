@@ -15,10 +15,12 @@ use App\Domain\Exception\SendFailureException;
 use App\Domain\Exception\SendOutcomeUnknownException;
 use App\Domain\Exception\SendRefusedException;
 use App\Domain\Helper\ApiMime;
+use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\SendTransportFailure;
 use App\Domain\Interface\MailDeliveryInterface;
 use App\Domain\Interface\SentCopyLookupInterface;
 use App\Entity\Mail\Account;
+use App\Repository\Mail\Message\MessageThreadingRepository;
 use App\Service\Mail\Mime\SealedEntityPart;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mime\Email;
@@ -48,9 +50,10 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 class GmailApiSender implements MailDeliveryInterface, SentCopyLookupInterface
 {
     public function __construct(
-        private readonly GmailApiClient    $client,
-        private readonly GmailSmtpDelivery $smtp,
-        private readonly LoggerInterface   $logger,
+        private readonly GmailApiClient             $client,
+        private readonly GmailSmtpDelivery          $smtp,
+        private readonly LoggerInterface            $logger,
+        private readonly MessageThreadingRepository $threading,
     ) {
     }
 
@@ -101,8 +104,12 @@ class GmailApiSender implements MailDeliveryInterface, SentCopyLookupInterface
         // recipients from the raw message. See ApiMime.
         $raw = $this->toBase64Url(ApiMime::toString($email));
 
+        // Ahead of the try: the catches below sort out what Gmail answered,
+        // and a lookup in plMail's own database is none of that.
+        $threadId = $this->threadIdFor($email, $account);
+
         try {
-            $this->client->sendRaw($account, $raw);
+            $this->sendInThread($account, $raw, $threadId);
         } catch (GmailThrottledException $e) {
             $this->logger->warning('GmailApiSender: Gmail is limiting sends; trying again', $this->context($account, $e));
 
@@ -150,6 +157,59 @@ class GmailApiSender implements MailDeliveryInterface, SentCopyLookupInterface
         $this->logger->error('GmailApiSender: send refused', $this->context($account, $e));
 
         return new SendRefusedException($e->getMessage(), SendFailure::Refused, $e);
+    }
+
+    /**
+     * Send into the thread, or without one when Gmail does not know it.
+     *
+     * The id comes from plMail's own copy of the conversation, and Gmail may
+     * have dropped the thread since: every message in it deleted there, say.
+     * It then refuses the whole send, 404 or 400, and the reply would be
+     * marked failed for the sake of the conversation it was filed in. Sent
+     * again without the id, it goes out and starts a thread, as it always
+     * did. Both answers mean nothing went out, so this cannot send twice.
+     */
+    private function sendInThread(Account $account, string $raw, ?string $threadId): void
+    {
+        try {
+            $this->client->sendRaw($account, $raw, $threadId);
+        } catch (GmailApiException $e) {
+            if (null === $threadId || false === in_array($e->getStatus(), [400, 404], true)) {
+                throw $e;
+            }
+
+            $this->logger->warning('GmailApiSender: Gmail does not know the thread; sending without it', $this->context($account, $e));
+
+            $this->client->sendRaw($account, $raw);
+        }
+    }
+
+    /**
+     * The Gmail thread a reply belongs in, from the mail it answers (#676).
+     *
+     * Read off the outgoing mail's own In-Reply-To and References rather than
+     * handed in by the caller: they are what says which conversation this is,
+     * for Gmail as much as for the recipient, and every way into deliver()
+     * writes them. Without the id Gmail filed each reply sent from plMail in a
+     * new thread, however right its headers were.
+     *
+     * Null for new mail, and for a reply to mail plMail has no Gmail thread
+     * for (one that has not been synced, or lives on another account). Gmail
+     * then starts a thread, which is all it could do anyway.
+     *
+     * Not on the SMTP path above: SMTP has no field for it, and Gmail threads
+     * mail sent that way from its headers as it does mail it receives.
+     */
+    private function threadIdFor(Email $email, Account $account): ?string
+    {
+        $headers = $email->getHeaders();
+
+        $answered = MessageIdHelper::normaliseList(array_merge(
+            MessageIdHelper::normaliseList($headers->get('In-Reply-To')?->getBodyAsString()),
+            MessageIdHelper::normaliseList($headers->get('References')?->getBodyAsString()),
+        ));
+
+        return $this->threading->findProviderThreadKeyForReply($answered, $account);
     }
 
     /** @return array<string, mixed> */
