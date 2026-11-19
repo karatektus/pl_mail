@@ -1,5 +1,6 @@
 import { test, expect } from "./support/test";
-import { TEST_DEMO, TEST_DEMO_ADMIN, ajaxPost, consoleCommand, login, seedUser } from "./support/config";
+import { TEST_DEMO, TEST_DEMO_ADMIN, ajaxPost, consoleCommand, login, mailRow, seedUser } from "./support/config";
+import { rowAction } from "./support/rows";
 
 /**
  * The pictures beside highlighted entries in What's new (#165).
@@ -846,5 +847,182 @@ test.describe("What's new screenshots, v0.4.3", () => {
         await expect(dock.locator('[data-compose--compose-target="ccField"]')).toContainText("jonas@ramanjoinery.example");
 
         await capture(page, "mailto-links", dock.locator(".compose-window"));
+    });
+});
+
+/**
+ * A square picture for a demo contact (#639): a company's mark, or a person's
+ * head and shoulders. Drawn rather than shipped, like demoPhoto, so the repo
+ * carries no stock portraits; flat shapes are what a logo or an avatar at
+ * 32 pixels reads as anyway.
+ */
+async function demoAvatar(page: Page, kind: "person" | "mark", background: string, foreground: string, shape: "peak" | "bars" = "bars"): Promise<Buffer> {
+    const base64 = await page.evaluate(async ([k, bg, fg, text]) => {
+        const size = 256;
+        const canvas = new OffscreenCanvas(size, size);
+        const context = canvas.getContext("2d")!;
+        context.fillStyle = bg;
+        context.fillRect(0, 0, size, size);
+        context.fillStyle = fg;
+
+        if ("person" === k) {
+            context.beginPath();
+            context.arc(size / 2, size * 0.4, size * 0.2, 0, Math.PI * 2);
+            context.fill();
+            context.beginPath();
+            context.ellipse(size / 2, size * 1.02, size * 0.38, size * 0.4, 0, 0, Math.PI * 2);
+            context.fill();
+        } else if ("peak" === text) {
+            context.beginPath();
+            context.moveTo(size * 0.12, size * 0.74);
+            context.lineTo(size * 0.42, size * 0.3);
+            context.lineTo(size * 0.58, size * 0.52);
+            context.lineTo(size * 0.68, size * 0.4);
+            context.lineTo(size * 0.88, size * 0.74);
+            context.closePath();
+            context.fill();
+        } else {
+            for (const [y, w] of [[0.28, 0.6], [0.45, 0.44], [0.62, 0.28]]) {
+                context.fillRect(size * 0.2, size * y, size * w, size * 0.1);
+            }
+        }
+
+        const blob = await canvas.convertToBlob({ type: "image/png" });
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) {
+            binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        }
+
+        return btoa(binary);
+    }, [kind, background, foreground, shape] as const);
+
+    return Buffer.from(base64, "base64");
+}
+
+test.describe("What's new screenshots, v0.4.4", () => {
+    test.skip(undefined === process.env.E2E_SCREENSHOTS, 'Demo mailbox required — run "npm run test:e2e:screenshots".');
+
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.beforeAll(() => {
+        seedUser({ email: TEST_DEMO.email, password: TEST_DEMO.password });
+        consoleCommand(`app:test:seed-demo --email=${TEST_DEMO.email}`);
+    });
+
+    test.beforeEach(async ({ page }) => {
+        await login(page, TEST_DEMO.email, TEST_DEMO.password);
+    });
+
+    /**
+     * The inbox with pictures beside most senders and an initial beside the
+     * rest (#639). From contact photos, the one source that needs no lookup
+     * on the internet: BIMI, Gravatar and website icons would make the
+     * picture depend on what example domains answer today. The demo's
+     * contacts have no photos, so they are given some through the contact
+     * page's own upload, and the reseed of the next run takes them off again.
+     */
+    test("sender-pictures", async ({ page }) => {
+        const photos: Array<[string, Buffer]> = [
+            ["Priya Raman", await demoAvatar(page, "person", "#c7d7e8", "#3d5a80")],
+            ["Mum", await demoAvatar(page, "person", "#f2d4c2", "#9c5a3c")],
+            ["Sofia Marchetti", await demoAvatar(page, "person", "#d9e8d0", "#4f7a45")],
+            ["Steuerbüro Lang", await demoAvatar(page, "mark", "#1f3b57", "#e9c46a", "bars")],
+            ["Hotel Aare", await demoAvatar(page, "mark", "#2a9d8f", "#ffffff", "peak")],
+            ["Jonas Weber", await demoAvatar(page, "person", "#e6dcf0", "#6b4f8a")],
+            ["Marek Nowak", await demoAvatar(page, "mark", "#8b5e34", "#f4e3c8", "bars")],
+        ];
+
+        for (const [name, photo] of photos) {
+            await page.goto("/contacts");
+            await page.getByRole("link", { name, exact: false }).first().click();
+            await expect(page).toHaveURL(/\/contacts\/\d+/);
+            const id = page.url().match(/\/contacts\/(\d+)/)![1];
+
+            await page.goto(`/contacts/${id}/edit`);
+            const uploaded = page.waitForResponse((r) => r.url().endsWith(`/contacts/${id}/photo`) && "POST" === r.request().method());
+            await page.locator("#f-photo").setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: photo });
+            expect((await uploaded).status(), `${name}: the photo was refused`).toBeLessThan(400);
+        }
+
+        // Tall enough for the whole demo inbox, and only its sender column:
+        // at the dialog's 220 pixels the column of circles is the feature,
+        // and the subjects beside it would be a grey blur.
+        await page.setViewportSize({ width: 1200, height: 1100 });
+        await page.goto("/mail/inbox");
+
+        const rows = page.locator('#message-list li[data-controller="mail--message-row"]');
+        await expect(page.locator("#message-list img").first()).toBeVisible();
+        await expect(page.locator('[data-controller~="ui--toast"]')).toHaveCount(0, { timeout: 8_000 });
+        await page.waitForLoadState("networkidle");
+        await page.waitForTimeout(400);
+
+        const first = (await rows.first().boundingBox())!;
+        const last = (await rows.last().boundingBox())!;
+        await page.screenshot({
+            path: `${OUT}/sender-pictures.png`,
+            clip: { x: first.x, y: first.y, width: 420, height: last.y + last.height - first.y },
+        });
+    });
+
+    /** Two conversations pinned above the line, through the row's own thumbtack (#654). */
+    test("pin-conversations", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const rows = page.locator('#message-list li[data-controller="mail--message-row"]');
+        await expect(rows.nth(4)).toBeVisible();
+
+        // From further down, so the picture shows them moved up.
+        const subjects = [
+            (await rows.nth(3).locator("[data-row-subject], .subject").first().textContent() ?? "").trim(),
+            (await rows.nth(4).locator("[data-row-subject], .subject").first().textContent() ?? "").trim(),
+        ];
+
+        for (const subject of subjects) {
+            const row = mailRow(page, subject).first();
+            const pinned = page.waitForResponse((r) => r.url().includes("/pin") && "POST" === r.request().method());
+            await rowAction(row, /^Pin/);
+            expect((await pinned).status()).toBeLessThan(400);
+            await expect(mailRow(page, subject).first()).toHaveAttribute("data-pinned", "true");
+        }
+
+        await page.mouse.move(0, 0);
+        await capture(page, "pin-conversations", page.locator("#message-list"), 366);
+    });
+
+    /** The snooze menu with Pick a date and time unfolded (#342), on a row. */
+    test("snooze-pick-date", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const row = page.locator('#message-list li[data-controller="mail--message-row"]').nth(1);
+        await rowAction(row, /snooze/i);
+
+        const menu = page.locator("#row-snooze-menu");
+        await menu.getByRole("menuitem", { name: /Pick a date and time/ }).click();
+        await expect(menu.locator('[data-mail--snooze-menu-target="custom"]')).toBeVisible();
+
+        await capture(page, "snooze-pick-date", menu);
+    });
+
+    /**
+     * The week with events in colours of their own beside ones in their
+     * calendar's (#616). The demo seed gives most of its events a colour, as a
+     * phone sharing the calendar would; scrolled to the morning so every block
+     * has its label, as the README's calendar picture is.
+     */
+    test("event-colours", async ({ page }) => {
+        await page.goto("/calendar/week");
+        await expect(page.getByRole("button", { name: /Dentist/ }).first()).toBeVisible();
+
+        await page.evaluate(() => {
+            const scroller = document.querySelector('[data-calendar--time-grid-target="scroller"]');
+            const hours = document.querySelector('[data-calendar--time-grid-target="hours"]');
+
+            if (null !== scroller && null !== hours) {
+                scroller.scrollTop = ((hours as HTMLElement).offsetHeight * 7.75) / 24;
+            }
+        });
+
+        await capture(page, "event-colours", page.locator('[data-controller~="calendar--time-grid"]').first(), 520);
     });
 });

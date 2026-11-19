@@ -1,4 +1,3 @@
-<!-- highlight -->
 **An account can only send, or only receive (#628).** An SMTP relay such as SMTP2go has no mailbox
 to read, and adding one meant inventing an incoming server that then failed every sync. The account
 form now has a **Receive mail** switch on its Incoming heading and a **Send mail** switch on its
