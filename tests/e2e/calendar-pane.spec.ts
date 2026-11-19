@@ -135,6 +135,32 @@ test.describe("calendar pane demotion", () => {
         }).toPass({ timeout: 10_000 });
     });
 
+    // #678: the pane has the address book's ends, not only the topbar's.
+    test("the pane's own ↗, ↙ and × move it between its three positions", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await enterMode(page, "split");
+
+        const pane = page.locator("[data-side-pane='calendar']");
+
+        await expect(pane.getByRole("button", { name: "Show the calendar beside the mail" })).toBeHidden();
+        await pane.getByRole("link", { name: "Show the calendar full width" }).click();
+
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "calendar");
+        await expect(page.locator("[data-mail-column]")).toBeHidden();
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+        await expect(pane.getByRole("link", { name: "Show the calendar full width" })).toBeHidden();
+
+        await pane.getByRole("button", { name: "Show the calendar beside the mail" }).click();
+
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "split");
+        await expect(page.locator("[data-mail-column]")).toBeVisible();
+
+        await pane.getByRole("button", { name: "Close the calendar" }).click();
+
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
+        await expect(pane).toBeHidden();
+    });
+
     test.describe("just above lg", () => {
         test.use({ viewport: { width: 1100, height: 800 } });
 

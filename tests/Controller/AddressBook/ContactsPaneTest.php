@@ -140,7 +140,7 @@ final class ContactsPaneTest extends WebTestCase
         self::assertCount(1, $frame->filter('[data-contacts-page] form'));
         self::assertSame('advance', $frame->attr('data-turbo-action'), 'a navigation inside it is the page\'s, while it has the row');
         self::assertNull($frame->attr('src'), 'the page itself, not fetched after it');
-        // Drawn for when it docks beside the mail; app.css hides them until then.
+        // Its window controls, at full width ↙ and × (app.css hides the ↗).
         self::assertCount(1, $frame->filter('[data-contacts-pane-actions]'));
     }
 

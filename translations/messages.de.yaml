@@ -1797,6 +1797,7 @@ calendar:
         previous: Zurück
     open_day: 'Alles am %date%'
     pane:
+        close: 'Kalender schließen'
         mode:
             calendar: Kalender in voller Breite zeigen
             mail: Mail zeigen

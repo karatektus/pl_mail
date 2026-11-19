@@ -306,6 +306,48 @@ test.describe("contacts pane on a notebook", () => {
         await expect(shell(page)).toHaveAttribute("data-contacts-full", "");
         await expect(page).toHaveURL(/\/mail\/inbox/);
         await expect(toggle(page)).toHaveAttribute("aria-label", "Hide contacts");
+
+        // And back, from the pane itself: full width used to hide its
+        // controls, and only the topbar could undo it (#678).
+        await expect(frame(page).getByRole("link", { name: "Show contacts full width" })).toBeHidden();
+        await frame(page).getByRole("button", { name: "Show contacts beside the mail" }).click();
+
+        await expect(shell(page)).not.toHaveAttribute("data-contacts-full", "");
+        await expect(dock(page)).toBeVisible();
+        await expect(page.locator("[data-mail-column]")).toBeVisible();
+    });
+
+    // #678: one rule across the window, from under Compose through every
+    // pane's header. They were 60, 52 and 44px tall, and the rule stepped.
+    test("every header's rule continues the one under Compose", async ({ page }) => {
+        const bottom = (selector: string) =>
+            page.locator(selector).first().evaluate((el) => Math.round(el.getBoundingClientRect().bottom));
+        const compose = () => bottom(".compose-wrap:visible");
+
+        await page.goto("/mail/inbox");
+        await toggle(page).click();
+        await expect(frame(page).locator("[data-contacts-page]")).toBeVisible();
+
+        const line = await compose();
+
+        expect(await bottom("[data-toolbar-row]:visible >> xpath=..")).toBe(line);
+        expect(await bottom("[data-side-pane='contacts'] [data-contacts-page] > div")).toBe(line);
+
+        // A notebook holds one pane beside the mail: the calendar takes the room.
+        await page.locator("[data-calendar-toggle]").first().click();
+        await expect(calendar(page).locator("[data-calendar-position]")).toBeVisible();
+
+        expect(await bottom("[data-side-pane='calendar'] .border-b:has([data-calendar-position])")).toBe(line);
+    });
+
+    test("the full contacts page closes to the Inbox from its own ×", async ({ page }) => {
+        await page.goto("/contacts");
+        await expect(shell(page)).toHaveAttribute("data-contacts-full", "");
+
+        await frame(page).getByRole("button", { name: "Close contacts" }).click();
+
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+        await expect(dock(page)).toBeHidden();
     });
 
     test("from the full contacts page, the mail comes in beside the contact, which stays as it was", async ({ page }) => {

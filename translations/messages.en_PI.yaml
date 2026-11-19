@@ -1687,6 +1687,7 @@ calendar:
         previous: Back
     open_day: 'All that be on %date%'
     pane:
+        close: 'Stow the almanac'
         mode:
             calendar: Give the almanac the whole deck
             mail: Show the letters

@@ -133,26 +133,26 @@ Variables:
                    end or the horizon at the other is drawn disabled rather than
                    removed, so the row does not change shape as you page — and so
                    the reader can see there is no more rather than wondering. #}
-                <div class="flex items-center gap-2 px-3 py-1 border-b border-line min-h-[var(--pane-header-h)]">
+                <div class="pane-header flex items-center gap-2 px-3 border-b border-line">
                     <div class="flex items-center gap-0.5 shrink-0">
                         {% if week.previous is not null %}
                             <a href="{{ path('app_booking_show', { token: token, (weekParam): week.previous, tz: zone }) }}"
-                               class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+                               class="icon-btn"
                                aria-label="{{ 'calendar.nav.previous'|trans }}"
                             ><i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i></a>
                         {% else %}
-                            <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40"
+                            <span class="icon-btn opacity-40 pointer-events-none"
                                   aria-hidden="true"
                             ><i class="fa-solid fa-chevron-left text-xs"></i></span>
                         {% endif %}
 
                         {% if week.next is not null %}
                             <a href="{{ path('app_booking_show', { token: token, (weekParam): week.next, tz: zone }) }}"
-                               class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+                               class="icon-btn"
                                aria-label="{{ 'calendar.nav.next'|trans }}"
                             ><i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i></a>
                         {% else %}
-                            <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40"
+                            <span class="icon-btn opacity-40 pointer-events-none"
                                   aria-hidden="true"
                             ><i class="fa-solid fa-chevron-right text-xs"></i></span>
                         {% endif %}
