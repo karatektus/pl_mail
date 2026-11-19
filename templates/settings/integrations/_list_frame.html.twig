@@ -132,17 +132,37 @@ into a message they can act on.
                 {{ 'settings.integrations.available_heading'|trans }}
             </h3>
             <div class="flex flex-wrap gap-2">
+                {#
+                    OAuth services leave for the provider's consent screen, which
+                    only a real page navigation can reach (#681). Loaded into the
+                    dialog's frame, the connect URL was fetched, its redirect to
+                    accounts.google.com was refused by `connect-src 'self'`, and
+                    the dialog sat on its spinner. Widening the CSP would not help:
+                    authorize endpoints send no CORS headers, so the fetch fails
+                    either way. Turbo is off on the link for the same reason — a
+                    Drive visit is a fetch too, and only recovers by reloading.
+                #}
                 {% for config in available %}
-                    <button type="button"
-                            data-controller="ui--modal"
-                            data-ui--modal-src-value="{{ path('app_settings_integrations_connect', { provider: config.provider.value }) }}"
-                            data-ui--modal-title-value="{{ config.provider.label }}"
-                            data-action="click->ui--modal#open"
-                            class="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-sm font-medium
-                                   text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors cursor-pointer">
-                        <i class="{{ config.provider.icon }} text-xs" aria-hidden="true"></i>
-                        {{ config.provider.label }}
-                    </button>
+                    {% if config.provider.authKind.value == 'oauth2' %}
+                        <a href="{{ path('app_integration_oauth_connect', { provider: config.provider.value }) }}"
+                           data-turbo="false"
+                           class="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-sm font-medium
+                                  text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
+                            <i class="{{ config.provider.icon }} text-xs" aria-hidden="true"></i>
+                            {{ config.provider.label }}
+                        </a>
+                    {% else %}
+                        <button type="button"
+                                data-controller="ui--modal"
+                                data-ui--modal-src-value="{{ path('app_settings_integrations_connect', { provider: config.provider.value }) }}"
+                                data-ui--modal-title-value="{{ config.provider.label }}"
+                                data-action="click->ui--modal#open"
+                                class="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-sm font-medium
+                                       text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors cursor-pointer">
+                            <i class="{{ config.provider.icon }} text-xs" aria-hidden="true"></i>
+                            {{ config.provider.label }}
+                        </button>
+                    {% endif %}
                 {% endfor %}
             </div>
         </div>
