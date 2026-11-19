@@ -59,6 +59,7 @@ account:
             help: 'Auf der nächsten Seite wird nur das angefragt, was du ankreuzt. Ändern kannst du es später unter Einstellungen → Konten.'
             legend: 'Konto verwenden für'
     primary_set: Primäres Konto geändert
+    removal_started: 'Das Konto wird entfernt. Seine E-Mails werden im Hintergrund gelöscht; auf dem Server bleiben sie.'
     removed: Konto entfernt
     service:
         calendar:
@@ -1678,6 +1679,7 @@ calendar:
         until: bis %when%
     ics:
         error:
+            import_gone: 'Der Kalender oder die hochgeladene Datei war beim Start des Imports nicht mehr da. Lade die Datei noch einmal hoch.'
             no_calendar: Wähle einen Kalender für die Termine.
             no_file: >-
                 Wähle eine .ics-Datei. Falls du eine gewählt hast, ist
@@ -1736,6 +1738,7 @@ calendar:
             import_nothing_new: >-
                 Nichts hinzuzufügen — jeder Termin aus dieser Datei steht schon
                 in deinen Kalendern.
+            import_started: 'Die Datei wird importiert — das läuft im Hintergrund. Du erfährst, was hinzugekommen ist.'
             imported: '%added% hinzugefügt, %updated% aktualisiert, %skipped% übersprungen.'
             subscribed: >-
                 Abonniert — der Kalender füllt sich binnen einer Minute.
@@ -2875,6 +2878,10 @@ jobs:
         purge: Endgültig löschen
         reclassify: Sortiert neueste Mail neu
         delete_label: Löscht ein Label
+        delete_account: Konto wird entfernt
+        import_contacts: Kontakte werden importiert
+        import_calendar: Kalenderdatei wird importiert
+        resort_removed_category: Mail eines gelöschten Tabs wird neu einsortiert
     state:
         done: '%count% erledigt'
         failed: fehlgeschlagen
@@ -3660,6 +3667,8 @@ settings:
                 jmap: 'Änderungen kommen sofort an: Der JMAP-Server schickt sie an plMail – per Webhook, wenn er diesen Server erreicht, sonst über eine offen gehaltene Verbindung.'
                 microsoft: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
             title: Sofortige Zustellung
+        removing: 'Wird entfernt …'
+        removing_progress: '%done% von %total% Nachrichten entfernt'
         reorder: Zum Umsortieren ziehen
         services:
             allow: 'Erlauben…'
@@ -5265,6 +5274,7 @@ settings:
         delete: Kategorie löschen
         delete_confirm: 'Kategorie „%name%“ löschen? Die dort abgelegte Mail kommt zurück in den Tab, in dem sie sonst wäre. Es wird keine Mail gelöscht.'
         deleted: 'Kategorie „%name%“ gelöscht.'
+        deleted_resorting: 'Kategorie „%name%“ gelöscht. Ihre Unterhaltungen kommen im Hintergrund zurück in ihre Tabs.'
         error:
             empty: 'Eine Kategorie braucht einen Namen.'
             reserved: 'Dieser Name gehört zu einem der eingebauten Tabs.'
@@ -5840,12 +5850,13 @@ contacts:
     import_bad_format: 'Nur .vcf/.vcard- und .csv-Dateien lassen sich importieren.'
     import_choose: 'Datei wählen'
     import_confirm: '%count% Kontakte importieren'
-    import_dedupe_note: 'Nach dem Import landest du auf der Seite mit den Doppelten, um doppelt Importiertes zusammenzuführen.'
+    import_dedupe_note: 'Ist der Import fertig, kannst du unter „Doppelte“ doppelt Importiertes zusammenführen.'
     import_expired: 'Der vorbereitete Import ist abgelaufen. Bitte lade die Datei erneut hoch.'
     import_formats: '.vcf, .vcard oder .csv'
     import_hint: 'Ein .vcf/.vcard-Adressbuchexport oder eine .csv-Datei. Doppelte werden nach dem Import geprüft.'
     import_no_file: 'Es wurde keine Datei hochgeladen.'
     import_preview_count: '%count% Kontakte in der %format%-Datei gefunden. Die ersten davon:'
+    import_started: '%count% Kontakte werden importiert — das läuft im Hintergrund. Du erfährst, wenn es fertig ist.'
     import_step1: 'Schritt 1 — Datei wählen'
     import_step2: 'Schritt 2 — Vorschau'
     import_upload: 'Hochladen & Vorschau'

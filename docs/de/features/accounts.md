@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:cbb6c121bebe79f4ce79d1e89925c0ee498fe797 -->
+<!-- translated-from: features/accounts.md sha1:62da6ef95e256b92e983cc39412c57814c53401a -->
 
 # Konten und Aliase
 
@@ -211,6 +211,16 @@ könnte.
 Ein Konto zu entfernen löscht dessen synchronisierte Mail aus plMails Datenbank und beim
 Anbieter nichts. Außerdem wird versucht, jede Push-Registrierung abzubauen, die es hatte, damit
 nichts zurückbleibt, das auf ein Konto zeigt, das es nicht mehr gibt.
+
+Das Entfernen läuft im Hintergrund, weil ein großes Postfach länger zum Löschen braucht, als eine
+Seitenanfrage dauern darf. Sobald du bestätigst, werden alle Dienste des Kontos ausgeschaltet: Es
+synchronisiert und sendet nicht mehr, und die Kennzeichnung als primär geht nötigenfalls an ein
+anderes Konto. Die Zeile bleibt in der Liste, ausgegraut und ohne Schaltflächen, und zeigt, wie
+viele Nachrichten schon entfernt sind; derselbe Fortschritt steht unter **Hintergrundarbeit** in der
+oberen Leiste. Die Zeile verschwindet, sobald das Konto entfernt ist. Schlägt das Entfernen fehl,
+nennt die Anzeige den Grund, und das Konto erscheint wieder als normale Zeile, mit ausgeschalteten
+Diensten und einem Teil seiner Mail schon entfernt; ein erneutes **Konto entfernen** macht dort
+weiter.
 
 Alles andere, was eine Registrierung wegnimmt, gibt sie dem Anbieter inzwischen genauso zurück —
 einen Kalender löschen, einen abwählen, eine Verbindung trennen und das Zurücksetzen der Daten durch

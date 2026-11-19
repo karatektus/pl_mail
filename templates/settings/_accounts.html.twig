@@ -18,8 +18,45 @@
         data-settings--account-order-url-value="{{ path('app_account_reorder') }}"
         data-settings--account-order-csrf-value="{{ csrf_token('account_reorder') }}"
         data-settings--account-order-target="list">
+        {# Accounts on their way out (#672), by id. Removing runs on a worker,
+           and until it finishes the row stays — greyed out, with how far it has
+           got and nothing to press: every control on it would act on an
+           account that is being emptied. settings--account-removal re-reads
+           the list while one is there, so the row goes when the job does, or
+           comes back as an ordinary row if the job fails.
+
+           Passed in by AccountController when it renders this after a change,
+           read before the list for the reason AccountController::accountLists()
+           gives; asked here only on an ordinary page load. #}
+        {% set removals = removals ?? account_removals() %}
         {% for account in manageableAccounts %}
             {% set isPassword = account.authType == 'password' %}
+            {% set removal = removals[account.id] ?? null %}
+            {% if removal %}
+            <li class="flex items-center gap-3 px-4 py-3.5 opacity-70" data-account-id="{{ account.id }}"
+                data-account-removing aria-busy="true"
+                data-controller="settings--account-removal"
+                data-settings--account-removal-url-value="{{ path('app_account_lists') }}">
+                <span class="w-8 h-8 flex items-center justify-center shrink-0 text-ink-faint">
+                    <i class="fa-solid fa-arrows-rotate fa-spin text-xs" aria-hidden="true"></i>
+                </span>
+                <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-medium text-ink">{{ account.displayAddress }}</p>
+                    <p class="truncate text-xs text-ink-faint">
+                        {% if removal.total > 0 %}
+                            {{ 'settings.accounts.removing_progress'|trans({ '%done%': removal.processed|number_format, '%total%': removal.total|number_format }) }}
+                        {% else %}
+                            {{ 'settings.accounts.removing'|trans }}
+                        {% endif %}
+                    </p>
+                    {% if removal.total > 0 %}
+                        <div class="mt-1.5 h-1 rounded-full bg-line overflow-hidden">
+                            <div class="h-full bg-accent transition-all duration-300" style="width: {{ removal.percent() }}%"></div>
+                        </div>
+                    {% endif %}
+                </div>
+            </li>
+            {% else %}
             <li class="flex items-center gap-3 px-4 py-3.5" data-account-id="{{ account.id }}">
 
                 {# Buttons as well as a handle: a drag is unreachable from a
@@ -428,6 +465,7 @@
                     </form>
                 </div>
             </li>
+            {% endif %}
         {% endfor %}
     </ul>
 {% endif %}

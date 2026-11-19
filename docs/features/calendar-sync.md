@@ -248,7 +248,9 @@ a *different* calendar of yours: skipped and counted, because you picked this ca
 row on another one is not what you asked for — least of all when the other one is a mirror, where the
 rewrite would be pushed out to the provider. Nowhere yet: created.
 
-The result is reported as *N added, N updated, N skipped*, or, when there was nothing to do,
+The import runs in the background once the file has been read as a calendar, so a large export does
+not time out; **Background work** in the top bar shows how far it has got. When it is done, the result
+is reported as *N added, N updated, N skipped*, or, when there was nothing to do,
 *Nothing to add — every event in that file is already on your calendars.* A file plMail cannot read
 as a calendar says so rather than importing zero events silently.
 

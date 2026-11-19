@@ -314,6 +314,14 @@ framework:
             # Its server half waits by re-dispatching itself on a delay, so it
             # never holds the one consumer while it waits.
             App\Infrastructure\Messaging\Message\DeleteLabelMessage: bulk
+            # And removing a whole account (#672): its mail goes in batches that
+            # take as long as the mailbox is big, which is why it left the request.
+            App\Infrastructure\Messaging\Message\DeleteAccountMessage: bulk
+            # Imports of a file somebody just uploaded, and re-sorting what a
+            # removed tab held: the same reason, somebody is watching (#672).
+            App\Infrastructure\Messaging\Message\ImportContactsMessage: bulk
+            App\Infrastructure\Messaging\Message\ImportCalendarMessage: bulk
+            App\Infrastructure\Messaging\Message\ResortRemovedCategoryMessage: bulk
             # And so is filing a label's mail into the folder it has just become.
             App\Infrastructure\Messaging\Message\MakeLabelFolderMessage: bulk
             App\Infrastructure\Messaging\Message\MakeLabelTagMessage: bulk

@@ -59,6 +59,7 @@ account:
             help: 'L’écran suivant ne demande que ce que vous cochez. Vous pourrez le changer plus tard dans Paramètres → Comptes.'
             legend: 'Utiliser ce compte pour'
     primary_set: Compte principal modifié
+    removal_started: 'Suppression du compte. Son courrier est supprimé en arrière-plan ; le serveur garde sa copie.'
     removed: Compte supprimé
     service:
         calendar:
@@ -1666,6 +1667,7 @@ calendar:
         until: jusqu’à %when%
     ics:
         error:
+            import_gone: 'Le calendrier ou le fichier envoyé avait disparu au début de l’import. Envoyez le fichier à nouveau.'
             no_calendar: Choisissez un agenda où placer les événements.
             no_file: >-
                 Choisissez un fichier .ics. Si vous en avez choisi un, il est peut-être
@@ -1719,6 +1721,7 @@ calendar:
             import_nothing_new: >-
                 Rien à ajouter — chaque événement de ce fichier est déjà dans vos
                 agendas.
+            import_started: 'Import du fichier — il se fait en arrière-plan. Vous saurez ce qu’il a ajouté.'
             imported: '%added% ajoutés, %updated% mis à jour, %skipped% ignorés.'
             subscribed: >-
                 Abonné — l’agenda se remplira d’ici une minute.
@@ -2888,6 +2891,10 @@ jobs:
         purge: Suppression définitive
         reclassify: Nouveau tri du courrier récent
         delete_label: Suppression d’un libellé
+        delete_account: Suppression d’un compte
+        import_contacts: Import de contacts
+        import_calendar: Import d’un fichier de calendrier
+        resort_removed_category: Retri du courrier d’un onglet supprimé
     state:
         done: '%count% terminés'
         failed: échec
@@ -3690,6 +3697,8 @@ settings:
                 jmap: 'Les changements arrivent immédiatement : le serveur JMAP les envoie à plMail, par webhook quand il peut joindre ce serveur, sinon par une connexion maintenue ouverte.'
                 microsoft: Le nouveau courrier arrive immédiatement via les notifications push de Microsoft.
             title: Livraison instantanée
+        removing: 'Suppression en cours…'
+        removing_progress: '%done% messages supprimés sur %total%'
         reorder: Faites glisser pour réorganiser
         services:
             allow: 'Autoriser…'
@@ -3761,6 +3770,7 @@ settings:
         delete: "Supprimer la catégorie"
         delete_confirm: "Supprimer « %name% » ? Le courrier qui y est classé retourne dans l’onglet où il serait sinon. Aucun courrier n’est supprimé."
         deleted: "Catégorie « %name% » supprimée."
+        deleted_resorting: "Catégorie « %name% » supprimée. Ses conversations retournent dans leurs onglets en arrière-plan."
         error:
             empty: "Une catégorie a besoin d’un nom."
             reserved: "Ce nom appartient à l’un des onglets intégrés."
@@ -5869,12 +5879,13 @@ contacts:
     import_bad_format: 'Seuls les fichiers .vcf/.vcard et .csv peuvent être importés.'
     import_choose: 'Choisir un fichier'
     import_confirm: 'Importer %count% contacts'
-    import_dedupe_note: 'Après l’import, la page des doublons permet de fusionner les éventuels doublons.'
+    import_dedupe_note: 'Une fois l’import terminé, ouvrez Doublons pour fusionner ce qui a été importé deux fois.'
     import_expired: 'L’import préparé a expiré. Veuillez renvoyer le fichier.'
     import_formats: '.vcf, .vcard ou .csv'
     import_hint: 'Un export de carnet d’adresses .vcf/.vcard ou un fichier .csv. Les doublons sont vérifiés après l’import.'
     import_no_file: 'Aucun fichier téléversé.'
     import_preview_count: '%count% contacts trouvés dans le fichier %format%. Premiers affichés :'
+    import_started: 'Import de %count% contacts — il se fait en arrière-plan. Vous serez prévenu à la fin.'
     import_step1: 'Étape 1 — choisir un fichier'
     import_step2: 'Étape 2 — aperçu'
     import_upload: 'Importer & aperçu'

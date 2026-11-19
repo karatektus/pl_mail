@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-sync.md sha1:dd7c101b08e28ee9c50c60a4f8c948b121f70b79 -->
+<!-- translated-from: features/calendar-sync.md sha1:9cec58ffb9d7150f437c435f71a043320b457611 -->
 
 # Verbundene Kalender
 
@@ -271,7 +271,9 @@ Kalender gewählt, und eine Zeile in einem anderen umzuschreiben ist nicht das, 
 hast — am allerwenigsten, wenn der andere eine Spiegelung ist, wo das Umschreiben zum Anbieter
 hinausgeschoben würde. Noch nirgends: angelegt.
 
-Das Ergebnis wird als *N hinzugefügt, N aktualisiert, N übersprungen* gemeldet, oder, wenn es nichts
+Der Import läuft im Hintergrund, sobald die Datei als Kalender gelesen ist, damit auch ein großer Export
+nicht in eine Zeitüberschreitung läuft; **Hintergrundarbeit** in der oberen Leiste zeigt den Fortschritt.
+Ist er fertig, wird das Ergebnis als *N hinzugefügt, N aktualisiert, N übersprungen* gemeldet, oder, wenn es nichts
 zu tun gab, als *Nichts hinzuzufügen — jeder Termin aus dieser Datei steht schon in deinen Kalendern.*
 Eine Datei, die plMail nicht als Kalender lesen kann, sagt das, statt stillschweigend null Termine zu
 importieren.

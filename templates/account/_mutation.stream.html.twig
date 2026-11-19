@@ -1,6 +1,10 @@
 {# Closes the modal (if open), toasts, and refreshes both the sidebar list
    and the settings pane. Streams targeting an absent id are no-ops, so this
-   works whether the mutation came from the sidebar or the settings screen. #}
+   works whether the mutation came from the sidebar or the settings screen.
+
+   `jobsChanged` redraws the jobs indicator too, for a mutation that has just
+   queued one (removing an account, #672), so the work shows at once rather
+   than when the worker first reports. #}
 
 <turbo-stream action="update" target="modal">
     <template></template>
@@ -8,20 +12,12 @@
 
 {% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
 
-{# Sidebar list (mail pages) — uses the active-only accounts global. #}
-<turbo-stream action="replace" target="account-list">
-    <template>
-        <div id="account-list" class="space-y-0.5">
-            {% include '_partials/_account_list.html.twig' %}
-        </div>
-    </template>
-</turbo-stream>
+{% include 'account/_lists.stream.html.twig' %}
 
-{# Settings pane — uses the full, explicitly-passed account list. #}
-<turbo-stream action="replace" target="settings-account-list">
-    <template>
-        <div id="settings-account-list">
-            {% include 'settings/_accounts.html.twig' with { manageableAccounts: manageableAccounts } %}
-        </div>
-    </template>
-</turbo-stream>
+{% if jobsChanged|default(false) %}
+    <turbo-stream action="replace" target="jobs-indicator">
+        <template>
+            {{ include('mail/_jobs_indicator.html.twig', { jobs: background_jobs(), imports: mail_imports() }) }}
+        </template>
+    </turbo-stream>
+{% endif %}

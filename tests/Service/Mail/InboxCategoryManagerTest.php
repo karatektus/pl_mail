@@ -51,6 +51,7 @@ final class InboxCategoryManagerTest extends KernelTestCase
             $container->get(\Symfony\Contracts\Translation\TranslatorInterface::class),
             $container->get(\App\Jmap\State\StateManager::class),
             $container->get(\App\Service\Mail\InboxTabChanges::class),
+            $container->get(\Symfony\Component\Messenger\MessageBusInterface::class),
         );
 
         $this->connection->beginTransaction();
@@ -213,6 +214,10 @@ final class InboxCategoryManagerTest extends KernelTestCase
      * re-resolve it until its next message arrived: it would sit in a stale
      * built-in tab for days, in the one place the removal was meant to put it
      * right. So the removal re-resolves exactly the conversations it freed.
+     *
+     * In two steps since #672: the removal leaves the conversations it freed on
+     * a job, and the job re-resolves them a batch at a time. The test takes the
+     * list off the job and runs the step the worker runs.
      */
     public function testAConversationPinnedIntoARemovedCategoryIsResolvedAgainAfterwards(): void
     {
@@ -225,7 +230,13 @@ final class InboxCategoryManagerTest extends KernelTestCase
         $thread->categoryPinnedAt  = new \DateTimeImmutable('2026-07-28 10:00:00');
         $this->em->flush();
 
-        $this->manager->remove($c);
+        $job = $this->manager->remove($c);
+
+        self::assertNotNull($job, 'a category that held a conversation leaves it to be re-sorted');
+        self::assertSame([(int) $thread->id], $job->view['threadIds'] ?? null);
+        self::assertSame('primary', $this->threadColumn($thread, 'category'), 'the request re-sorted it itself');
+
+        $this->manager->resort([(int) $thread->id]);
 
         self::assertSame(
             'promotions',
