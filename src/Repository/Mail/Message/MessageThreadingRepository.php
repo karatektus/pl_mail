@@ -10,6 +10,7 @@ use App\Entity\Mail\MessageLocation;
 use App\Entity\Mail\MessageThread;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ParameterType;
+use Doctrine\ORM\AbstractQuery;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -70,6 +71,71 @@ class MessageThreadingRepository extends ServiceEntityRepository
             ->setParameter('account', $account)
             ->setParameter('messageIds', $messageIds)
             ->orderBy('message.receivedAt', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * The provider's thread key for mail answering these Message-IDs: the
+     * Gmail threadId a reply has to be sent into (#676).
+     *
+     * The newest message named wins. After a conversation has been split —
+     * which is what sending without a threadId did — its messages sit in
+     * different Gmail threads, and the one the latest mail is in is where the
+     * other side's next answer will go too.
+     *
+     * The message's own key first, then its thread's: a row plMail wrote when
+     * it sent the mail has none of its own until Gmail's copy is synced onto
+     * it, but it sits in the thread it was answering, and that thread has one.
+     *
+     * Scoped to the account sending, through the thread like
+     * findOneByMessageIdsForAccount(): a key from another account's Gmail
+     * would name a thread this one does not have, and Gmail refuses the send.
+     *
+     * @param list<string> $messageIds normalised, as MessageIdHelper writes them
+     */
+    public function findProviderThreadKeyForReply(array $messageIds, Account $account): ?string
+    {
+        if (count($messageIds) === 0) {
+            return null;
+        }
+
+        $key = $this->createQueryBuilder('message')
+            ->select('COALESCE(message.providerThreadKey, thread.providerThreadKey)')
+            ->innerJoin('message.thread', 'thread')
+            ->where('thread.account = :account')
+            ->andWhere('message.messageId IN (:messageIds)')
+            ->andWhere('message.providerThreadKey IS NOT NULL OR thread.providerThreadKey IS NOT NULL')
+            ->setParameter('account', $account)
+            ->setParameter('messageIds', $messageIds)
+            ->orderBy('message.receivedAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult(AbstractQuery::HYDRATE_SINGLE_SCALAR);
+
+        return is_string($key) && '' !== $key ? $key : null;
+    }
+
+    /**
+     * The row plMail wrote when it sent this mail from this account, while
+     * Gmail's copy of it has not been synced onto it yet (#676).
+     *
+     * Sent by plMail (sentAt), and no Gmail id: once it has one, the sync finds
+     * it by that id and never asks here, and a row that already carries a
+     * different id is a different Gmail message which must not be given a
+     * second one. Lowest id first, so a retried batch picks the same row.
+     */
+    public function findSentAwaitingGmailCopy(Account $account, string $messageId): ?Message
+    {
+        return $this->createQueryBuilder('message')
+            ->where('message.account = :account')
+            ->andWhere('message.messageId = :messageId')
+            ->andWhere('message.sentAt IS NOT NULL')
+            ->andWhere('message.gmailId IS NULL')
+            ->setParameter('account', $account)
+            ->setParameter('messageId', $messageId)
+            ->orderBy('message.id', 'ASC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();

@@ -13,6 +13,7 @@ use App\Entity\Mail\Account;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GmailApiSender;
+use App\Repository\Mail\Message\MessageThreadingRepository;
 use App\Service\Mail\GmailSmtpDelivery;
 use App\Service\Mail\GraphApiClient;
 use App\Service\Mail\GraphApiSender;
@@ -76,6 +77,7 @@ final class SendFailureClassificationTest extends TestCase
             new GmailApiClient(new MockHttpClient($answer), $this->tokens(), new GmailQuotaPacer(new MockClock())),
             $this->createStub(GmailSmtpDelivery::class),
             new NullLogger(),
+            $this->createStub(MessageThreadingRepository::class),
         );
 
         $this->assertClassified(fn () => $sender->deliver($this->email(), new Account()), $expected, $failure);
@@ -94,6 +96,7 @@ final class SendFailureClassificationTest extends TestCase
             ),
             $this->createStub(GmailSmtpDelivery::class),
             new NullLogger(),
+            $this->createStub(MessageThreadingRepository::class),
         );
 
         try {
@@ -114,7 +117,7 @@ final class SendFailureClassificationTest extends TestCase
             return new MockResponse('{"messages":[{"id":"x"}]}', ['http_code' => 200]);
         });
 
-        $sender = new GmailApiSender(new GmailApiClient($http, $this->tokens(), new GmailQuotaPacer(new MockClock())), $this->createStub(GmailSmtpDelivery::class), new NullLogger());
+        $sender = new GmailApiSender(new GmailApiClient($http, $this->tokens(), new GmailQuotaPacer(new MockClock())), $this->createStub(GmailSmtpDelivery::class), new NullLogger(), $this->createStub(MessageThreadingRepository::class));
 
         self::assertTrue($sender->isInSent(new Account(), 'abc@example.test'));
         self::assertStringContainsString('in:sent rfc822msgid:abc@example.test', (string) $asked);

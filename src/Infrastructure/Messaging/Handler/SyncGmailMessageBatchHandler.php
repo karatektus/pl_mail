@@ -281,6 +281,46 @@ final readonly class SyncGmailMessageBatchHandler
                 }
             }
 
+            // ── Our own send: Gmail's copy of a row plMail already has ────────
+            // Mail sent from plMail is written as a row when it is sent; Gmail
+            // files its own copy in Sent, and the listing reports that copy
+            // like any other new message. The row has no Gmail id to be found
+            // by above, so the copy was built as a second row: every reply
+            // listed twice, the copy in a conversation of its own (#676).
+            //
+            // Found by Message-ID instead, which plMail stamped on the mail
+            // before sending it, and only among rows sent from this account
+            // that no Gmail id has reached yet. Enriched as a native row: this
+            // account's Gmail is the authority on its labels and flags from
+            // now on, exactly as for mail it received.
+            //
+            // Only SENT mail, and only this account's: a Gmailify sibling's
+            // copy is the merge further down, and a row of this account with
+            // this Message-ID that was not sent from here is not this mail.
+            if ($targetAccount === $account && true === in_array('SENT', $labelIds, true)) {
+                $rfcMessageId = MessageIdHelper::normalise($headers['message-id'] ?? '');
+                $sentRow      = '' !== $rfcMessageId
+                    ? $this->messageThreadingRepository->findSentAwaitingGmailCopy($account, $rfcMessageId)
+                    : null;
+
+                if (null !== $sentRow) {
+                    $this->enrichExisting($sentRow, $labelIds, $gmailId, $account, $account, true);
+
+                    // So the answer, which Gmail files under this id and which
+                    // is threaded by nothing else, finds the conversation.
+                    $gmailThreadId = (string) ($payload['threadId'] ?? '');
+
+                    if ('' !== $gmailThreadId) {
+                        $sentRow->providerThreadKey ??= $gmailThreadId;
+                        $this->messageThreader->adoptProviderThreadKey($sentRow, $gmailThreadId);
+                    }
+
+                    $enriched++;
+                    $affectedAccounts[(int) $account->id] = $account;
+                    continue;
+                }
+            }
+
             // ── Claimed by nobody: is it another account's copy? ──────────────
             // A message whose headers name neither this account nor any other
             // is this account's — it is in its mailbox. But Gmail may have
