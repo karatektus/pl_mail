@@ -31,12 +31,28 @@ there are three ways and the control should not know which:
 
 Arguments:
   name     the radios' name, shared by the group and posted as the field name
-  options  list of { value, label, attrs? }: `label` already translated,
-           `attrs` extra data-* for that one radio as a map
+  options  list of { value, label, attrs?, disabled?, wrap?, style? }:
+           `label`    already translated
+           `attrs`    extra data-* for that one radio, as a map
+           `disabled` true to refuse that one option while still showing it
+           `wrap`     attributes for the option's <label>, as a map; true
+                      writes the bare attribute, false or null leaves it out.
+                      For an option a controller shows and hides: Appearance's
+                      "Original" logo segment is `hidden` while the icon is
+                      the mark, and a hidden grid item takes no column
+           `style`    inline style for the visible segment — the typeface
+                      choice draws each option in the face it names
   current  the value that is checked. Compared as strings: Twig hands over
            array keys '1' and '0' as integers, and a switch must not end up
            with nothing checked because 1 is not '1'
   opts     label       the group's accessible name (or labelledby: an id)
+           prefix      true to name each radio "<label> — <option>" rather
+                       than by its option alone. Off by default: the group
+                       already carries the name, and specs find a radio in
+                       its group by the option's word, exactly. On where a
+                       page stacks many groups with the same words — Follow,
+                       Default, Custom — and a list of form fields would
+                       show a column of them with nothing to tell them apart
            width       width class for the strip; defaults to shrink-0 with
                        equal columns, which sizes to the longest option
            action      data-action on every radio
@@ -46,24 +62,29 @@ Arguments:
 {% macro control(name, options, current, opts = {}) %}
     {%- set _label      = opts.label ?? null -%}
     {%- set _labelledby = opts.labelledby ?? null -%}
+    {%- set _prefix     = (opts.prefix ?? false) and _label -%}
     <div class="grid grid-flow-col auto-cols-fr {{ opts.width ?? 'shrink-0' }} rounded-pane border border-line overflow-hidden"
          role="radiogroup"
          {% if _labelledby %}aria-labelledby="{{ _labelledby }}"{% elseif _label %}aria-label="{{ _label }}"{% endif %}
          data-segmented="{{ name }}">
         {% for option in options %}
-            <label class="cursor-pointer">
+            <label class="cursor-pointer"
+                   {%- for key, value in option.wrap ?? {} %}{% if value is same as(true) %} {{ key }}{% elseif value is not same as(false) and value is not null %} {{ key }}="{{ value }}"{% endif %}{% endfor %}>
                 <input type="radio" name="{{ name }}" class="peer sr-only"
                        value="{{ option.value }}"
                        {% if opts.action ?? null %}data-action="{{ opts.action }}"{% endif %}
                        {% if opts.form ?? null %}form="{{ opts.form }}"{% endif %}
                        {% for key, value in opts.data ?? {} %}data-{{ key }}="{{ value }}" {% endfor %}
                        {% for key, value in option.attrs ?? {} %}data-{{ key }}="{{ value }}" {% endfor %}
-                       aria-label="{{ _label ? _label ~ ' — ' : '' }}{{ option.label }}"
+                       {% if _prefix %}aria-label="{{ _label }} — {{ option.label }}"{% endif %}
+                       {{ (option.disabled ?? false) ? 'disabled' : '' }}
                        {{ (current ~ '') == (option.value ~ '') ? 'checked' : '' }}>
                 <span class="flex h-full items-center justify-center px-2 py-1.5 text-center text-[11px] leading-tight text-ink-muted
                              peer-checked:bg-accent peer-checked:text-accent-ink
                              peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                             transition-colors">{{ option.label }}</span>
+                             peer-disabled:opacity-40 peer-disabled:cursor-not-allowed
+                             transition-colors"
+                      {%- if option.style ?? null %} style="{{ option.style }}"{% endif %}>{{ option.label }}</span>
             </label>
         {% endfor %}
     </div>
