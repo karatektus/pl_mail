@@ -276,7 +276,7 @@ final class SendRetryTest extends KernelTestCase
                 return false;
             }
 
-            public function deliver(Email $email, Account $account): void
+            public function deliver(Email $email, Account $account): ?string
             {
                 ++$this->attempts;
 
@@ -294,6 +294,35 @@ final class SendRetryTest extends KernelTestCase
         self::assertSame(1, $smtp->attempts);
         self::assertSame('may_have_sent', $this->row($id)['send_failure']);
         self::assertSame([false], $this->outcomes());
+    }
+
+    /**
+     * Gmail's API replaces the Message-ID (#702). The row takes the one the
+     * mail left with, which is what the Sent copy that syncs back and the
+     * recipients' answers carry; without it the copy became a second row.
+     */
+    public function testTheRowTakesTheMessageIdTheProviderGaveTheMail(): void
+    {
+        $id     = $this->seedDraft();
+        $sender = new ScriptedDeliverySender([null], providerMessageId: 'CAA4PN-given@mail.gmail.test');
+
+        $this->handler($sender)(new SendMessageMessage($id));
+
+        $row = $this->row($id);
+        self::assertNotNull($row['sent_at']);
+        self::assertSame('CAA4PN-given@mail.gmail.test', $row['message_id']);
+        self::assertNotSame('<CAA4PN-given@mail.gmail.test>', $sender->delivered[0], 'the mail itself went out under plMail\'s id');
+    }
+
+    /** A sender that keeps the id answers null, and the row keeps the one it was sent under. */
+    public function testTheRowKeepsItsMessageIdWhenTheProviderKeptIt(): void
+    {
+        $id     = $this->seedDraft();
+        $sender = new ScriptedDeliverySender([null]);
+
+        $this->handler($sender)(new SendMessageMessage($id));
+
+        self::assertSame(trim($sender->delivered[0], '<>'), $this->row($id)['message_id']);
     }
 
     public function testASuccessfulSendLiftsAnEarlierWarning(): void

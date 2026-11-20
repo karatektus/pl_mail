@@ -96,6 +96,10 @@ final class GmailApiSenderTest extends TestCase
     {
         $bodies = [];
         $http   = new MockHttpClient(function (string $method, string $url, array $options) use (&$bodies): MockResponse {
+            if ('GET' === $method) {
+                return self::metadata('x@mail.gmail.test');
+            }
+
             $bodies[] = json_decode((string) $options['body'], true);
 
             return 1 === count($bodies)
@@ -124,6 +128,60 @@ final class GmailApiSenderTest extends TestCase
         self::assertArrayNotHasKey('threadId', $bodies[1]);
     }
 
+    /**
+     * Gmail replaces the Message-ID of mail sent through messages.send
+     * (#702), seen on prod as `<3b5390…@gmail.com>` going in and
+     * `<CAA4PN…@mail.gmail.com>` in Sent. deliver() answers Gmail's, read back
+     * from the sent message, so the row can carry the one Sent and the
+     * recipients have.
+     */
+    public function testAnswersTheMessageIdGmailGaveTheMail(): void
+    {
+        $calls = 0;
+        $email = new Email()->from('me@example.test')->to('you@example.test')->subject('Hi')->text('Body');
+        $email->getHeaders()->addIdHeader('Message-ID', 'ours@example.test');
+
+        $given = $this->sender($calls, $this->createStub(GmailSmtpDelivery::class), given: 'CAA4PN@mail.gmail.test')
+            ->deliver($email, new Account());
+
+        self::assertSame('CAA4PN@mail.gmail.test', $given);
+        self::assertSame(1, $calls, 'one send; the read-back is not a second one');
+    }
+
+    /** Gmail kept the id: nothing to change on the row. */
+    public function testAnswersNullWhenGmailKeptTheMessageId(): void
+    {
+        $calls = 0;
+        $email = new Email()->from('me@example.test')->to('you@example.test')->subject('Hi')->text('Body');
+        $email->getHeaders()->addIdHeader('Message-ID', 'ours@example.test');
+
+        self::assertNull($this->sender($calls, $this->createStub(GmailSmtpDelivery::class), given: 'ours@example.test')
+            ->deliver($email, new Account()));
+    }
+
+    /**
+     * The mail has left when the id is read back. A failure there must not
+     * look like a failed send, which would be retried and sent twice.
+     */
+    public function testAFailedReadBackIsNotAFailedSend(): void
+    {
+        $calls = 0;
+        $email = new Email()->from('me@example.test')->to('you@example.test')->subject('Hi')->text('Body');
+        $email->getHeaders()->addIdHeader('Message-ID', 'ours@example.test');
+
+        self::assertNull($this->sender($calls, $this->createStub(GmailSmtpDelivery::class), given: null)
+            ->deliver($email, new Account()));
+        self::assertSame(1, $calls);
+    }
+
+    /** The SMTP path for sealed mail asks nothing back; Gmail returns no id there. */
+    public function testABrowserBuiltMessageAnswersNoMessageId(): void
+    {
+        $calls = 0;
+
+        self::assertNull($this->sender($calls, $this->createStub(GmailSmtpDelivery::class))->deliver($this->sealedEmail(), new Account()));
+    }
+
     public function testNewMailNamesNoThread(): void
     {
         $calls     = 0;
@@ -142,18 +200,27 @@ final class GmailApiSenderTest extends TestCase
 
     /**
      * @param array<string, mixed>|null $requested the JSON body of the last messages.send
+     * @param ?string                    $given     the Message-ID Gmail answers for the sent mail;
+     *                                              null for a messages.get that fails
      */
     private function sender(
         int &$calls,
         GmailSmtpDelivery $smtp,
         ?MessageThreadingRepository $threading = null,
         ?array &$requested = null,
+        ?string $given = 'x@mail.gmail.test',
     ): GmailApiSender {
-        $http = new MockHttpClient(function (string $method, string $url, array $options) use (&$calls, &$requested): MockResponse {
+        $http = new MockHttpClient(function (string $method, string $url, array $options) use (&$calls, &$requested, $given): MockResponse {
+            if ('GET' === $method) {
+                return null === $given
+                    ? new MockResponse('{"error":{"code":500,"message":"Backend Error"}}', ['http_code' => 500])
+                    : self::metadata($given);
+            }
+
             ++$calls;
             $requested = json_decode((string) $options['body'], true);
 
-            return new MockResponse('{"id":"x"}', ['http_code' => 200]);
+            return new MockResponse('{"id":"x","threadId":"t"}', ['http_code' => 200]);
         });
 
         $tokens = $this->createStub(OAuthTokenManager::class);
@@ -165,6 +232,15 @@ final class GmailApiSenderTest extends TestCase
             new NullLogger(),
             $threading ?? $this->createStub(MessageThreadingRepository::class),
         );
+    }
+
+    /** messages.get?format=metadata, as Gmail answers it for one header. */
+    private static function metadata(string $messageId): MockResponse
+    {
+        return new MockResponse(json_encode([
+            'id'      => 'x',
+            'payload' => ['headers' => [['name' => 'Message-ID', 'value' => '<' . $messageId . '>']]],
+        ], JSON_THROW_ON_ERROR), ['http_code' => 200]);
     }
 
     /**
