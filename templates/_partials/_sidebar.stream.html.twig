@@ -1,0 +1,16 @@
+{# Both sidebar copies, re-rendered whole: the desktop rail (`sidebar`) and the
+   mobile drawer (`sidebar-drawer-inner`). One partial, so a label change
+   (label/_lists.stream.html.twig) and a sidebar setting switched in Settings
+   (LabelSettingsController) cannot redraw one copy and forget the other.
+   Section and tree disclosures survive it: they are rendered from the stored
+   preference, not read off the live DOM. #}
+<turbo-stream action="replace" target="sidebar">
+    <template>
+        {% include '_partials/_sidebar.html.twig' only %}
+    </template>
+</turbo-stream>
+<turbo-stream action="replace" target="sidebar-drawer-inner">
+    <template>
+        {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } only %}
+    </template>
+</turbo-stream>

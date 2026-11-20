@@ -30,6 +30,15 @@ use App\Service\Mail\SidebarCounts;
  *
  * Siblings keep the order the rows came in (LabelRepository::findBoundToAccount()):
  * system folders first, then by name.
+ *
+ * With labels listed by account (User::$labelsByAccount, #690) the rows are
+ * every label on the account, its tags as well as its places, so the account
+ * shows everything it has the way its own webmail would. A tag has no folder
+ * path, so on plain IMAP it hangs off its label parent like a row elsewhere
+ * does. A parent label that is not on the account itself is added as a row
+ * anyway: Gmail labels "Sports/Football" and the "Sports" above it are two
+ * labels, and the account may have only the one, which would otherwise come
+ * loose from where the name says it is.
  */
 final readonly class AccountFolderTree
 {
@@ -46,13 +55,21 @@ final readonly class AccountFolderTree
      */
     public function of(Account $account, array $labels): array
     {
-        $rows = array_values(array_filter(
-            $labels,
-            fn (Label $label): bool => null !== $label->role || true === $this->kinds->isPlaceOn($label, $account),
-        ));
+        $rows = true === $account->usr?->labelsByAccount
+            ? self::withAncestors($labels)
+            : array_values(array_filter(
+                $labels,
+                fn (Label $label): bool => null !== $label->role || true === $this->kinds->isPlaceOn($label, $account),
+            ));
 
+        // On plain IMAP the folders' paths decide, and a row with no folder —
+        // a tag, listed by account — falls back to its label parent. Without
+        // the fallback every tag was a root, whatever its name said.
+        // Only for a row with no folder: a top-level folder whose label has a
+        // parent label is still top-level, because that is where the server
+        // has it.
         $parentOf = true === $account->isPlainImap()
-            ? $this->parentsByPath($account, $rows)
+            ? $this->parentsByPath($account, $rows) + $this->parentsOfNonFolders($account, $rows)
             : $this->parentsByLabel($rows);
 
         $children = [];
@@ -69,6 +86,35 @@ final readonly class AccountFolderTree
         }
 
         return array_map(fn (Label $root): AccountFolderNode => $this->node($root, 0, $children), $roots);
+    }
+
+    /**
+     * The labels, then the visible parents of any of them that are not among
+     * them, each once, in the order they were first reached.
+     *
+     * @param list<Label> $labels
+     *
+     * @return list<Label>
+     */
+    private static function withAncestors(array $labels): array
+    {
+        $rows = [];
+
+        foreach ($labels as $label) {
+            $rows[(int) $label->id] = $label;
+        }
+
+        foreach ($labels as $label) {
+            for ($up = $label->parent; null !== $up; $up = $up->parent) {
+                if (isset($rows[(int) $up->id]) || false === $up->isVisible) {
+                    continue;
+                }
+
+                $rows[(int) $up->id] = $up;
+            }
+        }
+
+        return array_values($rows);
     }
 
     /**
@@ -127,6 +173,26 @@ final readonly class AccountFolderTree
 
                     break;
                 }
+            }
+        }
+
+        return $parents;
+    }
+
+    /**
+     * parentsByLabel(), for the rows that have no folder on this account.
+     *
+     * @param list<Label> $rows
+     *
+     * @return array<int, int> label id => parent label id
+     */
+    private function parentsOfNonFolders(Account $account, array $rows): array
+    {
+        $parents = $this->parentsByLabel($rows);
+
+        foreach ($rows as $label) {
+            if (null !== $this->sidebar->folderOf($label, $account)) {
+                unset($parents[(int) $label->id]);
             }
         }
 

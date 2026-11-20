@@ -684,11 +684,45 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                         {% endembed %}
 
                                     {% elseif section == 'labels' %}
+                                        {# How the sidebar lists labels, above the labels
+                                           themselves (#690): a choice about the view, not
+                                           about any one label. #}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-label-view',
+                                            heading:    'settings.labels.view.heading'|trans,
+                                            subheading: 'settings.labels.view.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/labels/_view.html.twig' %}
+                                            {% endblock %}
+                                        {% endembed %}
+
+                                        {# The count and Create label in the heading row,
+                                           like Add account on the Accounts card, rather
+                                           than a band of their own above the list. #}
                                         {% embed 'settings/_card.html.twig' with {
                                             id:         'card-labels',
                                             heading:    'settings.labels.heading'|trans,
                                             subheading: 'settings.labels.subheading'|trans,
                                         } %}
+                                            {% block actions %}
+                                                <div class="shrink-0 flex items-center gap-3">
+                                                    {% include 'settings/labels/_count.html.twig' with { labels: labels } %}
+                                                    <button
+                                                        type="button"
+                                                        data-controller="ui--modal"
+                                                        data-action="click->ui--modal#open"
+                                                        data-ui--modal-title-value="{{ 'sidebar.labels.add'|trans }}"
+                                                        data-ui--modal-src-value="{{ path('app_label_new') }}"
+                                                        class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
+                                                               bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer"
+                                                    >
+                                                        <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
+                                                        {{ 'sidebar.labels.add'|trans }}
+                                                    </button>
+                                                </div>
+                                            {% endblock %}
+
                                             {% block body %}
                                                 <div id="settings-label-list">
                                                     {% include 'settings/_labels.html.twig' with { labels: labels } %}

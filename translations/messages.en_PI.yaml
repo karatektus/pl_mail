@@ -2800,6 +2800,9 @@ label:
     error:
         duplicate: A flag by that name already flies here. Shoutin it in capitals dont make it a new one.
     form:
+        account_note:
+            new: 'Hoisted on %account% only.'
+            rename: 'Renamin'' it here renames it on %account% alone. %others% keep “%name%”.'
         color: Colour
         delete: Strike this flag
         delete_hint: 'Strikin'' it brings the flag down on every ship in the fleet, an'' every flag flyin'' beneath it too. Yarns that carried it keep their other flags an'' be not thrown overboard.'
@@ -4634,19 +4637,27 @@ settings:
         sync_now_title: Haul now
         zone_follows: 'Follows plMail''s bell'
     labels:
+        by_account:
+            hint: 'Lists each account’s flags under that account in th’ sidebar, beside its holds. Th’ Flags section then keeps only flags on no account yet, and a flag renamed from under an account be renamed fer that account alone.'
+            title: 'Flags by account'
         count: '%count% flags'
         delete: Strike the flag "%name%"
         edit: Mend the flag "%name%"
         empty: No flags yet — hoist one, or they turn up after the first haul.
         folders_in_labels:
-            off_hint: 'Off: holds be listed under their account, and th'' Flags section keeps th'' flags ye hoist on letters.'
-            on_hint: 'On: th'' Flags section o'' the sidebar lists holds too, beside their berth under each account.'
+            hint: 'Lists holds in th’ merged Flags section too, beside their berth under each account. Only fer th’ merged list: by account, everythin’ be under its account already.'
             title: 'Holds among th'' Flags'
         heading: Flags
         hide: Lower this flag
+        seg:
+            off: 'Nay'
+            on: 'Aye'
         show: Fly this flag
         subheading: Hoist, rename and order yer flags, and choose which fly in the sidebar.
         system: Ship's own
+        view:
+            heading: 'Flags in th’ sidebar'
+            subheading: 'Choose whether th’ sidebar lists yer flags once fer all accounts, or under each account.'
     pinning:
         duration:
             custom: 'A count o’ days'
@@ -4821,6 +4832,7 @@ settings:
             inbox_tabs: "tabs promotions social updates forums"
             insights: "parcel tracking invoice flight"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            label_view: "by account grouped merged folders sidebar"
             labels: "folders tags unread all mail"
             language: "locale english german french chinese"
             libravatar: 'libravatar avatar portrait likeness share public profile'
@@ -5230,12 +5242,15 @@ shortcuts:
 sidebar:
     accounts:
         add: Sign on a crew member
+        collapse_all: 'Batten down all accounts'
         colour: 'Colours flown by %account%'
         colour_disabled: 'Colours flown by %account%, its letters becalmed'
+        expand_all: 'Open all accounts'
         folders: 'Folders…'
         heading: Th' crew
         menu: 'Folders o'' %account%'
         new_folder: 'New folder…'
+        new_label: 'New flag…'
         none: No crew yet
         open: 'Board %account%'
         toggle: 'Open or close the lockers in %account%'
@@ -5249,6 +5264,7 @@ sidebar:
         folder_on: 'Folder aboard %accounts%'
         heading: Flags
         none: No flags yet
+        shared_with: 'Also flyin'' on %accounts%'
     new_mail_here: 'Fresh bottles washed up in %where%'
     new_mail_here_count: '%count% fresh bottles washed up in %where%'
     nav:

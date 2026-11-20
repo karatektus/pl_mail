@@ -2922,6 +2922,9 @@ label:
     error:
         duplicate: Hier gibt es bereits ein Label mit diesem Namen. Groß- und Kleinschreibung macht daraus keinen anderen.
     form:
+        account_note:
+            new: 'Wird nur auf %account% angelegt.'
+            rename: 'Wenn du es hier umbenennst, gilt das nur für %account%. %others% behalten „%name%“.'
         color: Farbe
         delete: Label löschen
         delete_hint: 'Beim Löschen verschwindet das Label aus allen Konten, zusammen mit allen darunter eingeordneten Labels. Nachrichten damit behalten ihre übrigen Labels und werden nicht gelöscht.'
@@ -4842,19 +4845,27 @@ settings:
         sync_now_title: Jetzt abgleichen
         zone_follows: Folgt plMail
     labels:
+        by_account:
+            hint: 'Zeigt die Labels jedes Kontos in der Seitenleiste unter diesem Konto, neben seinen Ordnern. Der Bereich Labels behält dann nur Labels, die noch auf keinem Konto sind, und ein Label, das du unter einem Konto umbenennst, wird nur für dieses Konto umbenannt.'
+            title: 'Labels nach Konto'
         count: '%count% Labels'
         delete: Label "%name%" löschen
         edit: Label "%name%" bearbeiten
         empty: Noch keine Labels — erstelle eines, oder sie erscheinen nach der ersten Synchronisierung.
         folders_in_labels:
-            off_hint: 'Aus: Ordner stehen unter ihrem Konto, und der Bereich Labels enthält die Labels, die du auf Mails setzt.'
-            on_hint: 'An: Der Bereich Labels in der Seitenleiste listet auch Ordner, zusätzlich zu ihrem Platz unter jedem Konto.'
+            hint: 'Zeigt Ordner auch im gemeinsamen Bereich Labels, zusätzlich zu ihrem Platz unter jedem Konto. Nur für die gemeinsame Liste: Nach Konto steht ohnehin alles unter seinem Konto.'
             title: 'Ordner unter Labels'
         heading: Labels
         hide: Label ausblenden
+        seg:
+            off: 'Aus'
+            on: 'An'
         show: Label anzeigen
         subheading: Labels erstellen, umbenennen und ordnen — und wählen, welche in der Seitenleiste erscheinen.
         system: System
+        view:
+            heading: 'Labels in der Seitenleiste'
+            subheading: 'Wähle, ob die Seitenleiste deine Labels einmal für alle Konten zeigt oder unter jedem Konto.'
     pinning:
         duration:
             custom: 'Eine Zahl von Tagen'
@@ -5037,6 +5048,7 @@ settings:
             inbox_tabs: "tabs werbung sozial benachrichtigungen foren"
             insights: "paket sendungsverfolgung rechnung flug"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            label_view: "nach konto gruppiert gemeinsam ordner seitenleiste"
             labels: "ordner tags ungelesen alle e-mails"
             language: "sprache deutsch englisch französisch chinesisch"
             libravatar: 'libravatar avatar bild foto teilen öffentlich profil'
@@ -5463,12 +5475,15 @@ shortcuts:
 sidebar:
     accounts:
         add: Konto hinzufügen
+        collapse_all: 'Alle Konten zuklappen'
         colour: 'Farbmarkierung für %account%'
         colour_disabled: 'Farbmarkierung für %account%, bei dem E-Mail ausgeschaltet ist'
+        expand_all: 'Alle Konten aufklappen'
         folders: 'Ordner …'
         heading: Konten
         menu: 'Ordner von %account%'
         new_folder: 'Neuer Ordner …'
+        new_label: 'Neues Label…'
         none: Noch keine Konten
         open: '%account% öffnen'
         toggle: 'Ordner in %account% ein-/ausklappen'
@@ -5482,6 +5497,7 @@ sidebar:
         folder_on: 'Ordner auf %accounts%'
         heading: Labels
         none: Noch keine Labels
+        shared_with: 'Auch auf %accounts%'
     new_mail_here: 'Neue Nachrichten in %where%'
     new_mail_here_count: '%count% neu in %where%'
     nav:

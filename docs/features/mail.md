@@ -615,6 +615,38 @@ Labels** in **Settings → Labels** to list folders there too, where they wear a
 dot. Folders are made, renamed and deleted in the account's own folder list, never by making or
 renaming a label; see [Folders](accounts.md#folders).
 
+### Labels by account
+
+A label with the same name on several accounts is one label in plMail: "Sports" on two Gmail
+accounts is listed once, and opening it shows both accounts' mail. Switch on **Labels by account** in
+**Settings → Labels** to list labels under their account instead. Each account in the sidebar then
+shows all of its labels, beside its folders, nested as on the account itself; a label wears its
+colour dot, and a folder none. The LABELS section keeps only labels that are on no account yet, and is left out while there are
+none.
+
+- Opening a label under an account shows that account's mail with the label, and its unread count
+  is that account's.
+- A label that is on other accounts too has a link mark; hovering over it names them. Renaming or
+  deleting it from **Settings → Labels** affects every one of them.
+- The pencil beside a label renames it **for that account only**. That account's label and its
+  mail move to a label under the new name, and the label is renamed on the mail server; the other
+  accounts keep the old name. Labels nested under it on that account go with it. A filter that only
+  runs on that account and puts the label on mail now puts the new label on, and if you get
+  notifications for the label, you get them for the new one too. A colour changed there, without a
+  new name, is the label's on every account.
+- Renaming a label to the name another label already has joins that label, as long as it is not on
+  that account yet. Renamed back to its old name, a label you renamed for one account is one label
+  again; this works from **Settings → Labels** too.
+- **New label…** at the end of an account's list makes a label on that account only. Gmail and
+  Outlook get it straight away, rather than when it is first put on mail.
+
+Dragging a conversation onto a label under an account labels it, as in LABELS; onto a folder, moves
+it. Either way it only takes conversations from that account.
+
+Several accounts can be open in the sidebar at once, and each stays open until you close it. The
+button beside **Add account** in the ACCOUNTS heading opens them all, or closes them all once every
+one is open.
+
 In an open conversation each message shows its labels. A folder it is in wears a folder and has no
 ×, because taking mail out of a folder is a move; a label has an × that takes it off that message.
 

@@ -4,7 +4,7 @@
 {% set _idSuffix = _idSuffix is defined ? _idSuffix : '' %}
 
 {% for account in accounts %}
-    {% set expanded = app.user.expandedAccountId == account.id %}
+    {% set expanded = app.user.isAccountExpanded(account.id) %}
     {% set frameId  = 'account-folders-' ~ account.id ~ _idSuffix %}
 
     {# The frame id travels with the request too. Turbo matches the response
@@ -164,7 +164,7 @@
             </button>
         </div>
 
-        {# The expanded account's folders are rendered here, not fetched after
+        {# An expanded account's folders are rendered here, not fetched after
            the fact: the sidebar re-renders on every visit, and a list that
            arrives one request later is a list that visibly blinks on each
            navigation. Any other account still loads its frame on demand. #}

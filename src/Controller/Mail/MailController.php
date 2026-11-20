@@ -909,8 +909,15 @@ final class MailController extends AbstractController
     }
 
     /**
-     * Remembers which account's folder list is open, so the sidebar can render
-     * it already expanded rather than expanding it afterwards.
+     * Remembers which accounts' folder lists are open, so the sidebar can
+     * render them already expanded rather than expanding them afterwards.
+     *
+     * `{account, expanded}` opens or closes one, leaving the others as they
+     * are (#690: several can be open). `{all: true|false}` opens every one of
+     * the user's accounts or closes them all, for the heading's Open all
+     * button. `{account: null}` closes them all too, which is what the browser
+     * suite resets with between tests. An `account` with no `expanded` opens
+     * it, the shape a page loaded before the change still sends.
      *
      * Server-side rather than in localStorage, for the reason the calendar
      * pane's width is: the sidebar re-renders on every visit, and a list
@@ -926,16 +933,33 @@ final class MailController extends AbstractController
 
         /** @var User $user */
         $user      = $this->getUser();
-        $accountId = $request->toArray()['account'] ?? null;
+        $body      = $request->toArray();
+        $accountId = $body['account'] ?? null;
+
+        if (true === is_bool($body['all'] ?? null)) {
+            $user->expandedAccountIds = true === $body['all']
+                ? array_map(static fn (Account $account): int => (int) $account->id, $this->accountRepository->findBy(['usr' => $user]))
+                : [];
+            $em->flush();
+
+            return $this->json(['ok' => true]);
+        }
+
+        if (null === $accountId) {
+            $user->expandedAccountIds = [];
+            $em->flush();
+
+            return $this->json(['ok' => true]);
+        }
 
         // Ownership is checked even though this is only a preference: the id
         // comes back in the next render, where it decides whose folder list
         // gets read.
         $account = is_int($accountId) ? $this->accountRepository->find($accountId) : null;
 
-        $user->expandedAccountId = (null !== $account && $account->usr === $user)
-            ? (int) $account->id
-            : null;
+        if (null !== $account && $account->usr === $user) {
+            $user->setAccountExpanded((int) $account->id, false !== ($body['expanded'] ?? true));
+        }
 
         $em->flush();
 
@@ -1107,17 +1131,15 @@ final class MailController extends AbstractController
             $payload[NewMailMarkers::labelKey($label)] = $newMail->forLabel($label);
         }
 
-        // The expanded account's folder rows count within that account and are
-        // keyed accordingly, so they need their own entries — patched with the
-        // user-wide number they would claim mail the list beside them does not
-        // show. Only the expanded account: it is the only one on screen.
+        // The expanded accounts' folder rows count within their account and
+        // are keyed accordingly, so they need their own entries — patched with
+        // the user-wide number they would claim mail the list beside them does
+        // not show. Only the expanded accounts: they are the ones on screen,
+        // and each costs one grouped count.
         /** @var User $user */
-        $user    = $this->getUser();
-        $account = null === $user->expandedAccountId
-            ? null
-            : $this->accountRepository->find($user->expandedAccountId);
+        $user = $this->getUser();
 
-        if (null !== $account && $account->usr === $user) {
+        foreach ($this->accountRepository->findBy(['id' => $user->expandedAccountIds, 'usr' => $user]) as $account) {
             foreach ($labels as $label) {
                 $payload['label:' . $label->id . ':account:' . $account->id]
                     = $counts->forLabelInAccount($label, $account);

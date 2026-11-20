@@ -6,31 +6,19 @@ Label management: create, rename, re-parent, recolour, delete, show/hide.
 One flat list, not one section per account: labels are user-scoped, so
 "Receipts" is a single row regardless of how many accounts it is materialized
 on. Which accounts those are lives on LabelBinding and is deliberately not
-surfaced here.
+surfaced here — the sidebar shows it, when labels are listed by account (#690).
 
 System labels (Inbox, Sent, …) map onto provider built-ins that cannot be
 renamed or deleted, so they get the visibility toggle only — the same rule
 LabelController::assertOwnedUserLabel() enforces server-side.
 
+The count and Create label are in the card's heading row (settings/index,
+`actions`), not a band of their own above the list (#690); the count keeps an
+id so a label change's stream redraws it with the list.
+
 Variables:
   labels  Label[]  tree-ordered (system block first, then the custom tree)
 #}
-<div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-line bg-sunken">
-    <p class="text-xs text-ink-faint">{{ 'settings.labels.count'|trans({ '%count%': labels|length }) }}</p>
-
-    <div class="ml-auto">{{ include('settings/labels/_folders_in_labels_control.html.twig') }}</div>
-
-    <button
-        data-controller="ui--modal"
-        data-action="click->ui--modal#open"
-        data-ui--modal-title-value="{{ 'sidebar.labels.add'|trans }}"
-        data-ui--modal-src-value="{{ path('app_label_new') }}"
-        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer"
-    >
-        <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
-        {{ 'sidebar.labels.add'|trans }}
-    </button>
-</div>
 
 {% if labels is empty %}
     <p class="px-4 py-8 text-center text-sm text-ink-faint italic">

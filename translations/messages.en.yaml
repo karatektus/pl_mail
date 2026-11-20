@@ -2918,6 +2918,9 @@ label:
     error:
         duplicate: A label with this name already exists here. Capitals do not make it a different name.
     form:
+        account_note:
+            new: 'Made on %account% only.'
+            rename: 'Renaming it here renames it on %account% only. %others% keep “%name%”.'
         color: Color
         delete: Delete label
         delete_hint: 'Deleting removes the label from every account, along with any labels nested under it. Mail carrying it keeps its other labels and is not deleted.'
@@ -4818,19 +4821,27 @@ settings:
         sync_now_title: Sync now
         zone_follows: Follows plMail
     labels:
+        by_account:
+            hint: 'Lists each account’s labels under that account in the sidebar, beside its folders. The Labels section then keeps only labels that are on no account yet, and a label renamed from under an account is renamed for that account alone.'
+            title: 'Labels by account'
         count: '%count% labels'
         delete: Delete label "%name%"
         edit: Edit label "%name%"
         empty: No labels yet — create one, or they appear after the first sync.
         folders_in_labels:
-            off_hint: 'Off: folders are listed under their account, and the Labels section holds the labels you put on mail.'
-            on_hint: 'On: the Labels section in the sidebar lists folders too, beside their place under each account.'
+            hint: 'Lists folders in the merged Labels section too, beside their place under each account. Only for the merged list: with labels by account, everything is under its account already.'
             title: 'Folders in Labels'
         heading: Labels
         hide: Hide label
+        seg:
+            off: 'Off'
+            on: 'On'
         show: Show label
         subheading: Create, rename and organise your labels, and choose which appear in the sidebar.
         system: System
+        view:
+            heading: 'Labels in the sidebar'
+            subheading: 'Choose whether the sidebar lists your labels once for all accounts, or under each account.'
     pinning:
         duration:
             custom: 'A number of days'
@@ -5011,6 +5022,7 @@ settings:
             inbox_tabs: "tabs promotions social updates forums"
             insights: "parcel tracking invoice flight"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            label_view: "by account grouped merged folders sidebar"
             labels: "folders tags unread all mail"
             language: "locale english german french chinese"
             libravatar: 'libravatar avatar picture photo share public profile'
@@ -5431,12 +5443,15 @@ shortcuts:
 sidebar:
     accounts:
         add: Add account
+        collapse_all: 'Close all accounts'
         colour: 'Colour marking %account%'
         colour_disabled: 'Colour marking %account%, whose mail is switched off'
+        expand_all: 'Open all accounts'
         folders: 'Folders…'
         heading: Accounts
         menu: 'Folders of %account%'
         new_folder: 'New folder…'
+        new_label: 'New label…'
         none: No accounts yet
         open: 'Open %account%'
         toggle: 'Show or hide folders in %account%'
@@ -5450,6 +5465,7 @@ sidebar:
         folder_on: 'Folder on %accounts%'
         heading: Labels
         none: No labels yet
+        shared_with: 'Also on %accounts%'
     new_mail_here: 'New mail in %where%'
     new_mail_here_count: '%count% new in %where%'
     nav:

@@ -2935,6 +2935,9 @@ label:
     error:
         duplicate: Un libellé de ce nom existe déjà ici. Les majuscules n’en font pas un nom différent.
     form:
+        account_note:
+            new: 'Créé sur %account% uniquement.'
+            rename: 'Le renommer ici ne le renomme que sur %account%. %others% gardent « %name% ».'
         color: Couleur
         delete: Supprimer le libellé
         delete_hint: 'La suppression retire le libellé de tous les comptes, ainsi que les libellés imbriqués dessous. Le courrier qui le porte garde ses autres libellés et n’est pas supprimé.'
@@ -4877,19 +4880,27 @@ settings:
         sync_now_title: Synchroniser maintenant
         zone_follows: Suit plMail
     labels:
+        by_account:
+            hint: 'Liste les libellés de chaque compte sous ce compte dans la barre latérale, à côté de ses dossiers. La section Libellés ne garde alors que les libellés qui ne sont sur aucun compte, et un libellé renommé sous un compte n’est renommé que pour ce compte.'
+            title: 'Libellés par compte'
         count: '%count% libellés'
         delete: Supprimer le libellé « %name% »
         edit: Modifier le libellé « %name% »
         empty: Aucun libellé pour l’instant — créez-en un, ou ils apparaîtront après la première synchronisation.
         folders_in_labels:
-            off_hint: 'Désactivé : les dossiers sont listés sous leur compte, et la section Libellés contient les libellés posés sur les messages.'
-            on_hint: 'Activé : la section Libellés de la barre latérale liste aussi les dossiers, en plus de leur place sous chaque compte.'
+            hint: 'Liste aussi les dossiers dans la section Libellés commune, en plus de leur place sous chaque compte. Seulement pour la liste commune : par compte, tout est déjà sous son compte.'
             title: 'Dossiers dans Libellés'
         heading: Libellés
         hide: Masquer le libellé
+        seg:
+            off: 'Désactivé'
+            on: 'Activé'
         show: Afficher le libellé
         subheading: Créez, renommez et organisez vos libellés, et choisissez lesquels apparaissent dans la barre latérale.
         system: Système
+        view:
+            heading: 'Libellés dans la barre latérale'
+            subheading: 'Choisissez si la barre latérale liste vos libellés une seule fois pour tous les comptes, ou sous chaque compte.'
     pinning:
         duration:
             custom: 'Un nombre de jours'
@@ -5073,6 +5084,7 @@ settings:
             inbox_tabs: "onglets promotions réseaux notifications forums"
             insights: "colis suivi facture vol"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            label_view: "par compte groupés commune dossiers barre latérale"
             labels: "dossiers étiquettes non lus tous"
             language: "langue anglais allemand français chinois"
             libravatar: 'libravatar avatar image photo partager public profil'
@@ -5468,12 +5480,15 @@ shortcuts:
 sidebar:
     accounts:
         add: Ajouter un compte
+        collapse_all: 'Replier tous les comptes'
         colour: 'Marquage de couleur de %account%'
         colour_disabled: 'Marquage de couleur de %account%, dont le courrier est désactivé'
+        expand_all: 'Déplier tous les comptes'
         folders: 'Dossiers…'
         heading: Comptes
         menu: 'Dossiers de %account%'
         new_folder: 'Nouveau dossier…'
+        new_label: 'Nouveau libellé…'
         none: Aucun compte pour l’instant
         open: 'Ouvrir %account%'
         toggle: 'Afficher ou masquer les dossiers de %account%'
@@ -5487,6 +5502,7 @@ sidebar:
         folder_on: 'Dossier sur %accounts%'
         heading: Libellés
         none: Aucun libellé pour l’instant
+        shared_with: 'Aussi sur %accounts%'
     new_mail_here: 'Nouveau courrier dans %where%'
     new_mail_here_count: '%count% nouveaux dans %where%'
     nav:
