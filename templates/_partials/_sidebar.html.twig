@@ -861,7 +861,10 @@ controller instead — the scroll position and which trees are open.
             <div id="{{ _drawerMode is defined and _drawerMode ? 'label-list-drawer' : 'label-list' }}" class="nav-rows">
                 {% set labelTree = sidebarCounts.userLabelTree()|filter(node => in_labels(node)) %}
                 {% if labelTree|length == 0 %}
-                    <p class="px-3 text-xs text-ink-faint" data-nav-tier="tree">{{ 'sidebar.labels.none'|trans }}</p>
+                    {# Listed by account (#690), LABELS holds only what is on no account,
+                       and empty is the usual state — said as that, not as "no
+                       labels" above a sidebar full of them. #}
+                    <p class="px-3 text-xs text-ink-faint" data-nav-tier="tree">{{ (app.user.labelsByAccount ? 'sidebar.labels.none_by_account' : 'sidebar.labels.none')|trans }}</p>
                 {% else %}
                     {% for node in labelTree %}
                         {{ macros.label_node(node, 0, _drawerClose) }}

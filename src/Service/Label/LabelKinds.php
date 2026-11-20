@@ -82,9 +82,18 @@ final readonly class LabelKinds
      * offered to delete the folder (#221, Adrian's report on v0.4.1). A label
      * can still be a folder on one account and a tag on another; it is listed
      * here once it has been put on the other account's mail.
+     *
+     * With labels listed by account (User::$labelsByAccount, #690), every
+     * label that is on an account is listed under that account, so LABELS
+     * keeps only the ones on no account — made in plMail and not used yet —
+     * and their parents. Without this they would be nowhere in the sidebar.
      */
     public function inLabels(Label $label, User $user): bool
     {
+        if (true === $user->labelsByAccount) {
+            return $this->onNoAccount($label);
+        }
+
         if (true === $user->foldersInLabels) {
             return true;
         }
@@ -138,6 +147,25 @@ final readonly class LabelKinds
         // where it starts being a tag there.
         return $this->keep($labels, $user, null, fn (Label $label, Account $candidate): bool => true === $this->isTagOn($label, $candidate)
             && (false === $this->sidebar->isFolderAnywhere($label) || true === $this->sidebar->isTagInUseOn($label, $candidate)));
+    }
+
+    /**
+     * A label that is on no account, or the parent of one: what LABELS holds
+     * while labels are listed by account.
+     */
+    private function onNoAccount(Label $label): bool
+    {
+        if (false === $this->sidebar->isOnAnyAccount($label)) {
+            return true;
+        }
+
+        foreach ($this->sidebar->visibleChildrenOf($label) as $child) {
+            if (true === $this->onNoAccount($child)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

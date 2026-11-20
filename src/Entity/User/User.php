@@ -795,6 +795,27 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
     }
 
+    /**
+     * Whether the sidebar lists labels by account rather than merged (#690).
+     *
+     * Merged, the default, is the LABELS section: one plMail label, however
+     * many accounts it is on. By account, each account's own labels — its
+     * LabelBindings — are listed under the account in ACCOUNTS, beside its
+     * folders, and LABELS keeps only the labels that are on no account yet,
+     * which would otherwise be nowhere. Nothing about the labels changes; this
+     * is which half of the model the sidebar shows. Takes precedence over
+     * SETTING_FOLDERS_IN_LABELS, which is a question about the merged list.
+     */
+    public const string SETTING_LABELS_BY_ACCOUNT = 'sidebar.labels_by_account';
+
+    /** Virtual, out of the settings bag — see SETTING_LABELS_BY_ACCOUNT. */
+    public bool $labelsByAccount {
+        get => true === $this->getSetting(self::SETTING_LABELS_BY_ACCOUNT, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_LABELS_BY_ACCOUNT, $on ? true : null);
+        }
+    }
+
     /** The collapse keys for the two whole-section disclosures. */
     public const string SIDEBAR_SECTION_LABELS = 'section:labels';
     public const string SIDEBAR_SECTION_ACCOUNTS = 'section:accounts';

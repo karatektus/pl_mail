@@ -2800,6 +2800,9 @@ label:
     error:
         duplicate: A flag by that name already flies here. Shoutin it in capitals dont make it a new one.
     form:
+        account_note:
+            new: 'Hoisted on %account% only.'
+            rename: 'Renamin'' it here renames it on %account% alone. %others% keep “%name%”.'
         color: Colour
         delete: Strike this flag
         delete_hint: 'Strikin'' it brings the flag down on every ship in the fleet, an'' every flag flyin'' beneath it too. Yarns that carried it keep their other flags an'' be not thrown overboard.'
@@ -4634,6 +4637,10 @@ settings:
         sync_now_title: Haul now
         zone_follows: 'Follows plMail''s bell'
     labels:
+        by_account:
+            off_hint: 'Off: th'' Flags section lists every flag once, across all yer accounts.'
+            on_hint: 'On: each account in th'' sidebar lists its own flags, and th'' Flags section keeps only th'' flags that be on no account yet.'
+            title: 'By account'
         count: '%count% flags'
         delete: Strike the flag "%name%"
         edit: Mend the flag "%name%"
@@ -4821,7 +4828,7 @@ settings:
             inbox_tabs: "tabs promotions social updates forums"
             insights: "parcel tracking invoice flight"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
-            labels: "folders tags unread all mail"
+            labels: "folders tags unread all mail account grouped"
             language: "locale english german french chinese"
             libravatar: 'libravatar avatar portrait likeness share public profile'
             list_content: 'cargo attachments chips paperclip files flags labels sender date hour tally answered'
@@ -5236,6 +5243,7 @@ sidebar:
         heading: Th' crew
         menu: 'Folders o'' %account%'
         new_folder: 'New folder…'
+        new_label: 'New flag…'
         none: No crew yet
         open: 'Board %account%'
         toggle: 'Open or close the lockers in %account%'
@@ -5249,6 +5257,8 @@ sidebar:
         folder_on: 'Folder aboard %accounts%'
         heading: Flags
         none: No flags yet
+        none_by_account: 'Flags be listed under each account'
+        shared_with: 'Also flyin'' on %accounts%'
     new_mail_here: 'Fresh bottles washed up in %where%'
     new_mail_here_count: '%count% fresh bottles washed up in %where%'
     nav:

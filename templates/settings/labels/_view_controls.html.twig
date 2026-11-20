@@ -1,0 +1,31 @@
+{# How the sidebar lists labels: the two switches in the labels settings bar.
+
+   By account (#690) first, because it decides whether the other one means
+   anything: Folders in Labels is a question about the merged LABELS list, so
+   while labels are listed by account it is left out rather than shown doing
+   nothing. That is also why this answers as a pair
+   (LabelSettingsController::toggleLabelsByAccount()) — flipping By account
+   adds or removes the other switch.
+
+   Same shape as each switch on its own: an icon button in a frame that
+   answers with itself, `contents` so the bar keeps its flex layout, the
+   tooltip saying what it does and aria-pressed the state. #}
+{% set _byAccount = app.user.labelsByAccount %}
+{% set _hint = (_byAccount ? 'settings.labels.by_account.on_hint' : 'settings.labels.by_account.off_hint')|trans %}
+<turbo-frame id="labels-view-controls" class="contents">
+    <form method="post" action="{{ path('settings_labels_by_account_toggle') }}" class="contents">
+        <input type="hidden" name="_token" value="{{ csrf_token('labels_by_account') }}">
+        <button type="submit"
+                data-labels-by-account
+                aria-pressed="{{ _byAccount ? 'true' : 'false' }}"
+                title="{{ _hint }}"
+                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs transition-colors cursor-pointer hover:bg-hover
+                       {{ _byAccount ? 'text-success' : 'text-ink-faint hover:text-ink' }}">
+            <i class="fa-solid fa-at text-[10px]" aria-hidden="true"></i>
+            {{ 'settings.labels.by_account.title'|trans }}
+        </button>
+    </form>
+    {% if not _byAccount %}
+        {{ include('settings/labels/_folders_in_labels_control.html.twig') }}
+    {% endif %}
+</turbo-frame>

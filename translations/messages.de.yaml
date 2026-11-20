@@ -2922,6 +2922,9 @@ label:
     error:
         duplicate: Hier gibt es bereits ein Label mit diesem Namen. Groß- und Kleinschreibung macht daraus keinen anderen.
     form:
+        account_note:
+            new: 'Wird nur auf %account% angelegt.'
+            rename: 'Wenn du es hier umbenennst, gilt das nur für %account%. %others% behalten „%name%“.'
         color: Farbe
         delete: Label löschen
         delete_hint: 'Beim Löschen verschwindet das Label aus allen Konten, zusammen mit allen darunter eingeordneten Labels. Nachrichten damit behalten ihre übrigen Labels und werden nicht gelöscht.'
@@ -4842,6 +4845,10 @@ settings:
         sync_now_title: Jetzt abgleichen
         zone_follows: Folgt plMail
     labels:
+        by_account:
+            off_hint: 'Aus: Der Bereich Labels zeigt jedes Label einmal, über alle deine Konten.'
+            on_hint: 'An: Jedes Konto in der Seitenleiste zeigt seine eigenen Labels, und der Bereich Labels behält nur die, die noch auf keinem Konto sind.'
+            title: 'Nach Konto'
         count: '%count% Labels'
         delete: Label "%name%" löschen
         edit: Label "%name%" bearbeiten
@@ -5037,7 +5044,7 @@ settings:
             inbox_tabs: "tabs werbung sozial benachrichtigungen foren"
             insights: "paket sendungsverfolgung rechnung flug"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
-            labels: "ordner tags ungelesen alle e-mails"
+            labels: "ordner tags ungelesen alle e-mails konto gruppiert"
             language: "sprache deutsch englisch französisch chinesisch"
             libravatar: 'libravatar avatar bild foto teilen öffentlich profil'
             list_content: 'anhänge chips büroklammer dateien labels absender datum uhrzeit anzahl beantwortet'
@@ -5469,6 +5476,7 @@ sidebar:
         heading: Konten
         menu: 'Ordner von %account%'
         new_folder: 'Neuer Ordner …'
+        new_label: 'Neues Label…'
         none: Noch keine Konten
         open: '%account% öffnen'
         toggle: 'Ordner in %account% ein-/ausklappen'
@@ -5482,6 +5490,8 @@ sidebar:
         folder_on: 'Ordner auf %accounts%'
         heading: Labels
         none: Noch keine Labels
+        none_by_account: 'Labels stehen unter dem jeweiligen Konto'
+        shared_with: 'Auch auf %accounts%'
     new_mail_here: 'Neue Nachrichten in %where%'
     new_mail_here_count: '%count% neu in %where%'
     nav:

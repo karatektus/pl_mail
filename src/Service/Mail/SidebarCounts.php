@@ -90,6 +90,9 @@ class SidebarCounts implements ResetInterface
     /** @var array<int, array<int, true>> label id => (account id => it has a binding there that is not a folder) */
     private array $tagInUseOn = [];
 
+    /** @var array<int, array<int, Account>> label id => (account id => the account, for every binding it has) */
+    private array $boundOn = [];
+
     /**
      * Worker-mode hygiene - see LogAlertGlobal::reset(), the sibling whose
      * staleness was actually caught in the wild.
@@ -117,6 +120,7 @@ class SidebarCounts implements ResetInterface
         $this->folders            = [];
         $this->folderOn           = [];
         $this->tagInUseOn         = [];
+        $this->boundOn            = [];
         $this->inboxUnread        = null;
     }
 
@@ -326,6 +330,36 @@ class SidebarCounts implements ResetInterface
         return isset($this->tagInUseOn[(int) $label->id][(int) $account->id]);
     }
 
+    /**
+     * Every account this label is on — has a binding on, folder or tag — in
+     * the order the bindings were read.
+     *
+     * For labels listed by account (#690): a label on more than one account is
+     * marked as shared under each of them, because renaming or deleting it
+     * there reaches the others too unless it is renamed for that account
+     * alone. Out of the same one read as the folder marks.
+     *
+     * @return list<Account>
+     */
+    public function accountsOf(Label $label): array
+    {
+        $this->loadFolders();
+
+        return array_values($this->boundOn[(int) $label->id] ?? []);
+    }
+
+    /**
+     * Whether this label is on any account at all. A label made in plMail and
+     * never used is on none, and with labels listed by account the LABELS
+     * section keeps those, or they would be nowhere (LabelKinds::inLabels()).
+     */
+    public function isOnAnyAccount(Label $label): bool
+    {
+        $this->loadFolders();
+
+        return isset($this->boundOn[(int) $label->id]);
+    }
+
     private function loadFolders(): void
     {
         if (null !== $this->folderAccounts) {
@@ -336,6 +370,7 @@ class SidebarCounts implements ResetInterface
         $this->folders        = [];
         $this->folderOn       = [];
         $this->tagInUseOn     = [];
+        $this->boundOn        = [];
         $user                 = $this->security->getUser();
 
         foreach (null === $user ? [] : $this->bindings->findForUser($user) as $binding) {
@@ -345,6 +380,8 @@ class SidebarCounts implements ResetInterface
             if (null === $account || null === $label) {
                 continue;
             }
+
+            $this->boundOn[(int) $label->id][(int) $account->id] = $account;
 
             if (null === $binding->mailbox && null === $binding->graphFolderId) {
                 $this->tagInUseOn[(int) $label->id][(int) $account->id] = true;

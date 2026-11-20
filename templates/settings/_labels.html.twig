@@ -6,7 +6,7 @@ Label management: create, rename, re-parent, recolour, delete, show/hide.
 One flat list, not one section per account: labels are user-scoped, so
 "Receipts" is a single row regardless of how many accounts it is materialized
 on. Which accounts those are lives on LabelBinding and is deliberately not
-surfaced here.
+surfaced here — the sidebar shows it, when labels are listed by account (#690).
 
 System labels (Inbox, Sent, …) map onto provider built-ins that cannot be
 renamed or deleted, so they get the visibility toggle only — the same rule
@@ -18,7 +18,7 @@ Variables:
 <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-line bg-sunken">
     <p class="text-xs text-ink-faint">{{ 'settings.labels.count'|trans({ '%count%': labels|length }) }}</p>
 
-    <div class="ml-auto">{{ include('settings/labels/_folders_in_labels_control.html.twig') }}</div>
+    <div class="ml-auto flex items-center gap-1">{{ include('settings/labels/_view_controls.html.twig') }}</div>
 
     <button
         data-controller="ui--modal"

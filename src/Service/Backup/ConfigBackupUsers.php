@@ -178,6 +178,9 @@ final readonly class ConfigBackupUsers
         // Whether LABELS lists folders too (#221 step 3): how the person
         // wants the sidebar, and nothing in it is particular to one host.
         User::SETTING_FOLDERS_IN_LABELS,
+        // Merged or by account (#690): the same kind of preference, and as
+        // portable.
+        User::SETTING_LABELS_BY_ACCOUNT,
         // Row names, no ids, and the same on any install — and an empty list
         // is a choice that has to survive ("nothing behind More"), which is
         // why this is carried even though most bags never hold it.

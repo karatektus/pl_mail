@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:48c908f6e9f810a9a2698e44f881a20a03ef9f5f -->
+<!-- translated-from: features/mail.md sha1:e95585b6fa2f5985506f69afa561bbee4ed67bc3 -->
 
 # Mail
 
@@ -678,6 +678,32 @@ nie. Der Bereich LABELS enthält diese Markierungen; schalte **Ordner unter Labe
 Ordner tragen. Ordner legst du in der eigenen Ordnerliste des Kontos an, benennst sie dort um und
 löschst sie dort, nie dadurch, dass du ein Label anlegst oder umbenennst; siehe
 [Ordner](accounts.md#ordner).
+
+### Labels nach Konto
+
+Ein Label mit demselben Namen auf mehreren Konten ist in plMail ein einziges Label: „Sport“ auf zwei
+Gmail-Konten steht einmal in der Liste, und wenn du es öffnest, siehst du die Mail beider Konten.
+Schalte **Nach Konto** unter **Einstellungen → Labels** ein, um Labels stattdessen unter ihrem Konto
+aufzulisten. Jedes Konto in der Seitenleiste zeigt dann alle seine Labels neben seinen Ordnern,
+verschachtelt wie auf dem Konto selbst; ein Label trägt seinen Farbpunkt, ein Ordner keinen. Der
+Bereich LABELS behält nur Labels, die noch auf keinem Konto sind.
+
+- Ein Label unter einem Konto zeigt die Mail dieses Kontos mit dem Label, und seine Zahl ungelesener
+  Mails ist die dieses Kontos.
+- Ein Label, das auch auf anderen Konten ist, trägt ein Verknüpfungszeichen; fährst du mit der Maus
+  darüber, nennt es die anderen. Umbenennen oder Löschen unter **Einstellungen → Labels** betrifft
+  alle davon.
+- Der Stift neben einem Label benennt es **nur für dieses Konto** um. Das Label dieses Kontos und seine
+  Mail wandern zu einem Label mit dem neuen Namen, und das Label wird auf dem Mailserver umbenannt;
+  die anderen Konten behalten den alten Namen. Darunter verschachtelte Labels dieses Kontos gehen mit.
+  Ein Filter, der nur auf diesem Konto läuft und das Label vergibt, vergibt jetzt das neue, und wenn
+  du für das Label Benachrichtigungen bekommst, bekommst du sie auch für das neue. Eine Farbe, die du
+  dort ohne neuen Namen änderst, gilt für das Label auf allen Konten.
+- **Neues Label…** am Ende der Liste eines Kontos legt ein Label nur auf diesem Konto an. Gmail und
+  Outlook bekommen es sofort, nicht erst, wenn es zum ersten Mal auf Mail gesetzt wird.
+
+Eine Konversation auf ein Label unter einem Konto zu ziehen vergibt das Label, wie unter LABELS; auf
+einen Ordner verschiebt sie. Beides nimmt nur Konversationen dieses Kontos an.
 
 In einer geöffneten Konversation zeigt jede Nachricht ihre Labels. Ein Ordner, in dem sie liegt,
 trägt einen Ordner und hat kein ×, denn Mail aus einem Ordner zu nehmen ist ein Verschieben; ein Label

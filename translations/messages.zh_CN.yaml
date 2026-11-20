@@ -2604,6 +2604,9 @@ label:
     error:
         duplicate: '此处已有同名标签。仅大小写不同也视为同名。'
     form:
+        account_note:
+            new: '仅在 %account% 上创建。'
+            rename: '在这里重命名只会影响 %account%。%others% 仍保留“%name%”。'
         color: '颜色'
         delete: '删除标签'
         delete_hint: '删除后，所有账户中的此标签及其下的嵌套标签都会移除。带有此标签的邮件会保留其他标签，不会被删除。'
@@ -4149,6 +4152,10 @@ settings:
         sync_now_title: '立即同步'
         zone_follows: 跟随 plMail
     labels:
+        by_account:
+            off_hint: '关闭：“标签”部分将每个标签只列出一次，涵盖你的所有账户。'
+            on_hint: '开启：侧边栏中的每个账户列出自己的标签，“标签”部分只保留尚未用于任何账户的标签。'
+            title: '按账户'
         count: '%count% 个标签'
         delete: '删除标签“%name%”'
         edit: '编辑标签“%name%”'
@@ -4332,7 +4339,7 @@ settings:
             inbox_tabs: "标签页 推广 社交 动态 论坛"
             insights: "包裹 物流 发票 航班"
             integrations: "nextcloud dropbox drive onedrive immich paperless 云 webdav"
-            labels: "文件夹 标签 未读 所有邮件"
+            labels: "文件夹 标签 未读 所有邮件 账户 分组"
             language: "语言 中文 英语 德语 法语"
             libravatar: 'libravatar 头像 图片 照片 分享 公开 个人资料'
             list_content: '附件 文件标签 回形针 文件 标签 发件人 日期 时间 数量 已回复'
@@ -4713,6 +4720,7 @@ sidebar:
         heading: '账户'
         menu: '%account% 的文件夹'
         new_folder: '新建文件夹…'
+        new_label: '新建标签…'
         none: '暂无账户'
         open: '打开 %account%'
         toggle: '显示或隐藏 %account% 中的文件夹'
@@ -4726,6 +4734,8 @@ sidebar:
         folder_on: '%accounts% 上的文件夹'
         heading: '标签'
         none: '暂无标签'
+        none_by_account: '标签列在各个账户下'
+        shared_with: '也在 %accounts% 上'
     new_mail_here: '%where% 中有新邮件'
     new_mail_here_count: '%where% 中有 %count% 封新邮件'
     nav:

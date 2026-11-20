@@ -9,16 +9,20 @@ use App\Controller\RendersTurboStreams;
 use App\Domain\Enum\Job\JobKind;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\Label\Label;
+use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Form\LabelDeleteType;
 use App\Form\LabelType;
 use App\Infrastructure\Messaging\Message\DeleteLabelMessage;
 use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
 use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Label\LabelDeletion;
 use App\Service\Label\LabelNotifier;
 use App\Service\Label\LabelPlaces;
+use App\Service\Label\LabelResolver;
+use App\Service\Label\LabelSplitter;
 use App\Service\Label\LabelStructurePropagator;
 use App\Service\Mail\MailChangeRecorder;
 use Doctrine\ORM\EntityManagerInterface;
@@ -63,14 +67,24 @@ final class LabelController extends AbstractController
         private readonly BackgroundJobRepository $jobs,
         private readonly MessageBusInterface    $bus,
         private readonly LabelPlaces            $places,
+        private readonly AccountRepository      $accounts,
+        private readonly LabelResolver          $resolver,
+        private readonly LabelSplitter          $splitter,
     ) {}
 
+    /**
+     * `?account=` makes the label on that account only (#690): "New label"
+     * under an account, while labels are listed by account. It is bound there
+     * at once, so it is listed under the account and the server is told about
+     * it now, rather than the first time it is put on mail.
+     */
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
     public function new(Request $request): Response
     {
-        $label = new Label();
-        $form  = $this->createForm(LabelType::class, $label, [
-            'action' => $this->generateUrl('app_label_new'),
+        $account = $this->requestedAccount($request);
+        $label   = new Label();
+        $form    = $this->createForm(LabelType::class, $label, [
+            'action' => $this->generateUrl('app_label_new', null === $account ? [] : ['account' => $account->id]),
             'user'   => $this->getUser(),
         ]);
 
@@ -88,38 +102,62 @@ final class LabelController extends AbstractController
                 // Same seam Mailbox/set uses, so a label made in the browser
                 // and one made from a JMAP client behave identically.
                 //
-                // No JMAP state to record and nothing to propagate yet: a new
-                // label has no bindings, so it exists on no account until it is
-                // first applied to mail. LabelResolver::binding() records the
-                // Mailbox creation at that point.
+                // Without an account, no JMAP state to record and nothing to
+                // propagate yet: a new label has no bindings, so it exists on
+                // no account until it is first applied to mail.
+                // LabelResolver::binding() records the Mailbox creation at
+                // that point. With one, that point is now.
+                if (null !== $account) {
+                    $this->resolver->usedAsTagOn($label, $account);
+                }
+
                 $this->structurePropagator->created($label);
                 $this->em->flush();
 
-                return $this->labelListsStream('label.created');
+                return $this->labelListsStream('label.created', null !== $account);
             }
         }
 
-        return $this->renderForm($form, $label);
+        return $this->renderForm($form, $label, $account);
     }
 
+    /**
+     * `?account=` is the dialog opened from under one account, while labels
+     * are listed by account (#690). For a label on other accounts too, a new
+     * name or place there is for that account alone (LabelSplitter); a colour
+     * on its own is still the label's.
+     */
     #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'])]
     public function edit(Label $label, Request $request): Response
     {
         $this->assertOwnedUserLabel($label);
+
+        $account = $this->requestedAccount($request);
+
+        if (null !== $account && false === $this->splitter->splits($label, $account)) {
+            $account = null;
+        }
 
         // Captured before the form binds, and it is the only chance: an Exchange
         // master category has no id but its display name, so a rename that has
         // lost the old one has nothing to address at the provider. See
         // LabelStructurePropagator::renamed().
         $previousFullName = $label->fullName;
+        $previousName     = $label->name;
+        $previousParent   = $label->parent;
 
         $form = $this->createForm(LabelType::class, $label, [
-            'action'        => $this->generateUrl('app_label_edit', ['id' => $label->id]),
+            'action'        => $this->generateUrl('app_label_edit', null === $account ? ['id' => $label->id] : ['id' => $label->id, 'account' => $account->id]),
             'user'          => $this->getUser(),
             'edited_label'  => $label,
         ]);
 
         $form->handleRequest($request);
+
+        if (true === $form->isSubmitted() && true === $form->isValid()
+            && null !== $account && ($label->name !== $previousName || $label->parent !== $previousParent)) {
+            return $this->splitOnAccount($form, $label, $account);
+        }
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
             if (true === $this->refuseTakenName($form, $label, $label)) {
@@ -127,7 +165,7 @@ final class LabelController extends AbstractController
                 // managed entity. Nothing here flushes it, but "nothing
                 // flushes" is a property of this request today and not of the
                 // object: put the stored values back before anything can.
-                $response = $this->renderForm($form, $label);
+                $response = $this->renderForm($form, $label, $account);
                 $this->em->refresh($label);
 
                 return $response;
@@ -142,7 +180,61 @@ final class LabelController extends AbstractController
             return $this->labelListsStream('label.updated');
         }
 
-        return $this->renderForm($form, $label);
+        return $this->renderForm($form, $label, $account);
+    }
+
+    /**
+     * The edit dialog's rename, for one account of a label that is on others
+     * too (#690).
+     *
+     * The form has written the new name, place and colour onto the shared
+     * label, which must keep its own: they are read off it, then put back
+     * before anything flushes, and the split gets them as values. The name has
+     * to be free with the label itself counted, unlike a plain rename — it is
+     * a second label, and "sports" beside "Sports" would be two that
+     * findNameConflict() treats as one.
+     */
+    private function splitOnAccount(FormInterface $form, Label $label, Account $account): Response
+    {
+        $name   = (string) $label->name;
+        $parent = $label->parent;
+        $color  = $label->color;
+
+        $this->em->refresh($label);
+
+        if (null !== $this->labelRepository->findNameConflict($this->currentUser(), $parent, $name)) {
+            $form->get('name')->addError(new FormError($this->translator->trans('label.error.duplicate')));
+
+            return $this->renderForm($form, $label, $account);
+        }
+
+        $this->splitter->renameOnAccount($label, $account, $name, $parent, $color);
+
+        return $this->labelListsStream('label.updated', true);
+    }
+
+    /**
+     * The `?account=` a label dialog is opened for, checked like the label
+     * view's (MailController::requestedAccount()): it comes off the query
+     * string, so an account that is not the user's is refused, not ignored.
+     */
+    private function requestedAccount(Request $request): ?Account
+    {
+        $id = $request->query->get('account');
+
+        if (null === $id || '' === $id) {
+            return null;
+        }
+
+        $account = $this->accounts->find($id);
+
+        if (null === $account) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
+        return $account;
     }
 
     /**
@@ -301,6 +393,11 @@ final class LabelController extends AbstractController
     private function labelListsStream(?string $toastMessage = null, bool $refreshSidebar = false): Response
     {
         $user   = $this->currentUser();
+
+        // Listed by account (#690), the labels are in the account trees, which
+        // none of the three regions is: the sidebar is re-rendered whole, as
+        // for a system label below.
+        $refreshSidebar = $refreshSidebar || true === $user->labelsByAccount;
         $labels = $this->labelRepository->findForUserTreeOrdered($user);
 
         $lists = $this->renderView('label/_lists.stream.html.twig', [
@@ -497,7 +594,7 @@ final class LabelController extends AbstractController
         ], new Response(status: $status));
     }
 
-    private function renderForm(FormInterface $form, Label $label): Response
+    private function renderForm(FormInterface $form, Label $label, ?Account $account = null): Response
     {
         if (true === $form->isSubmitted() && false === $form->isValid()) {
             $status = Response::HTTP_UNPROCESSABLE_ENTITY;
@@ -509,7 +606,37 @@ final class LabelController extends AbstractController
             'form'   => $form,
             'label'  => $label,
             'places' => null === $label->id ? [] : $this->places->of($label, $this->currentUser()),
+            'note'   => $this->accountNote($label, $account),
         ], new Response(status: $status));
+    }
+
+    /**
+     * What the dialog says when it renames for one account (#690): that the
+     * other accounts keep the label as it is. Null otherwise.
+     */
+    private function accountNote(Label $label, ?Account $account): ?string
+    {
+        if (null === $account) {
+            return null;
+        }
+
+        $others = [];
+
+        foreach ($label->bindings as $binding) {
+            if ($binding->account !== $account) {
+                $others[] = $binding->account->displayAddress;
+            }
+        }
+
+        if (null === $label->id) {
+            return $this->translator->trans('label.form.account_note.new', ['%account%' => $account->displayAddress]);
+        }
+
+        return $this->translator->trans('label.form.account_note.rename', [
+            '%account%' => $account->displayAddress,
+            '%others%'  => implode(', ', $others),
+            '%name%'    => $label->fullName,
+        ]);
     }
 
     /**
