@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:9a2aba949cf77386f80bfd4fa9669c1875e5ae3e -->
+<!-- translated-from: features/mail.md sha1:76efd472a902aad78d49f2418255aca451669e13 -->
 
 # Mail
 
@@ -686,7 +686,7 @@ Gmail-Konten steht einmal in der Liste, und wenn du es öffnest, siehst du die M
 Schalte **Labels nach Konto** unter **Einstellungen → Labels** ein, um Labels stattdessen unter ihrem Konto
 aufzulisten. Jedes Konto in der Seitenleiste zeigt dann alle seine Labels neben seinen Ordnern,
 verschachtelt wie auf dem Konto selbst; ein Label trägt seinen Farbpunkt, ein Ordner keinen. Der
-Bereich LABELS behält nur Labels, die noch auf keinem Konto sind.
+Bereich LABELS behält nur Labels, die noch auf keinem Konto sind, und fehlt, solange es keine gibt.
 
 - Ein Label unter einem Konto zeigt die Mail dieses Kontos mit dem Label, und seine Zahl ungelesener
   Mails ist die dieses Kontos.

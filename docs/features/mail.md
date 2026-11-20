@@ -621,7 +621,8 @@ A label with the same name on several accounts is one label in plMail: "Sports" 
 accounts is listed once, and opening it shows both accounts' mail. Switch on **Labels by account** in
 **Settings → Labels** to list labels under their account instead. Each account in the sidebar then
 shows all of its labels, beside its folders, nested as on the account itself; a label wears its
-colour dot, and a folder none. The LABELS section keeps only labels that are on no account yet.
+colour dot, and a folder none. The LABELS section keeps only labels that are on no account yet, and is left out while there are
+none.
 
 - Opening a label under an account shows that account's mail with the label, and its unread count
   is that account's.

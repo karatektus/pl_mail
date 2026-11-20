@@ -1,7 +1,7 @@
 <!-- highlight -->
 **Labels can be listed under their account.** With **Labels by account** switched on in Settings → Labels,
 each account in the sidebar lists all of its labels beside its folders, nested the way the account
-nests them, and LABELS keeps only labels that are on no account yet. Opening a label there shows that
+nests them, and LABELS keeps only labels that are on no account yet, and disappears while there are none. Opening a label there shows that
 account's mail, and a label that is on other accounts too is marked, with the others named. Renaming
 it with the pencil there renames it for that account alone: "Sports" on a club account can become
 "Club sports" while a personal account keeps "Sports", and that account's mail, nested labels, the

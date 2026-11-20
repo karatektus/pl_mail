@@ -46,7 +46,7 @@ Variables:
         <template>
             <div id="{{ target }}" class="rail-hide space-y-0.5">
                 {% if labelTree|length == 0 %}
-                    <p class="px-3 py-1.5 text-xs text-ink-faint">{{ (app.user.labelsByAccount ? 'sidebar.labels.none_by_account' : 'sidebar.labels.none')|trans }}</p>
+                    <p class="px-3 py-1.5 text-xs text-ink-faint">{{ 'sidebar.labels.none'|trans }}</p>
                 {% else %}
                     {% for label in labelTree %}
                         {{ sidebar.label_node(label, 0, drawerClose) }}

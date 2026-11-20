@@ -4741,7 +4741,6 @@ sidebar:
         folder_on: '%accounts% 上的文件夹'
         heading: '标签'
         none: '暂无标签'
-        none_by_account: '标签列在各个账户下'
         shared_with: '也在 %accounts% 上'
     new_mail_here: '%where% 中有新邮件'
     new_mail_here_count: '%where% 中有 %count% 封新邮件'

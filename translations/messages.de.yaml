@@ -5497,7 +5497,6 @@ sidebar:
         folder_on: 'Ordner auf %accounts%'
         heading: Labels
         none: Noch keine Labels
-        none_by_account: 'Labels stehen unter dem jeweiligen Konto'
         shared_with: 'Auch auf %accounts%'
     new_mail_here: 'Neue Nachrichten in %where%'
     new_mail_here_count: '%count% neu in %where%'

@@ -5502,7 +5502,6 @@ sidebar:
         folder_on: 'Dossier sur %accounts%'
         heading: Libellés
         none: Aucun libellé pour l’instant
-        none_by_account: 'Les libellés sont listés sous chaque compte'
         shared_with: 'Aussi sur %accounts%'
     new_mail_here: 'Nouveau courrier dans %where%'
     new_mail_here_count: '%count% nouveaux dans %where%'

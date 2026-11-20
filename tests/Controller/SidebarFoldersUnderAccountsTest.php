@@ -119,6 +119,32 @@ final class SidebarFoldersUnderAccountsTest extends WebTestCase
     }
 
     /**
+     * By account, with every label on an account, LABELS has nothing to hold
+     * and is not drawn at all — no heading over nothing. Merged and empty it
+     * stays, because its "+" is where a first label is made.
+     */
+    public function testByAccountLabelsIsLeftOutWhenItWouldBeEmpty(): void
+    {
+        $this->tag('Later');
+
+        $labelsSection = 'details[data-collapse-key="' . User::SIDEBAR_SECTION_LABELS . '"]';
+
+        self::assertGreaterThan(0, $this->client->request('GET', '/mail/inbox')->filter($labelsSection)->count(), 'merged, it is there');
+
+        // Reloaded first: a request clears the entity manager, so the user
+        // set up before it is no longer the one a flush writes.
+        $this->reloadedUser()->labelsByAccount = true;
+        $this->em->flush();
+
+        self::assertCount(0, $this->client->request('GET', '/mail/inbox')->filter($labelsSection));
+
+        $this->reloadedUser();
+        $this->seedLabel('Someday');
+
+        self::assertGreaterThan(0, $this->client->request('GET', '/mail/inbox')->filter($labelsSection)->count(), 'back for a label on no account');
+    }
+
+    /**
      * A label on another account too is marked under each, and the mark names
      * the others — renaming or deleting it from the merged list reaches them.
      * Dropping on it there labels this account's mail rather than moving it.

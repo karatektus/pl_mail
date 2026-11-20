@@ -5264,7 +5264,6 @@ sidebar:
         folder_on: 'Folder aboard %accounts%'
         heading: Flags
         none: No flags yet
-        none_by_account: 'Flags be listed under each account'
         shared_with: 'Also flyin'' on %accounts%'
     new_mail_here: 'Fresh bottles washed up in %where%'
     new_mail_here_count: '%count% fresh bottles washed up in %where%'
