@@ -73,7 +73,7 @@ class SmtpMailSender implements MailDeliveryInterface
         return true;
     }
 
-    public function deliver(Email $email, Account $account): void
+    public function deliver(Email $email, Account $account): ?string
     {
         try {
             $mailer = new Mailer(Transport::fromDsn($this->dsnFactory->forAccount($account)));
@@ -81,6 +81,8 @@ class SmtpMailSender implements MailDeliveryInterface
         } catch (TransportExceptionInterface $e) {
             throw $this->classify($account, $e);
         }
+
+        return null;
     }
 
     /**

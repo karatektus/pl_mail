@@ -27,10 +27,13 @@ final class ScriptedDeliverySender implements MailDeliveryInterface, SentCopyLoo
     /**
      * @param list<\Throwable|null> $attempts   what each deliver() does, in order; null sends
      * @param \Throwable|bool       $inSent     what isInSent() answers, or throws
+     * @param ?string               $providerMessageId what a send that goes through answers:
+     *                                                 the Message-ID the provider gave the mail (#702)
      */
     public function __construct(
         private array $attempts = [],
         public \Throwable|bool $inSent = false,
+        private ?string $providerMessageId = null,
     ) {
     }
 
@@ -44,7 +47,7 @@ final class ScriptedDeliverySender implements MailDeliveryInterface, SentCopyLoo
         throw new \LogicException('MessageSendService uses deliver() for a sender that has it.');
     }
 
-    public function deliver(Email $email, Account $account): void
+    public function deliver(Email $email, Account $account): ?string
     {
         $this->delivered[] = (string) $email->getHeaders()->get('Message-ID')?->getBodyAsString();
 
@@ -53,6 +56,8 @@ final class ScriptedDeliverySender implements MailDeliveryInterface, SentCopyLoo
         if (null !== $next) {
             throw $next;
         }
+
+        return $this->providerMessageId;
     }
 
     public function filesSentCopy(): bool

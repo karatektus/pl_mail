@@ -138,10 +138,12 @@ class MessageSendService
             $this->em->flush();
         }
 
+        $providerMessageId = null;
+
         if ($sender instanceof MailDeliveryInterface) {
             // Throws what kind of failure it was; the handler decides what
             // happens next. Nothing is recorded on the row here.
-            $sender->deliver($email, $account);
+            $providerMessageId = $sender->deliver($email, $account);
         } elseif (false === $sender->send($email, $account)) {
             // A sender that only says yes or no — the demo sender, a test
             // double. No reason to go on, so it is taken at its word as a
@@ -149,7 +151,7 @@ class MessageSendService
             throw new SendRefusedException('The sender refused the message.', SendFailure::Refused);
         }
 
-        return $this->recordSent($message, $account, $email, $sender);
+        return $this->recordSent($message, $account, $email, $sender, $providerMessageId);
     }
 
     /**
@@ -187,7 +189,7 @@ class MessageSendService
     /**
      * The provider has the mail: write that down first, then the rest.
      */
-    private function recordSent(Message $message, Account $account, Email $email, MailSenderInterface $sender): bool
+    private function recordSent(Message $message, Account $account, Email $email, MailSenderInterface $sender, ?string $providerMessageId = null): bool
     {
         // THE PROVIDER HAS THE MAIL. From this line on nothing may throw out of
         // this method, and the order below is what guarantees it.
@@ -200,6 +202,15 @@ class MessageSendService
         // committed first, on its own, which makes every later claimForSend()
         // refuse; the bookkeeping after it is best effort and only logged.
         $message->sentAt = new DateTimeImmutable();
+
+        // The id the mail actually left with, when the provider replaced the
+        // one stamped above (Gmail's API, #702): it is the one the Sent copy
+        // and the recipients have, so it is the one their answers and the
+        // sync's merge of the Sent copy look for. In this first flush, so the
+        // copy that syncs back a few seconds later already finds it.
+        if (null !== $providerMessageId && '' !== $providerMessageId) {
+            $message->messageId = $providerMessageId;
+        }
 
         // Whatever an earlier attempt left on the row is over: no warning, no
         // retry clock, nothing waiting to be checked.

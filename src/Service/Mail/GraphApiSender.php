@@ -91,7 +91,7 @@ class GraphApiSender implements MailDeliveryInterface, SentCopyLookupInterface
         return true;
     }
 
-    public function deliver(Email $email, Account $account): void
+    public function deliver(Email $email, Account $account): ?string
     {
         // Not $email->toString(): that drops Bcc, and Graph reads the
         // recipients from the MIME. See ApiMime.
@@ -141,6 +141,8 @@ class GraphApiSender implements MailDeliveryInterface, SentCopyLookupInterface
 
             throw new SendOutcomeUnknownException($e->getMessage(), $e);
         }
+
+        return null;
     }
 
     public function isInSent(Account $account, string $messageId): bool
