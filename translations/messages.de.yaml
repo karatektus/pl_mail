@@ -4846,22 +4846,26 @@ settings:
         zone_follows: Folgt plMail
     labels:
         by_account:
-            off_hint: 'Aus: Der Bereich Labels zeigt jedes Label einmal, über alle deine Konten.'
-            on_hint: 'An: Jedes Konto in der Seitenleiste zeigt seine eigenen Labels, und der Bereich Labels behält nur die, die noch auf keinem Konto sind.'
-            title: 'Nach Konto'
+            hint: 'Zeigt die Labels jedes Kontos in der Seitenleiste unter diesem Konto, neben seinen Ordnern. Der Bereich Labels behält dann nur Labels, die noch auf keinem Konto sind, und ein Label, das du unter einem Konto umbenennst, wird nur für dieses Konto umbenannt.'
+            title: 'Labels nach Konto'
         count: '%count% Labels'
         delete: Label "%name%" löschen
         edit: Label "%name%" bearbeiten
         empty: Noch keine Labels — erstelle eines, oder sie erscheinen nach der ersten Synchronisierung.
         folders_in_labels:
-            off_hint: 'Aus: Ordner stehen unter ihrem Konto, und der Bereich Labels enthält die Labels, die du auf Mails setzt.'
-            on_hint: 'An: Der Bereich Labels in der Seitenleiste listet auch Ordner, zusätzlich zu ihrem Platz unter jedem Konto.'
+            hint: 'Zeigt Ordner auch im gemeinsamen Bereich Labels, zusätzlich zu ihrem Platz unter jedem Konto. Nur für die gemeinsame Liste: Nach Konto steht ohnehin alles unter seinem Konto.'
             title: 'Ordner unter Labels'
         heading: Labels
         hide: Label ausblenden
+        seg:
+            off: 'Aus'
+            on: 'An'
         show: Label anzeigen
         subheading: Labels erstellen, umbenennen und ordnen — und wählen, welche in der Seitenleiste erscheinen.
         system: System
+        view:
+            heading: 'Labels in der Seitenleiste'
+            subheading: 'Wähle, ob die Seitenleiste deine Labels einmal für alle Konten zeigt oder unter jedem Konto.'
     pinning:
         duration:
             custom: 'Eine Zahl von Tagen'
@@ -5044,7 +5048,8 @@ settings:
             inbox_tabs: "tabs werbung sozial benachrichtigungen foren"
             insights: "paket sendungsverfolgung rechnung flug"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
-            labels: "ordner tags ungelesen alle e-mails konto gruppiert"
+            label_view: "nach konto gruppiert gemeinsam ordner seitenleiste"
+            labels: "ordner tags ungelesen alle e-mails"
             language: "sprache deutsch englisch französisch chinesisch"
             libravatar: 'libravatar avatar bild foto teilen öffentlich profil'
             list_content: 'anhänge chips büroklammer dateien labels absender datum uhrzeit anzahl beantwortet'
@@ -5470,8 +5475,10 @@ shortcuts:
 sidebar:
     accounts:
         add: Konto hinzufügen
+        collapse_all: 'Alle Konten zuklappen'
         colour: 'Farbmarkierung für %account%'
         colour_disabled: 'Farbmarkierung für %account%, bei dem E-Mail ausgeschaltet ist'
+        expand_all: 'Alle Konten aufklappen'
         folders: 'Ordner …'
         heading: Konten
         menu: 'Ordner von %account%'

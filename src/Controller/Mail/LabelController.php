@@ -134,7 +134,8 @@ final class LabelController extends AbstractController
 
         $account = $this->requestedAccount($request);
 
-        if (null !== $account && false === $this->splitter->splits($label, $account)) {
+        // Only an account the label is on; any other is the merged dialog.
+        if (null !== $account && null === $label->bindingFor($account)) {
             $account = null;
         }
 
@@ -154,9 +155,16 @@ final class LabelController extends AbstractController
 
         $form->handleRequest($request);
 
-        if (true === $form->isSubmitted() && true === $form->isValid()
-            && null !== $account && ($label->name !== $previousName || $label->parent !== $previousParent)) {
-            return $this->splitOnAccount($form, $label, $account);
+        $moved = $label->name !== $previousName || $label->parent !== $previousParent;
+
+        if (true === $form->isSubmitted() && true === $form->isValid() && true === $moved) {
+            $response = null !== $account
+                ? $this->renameOnAccount($form, $label, [$account])
+                : $this->joinEverywhere($form, $label);
+
+            if (null !== $response) {
+                return $response;
+            }
         }
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
@@ -184,33 +192,78 @@ final class LabelController extends AbstractController
     }
 
     /**
-     * The edit dialog's rename, for one account of a label that is on others
-     * too (#690).
+     * The edit dialog's rename, for some accounts of a label rather than the
+     * label (#690): from under one account, or for every account it is on
+     * when joining another label from the merged list. Null when it is not
+     * that — an ordinary rename, which the caller goes on to make.
      *
-     * The form has written the new name, place and colour onto the shared
-     * label, which must keep its own: they are read off it, then put back
-     * before anything flushes, and the split gets them as values. The name has
-     * to be free with the label itself counted, unlike a plain rename — it is
-     * a second label, and "sports" beside "Sports" would be two that
-     * findNameConflict() treats as one.
+     * It is that when the name is another label's, which this account's part
+     * joins (renaming "Flights2" back to "Flights"), or when the label is on
+     * other accounts too, which keep it as it is. The form has written the new
+     * name, place and colour onto the label, which must keep its own: they are
+     * read off it and put back before anything flushes, and LabelSplitter gets
+     * them as values.
+     *
+     * Refused, on the name field, where the label already there is on one of
+     * these accounts (a label is on an account once), and where a new label
+     * would differ from one that exists only in capitals — "sports" beside
+     * "Sports" are two that findNameConflict() treats as one.
+     *
+     * @param list<Account> $accounts
      */
-    private function splitOnAccount(FormInterface $form, Label $label, Account $account): Response
+    private function renameOnAccount(FormInterface $form, Label $label, array $accounts): ?Response
     {
         $name   = (string) $label->name;
         $parent = $label->parent;
         $color  = $label->color;
+        $into   = $this->splitter->joins($label, $parent, $name);
+        $splits = 1 === count($accounts) && true === $this->splitter->splits($label, $accounts[0]);
+
+        if (null === $into && false === $splits) {
+            return null;
+        }
 
         $this->em->refresh($label);
 
-        if (null !== $this->labelRepository->findNameConflict($this->currentUser(), $parent, $name)) {
-            $form->get('name')->addError(new FormError($this->translator->trans('label.error.duplicate')));
+        $refused = null === $into && null !== $this->labelRepository->findNameConflict($this->currentUser(), $parent, $name);
 
-            return $this->renderForm($form, $label, $account);
+        foreach ($accounts as $account) {
+            $refused = $refused || false === $this->splitter->canMove($label, $account, $parent, $name);
         }
 
-        $this->splitter->renameOnAccount($label, $account, $name, $parent, $color);
+        if (true === $refused) {
+            $form->get('name')->addError(new FormError($this->translator->trans('label.error.duplicate')));
+
+            return $this->renderForm($form, $label, 1 === count($accounts) ? $accounts[0] : null);
+        }
+
+        foreach ($accounts as $account) {
+            $this->splitter->renameOnAccount($label, $account, $name, $parent, $color);
+        }
 
         return $this->labelListsStream('label.updated', true);
+    }
+
+    /**
+     * From the merged list, a rename onto another label's name joins the two
+     * when they share no account — so a split can be undone from Settings as
+     * well as from under the account. Null when there is nothing to join, or
+     * the label is on no account, and the rename goes on as an ordinary one,
+     * whose name check then refuses a taken name as before.
+     */
+    private function joinEverywhere(FormInterface $form, Label $label): ?Response
+    {
+        $accounts = [];
+
+        foreach ($label->bindings as $binding) {
+            $accounts[] = $binding->account;
+        }
+
+        if ([] === $accounts || null === $this->splitter->joins($label, $label->parent, (string) $label->name)) {
+            return null;
+        }
+
+        return $this->renameOnAccount($form, $label, $accounts);
     }
 
     /**
@@ -630,6 +683,11 @@ final class LabelController extends AbstractController
 
         if (null === $label->id) {
             return $this->translator->trans('label.form.account_note.new', ['%account%' => $account->displayAddress]);
+        }
+
+        // On this account alone: a rename here is a rename, nothing to say.
+        if ([] === $others) {
+            return null;
         }
 
         return $this->translator->trans('label.form.account_note.rename', [

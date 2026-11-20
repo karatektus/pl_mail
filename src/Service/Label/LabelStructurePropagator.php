@@ -61,6 +61,16 @@ final readonly class LabelStructurePropagator
     }
 
     /**
+     * renamed(), for one account's binding alone (#690): a label renamed for
+     * one account, or joined to the label already at that name, which its
+     * other accounts already carry.
+     */
+    public function renamedOn(Label $label, Account $account, ?string $previousFullName = null): void
+    {
+        $this->dispatch($label, ApplyLabelStructureMessage::ACTION_RENAME, $previousFullName, $account);
+    }
+
+    /**
      * MUST be called before the row is removed: the remote id and name are
      * captured from the entity here, and there is nothing to read afterwards.
      */
@@ -77,7 +87,7 @@ final readonly class LabelStructurePropagator
      * A label with no bindings has never been used on any account and has
      * nothing to propagate.
      */
-    private function dispatch(Label $label, string $action, ?string $previousFullName = null): void
+    private function dispatch(Label $label, string $action, ?string $previousFullName = null, ?Account $only = null): void
     {
         // System labels map onto provider built-ins (INBOX, SENT, …) that
         // cannot be created, renamed or deleted through the API.
@@ -88,7 +98,7 @@ final readonly class LabelStructurePropagator
         foreach ($label->bindings as $binding) {
             $account = $binding->account;
 
-            if (null === $account || false === $this->isEnabled($account)) {
+            if (null === $account || false === $this->isEnabled($account) || (null !== $only && $account !== $only)) {
                 continue;
             }
 

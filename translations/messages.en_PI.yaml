@@ -4638,22 +4638,26 @@ settings:
         zone_follows: 'Follows plMail''s bell'
     labels:
         by_account:
-            off_hint: 'Off: th'' Flags section lists every flag once, across all yer accounts.'
-            on_hint: 'On: each account in th'' sidebar lists its own flags, and th'' Flags section keeps only th'' flags that be on no account yet.'
-            title: 'By account'
+            hint: 'Lists each account’s flags under that account in th’ sidebar, beside its holds. Th’ Flags section then keeps only flags on no account yet, and a flag renamed from under an account be renamed fer that account alone.'
+            title: 'Flags by account'
         count: '%count% flags'
         delete: Strike the flag "%name%"
         edit: Mend the flag "%name%"
         empty: No flags yet — hoist one, or they turn up after the first haul.
         folders_in_labels:
-            off_hint: 'Off: holds be listed under their account, and th'' Flags section keeps th'' flags ye hoist on letters.'
-            on_hint: 'On: th'' Flags section o'' the sidebar lists holds too, beside their berth under each account.'
+            hint: 'Lists holds in th’ merged Flags section too, beside their berth under each account. Only fer th’ merged list: by account, everythin’ be under its account already.'
             title: 'Holds among th'' Flags'
         heading: Flags
         hide: Lower this flag
+        seg:
+            off: 'Nay'
+            on: 'Aye'
         show: Fly this flag
         subheading: Hoist, rename and order yer flags, and choose which fly in the sidebar.
         system: Ship's own
+        view:
+            heading: 'Flags in th’ sidebar'
+            subheading: 'Choose whether th’ sidebar lists yer flags once fer all accounts, or under each account.'
     pinning:
         duration:
             custom: 'A count o’ days'
@@ -4828,7 +4832,8 @@ settings:
             inbox_tabs: "tabs promotions social updates forums"
             insights: "parcel tracking invoice flight"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
-            labels: "folders tags unread all mail account grouped"
+            label_view: "by account grouped merged folders sidebar"
+            labels: "folders tags unread all mail"
             language: "locale english german french chinese"
             libravatar: 'libravatar avatar portrait likeness share public profile'
             list_content: 'cargo attachments chips paperclip files flags labels sender date hour tally answered'
@@ -5237,8 +5242,10 @@ shortcuts:
 sidebar:
     accounts:
         add: Sign on a crew member
+        collapse_all: 'Batten down all accounts'
         colour: 'Colours flown by %account%'
         colour_disabled: 'Colours flown by %account%, its letters becalmed'
+        expand_all: 'Open all accounts'
         folders: 'Folders…'
         heading: Th' crew
         menu: 'Folders o'' %account%'

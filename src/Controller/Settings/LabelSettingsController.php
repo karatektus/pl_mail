@@ -14,14 +14,22 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * The two switches in the labels settings, both about how the sidebar shows
- * labels and both off by default:
+ * The switches in the "Labels in the sidebar" card, both about how the
+ * sidebar lists labels and both off by default:
  *
- *  - Folders in Labels (#221 step 3): whether the merged LABELS section lists
+ *  - `by_account` (#690): labels under each account instead of merged in
+ *    LABELS (User::$labelsByAccount).
+ *  - `folders_in_labels` (#221 step 3): whether the merged LABELS list shows
  *    folders too, or holds the tags alone and leaves folders under their
  *    account (User::$foldersInLabels).
- *  - By account (#690): whether labels are listed under each account instead
- *    of merged in LABELS (User::$labelsByAccount).
+ *
+ * One endpoint for the card, posted by settings--toggle like the other On/Off
+ * segments in Settings. It answers with the sidebar redrawn, both copies,
+ * which settings--toggle applies: both switches are about the sidebar, and
+ * one that changes nothing on screen until the next page load reads as one
+ * that did not work. They used to be two icon buttons in the label list's
+ * header, each with its own route and its own frame answering with itself — a
+ * control found nowhere else, with a tooltip as its only explanation.
  */
 #[IsGranted('ROLE_USER')]
 final class LabelSettingsController extends AbstractController
@@ -32,40 +40,8 @@ final class LabelSettingsController extends AbstractController
         private readonly EntityManagerInterface $em,
     ) {}
 
-    #[Route('/settings/labels/folders-in-labels', name: 'settings_labels_folders_toggle', methods: ['POST'])]
-    public function toggleFoldersInLabels(Request $request): Response
-    {
-        $user = $this->currentUser();
-
-        $this->assertCsrf($request, 'labels_folders_in_labels');
-
-        $user->foldersInLabels = false === $user->foldersInLabels;
-
-        $this->em->flush();
-
-        return $this->render('settings/labels/_folders_in_labels_control.html.twig');
-    }
-
-    /**
-     * Answers with the whole switch bar rather than the one switch: Folders in
-     * Labels means nothing while labels are listed by account, so it is drawn
-     * disabled then, and flipping this one has to redraw both.
-     */
-    #[Route('/settings/labels/by-account', name: 'settings_labels_by_account_toggle', methods: ['POST'])]
-    public function toggleLabelsByAccount(Request $request): Response
-    {
-        $user = $this->currentUser();
-
-        $this->assertCsrf($request, 'labels_by_account');
-
-        $user->labelsByAccount = false === $user->labelsByAccount;
-
-        $this->em->flush();
-
-        return $this->render('settings/labels/_view_controls.html.twig');
-    }
-
-    private function currentUser(): User
+    #[Route('/settings/labels/view', name: 'settings_labels_view_toggle', methods: ['POST'])]
+    public function toggle(Request $request): Response
     {
         $user = $this->getUser();
 
@@ -73,6 +49,25 @@ final class LabelSettingsController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        return $user;
+        $this->assertCsrf($request, 'labels_view_toggle');
+
+        $key     = $request->request->getString('key');
+        $enabled = $request->request->getBoolean('enabled');
+
+        // An unknown key is a bug in our own page, not something to store.
+        if ('by_account' === $key) {
+            $user->labelsByAccount = $enabled;
+        } elseif ('folders_in_labels' === $key) {
+            $user->foldersInLabels = $enabled;
+        } else {
+            return $this->json(['ok' => false, 'error' => 'unknown setting'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $this->em->flush();
+
+        return new Response(
+            $this->renderView('_partials/_sidebar.stream.html.twig'),
+            headers: ['Content-Type' => 'text/vnd.turbo-stream.html'],
+        );
     }
 }

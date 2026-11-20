@@ -114,8 +114,8 @@ final readonly class ConfigBackupUsers
      *
      * Curated rather than copied wholesale, and the two that are missing are
      * the point of curating: `admin.logs_seen_at` is a read marker against log
-     * rows that do not travel, and `sidebar.expanded_account` holds an account
-     * **id** from the source database, which on the target is either nothing or
+     * rows that do not travel, and `sidebar.expanded_account` holds account
+     * **ids** from the source database, which on the target is either nothing or
      * somebody else's mailbox. The onboarding keys very much do travel — a
      * restored user who is walked back through the setup wizard has been told
      * their restore did not work.
@@ -357,7 +357,7 @@ final readonly class ConfigBackupUsers
     public const array EXCLUDED_USER_SETTINGS = [
         User::SETTING_LOGS_SEEN_AT => 'a read marker against log rows, which do not travel',
         User::SETTING_WHATS_NEW_SEEN => 'a read marker like admin.logs_seen_at, against the release the source install ran: restored onto another version it would either hide notes this person has not read or repeat ones they have',
-        User::SETTING_SIDEBAR_ACCOUNT => 'an account id from the source database — on the target that is nothing, or somebody else',
+        User::SETTING_SIDEBAR_ACCOUNT => 'account ids from the source database — on the target they are nothing, or somebody else',
         User::SETTING_INSIGHT_PANE_DISMISSED_AT => 'a read marker like admin.logs_seen_at: it says when this person last waved the strip away, not what they chose',
     ];
 

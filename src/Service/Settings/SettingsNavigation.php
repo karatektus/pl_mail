@@ -162,6 +162,7 @@ final class SettingsNavigation
                 ['card-tab-counts', 'settings.message_list.tab_counts.heading', null],
             ],
             'labels' => [
+                ['card-label-view', 'settings.labels.view.heading', 'settings.search.keywords.label_view'],
                 ['card-labels', 'settings.labels.heading', 'settings.search.keywords.labels'],
             ],
             'filters' => [

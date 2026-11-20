@@ -195,6 +195,57 @@ final class LabelOnOneAccountTest extends WebTestCase
         self::assertSame([(int) $this->account->id, (int) $this->club->id], $this->accountsOf((int) $sports->id));
     }
 
+    /**
+     * A split can be undone (reported on the branch): "Flights2", split off
+     * for the club account, renamed back to "Flights" from under that account
+     * joins "Flights" again — binding and mail — and the emptied "Flights2"
+     * is gone. It used to be refused as a name that was taken.
+     */
+    public function testRenamingASplitOffLabelBackJoinsTheOriginal(): void
+    {
+        $flights = $this->labelOn('Flights', $this->account, $this->club);
+        $club    = $this->threadOn($this->club, 'Club trip to Lisbon', $flights);
+
+        $this->submit('/labels/' . $flights->id . '/edit?account=' . $this->club->id, 'Flights2');
+
+        $flights2 = (int) $this->connection->fetchOne('SELECT id FROM label WHERE usr_id = ? AND name = ?', [$this->user->id, 'Flights2']);
+
+        $this->submit('/labels/' . $flights2 . '/edit?account=' . $this->club->id, 'Flights');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([(int) $this->account->id, (int) $this->club->id], $this->accountsOf((int) $flights->id));
+        self::assertSame([(int) $flights->id], $this->labelsOfThread($club));
+        self::assertFalse($this->connection->fetchOne('SELECT id FROM label WHERE id = ?', [$flights2]), 'the emptied label is deleted');
+    }
+
+    /** The same from the merged list, where it joins for every account the label is on. */
+    public function testRenamingBackFromTheMergedListJoinsToo(): void
+    {
+        $flights = $this->labelOn('Flights', $this->account);
+        $other   = $this->labelOn('Flights2', $this->club);
+
+        $this->submit('/labels/' . $other->id . '/edit', 'Flights');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([(int) $this->account->id, (int) $this->club->id], $this->accountsOf((int) $flights->id));
+        self::assertFalse($this->connection->fetchOne('SELECT id FROM label WHERE id = ?', [$other->id]));
+    }
+
+    /**
+     * A label is on an account once, so joining one that is already on this
+     * account is refused, and nothing moves.
+     */
+    public function testJoiningALabelAlreadyOnThatAccountIsRefused(): void
+    {
+        $sports = $this->labelOn('Sports', $this->account, $this->club);
+        $this->labelOn('Club', $this->club);
+
+        $this->submit('/labels/' . $sports->id . '/edit?account=' . $this->club->id, 'Club');
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([(int) $this->account->id, (int) $this->club->id], $this->accountsOf((int) $sports->id));
+    }
+
     public function testAnotherUsersAccountIsRefused(): void
     {
         $stranger       = $this->seedUser();

@@ -25,9 +25,15 @@ use Doctrine\ORM\EntityManagerInterface;
  * other accounts keep the label as it was. From then on the two are separate
  * labels, in both views.
  *
+ * The other way works too, and has to: a name that another label already has
+ * joins that label, as long as it is not on this account yet. Split "Flights"
+ * into "Flights2" and rename it back, and the binding and its mail return to
+ * "Flights"; "Flights2", empty, is deleted. It used to be refused as a name
+ * that was taken, which left a split that could not be undone.
+ *
  * The binding moves rather than being recreated, so the account's remote id
- * goes with it and the rename reaches the server as a rename
- * (LabelStructurePropagator::renamed()); and so its id, which is the JMAP
+ * goes with it and the rename reaches the server as a rename, for that
+ * account alone (LabelStructurePropagator::renamedOn()); and so its id, which is the JMAP
  * Mailbox id, stays the one the apps already know.
  *
  * Labels under it on the same account follow, so the account's tree keeps its
@@ -38,7 +44,8 @@ use Doctrine\ORM\EntityManagerInterface;
  * Personal settings that named the old label for this account move with it: a
  * rule limited to this account that applies it, and a notification switch for
  * it, which is turned on for the new label too. A rule for every account keeps
- * the old label, which is still the label everywhere else.
+ * the old label, which is still the label everywhere else — unless the old
+ * label was emptied and deleted, and then every rule that applied it moves.
  *
  * Rejected: renaming in place and recording a per-account name on the binding.
  * The label would still be one label — one colour, one unread count, one row
@@ -66,9 +73,52 @@ final readonly class LabelSplitter
     }
 
     /**
-     * Give this account's binding of the label a new name and parent, and
-     * return the label it is on afterwards. The caller has checked the name
-     * is free (LabelRepository::findNameConflict()) and that splits() holds.
+     * The label already at that name and place, other than this one — the one
+     * a rename for this account would join rather than make (null when there
+     * is none, and the rename makes or renames one).
+     */
+    public function joins(Label $label, ?Label $parent, string $name): ?Label
+    {
+        return null === $label->usr ? null : $this->labels->findNameConflict($label->usr, $parent, $name, $label);
+    }
+
+    /**
+     * Whether this account's part of the label can move to that name: the
+     * label already there, if any, is not on this account yet — and the same
+     * holds for every label under it that has to follow. A label is on an
+     * account once, so two can join only where they never met.
+     */
+    public function canMove(Label $label, Account $account, ?Label $parent, string $name): bool
+    {
+        $into = $this->joins($label, $parent, $name);
+
+        if (null === $into) {
+            return true;
+        }
+
+        if (null !== $label->bindingFor($account) && null !== $into->bindingFor($account)) {
+            return false;
+        }
+
+        foreach ($label->children as $child) {
+            if (true === $this->isOnAccountBelow($child, $account)
+                && false === $this->canMove($child, $account, $into, (string) $child->name)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Give this account's binding of the label a new name and place, and
+     * return the label it is on afterwards: the label already at that name,
+     * which it joins (renaming "Flights2" back to "Flights"), or one made for
+     * it, or the label itself renamed where it is on this account alone. The
+     * caller has checked canMove().
+     *
+     * A label left with no binding and nothing under it is deleted: what was
+     * split off and has been joined back has nothing left to stand for.
      */
     public function renameOnAccount(Label $label, Account $account, string $name, ?Label $parent, ?string $color): Label
     {
@@ -79,12 +129,21 @@ final readonly class LabelSplitter
 
         $this->em->flush();
 
+        // For this account only. The label it joined may be on others, and
+        // they already carry this name.
         foreach ($renamed as [$moved, $previousFullName]) {
-            $this->structure->renamed($moved, $previousFullName);
+            $this->structure->renamedOn($moved, $account, $previousFullName);
             $this->changes->labelChanged($moved);
         }
 
-        $this->carryPersonalSettings($label, $target, $account);
+        $emptied = $label !== $target && 0 === count($label->bindings) && 0 === count($label->children);
+
+        $this->carryPersonalSettings($label, $target, $account, $emptied);
+
+        if (true === $emptied) {
+            $label->parent?->removeChild($label);
+            $this->em->remove($label);
+        }
 
         $this->em->flush();
 
@@ -96,10 +155,13 @@ final readonly class LabelSplitter
      */
     private function moveTo(Label $from, Account $account, ?Label $parent, string $name, ?string $color, array &$renamed): Label
     {
-        // On this account and nowhere else, all the way down: it can move as
-        // it is. Anything below it on another account keeps it a split, or
-        // re-parenting it would rename that account's labels too.
-        if (true === $this->onlyOn($from, $account)) {
+        $into = $this->joins($from, $parent, $name);
+
+        // On this account and nowhere else, all the way down, and nothing to
+        // join: it can move as it is. Anything below it on another account
+        // keeps it a split, or re-parenting it would rename that account's
+        // labels too.
+        if (null === $into && true === $this->onlyOn($from, $account)) {
             $before = $this->fullNamesOnAccount($from, $account);
 
             $from->name   = $name;
@@ -114,19 +176,8 @@ final readonly class LabelSplitter
         }
 
         $previousFullName = $from->fullName;
-
-        $target            = new Label();
-        $target->usr       = $from->usr;
-        $target->parent    = $parent;
-        $target->name      = $name;
-        $target->color     = $color;
-        $target->isVisible = $from->isVisible;
-        $target->sortOrder = $from->sortOrder;
-
-        $this->em->persist($target);
-        $this->em->flush();
-
-        $binding = $from->bindingFor($account);
+        $target           = $into ?? $this->newLabel($from, $parent, $name, $color);
+        $binding          = $from->bindingFor($account);
 
         if (null !== $binding) {
             $from->removeBinding($binding);
@@ -145,6 +196,22 @@ final readonly class LabelSplitter
         }
 
         return $target;
+    }
+
+    private function newLabel(Label $from, ?Label $parent, string $name, ?string $color): Label
+    {
+        $label            = new Label();
+        $label->usr       = $from->usr;
+        $label->parent    = $parent;
+        $label->name      = $name;
+        $label->color     = $color;
+        $label->isVisible = $from->isVisible;
+        $label->sortOrder = $from->sortOrder;
+
+        $this->em->persist($label);
+        $this->em->flush();
+
+        return $label;
     }
 
     /**
@@ -201,13 +268,21 @@ final readonly class LabelSplitter
         return $names;
     }
 
-    private function carryPersonalSettings(Label $from, Label $to, Account $account): void
+    /**
+     * $all when the old label is going: then every rule that applies it moves,
+     * whichever account it is for, or it would point at nothing.
+     */
+    private function carryPersonalSettings(Label $from, Label $to, Account $account, bool $all): void
     {
         if ($from === $to) {
             return;
         }
 
-        foreach ($this->rules->findBy(['account' => $account]) as $rule) {
+        $rules = true === $all && $from->usr instanceof User
+            ? $this->rules->findForUserOrdered($from->usr)
+            : $this->rules->findBy(['account' => $account]);
+
+        foreach ($rules as $rule) {
             $actions = $rule->actions;
             $changed = false;
 

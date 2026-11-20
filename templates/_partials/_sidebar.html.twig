@@ -877,15 +877,15 @@ controller instead — the scroll position and which trees are open.
 
            The same disclosure, for the same reason and out of the same stored
            set. It does NOT replace or duplicate SETTING_SIDEBAR_ACCOUNT, which
-           answers a different question: that one is *which* account is
+           answers a different question: that one is *which* accounts are
            expanded, this one is whether the accounts are on screen at all.
-           Collapsing takes the expanded account's folder list down with it and
-           expanding brings the same account back still open, because neither
+           Collapsing takes the expanded accounts' folder lists down with it and
+           expanding brings the same accounts back still open, because neither
            setting is written when the other changes.
 
            No roll-up badge here, unlike LABELS, and not for symmetry's sake:
            there is no honest single number. Account rows count within one
-           account, and only the expanded one's folders are ever loaded, so a
+           account, and only the expanded ones' folders are ever loaded, so a
            heading total would either be a sum over lists that are not on the
            page or a count that silently means "the one account you happened to
            have open". #}
@@ -900,6 +900,25 @@ controller instead — the scroll position and which trees are open.
                      data-ui--sidebar-target="collapseSummary">
                 <i class="fa-solid fa-chevron-right w-3 text-[9px] text-ink-faint transition-transform group-open/accounts:rotate-90" aria-hidden="true"></i>
                 <span class="flex-1 text-xs font-semibold text-ink-faint uppercase tracking-wider">{{ 'sidebar.accounts.heading'|trans }}</span>
+                {# Open all, or Close all once every account is open (#690):
+                   with several accounts open at once, the way to get there
+                   in one press, and back. Quiet until the heading is hovered,
+                   like Add account beside it, and for the same reasons. The
+                   name and icon are rendered for "open all" and corrected on
+                   connect, which knows the rows. #}
+                <button type="button"
+                        data-controller="settings--accounts-expand-all"
+                        data-action="click->settings--accounts-expand-all#toggle"
+                        data-settings--accounts-expand-all-persist-url-value="{{ path('app_mail_sidebar_account_expanded') }}"
+                        data-settings--accounts-expand-all-expand-label-value="{{ 'sidebar.accounts.expand_all'|trans }}"
+                        data-settings--accounts-expand-all-collapse-label-value="{{ 'sidebar.accounts.collapse_all'|trans }}"
+                        data-accounts-expand-all
+                        class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition cursor-pointer
+                               [@media(hover:hover)]:opacity-0 group-hover/head:opacity-100 focus-visible:opacity-100"
+                        aria-label="{{ 'sidebar.accounts.expand_all'|trans }}"
+                        title="{{ 'sidebar.accounts.expand_all'|trans }}">
+                    <i data-settings--accounts-expand-all-target="icon" class="fa-solid fa-angles-down w-3.5 h-3.5" aria-hidden="true"></i>
+                </button>
                 <button
                     data-controller="ui--modal"
                     data-action="click->ui--modal#open {{ _drawerClose }}"

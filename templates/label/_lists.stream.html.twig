@@ -20,6 +20,12 @@ Variables:
     {% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
 {% endif %}
 
+<turbo-stream action="replace" target="settings-label-count">
+    <template>
+        {% include 'settings/labels/_count.html.twig' with { labels: labels } %}
+    </template>
+</turbo-stream>
+
 <turbo-stream action="replace" target="settings-label-list">
     <template>
         <div id="settings-label-list">
@@ -52,14 +58,5 @@ Variables:
 {% endfor %}
 
 {% if refreshSidebar|default(false) %}
-    <turbo-stream action="replace" target="sidebar">
-        <template>
-            {% include '_partials/_sidebar.html.twig' only %}
-        </template>
-    </turbo-stream>
-    <turbo-stream action="replace" target="sidebar-drawer-inner">
-        <template>
-            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } only %}
-        </template>
-    </turbo-stream>
+    {% include '_partials/_sidebar.stream.html.twig' only %}
 {% endif %}

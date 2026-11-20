@@ -744,12 +744,20 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
-     * The account whose folder list is expanded in the sidebar, or null.
+     * The accounts whose folder lists are expanded in the sidebar.
      *
      * Server-side for the same reason the calendar pane's width is: the
      * sidebar re-renders on every visit, and a list restored by JavaScript
      * afterwards is a list the user watches blink. Rendered into the first
      * paint, it never moves.
+     *
+     * Several at once since #690. It used to be one account, and opening a
+     * second closed the first; with labels listed by account an account's row
+     * is its whole label tree, and comparing two accounts' trees — the case
+     * the issue was about — meant opening and closing them in turn. The key
+     * is the one the single id was stored under, and a bag still holding an
+     * int reads as that one account (see $expandedAccountIds), so nobody's
+     * open account closes on upgrade.
      */
     public const string SETTING_SIDEBAR_ACCOUNT = 'sidebar.expanded_account';
 
@@ -1906,16 +1914,42 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
     }
 
-    /** Virtual, out of the settings bag — see SETTING_SIDEBAR_ACCOUNT. */
-    public ?int $expandedAccountId {
+    /**
+     * Virtual, out of the settings bag — see SETTING_SIDEBAR_ACCOUNT.
+     *
+     * @var list<int>
+     */
+    public array $expandedAccountIds {
         get {
-            $accountId = $this->getSetting(self::SETTING_SIDEBAR_ACCOUNT);
+            $stored = $this->getSetting(self::SETTING_SIDEBAR_ACCOUNT);
 
-            return is_int($accountId) ? $accountId : null;
+            if (true === is_int($stored)) {
+                return [$stored];
+            }
+
+            if (false === is_array($stored)) {
+                return [];
+            }
+
+            return array_values(array_filter($stored, 'is_int'));
         }
-        set (?int $accountId) {
-            $this->setSetting(self::SETTING_SIDEBAR_ACCOUNT, $accountId);
+        set (array $accountIds) {
+            $kept = array_values(array_unique(array_filter($accountIds, 'is_int')));
+
+            $this->setSetting(self::SETTING_SIDEBAR_ACCOUNT, [] === $kept ? null : $kept);
         }
+    }
+
+    public function isAccountExpanded(int $accountId): bool
+    {
+        return true === in_array($accountId, $this->expandedAccountIds, true);
+    }
+
+    public function setAccountExpanded(int $accountId, bool $expanded): void
+    {
+        $others = array_values(array_filter($this->expandedAccountIds, static fn (int $id): bool => $id !== $accountId));
+
+        $this->expandedAccountIds = true === $expanded ? [...$others, $accountId] : $others;
     }
 
     /**

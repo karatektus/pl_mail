@@ -4153,22 +4153,26 @@ settings:
         zone_follows: 跟随 plMail
     labels:
         by_account:
-            off_hint: '关闭：“标签”部分将每个标签只列出一次，涵盖你的所有账户。'
-            on_hint: '开启：侧边栏中的每个账户列出自己的标签，“标签”部分只保留尚未用于任何账户的标签。'
-            title: '按账户'
+            hint: '在侧边栏中把每个账户的标签列在该账户下，与其文件夹并列。“标签”部分只保留尚未用于任何账户的标签；在某个账户下重命名标签，只对该账户生效。'
+            title: '按账户显示标签'
         count: '%count% 个标签'
         delete: '删除标签“%name%”'
         edit: '编辑标签“%name%”'
         empty: '尚无标签。你可以创建一个，或等待首次同步后自动显示。'
         folders_in_labels:
-            off_hint: '关闭：文件夹列在各自账户下，“标签”部分只包含你添加到邮件上的标签。'
-            on_hint: '开启：侧边栏的“标签”部分也会列出文件夹，同时它们仍显示在各自账户下。'
+            hint: '在合并的“标签”部分中也列出文件夹，同时它们仍显示在各自账户下。仅适用于合并列表：按账户显示时，所有内容都已在各自账户下。'
             title: '在“标签”中显示文件夹'
         heading: '标签'
         hide: '隐藏标签'
+        seg:
+            off: '关'
+            on: '开'
         show: '显示标签'
         subheading: '创建、重命名和整理标签，并选择在侧边栏中显示哪些标签。'
         system: '系统'
+        view:
+            heading: '侧边栏中的标签'
+            subheading: '选择侧边栏将标签对所有账户只列出一次，还是列在每个账户下。'
     pinning:
         duration:
             custom: '自定义天数'
@@ -4339,7 +4343,8 @@ settings:
             inbox_tabs: "标签页 推广 社交 动态 论坛"
             insights: "包裹 物流 发票 航班"
             integrations: "nextcloud dropbox drive onedrive immich paperless 云 webdav"
-            labels: "文件夹 标签 未读 所有邮件 账户 分组"
+            label_view: "按账户 分组 合并 文件夹 侧边栏"
+            labels: "文件夹 标签 未读 所有邮件"
             language: "语言 中文 英语 德语 法语"
             libravatar: 'libravatar 头像 图片 照片 分享 公开 个人资料'
             list_content: '附件 文件标签 回形针 文件 标签 发件人 日期 时间 数量 已回复'
@@ -4714,8 +4719,10 @@ shortcuts:
 sidebar:
     accounts:
         add: '添加账户'
+        collapse_all: '收起所有账户'
         colour: '%account% 的颜色标记'
         colour_disabled: '%account% 的颜色标记，该账户的邮件已关闭'
+        expand_all: '展开所有账户'
         folders: '文件夹…'
         heading: '账户'
         menu: '%account% 的文件夹'

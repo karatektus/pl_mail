@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:e95585b6fa2f5985506f69afa561bbee4ed67bc3 -->
+<!-- translated-from: features/mail.md sha1:9a2aba949cf77386f80bfd4fa9669c1875e5ae3e -->
 
 # Mail
 
@@ -683,7 +683,7 @@ löschst sie dort, nie dadurch, dass du ein Label anlegst oder umbenennst; siehe
 
 Ein Label mit demselben Namen auf mehreren Konten ist in plMail ein einziges Label: „Sport“ auf zwei
 Gmail-Konten steht einmal in der Liste, und wenn du es öffnest, siehst du die Mail beider Konten.
-Schalte **Nach Konto** unter **Einstellungen → Labels** ein, um Labels stattdessen unter ihrem Konto
+Schalte **Labels nach Konto** unter **Einstellungen → Labels** ein, um Labels stattdessen unter ihrem Konto
 aufzulisten. Jedes Konto in der Seitenleiste zeigt dann alle seine Labels neben seinen Ordnern,
 verschachtelt wie auf dem Konto selbst; ein Label trägt seinen Farbpunkt, ein Ordner keinen. Der
 Bereich LABELS behält nur Labels, die noch auf keinem Konto sind.
@@ -699,11 +699,18 @@ Bereich LABELS behält nur Labels, die noch auf keinem Konto sind.
   Ein Filter, der nur auf diesem Konto läuft und das Label vergibt, vergibt jetzt das neue, und wenn
   du für das Label Benachrichtigungen bekommst, bekommst du sie auch für das neue. Eine Farbe, die du
   dort ohne neuen Namen änderst, gilt für das Label auf allen Konten.
+- Benennst du ein Label so wie ein anderes Label, schließt es sich diesem an, sofern das andere noch
+  nicht auf diesem Konto ist. Ein Label, das du für ein Konto umbenannt hast, ist nach dem
+  Zurückbenennen wieder ein einziges Label; das geht auch unter **Einstellungen → Labels**.
 - **Neues Label…** am Ende der Liste eines Kontos legt ein Label nur auf diesem Konto an. Gmail und
   Outlook bekommen es sofort, nicht erst, wenn es zum ersten Mal auf Mail gesetzt wird.
 
 Eine Konversation auf ein Label unter einem Konto zu ziehen vergibt das Label, wie unter LABELS; auf
 einen Ordner verschiebt sie. Beides nimmt nur Konversationen dieses Kontos an.
+
+In der Seitenleiste können mehrere Konten gleichzeitig aufgeklappt sein, und jedes bleibt offen, bis
+du es zuklappst. Die Schaltfläche neben **Konto hinzufügen** in der Überschrift KONTEN klappt alle auf,
+oder alle zu, sobald jedes offen ist.
 
 In einer geöffneten Konversation zeigt jede Nachricht ihre Labels. Ein Ordner, in dem sie liegt,
 trägt einen Ordner und hat kein ×, denn Mail aus einem Ordner zu nehmen ist ein Verschieben; ein Label

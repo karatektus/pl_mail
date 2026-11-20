@@ -243,7 +243,7 @@ class SidebarCounts implements ResetInterface
 
     /**
      * The visible labels materialised on one account, for the folder list the
-     * sidebar renders inline when that account is the expanded one.
+     * sidebar renders inline when that account is expanded.
      *
      * The same read MailController::accountFolders does, which still serves
      * the list when another account is expanded by hand. This exists so the
