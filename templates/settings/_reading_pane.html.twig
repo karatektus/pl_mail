@@ -21,10 +21,7 @@ it can be dragged against real mail. There is no slider for it here.
 Accepts:
   mode  App\Domain\Enum\Mail\ReadingPaneMode  the user's current choice
 #}
-{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                  peer-checked:bg-accent peer-checked:text-accent-ink
-                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                  transition-colors cursor-pointer' %}
+{% import '_partials/_segmented.html.twig' as seg %}
 
 <div class="px-4 py-3"
      data-controller="settings--reading-pane"
@@ -36,20 +33,12 @@ Accepts:
             <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.reading_pane.hint'|trans }}</span>
         </span>
 
-        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
-             role="radiogroup" aria-labelledby="reading-pane-label">
-            {% for case in enum('App\\Domain\\Enum\\Mail\\ReadingPaneMode').cases %}
-                <label>
-                    <input type="radio" name="readingPane" class="peer sr-only"
-                           value="{{ case.value }}"
-                           data-action="change->settings--reading-pane#pick"
-                           aria-label="{{ ('settings.reading_pane.' ~ case.value)|trans }}"
-                           {{ mode == case ? 'checked' : '' }}>
-                    <span class="{{ segText }}">
-                        {{ ('settings.reading_pane.' ~ case.value)|trans }}
-                    </span>
-                </label>
-            {% endfor %}
-        </div>
+        {{ seg.control('readingPane', enum('App\\Domain\\Enum\\Mail\\ReadingPaneMode').cases|map(case => {
+            value: case.value,
+            label: ('settings.reading_pane.' ~ case.value)|trans,
+        }), mode.value, {
+            labelledby: 'reading-pane-label',
+            action:     'change->settings--reading-pane#pick',
+        }) }}
     </div>
 </div>

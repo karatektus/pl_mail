@@ -330,6 +330,11 @@ data-action is what tells the imap-preset controller the protocol changed.
 A disabled segment is a protocol the chosen provider preset does not offer;
 the controller sets that, and the segment greys out rather than vanishing, so
 the three keep their places.
+
+Not _partials/_segmented.html.twig, which every other segmented control uses:
+that macro writes its own <input>s, and these are a Symfony form's children —
+their names, ids, `required` and the preset's `disabled` come from the form,
+and form_widget() is what renders them.
 #}
 {% block _account_incomingProtocol_widget %}
     <div {{ block('widget_container_attributes') }}>
