@@ -1,0 +1,91 @@
+{#
+_partials/_segmented.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The segmented control Settings uses for a choice among a few options: On/Off,
+or three or four named ones. A row of radios drawn as one rounded strip,
+with the checked one filled in the accent colour.
+
+One macro instead of a copy in every settings card. There were about thirty, each
+with its own `segGroup` and `segText` strings, and they had already drifted:
+`px-2` here and `px-3` there, `w-28` on some, `max-w-md` on others, a `label`
+with `cursor-pointer` on half of them. A fix to the focus ring had to be made
+thirty times or not at all.
+
+How the choice is saved is the caller's, passed in as attributes, because
+there are three ways and the control should not know which:
+  - posted on its own by settings--toggle, with `data-key` on each radio
+    (AI, insights, labels);
+  - submitting the form it sits in through ui--auto-submit (disposal, pinning);
+  - part of a form saved with a button.
+
+    {% import '_partials/_segmented.html.twig' as seg %}
+    {{ seg.control('labels-by_account', [
+        { value: '1', label: 'settings.labels.seg.on'|trans },
+        { value: '0', label: 'settings.labels.seg.off'|trans },
+    ], user.labelsByAccount ? '1' : '0', {
+        label:  'Labels by account',
+        width:  'w-28',
+        action: 'change->settings--toggle#toggle',
+        data:   { key: 'by_account' },
+    }) }}
+
+Arguments:
+  name     the radios' name, shared by the group and posted as the field name
+  options  list of { value, label, attrs?, disabled?, wrap?, style? }:
+           `label`    already translated
+           `attrs`    extra data-* for that one radio, as a map
+           `disabled` true to refuse that one option while still showing it
+           `wrap`     attributes for the option's <label>, as a map; true
+                      writes the bare attribute, false or null leaves it out.
+                      For an option a controller shows and hides: Appearance's
+                      "Original" logo segment is `hidden` while the icon is
+                      the mark, and a hidden grid item takes no column
+           `style`    inline style for the visible segment — the typeface
+                      choice draws each option in the face it names
+  current  the value that is checked. Compared as strings: Twig hands over
+           array keys '1' and '0' as integers, and a switch must not end up
+           with nothing checked because 1 is not '1'
+  opts     label       the group's accessible name (or labelledby: an id)
+           prefix      true to name each radio "<label> — <option>" rather
+                       than by its option alone. Off by default: the group
+                       already carries the name, and specs find a radio in
+                       its group by the option's word, exactly. On where a
+                       page stacks many groups with the same words — Follow,
+                       Default, Custom — and a list of form fields would
+                       show a column of them with nothing to tell them apart
+           width       width class for the strip; defaults to shrink-0 with
+                       equal columns, which sizes to the longest option
+           action      data-action on every radio
+           data        data-* on every radio, as a map
+           form        a form id, for a radio outside its form
+#}
+{% macro control(name, options, current, opts = {}) %}
+    {%- set _label      = opts.label ?? null -%}
+    {%- set _labelledby = opts.labelledby ?? null -%}
+    {%- set _prefix     = (opts.prefix ?? false) and _label -%}
+    <div class="grid grid-flow-col auto-cols-fr {{ opts.width ?? 'shrink-0' }} rounded-pane border border-line overflow-hidden"
+         role="radiogroup"
+         {% if _labelledby %}aria-labelledby="{{ _labelledby }}"{% elseif _label %}aria-label="{{ _label }}"{% endif %}
+         data-segmented="{{ name }}">
+        {% for option in options %}
+            <label class="cursor-pointer"
+                   {%- for key, value in option.wrap ?? {} %}{% if value is same as(true) %} {{ key }}{% elseif value is not same as(false) and value is not null %} {{ key }}="{{ value }}"{% endif %}{% endfor %}>
+                <input type="radio" name="{{ name }}" class="peer sr-only"
+                       value="{{ option.value }}"
+                       {% if opts.action ?? null %}data-action="{{ opts.action }}"{% endif %}
+                       {% if opts.form ?? null %}form="{{ opts.form }}"{% endif %}
+                       {% for key, value in opts.data ?? {} %}data-{{ key }}="{{ value }}" {% endfor %}
+                       {% for key, value in option.attrs ?? {} %}data-{{ key }}="{{ value }}" {% endfor %}
+                       {% if _prefix %}aria-label="{{ _label }} — {{ option.label }}"{% endif %}
+                       {{ (option.disabled ?? false) ? 'disabled' : '' }}
+                       {{ (current ~ '') == (option.value ~ '') ? 'checked' : '' }}>
+                <span class="flex h-full items-center justify-center px-2 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                             peer-checked:bg-accent peer-checked:text-accent-ink
+                             peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                             peer-disabled:opacity-40 peer-disabled:cursor-not-allowed
+                             transition-colors"
+                      {%- if option.style ?? null %} style="{{ option.style }}"{% endif %}>{{ option.label }}</span>
+            </label>
+        {% endfor %}
+    </div>
+{% endmacro %}

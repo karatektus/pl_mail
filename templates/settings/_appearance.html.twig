@@ -1,5 +1,6 @@
 {% import '_partials/_select.html.twig' as select %}
 {% import '_partials/_card_chrome.html.twig' as chrome %}
+{% import '_partials/_segmented.html.twig' as seg %}
 {% set a = appearance() %}
 
 {# ── One theme tile ──────────────────────────────────────────────────────────
@@ -65,12 +66,9 @@
    label. Without it a three-option control stretched the full controls column
    — 200px-wide segments carrying an 11px word, which reads as a row of empty
    buttons rather than a compact choice. It still goes edge to edge at 414px,
-   where the full width is the only width there is. #}
-{% set segGroup = 'grid grid-flow-col auto-cols-fr max-w-md rounded-pane border border-line overflow-hidden' %}
-{% set segText  = 'flex h-full items-center justify-center px-2 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                   peer-checked:bg-accent peer-checked:text-accent-ink
-                   peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                   transition-colors' %}
+   where the full width is the only width there is. The control is
+   _partials/_segmented.html.twig, shared with the rest of Settings; this page
+   passes `max-w-md` as its width. #}
 
 {# `@container` on the panel itself, so every width decision below is made
    against THIS panel's width rather than against whatever container happens to
@@ -354,29 +352,16 @@
                     <span class="block text-xs font-medium text-ink-muted mb-1.5" id="logo-paint-label">
                         {{ 'settings.appearance.logo.colour'|trans }}
                     </span>
-                    <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="logo-paint-label">
-                        <label class="cursor-pointer" data-settings--appearance-target="logoOriginalOption" {{ _classic ? 'hidden' : '' }}>
-                            <input type="radio" name="logoMode" class="peer sr-only" value="original"
-                                   data-action="change->settings--appearance#pickLogoMode"
-                                   aria-label="{{ 'settings.appearance.logo.original'|trans }}"
-                                {{ _logoMode == 'original' ? 'checked' : '' }}>
-                            <span class="{{ segText }}">{{ 'settings.appearance.logo.original'|trans }}</span>
-                        </label>
-                        <label class="cursor-pointer">
-                            <input type="radio" name="logoMode" class="peer sr-only" value="linked"
-                                   data-action="change->settings--appearance#pickLogoMode"
-                                   aria-label="{{ 'settings.appearance.logo.linked'|trans }}"
-                                {{ _logoMode == 'linked' ? 'checked' : '' }}>
-                            <span class="{{ segText }}">{{ 'settings.appearance.logo.linked'|trans }}</span>
-                        </label>
-                        <label class="cursor-pointer">
-                            <input type="radio" name="logoMode" class="peer sr-only" value="independent"
-                                   data-action="change->settings--appearance#pickLogoMode"
-                                   aria-label="{{ 'settings.appearance.logo.independent'|trans }}"
-                                {{ _logoMode == 'independent' ? 'checked' : '' }}>
-                            <span class="{{ segText }}">{{ 'settings.appearance.logo.independent'|trans }}</span>
-                        </label>
-                    </div>
+                    {{ seg.control('logoMode', [
+                        { value: 'original',    label: 'settings.appearance.logo.original'|trans,
+                          wrap: { 'data-settings--appearance-target': 'logoOriginalOption', hidden: _classic } },
+                        { value: 'linked',      label: 'settings.appearance.logo.linked'|trans },
+                        { value: 'independent', label: 'settings.appearance.logo.independent'|trans },
+                    ], _logoMode, {
+                        labelledby: 'logo-paint-label',
+                        width:      'max-w-md',
+                        action:     'change->settings--appearance#pickLogoMode',
+                    }) }}
                     <input type="hidden" data-settings--appearance-field="logoOriginal"
                            data-settings--appearance-target="logoOriginal" value="{{ a.logoOriginal ? '1' : '0' }}">
                     <input type="hidden" data-settings--appearance-field="logoLinked"
@@ -427,23 +412,19 @@
 
                    The per-option data attributes move onto the inputs; save()
                    already skips unchecked radios, so it needed no change. #}
-                <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="layout-label">
-                    {% for layout in enum('App\\Domain\\Enum\\Theme\\Layout').cases %}
-                        <label class="cursor-pointer">
-                            <input type="radio" name="layout" class="peer sr-only"
-                                   value="{{ layout.value }}"
-                                   data-settings--appearance-field="layout"
-                                   data-layout-class="{{ layout.htmlClass ?? '' }}"
-                                   data-layout-defaults="{{ layout.defaults|json_encode }}"
-                                   data-action="change->settings--appearance#pickLayout"
-                                   aria-label="{{ ('settings.appearance.layout.' ~ layout.value)|trans }}"
-                                {{ a.layout == layout ? 'checked' : '' }}>
-                            <span class="{{ segText }}">
-                                {{ ('settings.appearance.layout.' ~ layout.value)|trans }}
-                            </span>
-                        </label>
-                    {% endfor %}
-                </div>
+                {{ seg.control('layout', enum('App\\Domain\\Enum\\Theme\\Layout').cases|map(layout => {
+                    value: layout.value,
+                    label: ('settings.appearance.layout.' ~ layout.value)|trans,
+                    attrs: {
+                        'settings--appearance-field': 'layout',
+                        'layout-class':               layout.htmlClass ?? '',
+                        'layout-defaults':            layout.defaults|json_encode,
+                    },
+                }), a.layout.value, {
+                    labelledby: 'layout-label',
+                    width:      'max-w-md',
+                    action:     'change->settings--appearance#pickLayout',
+                }) }}
             </section>
 
             {# ── Motion ────────────────────────────────────────────────────
@@ -470,28 +451,24 @@
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.motion.subheading'|trans }}</p>
                 </div>
 
-                <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="motion-label">
-                    {% for motion in enum('App\\Domain\\Enum\\Theme\\MotionLevel').cases %}
-                        <label class="cursor-pointer">
-                            <input type="radio" name="motion" class="peer sr-only"
-                                   value="{{ motion.value }}"
-                                   data-settings--appearance-field="motion"
-                                   data-motion-value="{{ motion.value }}"
-                                   data-motion-fast="{{ motion.fast }}"
-                                   data-motion-base="{{ motion.base }}"
-                                   data-motion-slow="{{ motion.slow }}"
-                                   data-motion-lift="{{ motion.lift }}"
-                                   data-motion-scale="{{ motion.scaleFrom }}"
-                                   data-motion-stagger="{{ motion.stagger }}"
-                                   data-action="change->settings--appearance#pickMotion"
-                                   aria-label="{{ ('settings.appearance.motion.' ~ motion.value)|trans }}"
-                                {{ a.motion == motion ? 'checked' : '' }}>
-                            <span class="{{ segText }}">
-                                {{ ('settings.appearance.motion.' ~ motion.value)|trans }}
-                            </span>
-                        </label>
-                    {% endfor %}
-                </div>
+                {{ seg.control('motion', enum('App\\Domain\\Enum\\Theme\\MotionLevel').cases|map(motion => {
+                    value: motion.value,
+                    label: ('settings.appearance.motion.' ~ motion.value)|trans,
+                    attrs: {
+                        'settings--appearance-field': 'motion',
+                        'motion-value':               motion.value,
+                        'motion-fast':                motion.fast,
+                        'motion-base':                motion.base,
+                        'motion-slow':                motion.slow,
+                        'motion-lift':                motion.lift,
+                        'motion-scale':               motion.scaleFrom,
+                        'motion-stagger':             motion.stagger,
+                    },
+                }), a.motion.value, {
+                    labelledby: 'motion-label',
+                    width:      'max-w-md',
+                    action:     'change->settings--appearance#pickMotion',
+                }) }}
 
                 {# Said once, here, because it is the only place somebody would
                    look for it and be confused not to find it: the setting is
@@ -511,35 +488,29 @@
                         <span class="block text-xs font-medium text-ink-muted mb-1.5" id="density-global-label">
                             {{ 'settings.appearance.density.heading'|trans }}
                         </span>
-                        <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="density-global-label">
-                            {% for density in enum('App\\Domain\\Enum\\Theme\\Density').cases %}
-                                <label class="cursor-pointer">
-                                    {# Every padding scale travels on the radio, so the JS
-                                       resolving a surface has one place to read them from and
-                                       the numbers stay in the Density enum. The four sidebar
-                                       ones are its two row tiers, the space between rows and
-                                       the band above a section heading — see
-                                       settings--appearance's SURFACE_VARS, which maps each to
-                                       the custom property it feeds. #}
-                                    <input type="radio" name="density" class="peer sr-only"
-                                           value="{{ density.value }}"
-                                           data-settings--appearance-field="density"
-                                           data-row-y="{{ density.rowPadding }}"
-                                           data-tree-y="{{ density.treeRowPadding }}"
-                                           data-row-gap="{{ density.rowGap }}"
-                                           data-section-y="{{ density.sectionPadding }}"
-                                           data-gap="{{ density.gap }}"
-                                           data-list-row-y="{{ density.listRowPadding }}"
-                                           data-reading-row-y="{{ density.readingBlockPadding }}"
-                                           data-action="change->settings--appearance#pickDensity"
-                                           aria-label="{{ ('settings.appearance.density.' ~ density.value)|trans }}"
-                                        {{ a.density == density ? 'checked' : '' }}>
-                                    <span class="{{ segText }}">
-                                        {{ ('settings.appearance.density.' ~ density.value)|trans }}
-                                    </span>
-                                </label>
-                            {% endfor %}
-                        </div>
+                        {# Every padding scale travels on the radio, so the JS resolving a surface
+                           has one place to read them from and the numbers stay in the Density
+                           enum. The four sidebar ones are its two row tiers, the space between
+                           rows and the band above a section heading — see settings--appearance's
+                           SURFACE_VARS, which maps each to the custom property it feeds. #}
+                        {{ seg.control('density', enum('App\\Domain\\Enum\\Theme\\Density').cases|map(density => {
+                            value: density.value,
+                            label: ('settings.appearance.density.' ~ density.value)|trans,
+                            attrs: {
+                                'settings--appearance-field': 'density',
+                                'row-y':                      density.rowPadding,
+                                'tree-y':                     density.treeRowPadding,
+                                'row-gap':                    density.rowGap,
+                                'section-y':                  density.sectionPadding,
+                                'gap':                        density.gap,
+                                'list-row-y':                 density.listRowPadding,
+                                'reading-row-y':              density.readingBlockPadding,
+                            },
+                        }), a.density.value, {
+                            labelledby: 'density-global-label',
+                            width:      'max-w-md',
+                            action:     'change->settings--appearance#pickDensity',
+                        }) }}
                     </div>
 
                     {# ── Per surface ───────────────────────────────────────────
@@ -567,35 +538,19 @@
                                 {{ ('settings.appearance.density.surface.' ~ surface)|trans }}
                             </span>
 
-                            <div class="{{ segGroup }}"
-                                 role="radiogroup" aria-labelledby="surface-density-{{ surface }}">
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="{{ surface }}Density" class="peer sr-only" value=""
-                                           data-settings--appearance-field="{{ surface }}Density"
-                                           data-surface-density="{{ surface }}"
-                                           data-action="change->settings--appearance#pickSurfaceDensity"
-                                           aria-label="{{ ('settings.appearance.density.surface.' ~ surface)|trans }} — {{ 'settings.appearance.density.follow'|trans }}"
-                                        {{ current is null ? 'checked' : '' }}>
-                                    <span class="{{ segText }}">
-                                        {{ 'settings.appearance.density.follow'|trans }}
-                                    </span>
-                                </label>
-
-                                {% for density in enum('App\\Domain\\Enum\\Theme\\Density').cases %}
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="{{ surface }}Density" class="peer sr-only"
-                                               value="{{ density.value }}"
-                                               data-settings--appearance-field="{{ surface }}Density"
-                                               data-surface-density="{{ surface }}"
-                                               data-action="change->settings--appearance#pickSurfaceDensity"
-                                               aria-label="{{ ('settings.appearance.density.surface.' ~ surface)|trans }} — {{ ('settings.appearance.density.' ~ density.value)|trans }}"
-                                            {{ current == density ? 'checked' : '' }}>
-                                        <span class="{{ segText }}">
-                                            {{ ('settings.appearance.density.' ~ density.value)|trans }}
-                                        </span>
-                                    </label>
-                                {% endfor %}
-                            </div>
+                            {{ seg.control(surface ~ 'Density', [
+                                { value: '', label: 'settings.appearance.density.follow'|trans },
+                            ]|merge(enum('App\\Domain\\Enum\\Theme\\Density').cases|map(density => {
+                                value: density.value,
+                                label: ('settings.appearance.density.' ~ density.value)|trans,
+                            })), current is null ? '' : current.value, {
+                                labelledby: 'surface-density-' ~ surface,
+                                label:      ('settings.appearance.density.surface.' ~ surface)|trans,
+                                prefix:     true,
+                                width:      'max-w-md',
+                                action:     'change->settings--appearance#pickSurfaceDensity',
+                                data:       { 'settings--appearance-field': surface ~ 'Density', 'surface-density': surface },
+                            }) }}
                         </div>
                     {% endfor %}
                 </div>
@@ -619,22 +574,21 @@
                         <span class="block text-[11px] text-ink-faint mt-0.5 mb-1.5">
                             {{ 'settings.appearance.buttons.hint'|trans }}
                         </span>
-                        <div class="{{ segGroup }}"
-                             role="radiogroup" aria-labelledby="action-buttons-label">
-                            {% for style in enum('App\\Domain\\Enum\\Theme\\ActionButtonStyle').cases %}
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="actionButtons" class="peer sr-only" value="{{ style.value }}"
-                                           data-settings--appearance-field="actionButtons"
-                                           data-css-vars="{{ { '--action-icon-display': style.iconDisplay, '--action-label-display': style.labelDisplay, '--action-btn-px': style.paddingX, '--action-btn-gap': style.gap }|json_encode }}"
-                                           data-action="change->settings--appearance#applyVars"
-                                           aria-label="{{ ('settings.appearance.buttons.' ~ style.value)|trans }}"
-                                        {{ a.actionButtons == style ? 'checked' : '' }}>
-                                    <span class="{{ segText }}">
-                                        {{ ('settings.appearance.buttons.' ~ style.value)|trans }}
-                                    </span>
-                                </label>
-                            {% endfor %}
-                        </div>
+                        {{ seg.control('actionButtons', enum('App\\Domain\\Enum\\Theme\\ActionButtonStyle').cases|map(style => {
+                            value: style.value,
+                            label: ('settings.appearance.buttons.' ~ style.value)|trans,
+                            attrs: { 'css-vars': {
+                                '--action-icon-display':  style.iconDisplay,
+                                '--action-label-display': style.labelDisplay,
+                                '--action-btn-px':        style.paddingX,
+                                '--action-btn-gap':       style.gap,
+                            }|json_encode },
+                        }), a.actionButtons.value, {
+                            labelledby: 'action-buttons-label',
+                            width:      'max-w-md',
+                            action:     'change->settings--appearance#applyVars',
+                            data:       { 'settings--appearance-field': 'actionButtons' },
+                        }) }}
                         <div class="flex items-center gap-1 mt-2" aria-hidden="true" data-testid="action-buttons-sample">
                             <span class="action-btn flex items-center justify-center h-8 rounded-lg text-ink-muted">
                                 <i class="fa-solid fa-box-archive text-[15px]"></i>
@@ -674,22 +628,17 @@
                         <span class="block text-xs font-medium text-ink-muted mb-1.5" id="font-family-label">
                             {{ 'settings.appearance.typography.family'|trans }}
                         </span>
-                        <div class="{{ segGroup }}"
-                             role="radiogroup" aria-labelledby="font-family-label">
-                            {% for family in enum('App\\Domain\\Enum\\Theme\\FontFamily').cases %}
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="fontFamily" class="peer sr-only" value="{{ family.value }}"
-                                           data-settings--appearance-field="fontFamily"
-                                           data-css-vars="{{ { '--app-font-family': family.stack }|json_encode }}"
-                                           data-action="change->settings--appearance#applyVars"
-                                           aria-label="{{ ('settings.appearance.typography.font.' ~ family.value)|trans }}"
-                                        {{ a.fontFamily == family ? 'checked' : '' }}>
-                                    <span class="{{ segText }}" style="font-family:{{ family.stack }}">
-                                        {{ ('settings.appearance.typography.font.' ~ family.value)|trans }}
-                                    </span>
-                                </label>
-                            {% endfor %}
-                        </div>
+                        {{ seg.control('fontFamily', enum('App\\Domain\\Enum\\Theme\\FontFamily').cases|map(family => {
+                            value: family.value,
+                            label: ('settings.appearance.typography.font.' ~ family.value)|trans,
+                            attrs: { 'css-vars': { '--app-font-family': family.stack }|json_encode },
+                            style: 'font-family:' ~ family.stack,
+                        }), a.fontFamily.value, {
+                            labelledby: 'font-family-label',
+                            width:      'max-w-md',
+                            action:     'change->settings--appearance#applyVars',
+                            data:       { 'settings--appearance-field': 'fontFamily' },
+                        }) }}
                     </div>
 
                     <label class="block">
@@ -756,24 +705,18 @@
                                    aria-label="{{ 'settings.appearance.main.tint'|trans }}"
                                    class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
                         </div>
-                        <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="main-tint-label">
-                            <label class="cursor-pointer">
-                                <input type="radio" name="mainTintMode" class="peer sr-only" value="default"
-                                       data-settings--appearance-target="mainTintDefault"
-                                       data-action="change->settings--appearance#toggleMainTintDefault"
-                                       aria-label="{{ 'settings.appearance.main.tint'|trans }} — {{ 'settings.appearance.seg.default'|trans }}"
-                                    {{ a.mainTint is null ? 'checked' : '' }}>
-                                <span class="{{ segText }}">{{ 'settings.appearance.seg.default'|trans }}</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input type="radio" name="mainTintMode" class="peer sr-only" value="custom"
-                                       data-settings--appearance-target="mainTintCustom"
-                                       data-action="change->settings--appearance#toggleMainTintDefault"
-                                       aria-label="{{ 'settings.appearance.main.tint'|trans }} — {{ 'settings.appearance.seg.custom'|trans }}"
-                                    {{ a.mainTint is null ? '' : 'checked' }}>
-                                <span class="{{ segText }}">{{ 'settings.appearance.seg.custom'|trans }}</span>
-                            </label>
-                        </div>
+                        {{ seg.control('mainTintMode', [
+                            { value: 'default', label: 'settings.appearance.seg.default'|trans,
+                              attrs: { 'settings--appearance-target': 'mainTintDefault' } },
+                            { value: 'custom',  label: 'settings.appearance.seg.custom'|trans,
+                              attrs: { 'settings--appearance-target': 'mainTintCustom' } },
+                        ], a.mainTint is null ? 'default' : 'custom', {
+                            labelledby: 'main-tint-label',
+                            label:      'settings.appearance.main.tint'|trans,
+                            prefix:     true,
+                            width:      'max-w-md',
+                            action:     'change->settings--appearance#toggleMainTintDefault',
+                        }) }}
                         <input type="hidden" data-settings--appearance-field="mainTint" data-settings--appearance-target="mainTintField" value="{{ a.mainTint ?? '' }}">
                     </div>
 
@@ -783,24 +726,18 @@
                        following, exactly as it did under the checkbox. #}
                     <div>
                         <span class="block text-xs font-medium text-ink-muted mb-1.5" id="main-alpha-label">{{ 'settings.appearance.main.matchGlass'|trans }}</span>
-                        <div class="{{ segGroup }} mb-2" role="radiogroup" aria-labelledby="main-alpha-label">
-                            <label class="cursor-pointer">
-                                <input type="radio" name="mainAlphaMode" class="peer sr-only" value="follow"
-                                       data-settings--appearance-target="mainAlphaMatch"
-                                       data-action="change->settings--appearance#toggleMainAlphaMatch"
-                                       aria-label="{{ 'settings.appearance.main.matchGlass'|trans }} — {{ 'settings.appearance.density.follow'|trans }}"
-                                    {{ a.mainAlpha is null ? 'checked' : '' }}>
-                                <span class="{{ segText }}">{{ 'settings.appearance.density.follow'|trans }}</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input type="radio" name="mainAlphaMode" class="peer sr-only" value="custom"
-                                       data-settings--appearance-target="mainAlphaCustom"
-                                       data-action="change->settings--appearance#toggleMainAlphaMatch"
-                                       aria-label="{{ 'settings.appearance.main.matchGlass'|trans }} — {{ 'settings.appearance.seg.custom'|trans }}"
-                                    {{ a.mainAlpha is null ? '' : 'checked' }}>
-                                <span class="{{ segText }}">{{ 'settings.appearance.seg.custom'|trans }}</span>
-                            </label>
-                        </div>
+                        {{ seg.control('mainAlphaMode', [
+                            { value: 'follow', label: 'settings.appearance.density.follow'|trans,
+                              attrs: { 'settings--appearance-target': 'mainAlphaMatch' } },
+                            { value: 'custom', label: 'settings.appearance.seg.custom'|trans,
+                              attrs: { 'settings--appearance-target': 'mainAlphaCustom' } },
+                        ], a.mainAlpha is null ? 'follow' : 'custom', {
+                            labelledby: 'main-alpha-label',
+                            label:      'settings.appearance.main.matchGlass'|trans,
+                            prefix:     true,
+                            width:      'max-w-md mb-2',
+                            action:     'change->settings--appearance#toggleMainAlphaMatch',
+                        }) }}
                         <input type="range" min="0.15" max="1" step="0.01" value="{{ a.mainAlpha ?? a.paneAlpha }}"
                                data-settings--appearance-target="mainAlpha" data-action="input->settings--appearance#slideMainAlpha"
                                aria-label="{{ 'settings.appearance.main.matchGlass'|trans }}"
@@ -889,24 +826,18 @@
                                    aria-label="{{ 'settings.appearance.text.color'|trans }}"
                                    class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
                         </div>
-                        <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="ink-mode-label">
-                            <label class="cursor-pointer">
-                                <input type="radio" name="inkMode" class="peer sr-only" value="default"
-                                       data-settings--appearance-target="inkDefault"
-                                       data-action="change->settings--appearance#toggleInkDefault"
-                                       aria-label="{{ 'settings.appearance.text.color'|trans }} — {{ 'settings.appearance.seg.default'|trans }}"
-                                    {{ a.inkColor is null ? 'checked' : '' }}>
-                                <span class="{{ segText }}">{{ 'settings.appearance.seg.default'|trans }}</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input type="radio" name="inkMode" class="peer sr-only" value="custom"
-                                       data-settings--appearance-target="inkCustom"
-                                       data-action="change->settings--appearance#toggleInkDefault"
-                                       aria-label="{{ 'settings.appearance.text.color'|trans }} — {{ 'settings.appearance.seg.custom'|trans }}"
-                                    {{ a.inkColor is null ? '' : 'checked' }}>
-                                <span class="{{ segText }}">{{ 'settings.appearance.seg.custom'|trans }}</span>
-                            </label>
-                        </div>
+                        {{ seg.control('inkMode', [
+                            { value: 'default', label: 'settings.appearance.seg.default'|trans,
+                              attrs: { 'settings--appearance-target': 'inkDefault' } },
+                            { value: 'custom',  label: 'settings.appearance.seg.custom'|trans,
+                              attrs: { 'settings--appearance-target': 'inkCustom' } },
+                        ], a.inkColor is null ? 'default' : 'custom', {
+                            labelledby: 'ink-mode-label',
+                            label:      'settings.appearance.text.color'|trans,
+                            prefix:     true,
+                            width:      'max-w-md',
+                            action:     'change->settings--appearance#toggleInkDefault',
+                        }) }}
                         <input type="hidden" data-settings--appearance-field="inkColor" data-settings--appearance-target="inkColorField" value="{{ a.inkColor ?? '' }}">
                     </div>
 

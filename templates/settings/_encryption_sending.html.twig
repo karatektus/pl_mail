@@ -8,10 +8,7 @@ the keyboard shortcuts card.
 Accepts:
   user  App\Entity\User\User
 #}
-{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                  peer-checked:bg-accent peer-checked:text-accent-ink
-                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                  transition-colors cursor-pointer' %}
+{% import '_partials/_segmented.html.twig' as seg %}
 
 <div class="divide-y divide-line">
     {% for field, value in {
@@ -31,18 +28,13 @@ Accepts:
                     <span class="block text-[11px] text-ink-faint mt-0.5">{{ ('encryption.sending.' ~ field ~ '.hint')|trans }}</span>
                 </span>
 
-                <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
-                     role="radiogroup" aria-label="{{ ('encryption.sending.' ~ field ~ '.label')|trans }}">
-                    {% for on in [true, false] %}
-                        <label>
-                            <input type="radio" name="{{ field }}" class="peer sr-only"
-                                   value="{{ on ? '1' : '0' }}"
-                                   data-action="change->ui--auto-submit#submit"
-                                   {{ value == on ? 'checked' : '' }}>
-                            <span class="{{ segText }}">{{ (on ? 'encryption.sending.on' : 'encryption.sending.off')|trans }}</span>
-                        </label>
-                    {% endfor %}
-                </div>
+                {{ seg.control(field, [
+                    { value: '1', label: 'encryption.sending.on'|trans },
+                    { value: '0', label: 'encryption.sending.off'|trans },
+                ], value ? '1' : '0', {
+                    label:  ('encryption.sending.' ~ field ~ '.label')|trans,
+                    action: 'change->ui--auto-submit#submit',
+                }) }}
             </div>
         </form>
     {% endfor %}
