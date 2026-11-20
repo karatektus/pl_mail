@@ -45,7 +45,9 @@ import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
  * (App\Service\Crypto\SealedDrafts), attachments are encrypted before they are
  * uploaded, and pictures stay inside the draft. It stays sealed even if the
  * message later goes out unencrypted, because nothing but this browser can
- * open it again; the message is then built here as plain mail.
+ * open it again; the message is then built here as plain mail. The Encrypt
+ * and Sign choices are sealed in with it, so a window that opens the draft
+ * again keeps them instead of turning encryption back on (#703).
  *
  * compose--compose asks this controller three things at the moments that
  * matter — prepareDraft() before an autosave, mustBuild()/build() before a
@@ -169,7 +171,7 @@ export default class extends Controller {
 
         formData.set(this.#htmlInput().name, "");
         formData.set(this.#textInput().name, "");
-        formData.set("sealed[draft]", await sealDraft(this.#ring, { html, text, plain }));
+        formData.set("sealed[draft]", await sealDraft(this.#ring, { html, text, plain, ...this.#choices() }));
         this.#sealed = true;
         this.#paint();
 
@@ -265,7 +267,7 @@ export default class extends Controller {
         }
 
         if (true === this.isSealing()) {
-            fields["sealed[draft]"] = await sealDraft(this.#ring, { html: html ?? "", text, plain });
+            fields["sealed[draft]"] = await sealDraft(this.#ring, { html: html ?? "", text, plain, ...this.#choices() });
         }
 
         // Encrypted mail leaves no readable body behind. Signed and plain mail
@@ -370,12 +372,14 @@ export default class extends Controller {
     toggleEncrypt() {
         this.#mode = "auto" === this.#mode ? (this.#plan().encrypt ? "off" : "on") : ("on" === this.#mode ? "off" : "on");
         this.#paint();
+        this.#keepChoices();
     }
 
     /** More options → Sign. */
     toggleSign() {
         this.#signMode = this.#plan().sign ? "off" : "on";
         this.#paint();
+        this.#keepChoices();
     }
 
     // ── Private ─────────────────────────────────────────────────────────────
@@ -434,6 +438,12 @@ export default class extends Controller {
 
             const draft = await openDraft(this.#ring, await response.text());
 
+            // What the person chose for this message when they last wrote it,
+            // over the "on" every sealed draft opens with: a draft is sealed
+            // because it was going to be encrypted when it was saved, which
+            // says nothing about Encrypt switched off since (#703).
+            this.#mode = draft.encrypt ?? this.#mode;
+            this.#signMode = draft.sign ?? this.#signMode;
             this.#textInput().value = draft.text;
             this.#htmlInput().value = draft.html;
             this.#editor().innerHTML = await this.#clean(draft.html);
@@ -492,6 +502,28 @@ export default class extends Controller {
 
         input.value = `${match[1]}${subject}`;
         input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    /**
+     * The Encrypt and Sign choices, kept inside the sealed draft so the
+     * window that opens it again starts from them (#703). Only there: a
+     * draft that is not sealed has nowhere private to keep them, and opens
+     * deciding by itself again.
+     */
+    #choices() {
+        return { encrypt: this.#mode, sign: this.#signMode };
+    }
+
+    /**
+     * A switch flipped in a sealed draft is a change to that draft: without a
+     * save, closing the window right after left the old choice inside it,
+     * and the draft came back encrypted. The form's input event is what
+     * compose--compose autosaves on.
+     */
+    #keepChoices() {
+        if (true === this.#sealed) {
+            this.element.querySelector("form")?.dispatchEvent(new Event("input", { bubbles: true }));
+        }
     }
 
     #scheduleRefresh() {

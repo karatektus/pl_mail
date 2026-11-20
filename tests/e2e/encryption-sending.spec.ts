@@ -154,6 +154,49 @@ test.describe("writing encrypted mail", () => {
         await expect(page.locator(`${DOCK} ${EDITOR}, #compose_inline ${EDITOR}`).first()).toContainText("Second paragraph, still secret.", { timeout: 15000 });
     });
 
+    test("keeps Encrypt and Sign switched off when a sealed draft is opened again", async ({ page }) => {
+        const email = await person(page);
+        const subject = `Changed my mind ${Date.now()}`;
+
+        // Reported in #703: mail to one's own address is encrypted by itself,
+        // so the draft is sealed; switched off afterwards, the draft opened
+        // again from Drafts was encrypted once more and went out as "...".
+        await compose(page, [OWN], subject, "Only moving this between my accounts.");
+        await expect.poll(() => held(email, subject)?.sealedDraft ?? false, { timeout: 15000 }).toBe(true);
+
+        for (const toggle of ["compose-encrypt-toggle", "compose-sign-toggle"]) {
+            await page.locator(`${DOCK} button[aria-label="More options"]`).click();
+            await page.locator(`${DOCK} [data-testid=${toggle}]`).click();
+        }
+
+        await expect(page.locator(`${DOCK} [data-testid=compose-encrypted]`)).toBeHidden();
+
+        // The switches alone are what changed; the draft is saved for them.
+        const before = held(email, subject)!.draft;
+
+        await expect.poll(() => held(email, subject)?.draft, { timeout: 15000 }).not.toBe(before);
+
+        await page.goto("/mail/drafts");
+        await mailRow(page, subject).click();
+
+        const window = page.locator(`${DOCK}, #compose_inline`).filter({ has: page.locator(EDITOR) }).first();
+
+        await expect(window.locator(EDITOR)).toContainText("Only moving this", { timeout: 15000 });
+        await expect(window.locator("[data-compose--encryption-target=encryptButton]")).toHaveAttribute("aria-pressed", "false");
+        await expect(window.locator("[data-testid=compose-sign-toggle]")).toHaveAttribute("aria-checked", "false");
+
+        await window.locator('[data-compose-send-pill="bar"] [data-compose--compose-target="sendBtn"]').click();
+        await expect.poll(() => held(email, subject)?.entity ?? null, { timeout: 15000 }).not.toBeNull();
+
+        const sent = held(email, subject)!;
+
+        expect(sent.seal?.kind).toBe("plain");
+        expect(sent.seal?.protectedSubject ?? false).toBe(false);
+        expect(sent.entity).not.toContain("multipart/encrypted");
+        expect(sent.entity).not.toContain("multipart/signed");
+        expect(sent.entity).toContain(Buffer.from("Only moving this between my accounts.").toString("base64"));
+    });
+
     test("lines an encrypted draft's row up like any other row", async ({ page }) => {
         const email = await person(page);
         const subject = `Sealed row ${Date.now()}`;
