@@ -157,7 +157,38 @@ final class SidebarFoldersUnderAccountsTest extends WebTestCase
         self::assertCount(1, $crawler->filter('#account-folders-' . $this->account->id . ' [data-dnd-label="' . $shared->id . '"][data-dnd-account="' . $this->account->id . '"]'));
     }
 
+    /**
+     * The collapsed LABELS heading counts the mail of the labels it holds.
+     * By account those are only labels on no account, which no mail carries,
+     * so it shows nothing — it used to show every labelled unread
+     * conversation of every account over a section with none of them in it.
+     */
+    public function testByAccountTheLabelsHeadingCountsNothing(): void
+    {
+        $later  = $this->tag('Later');
+        $thread = $this->thread('Unread and labelled', unread: 1);
+        $thread->addLabel($later);
+        $this->em->flush();
+
+        self::assertGreaterThan(0, $this->labelsUnread(), 'merged, the heading counts it');
+
+        $this->user->labelsByAccount = true;
+        $this->em->flush();
+
+        self::assertSame(0, $this->labelsUnread());
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /** The LABELS heading's number, as the counts endpoint patches it. */
+    private function labelsUnread(): int
+    {
+        $this->client->request('GET', '/mail/sidebar/counts');
+
+        $counts = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        return (int) $counts['labels:unread'];
+    }
 
     private function tag(string $name): Label
     {

@@ -563,13 +563,21 @@ class SidebarCounts implements ResetInterface
      * The LABELS heading's own number, shown only while that section is
      * collapsed — see MessageThreadBadgeRepository::countUnreadInUserLabels() for
      * why it is not the sum of the rows it stands in for.
+     *
+     * Zero, without asking, while labels are listed by account (#690). LABELS
+     * then holds only labels that are on no account, and no mail carries one
+     * of those: putting a label on mail binds it to that mail's account
+     * (LabelResolver::usedAsTagOn()), and Version20261105170000 wrote the
+     * bindings for mail tagged before that. Counted as before, the collapsed
+     * heading showed every labelled unread conversation of every account
+     * while the section under it held none of them.
      */
     public function unreadInLabels(): int
     {
         if (null === $this->labelsUnread) {
             $user = $this->security->getUser();
 
-            $this->labelsUnread = null === $user
+            $this->labelsUnread = null === $user || ($user instanceof User && true === $user->labelsByAccount)
                 ? 0
                 : $this->badgeCounts($user)->countUnreadInUserLabels($user);
         }
