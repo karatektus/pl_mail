@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Helper\AttachmentStorageHelper;
-use App\Domain\Helper\MimeHeaderHelper;
+use App\Domain\Helper\AttachmentName;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use Doctrine\ORM\EntityManagerInterface;
@@ -35,8 +35,7 @@ final readonly class ParsedAttachmentWriter
 
     public function write(Message $message, mixed $attachment): MessagePart
     {
-        $raw      = $attachment->getFilename();
-        $filename = null === $raw ? 'attachment_' . uniqid() : MimeHeaderHelper::decode($raw);
+        $filename = AttachmentName::of($attachment) ?? 'attachment_' . uniqid();
         $content  = (string) $attachment->getContent();
 
         $part = new MessagePart();

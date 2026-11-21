@@ -8,6 +8,7 @@ use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\MessagePriority;
 use App\Domain\Helper\AddressHelper;
+use App\Domain\Helper\AttachmentName;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\CharsetHelper;
 use App\Domain\DTO\Mail\ImapCopyIdentity;
@@ -1359,8 +1360,9 @@ class MessageSyncer
         // refused ("invalid byte sequence for encoding UTF8: 0xe4 0x72 0x75")
         // and took its whole batch with it. AttachmentStorageHelper decoded
         // its copy for the disk; only the row kept the raw bytes.
-        $raw      = $attachment->getFilename();
-        $filename = null === $raw ? 'attachment_' . uniqid() : MimeHeaderHelper::decode($raw);
+        // AttachmentName also recovers a name given only as Content-Type's
+        // `name=`, which webklex would otherwise replace with its hash.
+        $filename = AttachmentName::of($attachment) ?? 'attachment_' . uniqid();
         $content  = $attachment->getContent();
 
         // Zero for the folder and the uid of a message that has neither — a
