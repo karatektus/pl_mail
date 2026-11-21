@@ -10,6 +10,7 @@ use App\Entity\User\User;
 use App\Service\User\ClockFormatResolver;
 use App\Service\User\UserTimezoneResolver;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * The `clock` global: which time format a template should print with.
@@ -28,7 +29,7 @@ use Symfony\Bundle\SecurityBundle\Security;
  * Per-request memoised. The mail list alone reads this once per row, and a
  * resolver call per row is a settings-bag lookup fifty times for one answer.
  */
-class ClockGlobal
+class ClockGlobal implements ResetInterface
 {
     private ?ClockFormat $format = null;
 
@@ -37,6 +38,18 @@ class ClockGlobal
         private readonly Security             $security,
         private readonly UserTimezoneResolver $timezones,
     ) {
+    }
+
+    /**
+     * Worker-mode hygiene - see LogAlertGlobal::reset(). The memo above was
+     * per-request in name only: the format a worker resolved first was the
+     * format of every later page and every later user. Settings showed
+     * "24-hour" while the topbar clock and every time the page's scripts
+     * print stayed on "6:34 pm" until the container restarted (#716).
+     */
+    public function reset(): void
+    {
+        $this->format = null;
     }
 
     /** "9:30 am" or "09:30". */
