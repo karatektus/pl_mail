@@ -1756,6 +1756,55 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Whether mail to one of the person's OWN addresses is encrypted (#703):
+     * the RecipientPolicy a contact's key carries in ContactKey::$encrypt,
+     * for the addresses that have no contact key because the key is the
+     * person's own. Set from the lock's popover in the composer
+     * (RecipientPolicies).
+     *
+     * Here and not on AddressKeyBinding, where it would sit beside the key
+     * like a contact's does: bindings are rewritten whenever the keyring is
+     * — a key added, made primary, retired — and the choice is about the
+     * address and the provider's app that reads it, not about which key
+     * happens to serve it this month. By address, lower-cased, like
+     * SETTING_CRYPTO_WKD_UNPUBLISHED; only `always` and `never` are kept, so
+     * an address set back to Auto leaves nothing behind.
+     */
+    public const string SETTING_CRYPTO_OWN_ENCRYPT = 'crypto.own_encrypt';
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CRYPTO_OWN_ENCRYPT.
+     *
+     * @var array<string, string> address => RecipientPolicy value
+     */
+    public array $ownAddressEncrypt {
+        get {
+            $stored   = $this->getSetting(self::SETTING_CRYPTO_OWN_ENCRYPT, []);
+            $policies = [];
+
+            foreach (true === is_array($stored) ? $stored : [] as $address => $policy) {
+                if (true === is_string($address) && true === is_string($policy)) {
+                    $policies[$address] = $policy;
+                }
+            }
+
+            return $policies;
+        }
+        set(array $policies) {
+            $kept = [];
+
+            foreach ($policies as $address => $policy) {
+                if ('always' === $policy || 'never' === $policy) {
+                    $kept[strtolower(trim((string) $address))] = $policy;
+                }
+            }
+
+            ksort($kept);
+            $this->setSetting(self::SETTING_CRYPTO_OWN_ENCRYPT, [] === $kept ? null : $kept);
+        }
+    }
+
+    /**
      * Whether remote images load in every message without the "Show images"
      * bar, as if every sender were on the allowlist (#124).
      *

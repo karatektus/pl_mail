@@ -254,6 +254,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('setting compose.forward_quote_collapsed', false, $user->getSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED));
         $this->check('setting compose.send_feedback', User::SEND_FEEDBACK_HOLD, $user->getSetting(User::SETTING_COMPOSE_SEND_FEEDBACK));
         $this->check('setting crypto.key_servers', false, $user->lookUpKeyServers);
+        $this->check('setting crypto.own_encrypt', ['me@gmail.test' => 'never'], $user->ownAddressEncrypt);
 
         // ── The account ───────────────────────────────────────────────────
         $this->check('account.password (IMAP)', self::MAILBOX_PASSWORD, $account->password);
@@ -494,6 +495,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $user->setSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED, false);
         $user->setSetting(User::SETTING_COMPOSE_SEND_FEEDBACK, User::SEND_FEEDBACK_HOLD);
         $user->lookUpKeyServers = false;
+        $user->ownAddressEncrypt = ['Me@Gmail.test' => 'never'];
 
         $this->entityManager->persist($user);
 

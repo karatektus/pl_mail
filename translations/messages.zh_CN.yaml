@@ -1882,6 +1882,15 @@ compose:
         no_own_certificate: "你没有此发件地址的 S/MIME 证书，因此无法使用 S/MIME 对此邮件签名或加密。"
         failed: "无法加密此邮件。未发送任何内容。"
         sealed_attachment: "已加密：邮件发送前，只有你能够打开。"
+        policy:
+            auto: '自动'
+            failed: "无法保存此选择。"
+            heading: "这些地址的加密"
+            hint: "以后的邮件也会沿用。“自动”会在 plMail 有密钥时加密。"
+            label: "%email% 的加密"
+            no_key: "无密钥——不加密"
+            off: '关闭'
+            on: '开启'
     seal:
         refused: "加密邮件未完整送达。未发送任何内容，请重试。"
         keys_changed: "撰写期间，一位收件人的密钥发生了变化。未发送任何内容，请重新发送。"
@@ -2031,6 +2040,8 @@ contact_keys:
     removed: "密钥已移除。"
     preferences_saved: "已保存。"
     not_found: "该密钥已不存在。"
+    policy:
+        no_key: "plMail 没有此地址的密钥，发往该地址的邮件无论如何都不会加密。"
     signer_unknown: "plMail 没有生成此签名的密钥。请先查找或导入。"
     certificates:
         heading: "联系人的 S/MIME 证书"

@@ -2131,6 +2131,15 @@ compose:
         no_own_certificate: "You have no S/MIME certificate for this From address, so this message cannot be signed or encrypted with S/MIME."
         failed: "The message could not be encrypted. Nothing was sent."
         sealed_attachment: "Encrypted: until the message is sent, only you can open it."
+        policy:
+            auto: 'Auto'
+            failed: "That choice could not be saved."
+            heading: "Encryption for these addresses"
+            hint: "Kept for future mail too. Auto encrypts whenever plMail has a key."
+            label: "Encryption for %email%"
+            no_key: "No key — unencrypted"
+            off: 'Off'
+            on: 'On'
     seal:
         refused: "The encrypted message did not arrive intact. Nothing was sent; try again."
         keys_changed: "A recipient's key changed while you were writing. Nothing was sent; send it again."
@@ -2288,6 +2297,8 @@ contact_keys:
     removed: "Key removed."
     preferences_saved: "Saved."
     not_found: "That key is no longer there."
+    policy:
+        no_key: "plMail has no key for this address, so mail to it goes out unencrypted anyway."
     signer_unknown: "plMail does not have the key that made this signature. Look it up or import it first."
     certificates:
         heading: "Contacts' S/MIME certificates"

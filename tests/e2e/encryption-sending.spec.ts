@@ -197,6 +197,68 @@ test.describe("writing encrypted mail", () => {
         expect(sent.entity).toContain(Buffer.from("Only moving this between my accounts.").toString("base64"));
     });
 
+    test("remembers encryption off for one's own address from the lock's panel", async ({ page }) => {
+        await person(page);
+
+        // #703: mail to one's own Gmail address, read in Gmail's own app,
+        // has to stay readable there — every time, not only when somebody
+        // remembers to switch the lock off.
+        await compose(page, [OWN], `Off for good ${Date.now()}`, "Moving this to my other account.");
+        await expect(page.locator(`${DOCK} [data-testid=compose-encrypted]`)).toBeVisible({ timeout: 15000 });
+
+        await page.locator(`${DOCK} button[aria-label="More options"]`).click();
+        await page.locator(`${DOCK} [data-testid=compose-encrypt-toggle]`).click();
+
+        const panel = page.locator(`${DOCK} [data-testid=compose-encrypt-policy]`);
+        const row = panel.locator("li").filter({ hasText: OWN });
+
+        await expect(panel).toBeVisible();
+        await expect(row.locator("input[value=auto]")).toBeChecked();
+
+        await row.getByText("Off", { exact: true }).click();
+
+        await expect(row.locator("input[value=never]")).toBeChecked();
+        await expect(page.locator(`${DOCK} [data-testid=compose-encrypted]`)).toBeHidden();
+
+        // Looking away closes it; nothing to confirm.
+        await page.locator(`${DOCK} [data-compose--compose-target="subject"]`).click();
+        await expect(panel).toBeHidden();
+
+        // The next message to that address starts unencrypted, and its
+        // panel shows the choice kept on the server.
+        await compose(page, [OWN], `Still off ${Date.now()}`, "And this one too.");
+        // The chip's lock says the answer about the address has arrived.
+        await expect(page.locator(`${DOCK} [data-encryption-lock]`)).toHaveCount(1, { timeout: 15000 });
+        await expect(page.locator(`${DOCK} [data-testid=compose-encrypted]`)).toBeHidden();
+
+        await page.locator(`${DOCK} button[aria-label="More options"]`).click();
+        await page.locator(`${DOCK} [data-testid=compose-encrypt-toggle]`).click();
+
+        await expect(panel.locator("li").filter({ hasText: OWN }).locator("input[value=never]")).toBeChecked({ timeout: 15000 });
+    });
+
+    test("leaves the lock's panel with Escape without closing the window", async ({ page }) => {
+        await person(page);
+        const subject = `Just looking ${Date.now()}`;
+
+        await compose(page, [OWN, "nobody-with-a-key@example.test"], subject, "Nothing to decide.");
+        await expect(page.getByTestId("compose-crypto-hint")).toContainText("nobody-with-a-key@example.test", { timeout: 15000 });
+
+        await page.locator(`${DOCK} button[aria-label="More options"]`).click();
+        await page.locator(`${DOCK} [data-testid=compose-encrypt-toggle]`).click();
+
+        const panel = page.locator(`${DOCK} [data-testid=compose-encrypt-policy]`);
+
+        await expect(panel).toBeVisible();
+        // No key, no switch: nothing could be remembered for it.
+        await expect(panel.locator("li").filter({ hasText: "nobody-with-a-key@example.test" }).locator("input")).toHaveCount(0);
+
+        await page.keyboard.press("Escape");
+
+        await expect(panel).toBeHidden();
+        await expect(page.locator(`${DOCK} ${EDITOR}`)).toBeVisible();
+    });
+
     test("lines an encrypted draft's row up like any other row", async ({ page }) => {
         const email = await person(page);
         const subject = `Sealed row ${Date.now()}`;

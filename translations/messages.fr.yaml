@@ -2141,6 +2141,15 @@ compose:
         no_own_certificate: 'Vous n’avez pas de certificat S/MIME pour cette adresse d’expédition : ce message ne peut pas être signé ni chiffré avec S/MIME.'
         failed: Le message n’a pas pu être chiffré. Rien n’a été envoyé.
         sealed_attachment: 'Chiffré : jusqu’à l’envoi du message, vous seul pouvez l’ouvrir.'
+        policy:
+            auto: 'Auto'
+            failed: 'Ce choix n’a pas pu être enregistré.'
+            heading: 'Chiffrement pour ces adresses'
+            hint: 'Retenu aussi pour les prochains messages. Auto chiffre dès que plMail a une clé.'
+            label: 'Chiffrement pour %email%'
+            no_key: 'Pas de clé — non chiffré'
+            off: 'Désactivé'
+            on: 'Activé'
     seal:
         refused: Le message chiffré n’est pas arrivé intact. Rien n’a été envoyé ; réessayez.
         keys_changed: La clé d’un destinataire a changé pendant que vous écriviez. Rien n’a été envoyé ; renvoyez le message.
@@ -2301,6 +2310,8 @@ contact_keys:
     removed: Clé supprimée.
     preferences_saved: Enregistré.
     not_found: Cette clé n’existe plus.
+    policy:
+        no_key: 'plMail n’a pas de clé pour cette adresse : les messages y partent de toute façon non chiffrés.'
     signer_unknown: plMail n’a pas la clé qui a fait cette signature. Recherchez-la ou importez-la d’abord.
     certificates:
         heading: Certificats S/MIME de vos contacts

@@ -2142,6 +2142,15 @@ compose:
         no_own_certificate: "Du hast kein S/MIME-Zertifikat für diese Absenderadresse, deshalb lässt sich diese Nachricht nicht mit S/MIME signieren oder verschlüsseln."
         failed: "Die Nachricht ließ sich nicht verschlüsseln. Es wurde nichts gesendet."
         sealed_attachment: "Verschlüsselt: Bis die Nachricht gesendet ist, kannst nur du sie öffnen."
+        policy:
+            auto: 'Auto'
+            failed: "Diese Auswahl konnte nicht gespeichert werden."
+            heading: "Verschlüsselung für diese Adressen"
+            hint: "Gilt auch für künftige Mails. Auto verschlüsselt, sobald plMail einen Schlüssel hat."
+            label: "Verschlüsselung für %email%"
+            no_key: "Kein Schlüssel – unverschlüsselt"
+            off: 'Aus'
+            on: 'An'
     seal:
         refused: "Die verschlüsselte Nachricht kam nicht vollständig an. Es wurde nichts gesendet; versuch es noch einmal."
         keys_changed: "Der Schlüssel eines Empfängers hat sich beim Schreiben geändert. Es wurde nichts gesendet; sende sie noch einmal."
@@ -2294,6 +2303,8 @@ contact_keys:
     removed: "Schlüssel entfernt."
     preferences_saved: "Gespeichert."
     not_found: "Diesen Schlüssel gibt es nicht mehr."
+    policy:
+        no_key: "plMail hat keinen Schlüssel für diese Adresse, Mails dorthin gehen sowieso unverschlüsselt raus."
     signer_unknown: "plMail hat den Schlüssel nicht, mit dem signiert wurde. Suche oder importiere ihn zuerst."
     certificates:
         heading: "S/MIME-Zertifikate deiner Kontakte"

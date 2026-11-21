@@ -791,7 +791,7 @@ Everything registered in [`src/Jmap/Method/`](../src/Jmap/Method/):
 | `Template/get` / `Template/set` / `Template/render` | `urn:plmail:params:jmap:templates`. No `accountId` argument on get and set; per-user. See [Templates](#templates). |
 | `TemplateFolder/get` / `TemplateFolder/set` | Same capability. The folders a user made; the per-account folders of the web tree are not objects. |
 | `Email/import` | RFC 8621 §4.8, plus the plMail argument `fingerprints` for an encrypted draft. See [End-to-end encryption](#end-to-end-encryption-urnplmailparamsjmapkeys). |
-| `Keyring/get` / `ContactKey/get` / `ContactKey/lookup` / `ContactKey/smimeSigner` / `DecryptedMail/pending` / `DecryptedMail/store` | `urn:plmail:params:jmap:keys`. See [End-to-end encryption](#end-to-end-encryption-urnplmailparamsjmapkeys). |
+| `Keyring/get` / `ContactKey/get` / `ContactKey/lookup` / `ContactKey/smimeSigner` / `RecipientPolicy/set` / `DecryptedMail/pending` / `DecryptedMail/store` | `urn:plmail:params:jmap:keys`. See [End-to-end encryption](#end-to-end-encryption-urnplmailparamsjmapkeys). |
 
 **Not implemented today.** None of these is a deliberate exclusion — they haven't been needed yet. If
 your client wants one, **ask for it rather than engineering around it** (see [§0](#0-read-this-first-the-server-is-under-active-development)):
@@ -1406,6 +1406,13 @@ key. Each recipient's `key` carries `origin` and `originHost` too (both null for
 key, which `own: true` already says); show where a key came from, as the web app does, since a key
 from a key server only means somebody confirmed the address to that server. Encrypt when every
 recipient has a key, as the web app does.
+
+Each recipient also carries `encrypt` — `auto`, `always` or `never` — for the person's own addresses
+too. With the message left on automatic, `never` on any recipient means it is not encrypted, and
+`always` refuses to send it unencrypted because somebody else on it has no key. The web app sets it
+from a panel the lock opens, with On / Off / Auto per recipient that has a key; do the same with
+`RecipientPolicy/set` `{email, encrypt}`, which answers `{email, encrypt}` and is `notFound` for an
+address plMail has no key for (mail to it is unencrypted whatever is set).
 
 **Sending.** Build the MIME message yourself, encrypt it to every recipient **and the sender** (or
 sign it), upload it, and `Email/import` it with `keywords: {"$draft": true}`. For an encrypted

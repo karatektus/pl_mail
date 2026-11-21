@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:d67fc7d04239b813f83582196f538250edb63246 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:74da721fdd1da9a7ef899d8355f2240a49eb3523 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -866,7 +866,7 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `Template/get` / `Template/set` / `Template/render` | `urn:plmail:params:jmap:templates`. Kein `accountId`-Argument bei get und set; pro Benutzer. Siehe [Vorlagen](#vorlagen). |
 | `TemplateFolder/get` / `TemplateFolder/set` | Dieselbe Capability. Die Ordner, die ein Benutzer angelegt hat; die Konto-Ordner des Web-Baums sind keine Objekte. |
 | `Email/import` | RFC 8621 §4.8, plus das plMail-Argument `fingerprints` für einen verschlüsselten Entwurf. Siehe [Ende-zu-Ende-Verschlüsselung](#ende-zu-ende-verschlüsselung-urnplmailparamsjmapkeys). |
-| `Keyring/get` / `ContactKey/get` / `ContactKey/lookup` / `ContactKey/smimeSigner` / `DecryptedMail/pending` / `DecryptedMail/store` | `urn:plmail:params:jmap:keys`. Siehe [Ende-zu-Ende-Verschlüsselung](#ende-zu-ende-verschlüsselung-urnplmailparamsjmapkeys). |
+| `Keyring/get` / `ContactKey/get` / `ContactKey/lookup` / `ContactKey/smimeSigner` / `RecipientPolicy/set` / `DecryptedMail/pending` / `DecryptedMail/store` | `urn:plmail:params:jmap:keys`. Siehe [Ende-zu-Ende-Verschlüsselung](#ende-zu-ende-verschlüsselung-urnplmailparamsjmapkeys). |
 
 **Heute nicht implementiert.** Nichts davon ist ein bewusster Ausschluss — es wurde bisher nur
 nicht gebraucht. Wenn dein Client etwas davon will, **frag danach, statt darum herum zu
@@ -1540,6 +1540,14 @@ Absenders. Auch der `key` jedes Empfängers trägt `origin` und `originHost` (be
 Schlüssel der Person, was `own: true` schon sagt); zeig an, woher ein Schlüssel kam, wie die Web-App,
 denn ein Schlüssel von einem Schlüsselserver heißt nur, dass jemand dem Server die Adresse bestätigt
 hat. Verschlüssele, wenn alle Empfänger einen Schlüssel haben, wie die Web-App.
+
+Jeder Empfänger trägt außerdem `encrypt` — `auto`, `always` oder `never` —, auch die eigenen Adressen
+der Person. Steht die Nachricht auf automatisch, heißt `never` bei irgendeinem Empfänger, dass sie
+nicht verschlüsselt wird, und `always` verweigert, sie unverschlüsselt zu senden, weil jemand anderes
+darauf keinen Schlüssel hat. Die Web-App setzt es in einem Feld, das das Schloss öffnet, mit
+An / Aus / Auto für jeden Empfänger mit Schlüssel; mach es genauso mit `RecipientPolicy/set`
+`{email, encrypt}`, das `{email, encrypt}` zurückgibt und `notFound` ist für eine Adresse, für die
+plMail keinen Schlüssel hat (Mails dorthin sind ohnehin unverschlüsselt).
 
 **Senden.** Bau die MIME-Nachricht selbst, verschlüssele sie an alle Empfänger **und den Absender**
 (oder signiere sie), lade sie hoch und importiere sie mit `Email/import` und
