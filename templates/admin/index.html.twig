@@ -26,13 +26,11 @@
 
             <div class="flex flex-1 gap-gutter overflow-hidden">
 
-                {# Sidebar — desktop #}
-                <div class="hidden md:flex">
-                    {% include '_partials/_sidebar.html.twig' %}
-                </div>
+                {# Sidebar — desktop, with its drag handle (#699) #}
+                {% include '_partials/_sidebar_pane.html.twig' %}
 
                 {# Main content pane — admin dashboard #}
-                <div class="flex flex-1 overflow-hidden main-pane">
+                <div class="flex flex-1 overflow-hidden main-pane" data-sidebar-room>
                     <div class="flex flex-col flex-1 overflow-hidden">
 
                         {# Pane header #}

@@ -38,6 +38,18 @@ More comes back open when you are on a page inside it. The choice is remembered 
 account, is kept in a configuration backup, and shows only in the full sidebar: the narrow icon rail
 has no More, so a folder tucked behind it is not in the rail.
 
+**The sidebar's width** is yours to set: drag the edge between the sidebar and the mail, or focus
+that edge with Tab and use the arrow keys; a double-click puts it back to the standard width. It goes
+from 180 to 480 pixels and never squeezes the mail below a phone's width. The width is remembered
+against your account and kept in a configuration backup, so it is the same on the mail, the calendar,
+Settings and the admin panel, and on your other devices. For a long label that you only want to read
+now and then, there is no need to widen it: when a name is cut off, the sidebar leans out over the
+mail while the pointer or the keyboard focus is on it, just far enough for the longest name, and the
+mail beside it does not move. It does nothing while nothing is cut off, and **Show long names on
+hover** in Settings → General → Layout & controls → Sidebar switches it off. The narrow icon rail has
+neither. Only the row you are on is highlighted; a parent label stays plain while one of its
+children is open.
+
 **Unread** gathers unread mail from everywhere — archived and labelled conversations included, with
 no category tabs — and leaves out only what you have put away: the bin, spam and anything snoozed.
 Dropping a conversation on it marks the conversation unread and leaves it where it is, which is

@@ -621,8 +621,21 @@ controller instead — the scroll position and which trees are open.
            unread: 'sidebar.badge.unread'|trans({ '%count%': '%count%' }),
            total:  'sidebar.badge.total'|trans({ '%count%': '%count%' }),
        }|json_encode }}"
-       class="flex flex-col w-56 h-full flex-shrink-0 overflow-hidden pane
-              transition-[width] duration-200
+       {# The peek (#699), the user's half of it: whether a row too long for
+          the sidebar may lean out over the mail. On the aside rather than the
+          boundary around it, so the stream that redraws the sidebar when the
+          switch in Settings moves carries it too. Never on the drawer copy,
+          which is as wide as the drawer and has no mail beside it. The other
+          half — whether anything IS clipped — is measured; see
+          ui--sidebar#_measureTruncation. #}
+       {% if not (_drawerMode is defined and _drawerMode) and app.user and app.user.sidebarPeek %}
+       data-sidebar-peek
+       data-ui--sidebar-peek-max-value="{{ constant('App\\Entity\\User\\User::SIDEBAR_MAX_WIDTH') }}"
+       {% endif %}
+       {# The inline copy fills .sidebar-pane, which carries the width the user
+          dragged (#699) and the rail's transition; see _sidebar_pane.html.twig.
+          The drawer copy keeps the fixed width it always had. #}
+       class="flex flex-col {{ _drawerMode is defined and _drawerMode ? 'w-56' : 'w-full' }} h-full flex-shrink-0 overflow-hidden pane
               {{ _drawerMode is defined and _drawerMode ? '' : 'shell-chrome' }}">
 
     {# Compose. The strip is a pane header's height (pane-header), so the rule

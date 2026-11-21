@@ -994,6 +994,45 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const int READING_PANE_DEFAULT_PCT = 55;
 
     /**
+     * How wide the sidebar is, and whether a row too long for it may lean out
+     * over the mail to show itself (#699).
+     *
+     * The bag, for the reasons the reading pane's keys are in it: rendered into
+     * the first paint, so a sidebar never appears at 224px and jumps to the
+     * user's 300px once JavaScript runs, and the same at every desk. No
+     * migration.
+     *
+     * Pixels rather than a share, unlike the reading pane: the sidebar holds
+     * rows of text whose length does not change with the window, so the width
+     * that fits them is a number of pixels on any screen.
+     *
+     * PEEK is ON by default, the maintainer's call on #699, and an exception to
+     * "a setting that changes how plMail behaves starts off" (CONTRIBUTING).
+     * It costs nothing where nothing is clipped — the sidebar only leans out
+     * over a name that is cut off — and a cut-off name is exactly the problem
+     * the issue reports, so the default is the one that answers it without a
+     * trip to Settings. Switched off it is stored as false, which is how it
+     * stays off.
+     */
+    public const string SETTING_SIDEBAR_WIDTH = 'sidebar.width';
+    public const string SETTING_SIDEBAR_PEEK = 'sidebar.peek';
+
+    /**
+     * Matches the clamp in ui--sidebar-split; the server is what enforces it.
+     *
+     * 224 is what `w-56` was before the boundary existed, so nobody's sidebar
+     * moves until they move it. 180 is what a row needs to still be a row (an
+     * icon, a word of label and a badge); below that the icon rail is the
+     * better answer and the burger already reaches it. 480 is generous because
+     * the complaint is a nested tree that will not fit, but it is a number and
+     * not "half the window", so a wide screen cannot store a sidebar that a
+     * laptop then has to clamp away.
+     */
+    public const int SIDEBAR_MIN_WIDTH = 180;
+    public const int SIDEBAR_MAX_WIDTH = 480;
+    public const int SIDEBAR_DEFAULT_WIDTH = 224;
+
+    /**
      * Insight extractors this user has switched OFF, as a list of extractor
      * keys. Disabled rather than enabled, so an extractor shipped next
      * release starts working without every user finding a new toggle — the
@@ -1192,6 +1231,36 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::READING_PANE_MIN_PCT, min(self::READING_PANE_MAX_PCT, $share));
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_SIDEBAR_WIDTH.
+     *
+     * Clamped on the way out as well as on the way in, for the reason the
+     * reading pane's share is: a stored width outside the range is a sidebar
+     * nobody can drag back.
+     */
+    public int $sidebarWidth {
+        get {
+            $width = $this->getSetting(self::SETTING_SIDEBAR_WIDTH, self::SIDEBAR_DEFAULT_WIDTH);
+
+            if (false === is_int($width)) {
+                return self::SIDEBAR_DEFAULT_WIDTH;
+            }
+
+            return max(self::SIDEBAR_MIN_WIDTH, min(self::SIDEBAR_MAX_WIDTH, $width));
+        }
+        set (int $width) {
+            $this->setSetting(self::SETTING_SIDEBAR_WIDTH, max(self::SIDEBAR_MIN_WIDTH, min(self::SIDEBAR_MAX_WIDTH, $width)));
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_SIDEBAR_PEEK. */
+    public bool $sidebarPeek {
+        get => false !== $this->getSetting(self::SETTING_SIDEBAR_PEEK, true);
+        set (bool $peek) {
+            $this->setSetting(self::SETTING_SIDEBAR_PEEK, $peek);
         }
     }
 

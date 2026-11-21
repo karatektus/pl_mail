@@ -5100,6 +5100,7 @@ settings:
             sender_pictures: 'avatar image photo gravatar libravatar bimi logo icône expéditeur'
             sharing: "lien public réservation"
             shortcuts: "clavier touches raccourcis"
+            sidebar: 'largeur large étroit redimensionner glisser noms longs coupés survol plus dossiers'
             swipe_actions: "balayer geste téléphone archiver"
             templates: "réponses types extraits"
             theme: "sombre clair mode nuit couleurs dark"
@@ -5279,8 +5280,13 @@ settings:
         hide_note: Pour masquer complètement un dossier, désactivez-le dans Libellés.
         hint: Les dossiers cochés attendent derrière « Plus ». Les autres restent dans la barre latérale elle-même.
         label: Derrière « Plus »
+        peek:
+            hint: 'Quand un nom est coupé, la barre latérale s''élargit par-dessus le courrier tant que le pointeur la survole. Pour l''élargir durablement, faites glisser son bord.'
+            off: 'Désactivé'
+            on: 'Activé'
+            title: 'Afficher les noms longs au survol'
         pinned: La boîte de réception reste toujours à sa place.
-        subheading: Les dossiers qui attendent derrière « Plus ».
+        subheading: 'L''affichage des noms longs et les dossiers qui attendent derrière « Plus ».'
     signature:
         for_alias: 'Signature pour %alias%'
         heading: Signatures
@@ -5519,6 +5525,8 @@ sidebar:
         starred: Suivis
         trash: Corbeille
         unread: Non lus
+    resize: 'Redimensionner la barre latérale'
+    resize_hint: 'Faites glisser pour redimensionner, double-cliquez pour rétablir'
     toggle: Afficher ou masquer la barre latérale
 
 snooze:

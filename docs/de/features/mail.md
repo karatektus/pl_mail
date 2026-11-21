@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:76efd472a902aad78d49f2418255aca451669e13 -->
+<!-- translated-from: features/mail.md sha1:43342c6c0bd0ec34b111e3e6dc28e8e08e02caf3 -->
 
 # Mail
 
@@ -43,6 +43,19 @@ etwas zurückgestellt ist, egal wohin du sie legst. „Mehr“ ist aufgeklappt, 
 Seite darin befindest. Die Wahl wird an dein Konto gebunden, steckt in einer Konfigurationssicherung
 und zeigt sich nur in der vollen Seitenleiste: Die schmale Symbolleiste hat kein „Mehr“, ein
 dahinter versteckter Ordner fehlt dort also.
+
+**Die Breite der Seitenleiste** bestimmst du: Zieh den Rand zwischen Seitenleiste und Mail, oder geh
+mit Tab auf diesen Rand und nimm die Pfeiltasten; ein Doppelklick setzt die Standardbreite zurück. Sie
+reicht von 180 bis 480 Pixel und drückt die Mail nie schmaler als ein Handy. Die Breite wird an dein
+Konto gebunden und steckt in einer Konfigurationssicherung, sie ist also in der Mail, im Kalender, in
+den Einstellungen und im Adminbereich dieselbe, und auf deinen anderen Geräten auch. Für ein langes
+Label, das du nur ab und zu lesen willst, musst du sie nicht verbreitern: Ist ein Name abgeschnitten,
+lehnt sich die Seitenleiste über die Mail hinaus, solange der Zeiger oder der Tastaturfokus darauf
+liegt, gerade so weit wie der längste Name, und die Mail daneben bewegt sich nicht. Solange nichts
+abgeschnitten ist, passiert nichts, und **Lange Namen beim Darüberfahren zeigen** unter Einstellungen →
+Allgemein → Layout & Bedienung → Seitenleiste schaltet es aus. Die schmale Symbolleiste hat beides
+nicht. Hervorgehoben ist nur die Zeile, auf der du bist; ein übergeordnetes Label bleibt schlicht,
+während eines seiner Unterlabels offen ist.
 
 **Ungelesen** sammelt ungelesene Mails von überall — archivierte und gelabelte Konversationen
 eingeschlossen, ohne Kategorie-Tabs — und lässt nur weg, was du weggeräumt hast: Papierkorb, Spam
