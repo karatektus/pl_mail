@@ -90,6 +90,42 @@ final class BatchStorageTest extends KernelTestCase
         );
     }
 
+    public function testAnAttachmentNamedOnlyInItsContentTypeIsStoredUnderThatName(): void
+    {
+        // The Arch Company's shape: name= in Content-Type, a bare disposition,
+        // octet-stream for a PDF. Stored as webklex's hash before, so the chip
+        // read "57d5c7cb" and the download had no extension.
+        $raw = "From: NoReply@example.test\r\n"
+            . "To: {$this->account->email}\r\n"
+            . "Subject: [00000001] Account Statement\r\n"
+            . "Date: Tue, 17 Nov 2026 03:15:55 +0000\r\n"
+            . "Message-ID: <statement-201@example.test>\r\n"
+            . "MIME-Version: 1.0\r\n"
+            . "Content-Type: multipart/mixed; boundary=\"B\"\r\n\r\n"
+            . "--B\r\n"
+            . "Content-Type: text/html; charset=us-ascii\r\n\r\n"
+            . "<p>Your statement is attached.</p>\r\n"
+            . "--B\r\n"
+            . "Content-Type: application/octet-stream; name=TNNTST02_10561121.PDF\r\n"
+            . "Content-Transfer-Encoding: base64\r\n"
+            . "Content-Disposition: attachment\r\n"
+            . "Content-ID: <10557746>\r\n\r\n"
+            . "JVBERi0xLjcNCg==\r\n"
+            . "--B--\r\n";
+
+        $this->storeBatch(ImapMessage::fromString($raw, Config::make([
+            'decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]],
+        ]))->setUid(201));
+
+        self::assertSame(
+            ['TNNTST02_10561121.PDF'],
+            $this->connection->fetchFirstColumn(
+                'SELECT p.filename FROM message_part p JOIN message m ON m.id = p.message_id WHERE m.mailbox_id = ?',
+                [$this->mailboxId],
+            ),
+        );
+    }
+
     public function testABodyThatSaysUtf8AndCarriesAWindowsEuroIsStoredReadable(): void
     {
         // Valid UTF-8 ("für") beside one raw windows-1252 byte (0x80, "€"),

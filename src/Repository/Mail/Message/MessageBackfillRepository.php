@@ -547,6 +547,44 @@ class MessageBackfillRepository extends ServiceEntityRepository
     }
 
     /** Counted through the same builder, so the total and the walk agree. */
+    /**
+     * Messages after $afterId, in id order, whose original is stored and which
+     * have an unsealed part named like webklex's eight-character hash: the
+     * set AttachmentNameBackfillTask reads. LENGTH only narrows it; the task
+     * checks the exact shape.
+     *
+     * @return list<Message>
+     */
+    public function findWithHashNamedPart(int $afterId, int $limit): array
+    {
+        return $this->hashNamedPartQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countWithHashNamedPart(): int
+    {
+        return (int) $this->hashNamedPartQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function hashNamedPartQueryBuilder(int $afterId): QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.rawPath IS NOT NULL')
+            ->andWhere(
+                'EXISTS (SELECT p.id FROM ' . MessagePart::class . ' p'
+                . ' WHERE p.message = m AND p.sealed = false AND LENGTH(p.filename) = 8)',
+            )
+            ->setParameter('afterId', $afterId);
+    }
+
     public function countWithMisfiledBodyPart(): int
     {
         return (int) $this->misfiledBodyPartQueryBuilder(0)
