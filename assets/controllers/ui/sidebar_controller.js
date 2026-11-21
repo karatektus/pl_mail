@@ -11,9 +11,6 @@ import { WRITE_EVENT } from "../../mail_writes.js";
 // one way and this pass redraws the other is a row that fades on every load,
 // from whatever it was painted as. SidebarRowStateTest compares the two files.
 const ACTIVE_CLASSES   = ["is-active", "bg-accent-soft", "text-accent", "font-medium"];
-// A parent of the open row. Its own class rather than the active set: the
-// trail should read as "you are in here", not as a second selection.
-const ANCESTOR_CLASS   = "is-active-ancestor";
 const INACTIVE_CLASSES = ["text-ink-muted", "hover:bg-hover"];
 const SYNC_EVENTS      = ["core--mercure:mailbox-synced", "core--mercure:account-synced"];
 /**
@@ -390,7 +387,15 @@ function patchTabUnread(counts) {
 
 export default class extends Controller {
     static targets = ["link", "badge", "scroller", "collapseSummary"];
-    static values = { countsUrl: String, collapseUrl: String, sequence: Number, i18n: Object };
+    static values = {
+        countsUrl: String,
+        collapseUrl: String,
+        sequence: Number,
+        i18n: Object,
+        // How far the peek may lean out: the drag's own maximum, so the sidebar
+        // has one widest width however it got there. User::SIDEBAR_MAX_WIDTH.
+        peekMax: { type: Number, default: 480 },
+    };
 
     connect() {
         // Before the first paint of this element, so nothing is seen in the
@@ -498,6 +503,121 @@ export default class extends Controller {
         document.addEventListener(CHANGED_EVENT, this._onChanged);
 
         this._trailing = null;
+
+        this._watchTruncation();
+    }
+
+    /*
+     * ── The peek (#699) ───────────────────────────────────────────────────
+     *
+     * A label too long for the sidebar ends in an ellipsis. The boundary
+     * answers "my sidebar is too narrow"; this answers "it is too narrow for
+     * THIS row" — a sidebar wide enough for the longest nested label wastes
+     * that width on every other row. So, when the user has switched it on, the
+     * sidebar leans out over the mail on hover, far enough for the longest row
+     * and no further. Over, not beside: the list never reflows.
+     *
+     * The CSS needs two attributes on this element (see "The peek" in
+     * app.css): `data-sidebar-peek`, the setting, rendered by the server, and
+     * `data-sidebar-truncated`, set here only while something IS clipped.
+     */
+
+    /**
+     * Watch the two things that change whether a row fits: the sidebar's
+     * width (one ResizeObserver covers the drag, the window and the rail) and
+     * what is in it (the content hooks below call _measureTruncation).
+     *
+     * Nothing is observed unless the setting is on — the measurement is a
+     * reflow — and the drawer copy never carries the setting.
+     */
+    _watchTruncation() {
+        if (undefined === this.element.dataset.sidebarPeek) {
+            return;
+        }
+
+        // Before the first measure: the coalescing handle is tested against
+        // null, and the observer is what _measureTruncation takes as
+        // permission to run at all.
+        this._truncationFrame = null;
+
+        // The aside rather than the box carrying the width: while the peek is
+        // OPEN the aside is wider than that box, and an observer on the box
+        // would never see it close again.
+        this._truncationObserver = new ResizeObserver(() => this._measureTruncation());
+        this._truncationObserver.observe(this.element);
+
+        // Any disclosure opening — a label tree, an account, More — is how
+        // long names reach the screen, and closing one may take the longest
+        // away. `toggle` does not bubble, so it is caught on the way down.
+        this._onDisclosure = () => this._measureTruncation();
+        this.element.addEventListener("toggle", this._onDisclosure, true);
+
+        this._measureTruncation();
+    }
+
+    /**
+     * How much wider the sidebar would have to be for every row to fit.
+     *
+     * Off the clipped elements themselves: `scrollWidth - clientWidth` is
+     * exactly the pixels a row is missing. Nested labels carry their depth as
+     * padding on the row around the clipped span, so the span's box already
+     * has the indent taken out and a deep label asks for more than a shallow
+     * one of the same name — no separate sum of indents to keep in step with
+     * the CSS. Collapsed trees and rows behind More are not laid out and
+     * measure 0.
+     *
+     * Coalesced into one frame: a tree of forty labels opening is forty hook
+     * calls for one answer.
+     */
+    _measureTruncation() {
+        if (undefined === this._truncationObserver || null !== this._truncationFrame) {
+            return;
+        }
+
+        this._truncationFrame = window.requestAnimationFrame(() => {
+            this._truncationFrame = null;
+
+            if (false === this.element.isConnected) {
+                return;
+            }
+
+            // While the peek is open nothing is clipped any more, and taking
+            // the attribute off on that measurement would close the peek under
+            // the pointer, measure a clipped row again and reopen it, forever.
+            // A measurement taken while the sidebar is wider than its box is a
+            // measurement of the answer, not of the question.
+            if (this.element.offsetWidth > (this.element.parentElement?.clientWidth ?? 0) + 1) {
+                return;
+            }
+
+            let missing = 0;
+
+            this.element.querySelectorAll(".truncate").forEach((clipped) => {
+                missing = Math.max(missing, clipped.scrollWidth - clipped.clientWidth);
+            });
+
+            // Sub-pixel text rounds to a hair over on rows that do fit.
+            if (1 > missing) {
+                delete this.element.dataset.sidebarTruncated;
+
+                return;
+            }
+
+            // The slack is the ellipsis's own width, which scrollWidth does
+            // not count; without it the longest row can open to exactly its
+            // text and still end in "…".
+            const wanted = Math.min(this.peekMaxValue, this.element.clientWidth + missing + 6);
+
+            // Already as wide as it may get: leaning out would show nothing.
+            if (wanted <= this.element.clientWidth) {
+                delete this.element.dataset.sidebarTruncated;
+
+                return;
+            }
+
+            this.element.style.setProperty("--sidebar-peek-width", `${Math.round(wanted)}px`);
+            this.element.dataset.sidebarTruncated = "";
+        });
     }
 
     /**
@@ -514,6 +634,10 @@ export default class extends Controller {
         this._bindListFrame();
 
         this._updateActive();
+
+        // Rows that have only just arrived are rows nothing has measured, and
+        // an account's folders are exactly the deep names the peek is for.
+        this._measureTruncation();
     }
 
     /**
@@ -565,6 +689,18 @@ export default class extends Controller {
 
         // A refresh owed to a sidebar that has gone is owed to nobody.
         clearTimeout(this._trailing);
+
+        this._truncationObserver?.disconnect();
+        this._truncationObserver = undefined;
+
+        if (this._onDisclosure) {
+            this.element.removeEventListener("toggle", this._onDisclosure, true);
+        }
+
+        if (null != this._truncationFrame) {
+            window.cancelAnimationFrame(this._truncationFrame);
+            this._truncationFrame = null;
+        }
     }
 
     /**
@@ -723,6 +859,9 @@ export default class extends Controller {
         patchTabUnread(counts);
 
         this._updateTitle(counts);
+
+        // A badge going from 9 to 10 takes a character off the name beside it.
+        this._measureTruncation();
     }
 
     /**
@@ -797,8 +936,6 @@ export default class extends Controller {
     }
 
     _updateActive() {
-        const activeRows = [];
-
         this.linkTargets.forEach((link) => {
             // A system row is its own .nav-item; a custom label wraps the
             // anchor in one so the disclosure arrow and the edit button stay
@@ -806,7 +943,7 @@ export default class extends Controller {
             // the colour on its text only while the pill stayed empty.
             const row = link.closest(".nav-item") ?? link;
 
-            row.classList.remove(...ACTIVE_CLASSES, ANCESTOR_CLASS);
+            row.classList.remove(...ACTIVE_CLASSES);
             row.classList.add(...INACTIVE_CLASSES);
 
             if (false === this._matches(link)) {
@@ -815,12 +952,7 @@ export default class extends Controller {
 
             row.classList.add(...ACTIVE_CLASSES);
             row.classList.remove(...INACTIVE_CLASSES);
-            activeRows.push(row);
         });
-
-        // Marked after the loop, not inside it: an ancestor is itself a link
-        // target, and the loop would have just finished calling it inactive.
-        activeRows.forEach((row) => this._markAncestors(row));
     }
 
     /**
@@ -840,8 +972,10 @@ export default class extends Controller {
         const target = new URL(link.href, window.location.origin);
         const path = window.location.pathname;
 
-        // Prefix, so a parent label counts as open while a child of it is:
-        // full names are the path, "Work" is a prefix of "Work/Clients".
+        // Exact, not a prefix. A prefix made a parent label open while a child
+        // of it was ("Work" is a prefix of "Work/Clients"), and an account's
+        // row open on its own All Mail — two rows lit for one place, which the
+        // maintainer asked to stop (#699): only the row you are on is marked.
         // The first unified inbox is also what the bare /mail/inbox shows
         // (#265), and its row says so: that address opens it too.
         const alsoAt = link.dataset.alsoOpenAt;
@@ -850,7 +984,7 @@ export default class extends Controller {
             return true;
         }
 
-        if (path !== target.pathname && false === path.startsWith(target.pathname + "/")) {
+        if (path !== target.pathname) {
             return false;
         }
 
@@ -872,27 +1006,6 @@ export default class extends Controller {
 
         if (top > 0) {
             this.scrollerTarget.scrollTop = top;
-        }
-    }
-
-    /**
-     * The trail down to an open row.
-     *
-     * Every nested label lives inside its parent's <details>, so the ancestry
-     * is already in the DOM and needs no ids to walk — which matters for the
-     * account lists, where the href is an id and carries no hint of the tree.
-     *
-     * `summary.nav-item` is what makes this stop at the label trees rather than
-     * running on up into the LABELS and ACCOUNTS section headings, which are
-     * <details> too now. Those are furniture, not a row you can be "inside", and
-     * tinting them would read as a second selection.
-     */
-    _markAncestors(row) {
-        let details = row.closest("details")?.parentElement?.closest("details");
-
-        while (details) {
-            details.querySelector(":scope > summary.nav-item")?.classList.add(ANCESTOR_CLASS);
-            details = details.parentElement?.closest("details");
         }
     }
 }

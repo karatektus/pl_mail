@@ -5038,6 +5038,7 @@ settings:
             sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender'
             sharing: "link public booking"
             shortcuts: "keyboard hotkeys keys"
+            sidebar: 'width wide narrow resize drag long names truncated cut off hover peek more folders'
             swipe_actions: "swipe gesture phone archive"
             templates: "canned responses snippets text blocks"
             theme: "dark light mode night colours colors"
@@ -5214,8 +5215,13 @@ settings:
         hide_note: To hide a folder altogether, switch it off under Labels.
         hint: Ticked folders wait behind More. The others stay in the sidebar itself.
         label: Behind More
+        peek:
+            hint: 'When a name is cut off, the sidebar widens over the mail while the pointer is on it. To make it wider for good, drag its edge.'
+            off: 'Off'
+            on: 'On'
+            title: 'Show long names on hover'
         pinned: The Inbox always stays where it is.
-        subheading: Which folders wait behind More.
+        subheading: 'How long names show, and which folders wait behind More.'
     signature:
         for_alias: 'Signature for %alias%'
         heading: Signatures
@@ -5482,6 +5488,8 @@ sidebar:
         starred: Starred
         trash: Trash
         unread: Unread
+    resize: 'Resize the sidebar'
+    resize_hint: 'Drag to resize, double-click to reset'
     toggle: Show or hide the sidebar
 
 snooze:

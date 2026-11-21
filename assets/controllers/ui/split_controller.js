@@ -68,6 +68,23 @@ import { Controller } from "@hotwired/stimulus";
  * side only reports: every position the user moves the calendar to is
  * dispatched as `ui--split:mode`, and `yield` puts the calendar back on the
  * mail when the address book needs the room.
+ *
+ * ── A boundary on the OTHER side ──────────────────────────────────────────
+ *
+ * The sidebar (#699) is the third boundary, registered once more as
+ * ui--sidebar-split (see sidebar_split_controller.js and
+ * _sidebar_pane.html.twig), and the first whose pane is to the LEFT of its
+ * handle: dragging right makes it wider, where the other two get wider
+ * dragging left. `side-value="start"` says so, and it is one sign, applied to
+ * the pointer delta and to the arrow keys alike — Right must be wider for the
+ * sidebar, the opposite of the calendar, or the keys work against the drag
+ * that sits under them.
+ *
+ * `inert-when` is for the sidebar's other width, the icon rail, which app.css
+ * draws from a class on <html>. While it matches, this boundary is not in
+ * charge: no clamp, no drag, no write. Clamping a railed 56px up to the
+ * minimum and storing that over the width the user dragged is how the first
+ * build of this lost the preference.
  */
 export default class extends Controller {
     static targets = ["wrapper", "pane", "handle", "main"];
@@ -102,6 +119,13 @@ export default class extends Controller {
         mainSelector: { type: String, default: "" },
         step: { type: Number, default: 24 },
         default: { type: Number, default: 380 },
+        // Which side of the handle the pane is on: "end" is a pane to the
+        // RIGHT (calendar, address book), "start" the sidebar. See "A boundary
+        // on the OTHER side" above.
+        side: { type: String, default: "end" },
+        // While this selector matches anything, the boundary is not in charge.
+        // Empty means always in charge.
+        inertWhen: { type: String, default: "" },
     };
 
     /*
@@ -428,7 +452,7 @@ export default class extends Controller {
      * outside `split`, where the pane's width is not the stored one.
      */
     _reclamp() {
-        if (true === this._dragging || false === this.hasPaneTarget) {
+        if (true === this._dragging || false === this.hasPaneTarget || true === this._inert()) {
             return;
         }
 
@@ -695,7 +719,7 @@ export default class extends Controller {
     }
 
     start(event) {
-        if (!this.hasPaneTarget) {
+        if (!this.hasPaneTarget || true === this._inert()) {
             return;
         }
 
@@ -724,24 +748,56 @@ export default class extends Controller {
 
     /* Keyboard equivalent, so the separator is not mouse-only. */
     nudge(event) {
-        const direction = { ArrowLeft: 1, ArrowRight: -1 }[event.key];
+        // The arrows are the pointer without the pointer, so they take the
+        // same sign as the drag: see _grain().
+        const travel = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
 
-        if (direction === undefined) {
+        if (travel === undefined || true === this._inert()) {
             return;
         }
 
         event.preventDefault();
-        this._apply(this._currentWidth() + direction * this.stepValue, { persist: true });
+        this._apply(this._settledWidth() + travel * this._grain() * this.stepValue, { persist: true });
+    }
+
+    /**
+     * The width this boundary last WROTE, rather than the one on screen.
+     *
+     * The two differ while a width is travelling. The sidebar's pane carries a
+     * transition (for the rail), so five arrow presses in a row each measured
+     * a box still animating towards the previous press's target and stepped
+     * from there: five presses moved one step. Falls back to the measurement
+     * before anything has been written.
+     */
+    _settledWidth() {
+        return this._written ?? this._currentWidth();
     }
 
     reset(event) {
+        if (true === this._inert()) {
+            return;
+        }
+
         event.preventDefault();
         this._apply(this.defaultValue, { persist: true });
     }
 
+    /** Whether something else owns the pane's width right now — see `inert-when`. */
+    _inert() {
+        return "" !== this.inertWhenValue && null !== document.querySelector(this.inertWhenValue);
+    }
+
     _onMove(event) {
-        // The pane is on the right, so dragging left makes it wider.
-        this._apply(this._startWidth + (this._startX - event.clientX));
+        this._apply(this._startWidth + this._grain() * (event.clientX - this._startX));
+    }
+
+    /**
+     * Which way "wider" is, as a sign on the pointer's horizontal travel: -1
+     * for a pane at the END of the row, whose boundary is on its left, so the
+     * pointer moving left grows it; +1 for the sidebar at the START.
+     */
+    _grain() {
+        return "start" === this.sideValue ? 1 : -1;
     }
 
     /**
@@ -883,6 +939,10 @@ export default class extends Controller {
             );
         }
 
+        // What the boundary decided, as opposed to what is drawn — see
+        // _settledWidth.
+        this._written = bounded;
+
         this.element.style.setProperty(this.variableValue, `${Math.round(drawn)}px`);
 
         if (persist) {
@@ -908,6 +968,17 @@ export default class extends Controller {
             ? this.mainTarget
             : ("" !== this.mainSelectorValue ? document.querySelector(this.mainSelectorValue) : null);
         const main = null !== mainElement ? mainElement.getBoundingClientRect().width : 0;
+
+        // The sidebar's neighbour can be hidden outright: a fullscreen
+        // calendar sets the mail column to `display: none`. Falling back to
+        // the row below would measure the sidebar's own wrapper, a ceiling of
+        // about 224 − 340, and collapse the sidebar the next time anything
+        // re-clamped. With nothing beside it to protect, the only bound left
+        // is the maximum — whatever is on screen instead is flex-1 and takes
+        // the difference.
+        if (0 === main && "start" === this.sideValue) {
+            return Infinity;
+        }
 
         // No main pane to measure (the calendar page itself) — fall back to the
         // row, which is the same thing minus a sidebar.

@@ -1,0 +1,97 @@
+{#
+_sidebar_pane.html.twig — the desktop sidebar, the width it was dragged to, and
+the boundary that drags it (#699).
+
+One partial for the four pages that show a sidebar — the mailbox, Settings, the
+calendar and the admin panel — where each used to carry its own
+`<div class="hidden md:flex">` around the include. The width is a preference,
+so it has to be the same number on all four: a sidebar that is 300px on the
+mail and 224px in Settings reads as the page having moved rather than as a
+preference being kept.
+
+Below md there is no boundary and no handle: the sidebar is the drawer there,
+and the burger is its control.
+
+── The three widths a sidebar can have ──────────────────────────────────────
+
+  dragged   --sidebar-width, this boundary's number, stored per user
+  railed    3.5rem, from `.sidebar-rail` on <html> — the burger, above md
+  peeking   --sidebar-peek-width, the longest row's, on hover, if switched on
+
+The first two are layout and move the pane beside it. The third is not: the
+aside leans out of .sidebar-pane over the mail and the wrapper keeps its width,
+so nothing reflows while the pointer crosses the nav. See "The sidebar
+boundary" in app.css, and ui--sidebar#_measureTruncation for the number.
+
+Accepts:
+  room     CSS selector for the pane the sidebar takes its room from, so the
+           clamp stops before squeezing it below a phone's width. The mailbox
+           passes its mail column — the docked calendar keeps its own width,
+           so what the sidebar takes comes out of the list. The other pages
+           mark their content pane `data-sidebar-room`, the default.
+  surface  Whether to re-point the density tokens at the sidebar's surface
+           (`data-surface` in app.css). Only the mailbox did, and this partial
+           keeps it that way.
+#}
+{% set _room    = room|default('[data-sidebar-room]') %}
+{% set _surface = surface|default(false) %}
+
+<div class="sidebar-boundary hidden md:flex shrink-0"
+     {% if _surface %}data-surface="sidebar"{% endif %}
+     {% if app.user %}
+     {# In the first paint rather than restored by JavaScript: a sidebar that
+        appears at 224px and jumps to 300px once Stimulus connects is worse
+        than one that does not remember at all. #}
+     style="--sidebar-width: {{ app.user.sidebarWidth }}px"
+     data-controller="ui--sidebar-split"
+     {# A boundary and nothing else: no positions to drag into, no rubber
+        band. The rail is the burger's, not the handle's. #}
+     data-ui--sidebar-split-modes-value="false"
+     data-ui--sidebar-split-side-value="start"
+     data-ui--sidebar-split-variable-value="--sidebar-width"
+     data-ui--sidebar-split-main-selector-value="{{ _room }}"
+     data-ui--sidebar-split-inert-when-value=".sidebar-rail"
+     data-ui--sidebar-split-state-url-value="{{ path('app_mail_sidebar_state') }}"
+     data-ui--sidebar-split-token-value="{{ csrf_token('sidebar_state') }}"
+     data-ui--sidebar-split-min-value="{{ constant('App\\Entity\\User\\User::SIDEBAR_MIN_WIDTH') }}"
+     data-ui--sidebar-split-max-value="{{ constant('App\\Entity\\User\\User::SIDEBAR_MAX_WIDTH') }}"
+     data-ui--sidebar-split-default-value="{{ constant('App\\Entity\\User\\User::SIDEBAR_DEFAULT_WIDTH') }}"
+     {# The pane beside it is the app and the sidebar is furniture, so where
+        both minimums cannot be met the content wins. A phone's width, like
+        the calendar boundary's floor: the list has a stacked layout for
+        exactly that size and dragging should be able to reach it. #}
+     data-ui--sidebar-split-main-min-value="340"
+     data-ui--sidebar-split-step-value="16"
+     {% endif %}
+>
+    {# The box that carries the width — and the element the controller
+       measures, which must be the same one: sizing a wrapper of pane + handle
+       and measuring the pane lost the handle's pixels on every re-clamp.
+
+       It is also the peek's trigger. The handle is NOT inside it, so reaching
+       for the handle never opens the peek on the way. #}
+    <div data-ui--sidebar-split-target="pane" class="sidebar-pane flex min-w-0">
+        {% include '_partials/_sidebar.html.twig' %}
+    </div>
+
+    {% if app.user %}
+        {# Takes no room: app.css lays it absolutely over the gutter the row
+           already leaves, exactly that wide, so it costs the layout nothing
+           and covers neither card. Hidden while railed and while the peek is
+           out. #}
+        <div data-ui--sidebar-split-target="handle"
+             data-sidebar-handle
+             data-action="pointerdown->ui--sidebar-split#start keydown->ui--sidebar-split#nudge dblclick->ui--sidebar-split#reset"
+             role="separator"
+             aria-orientation="vertical"
+             aria-label="{{ 'sidebar.resize'|trans }}"
+             title="{{ 'sidebar.resize_hint'|trans }}"
+             tabindex="0"
+             class="group cursor-col-resize flex items-center justify-center focus:outline-none">
+            {# `.split-grip`, the calendar handle's hook, so the boundaries look
+               and behave like one control. #}
+            <span class="split-grip w-0.5 h-8 rounded-full bg-line
+                         group-hover:bg-accent group-focus-visible:bg-accent" aria-hidden="true"></span>
+        </div>
+    {% endif %}
+</div>

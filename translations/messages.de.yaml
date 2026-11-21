@@ -5064,6 +5064,7 @@ settings:
             sender_pictures: 'avatar bild foto gravatar libravatar bimi logo symbol absender'
             sharing: "link öffentlich buchung"
             shortcuts: "tastatur tasten kürzel hotkeys"
+            sidebar: 'breite breit schmal größe ziehen lange namen abgeschnitten darüberfahren mehr ordner'
             swipe_actions: "wischen geste handy archivieren"
             templates: "textbausteine antworten vorlagen"
             theme: "dunkel hell modus nacht farben dark"
@@ -5246,8 +5247,13 @@ settings:
         hide_note: Einen Ordner ganz auszublenden geht weiterhin unter Labels.
         hint: Angehakte Ordner stehen hinter „Mehr“. Die übrigen bleiben direkt in der Seitenleiste.
         label: Hinter „Mehr“
+        peek:
+            hint: 'Ist ein Name abgeschnitten, wird die Seitenleiste über der Mail breiter, solange der Zeiger darauf liegt. Dauerhaft breiter machst du sie, indem du ihren Rand ziehst.'
+            off: 'Aus'
+            on: 'An'
+            title: 'Lange Namen beim Darüberfahren zeigen'
         pinned: Der Posteingang bleibt immer, wo er ist.
-        subheading: Welche Ordner sich hinter „Mehr“ verstecken.
+        subheading: 'Wie lange Namen angezeigt werden und welche Ordner sich hinter „Mehr“ verstecken.'
     signature:
         for_alias: 'Signatur für %alias%'
         heading: Signaturen
@@ -5514,6 +5520,8 @@ sidebar:
         starred: Markiert
         trash: Papierkorb
         unread: Ungelesen
+    resize: 'Breite der Seitenleiste ändern'
+    resize_hint: 'Ziehen zum Ändern, Doppelklick setzt zurück'
     toggle: Seitenleiste ein-/ausblenden
 
 snooze:

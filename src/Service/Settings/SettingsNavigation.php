@@ -121,7 +121,7 @@ final class SettingsNavigation
                 ['card-logo', 'settings.appearance.logo.heading', null],
             ],
             'layout' => [
-                ['card-sidebar', 'settings.sidebar.heading', null],
+                ['card-sidebar', 'settings.sidebar.heading', 'settings.search.keywords.sidebar'],
                 ['card-swipe-actions', 'settings.swipe_actions.heading', 'settings.search.keywords.swipe_actions'],
                 ['card-shortcuts', 'settings.shortcuts.heading', 'settings.search.keywords.shortcuts'],
             ],

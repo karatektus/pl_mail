@@ -204,6 +204,14 @@ final readonly class ConfigBackupUsers
         // Neither holds an id, and a percentage means the same on any install.
         User::SETTING_READING_PANE_MODE,
         User::SETTING_READING_PANE_WIDTH,
+        // How wide the sidebar is, and whether a clipped row may lean out over
+        // the mail (#699). In the backup for the reasons the two above are: a
+        // choice about one's own screen, no id, and a number of pixels and a
+        // boolean mean the same on any install. A restore handing back a
+        // default-width sidebar to somebody who widened theirs to read a nested
+        // label tree would undo the very thing they set it for.
+        User::SETTING_SIDEBAR_WIDTH,
+        User::SETTING_SIDEBAR_PEEK,
         // What a dragged row does, one key per direction. In the backup for the
         // reason the reading pane's keys are: a choice about one's own screen,
         // a short string with no id, and the same meaning on any install. A

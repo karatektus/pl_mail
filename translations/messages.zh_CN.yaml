@@ -4359,6 +4359,7 @@ settings:
             sender_pictures: '头像 图片 照片 gravatar libravatar bimi 标志 图标 发件人'
             sharing: "链接 公开 预约"
             shortcuts: "键盘 按键 快捷键"
+            sidebar: '宽度 宽 窄 调整 拖动 长名称 截断 悬停 更多 文件夹'
             swipe_actions: "滑动 手势 手机 归档"
             templates: "模板 快速回复 片段"
             theme: "深色 浅色 模式 夜间 颜色 dark"
@@ -4495,8 +4496,13 @@ settings:
         hide_note: 如需完全隐藏某个文件夹，请在“标签”中将其关闭。
         hint: 勾选的文件夹会收在“更多”后面，其余的仍直接显示在侧边栏中。
         label: 收在“更多”后面
+        peek:
+            hint: '名称被截断时，指针停在侧边栏上，侧边栏会在邮件上方展开。如需一直更宽，请拖动其边缘。'
+            off: '关'
+            on: '开'
+            title: '悬停时显示完整名称'
         pinned: 收件箱始终保持在原位。
-        subheading: 哪些文件夹收在“更多”后面。
+        subheading: '长名称如何显示，以及哪些文件夹收在“更多”后面。'
     signature:
         for_alias: '%alias% 的签名'
         heading: '签名'
@@ -4758,6 +4764,8 @@ sidebar:
         starred: '星标邮件'
         trash: '废纸篓'
         unread: '未读'
+    resize: '调整侧边栏宽度'
+    resize_hint: '拖动以调整，双击恢复默认'
     toggle: '显示或隐藏侧边栏'
 snooze:
     confirm: '稍后提醒'

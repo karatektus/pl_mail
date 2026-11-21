@@ -1013,6 +1013,64 @@ final class MailController extends AbstractController
     }
 
     /**
+     * Remembers how wide the sidebar is, and whether a row too long for it may
+     * lean out over the mail to show itself (#699).
+     *
+     * One endpoint for both, because both are about the same box, but they
+     * arrive from two places in two shapes: the boundary posts `width` on
+     * release (ui--sidebar-split), and the switch in Settings → Layout →
+     * Sidebar posts `key=peek` + `enabled` (settings--toggle). A field that is
+     * absent is left as it is, so switching the peek on does not reset the
+     * width. Its own token, like the reading pane's divider: the drag handle
+     * posts a form body, not JSON under the shared `ajax` header.
+     *
+     * The width is clamped here as well as in the browser — the client's
+     * bounds are a convenience for the person dragging, and a stored 40000
+     * would wedge the mailbox for whoever opened it next.
+     *
+     * The peek answers with the sidebar re-rendered, so the sidebar beside the
+     * switch starts (or stops) peeking at once: the setting is rendered onto
+     * the aside, which the stream replaces.
+     */
+    #[Route('/sidebar/state', name: 'sidebar_state', methods: ['POST'])]
+    public function sidebarState(Request $request, EntityManagerInterface $em): Response
+    {
+        $this->denyAccessUnlessGranted('ROLE_USER');
+
+        $this->assertCsrf($request, 'sidebar_state');
+
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $peek = false;
+
+        if (true === $request->request->has('width')) {
+            $user->sidebarWidth = $request->request->getInt('width');
+        }
+
+        if (true === $request->request->has('key')) {
+            // An unknown key is a bug in our own page, not something to store.
+            if ('peek' !== $request->request->getString('key')) {
+                return $this->json(['ok' => false], Response::HTTP_BAD_REQUEST);
+            }
+
+            $user->sidebarPeek = $request->request->getBoolean('enabled');
+            $peek              = true;
+        }
+
+        $em->flush();
+
+        if (true === $peek) {
+            return new Response(
+                $this->renderView('_partials/_sidebar.stream.html.twig'),
+                headers: ['Content-Type' => 'text/vnd.turbo-stream.html'],
+            );
+        }
+
+        return $this->json(['width' => $user->sidebarWidth, 'peek' => $user->sidebarPeek]);
+    }
+
+    /**
      * Unread badge counts for the sidebar, keyed the same way the badges are
      * (see the unread_badge macro in _partials/_sidebar.html.twig).
      *

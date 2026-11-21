@@ -4622,6 +4622,114 @@ html {
     app-region: no-drag;
 }
 
+/* ═══ The sidebar boundary (#699) ══════════════════════════════════════════
+   A sidebar whose width the user drags, and a row that may lean out over the
+   mail when it does not fit. Three widths, and only the first two are layout:
+
+     dragged   --sidebar-width, from ui--sidebar-split, stored per user
+     railed    3.5rem, from `.sidebar-rail` on <html> — the section below
+     peeking   --sidebar-peek-width, the longest row's, on hover only
+
+   The markup is _partials/_sidebar_pane.html.twig.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Above the mail card, so the peek leans out OVER it. Below the mobile drawer
+   (z-40) and its backdrop (z-30), the sidebar's other state. */
+.sidebar-boundary {
+    position: relative;
+    z-index: 20;
+}
+
+/* The box that carries the width, the one ui--sidebar-split measures, and the
+   one the peek leans out of — `overflow: visible` is what lets the aside
+   overhang without the row moving a pixel.
+
+   The transition is for the rail, the keys and the double-click reset, and is
+   off while dragging (body.cursor-col-resize is on for exactly that long,
+   set by ui--split#start): a transition under a drag lags the pointer. */
+.sidebar-pane {
+    width: var(--sidebar-width, 14rem);
+    flex: none;
+    overflow: visible;
+    transition: width 200ms ease-out;
+}
+
+body.cursor-col-resize .sidebar-pane {
+    transition: none;
+}
+
+/* The handle sits in the gutter the row already leaves, exactly that wide.
+   Absolute, so it costs the layout nothing — as a flex item it made every
+   sidebar a gutter wider than its stored width — and no wider than the gap,
+   because it is laid over the mail and would take the clicks of whatever it
+   covered. */
+[data-sidebar-handle] {
+    position: absolute;
+    inset-block: 0;
+    left: 100%;
+    width: var(--spacing-gutter);
+    z-index: 1;
+
+    /* A horizontal touch drag is otherwise a scroll or a back-swipe, and the
+       pointer events never arrive. md and up is every tablet. */
+    touch-action: none;
+    transition: opacity 160ms ease-out;
+}
+
+/* ── The peek ──────────────────────────────────────────────────────────────
+   Two conditions, both on the aside:
+
+     [data-sidebar-peek]       the user's setting (Settings → Layout →
+                               Sidebar). On by default.
+     [data-sidebar-truncated]  something IS clipped, measured by
+                               ui--sidebar#_measureTruncation.
+
+   Without the second, a sidebar wide enough for everything would still lurch
+   whenever the pointer crossed it. Never while railed — the rail is icons on
+   purpose — and never mid-drag, where the pointer is over the sidebar the
+   whole time and a peek would fight the width being set.
+
+   The trigger is .sidebar-pane, which the handle is NOT inside: approaching
+   from the mail, the pointer crosses the handle first and the sidebar only
+   widens once it carries on into the sidebar. Hover follows the DOM rather
+   than the box, so the peek stays open over the part that has leaned out.
+   ────────────────────────────────────────────────────────────────────────── */
+#sidebar[data-sidebar-peek][data-sidebar-truncated] {
+    transition: width 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+html:not(.sidebar-rail) body:not(.cursor-col-resize)
+    .sidebar-pane:is(:hover, :focus-within)
+    > #sidebar[data-sidebar-peek][data-sidebar-truncated] {
+    width: var(--sidebar-peek-width, 100%);
+
+    /* Over a list of subjects now, so opaque — the pane surface is
+       translucent in most themes — and lifted, with the pane's hairline at
+       full strength on the one edge that separates it from the mail. */
+    background-color: rgb(var(--rgb-surface));
+    box-shadow: 0 10px 28px -6px rgb(var(--rgb-shadow) / 0.35),
+                0 0 0 1px rgb(var(--rgb-border) / var(--border-alpha));
+}
+
+/* While the peek is out there is no handle. The boundary has not moved, so
+   the handle would float over the labels of the leaned-out sidebar, marking
+   an edge that is not there. Gone, and not grabbable; it comes back where it
+   always was when the peek lets go. */
+html:not(.sidebar-rail) body:not(.cursor-col-resize)
+    .sidebar-pane:is(:hover, :focus-within):has(> #sidebar[data-sidebar-peek][data-sidebar-truncated])
+    + [data-sidebar-handle] {
+    opacity: 0;
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-pane,
+    [data-sidebar-handle],
+    #sidebar[data-sidebar-peek][data-sidebar-truncated] {
+        transition: none;
+    }
+}
+
 /* ═══ Collapsed sidebar (icon rail) ════════════════════════════════════════
    Toggled by sidebar_drawer_controller and pre-applied from localStorage in
    app.html.twig. Only `#sidebar` is targeted, which is the inline copy — the
@@ -4629,8 +4737,19 @@ html {
    Below md the class is inert; the burger opens the drawer instead.
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (min-width: 768px) {
+    /* The pane as well as the aside: the aside fills .sidebar-pane, which
+       carries the dragged width (#699), and a rail that narrowed only the
+       aside would sit in a hole as wide as the dragged sidebar. */
+    .sidebar-rail .sidebar-pane,
     .sidebar-rail #sidebar {
         width: 3.5rem;
+    }
+
+    /* Nothing to drag at 56px. ui--sidebar-split is told the same through
+       `inert-when`, so it neither clamps nor stores a width it is not
+       showing. */
+    .sidebar-rail [data-sidebar-handle] {
+        display: none;
     }
 
     .sidebar-rail #sidebar .rail-hide {
@@ -4809,14 +4928,6 @@ html {
     #sidebar-drawer-inner [data-nav-tier="tree"] {
         min-height: calc(1lh + 0.75rem);
     }
-}
-
-/* The trail to the selected row: a label's ancestors read as "you are in
-   here", not as a second selection, so they take the accent on the text and
-   leave the filled pill to the row that is actually open. */
-#sidebar .nav-item.is-active-ancestor:not(.is-active),
-#sidebar-drawer-inner .nav-item.is-active-ancestor:not(.is-active) {
-    color: var(--accent-text);
 }
 
 /* Flat has no card to respect: the sidebar sits straight against the window,
