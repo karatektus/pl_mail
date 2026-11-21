@@ -75,6 +75,10 @@ final class MimeHeaderHelperTest extends TestCase
         yield 'base64'           => ['=?UTF-8?B?R3LDvMOfZQ==?=', 'Grüße'];
         yield 'iso-8859-1'       => ['=?ISO-8859-1?Q?J=F6rg?=', 'Jörg'];
 
+        // A Hebrew sender's name from Outlook. mbstring does not know
+        // ISO-8859-8-I, and the name was read as cp1252: "éùøàì éùøàìé" (#714).
+        yield 'hebrew, iso-8859-8-i' => ['=?iso-8859-8-i?B?6fn44Owg6fn44Ozp?=', 'ישראל ישראלי'];
+
         // Adjacent encoded words: the whitespace between them is a separator
         // (RFC 2047 §6.2), so decoding them as one run is what joins the word.
         yield 'split word' => ['=?UTF-8?Q?Gr=C3=BC?= =?UTF-8?Q?=C3=9Fe?=', 'Grüße'];
