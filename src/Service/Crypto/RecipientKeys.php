@@ -107,7 +107,9 @@ final readonly class RecipientKeys
                 // No origin: it is the person's own key, which `own` already says.
                 'key'     => ['fingerprint' => $own->fingerprint, 'publicKey' => $own->publicKey, 'pinned' => true, 'origin' => null, 'originHost' => null],
                 'changed' => false,
-                'encrypt' => RecipientPolicy::Auto->value,
+                // What the person set for this address of theirs (#703); a
+                // contact's comes off their key below.
+                'encrypt' => RecipientPolicies::own($user, $email)->value,
                 'sign'    => RecipientPolicy::Auto->value,
                 'scheme'  => PgpScheme::Mime->value,
                 'smime'   => self::ownCertificate($this->ownCertificates->for($user, $email)),

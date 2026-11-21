@@ -24,6 +24,7 @@ use App\Service\Crypto\ContactKeys;
 use App\Service\Crypto\KeyServerLookup;
 use App\Service\Crypto\PublicKeyReader;
 use App\Service\Crypto\RecipientKeys;
+use App\Service\Crypto\RecipientPolicies;
 use App\Service\Crypto\SignatureVerifier;
 use App\Service\Demo\DemoMode;
 use App\Service\Mail\SenderResolver;
@@ -87,6 +88,7 @@ final class ContactKeyController extends AbstractController
         private readonly ContactCertificateRepository $certificateRepository,
         private readonly KeyServerLookup              $keyServers,
         private readonly PublicKeyReader              $reader,
+        private readonly RecipientPolicies            $policies,
     ) {
     }
 
@@ -111,6 +113,38 @@ final class ContactKeyController extends AbstractController
             'recipients' => $this->recipientKeys->describe($user, $emails, true === ($body['lookup'] ?? false)),
             'sender'     => null === $account ? null : $this->recipientKeys->sender($user, $account, $this->senders->addressFor($body['from'] ?? null, $account, $user)),
         ], headers: ['Cache-Control' => 'private, no-store']);
+    }
+
+    /**
+     * Whether mail to one address is encrypted from now on: the lock's
+     * popover in the composer (#703). JSON in and out, like recipients(), and
+     * the same `ajax` token; the answer is the policy now stored, which the
+     * composer puts in place of what recipients() told it.
+     *
+     * 422 for an address plMail has no key for (RecipientPolicies says why
+     * that is not remembered), 400 for a policy that is not one.
+     */
+    #[Route('/recipients/policy', name: 'recipient_policy', methods: ['POST'])]
+    public function recipientPolicy(Request $request, #[CurrentUser] User $user): JsonResponse
+    {
+        $this->assertCsrf($request, 'ajax');
+        $this->refuseInDemo();
+
+        $body   = json_decode($request->getContent(), true);
+        $email  = is_string($body['email'] ?? null) ? $body['email'] : '';
+        $policy = RecipientPolicy::tryFrom(is_string($body['encrypt'] ?? null) ? $body['encrypt'] : '');
+
+        if (null === $policy || false === filter_var(trim($email), FILTER_VALIDATE_EMAIL)) {
+            return new JsonResponse(['error' => 'invalid'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $stored = $this->policies->setEncrypt($user, $email, $policy);
+        } catch (ContactKeyRefused $refused) {
+            return new JsonResponse(['error' => $refused->translationKey], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return new JsonResponse(['email' => strtolower(trim($email)), 'encrypt' => $stored->value]);
     }
 
     #[Route('', name: 'index', methods: ['GET'])]

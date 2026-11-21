@@ -166,6 +166,11 @@ final readonly class ConfigBackupUsers
         // quietly switched it back on would be telling key servers whom
         // somebody writes to after they had decided not to.
         User::SETTING_CRYPTO_KEY_SERVERS,
+        // Whether mail to one's own addresses is encrypted (#703). By
+        // address, so it means the same on the target; a restore that
+        // dropped it would have mail to a Gmail account read in Gmail's own
+        // app going out encrypted again, unreadable there.
+        User::SETTING_CRYPTO_OWN_ENCRYPT,
         // Whether any of the person's accounts keeps decrypted mail: carried
         // with the accounts' own switches above, which it summarises.
         User::SETTING_KEEPS_DECRYPTED_ANY,
