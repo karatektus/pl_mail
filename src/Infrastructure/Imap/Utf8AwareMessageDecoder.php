@@ -32,11 +32,17 @@ use Webklex\PHPIMAP\Decoder\MessageDecoder;
  * INSERT and its whole batch with it. Whatever the library hands back is put
  * past CharsetHelper::ensureUtf8() for that reason, the guard every other
  * route into a UTF-8 column already goes through.
+ *
+ * The label itself goes through CharsetHelper::convertibleLabel() first. The
+ * library's alias table keeps the Hebrew ISO-8859-8-I as it is, iconv does not
+ * know that name, and a failed iconv comes back as false: a Hebrew message from
+ * Outlook was stored with an empty body (#714).
  */
 final class Utf8AwareMessageDecoder extends MessageDecoder
 {
     public function convertEncoding($str, string $from = 'ISO-8859-2', string $to = 'UTF-8'): mixed
     {
+        $from   = CharsetHelper::convertibleLabel($from);
         $toUtf8 = true === in_array(strtolower($to), ['utf-8', 'utf8'], true);
 
         if (

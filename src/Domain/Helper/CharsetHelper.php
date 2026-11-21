@@ -54,6 +54,55 @@ final class CharsetHelper
     ];
 
     /**
+     * The Hebrew and Arabic labels that name a direction, and the charset their
+     * bytes are in.
+     *
+     * RFC 1556 adds `-I` (logical order) and `-E` (explicit direction marks) to
+     * ISO-8859-6 and ISO-8859-8. The suffix says how the text is laid out, not
+     * how it is encoded: the bytes are the base charset's, one for one. Outlook
+     * and Microsoft 365 send Hebrew mail as ISO-8859-8-I, in the body and in the
+     * encoded words of the headers, and neither mbstring nor iconv knows the
+     * name. mbstring throws, so toUtf8() read the sender's name as windows-1252
+     * and showed "éùøàì"; iconv fails, so webklex handed back no body at all,
+     * and the message was stored empty (#714).
+     *
+     * The base name is right for the order too. Converting never reorders a
+     * byte: text written in logical order comes out as Unicode in logical
+     * order, which is the order Unicode text is in. Every IANA spelling is
+     * listed, because a label is looked up whole.
+     *
+     * @var array<string, string>
+     */
+    private const array DIRECTIONAL_LABELS = [
+        'iso-8859-6-i' => 'iso-8859-6',
+        'iso_8859-6-i' => 'iso-8859-6',
+        'csiso88596i'  => 'iso-8859-6',
+        'iso-8859-6-e' => 'iso-8859-6',
+        'iso_8859-6-e' => 'iso-8859-6',
+        'csiso88596e'  => 'iso-8859-6',
+        'iso-8859-8-i' => 'iso-8859-8',
+        'iso_8859-8-i' => 'iso-8859-8',
+        'csiso88598i'  => 'iso-8859-8',
+        'iso-8859-8-e' => 'iso-8859-8',
+        'iso_8859-8-e' => 'iso-8859-8',
+        'csiso88598e'  => 'iso-8859-8',
+    ];
+
+    /**
+     * A declared charset under the name the converters know it by.
+     *
+     * A directional Hebrew or Arabic label becomes the charset it is written
+     * in (see DIRECTIONAL_LABELS); any other label comes back exactly as it was
+     * given, so a caller that passes it on changes nothing else. Public because
+     * there are two converters: toUtf8() below, and iconv inside webklex, which
+     * Utf8AwareMessageDecoder hands the label to.
+     */
+    public static function convertibleLabel(string $charset): string
+    {
+        return self::DIRECTIONAL_LABELS[strtolower(trim($charset, " \t\n\r\0\x0B\"'"))] ?? $charset;
+    }
+
+    /**
      * Pull the charset parameter out of a Content-Type header value.
      *
      * Returns null rather than a default when there is none: "undeclared" and
@@ -160,7 +209,7 @@ final class CharsetHelper
             return $bytes;
         }
 
-        $charset = strtolower(trim((string) $charset, " \t\n\r\0\x0B\"'"));
+        $charset = self::convertibleLabel(strtolower(trim((string) $charset, " \t\n\r\0\x0B\"'")));
 
         if ('' === $charset) {
             return self::ensureUtf8($bytes);
