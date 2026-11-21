@@ -246,6 +246,42 @@ class MessageBackfillRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every message with an HTML body — the set the unknown-element repair
+     * has to walk. What an unknown element took with it is gone from
+     * bodyHtmlSafe and SQL cannot tell which tags the allow-list knows, so
+     * the walk is the whole set, as the table-link one nearly is.
+     *
+     * @return list<Message>
+     */
+    public function findWithHtmlBody(int $afterId, int $limit): array
+    {
+        return $this->htmlBodyQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithHtmlBody(): int
+    {
+        return (int) $this->htmlBodyQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function htmlBodyQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            ->andWhere("m.bodyHtml <> ''")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
      * Messages whose HTML body carries a charset declaration of its own — the
      * set the safe-html re-tag repair has to walk.
      *

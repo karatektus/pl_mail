@@ -6,8 +6,10 @@ namespace App\Service\Mail;
 
 use App\Domain\Helper\CharsetHelper;
 use App\Entity\Mail\Message;
+use Dom\HTMLDocument;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
+use Symfony\Component\HtmlSanitizer\HtmlSanitizerAction;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -105,7 +107,7 @@ final readonly class MailBodySanitizer
         $html = CharsetHelper::retagHtmlAsUtf8($html);
         $html = $this->resolveCids($html, $message);
         $html = $this->inlineStyles($html);
-        $html = $this->buildSanitizer()->sanitize($html);
+        $html = $this->buildSanitizer()->sanitize(self::withoutStyleSheets($html));
 
         $message->bodyHtmlSafe = $html;
     }
@@ -136,7 +138,7 @@ final readonly class MailBodySanitizer
             return '';
         }
 
-        return trim($this->buildSanitizer()->sanitize(CharsetHelper::retagHtmlAsUtf8($html)));
+        return trim($this->buildSanitizer()->sanitize(self::withoutStyleSheets(CharsetHelper::retagHtmlAsUtf8($html))));
     }
 
     /**
@@ -178,7 +180,7 @@ final readonly class MailBodySanitizer
         }
 
         return trim($this->restoreCidReferences(
-            $this->buildComposeSanitizer()->sanitize($this->unfoldQuotes(CharsetHelper::retagHtmlAsUtf8($html))),
+            $this->buildComposeSanitizer()->sanitize(self::withoutStyleSheets($this->unfoldQuotes(CharsetHelper::retagHtmlAsUtf8($html)))),
         ));
     }
 
@@ -357,6 +359,31 @@ final readonly class MailBodySanitizer
         }
     }
 
+    /**
+     * Take out every `<style>` and `<title>` before the sanitizer sees them.
+     *
+     * Symfony ignores dropElement() for an element it counts as a `<head>`
+     * element when it sanitizes a body, and hands it to the default action
+     * instead. With unknown elements unwrapped (see allowList()) that action
+     * keeps their content, and a stylesheet in the body would be shown as
+     * text. A stylesheet is already on the elements by now, and a title is
+     * never part of the letter.
+     */
+    private static function withoutStyleSheets(string $html): string
+    {
+        if (1 !== preg_match('/<(?:style|title)\b/i', $html)) {
+            return $html;
+        }
+
+        $document = HTMLDocument::createFromString($html, LIBXML_NOERROR, 'UTF-8');
+
+        foreach (iterator_to_array($document->querySelectorAll('style, title')) as $element) {
+            $element->remove();
+        }
+
+        return $document->saveHtml();
+    }
+
     private function buildSanitizer(): HtmlSanitizer
     {
         return new HtmlSanitizer($this->allowList());
@@ -398,6 +425,12 @@ final readonly class MailBodySanitizer
         $config = new HtmlSanitizerConfig()
             // Structurally-safe baseline (text, lists, tables, …).
             ->allowSafeElements()
+            // An element the list does not name is unwrapped, not dropped.
+            // Symfony drops it by default, children and all, and Nayax wraps
+            // every mail it sends in a `<message>` element: the whole letter
+            // went and the body showed blank. What must never be read is
+            // dropped by name below instead.
+            ->defaultAction(HtmlSanitizerAction::Block)
             // Drop these entirely — content included — so nothing leaks as text.
             // <style> is redundant after inlining; the rest are never wanted.
             ->dropElement('head')
@@ -407,6 +440,14 @@ final readonly class MailBodySanitizer
             ->dropElement('iframe')
             ->dropElement('object')
             ->dropElement('embed')
+            // Content that is never shown: Outlook's settings block, inert
+            // templates, and the fallbacks for clients without scripts,
+            // plugins or frames. Unwrapped, they would read as stray text.
+            ->dropElement('xml')
+            ->dropElement('template')
+            ->dropElement('noscript')
+            ->dropElement('noembed')
+            ->dropElement('noframes')
             // A form is unwrapped, not dropped. Review requests put the whole
             // product card inside one — photo, name, star links — and dropping
             // the element took all of it with it (#271). The two controls whose
