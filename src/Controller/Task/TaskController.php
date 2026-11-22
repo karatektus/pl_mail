@@ -256,6 +256,11 @@ final class TaskController extends AbstractController
             return $this->renderEditor($task, $query, $list, $this->translator->trans('tasks.attachments.too_large'), posted: $posted);
         }
 
+        // Another of this user's lists, for a task being moved there. One that is
+        // not theirs is no list, and the task stays where it is.
+        $movedFrom = null;
+        $target    = null === $task ? null : $this->lists->findOwned($user, $request->request->getInt('listId'));
+
         try {
             if (null === $task) {
                 $saved = $this->writer->create($user, $list, $draft);
@@ -263,6 +268,11 @@ final class TaskController extends AbstractController
                 $saved = $task;
 
                 $this->writer->update($task, $draft);
+
+                if (null !== $target && $target !== $task->taskList) {
+                    $movedFrom = $task->taskList;
+                    $this->writer->move($task, $target);
+                }
             }
 
             // An empty field is what the dialog always keeps one of, not a step. A
@@ -299,12 +309,20 @@ final class TaskController extends AbstractController
             }
 
             $this->em->flush();
-            $this->syncSoon($list);
+            $this->syncSoon($saved->taskList);
+
+            if (null !== $movedFrom) {
+                $this->syncSoon($movedFrom);
+            }
         } catch (TaskListReadOnlyException) {
             return $this->renderEditor($task, $query, $list, $this->translator->trans('tasks.read_only'), posted: $posted);
         }
 
-        return $this->renderPaneStream($query, null === $task ? 'tasks.added' : 'tasks.saved');
+        return $this->renderPaneStream($query, match (true) {
+            null === $task      => 'tasks.added',
+            null !== $movedFrom => 'tasks.moved',
+            default             => 'tasks.saved',
+        });
     }
 
     #[Route('/{id}/delete', name: 'delete', requirements: ['id' => '\d+'], methods: ['POST'])]
@@ -495,6 +513,23 @@ final class TaskController extends AbstractController
      * lands, and for a synced list, whose existence is the remote's — a mirror
      * deleted here would only be there again after the next discovery.
      */
+    /** Where new tasks land from now on, when nothing else was picked. */
+    #[Route('/list/{id}/landing', name: 'list_landing', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function listLanding(Request $request, TaskList $list): Response
+    {
+        $this->assertCsrf($request, 'tasks_list_editor');
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $list);
+
+        if (true === $list->isReadOnly) {
+            throw $this->createAccessDeniedException('A read-only list can take no new task.');
+        }
+
+        $this->currentUser()->setSetting(User::SETTING_TASKS_ADD_TO, $list->id);
+        $this->em->flush();
+
+        return $this->renderLists(TaskPaneQuery::fromParameters($request->request->all()), 'tasks.lists.landing_set', ['%name%' => $list->name]);
+    }
+
     #[Route('/list/{id}/delete', name: 'list_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function listDelete(Request $request, TaskList $list): Response
     {
@@ -528,11 +563,11 @@ final class TaskController extends AbstractController
         return $user;
     }
 
-    /** One of this user's lists, or their default when the id names none of them. */
+    /** One of this user's lists, or where their new tasks land when the id names none of them. */
     private function listFor(int $id): TaskList
     {
         return $this->lists->findOwned($this->currentUser(), $id)
-            ?? $this->provisioner->defaultFor($this->currentUser());
+            ?? $this->provisioner->landingFor($this->currentUser());
     }
 
     /**
@@ -613,16 +648,26 @@ final class TaskController extends AbstractController
             'query'   => $query,
             'error'   => $error,
             'zone'    => $this->time->zoneFor($this->currentUser()),
+            // Where a task can be put: a read-only list can take nothing.
+            'lists'   => array_values(array_filter(
+                $this->lists->findForUser($this->currentUser()),
+                static fn (TaskList $each): bool => false === $each->isReadOnly,
+            )),
         ], new Response(status: null === $error ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY));
     }
 
-    /** The Lists dialog, telling the pane about a change when there was one. */
-    private function renderLists(TaskPaneQuery $query, ?string $messageKey = null): Response
+    /**
+     * The Lists dialog, telling the pane about a change when there was one.
+     *
+     * @param array<string, string> $messageParams
+     */
+    private function renderLists(TaskPaneQuery $query, ?string $messageKey = null, array $messageParams = []): Response
     {
         return $this->render('tasks/_lists.html.twig', [
             'lists'   => $this->lists->findForUser($this->currentUser()),
+            'landing' => $this->provisioner->landingFor($this->currentUser()),
             'query'   => $query,
-            'message' => null === $messageKey ? null : $this->translator->trans($messageKey),
+            'message' => null === $messageKey ? null : $this->translator->trans($messageKey, $messageParams),
             'paneUrl' => null === $messageKey ? null : $this->generateUrl('app_tasks_index', $query->toParameters()),
         ]);
     }

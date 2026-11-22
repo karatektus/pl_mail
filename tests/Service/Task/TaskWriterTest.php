@@ -325,6 +325,69 @@ final class TaskWriterTest extends KernelTestCase
         self::assertNotNull($task->reminderAt);
     }
 
+    public function testAMovedTaskTakesItsStepsAndItsFinishedEntriesWithIt(): void
+    {
+        $from = $this->list();
+        $to   = $this->list();
+        $task = $this->writer->create($this->user, $from, new TaskDraft('Weekly', dueDate: '2026-06-01', recurrence: 'weekly'));
+        $step = $this->writer->addStep($task, 'Step');
+        $this->em->flush();
+
+        $this->writer->complete($task, new DateTimeImmutable('2026-06-01 10:00:00', new DateTimeZone('UTC')));
+        $this->em->flush();
+
+        $this->writer->move($task, $to);
+        $this->em->flush();
+
+        self::assertSame($to, $task->taskList);
+        self::assertSame($to, $step->taskList);
+        self::assertSame($to, $this->entriesOf($task)[0]->taskList);
+        self::assertSame(SyncState::Clean, $task->syncState, 'a local list owes nobody a create');
+    }
+
+    /** A remote copy cannot follow: it is deleted where it was and created where it goes. */
+    public function testMovingOffASyncedListLeavesAStandInToDeleteAndCreatesAfresh(): void
+    {
+        $from = $this->list('https://dav/a/');
+        $to   = $this->list('https://dav/b/');
+        $task = $this->writer->create($this->user, $from, new TaskDraft('Synced'));
+        $step = $this->writer->addStep($task, 'Step');
+
+        $task->remoteId  = 'https://dav/a/1.ics';
+        $task->syncState = SyncState::Clean;
+        $step->remoteId  = 'https://dav/a/2.ics';
+        $step->syncState = SyncState::Clean;
+        $this->em->flush();
+
+        $uid = $task->uid;
+
+        $this->writer->move($task, $to);
+        $this->em->flush();
+
+        $standIns = $this->em->getRepository(Task::class)->findBy(['taskList' => $from, 'syncState' => SyncState::PendingDelete]);
+
+        self::assertEqualsCanonicalizing(['https://dav/a/1.ics', 'https://dav/a/2.ics'], array_map(static fn (Task $each): ?string => $each->remoteId, $standIns));
+        self::assertSame(SyncState::PendingCreate, $task->syncState);
+        self::assertSame(SyncState::PendingCreate, $step->syncState);
+        self::assertNull($task->remoteId);
+        self::assertNotSame($uid, $task->uid, 'a server with both lists may refuse the first one\'s uid');
+        self::assertSame([$step], $task->liveSteps());
+    }
+
+    public function testNothingMovesOffOrOntoAReadOnlyList(): void
+    {
+        $from     = $this->list();
+        $readOnly = $this->list('https://dav/ro/');
+        $task     = $this->writer->create($this->user, $from, new TaskDraft('Stays'));
+
+        $readOnly->isReadOnly = true;
+        $this->em->flush();
+
+        $this->expectException(TaskListReadOnlyException::class);
+
+        $this->writer->move($task, $readOnly);
+    }
+
     /** Microsoft moves it on when the tick arrives; doing it here as well would move it twice. */
     public function testOnAListWhoseRemoteMovesRepeatsATickOnlyTicks(): void
     {

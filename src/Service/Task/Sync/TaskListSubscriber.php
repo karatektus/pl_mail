@@ -55,11 +55,12 @@ final readonly class TaskListSubscriber
     }
 
     /**
-     * @param list<string> $ticked remote ids
+     * @param list<string>          $ticked  remote ids
+     * @param array<string, string> $colours a colour picked in the dialog, by remote id, already one of Calendar::COLORS
      *
      * @throws CalendarSyncException
      */
-    public function apply(User $user, CalendarSource $source, array $ticked): void
+    public function apply(User $user, CalendarSource $source, array $ticked, array $colours = []): void
     {
         $mirrored = $this->lists->findForSource($source);
         $created  = [];
@@ -71,11 +72,15 @@ final readonly class TaskListSubscriber
 
             if (true === in_array($remote->remoteId, $ticked, true)) {
                 if (null === $local) {
-                    $created[] = $this->mirror($user, $source, $remote);
+                    $local     = $this->mirror($user, $source, $remote);
+                    $created[] = $local;
                 } else {
                     $local->name       = $remote->name;
                     $local->isReadOnly = $remote->isReadOnly;
                 }
+
+                // plMail's own, like the colour of any list: the remote never hears of it.
+                $local->color = $colours[$remote->remoteId] ?? $local->color;
 
                 continue;
             }

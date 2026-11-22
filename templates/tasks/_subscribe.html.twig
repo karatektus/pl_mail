@@ -11,6 +11,7 @@ Accepts:
   sourceId     int
   sourceLabel  string
   error        string|null  why there is no list
+  colors       list<string>, Calendar::COLORS, one picked per list right here
 #}
 <turbo-frame id="modal">
     <template data-ui--modal-frame-title>{{ 'tasks.subscribe.title'|trans }}</template>
@@ -38,22 +39,35 @@ Accepts:
                 {% set firstVisit = offered|filter(entry => entry.local)|length == 0 %}
                 <ul class="divide-y divide-line">
                     {% for entry in offered %}
-                        {% set field = 'remote-task-list-' ~ loop.index %}
-                        <li class="flex items-start gap-3 py-2.5">
+                        {% set field  = 'remote-task-list-' ~ loop.index %}
+                        {# A mirror keeps its own; a new one starts from the remote's, or, as
+                           Microsoft has none, from the next colour round, so they differ. #}
+                        {% set chosen = entry.local ? entry.local.color : (entry.remote.color in colors ? entry.remote.color : colors[loop.index0 % colors|length]) %}
+                        <li class="flex items-start gap-3 py-2.5" data-task-subscribe-list="{{ entry.remote.remoteId }}">
                             <input type="checkbox" id="{{ field }}" name="remoteIds[]" value="{{ entry.remote.remoteId }}"
                                    {% if entry.local or (firstVisit and entry.remote.isDefault) %}checked{% endif %}
                                    class="mt-0.5 size-4 rounded accent-accent">
                             <label for="{{ field }}" class="min-w-0 flex-1 text-sm text-ink">
-                                <span class="flex items-center gap-2">
-                                    <span class="size-2.5 rounded-full shrink-0"
-                                          style="background-color: {{ entry.remote.color ?? constant('App\\Entity\\Task\\TaskList::DEFAULT_COLOR') }}"
-                                          aria-hidden="true"></span>
-                                    <span class="truncate">{{ entry.remote.name }}</span>
-                                </span>
+                                <span class="block truncate">{{ entry.remote.name }}</span>
                                 {% if entry.remote.isReadOnly %}
                                     <span class="block text-xs text-ink-muted">{{ 'tasks.lists.read_only'|trans }}</span>
                                 {% endif %}
                             </label>
+                            {# The list's colour, picked as it is ticked rather than after,
+                               in Lists. Sent for every row and used for the ticked ones. #}
+                            <fieldset class="flex shrink-0 items-center gap-1">
+                                <legend class="sr-only">{{ 'tasks.subscribe.color'|trans({ '%name%': entry.remote.name }) }}</legend>
+                                {% for color in colors %}
+                                    <label class="relative cursor-pointer">
+                                        <input type="radio" name="colors[{{ entry.remote.remoteId }}]" value="{{ color }}"
+                                               {% if color == chosen %}checked{% endif %}
+                                               class="peer sr-only">
+                                        <span class="block size-4 rounded-full ring-offset-1 ring-offset-surface peer-checked:ring-2 peer-checked:ring-ink peer-focus-visible:ring-2 peer-focus-visible:ring-accent"
+                                              style="background-color: {{ color }}"></span>
+                                        <span class="sr-only">{{ color }}</span>
+                                    </label>
+                                {% endfor %}
+                            </fieldset>
                         </li>
                     {% endfor %}
                 </ul>

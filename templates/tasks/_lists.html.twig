@@ -8,10 +8,12 @@ different frame, and its pills name the lists, so a change also tells it with
 `open_pane`, as the task editor does.
 
 The first list and a synced one have no delete, for the reasons
-TaskController::listDelete() gives.
+TaskController::listDelete() gives. The star says where a new task lands when
+nothing else was picked, and moves it: see TaskListProvisioner::landingFor().
 
 Accepts:
   lists    list<TaskList>
+  landing  TaskList, where new tasks land
   query    TaskPaneQuery, where the pane goes back to
   message  string|null, the toast after a change
   paneUrl  string|null, set after a change
@@ -37,15 +39,36 @@ Accepts:
                     <span class="size-2.5 rounded-full shrink-0" style="background-color: {{ list.color }}" aria-hidden="true"></span>
                     <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ list.name }}</span>
 
-                    {% if list.isDefault %}
-                        <span class="text-xs text-ink-faint">{{ 'tasks.lists.default'|trans }}</span>
-                    {% elseif not managed %}
+                    {% if not managed %}
                         <span class="inline-flex items-center gap-1 text-xs text-ink-faint">
                             <i class="fa-solid fa-rotate" aria-hidden="true"></i>{{ 'tasks.lists.synced'|trans }}
                         </span>
                     {% endif %}
                     {% if list.isReadOnly %}
                         <i class="fa-solid fa-lock text-xs text-ink-faint" title="{{ 'tasks.lists.read_only'|trans }}" aria-label="{{ 'tasks.lists.read_only'|trans }}"></i>
+                    {% endif %}
+
+                    {% if list.id == landing.id %}
+                        <span class="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-accent" data-task-list-landing
+                              title="{{ 'tasks.lists.landing'|trans }}" aria-label="{{ 'tasks.lists.landing'|trans }}">
+                            <i class="fa-solid fa-star text-xs" aria-hidden="true"></i>
+                        </span>
+                    {% elseif not list.isReadOnly %}
+                        <form action="{{ path('app_tasks_list_landing', { id: list.id }) }}" method="post"
+                              data-turbo-frame="modal" data-ui--modal-keep-open>
+                            <input type="hidden" name="_token" value="{{ csrf_token('tasks_list_editor') }}">
+                            {% for name, value in params %}
+                                <input type="hidden" name="{{ name }}" value="{{ value }}">
+                            {% endfor %}
+                            <button type="submit"
+                                    aria-label="{{ 'tasks.lists.make_landing'|trans({ '%name%': list.name }) }}"
+                                    title="{{ 'tasks.lists.make_landing'|trans({ '%name%': list.name }) }}"
+                                    class="{{ iconBtn }} hover:text-accent hover:bg-hover">
+                                <i class="fa-regular fa-star text-xs" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    {% else %}
+                        <span class="w-8 h-8 shrink-0" aria-hidden="true"></span>
                     {% endif %}
 
                     <a href="{{ path('app_tasks_list_edit', { id: list.id }|merge(params)) }}"

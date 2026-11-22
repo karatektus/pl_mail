@@ -169,6 +169,44 @@ final readonly class TaskWriter
     }
 
     /**
+     * To another of the owner's lists, with its steps and its finished entries.
+     *
+     * A remote copy cannot follow it: each list is a collection of its own, on a
+     * server that may not be the other list's. So the copy where it was goes, and
+     * a copy is made where it lands. For the first, a stand-in row stays behind on
+     * the old list holding the remote id, marked PendingDelete, which is what the
+     * pusher already knows how to send and every reader already skips. Both get a
+     * uid of their own: the stand-in because the delete goes by remote id and the
+     * uid is unique per list, the task because it starts over as a create, and a
+     * server holding both lists may refuse a second resource with the first one's.
+     *
+     * @throws TaskListReadOnlyException
+     */
+    public function move(Task $task, TaskList $to): void
+    {
+        $this->assertWritable($task->taskList);
+        $this->assertWritable($to);
+
+        if ($to === $task->taskList || null !== $task->parent || true === $task->isOccurrence()) {
+            return;
+        }
+
+        $standIn = $this->leaveBehind($task, null);
+
+        foreach ($task->liveSteps() as $step) {
+            $this->leaveBehind($step, $standIn);
+            $this->arrive($step, $to);
+        }
+
+        $this->arrive($task, $to);
+
+        // plMail's own, so they go with it and no server hears of them.
+        foreach ($this->tasks->findBy(['occurrenceOf' => $task]) as $entry) {
+            $entry->taskList = $to;
+        }
+    }
+
+    /**
      * Keeps an uploaded file on a task. Its link goes out with the next push, so
      * this is a change the remote is owed.
      *
@@ -238,6 +276,40 @@ final readonly class TaskWriter
 
         $task->parent?->steps->removeElement($task);
         $this->em->remove($task);
+    }
+
+    /** The stand-in for a row the remote has, or null for one it never had. */
+    private function leaveBehind(Task $row, ?Task $parent): ?Task
+    {
+        if (null === $row->remoteId) {
+            return null;
+        }
+
+        $standIn                = new Task();
+        $standIn->usr           = $row->usr;
+        $standIn->taskList      = $row->taskList;
+        $standIn->parent        = $parent;
+        $standIn->uid           = Uuid::v7()->toRfc4122();
+        $standIn->title         = $row->title;
+        $standIn->remoteId      = $row->remoteId;
+        $standIn->remoteEtag    = $row->remoteEtag;
+        $standIn->remotePayload = $row->remotePayload;
+        $standIn->syncState     = SyncState::PendingDelete;
+
+        $parent?->steps->add($standIn);
+        $this->em->persist($standIn);
+
+        return $standIn;
+    }
+
+    private function arrive(Task $row, TaskList $to): void
+    {
+        $row->taskList      = $to;
+        $row->uid           = Uuid::v7()->toRfc4122();
+        $row->remoteId      = null;
+        $row->remoteEtag    = null;
+        $row->remotePayload = null;
+        $row->syncState     = true === $to->isSynced() ? SyncState::PendingCreate : SyncState::Clean;
     }
 
     /**

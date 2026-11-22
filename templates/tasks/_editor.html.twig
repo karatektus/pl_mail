@@ -30,6 +30,7 @@ Accepts:
   zone        DateTimeZone the due time is written and read in
   paneUrl     string|null, set after a step or a file changed
   posted      array, what the form sent when the dialog is its answer, to put back
+  lists       list<TaskList>, the lists a task can be put on
 #}
 {% import '_partials/_select.html.twig' as select %}
 {% set params = query.toParameters() %}
@@ -54,7 +55,11 @@ Accepts:
     <form id="task-editor" action="{{ path('app_tasks_save') }}" method="post" enctype="multipart/form-data" data-turbo-frame="modal">
         <input type="hidden" name="_token" value="{{ csrf_token('tasks_editor') }}">
         <input type="hidden" name="taskId" value="{{ task ? task.id : 0 }}">
-        <input type="hidden" name="listId" value="{{ list.id }}">
+        {# A step and a finished entry go where their task goes; anything else
+           picks its list below. #}
+        {% if not isWhole or readOnly %}
+            <input type="hidden" name="listId" value="{{ list.id }}">
+        {% endif %}
         {% for name, value in params %}
             <input type="hidden" name="{{ name }}" value="{{ value }}">
         {% endfor %}
@@ -252,6 +257,22 @@ Accepts:
                 <p class="mt-1 text-xs text-ink-muted whitespace-pre-wrap break-words">{{ task.notes|linkify }}</p>
             {% endif %}
         </div>
+
+        {# Moving a synced task deletes it where it was and creates it where it
+           goes: see TaskWriter::move(). #}
+        {% if isWhole and not readOnly %}
+            {% set chosenList = posted.listId ?? list.id %}
+            <div data-editor-part="list">
+                <label class="{{ label }}" for="task-list">{{ 'tasks.editor.list'|trans }}</label>
+                <select id="task-list" name="listId" form="task-editor"
+                        {{ select.enhance() }}
+                        class="select-field w-full h-9 text-sm">
+                    {% for candidate in lists %}
+                        <option value="{{ candidate.id }}" {% if candidate.id == chosenList %}selected{% endif %}>{{ candidate.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        {% endif %}
 
     </div>
 

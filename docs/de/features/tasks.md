@@ -1,4 +1,4 @@
-<!-- translated-from: features/tasks.md sha1:6112384dbb3c0e488e6d352b5e12dc60a08c3c27 -->
+<!-- translated-from: features/tasks.md sha1:6c74b43f3ce8f0f72a601867c1c5820cffec5928 -->
 
 # Aufgaben
 
@@ -39,7 +39,11 @@ Von Hand lässt sich keine Aufgabe an Mein Tag anheften. Gib ihr stattdessen ein
 ## Listen und Filter
 
 **Alle** zeigt alle Listen zusammen, und jede Liste hat daneben ihre eigene Schaltfläche. Das Zahnrad oben im
-Bereich öffnet **Listen**: Dort legst du eine Liste an, benennst eine um, färbst sie um oder löschst sie. Wenn du
+Bereich öffnet **Listen**: Dort legst du eine Liste an, benennst eine um, färbst sie um oder löschst sie. Ihr Stern
+zeigt, wo eine Aufgabe landet, wenn nichts anderes gewählt ist (in **Mein Tag**, in **Alle**); drücke den Stern einer
+anderen Liste, um neue Aufgaben dorthin zu schicken. Die Liste einer Aufgabe änderst du in ihrem Dialog unter
+**Liste**; verschiebst du eine von oder auf eine synchronisierte Liste, wird sie dort gelöscht, wo sie war, und dort
+neu angelegt, wo sie hinkommt, mit ihren Schritten. Wenn du
 eine Liste löschst, sind ihre Aufgaben mit weg. Die erste Liste, in der eine Aufgabe landet, wenn nichts anderes
 gewählt wurde, lässt sich nicht löschen, eine synchronisierte auch nicht.
 
@@ -101,7 +105,8 @@ behält sie an der Aufgabe, hält aber keine Kopie.
 
 Verbinde den Server zuerst unter **Einstellungen → Kalender**, wie bei einem
 [verbundenen Kalender](calendar-sync.md): Dieselbe Verbindung dient beidem. Danach bietet das Zahnrad oben im Bereich
-**Listen von einem Server synchronisieren** an. Wähle dort die Verbindung und hake die Listen an, die synchron bleiben sollen.
+**Listen von einem Server synchronisieren** an. Wähle dort die Verbindung, hake die Listen an, die synchron bleiben
+sollen, und wähle daneben jeweils ihre Farbe.
 Kalender eines Servers, die nur Termine führen, werden nicht angeboten.
 
 Deine Änderungen gehen innerhalb von Augenblicken an den Server. Änderungen von anderswo kommen etwa alle

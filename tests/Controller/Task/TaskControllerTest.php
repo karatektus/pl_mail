@@ -9,6 +9,7 @@ use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Task\TaskStatus;
+use App\Entity\Calendar\Calendar;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Account;
 use App\Entity\Task\Task;
@@ -385,9 +386,11 @@ final class TaskControllerTest extends WebTestCase
             );
         }
 
-        self::assertCount(1, $crawler->filter(sprintf('[data-task-list="%d"] form', $own->id)));
-        self::assertCount(0, $crawler->filter(sprintf('[data-task-list="%d"] form', $default->id)), 'where a task lands without a list');
-        self::assertCount(0, $crawler->filter(sprintf('[data-task-list="%d"] form', $synced->id)), 'the remote decides that');
+        $deletes = static fn (TaskList $list): int => $crawler->filter(sprintf('[data-task-list="%d"] form[action$="/delete"]', $list->id))->count();
+
+        self::assertSame(1, $deletes($own));
+        self::assertSame(0, $deletes($default), 'where a task lands without a list');
+        self::assertSame(0, $deletes($synced), 'the remote decides that');
         self::assertSelectorExists('a[href="/tasks/list/new"]');
     }
 
@@ -872,16 +875,69 @@ final class TaskControllerTest extends WebTestCase
             'sourceId'    => 1,
             'sourceLabel' => 'someone@example.test',
             'error'       => null,
+            'colors'      => Calendar::COLORS,
         ]));
         $ticked = static fn (Crawler $page): array => $page->filter('input[name="remoteIds[]"][checked]')->each(static fn (Crawler $box): ?string => $box->attr('value'));
 
         self::assertSame(['L1'], $ticked($render([['remote' => $default, 'local' => null], ['remote' => $other, 'local' => null]])));
-        self::assertSame(['L2'], $ticked($render([['remote' => $default, 'local' => null], ['remote' => $other, 'local' => $this->list()]])));
+        $mirrored        = $this->list();
+        $mirrored->color = Calendar::COLORS[4];
+
+        $page = $render([['remote' => $default, 'local' => null], ['remote' => $other, 'local' => $mirrored]]);
+
+        self::assertSame(['L2'], $ticked($page));
+
+        // Its colour is picked right there, starting from what it has.
+        self::assertSame(Calendar::COLORS[4], $page->filter('[data-task-subscribe-list="L2"] input[type="radio"][checked]')->attr('value'));
+        self::assertCount(count(Calendar::COLORS), $page->filter('[data-task-subscribe-list="L1"] input[name="colors[L1]"]'));
+    }
+
+    public function testATaskIsMovedToAnotherOfTheUsersListsButNotToSomeoneElses(): void
+    {
+        $from    = $this->list();
+        $to      = $this->list();
+        $foreign = $this->list($this->otherUser());
+        $task    = $this->task($from, 'Moving');
+
+        $crawler = $this->client->request('GET', sprintf('/tasks/%d/edit', $task->id));
+
+        self::assertContains((string) $to->id, $crawler->filter('#task-list option')->each(static fn (Crawler $option): ?string => $option->attr('value')));
+
+        $this->client->request('POST', '/tasks/save', ['_token' => $this->token('tasks_editor'), 'taskId' => $task->id, 'title' => 'Moving', 'listId' => $foreign->id]);
+        self::assertSame($from->id, $this->reloaded($task)->taskList->id, 'not to a list of someone else');
+
+        $this->client->request('POST', '/tasks/save', ['_token' => $this->token('tasks_editor'), 'taskId' => $task->id, 'title' => 'Moving', 'listId' => $to->id]);
+
+        self::assertStringContainsString('Task moved.', (string) $this->client->getResponse()->getContent());
+        self::assertSame($to->id, $this->reloaded($task)->taskList->id);
+    }
+
+    /** The star in Lists: where a task lands when nothing else was picked. */
+    public function testNewTasksLandOnTheChosenListAndBackOnTheFirstWhenItCannotTakeThem(): void
+    {
+        $chosen = $this->list();
+
+        $this->client->request('POST', sprintf('/tasks/list/%d/landing', $chosen->id), ['_token' => $this->token('tasks_list_editor')]);
+        self::assertSelectorExists(sprintf('[data-task-list="%d"] [data-task-list-landing]', $chosen->id));
+
+        $this->client->request('POST', '/tasks/quick-add', ['_token' => $this->token('tasks_quick_add'), 'title' => 'Lands', 'listId' => 0]);
+        self::assertSame($chosen->id, $this->em->getRepository(Task::class)->findOneBy(['title' => 'Lands'])?->taskList->id);
+
+        // Read again: the request before has cleared what this test held.
+        $chosen             = $this->em->getRepository(TaskList::class)->find($chosen->id);
+        $chosen->isReadOnly = true;
+        $this->em->flush();
+
+        $this->client->request('POST', '/tasks/quick-add', ['_token' => $this->token('tasks_quick_add'), 'title' => 'Falls back', 'listId' => 0]);
+        self::assertTrue($this->em->getRepository(Task::class)->findOneBy(['title' => 'Falls back'])?->taskList->isDefault);
+
+        $this->client->request('POST', sprintf('/tasks/list/%d/landing', $chosen->id), ['_token' => $this->token('tasks_list_editor')]);
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function testTheDialogGoesInTheAgreedOrderForANewTaskAndASavedOne(): void
     {
-        $order = ['title', 'steps', 'reminder', 'due', 'repeat', 'files', 'notes'];
+        $order = ['title', 'steps', 'reminder', 'due', 'repeat', 'files', 'notes', 'list'];
         $parts = static fn ($crawler): array => $crawler->filter('[data-editor-part]')->each(static fn ($part): ?string => $part->attr('data-editor-part'));
 
         self::assertSame($order, $parts($this->client->request('GET', '/tasks/new')));

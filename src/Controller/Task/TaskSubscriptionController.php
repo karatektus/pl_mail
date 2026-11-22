@@ -9,6 +9,7 @@ use App\Controller\RendersTurboStreams;
 use App\Domain\DTO\Calendar\CalendarSource;
 use App\Domain\DTO\Task\TaskPaneQuery;
 use App\Domain\Exception\CalendarSyncException;
+use App\Entity\Calendar\Calendar;
 use App\Entity\User\User;
 use App\Repository\Integration\Integration\IntegrationRepository;
 use App\Repository\Mail\Account\AccountRepository;
@@ -65,7 +66,7 @@ final class TaskSubscriptionController extends AbstractController
             $this->assertCsrf($request, 'tasks-subscribe' . $kind . $id);
 
             try {
-                $this->subscriber->apply($this->currentUser(), $source, $this->tickedRemoteIds($request));
+                $this->subscriber->apply($this->currentUser(), $source, $this->tickedRemoteIds($request), $this->chosenColours($request));
 
                 return $this->renderTurboStream('tasks/_saved.stream.html.twig', [
                     'message' => $this->translator->trans('tasks.subscribe.saved'),
@@ -93,6 +94,7 @@ final class TaskSubscriptionController extends AbstractController
             'sourceId'    => $id,
             'sourceLabel' => TaskSyncSources::labelOf($source),
             'error'       => $error,
+            'colors'      => Calendar::COLORS,
         ], new Response(status: $status));
     }
 
@@ -124,6 +126,20 @@ final class TaskSubscriptionController extends AbstractController
         }
 
         return $source;
+    }
+
+    /**
+     * A colour per remote id, of the app's own: anything else is no choice, and
+     * TaskListSubscriber keeps what there is.
+     *
+     * @return array<string, string>
+     */
+    private function chosenColours(Request $request): array
+    {
+        return array_filter(
+            $request->request->all('colors'),
+            static fn (mixed $color): bool => true === in_array($color, Calendar::COLORS, true),
+        );
     }
 
     /** @return list<string> */

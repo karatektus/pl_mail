@@ -29,6 +29,19 @@ final readonly class TaskListProvisioner
     ) {}
 
     /**
+     * Where a new task goes when nothing else was picked: the list the user chose
+     * for it (User::SETTING_TASKS_ADD_TO) while it is theirs and writable, and the
+     * first list otherwise, which is always both.
+     */
+    public function landingFor(User $user): TaskList
+    {
+        $id     = $user->tasksAddToListId;
+        $chosen = null === $id ? null : $this->lists->findOwned($user, $id);
+
+        return null !== $chosen && false === $chosen->isReadOnly ? $chosen : $this->defaultFor($user);
+    }
+
+    /**
      * The name is seed data, written once in the user's own locale and theirs to
      * rename from then on — CalendarProvisioner's reasoning.
      */

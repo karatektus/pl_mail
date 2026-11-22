@@ -33,7 +33,10 @@ You cannot pin a task to My Day by hand. Give it a date instead.
 ## Lists and filters
 
 **All** shows every list together, and each list has its own pill beside it. The gear at the top of the
-pane opens **Lists**, where you make a list, rename or recolour one, and delete one. Deleting a list
+pane opens **Lists**, where you make a list, rename or recolour one, and delete one. Its star says
+where a task lands when nothing else was picked (on **My Day**, on **All**); press another list's star
+to send new tasks there. A task changes list in its dialog, under **List**; moving one off or onto a
+synced list deletes it where it was and creates it where it goes, with its steps. Deleting a list
 deletes its tasks. The first list, where a task lands when nothing else was picked, cannot be deleted,
 and neither can a synced one.
 
@@ -91,7 +94,8 @@ task but does not hold a copy.
 
 First connect the server under **Settings → Calendars**, as for a [connected
 calendar](calendar-sync.md): the same connection serves both. The gear at the top of the pane then
-offers **Sync lists from a server**. Pick the connection there, and tick the lists to keep in sync. A server's calendars
+offers **Sync lists from a server**. Pick the connection there, tick the lists to keep in sync, and
+pick each one's colour beside it. A server's calendars
 that hold only events are not offered.
 
 Changes you make go to the server within moments. Changes made elsewhere arrive every fifteen minutes

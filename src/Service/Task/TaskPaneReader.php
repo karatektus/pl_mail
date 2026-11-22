@@ -39,12 +39,11 @@ final readonly class TaskPaneReader
     {
         $now     = $now ?? new DateTimeImmutable();
         $zone    = $this->time->zoneFor($user);
-        $default = $this->provisioner->defaultFor($user);
         $lists   = $this->lists->findForUser($user);
         $list    = null === $query->listId ? null : $this->lists->findOwned($user, $query->listId);
 
-        // Writable, or the default: quick add has to land somewhere it can land.
-        $addTo = null !== $list && false === $list->isReadOnly ? $list : $default;
+        // Writable, or where new tasks land: quick add has to land somewhere it can.
+        $addTo = null !== $list && false === $list->isReadOnly ? $list : $this->provisioner->landingFor($user);
 
         $sections = TaskView::MyDay === $query->view
             ? $this->myDaySections($user, $now, $zone)

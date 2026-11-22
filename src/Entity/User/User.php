@@ -929,6 +929,13 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const int TASKS_PANE_DEFAULT_WIDTH = 380;
 
     /**
+     * The list a new task lands on when nothing else was picked (My Day, All, quick
+     * add from either). An id, read through TaskListProvisioner::landingFor(), which
+     * falls back to the first list when this one is gone, foreign or read-only.
+     */
+    public const string SETTING_TASKS_ADD_TO = 'tasks.add_to';
+
+    /**
      * Whether the open message sits beside the message list, and how much of the
      * mail card it takes — see ReadingPaneMode.
      *
@@ -1072,6 +1079,15 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::CALENDAR_PANE_MIN_WIDTH, min(self::CALENDAR_PANE_MAX_WIDTH, $width));
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_TASKS_ADD_TO. */
+    public ?int $tasksAddToListId {
+        get {
+            $id = $this->getSetting(self::SETTING_TASKS_ADD_TO);
+
+            return is_int($id) && 0 < $id ? $id : null;
         }
     }
 
