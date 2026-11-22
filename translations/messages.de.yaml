@@ -6120,6 +6120,8 @@ tasks:
         resize: 'Breite der Aufgaben ändern'
         toggle: 'Aufgaben'
     section:
+        loading: 'Wird geladen …'
+        more: 'Mehr anzeigen'
         overdue: 'Überfällig'
         today: 'Heute'
         upcoming: 'Demnächst'
@@ -6165,6 +6167,9 @@ tasks:
         save: 'Speichern'
         delete: 'Löschen'
     lists:
+        move_down: '„%name%“ nach unten'
+        move_up: '„%name%“ nach oben'
+        reorder: 'Ziehen, um die Reihenfolge zu ändern'
         landing: 'Neue Aufgaben landen hier'
         landing_set: 'Neue Aufgaben landen jetzt in %name%.'
         make_landing: 'Neue Aufgaben in „%name%“ ablegen'

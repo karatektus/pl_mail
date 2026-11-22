@@ -5341,6 +5341,8 @@ tasks:
         resize: '调整任务宽度'
         toggle: '任务'
     section:
+        loading: '正在加载…'
+        more: '显示更多'
         overdue: '已逾期'
         today: '今天'
         upcoming: '即将到期'
@@ -5386,6 +5388,9 @@ tasks:
         save: '保存'
         delete: '删除'
     lists:
+        move_down: '下移“%name%”'
+        move_up: '上移“%name%”'
+        reorder: '拖动以更改顺序'
         landing: '新任务放在这里'
         landing_set: '新任务现在放入 %name%。'
         make_landing: '将新任务放入“%name%”'

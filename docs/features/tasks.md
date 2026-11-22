@@ -33,7 +33,8 @@ You cannot pin a task to My Day by hand. Give it a date instead.
 ## Lists and filters
 
 **All** shows every list together, and each list has its own pill beside it. The gear at the top of the
-pane opens **Lists**, where you make a list, rename or recolour one, and delete one. Its star says
+pane opens **Lists**, where you make a list, rename or recolour one, delete one, and drag them (or
+move them with the arrows) into the order the pane shows them in. Its star says
 where a task lands when nothing else was picked (on **My Day**, on **All**); press another list's star
 to send new tasks there. A task changes list in its dialog, under **List**; moving one off or onto a
 synced list deletes it where it was and creates it where it goes, with its steps. Deleting a list

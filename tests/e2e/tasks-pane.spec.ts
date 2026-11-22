@@ -251,9 +251,12 @@ test.describe("tasks pane on a notebook", () => {
         const rows = frame(page).locator("[data-task-row]", { hasText: title });
         const moved = rows.filter({ has: page.getByRole("checkbox", { name: `Mark “${title}” as completed` }) });
 
-        await expect(rows).toHaveCount(2);
-        await expect(frame(page).locator("details", { hasText: "Completed" }).getByRole("checkbox", { name: `Mark “${title}” as not completed` })).toBeVisible();
         await expect(moved.getByText("0 of 1")).toBeVisible();
+
+        // A list's finished tasks load once their group is open and in view.
+        await completed(page).scrollIntoViewIfNeeded();
+        await expect(completed(page).getByRole("checkbox", { name: `Mark “${title}” as not completed` })).toBeVisible();
+        await expect(rows).toHaveCount(2);
 
         await moved.getByRole("button", { name: `Edit “${title}”` }).click();
         await modal(page).getByRole("button", { name: "Delete", exact: true }).click();
@@ -764,7 +767,21 @@ test.describe("tasks pane on a notebook", () => {
         await expect(roses).toBeVisible();
         await expect(frame(page).getByText("No date")).toHaveCount(0);
 
+        // Put first with the arrows, which is what a drag does for a keyboard,
+        // and the pane's pills follow.
         await openLists(page);
+        const firstRow = modal(page).locator("[data-task-list]").first();
+
+        while (0 === (await firstRow.filter({ hasText: `${name} renamed` }).count())) {
+            await modal(page).getByRole("button", { name: `Move “${name} renamed” up` }).click();
+        }
+
+        await expect(frame(page).locator("nav a").nth(2)).toHaveText(new RegExp(`${name} renamed`));
+        await modal(page).getByRole("button", { name: "Done" }).click();
+        await expect(modal(page)).toBeHidden();
+
+        await openLists(page);
+        await expect(modal(page).locator("[data-task-list]").first()).toContainText(`${name} renamed`);
         await expect(modal(page).getByRole("button", { name: "Delete “Tasks”" })).toHaveCount(0);
         await modal(page).getByRole("button", { name: `Delete “${name} renamed”` }).click();
         await acceptConfirm(page);

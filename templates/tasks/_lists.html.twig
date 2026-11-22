@@ -9,7 +9,9 @@ different frame, and its pills name the lists, so a change also tells it with
 
 The first list and a synced one have no delete, for the reasons
 TaskController::listDelete() gives. The star says where a new task lands when
-nothing else was picked, and moves it: see TaskListProvisioner::landingFor().
+nothing else was picked, and moves it: see TaskListProvisioner::landingFor(). The
+order is the pane's, and is changed by dragging or with the arrows: see
+tasks--list-order.
 
 Accepts:
   lists    list<TaskList>
@@ -32,10 +34,34 @@ Accepts:
     {% endif %}
 
     <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4 max-md:px-4">
-        <ul class="divide-y divide-line">
+        <ul class="divide-y divide-line"
+            data-controller="tasks--list-order"
+            data-tasks--list-order-url-value="{{ path('app_tasks_list_order') }}"
+            data-tasks--list-order-csrf-value="{{ csrf_token('tasks_list_order') }}"
+            data-tasks--list-order-target="list">
             {% for list in lists %}
                 {% set managed = list.isManagedLocally %}
-                <li class="flex items-center gap-3 py-1.5" data-task-list="{{ list.id }}">
+                <li class="flex items-center gap-3 py-1.5 bg-surface" data-task-list="{{ list.id }}">
+                    {# Arrows as well as a handle: a drag is out of reach of a keyboard. #}
+                    <div class="flex flex-col items-center shrink-0">
+                        <button type="button" data-action="tasks--list-order#move" data-direction="up"
+                                {{ loop.first ? 'disabled' : '' }}
+                                aria-label="{{ 'tasks.lists.move_up'|trans({ '%name%': list.name }) }}"
+                                class="w-5 h-4 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-chevron-up text-[9px]" aria-hidden="true"></i>
+                        </button>
+                        <span data-task-list-handle
+                              class="w-5 h-4 flex items-center justify-center text-ink-faint hover:text-ink-muted cursor-grab active:cursor-grabbing touch-none"
+                              title="{{ 'tasks.lists.reorder'|trans }}" aria-hidden="true">
+                            <i class="fa-solid fa-grip-vertical text-[10px]"></i>
+                        </span>
+                        <button type="button" data-action="tasks--list-order#move" data-direction="down"
+                                {{ loop.last ? 'disabled' : '' }}
+                                aria-label="{{ 'tasks.lists.move_down'|trans({ '%name%': list.name }) }}"
+                                class="w-5 h-4 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-chevron-down text-[9px]" aria-hidden="true"></i>
+                        </button>
+                    </div>
                     <span class="size-2.5 rounded-full shrink-0" style="background-color: {{ list.color }}" aria-hidden="true"></span>
                     <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ list.name }}</span>
 

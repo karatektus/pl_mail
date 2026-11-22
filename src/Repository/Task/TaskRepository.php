@@ -59,7 +59,27 @@ class TaskRepository extends ServiceEntityRepository
      *
      * @return list<Task>
      */
-    public function findForList(User $user, ?TaskList $list, bool $finished): array
+    public function findForList(User $user, ?TaskList $list, bool $finished, int $offset = 0, int $limit = self::PANE_LIMIT): array
+    {
+        [$where, $params, $types] = $this->listConditions($user, $list, $finished);
+
+        return $this->hydrate($where, $params, $types, true === $finished ? 't.completed_at DESC NULLS LAST, t.id DESC' : self::PANE_ORDER, $offset, $limit);
+    }
+
+    /** How many findForList() has in all, for a group drawn before its rows are read. */
+    public function countForList(User $user, ?TaskList $list, bool $finished): int
+    {
+        [$where, $params, $types] = $this->listConditions($user, $list, $finished);
+
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            sprintf('SELECT COUNT(*) FROM task t WHERE %s', implode(' AND ', $where)),
+            $params,
+            $types,
+        );
+    }
+
+    /** @return array{list<string>, array<string, mixed>, array<string, mixed>} */
+    private function listConditions(User $user, ?TaskList $list, bool $finished): array
     {
         $where  = [self::PANE_BASE, 't.status IN (:statuses)'];
         $types  = ['statuses' => ArrayParameterType::STRING];
@@ -74,7 +94,7 @@ class TaskRepository extends ServiceEntityRepository
             $params['list'] = $list->id;
         }
 
-        return $this->hydrate($where, $params, $types, true === $finished ? 't.completed_at DESC NULLS LAST, t.id DESC' : self::PANE_ORDER);
+        return [$where, $params, $types];
     }
 
     /**
@@ -230,13 +250,14 @@ class TaskRepository extends ServiceEntityRepository
      *
      * @return list<Task>
      */
-    private function hydrate(array $where, array $params, array $types, string $order): array
+    private function hydrate(array $where, array $params, array $types, string $order, int $offset = 0, int $limit = self::PANE_LIMIT): array
     {
         $sql = sprintf(
-            'SELECT t.id FROM task t WHERE %s ORDER BY %s LIMIT %d',
+            'SELECT t.id FROM task t WHERE %s ORDER BY %s LIMIT %d OFFSET %d',
             implode(' AND ', $where),
             $order,
-            self::PANE_LIMIT,
+            max(1, $limit),
+            max(0, $offset),
         );
 
         $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn($sql, $params, $types);

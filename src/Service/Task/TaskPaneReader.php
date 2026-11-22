@@ -27,6 +27,9 @@ use DateTimeZone;
  */
 final readonly class TaskPaneReader
 {
+    /** How many finished tasks one page of the Completed group holds. */
+    public const int COMPLETED_PAGE = 50;
+
     public function __construct(
         private TaskRepository       $tasks,
         private TaskListRepository   $lists,
@@ -45,7 +48,8 @@ final readonly class TaskPaneReader
         // Writable, or where new tasks land: quick add has to land somewhere it can.
         $addTo = null !== $list && false === $list->isReadOnly ? $list : $this->provisioner->landingFor($user);
 
-        $sections = TaskView::MyDay === $query->view
+        $isMyDay  = TaskView::MyDay === $query->view;
+        $sections = true === $isMyDay
             ? $this->myDaySections($user, $now, $zone)
             : $this->listSections($user, $list, $now, $zone);
 
@@ -58,7 +62,34 @@ final readonly class TaskPaneReader
             $now,
             $zone,
             [] !== $this->sources->forUser($user),
+            true === $isMyDay ? 0 : $this->tasks->countForList($user, $list, true),
         );
+    }
+
+    /**
+     * One page of a list's finished tasks, latest first, for the Completed group
+     * once it is open; see TaskPane. The pane comes with it, read without its
+     * groups, since a row wants the reader's day and the list it is in.
+     *
+     * @return array{pane: TaskPane, tasks: list<Task>, next: int|null} next: the offset of the page after, if any
+     */
+    public function completedPage(User $user, TaskPaneQuery $query, int $offset, ?DateTimeImmutable $now = null): array
+    {
+        $now    = $now ?? new DateTimeImmutable();
+        $list   = null === $query->listId ? null : $this->lists->findOwned($user, $query->listId);
+        $offset = max(0, $offset);
+
+        // One more than a page, to know whether there is another without counting.
+        $tasks = $this->tasks->findForList($user, $list, true, $offset, self::COMPLETED_PAGE + 1);
+        $more  = self::COMPLETED_PAGE < count($tasks);
+
+        $pane = new TaskPane($query, [], [], $list, $list ?? $this->provisioner->landingFor($user), $now, $this->time->zoneFor($user));
+
+        return [
+            'pane'  => $pane,
+            'tasks' => array_slice($tasks, 0, self::COMPLETED_PAGE),
+            'next'  => true === $more ? $offset + self::COMPLETED_PAGE : null,
+        ];
     }
 
     /** @return array<string, list<Task>> */
@@ -93,8 +124,9 @@ final readonly class TaskPaneReader
     }
 
     /**
-     * Everything on the list at once, open and finished, each in its group: a group
-     * folds away in the pane, which is what a filter was for.
+     * Everything open on the list at once, each in its group: a group folds away in
+     * the pane, which is what a filter was for. The finished come later; see
+     * completedPage().
      *
      * @return array<string, list<Task>>
      */
@@ -113,8 +145,6 @@ final readonly class TaskPaneReader
                 default            => 'upcoming',
             }][] = $task;
         }
-
-        $sections['completed'] = $this->tasks->findForList($user, $list, true);
 
         return $sections;
     }

@@ -1,4 +1,4 @@
-<!-- translated-from: features/tasks.md sha1:6c74b43f3ce8f0f72a601867c1c5820cffec5928 -->
+<!-- translated-from: features/tasks.md sha1:c6317da10457f967a3e6a67eeb1cde07535c21b1 -->
 
 # Aufgaben
 
@@ -39,7 +39,8 @@ Von Hand lässt sich keine Aufgabe an Mein Tag anheften. Gib ihr stattdessen ein
 ## Listen und Filter
 
 **Alle** zeigt alle Listen zusammen, und jede Liste hat daneben ihre eigene Schaltfläche. Das Zahnrad oben im
-Bereich öffnet **Listen**: Dort legst du eine Liste an, benennst eine um, färbst sie um oder löschst sie. Ihr Stern
+Bereich öffnet **Listen**: Dort legst du eine Liste an, benennst eine um, färbst sie um, löschst sie oder ziehst die Listen
+(oder schiebst sie mit den Pfeilen) in die Reihenfolge, in der der Bereich sie zeigt. Ihr Stern
 zeigt, wo eine Aufgabe landet, wenn nichts anderes gewählt ist (in **Mein Tag**, in **Alle**); drücke den Stern einer
 anderen Liste, um neue Aufgaben dorthin zu schicken. Die Liste einer Aufgabe änderst du in ihrem Dialog unter
 **Liste**; verschiebst du eine von oder auf eine synchronisierte Liste, wird sie dort gelöscht, wo sie war, und dort

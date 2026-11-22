@@ -6113,6 +6113,8 @@ tasks:
         resize: 'Resize the tasks'
         toggle: 'Tasks'
     section:
+        loading: 'Loading…'
+        more: 'Show more'
         overdue: 'Overdue'
         today: 'Today'
         upcoming: 'Upcoming'
@@ -6158,6 +6160,9 @@ tasks:
         save: 'Save'
         delete: 'Delete'
     lists:
+        move_down: 'Move “%name%” down'
+        move_up: 'Move “%name%” up'
+        reorder: 'Drag to change the order'
         landing: 'New tasks land here'
         landing_set: 'New tasks now land in %name%.'
         make_landing: 'Put new tasks in “%name%”'

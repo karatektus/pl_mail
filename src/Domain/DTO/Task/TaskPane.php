@@ -14,6 +14,11 @@ use DateTimeZone;
  *
  * `sections` keeps only groups with something in them, so the template has no
  * empty heading to decide about, and is keyed by the group's translation suffix.
+ *
+ * A list's finished tasks are not among them: they can run to thousands, and the
+ * group is folded until somebody opens it. `completedLater` says how many there
+ * are, and the group reads them a page at a time once open (TaskPaneReader::
+ * completedPage()). My Day's are today's only, and come with the rest.
  */
 final readonly class TaskPane
 {
@@ -30,10 +35,11 @@ final readonly class TaskPane
         public DateTimeImmutable $now,
         public DateTimeZone      $zone,
         public bool              $canSubscribe = false,
+        public int               $completedLater = 0,
     ) {}
 
     public function isEmpty(): bool
     {
-        return [] === $this->sections;
+        return [] === $this->sections && 0 === $this->completedLater;
     }
 }

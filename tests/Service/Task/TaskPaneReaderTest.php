@@ -167,7 +167,7 @@ final class TaskPaneReaderTest extends KernelTestCase
 
         $list = $this->reader->read($this->user, new TaskPaneQuery(TaskView::Lists), $now);
 
-        self::assertCount(1, $list->sections['completed']);
+        self::assertSame(1, $list->completedLater);
         self::assertSame([$task], $list->sections['upcoming']);
     }
 
@@ -188,12 +188,41 @@ final class TaskPaneReaderTest extends KernelTestCase
 
         $pane = $this->reader->read($this->user, new TaskPaneQuery(TaskView::Lists), $now);
 
-        self::assertSame(['overdue', 'today', 'upcoming', 'no_date', 'completed'], array_keys($pane->sections));
+        self::assertSame(['overdue', 'today', 'upcoming', 'no_date'], array_keys($pane->sections), 'the finished come later');
         self::assertSame([$late], $pane->sections['overdue'], 'a finished one is not overdue');
         self::assertSame([$today], $pane->sections['today']);
         self::assertSame([$future], $pane->sections['upcoming']);
         self::assertSame([$undated], $pane->sections['no_date']);
-        self::assertSame([$newer, $older], $pane->sections['completed'], 'the latest finished first');
+        self::assertSame(2, $pane->completedLater);
+
+        $page = $this->reader->completedPage($this->user, new TaskPaneQuery(TaskView::Lists), 0, $now);
+
+        self::assertSame([$newer, $older], $page['tasks'], 'the latest finished first');
+        self::assertNull($page['next']);
+    }
+
+    /** One page at a time, and a page says whether there is another, without counting them all. */
+    public function testFinishedTasksComeAPageAtATime(): void
+    {
+        $now = new DateTimeImmutable('2026-06-15 18:00:00', new DateTimeZone('UTC'));
+
+        for ($i = 0; $i <= TaskPaneReader::COMPLETED_PAGE; ++$i) {
+            $this->writer->complete($this->task('Done ' . $i), $now->modify(sprintf('-%d minutes', $i)));
+        }
+
+        $this->em->flush();
+
+        $query = new TaskPaneQuery(TaskView::Lists);
+        $first = $this->reader->completedPage($this->user, $query, 0, $now);
+
+        self::assertCount(TaskPaneReader::COMPLETED_PAGE, $first['tasks']);
+        self::assertSame('Done 0', $first['tasks'][0]->title);
+        self::assertSame(TaskPaneReader::COMPLETED_PAGE, $first['next']);
+
+        $second = $this->reader->completedPage($this->user, $query, (int) $first['next'], $now);
+
+        self::assertSame(['Done ' . TaskPaneReader::COMPLETED_PAGE], array_map(static fn ($task): string => $task->title, $second['tasks']));
+        self::assertNull($second['next']);
     }
 
     public function testAStepAndAPendingDeleteAreNotRowsOfTheirOwn(): void

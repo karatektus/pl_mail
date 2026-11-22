@@ -5884,6 +5884,8 @@ tasks:
         resize: 'Resize the tasks'
         toggle: 'Tasks to do'
     section:
+        loading: 'Haulin'' it aboard…'
+        more: 'Show more'
         overdue: 'Overdue'
         today: 'Today'
         upcoming: 'On the horizon'
@@ -5929,6 +5931,9 @@ tasks:
         save: 'Stow'
         delete: 'Scuttle'
     lists:
+        move_down: 'Lower “%name%” down'
+        move_up: 'Hoist “%name%” up'
+        reorder: 'Drag to change the order'
         landing: 'New tasks come aboard here'
         landing_set: 'New tasks now come aboard in %name%.'
         make_landing: 'Stow new tasks in “%name%”'

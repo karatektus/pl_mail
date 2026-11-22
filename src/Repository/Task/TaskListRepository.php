@@ -27,13 +27,25 @@ class TaskListRepository extends ServiceEntityRepository
     }
 
     /**
-     * Every list of one user, the default first, the order the pane offers them.
+     * Every list of one user, in the order they arranged in Lists. Before anything
+     * was arranged every list has the same place, and the first list leads.
      *
      * @return list<TaskList>
      */
     public function findForUser(User $user): array
     {
-        return $this->findBy(['usr' => $user], ['isDefault' => 'DESC', 'sortOrder' => 'ASC', 'name' => 'ASC']);
+        return $this->findBy(['usr' => $user], ['sortOrder' => 'ASC', 'isDefault' => 'DESC', 'name' => 'ASC']);
+    }
+
+    /** The place after the last, for a list made now: it joins at the end rather than above an arranged order. */
+    public function nextSortOrder(User $user): int
+    {
+        return 1 + (int) $this->createQueryBuilder('list')
+            ->select('COALESCE(MAX(list.sortOrder), -1)')
+            ->where('list.usr = :usr')
+            ->setParameter('usr', $user)
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     /**

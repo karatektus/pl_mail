@@ -16,6 +16,7 @@ use App\Entity\Task\Task;
 use App\Entity\Task\TaskAttachment;
 use App\Entity\Task\TaskList;
 use App\Entity\User\User;
+use App\Repository\Task\TaskListRepository;
 use App\Repository\User\User\UserRepository;
 use App\Service\Task\TaskAttachmentStorage;
 use DateTimeImmutable;
@@ -912,6 +913,35 @@ final class TaskControllerTest extends WebTestCase
         self::assertSame($to->id, $this->reloaded($task)->taskList->id);
     }
 
+    /** The whole order, from the user's own rows: someone else's list is not moved, one left out goes last. */
+    public function testTheListsAreKeptInTheOrderArrangedInTheDialog(): void
+    {
+        $this->client->request('GET', '/tasks');
+
+        $a       = $this->list();
+        $b       = $this->list();
+        $c       = $this->list();
+        $foreign = $this->list($this->otherUser());
+
+        $ids = array_map(static fn (TaskList $list): int => (int) $list->id, [$c, $foreign, $a]);
+
+        $this->client->request('POST', '/tasks/list/order', server: [
+            'CONTENT_TYPE'      => 'application/json',
+            'HTTP_X_CSRF_TOKEN' => $this->token('tasks_list_order'),
+        ], content: json_encode(['ids' => $ids], JSON_THROW_ON_ERROR));
+
+        self::assertResponseIsSuccessful();
+
+        $ordered = array_map(
+            static fn (TaskList $list): ?int => $list->id,
+            static::getContainer()->get(TaskListRepository::class)->findForUser($this->user),
+        );
+
+        self::assertSame([$c->id, $a->id], array_slice($ordered, 0, 2));
+        self::assertGreaterThan(array_search($a->id, $ordered, true), array_search($b->id, $ordered, true), 'left out, so after');
+        self::assertNotContains($foreign->id, $ordered);
+    }
+
     /** The star in Lists: where a task lands when nothing else was picked. */
     public function testNewTasksLandOnTheChosenListAndBackOnTheFirstWhenItCannotTakeThem(): void
     {
@@ -960,6 +990,33 @@ final class TaskControllerTest extends WebTestCase
         ]);
 
         self::assertSame('FREQ=DAILY', $this->reloaded($task)->recurrenceRule);
+    }
+
+    /** The group shows its count at once and reads its rows only once it is opened. */
+    public function testFinishedTasksOfAListComeInTheirOwnFrame(): void
+    {
+        $list = $this->list();
+
+        foreach (['One', 'Two'] as $title) {
+            $task         = $this->task($list, 'Finished ' . $title);
+            $task->status = TaskStatus::Completed;
+        }
+
+        $this->task($list, 'Still open');
+        $this->em->flush();
+
+        $crawler = $this->client->request('GET', sprintf('/tasks?view=lists&list=%d', $list->id));
+        $group   = $crawler->filter('[data-tasks-section="completed"]');
+
+        self::assertStringContainsString('2', $group->filter('summary')->text());
+        self::assertCount(0, $group->filter('[data-task-row]'), 'nothing read until it is opened');
+        self::assertSame('lazy', $group->filter('turbo-frame#tasks-completed')->attr('loading'));
+
+        $crawler = $this->client->request('GET', sprintf('/tasks/completed?view=lists&list=%d', $list->id));
+
+        self::assertCount(2, $crawler->filter('turbo-frame#tasks-completed [data-task-row]'));
+        self::assertSame('tasks-pane-frame', $crawler->filter('turbo-frame#tasks-completed')->attr('target'), 'a tick answers with the pane');
+        self::assertCount(0, $crawler->filter('a[href*="offset="]'), 'and no more to show');
     }
 
     /** In the gear's menu, and only with something to sync from. */

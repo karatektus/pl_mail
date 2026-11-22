@@ -6149,6 +6149,8 @@ tasks:
         resize: 'Redimensionner les tâches'
         toggle: 'Tâches'
     section:
+        loading: 'Chargement…'
+        more: 'Afficher plus'
         overdue: 'En retard'
         today: 'Aujourd’hui'
         upcoming: 'À venir'
@@ -6194,6 +6196,9 @@ tasks:
         save: 'Enregistrer'
         delete: 'Supprimer'
     lists:
+        move_down: 'Descendre « %name% »'
+        move_up: 'Monter « %name% »'
+        reorder: 'Faire glisser pour changer l’ordre'
         landing: 'Les nouvelles tâches arrivent ici'
         landing_set: 'Les nouvelles tâches arrivent désormais dans %name%.'
         make_landing: 'Mettre les nouvelles tâches dans « %name% »'

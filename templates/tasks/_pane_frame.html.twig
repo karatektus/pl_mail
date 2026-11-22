@@ -207,7 +207,10 @@ Accepts: pane  TaskPane
                view, with no script behind it. Completed starts folded: it only
                grows, and it is the part nobody came to work through. A group
                folded or unfolded by hand stays so, see tasks--section. #}
-            {% for section, tasks in pane.sections %}
+            {# A list's finished tasks come later, when the group is opened: see
+               TaskPane. Null here is that group, drawn with its count and a frame. #}
+            {% set groups = pane.completedLater > 0 ? pane.sections|merge({ completed: null }) : pane.sections %}
+            {% for section, tasks in groups %}
                 <details {% if 'completed' != section %}open{% endif %}
                          data-controller="tasks--section"
                          data-tasks--section-name-value="{{ section }}"
@@ -218,13 +221,22 @@ Accepts: pane  TaskPane
                                     {{ 'overdue' == section ? 'text-danger' : 'text-ink-muted' }}">
                         <i class="fa-solid fa-chevron-right text-[0.625rem] transition-transform group-open/section:rotate-90" aria-hidden="true"></i>
                         {{ ('tasks.section.' ~ section)|trans }}
-                        <span class="text-ink-faint">{{ tasks|length }}</span>
+                        <span class="text-ink-faint">{{ tasks is null ? pane.completedLater : tasks|length }}</span>
                     </summary>
-                    <ul class="mt-1 space-y-0.5">
-                        {% for task in tasks %}
-                            {% include 'tasks/_row.html.twig' with { task: task, pane: pane, params: params } only %}
-                        {% endfor %}
-                    </ul>
+                    {% if tasks is null %}
+                        {# Lazy, so a folded group reads nothing; `target` sends a
+                           row's tick to the pane, whose answer it is. #}
+                        <turbo-frame id="tasks-completed" target="tasks-pane-frame" loading="lazy"
+                                     src="{{ path('app_tasks_completed', params) }}" class="block">
+                            <p class="px-3 py-2 text-xs text-ink-faint">{{ 'tasks.section.loading'|trans }}</p>
+                        </turbo-frame>
+                    {% else %}
+                        <ul class="mt-1 space-y-0.5">
+                            {% for task in tasks %}
+                                {% include 'tasks/_row.html.twig' with { task: task, pane: pane, params: params } only %}
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
                 </details>
             {% endfor %}
         </div>

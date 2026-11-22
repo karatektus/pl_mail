@@ -94,6 +94,24 @@ final class TaskController extends AbstractController
     }
 
     /**
+     * One page of a list's finished tasks, into the Completed group's frame when it
+     * is opened, and into the page frame below it for the next. See TaskPane.
+     */
+    #[Route('/completed', name: 'completed', methods: ['GET'])]
+    public function completed(Request $request): Response
+    {
+        $query = TaskPaneQuery::fromParameters($request->query->all());
+        $page  = $this->reader->completedPage($this->currentUser(), $query, $request->query->getInt('offset'));
+
+        return $this->render('tasks/_completed_page.html.twig', [
+            'pane'   => $page['pane'],
+            'tasks'  => $page['tasks'],
+            'next'   => $page['next'],
+            'offset' => $request->query->getInt('offset'),
+        ]);
+    }
+
+    /**
      * Remembers whether the pane is docked, and how wide.
      * CalendarController::paneState()'s reasons all apply: written on release,
      * never re-rendering, either field optional, clamped here.
@@ -497,7 +515,8 @@ final class TaskController extends AbstractController
         }
 
         if (0 === $listId) {
-            $list->usr = $this->currentUser();
+            $list->usr       = $this->currentUser();
+            $list->sortOrder = $this->lists->nextSortOrder($this->currentUser());
             $this->em->persist($list);
         }
 
@@ -513,6 +532,48 @@ final class TaskController extends AbstractController
      * lands, and for a synced list, whose existence is the remote's — a mirror
      * deleted here would only be there again after the next discovery.
      */
+    /**
+     * The order of the lists, as arranged in Lists: the whole order, as JSON, so a
+     * repeated request lands on the same arrangement. Built from the user's own
+     * rows, so an id that is not theirs finds nothing, and a list the request left
+     * out keeps its relative place at the end: settings--account-order's endpoint,
+     * AccountController::reorder(), reasons the same way.
+     */
+    #[Route('/list/order', name: 'list_order', methods: ['POST'])]
+    public function listOrder(Request $request): JsonResponse
+    {
+        $this->assertCsrf($request, 'tasks_list_order');
+
+        $ids = $request->toArray()['ids'] ?? null;
+
+        if (false === is_array($ids)) {
+            return $this->json(['ok' => false], Response::HTTP_BAD_REQUEST);
+        }
+
+        $byId = [];
+
+        foreach ($this->lists->findForUser($this->currentUser()) as $list) {
+            $byId[(int) $list->id] = $list;
+        }
+
+        $ordered = [];
+
+        foreach (array_map('intval', $ids) as $id) {
+            if (true === array_key_exists($id, $byId)) {
+                $ordered[] = $byId[$id];
+                unset($byId[$id]);
+            }
+        }
+
+        foreach ([...$ordered, ...array_values($byId)] as $position => $list) {
+            $list->sortOrder = $position;
+        }
+
+        $this->em->flush();
+
+        return $this->json(['ok' => true]);
+    }
+
     /** Where new tasks land from now on, when nothing else was picked. */
     #[Route('/list/{id}/landing', name: 'list_landing', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function listLanding(Request $request, TaskList $list): Response
