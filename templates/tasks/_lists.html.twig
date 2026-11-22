@@ -38,6 +38,7 @@ Accepts:
             data-controller="tasks--list-order"
             data-tasks--list-order-url-value="{{ path('app_tasks_list_order') }}"
             data-tasks--list-order-csrf-value="{{ csrf_token('tasks_list_order') }}"
+            data-tasks--list-order-pane-url-value="{{ path('app_tasks_index', params) }}"
             data-tasks--list-order-target="list">
             {% for list in lists %}
                 {% set managed = list.isManagedLocally %}

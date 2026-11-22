@@ -1,6 +1,7 @@
 /* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus";
 import Sortable from "sortablejs";
+import { openPane } from "../../panes.js";
 import { requestFailed } from "../../request_errors.js";
 
 /**
@@ -13,18 +14,22 @@ import { requestFailed } from "../../request_errors.js";
  * and a failed write puts the rows back. That controller is the account list's,
  * with its rows and its handle, which is why this is not it.
  *
- * Once an order is saved the pane behind is read again, since its pills follow it.
+ * Once an order is saved the pane behind is read again, since its pills follow it:
+ * through openPane(), as a save's open_pane stream does, and not by reloading the
+ * frame, which does nothing to a pane drawn open with the page — its frame has no
+ * src to reload.
  *
  * Values:
- *   url   String  POST { ids }
- *   csrf  String  X-CSRF-Token
+ *   url      String  POST { ids }
+ *   csrf     String  X-CSRF-Token
+ *   paneUrl  String  where the pane is, to read it again
  *
  * Targets:
  *   list  the rows, each with data-task-list="id"
  */
 export default class extends Controller {
     static targets = ["list"];
-    static values = { url: String, csrf: String };
+    static values = { url: String, csrf: String, paneUrl: String };
 
     connect() {
         this.sortable = Sortable.create(this.listTarget, {
@@ -115,7 +120,7 @@ export default class extends Controller {
                 this._revert();
             } else {
                 this.saved = ids;
-                document.querySelector("turbo-frame#tasks-pane-frame")?.reload();
+                openPane("tasks", { src: this.paneUrlValue });
             }
         }).catch(() => {
             requestFailed(null);

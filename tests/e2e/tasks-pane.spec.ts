@@ -768,7 +768,12 @@ test.describe("tasks pane on a notebook", () => {
         await expect(frame(page).getByText("No date")).toHaveCount(0);
 
         // Put first with the arrows, which is what a drag does for a keyboard,
-        // and the pane's pills follow.
+        // and the pane's pills follow. Regression guard: after a reload the pane
+        // is drawn open with the page, and its frame has no src to reload, which
+        // left the pills in the old order until the page was loaded again.
+        await page.waitForLoadState("networkidle");
+        await page.reload();
+        await expect(dock(page)).toBeVisible();
         await openLists(page);
         const firstRow = modal(page).locator("[data-task-list]").first();
 
@@ -779,6 +784,10 @@ test.describe("tasks pane on a notebook", () => {
         await expect(frame(page).locator("nav a").nth(2)).toHaveText(new RegExp(`${name} renamed`));
         await modal(page).getByRole("button", { name: "Done" }).click();
         await expect(modal(page)).toBeHidden();
+
+        // Back on the list, for what deleting it while it is shown does below.
+        await frame(page).getByRole("link", { name: `${name} renamed` }).click();
+        await expect(frame(page).getByRole("link", { name: `${name} renamed` })).toHaveAttribute("aria-current", "page");
 
         await openLists(page);
         await expect(modal(page).locator("[data-task-list]").first()).toContainText(`${name} renamed`);
