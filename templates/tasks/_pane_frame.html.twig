@@ -1,0 +1,233 @@
+{#
+tasks/_pane_frame.html.twig — the pane's body, inside its own Turbo Frame.
+
+Every link and form in here targets the frame by being inside it, so moving
+between lists never reloads the mail beside it. The address of the pane is
+`pane.query`: every link builds on it, so changing one thing keeps the rest.
+
+Accepts: pane  TaskPane
+#}
+{% set query = pane.query %}
+{% set params = query.toParameters() %}
+{% set isMyDay = 'my-day' == query.view.value %}
+{% set pill = 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-colors whitespace-nowrap' %}
+{% set pillOn = pill ~ ' bg-accent-soft text-accent' %}
+{% set pillOff = pill ~ ' text-ink-muted hover:bg-hover' %}
+{% set listAction = 'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-ink-muted hover:bg-hover transition-colors cursor-pointer whitespace-nowrap' %}
+{% set iconBtn = 'inline-flex items-center justify-center w-8 h-8 rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer' %}
+
+<turbo-frame id="tasks-pane-frame" class="flex flex-col min-h-0 flex-1">
+    {# The flashes a change leaves. This frame has no toast region of its own, so
+       they go there as streams, as contacts/_pane_layout.html.twig's do. #}
+    {% for type, messages in app.flashes(['success', 'error', 'info']) %}
+        {% for message in messages %}
+            {% include '_partials/_toast.stream.html.twig' with { message: message, type: type } only %}
+        {% endfor %}
+    {% endfor %}
+
+    <div data-tasks-page class="@container flex flex-col flex-1 min-h-0 min-w-0">
+        <header class="flex items-center gap-1 px-4 pt-3 pb-2 shrink-0">
+            <h2 class="flex-1 min-w-0 truncate text-base font-semibold text-ink">{{ 'tasks.title'|trans }}</h2>
+            <button type="button"
+                    data-controller="ui--modal"
+                    data-action="click->ui--modal#open"
+                    data-ui--modal-src-value="{{ path('app_tasks_new', params) }}"
+                    data-ui--modal-title-value="{{ 'tasks.editor.new'|trans }}"
+                    class="{{ iconBtn }}"
+                    aria-label="{{ 'tasks.new'|trans }}"
+                    title="{{ 'tasks.new'|trans }}">
+                <i class="fa-solid fa-plus text-sm" aria-hidden="true"></i>
+            </button>
+            {# What changes the lists rather than what is on them. A menu of one for
+               now, so the next setting has somewhere to go. #}
+            <div class="relative" data-controller="ui--dropdown">
+                <button type="button"
+                        data-action="click->ui--dropdown#toggle"
+                        aria-haspopup="menu"
+                        class="{{ iconBtn }}"
+                        aria-label="{{ 'tasks.lists.settings'|trans }}"
+                        title="{{ 'tasks.lists.settings'|trans }}">
+                    <i class="fa-solid fa-gear text-sm" aria-hidden="true"></i>
+                </button>
+                <div data-ui--dropdown-target="menu" hidden role="menu"
+                     class="absolute right-0 top-full mt-1 z-30 w-44 rounded-pane bg-pane-soft backdrop-blur-sm border border-line shadow-pop py-1 text-sm">
+                    <button type="button"
+                            role="menuitem"
+                            data-controller="ui--modal"
+                            data-action="click->ui--modal#open click->ui--dropdown#close"
+                            data-ui--modal-src-value="{{ path('app_tasks_lists', params) }}"
+                            data-ui--modal-title-value="{{ 'tasks.lists.manage'|trans }}"
+                            class="flex w-full items-center gap-2 px-4 py-2 text-left text-ink-soft hover:bg-hover cursor-pointer">
+                        <i class="fa-solid fa-list-ul w-4 text-center" aria-hidden="true"></i>{{ 'tasks.lists.manage'|trans }}
+                    </button>
+                </div>
+            </div>
+            <button type="button"
+                    data-tasks-pane-close
+                    data-action="tasks--pane#close"
+                    class="{{ iconBtn }}"
+                    aria-label="{{ 'tasks.pane.close'|trans }}"
+                    title="{{ 'tasks.pane.close'|trans }}">
+                <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+            </button>
+        </header>
+
+        {# My Day, all lists, then each list. Links rather than a dropdown, so the
+           whole set is one look away; a person's lists are few. #}
+        <nav class="flex flex-wrap gap-1 px-4 pb-2 shrink-0" aria-label="{{ 'tasks.lists.label'|trans }}">
+            <a href="{{ path('app_tasks_index', query.myDay().toParameters()) }}"
+               class="{{ isMyDay ? pillOn : pillOff }}"
+               {% if isMyDay %}aria-current="page"{% endif %}>
+                <i class="fa-regular fa-sun" aria-hidden="true"></i>{{ 'tasks.my_day'|trans }}
+            </a>
+            <a href="{{ path('app_tasks_index', query.withList(null).toParameters()) }}"
+               class="{{ not isMyDay and pane.list is null ? pillOn : pillOff }}"
+               {% if not isMyDay and pane.list is null %}aria-current="page"{% endif %}>
+                {{ 'tasks.lists.all'|trans }}
+            </a>
+            {% for candidate in pane.lists %}
+                {% set current = not isMyDay and pane.list and pane.list.id == candidate.id %}
+                <a href="{{ path('app_tasks_index', query.withList(candidate.id).toParameters()) }}"
+                   class="{{ current ? pillOn : pillOff }}"
+                   {% if current %}aria-current="page"{% endif %}>
+                    <span class="size-2 rounded-full shrink-0" style="background-color: {{ candidate.color }}" aria-hidden="true"></span>
+                    {{ candidate.name }}
+                    {% if candidate.isReadOnly %}<i class="fa-solid fa-lock text-[0.625rem]" title="{{ 'tasks.lists.read_only'|trans }}" aria-label="{{ 'tasks.lists.read_only'|trans }}"></i>{% endif %}
+                </a>
+            {% endfor %}
+            {# Only with something to sync from: see TaskSyncSources. #}
+            {% if pane.canSubscribe %}
+                <button type="button"
+                        data-tasks-subscribe
+                        data-controller="ui--modal"
+                        data-action="click->ui--modal#open"
+                        data-ui--modal-src-value="{{ path('app_tasks_subscribe') }}"
+                        data-ui--modal-title-value="{{ 'tasks.subscribe.title'|trans }}"
+                        class="{{ pillOff }} cursor-pointer"
+                        aria-label="{{ 'tasks.subscribe.title'|trans }}"
+                        title="{{ 'tasks.subscribe.title'|trans }}">
+                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                </button>
+            {% endif %}
+        </nav>
+
+        {# Quick add. Enter submits, as a single field does by itself. The list is
+           a field rather than read off the address so the answer can say which
+           one it landed in when the view names none. The options under it are
+           tasks--quick-add's to show; a date's time and everything else about a
+           task are in the dialog. #}
+        {% set quickToggle = 'flex items-center justify-center w-8 h-8 rounded-lg text-ink-muted hover:bg-hover transition-colors cursor-pointer' %}
+        {% set quickField = 'w-full rounded-lg border border-line bg-field px-2 py-1 text-sm text-ink' %}
+        <form action="{{ path('app_tasks_quick_add') }}" method="post"
+              data-controller="tasks--quick-add"
+              data-action="focusin->tasks--quick-add#show focusout->tasks--quick-add#maybeHide mousedown->tasks--quick-add#keepFocus turbo:submit-end->tasks--quick-add#submitted"
+              class="mx-4 mb-3 shrink-0 overflow-hidden rounded-lg border border-line bg-field focus-within:border-accent">
+            <input type="hidden" name="_token" value="{{ csrf_token('tasks_quick_add') }}">
+            <input type="hidden" name="listId" value="{{ pane.addTo.id }}">
+            {% for name, value in params %}
+                <input type="hidden" name="{{ name }}" value="{{ value }}">
+            {% endfor %}
+
+            <div class="flex items-center gap-2.5 px-3">
+                <span class="size-[1.125rem] shrink-0 rounded-full border border-ink-faint" aria-hidden="true"></span>
+                <label class="sr-only" for="tasks-quick-add">{{ 'tasks.quick_add'|trans }}</label>
+                <input id="tasks-quick-add"
+                       type="text"
+                       name="title"
+                       required
+                       maxlength="{{ constant('App\\Entity\\Task\\Task::TITLE_MAX_LENGTH') }}"
+                       autocomplete="off"
+                       placeholder="{{ 'tasks.quick_add'|trans }}"
+                       data-tasks--quick-add-target="title"
+                       class="flex-1 min-w-0 h-10 bg-transparent text-sm text-ink placeholder:text-ink-faint focus:outline-none">
+            </div>
+
+            <div hidden data-tasks--quick-add-target="options" data-tasks-quick-options class="border-t border-line bg-sunken px-1.5 py-1">
+                <div class="flex items-center gap-0.5">
+                    {% for option in [
+                        { panel: 'due', icon: 'fa-regular fa-calendar', label: 'tasks.editor.due_date'|trans },
+                        { panel: 'reminder', icon: 'fa-regular fa-bell', label: 'tasks.editor.reminder'|trans },
+                        { panel: 'repeat', icon: 'fa-solid fa-repeat', label: 'tasks.editor.repeat'|trans },
+                    ] %}
+                        <button type="button"
+                                data-tasks--quick-add-target="toggle"
+                                data-panel="{{ option.panel }}"
+                                data-action="tasks--quick-add#toggle"
+                                data-tasks--quick-add-panel-param="{{ option.panel }}"
+                                aria-expanded="false"
+                                aria-controls="tasks-quick-{{ option.panel }}"
+                                aria-label="{{ option.label }}"
+                                title="{{ option.label }}"
+                                class="{{ quickToggle }}">
+                            <i class="{{ option.icon }} text-sm" aria-hidden="true"></i>
+                        </button>
+                    {% endfor %}
+                </div>
+
+                {# Stays in the form while hidden, so a choice made and folded away
+                   still goes with the title. #}
+                <div hidden id="tasks-quick-due" data-tasks--quick-add-target="panel" data-panel="due" class="px-1.5 pb-1.5 pt-1">
+                    <label class="sr-only" for="tasks-quick-due-date">{{ 'tasks.editor.due_date'|trans }}</label>
+                    <input id="tasks-quick-due-date" type="date" name="dueDate"
+                           data-tasks--quick-add-target="field"
+                           data-action="change->tasks--quick-add#changed"
+                           class="{{ quickField }}">
+                </div>
+                <div hidden id="tasks-quick-reminder" data-tasks--quick-add-target="panel" data-panel="reminder" class="px-1.5 pb-1.5 pt-1">
+                    <label class="sr-only" for="tasks-quick-reminder-at">{{ 'tasks.editor.reminder'|trans }}</label>
+                    <input id="tasks-quick-reminder-at" type="datetime-local" name="reminder"
+                           data-tasks--quick-add-target="field"
+                           data-action="change->tasks--quick-add#changed"
+                           class="{{ quickField }}">
+                </div>
+                <div hidden id="tasks-quick-repeat" data-tasks--quick-add-target="panel" data-panel="repeat" class="px-1.5 pb-1.5 pt-1">
+                    <label class="sr-only" for="tasks-quick-recurrence">{{ 'tasks.editor.repeat'|trans }}</label>
+                    <select id="tasks-quick-recurrence" name="recurrence"
+                            data-tasks--quick-add-target="field"
+                            data-action="change->tasks--quick-add#changed"
+                            class="{{ quickField }}">
+                        <option value="">{{ 'tasks.editor.repeat_none'|trans }}</option>
+                        {% for option in constant('App\\Entity\\Task\\Task::RECURRENCE_RULES')|keys %}
+                            <option value="{{ option }}">{{ ('tasks.editor.repeat_' ~ option)|trans }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </form>
+
+        {# The address, so tasks--pane can tell a tick's reload from going elsewhere. #}
+        <div class="flex-1 min-h-0 overflow-y-auto px-4 pb-4" data-tasks-pane-scroll="{{ path('app_tasks_index', params) }}">
+            {% if pane.isEmpty %}
+                <p class="px-3 py-8 text-center text-sm text-ink-faint">
+                    {{ (isMyDay ? 'tasks.empty.my_day' : 'tasks.empty.list')|trans }}
+                </p>
+            {% endif %}
+
+            {# <details>, so a long Upcoming does not push everything else out of
+               view, with no script behind it. Completed starts folded: it only
+               grows, and it is the part nobody came to work through. A group
+               folded or unfolded by hand stays so, see tasks--section. #}
+            {% for section, tasks in pane.sections %}
+                <details {% if 'completed' != section %}open{% endif %}
+                         data-controller="tasks--section"
+                         data-tasks--section-name-value="{{ section }}"
+                         data-action="toggle->tasks--section#toggled"
+                         data-tasks-section="{{ section }}"
+                         class="group/section mt-2">
+                    <summary class="flex items-center gap-2 rounded-lg bg-sunken px-3 py-1.5 text-xs font-medium uppercase tracking-wide cursor-pointer hover:bg-hover transition-colors
+                                    {{ 'overdue' == section ? 'text-danger' : 'text-ink-muted' }}">
+                        <i class="fa-solid fa-chevron-right text-[0.625rem] transition-transform group-open/section:rotate-90" aria-hidden="true"></i>
+                        {{ ('tasks.section.' ~ section)|trans }}
+                        <span class="text-ink-faint">{{ tasks|length }}</span>
+                    </summary>
+                    <ul class="mt-1 space-y-0.5">
+                        {% for task in tasks %}
+                            {% include 'tasks/_row.html.twig' with { task: task, pane: pane, params: params } only %}
+                        {% endfor %}
+                    </ul>
+                </details>
+            {% endfor %}
+        </div>
+
+    </div>
+</turbo-frame>

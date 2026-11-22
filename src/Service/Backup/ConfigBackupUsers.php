@@ -136,6 +136,9 @@ final readonly class ConfigBackupUsers
         User::SETTING_CONTACTS_PANE_MODE,
         User::SETTING_CONTACTS_PANE_WIDTH,
         User::SETTING_CONTACTS_SWITCH_SKIP,
+        // The same kind of thing for the tasks: a bool and a number.
+        User::SETTING_TASKS_PANE_OPEN,
+        User::SETTING_TASKS_PANE_WIDTH,
         // Which view each shape opens on. In the backup for the same reason the
         // pane's width and mode are: it is a preference somebody set, it costs
         // one short string, and a restore that put the calendar back on Week

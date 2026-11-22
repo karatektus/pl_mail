@@ -142,5 +142,8 @@ final readonly class DataResetRepository
     public function clearCalendarSyncCursors(): void
     {
         $this->connection->executeStatement('UPDATE calendar SET sync_token = NULL');
+        // The task lists' cursors, or `task` would be emptied and the next pull
+        // would ask what changed since a point it has no rows from.
+        $this->connection->executeStatement('UPDATE task_list SET sync_token = NULL');
     }
 }

@@ -15,6 +15,9 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
 use App\Entity\Rule\MailRule;
+use App\Entity\Task\Task;
+use App\Entity\Task\TaskAttachment;
+use App\Entity\Task\TaskList;
 use App\Entity\Template\MailTemplate;
 use App\Entity\Template\TemplateFolder;
 use App\Entity\User\User;
@@ -89,6 +92,9 @@ final class OwnershipVoter extends Voter
             || $subject instanceof Message
             || $subject instanceof MessagePart
             || $subject instanceof MessageThread
+            || $subject instanceof Task
+            || $subject instanceof TaskAttachment
+            || $subject instanceof TaskList
             || $subject instanceof TemplateFolder;
     }
 
@@ -150,6 +156,9 @@ final class OwnershipVoter extends Voter
             $subject instanceof Message        => $subject->account->usr,
             $subject instanceof MessagePart    => $subject->message?->account->usr,
             $subject instanceof MessageThread  => $subject->account?->usr,
+            $subject instanceof Task           => $subject->usr,
+            $subject instanceof TaskAttachment => $subject->usr,
+            $subject instanceof TaskList       => $subject->usr,
             $subject instanceof TemplateFolder => $subject->usr,
             default                            => null,
         };

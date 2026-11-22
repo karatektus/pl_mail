@@ -33,7 +33,7 @@
  *                     is fine: then it only navigates.
  *   close()
  *
- * Only contacts--pane registers today. The calendar's pane is ui--split's and
+ * contacts--pane and tasks--pane register today. The calendar's pane is ui--split's and
  * has positions rather than open/closed; it can register here the day
  * something needs to ask for it.
  */

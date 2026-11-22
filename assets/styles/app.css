@@ -2721,6 +2721,18 @@
     }
 }
 
+/* The tasks answer to the same two rules, for the same reasons. Not on their own
+   page, which gives them the row whatever the calendar remembers. */
+[data-calendar-mode="calendar"]:not([data-tasks-full]) [data-side-pane="tasks"] {
+    display: none;
+}
+
+@media (max-width: 1919px) {
+    [data-calendar-mode="split"]:not([data-tasks-full]) [data-side-pane="tasks"] {
+        display: none;
+    }
+}
+
 /* Split below lg is Calendar. The row cannot hold a sidebar, a usable message
    list and a usable calendar at once under 1024px, so rather than squeezing
    both under their minimums the calendar takes over — the same behaviour the
@@ -2789,6 +2801,26 @@
     [data-pane-window-controls] [data-pane-expand] {
         display: none;
     }
+}
+
+/* The tasks at full size: /tasks, on the same shell by the same attribute. The
+   other two panes step aside, since their rows are about a mail that is not
+   here, and the ways out of a boundary that is not there go too. */
+[data-tasks-full] [data-mail-column],
+[data-tasks-full] [data-side-pane="calendar"],
+[data-tasks-full] [data-side-pane="contacts"] {
+    display: none;
+}
+
+[data-tasks-full] [data-side-pane="tasks"],
+[data-tasks-full] [data-side-pane="tasks"] .main-pane {
+    display: flex;
+    flex: 1 1 0%;
+    width: auto;
+}
+
+[data-tasks-full] [data-side-pane="tasks"] [data-ui--side-split-target="handle"] {
+    display: none;
 }
 
 /* Leaving it — a message opened from the contact — is a view transition (see
@@ -3282,7 +3314,13 @@ li[data-selected="true"] {
        one: picking a file is a step towards the button the form is actually
        asking for, and two accent buttons in one form is two primary actions.
        ────────────────────────────────────────────────────────────────────── */
+    /* A pixel of room above and below the button. Chromium clips every input
+       to its box (`overflow: clip !important` in its own stylesheet, which no
+       author rule can lift), and the box is otherwise exactly the button's
+       height: an input that lands on a fraction of a pixel, as one in a
+       dialog's scrolling body does, lost the button's bottom border. */
     input[type="file"] {
+        padding-block: 1px;
         color: rgb(var(--rgb-ink-muted));
     }
 

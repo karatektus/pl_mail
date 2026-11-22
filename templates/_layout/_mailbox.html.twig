@@ -175,7 +175,7 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
              style="--calendar-pane-width: {{ app.user.calendarPaneWidth }}px"
              {# contacts--pane after ui--split: it reads the calendar's position
                 on connect, once ui--split has settled it for this window. #}
-             data-controller="ui--split contacts--pane"
+             data-controller="ui--split contacts--pane tasks--pane"
              {# A contacts page at full size, or the mailbox with the address
                 book in its full-width position: the mail column put away and
                 the dock given the row. See contacts/_page_shell.html.twig. #}
@@ -192,6 +192,14 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
              data-contacts--pane-inbox-url-value="{{ path('app_mail_inbox') }}"
              data-contacts--pane-state-url-value="{{ path('app_contacts_pane_state') }}"
              data-contacts--pane-token-value="{{ csrf_token('contacts_pane_state') }}"
+             {# The tasks at full size: the /tasks page, as the address book's. #}
+             {% if tasksFull|default(false) %}data-tasks-full{% endif %}
+             data-tasks--pane-open-value="{{ tasksFull|default(false) or app.user.tasksPaneOpen ? 'true' : 'false' }}"
+             data-tasks--pane-page-value="{{ tasksFull|default(false) ? 'true' : 'false' }}"
+             data-tasks--pane-src-value="{{ path('app_tasks_index') }}"
+             data-tasks--pane-inbox-url-value="{{ path('app_mail_inbox') }}"
+             data-tasks--pane-state-url-value="{{ path('app_tasks_pane_state') }}"
+             data-tasks--pane-token-value="{{ csrf_token('tasks_pane_state') }}"
              data-ui--split-state-url-value="{{ path('app_calendar_pane_state') }}"
              data-ui--split-token-value="{{ csrf_token('calendar_pane_state') }}"
              data-ui--split-min-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MIN_WIDTH') }}"
@@ -226,7 +234,7 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
              {# …and the two docked panes, which share the row: the calendar's
                 moves are reported to the address book, and the address book
                 asks the calendar for room. See contacts--pane. #}
-             data-action="turbo:frame-load->ui--split#paneLoaded ui--split:mode->contacts--pane#calendarMoved contacts--pane:claim->ui--split#yield"
+             data-action="turbo:frame-load->ui--split#paneLoaded ui--split:mode->contacts--pane#calendarMoved contacts--pane:claim->ui--split#yield ui--split:mode->tasks--pane#calendarMoved tasks--pane:claim->ui--split#yield contacts--pane:moved->tasks--pane#contactsMoved tasks--pane:opened->contacts--pane#tasksOpened"
              {% endif %}
         >
 
@@ -425,6 +433,11 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                        own content — see contacts/_page_shell.html.twig. #}
                     {% block contacts_dock %}
                         {% include '_partials/_contacts_pane.html.twig' %}
+                    {% endblock %}
+                    {# The tasks, the same kind of pane again. A block for the
+                       address book's reason: /tasks fills it with its own page. #}
+                    {% block tasks_dock %}
+                        {% include '_partials/_tasks_pane.html.twig' %}
                     {% endblock %}
                 {% endif %}
             </div>

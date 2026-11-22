@@ -294,6 +294,16 @@ export default class extends Controller {
         }
     }
 
+    /**
+     * The tasks opened — see tasks--pane. The two take turns at every width,
+     * unless this one has the row and there is no mail to share it with.
+     */
+    tasksOpened() {
+        if (true === this.openValue && false === this._isFull()) {
+            this._set(false);
+        }
+    }
+
     /** Docked or closed, for the callers that only know those two. */
     _set(open) {
         this._setMode(open ? "split" : "mail");
@@ -315,6 +325,10 @@ export default class extends Controller {
         }
 
         this._render("mail" !== mode);
+
+        // Chosen, not restored, so tasks--pane hears only what the user did.
+        this.dispatch("moved", { detail: { mode } });
+
         this._persist(mode);
         window.dispatchEvent(new CustomEvent("side-pane:changed"));
     }

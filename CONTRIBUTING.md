@@ -983,6 +983,8 @@ php bin/mirror-wiki.php --check
 | `app:contacts:sync [address-book-id] [--stale]` | Dispatch a two-way sync for mirrored CardDAV address books; `--stale` is the sweep the scheduler runs |
 | `app:calendar:push [calendar-id] [--force] [--stop]` | Register and renew Google/Microsoft calendar push channels, so changes arrive instead of being polled for |
 | `app:calendar:alerts [--dry-run]` | Deliver the event reminders that have come due, and prune the records of ones long past. Runs every minute; `--dry-run` lists what is due without sending or recording anything |
+| `app:tasks:sync [list-id] [--stale]` | Dispatch a two-way sync for connected task lists; `--stale` is the sweep the scheduler runs |
+| `app:tasks:alerts [--dry-run]` | Deliver the task reminders that have come due, and prune the records of ones long past. Runs every minute; `--dry-run` lists what is due without sending or recording anything |
 | `app:mail:wake-snoozed` | Return snoozed conversations whose time has come. Runs every minute |
 | `app:mail:unpin-ended` | Take the pin off conversations whose pin has run out. Runs every 15 minutes |
 | `app:search:index-pending [--seconds=N]` | Index the messages still waiting for search, newest first, for at most N seconds (20 by default). Runs every minute; after an update that rebuilds the index it works through the backlog, and otherwise finds nothing waiting. `app:backfill html-body-text` does the whole backlog at once |

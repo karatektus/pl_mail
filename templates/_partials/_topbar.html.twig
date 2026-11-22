@@ -565,6 +565,26 @@
             {% endfor %}
         </span>
     </a>
+
+    {# ── Tasks ─────────────────────────────────────────────────────────
+       Beside the address book, for the same reasons and on the same terms: on
+       the mailbox it opens and closes the tasks (tasks--pane, on the shell);
+       everywhere else, below lg, and on a middle click it is the link to /tasks
+       it looks like. Hidden on a phone, where it is in the drawer. #}
+    {% set tasksDocked = calendarRestored is defined and app.user and app.user.tasksPaneOpen %}
+    <a
+        href="{{ path('app_tasks_index') }}"
+        data-tasks--pane-target="toggle"
+        data-action="click->tasks--pane#toggle"
+        class="max-md:hidden flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
+               transition-colors flex-shrink-0
+               text-ink-muted hover:bg-hover
+               {{ tasksDocked ? 'lg:bg-accent-soft lg:text-accent' : '' }}"
+        aria-label="{{ 'tasks.pane.toggle'|trans }}"
+        title="{{ 'tasks.pane.toggle'|trans }}"
+    >
+        <i class="fa-solid fa-list-check text-base" aria-hidden="true"></i>
+    </a>
     </div>
 
     {# Right actions #}

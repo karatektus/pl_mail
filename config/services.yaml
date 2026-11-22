@@ -396,6 +396,10 @@ services:
         arguments:
             $drivers: !tagged_iterator app.calendar_sync_driver
 
+    App\Service\Task\Sync\TaskSyncDriverRegistry:
+        arguments:
+            $drivers: !tagged_iterator app.task_sync_driver
+
     App\Service\AddressBook\AddressBookDriverRegistry:
         arguments:
             $drivers: !tagged_iterator app.address_book_driver
@@ -419,6 +423,9 @@ services:
         # CalendarSource that may carry a mail Account instead.
         App\Domain\Interface\CalendarSyncDriverInterface:
             tags: ['app.calendar_sync_driver']
+        # Task lists, the same shape on the same kind of source.
+        App\Domain\Interface\TaskSyncDriverInterface:
+            tags: ['app.task_sync_driver']
         # Address books, keyed on an AddressBookSource for the calendar
         # drivers' reason. The CardDAV driver carries this tag and the
         # integration one: it also proves a connection's credentials.

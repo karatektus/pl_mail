@@ -1,0 +1,11 @@
+{#
+tasks/_saved.stream.html.twig — what a change made in the modal answers with.
+
+The dialog closes itself on a successful submit (ui--modal). What is left is the
+pane underneath, which is a different frame: `open_pane` points it back at where
+it was and reloads, or sends it to a list just made. See assets/panes.js.
+
+Accepts: message string · paneUrl string
+#}
+{% include '_partials/_toast.stream.html.twig' with { message: message, type: 'success' } only %}
+<turbo-stream action="open_pane" pane="tasks" src="{{ paneUrl }}"></turbo-stream>

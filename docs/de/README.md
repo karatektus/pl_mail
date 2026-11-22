@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:5511cddb3442cfdf4bab517a0c3e4f7e7dd4f58a -->
+<!-- translated-from: README.md sha1:040c0cb03e9172f1877f3849181b172f0b8aebe4 -->
 
 # plMail-Dokumentation
 
@@ -37,6 +37,7 @@ wo der Mechanismus dahinter steht.
 | [Erinnerungen](features/calendar-alerts.md) | Erinnerungen setzen, wie sie zugestellt werden, was eine frische Installation braucht, damit sie ankommen |
 | [Verbundene Kalender](features/calendar-sync.md) | Google-, Microsoft- und CalDAV-Kalender abonnieren, Abgleich in beide Richtungen, ICS-Import, -Export und Feed-Abonnements, doppelte Termine |
 | [Teilen und Buchen](features/calendar-sharing.md) | Freigabelinks und was jeder preisgibt, Buchungsseiten, wie eine Buchung ankommt |
+| [Aufgaben](features/tasks.md) | Deine Aufgabenlisten neben der Mail: Mein Tag, Schritte, Wiederholungen, Erinnerungen, Dateien und Abgleich in beide Richtungen mit einem CalDAV-Server |
 | [Kontakte](features/contacts.md) | Das Adressbuch: eigene und synchronisierte Kontakte nebeneinander, Bearbeiten, Duplikate und Zusammenführen, vCard- und CSV-Import und -Export |
 | [Dateien und Integrationen](features/integrations.md) | Anhängen aus und Speichern in Drive, Photos, OneDrive, Dropbox, Nextcloud, OpenCloud, Immich, Paperless-ngx und WebDAV |
 | [Sicherheit](features/security.md) | Dein Passwort ändern, Zwei-Faktor-Authentifizierung, Wiederherstellungscodes, gemerkte Geräte, App-Passwörter, Sitzungen |
