@@ -7,6 +7,7 @@ between lists never reloads the mail beside it. The address of the pane is
 
 Accepts: pane  TaskPane
 #}
+{% import '_partials/_select.html.twig' as select %}
 {% set query = pane.query %}
 {% set params = query.toParameters() %}
 {% set isMyDay = 'my-day' == query.view.value %}
@@ -185,7 +186,8 @@ Accepts: pane  TaskPane
                     <select id="tasks-quick-recurrence" name="recurrence"
                             data-tasks--quick-add-target="field"
                             data-action="change->tasks--quick-add#changed"
-                            class="{{ quickField }}">
+                            {{ select.enhance() }}
+                            class="select-field w-full h-8 text-sm">
                         <option value="">{{ 'tasks.editor.repeat_none'|trans }}</option>
                         {% for option in constant('App\\Entity\\Task\\Task::RECURRENCE_RULES')|keys %}
                             <option value="{{ option }}">{{ ('tasks.editor.repeat_' ~ option)|trans }}</option>

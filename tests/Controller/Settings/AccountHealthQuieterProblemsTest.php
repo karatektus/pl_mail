@@ -160,6 +160,26 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         self::assertStringContainsString((string) $this->urlFor($account), $card->html(), 'and it offers the reconnect');
     }
 
+    /** The same for To Do: a Microsoft grant that predates Tasks.ReadWrite refused nothing. */
+    public function testAMicrosoftAccountThatPredatesToDoGetsTheQuietTasksCard(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'before-todo@joder.dev');
+
+        $account->oauthProvider      = MailProvider::Microsoft->value;
+        $account->oauthGrantedScopes = 'Mail.ReadWrite Mail.Send MailboxSettings.ReadWrite Calendars.ReadWrite Contacts.ReadWrite User.Read';
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings/health');
+        $card    = $crawler->filter('[data-health-issue="account-tasks-scope-' . $account->id . '"]');
+
+        self::assertSame(1, $card->count(), 'the missing To Do permission is not mentioned');
+        self::assertSame(0, $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count(), 'nothing was refused');
+        self::assertSame(0, $crawler->filter('[data-health-issue="account-contacts-scope-' . $account->id . '"]')->count());
+        self::assertStringContainsString((string) $this->urlFor($account), $card->html(), 'and it offers the reconnect');
+    }
+
     /** A grant missing calendars as well is still the full warning, which covers both. */
     public function testAGrantMissingMoreThanContactsGetsTheScopeCard(): void
     {

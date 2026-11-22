@@ -163,6 +163,8 @@ final class GraphDiagnoseCommand extends Command
             ['folders',    'Mail — folder list (delta)', self::BASE . '/me/mailFolders/delta',           [], true],
             ['messages',   'Mail — first message',       self::BASE . '/me/messages?$top=1&$select=id',  ['Prefer' => 'IdType="ImmutableId"'], true],
             ['categories', 'Categories — master list',   self::BASE . '/me/outlook/masterCategories',    [], false],
+            // Optional the same way: without Tasks.ReadWrite only To Do is missing.
+            ['todo',       'Tasks — To Do lists',        self::BASE . '/me/todo/lists',                  [], false],
             ['Me', 'Infos about met',   self::BASE . '/me?$select=mail,userPrincipalName,proxyAddresses,otherMails,displayName',    [], false],
         ];
 

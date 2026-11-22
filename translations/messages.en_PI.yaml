@@ -609,7 +609,7 @@ admin:
                 come aboard with the same boardin' they already use for mail.
                 Without it, mail sails on an' the almanacs simply never appear.
             consent_heading: 'If yer fleet approves apps for its crew'
-            consent_microsoft: 'Some Microsoft 365 fleets don''t let the crew approve apps themselves: an admiral approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval don''t cover, so Microsoft turns away every sign-in to plMail, mail and all, till it be approved again. Before any hand signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and fleets where the crew approve apps themselves, be not affected.'
+            consent_microsoft: 'Some Microsoft 365 fleets don''t let the crew approve apps themselves: an admiral approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite and Tasks.ReadWrite, which that approval don''t cover, so Microsoft turns away every sign-in to plMail, mail and all, till it be approved again. Before any hand signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and fleets where the crew approve apps themselves, be not affected.'
             contacts_google: >-
                 Hoist the Google People API for this project and add the
                 .../auth/contacts scope to the consent screen — the crew then
@@ -617,6 +617,8 @@ admin:
                 came aboard earlier are asked once, in their settings, to sign
                 in again. Without it, post and almanacs sail on and the
                 shipmates simply stay ashore.
+            tasks_heading: 'Microsoft To Do sails under this same charter'
+            tasks_microsoft: 'Add the Tasks.ReadWrite delegated permission to this app registration — the crew then get their To Do lists with the same sign-in. Accounts that came aboard before are asked once, in their settings, to sign in again. Without it, mail, charts and shipmates sail on and To Do lists simply cannot be mustered.'
             contacts_heading: 'The crew rolls sail under this same charter'
             contacts_microsoft: >-
                 Add the Contacts.ReadWrite delegated permission to this app
@@ -4132,6 +4134,9 @@ settings:
                     on unharmed. Sign aboard once more and allow the shipmates,
                     and the crew roll appears under Shipmates.
                 title: 'Bring %account% aboard again to muster its shipmates'
+            account_tasks_scope_missing:
+                body: 'plMail can now keep this vessel''s Microsoft To Do lists, but %account% came aboard before it asked. Post, charts and shipmates sail on unharmed. Sign aboard once more and allow the tasks, and its lists can be mustered under Tasks.'
+                title: 'Bring %account% aboard again to muster its Microsoft To Do lists'
             account_scope_missing:
                 body: >-
                     Some leave plMail asked for when ye signed this account on
@@ -4288,6 +4293,9 @@ settings:
                 promise: >-
                     Tries th'' abandoned tasks once more. Safe t'' press — any
                     that fail again just wash back up here.
+            grant_tasks:
+                label: 'Allow the tasks'
+                promise: 'Sends ye back to the harbourmaster to sign aboard as %account% and allow the tasks. Yer post stays as it is, and nothing is hauled aboard twice.'
             grant_contacts:
                 label: 'Allow the shipmates'
                 promise: >-
@@ -5855,6 +5863,7 @@ tasks:
     step_completed: 'Step done.'
     step_reopened: 'Step reopened.'
     advanced: 'Done. The task moved to its next date.'
+    advanced_remote: 'Done. Microsoft To Do moves it to its next date once the word reaches it.'
     title: 'Tasks to do'
     default_list: 'Tasks to do'
     new: 'New task'
@@ -5908,6 +5917,7 @@ tasks:
         notes: 'Notes'
         due_date: 'Due date'
         due_time: 'Time (optional)'
+        due_day_only: 'Microsoft To Do keeps the day only, so a due date here has no hour. Use a reminder for the hour.'
         save: 'Stow'
         delete: 'Scuttle'
     lists:

@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { acceptConfirm } from "./support/confirm";
+import { choose } from "./support/select";
 import { test } from "./support/test";
 
 /**
@@ -178,7 +179,7 @@ test.describe("tasks pane on a notebook", () => {
         // Regression guard: choosing a date moves the focus off the field, and the
         // title and the date must both still be there to send.
         await options.getByRole("button", { name: "Repeat" }).click();
-        await options.getByRole("combobox", { name: "Repeat" }).selectOption("weekly");
+        await choose(options.locator("#tasks-quick-repeat"), "Repeat", "Every week");
         await quickAdd(page).press("Enter");
 
         // Ready for the next one straight away.
@@ -226,7 +227,7 @@ test.describe("tasks pane on a notebook", () => {
         // The row behind the dialog has caught up already, so Cancel would not leave it stale.
         await expect(row.getByText("1 of 1")).toBeAttached();
 
-        await modal(page).getByLabel("Repeat").selectOption("weekly");
+        await choose(modal(page), "Repeat", "Every week");
         await modal(page).getByRole("button", { name: "Save" }).click();
         await expect(modal(page)).toBeHidden();
 

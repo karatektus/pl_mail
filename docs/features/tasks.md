@@ -106,8 +106,29 @@ the server shows a padlock, and nothing on it can be changed here.
 
 Unticking a list removes it and its tasks from plMail. They stay on the server.
 
-Microsoft To Do, Google Tasks and plMail's own CalDAV and JMAP servers do not carry tasks yet, so
-lists that live only in plMail do not reach your phone.
+### Microsoft To Do
+
+A Microsoft account connected for mail or calendars brings its To Do lists with the same sign-in:
+the circling arrows offer the account beside any CalDAV connection, with **Tasks** ticked first. The
+**Flagged email** list is not offered, since flagged mail is already flagged here. An account
+connected before plMail asked for To Do gets a notice in **Settings → Account health** whose button
+signs in once more and adds it; the administrator first adds `Tasks.ReadWrite` to the app
+registration (see [Microsoft](../providers/microsoft.md)).
+
+Microsoft To Do works a little differently, and plMail follows it:
+
+- **A due date is a day.** To Do keeps no time of day, so the time field is greyed out on its lists.
+  The reminder keeps its time.
+- **Microsoft moves a repeating task on.** Ticking one off sends the tick; To Do then moves the task
+  to its next date and keeps a finished copy, and both arrive with the next sync.
+- **Steps are To Do's steps**, and travel with their task.
+- **Files stay in plMail.** Microsoft refused every file plMail tried to attach, so a file added here
+  is kept here, and files added in To Do stay there.
+- **Categories, importance, the start date and notes written as formatted text** stay as they are
+  in To Do when you edit a task here, as long as you do not change the notes.
+
+Google Tasks and plMail's own CalDAV and JMAP servers do not carry tasks yet, so lists that live only
+in plMail do not reach your phone.
 
 ## Commands
 
@@ -131,6 +152,11 @@ docker compose exec php php bin/console app:tasks:alerts --dry-run
 - **How other apps treat steps, repeats and links has not been tried against each app.** plMail
   follows the standard, but Nextcloud Tasks, tasks.org and Apple Reminders have not been tested
   against it yet. Try a list you can afford to lose first.
+- **A ticked repeating task on a To Do list shows as done until the next sync.** Microsoft moves it to
+  its next date when the tick arrives, and plMail learns of that with the next sync, which follows
+  within moments when the worker is running.
+- **Only a personal Microsoft account has been tried.** A work or school account should behave the
+  same, but has not been tested.
 - **Two apps can both remind you.** A reminder on a synced task can fire here and in another app that
   reads the same task.
 - **A task with no steps of its own can still be a step elsewhere.** A step nested more than one level

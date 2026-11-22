@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Task;
 
+use App\Domain\Enum\Account\AuthType;
+use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Task\TaskStatus;
 use App\Entity\Integration\Integration;
+use App\Entity\Mail\Account;
 use App\Entity\Task\Task;
 use App\Entity\Task\TaskAttachment;
 use App\Entity\Task\TaskList;
@@ -817,6 +820,35 @@ final class TaskControllerTest extends WebTestCase
         self::assertSame('2031-03-04', $crawler->filter('#task-due-date')->attr('value'));
         self::assertSame('Kept step', $crawler->filter('[data-tasks--new-steps-target="list"] input[name="steps[]"]')->first()->attr('value'));
         self::assertCount(2, $crawler->filter('[data-tasks--new-steps-target="list"] input[name="steps[]"]'), 'and one empty, for the next');
+    }
+
+    /** Microsoft To Do keeps the day only; a time offered there would be gone at the next sync. */
+    public function testOnAMicrosoftListTheDueTimeIsNotOffered(): void
+    {
+        $account                    = new Account();
+        $account->usr               = $this->user;
+        $account->name              = 'todo@example.test';
+        $account->username          = 'todo@example.test';
+        $account->email             = 'todo@example.test';
+        $account->authType          = AuthType::OAuth2->value;
+        $account->oauthProvider     = MailProvider::Microsoft->value;
+        $account->oauthAccessToken  = 'access-token';
+        $account->oauthRefreshToken = 'refresh-token';
+        $this->em->persist($account);
+
+        $list           = $this->list();
+        $list->account  = $account;
+        $list->remoteId = 'L1';
+        $this->em->flush();
+
+        $crawler = $this->client->request('GET', sprintf('/tasks/%d/edit', $this->task($list, 'To Do')->id));
+
+        self::assertNotNull($crawler->filter('#task-due-time')->attr('disabled'));
+        self::assertSelectorExists('#task-due-day-only');
+
+        $crawler = $this->client->request('GET', sprintf('/tasks/%d/edit', $this->task($this->list(), 'Local')->id));
+
+        self::assertNull($crawler->filter('#task-due-time')->attr('disabled'));
     }
 
     public function testTheDialogGoesInTheAgreedOrderForANewTaskAndASavedOne(): void

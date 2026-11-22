@@ -676,7 +676,7 @@ admin:
                 kommen dann mit derselben Anmeldung wie die E-Mails. Ohne das
                 funktioniert E-Mail weiter, die Kalender erscheinen einfach nicht.
             consent_heading: 'Wenn deine Organisation Apps für ihre Benutzer freigibt'
-            consent_microsoft: 'Manche Microsoft-365-Organisationen lassen Benutzer Apps nicht selbst freigeben: Ein Administrator hat plMail einmal freigegeben, für die Berechtigungen, die es damals verlangt hat. plMail fragt jetzt zusätzlich nach Contacts.ReadWrite, und das deckt diese Freigabe nicht ab. Microsoft lehnt deshalb jede Anmeldung bei plMail ab, auch für Mail, bis die Freigabe erneuert ist. Bevor sich jemand neu anmeldet: Öffne das Microsoft Entra Admin Center → Unternehmensanwendungen → plMail → Berechtigungen und wähle „Administratorzustimmung erteilen“. Private Microsoft-Konten und Organisationen, in denen Benutzer Apps selbst freigeben, sind nicht betroffen.'
+            consent_microsoft: 'Manche Microsoft-365-Organisationen lassen Benutzer Apps nicht selbst freigeben: Ein Administrator hat plMail einmal freigegeben, für die Berechtigungen, die es damals verlangt hat. plMail fragt jetzt zusätzlich nach Contacts.ReadWrite und Tasks.ReadWrite, und das deckt diese Freigabe nicht ab. Microsoft lehnt deshalb jede Anmeldung bei plMail ab, auch für Mail, bis die Freigabe erneuert ist. Bevor sich jemand neu anmeldet: Öffne das Microsoft Entra Admin Center → Unternehmensanwendungen → plMail → Berechtigungen und wähle „Administratorzustimmung erteilen“. Private Microsoft-Konten und Organisationen, in denen Benutzer Apps selbst freigeben, sind nicht betroffen.'
             contacts_google: >-
                 Aktiviere die Google People API für dieses Projekt und füge den
                 Scope .../auth/contacts zum Zustimmungsbildschirm hinzu — dann
@@ -684,6 +684,8 @@ admin:
                 die schon vorher verbunden waren, werden in ihren Einstellungen
                 einmal gebeten, sich neu anzumelden. Ohne das funktionieren Mail
                 und Kalender weiter, und Kontakte erscheinen einfach nicht.
+            tasks_heading: 'Microsoft To Do nutzt dieselbe App'
+            tasks_microsoft: 'Füge dieser App-Registrierung die delegierte Berechtigung Tasks.ReadWrite hinzu — Benutzer bekommen dann ihre To-Do-Listen mit derselben Anmeldung. Vorher verbundene Konten werden in ihren Einstellungen einmal gebeten, sich neu anzumelden. Ohne sie laufen Mail, Kalender und Kontakte weiter, und To-Do-Listen lassen sich einfach nicht abonnieren.'
             contacts_heading: 'Die Kontakt-Synchronisation nutzt dieselbe App'
             contacts_microsoft: >-
                 Füge dieser App-Registrierung die delegierte Berechtigung
@@ -4302,6 +4304,9 @@ settings:
                     betroffen. Melde dich einmal neu an und erlaube den Zugriff
                     auf Kontakte, dann erscheint sein Adressbuch unter Kontakte.
                 title: '%account% erneut verbinden, um seine Kontakte zu synchronisieren'
+            account_tasks_scope_missing:
+                body: 'plMail kann jetzt die Microsoft-To-Do-Listen dieses Kontos synchronisieren, aber %account% wurde verbunden, bevor plMail danach gefragt hat. Mail, Kalender und Kontakte sind nicht betroffen. Melde dich einmal neu an und erlaube den Zugriff auf Aufgaben, dann lassen sich seine Listen unter Aufgaben abonnieren.'
+                title: '%account% erneut verbinden, um seine Microsoft-To-Do-Listen zu synchronisieren'
             account_scope_missing:
                 body: >-
                     Einige Rechte, die plMail beim Verbinden dieses Kontos
@@ -4482,6 +4487,9 @@ settings:
                     Versucht die liegen gebliebenen Aufgaben noch einmal.
                     Unbedenklich — was erneut scheitert, landet einfach wieder
                     hier.
+            grant_tasks:
+                label: 'Aufgaben erlauben'
+                promise: 'Bringt dich zurück zum Anbieter, um dich als %account% anzumelden und den Zugriff auf Aufgaben zu erlauben. An deiner Mail ändert sich nichts, und keine Mail wird neu heruntergeladen.'
             grant_contacts:
                 label: 'Kontakte erlauben'
                 promise: >-
@@ -6091,6 +6099,7 @@ tasks:
     step_completed: 'Schritt erledigt.'
     step_reopened: 'Schritt wieder geöffnet.'
     advanced: 'Erledigt. Die Aufgabe ist auf ihren nächsten Termin gesprungen.'
+    advanced_remote: 'Erledigt. Microsoft To Do schiebt sie auf ihren nächsten Termin, sobald die Änderung dort ist.'
     title: 'Aufgaben'
     default_list: 'Aufgaben'
     new: 'Neue Aufgabe'
@@ -6144,6 +6153,7 @@ tasks:
         notes: 'Notizen'
         due_date: 'Fällig am'
         due_time: 'Uhrzeit (optional)'
+        due_day_only: 'Microsoft To Do speichert nur den Tag, eine Fälligkeit hat hier also keine Uhrzeit. Für die Uhrzeit gibt es die Erinnerung.'
         save: 'Speichern'
         delete: 'Löschen'
     lists:

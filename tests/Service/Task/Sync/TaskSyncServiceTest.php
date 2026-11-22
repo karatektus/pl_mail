@@ -270,6 +270,51 @@ final class TaskSyncServiceTest extends KernelTestCase
         self::assertSame('top', $bottom?->parent?->uid);
     }
 
+    /** How a remote with no uids of its own, Microsoft To Do, names a step's task. */
+    public function testAStepNamingItsTaskByRemoteIdIsPlacedUnderIt(): void
+    {
+        $parent             = $this->localTask('Mine', SyncState::Clean);
+        $parent->remoteId   = 'T1';
+        $parent->remoteEtag = '"same"';
+        $this->em->flush();
+
+        $this->pulls = [new TaskChangeSet([new RemoteTask('T1/C1', null, title: 'Step', parentUid: 'T1')], 't')];
+        $this->service()->sync($this->list);
+
+        self::assertSame($parent->id, $this->em->getRepository(Task::class)->findOneBy(['remoteId' => 'T1/C1'])?->parent?->id);
+    }
+
+    /** Regression guard: a delta names only the task, so a step dropped elsewhere would otherwise stay forever. */
+    public function testAStepTheTaskNoLongerNamesIsGone(): void
+    {
+        $parent           = $this->localTask('Mine', SyncState::Clean);
+        $parent->remoteId = 'T1';
+
+        $kept           = $this->localTask('Kept', SyncState::Clean);
+        $kept->remoteId = 'T1/C1';
+        $kept->parent   = $parent;
+
+        $dropped           = $this->localTask('Dropped', SyncState::Clean);
+        $dropped->remoteId = 'T1/C2';
+        $dropped->parent   = $parent;
+
+        $parent->steps->add($kept);
+        $parent->steps->add($dropped);
+        $this->em->flush();
+
+        $droppedId = $dropped->id;
+
+        $this->pulls = [new TaskChangeSet([
+            new RemoteTask('T1', '"2"', title: 'Mine', stepRemoteIds: ['T1/C1']),
+            new RemoteTask('T1/C1', null, title: 'Kept', parentUid: 'T1'),
+        ], 't')];
+
+        $this->service()->sync($this->list);
+
+        self::assertNull($this->em->find(Task::class, $droppedId));
+        self::assertSame(['Kept'], array_map(static fn (Task $step): string => $step->title, $parent->liveSteps()));
+    }
+
     public function testAStepWhoseParentNobodyHasStaysATaskRatherThanVanishing(): void
     {
         $this->pulls = [new TaskChangeSet([new RemoteTask('s', '"1"', uid: 'orphan', title: 'Orphan', parentUid: 'nowhere')], 't')];

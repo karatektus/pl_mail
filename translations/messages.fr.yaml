@@ -671,7 +671,7 @@ admin:
                 utilisent déjà pour le courrier. Sans cela, le courrier continue de
                 fonctionner et les agendas n’apparaissent simplement pas.
             consent_heading: 'Si votre organisation approuve les applications pour ses utilisateurs'
-            consent_microsoft: 'Certaines organisations Microsoft 365 ne laissent pas les utilisateurs approuver eux-mêmes les applications : un administrateur a approuvé plMail une fois, pour les autorisations qu''il demandait alors. plMail demande désormais aussi Contacts.ReadWrite, que cette approbation ne couvre pas ; Microsoft refuse donc toute connexion à plMail, messagerie comprise, jusqu''à une nouvelle approbation. Avant que quiconque se reconnecte, ouvrez le centre d''administration Microsoft Entra → Applications d''entreprise → plMail → Autorisations et choisissez « Accorder le consentement administrateur ». Les comptes Microsoft personnels et les organisations où les utilisateurs approuvent eux-mêmes les applications ne sont pas concernés.'
+            consent_microsoft: 'Certaines organisations Microsoft 365 ne laissent pas les utilisateurs approuver eux-mêmes les applications : un administrateur a approuvé plMail une fois, pour les autorisations qu''il demandait alors. plMail demande désormais aussi Contacts.ReadWrite et Tasks.ReadWrite, que cette approbation ne couvre pas ; Microsoft refuse donc toute connexion à plMail, messagerie comprise, jusqu''à une nouvelle approbation. Avant que quiconque se reconnecte, ouvrez le centre d''administration Microsoft Entra → Applications d''entreprise → plMail → Autorisations et choisissez « Accorder le consentement administrateur ». Les comptes Microsoft personnels et les organisations où les utilisateurs approuvent eux-mêmes les applications ne sont pas concernés.'
             contacts_google: >-
                 Activez l’API Google People pour ce projet et ajoutez le scope
                 .../auth/contacts à l’écran de consentement : les utilisateurs
@@ -680,6 +680,8 @@ admin:
                 réglages, à se reconnecter. Sans cela, le courrier et les
                 agendas continuent de fonctionner et les contacts n’apparaissent
                 simplement pas.
+            tasks_heading: 'Microsoft To Do utilise cette même application'
+            tasks_microsoft: 'Ajoutez l’autorisation déléguée Tasks.ReadWrite à cet enregistrement d’application — les utilisateurs obtiennent alors leurs listes To Do avec la même connexion. Les comptes connectés auparavant sont invités une fois, dans leurs réglages, à se reconnecter. Sans elle, le courrier, les agendas et les contacts continuent de fonctionner, et les listes To Do ne peuvent simplement pas être suivies.'
             contacts_heading: 'La synchronisation des contacts utilise cette même application'
             contacts_microsoft: >-
                 Ajoutez l’autorisation déléguée Contacts.ReadWrite à cet
@@ -4360,6 +4362,9 @@ settings:
                     Reconnectez-vous une fois et autorisez les contacts : son
                     carnet d’adresses apparaîtra dans Contacts.
                 title: 'Reconnectez %account% pour synchroniser ses contacts'
+            account_tasks_scope_missing:
+                body: 'plMail peut désormais synchroniser les listes Microsoft To Do de ce compte, mais %account% a été connecté avant qu’il ne les demande. Le courrier, les agendas et les contacts ne sont pas concernés. Reconnectez-vous une fois et autorisez les tâches : ses listes pourront être suivies dans Tâches.'
+                title: 'Reconnectez %account% pour synchroniser ses listes Microsoft To Do'
             account_scope_missing:
                 body: >-
                     Certaines des autorisations demandées par plMail à la connexion de ce
@@ -4523,6 +4528,9 @@ settings:
                 promise: >-
                     Réessaie une fois les tâches abandonnées. Sans risque — celles qui
                     échouent encore reviennent simplement ici.
+            grant_tasks:
+                label: 'Autoriser les tâches'
+                promise: 'Vous ramène chez le fournisseur pour vous connecter en tant que %account% et autoriser les tâches. Rien ne change pour votre courrier, et aucun message n’est retéléchargé.'
             grant_contacts:
                 label: 'Autoriser les contacts'
                 promise: >-
@@ -6120,6 +6128,7 @@ tasks:
     step_completed: 'Étape terminée.'
     step_reopened: 'Étape rouverte.'
     advanced: 'Terminé. La tâche passe à sa prochaine date.'
+    advanced_remote: 'Terminé. Microsoft To Do la passe à sa prochaine date dès que la modification lui parvient.'
     title: 'Tâches'
     default_list: 'Tâches'
     new: 'Nouvelle tâche'
@@ -6173,6 +6182,7 @@ tasks:
         notes: 'Notes'
         due_date: 'Échéance'
         due_time: 'Heure (facultatif)'
+        due_day_only: 'Microsoft To Do ne garde que le jour : une échéance n’a donc pas d’heure ici. Utilisez un rappel pour l’heure.'
         save: 'Enregistrer'
         delete: 'Supprimer'
     lists:

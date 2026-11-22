@@ -581,8 +581,10 @@ admin:
             calendar_google: '此处无需设置。为此项目启用 Google Calendar API，并在授权页面添加 .../auth/calendar 权限范围；用户即可通过现有邮件登录访问日历。未配置时邮件仍可使用，只是不会显示日历。'
             calendar_microsoft: '此处无需设置。为此应用注册添加 Calendars.ReadWrite 委托权限；用户即可通过现有邮件登录访问日历。未配置时邮件仍可使用，只是不会显示日历。'
             consent_heading: "如果你的组织为用户审批应用"
-            consent_microsoft: "部分 Microsoft 365 组织不允许用户自行批准应用：管理员此前批准 plMail 时，仅授予了当时请求的权限。plMail 现在还请求 Contacts.ReadWrite，原来的批准并未涵盖此权限，因此在重新批准前，Microsoft 会拒绝所有 plMail 登录，包括邮件登录。在用户重新登录前，请打开 Microsoft Entra 管理中心 → 企业应用程序 → plMail → 权限，选择“授予管理员同意”。个人 Microsoft 账户和允许用户自行批准应用的组织不受影响。"
+            consent_microsoft: "部分 Microsoft 365 组织不允许用户自行批准应用：管理员此前批准 plMail 时，仅授予了当时请求的权限。plMail 现在还请求 Contacts.ReadWrite 和 Tasks.ReadWrite，原来的批准并未涵盖这些权限，因此在重新批准前，Microsoft 会拒绝所有 plMail 登录，包括邮件登录。在用户重新登录前，请打开 Microsoft Entra 管理中心 → 企业应用程序 → plMail → 权限，选择“授予管理员同意”。个人 Microsoft 账户和允许用户自行批准应用的组织不受影响。"
             contacts_google: "为此项目启用 Google People API，并在同意屏幕中添加 .../auth/contacts 权限范围，用户即可通过同一次登录同步联系人。此前已连接的账户会在设置中被要求重新登录一次。未启用时，邮件和日历仍可正常使用，只是不显示联系人。"
+            tasks_heading: 'Microsoft To Do 使用同一应用'
+            tasks_microsoft: '为此应用注册添加 Tasks.ReadWrite 委托权限，用户即可通过同一次登录同步 To Do 列表。此前已连接的账户会在设置中被要求重新登录一次。未添加时，邮件、日历和联系人仍可正常使用，只是无法订阅 To Do 列表。'
             contacts_heading: "联系人同步使用同一应用"
             contacts_microsoft: "为此应用注册添加 Contacts.ReadWrite 委托权限，用户即可通过同一次登录同步 Outlook 联系人。此前已连接的账户会在设置中被要求重新登录一次。未添加时，邮件和日历仍可正常使用，只是不显示联系人。"
             env_note: '留空则使用环境中的 GOOGLE_OAUTH_* / MICROSOFT_OAUTH_*，已通过环境配置的部署可继续正常运行。'
@@ -3815,6 +3817,9 @@ settings:
             account_contacts_scope_missing:
                 body: "plMail 现在可以同步此账户的联系人，但连接 %account% 时尚未请求联系人权限。邮件和日历不受影响。请重新登录一次并允许访问联系人，其通讯录就会出现在“联系人”中。"
                 title: "重新连接 %account% 以同步联系人"
+            account_tasks_scope_missing:
+                body: 'plMail 现在可以同步此账户的 Microsoft To Do 列表，但连接 %account% 时尚未请求任务权限。邮件、日历和联系人不受影响。请重新登录一次并允许访问任务，之后即可在“任务”中订阅其列表。'
+                title: '重新连接 %account% 以同步其 Microsoft To Do 列表'
             account_scope_missing:
                 body: '连接此账户时，plMail 请求的部分权限未获授权，因此相关功能无法使用。日历可能无法同步；你在此处执行的标为已读、归档、加星标等更改可能会在界面上生效，却被服务商拒绝，并在下次同步时撤销。请重新连接账户，并允许请求的所有权限。'
                 title: '%account% 未获完整访问权限'
@@ -3880,6 +3885,9 @@ settings:
             queue_retry:
                 label: '重新加入队列'
                 promise: '再次尝试已放弃的任务。可以放心点击；再次失败的任务只会重新出现在这里。'
+            grant_tasks:
+                label: '允许访问任务'
+                promise: '前往服务商页面，以 %account% 登录并允许访问任务。邮件不会改变，也不会重新下载。'
             grant_contacts:
                 label: "允许访问联系人"
                 promise: "前往服务商页面，以 %account% 登录并允许访问联系人。邮件不会改变，也不会重新下载。"
@@ -5312,6 +5320,7 @@ tasks:
     step_completed: '步骤已完成。'
     step_reopened: '步骤已重新打开。'
     advanced: '已完成。任务已移到下一个日期。'
+    advanced_remote: '已完成。更改同步到 Microsoft To Do 后，它会移到下一个日期。'
     title: '任务'
     default_list: '任务'
     new: '新建任务'
@@ -5365,6 +5374,7 @@ tasks:
         notes: '备注'
         due_date: '截止日期'
         due_time: '时间(可选)'
+        due_day_only: 'Microsoft To Do 只保存日期，因此此处的截止日期没有时间。如需时间，请使用提醒。'
         save: '保存'
         delete: '删除'
     lists:

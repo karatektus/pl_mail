@@ -117,6 +117,9 @@ final readonly class TaskWriter
      * to its next date, opens its steps again and leaves a finished entry for the
      * occurrence just done. See TaskRecurrence, and Task::$occurrenceOf.
      *
+     * On a list whose remote does that itself (TaskList::remoteAdvancesRepeats())
+     * it is only ticked: the remote moves it on when the tick arrives.
+     *
      * @throws TaskListReadOnlyException
      */
     public function complete(Task $task, ?DateTimeImmutable $now = null): void
@@ -129,6 +132,7 @@ final readonly class TaskWriter
         $entry = $this->occurrenceEntry($task, $now);
 
         if (false === $task->isStep()
+            && false === $task->taskList->remoteAdvancesRepeats()
             && true === $this->recurrence->advance($task, $now, $this->time->zoneFor($task->usr))) {
             $this->em->persist($entry);
 
@@ -377,7 +381,7 @@ final readonly class TaskWriter
             return;
         }
 
-        if ('' !== trim($draft->dueTime)) {
+        if ('' !== trim($draft->dueTime) && true === $task->taskList->keepsDueTime()) {
             $local = $this->time->parseDateTime(sprintf('%sT%s', trim($draft->dueDate), trim($draft->dueTime)), $zone);
 
             if (null !== $local) {

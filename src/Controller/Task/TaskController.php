@@ -173,7 +173,11 @@ final class TaskController extends AbstractController
                 // Still open after a tick is a repeating task on its next date, and
                 // saying "completed" over a row that is still there would read as a
                 // tick that did not take.
-                $message = true === $task->status->isOpen() ? 'tasks.advanced' : 'tasks.completed';
+                $message = match (true) {
+                    true === $task->status->isOpen() => 'tasks.advanced',
+                    null !== $task->recurrenceRule && true === $task->taskList->remoteAdvancesRepeats() => 'tasks.advanced_remote',
+                    default => 'tasks.completed',
+                };
             } else {
                 $message = true === $task->isOccurrence() ? 'tasks.occurrence_undone' : 'tasks.reopened';
 

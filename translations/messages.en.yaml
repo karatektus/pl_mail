@@ -666,7 +666,7 @@ admin:
                 Without it, mail keeps working and calendars simply do not
                 appear.
             consent_heading: 'If your organisation approves apps for its users'
-            consent_microsoft: 'Some Microsoft 365 organisations do not let users approve apps themselves: an administrator approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval does not cover, so Microsoft refuses every sign-in to plMail, mail included, until it is approved again. Before anyone signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and organisations where users approve apps themselves, are not affected.'
+            consent_microsoft: 'Some Microsoft 365 organisations do not let users approve apps themselves: an administrator approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite and Tasks.ReadWrite, which that approval does not cover, so Microsoft refuses every sign-in to plMail, mail included, until it is approved again. Before anyone signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and organisations where users approve apps themselves, are not affected.'
             contacts_google: >-
                 Enable the Google People API for this project and add the
                 .../auth/contacts scope to the consent screen — users then get
@@ -674,6 +674,8 @@ admin:
                 are asked once, in their settings, to sign in again. Without it,
                 mail and calendars keep working and contacts simply do not
                 appear.
+            tasks_heading: 'Microsoft To Do uses this same app'
+            tasks_microsoft: 'Add the Tasks.ReadWrite delegated permission to this app registration — users then get their To Do lists with the same sign-in. Accounts connected before are asked once, in their settings, to sign in again. Without it, mail, calendars and contacts keep working and To Do lists simply cannot be subscribed to.'
             contacts_heading: 'Contact sync uses this same app'
             contacts_microsoft: >-
                 Add the Contacts.ReadWrite delegated permission to this app
@@ -4304,6 +4306,9 @@ settings:
                     are not affected. Sign in once more and allow contacts, and
                     its address book appears under Contacts.
                 title: 'Connect %account% again to sync its contacts'
+            account_tasks_scope_missing:
+                body: 'plMail can now sync this account''s Microsoft To Do lists, but %account% was connected before it asked for them. Mail, calendars and contacts are not affected. Sign in once more and allow tasks, and its lists can be subscribed to under Tasks.'
+                title: 'Connect %account% again to sync its Microsoft To Do lists'
             account_scope_missing:
                 body: >-
                     Some of the permissions plMail asked for when this account
@@ -4469,6 +4474,9 @@ settings:
                 promise: >-
                     Tries the abandoned jobs once more. Safe to press — any
                     that fail again simply end up back here.
+            grant_tasks:
+                label: 'Allow tasks'
+                promise: 'Takes you back to the provider to sign in as %account% and allow tasks. Nothing about your mail changes, and no mail is re-downloaded.'
             grant_contacts:
                 label: 'Allow contacts'
                 promise: >-
@@ -6084,6 +6092,7 @@ tasks:
     step_completed: 'Step completed.'
     step_reopened: 'Step reopened.'
     advanced: 'Done. The task moved to its next date.'
+    advanced_remote: 'Done. Microsoft To Do moves it to its next date once the change arrives.'
     title: 'Tasks'
     default_list: 'Tasks'
     new: 'New task'
@@ -6137,6 +6146,7 @@ tasks:
         notes: 'Notes'
         due_date: 'Due date'
         due_time: 'Time (optional)'
+        due_day_only: 'Microsoft To Do keeps the day only, so a due date here has no time. Use a reminder for the time.'
         save: 'Save'
         delete: 'Delete'
     lists:

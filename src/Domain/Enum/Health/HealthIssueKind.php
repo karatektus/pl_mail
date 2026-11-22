@@ -82,6 +82,13 @@ enum HealthIssueKind: string
     case AccountContactsScopeMissing = 'account_contacts_scope_missing';
 
     /**
+     * AccountContactsScopeMissing again, for Microsoft To Do: Tasks.ReadWrite was
+     * asked for after the account was connected, so nothing was refused and the
+     * card is a notice with the same one-reconnect repair.
+     */
+    case AccountTasksScopeMissing = 'account_tasks_scope_missing';
+
+    /**
      * The mailbox itself has stopped syncing, repeatedly, for a reason that is
      * not the sign-in.
      *
@@ -227,6 +234,7 @@ enum HealthIssueKind: string
             // teach people to read past both.
             self::AccountScopeMissing  => HealthSeverity::Warning,
             self::AccountContactsScopeMissing => HealthSeverity::Notice,
+            self::AccountTasksScopeMissing    => HealthSeverity::Notice,
             // Critical: this one means new mail is not arriving, which is the
             // application not doing its job rather than a part of it missing.
             self::AccountSyncFailing   => HealthSeverity::Critical,
@@ -288,6 +296,7 @@ enum HealthIssueKind: string
             // A permission that was not given, rather than a link that broke.
             self::AccountScopeMissing  => 'fa-calendar-day',
             self::AccountContactsScopeMissing => 'fa-address-book',
+            self::AccountTasksScopeMissing    => 'fa-list-check',
             self::AccountSyncFailing   => 'fa-inbox',
             self::AccountSyncBehind    => 'fa-hourglass-half',
             self::ServerAlert          => 'fa-bullhorn',

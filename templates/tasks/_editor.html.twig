@@ -31,6 +31,7 @@ Accepts:
   paneUrl     string|null, set after a step or a file changed
   posted      array, what the form sent when the dialog is its answer, to put back
 #}
+{% import '_partials/_select.html.twig' as select %}
 {% set params = query.toParameters() %}
 {% set posted = posted|default({}) %}
 {% set field = 'w-full rounded-lg border border-line bg-field px-3 py-2 text-sm text-ink placeholder:text-ink-faint' %}
@@ -162,16 +163,23 @@ Accepts:
                 <label class="{{ label }}" for="task-due-time">{{ 'tasks.editor.due_time'|trans }}</label>
                 <input id="task-due-time" type="time" name="dueTime" form="task-editor"
                        value="{{ posted.dueTime ?? (task and task.dueAt ? task.dueAt|date('H:i', zone) : '') }}"
-                       {% if readOnly %}disabled{% endif %}
+                       {% if readOnly or not list.keepsDueTime %}disabled{% endif %}
+                       {% if not list.keepsDueTime %}aria-describedby="task-due-day-only"{% endif %}
                        class="{{ field }}">
             </div>
+            {# Offered and then lost at the next sync would be worse than not offered. #}
+            {% if not list.keepsDueTime %}
+                <p id="task-due-day-only" class="col-span-2 -mt-1 text-xs text-ink-muted">{{ 'tasks.editor.due_day_only'|trans }}</p>
+            {% endif %}
         </div>
 
         {% if isWhole %}
             {% set choice = posted.recurrence ?? (task ? task.recurrenceChoice : '') %}
             <div data-editor-part="repeat">
                 <label class="{{ label }}" for="task-recurrence">{{ 'tasks.editor.repeat'|trans }}</label>
-                <select id="task-recurrence" name="recurrence" form="task-editor" {% if readOnly %}disabled{% endif %} class="{{ field }}">
+                <select id="task-recurrence" name="recurrence" form="task-editor" {% if readOnly %}disabled{% endif %}
+                        {{ select.enhance() }}
+                        class="select-field w-full h-9 text-sm">
                     <option value="">{{ 'tasks.editor.repeat_none'|trans }}</option>
                     {% for option in constant('App\\Entity\\Task\\Task::RECURRENCE_RULES')|keys %}
                         <option value="{{ option }}" {% if choice == option %}selected{% endif %}>{{ ('tasks.editor.repeat_' ~ option)|trans }}</option>

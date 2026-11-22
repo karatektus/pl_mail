@@ -58,6 +58,7 @@ the set as a whole; unlike Google there is no partial grant to handle.
 | `MailboxSettings.ReadWrite` | Master categories, at `/me/outlook/masterCategories`. These are **not** covered by `Mail.ReadWrite`: they live under the Outlook user-settings resource and return `ErrorAccessDenied` without this. ReadWrite rather than Read because plMail creates category definitions when a label is mirrored. |
 | `Calendars.ReadWrite` | Calendars on the same account, read and write. |
 | `Contacts.ReadWrite` | Outlook contacts on the same account, read and write: each contact folder is an address book. |
+| `Tasks.ReadWrite` | Microsoft To Do lists on the same account, read and write. Asked for with the calendars. |
 
 Two of them are worth understanding before you decide to skip one.
 
@@ -106,6 +107,14 @@ not remove it, so a photo removed in plMail stays in Outlook.
 An account connected before plMail asked for contacts holds a token without the permission. Mail
 and calendars carry on, and **Settings → Account health** shows a notice whose button signs in once more
 and adds it.
+
+### To Do is on the same sign-in too
+
+`Tasks.ReadWrite` rides the same grant, asked for whenever the calendars are. A Microsoft account
+connected to plMail can then have its To Do lists subscribed to beside the mail — see
+[Tasks](../features/tasks.md#microsoft-to-do), which also says where To Do differs. Without the
+permission, mail, calendars and contacts carry on and the account is simply not offered for tasks;
+one connected before plMail asked for it gets the same kind of notice as for contacts.
 
 ## The tenant value
 
@@ -199,7 +208,7 @@ misconfiguration here.
 usable; it is displayed once and cannot be retrieved afterwards, only replaced.
 
 **Adding a permission does not upgrade tokens that already exist.** A user who connected before you
-added `Calendars.ReadWrite`, `Contacts.ReadWrite` or `MailboxSettings.ReadWrite` holds a token that
+added `Calendars.ReadWrite`, `Contacts.ReadWrite`, `Tasks.ReadWrite` or `MailboxSettings.ReadWrite` holds a token that
 does not carry it, and no amount of waiting changes that. The account has to sign in again so a
 fresh consent issues a new token — the reconnect button in **Settings → Account health** does that without
 removing the account, and `app:graph:diagnose` says so explicitly when it finds the gap.
@@ -207,7 +216,7 @@ removing the account, and `app:graph:diagnose` says so explicitly when it finds 
 **An organisation that approves apps for its users refuses every sign-in after an upgrade that
 adds a permission.** In a tenant where users may not consent to apps themselves, an administrator
 approved plMail once, for the permissions it asked for then. A plMail version that asks for one
-more (`Contacts.ReadWrite`, when contact sync arrived) is refused at sign-in, mail included, with
+more (`Contacts.ReadWrite` when contact sync arrived, `Tasks.ReadWrite` with To Do) is refused at sign-in, mail included, with
 `AADSTS65001` or `AADSTS90094`, until the administrator approves again: **Microsoft Entra admin
 centre → Enterprise applications → plMail → Permissions → Grant admin consent**. Do it before
 upgrading, or before anyone reconnects. The sign-in error tells the user to ask their administrator,

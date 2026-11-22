@@ -1,4 +1,4 @@
-<!-- translated-from: providers/microsoft.md sha1:3e529992d3beed2d19d98f73d09643bf23bb54af -->
+<!-- translated-from: providers/microsoft.md sha1:239dfe28a7c8623d5d751bfe304a14ac39835ae0 -->
 
 # Microsoft
 
@@ -67,6 +67,7 @@ stimmt dem Satz als Ganzem zu; anders als bei Google gibt es keine Teilerteilung
 | `MailboxSettings.ReadWrite` | Master-Kategorien, unter `/me/outlook/masterCategories`. Diese sind **nicht** von `Mail.ReadWrite` abgedeckt: Sie liegen unter der Outlook-Ressource für Benutzereinstellungen und liefern ohne diese Berechtigung `ErrorAccessDenied`. ReadWrite statt Read, weil plMail Kategoriedefinitionen anlegt, wenn ein Label gespiegelt wird. |
 | `Calendars.ReadWrite` | Kalender auf demselben Konto, lesend und schreibend. |
 | `Contacts.ReadWrite` | Outlook-Kontakte auf demselben Konto, lesend und schreibend: Jeder Kontaktordner ist ein Adressbuch. |
+| `Tasks.ReadWrite` | Microsoft-To-Do-Listen auf demselben Konto, lesend und schreibend. Wird mit den Kalendern verlangt. |
 
 Zwei davon lohnen ein genaueres Verständnis, bevor du dich entscheidest, eine wegzulassen.
 
@@ -119,6 +120,14 @@ Outlook.
 Ein Konto, das verbunden wurde, bevor plMail nach Kontakten gefragt hat, hält ein Token ohne die
 Berechtigung. Mail und Kalender laufen weiter, und **Einstellungen → Zustand der Konten** zeigt einen Hinweis,
 dessen Knopf dich noch einmal anmeldet und sie ergänzt.
+
+### To Do hängt ebenfalls an derselben Anmeldung
+
+`Tasks.ReadWrite` reist auf derselben Freigabe und wird immer mit den Kalendern verlangt. Die To-Do-Listen eines
+mit plMail verbundenen Microsoft-Kontos lassen sich dann neben der Mail abonnieren — siehe
+[Aufgaben](../features/tasks.md#microsoft-to-do), wo auch steht, worin To Do sich unterscheidet. Ohne die
+Berechtigung laufen Mail, Kalender und Kontakte weiter, und das Konto wird für Aufgaben einfach nicht angeboten;
+eines, das verbunden wurde, bevor plMail danach gefragt hat, bekommt denselben Hinweis wie bei den Kontakten.
 
 ## Der Tenant-Wert
 
@@ -220,7 +229,7 @@ der Value ist brauchbar; er wird einmal angezeigt und lässt sich danach nicht m
 ersetzen.
 
 **Eine Berechtigung hinzuzufügen wertet bestehende Tokens nicht auf.** Wer sich verbunden hat, bevor
-du `Calendars.ReadWrite`, `Contacts.ReadWrite` oder `MailboxSettings.ReadWrite` ergänzt hast, hält
+du `Calendars.ReadWrite`, `Contacts.ReadWrite`, `Tasks.ReadWrite` oder `MailboxSettings.ReadWrite` ergänzt hast, hält
 ein Token, das sie nicht trägt, und daran ändert kein Abwarten etwas. Das Konto muss sich neu
 anmelden, damit eine frische Zustimmung ein neues Token ausstellt — der Knopf zum erneuten Verbinden
 unter **Einstellungen → Zustand der Konten** tut das, ohne das Konto zu entfernen, und `app:graph:diagnose` sagt
@@ -230,7 +239,7 @@ es ausdrücklich, wenn es die Lücke findet.
 Berechtigung jede Anmeldung ab.** In einem Tenant, in dem Benutzer Apps nicht selbst zustimmen
 dürfen, hat ein Administrator plMail einmal freigegeben, für die Berechtigungen, die es damals
 verlangt hat. Eine plMail-Version, die eine weitere verlangt (`Contacts.ReadWrite`, seit es die
-Kontaktsynchronisierung gibt), wird bei der Anmeldung abgelehnt, auch für Mail, mit `AADSTS65001`
+Kontaktsynchronisierung gibt, `Tasks.ReadWrite` mit To Do), wird bei der Anmeldung abgelehnt, auch für Mail, mit `AADSTS65001`
 oder `AADSTS90094`, bis der Administrator erneut zustimmt: **Microsoft Entra Admin Center →
 Unternehmensanwendungen → plMail → Berechtigungen → Administratorzustimmung erteilen**. Tu das vor
 dem Update oder bevor sich jemand neu verbindet. Die Fehlermeldung bei der Anmeldung sagt dem

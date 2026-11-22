@@ -20,7 +20,11 @@ use DateTimeImmutable;
 final readonly class RemoteTask
 {
     /**
-     * @param list<array{url: string, filename: string}> $links files elsewhere
+     * @param list<array{url: string, filename: string}> $links         files elsewhere
+     * @param list<string>|null                          $stepRemoteIds every step the remote says this task has,
+     *                                                                  when it says so with the task — then one
+     *                                                                  missing from it is gone. Null when steps
+     *                                                                  travel on their own, as on CalDAV.
      */
     public function __construct(
         public string             $remoteId,
@@ -43,6 +47,7 @@ final readonly class RemoteTask
         public int                $position = 0,
         public ?string            $payload = null,
         public array              $links = [],
+        public ?array             $stepRemoteIds = null,
     ) {}
 
     public static function deleted(string $remoteId): self

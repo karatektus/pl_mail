@@ -1,4 +1,4 @@
-<!-- translated-from: features/tasks.md sha1:e5a4c7a686ada094cc548b47f55c4fa2de6f3440 -->
+<!-- translated-from: features/tasks.md sha1:3e04af3e9f7bad04bcdb5d933b3b8683ddcbba9c -->
 
 # Aufgaben
 
@@ -117,8 +117,30 @@ dem Server nur lesen darfst, trägt ein Schloss, und nichts darauf lässt sich h
 Wenn du das Häkchen bei einer Liste entfernst, verschwinden sie und ihre Aufgaben aus plMail. Auf dem Server
 bleiben sie erhalten.
 
-Microsoft To Do, Google Tasks sowie plMails eigene CalDAV- und JMAP-Server führen noch keine Aufgaben. Listen, die
-nur in plMail liegen, erreichen dein Telefon also nicht.
+### Microsoft To Do
+
+Ein Microsoft-Konto, das für Mail oder Kalender verbunden ist, bringt seine To-Do-Listen mit derselben Anmeldung
+mit: Die kreisenden Pfeile bieten das Konto neben jeder CalDAV-Verbindung an, mit **Aufgaben** als erster Liste.
+Die Liste **Gekennzeichnete E-Mail** wird nicht angeboten, weil gekennzeichnete Mail hier schon gekennzeichnet ist.
+Ein Konto, das verbunden wurde, bevor plMail nach To Do gefragt hat, bekommt unter **Einstellungen → Zustand der
+Konten** einen Hinweis, dessen Knopf dich noch einmal anmeldet und den Zugriff ergänzt; vorher trägt der
+Administrator `Tasks.ReadWrite` in der App-Registrierung nach (siehe [Microsoft](../providers/microsoft.md)).
+
+Microsoft To Do funktioniert ein wenig anders, und plMail folgt ihm:
+
+- **Eine Fälligkeit ist ein Tag.** To Do speichert keine Uhrzeit, deshalb ist das Uhrzeitfeld bei seinen Listen
+  ausgegraut. Die Erinnerung behält ihre Uhrzeit.
+- **Microsoft schaltet eine wiederkehrende Aufgabe weiter.** Hakst du eine ab, geht der Haken an To Do; To Do
+  schiebt die Aufgabe dann auf ihren nächsten Termin und behält eine erledigte Kopie, und beides kommt mit dem
+  nächsten Abgleich an.
+- **Schritte sind die Schritte von To Do** und reisen mit ihrer Aufgabe.
+- **Dateien bleiben in plMail.** Microsoft hat jede Datei abgelehnt, die plMail anhängen wollte. Eine hier
+  hinzugefügte Datei bleibt also hier, und Dateien aus To Do bleiben dort.
+- **Kategorien, Wichtigkeit, Beginn und formatiert geschriebene Notizen** bleiben in To Do, wie sie sind, wenn du
+  eine Aufgabe hier bearbeitest, solange du die Notizen nicht änderst.
+
+Google Tasks sowie plMails eigene CalDAV- und JMAP-Server führen noch keine Aufgaben. Listen, die nur in plMail
+liegen, erreichen dein Telefon also nicht.
 
 ## Befehle
 
@@ -144,6 +166,11 @@ docker compose exec php php bin/console app:tasks:alerts --dry-run
 - **Wie andere Apps mit Schritten, Wiederholungen und Links umgehen, ist nicht für jede App ausprobiert.** plMail
   folgt dem Standard, aber Nextcloud Tasks, tasks.org und Apple Erinnerungen sind noch nicht damit getestet. Probiere
   es zuerst mit einer Liste, auf die du verzichten kannst.
+- **Eine abgehakte wiederkehrende Aufgabe auf einer To-Do-Liste steht bis zum nächsten Abgleich als erledigt da.**
+  Microsoft schiebt sie auf ihren nächsten Termin, sobald der Haken ankommt, und plMail erfährt das beim nächsten
+  Abgleich, der bei laufendem Worker gleich darauf folgt.
+- **Ausprobiert ist nur ein privates Microsoft-Konto.** Ein Geschäfts- oder Schulkonto sollte sich genauso
+  verhalten, ist aber nicht getestet.
 - **Zwei Apps können dich beide erinnern.** Eine Erinnerung an einer synchronisierten Aufgabe kann hier und in einer
   anderen App auslösen, die dieselbe Aufgabe liest.
 - **Eine Aufgabe ohne eigene Schritte kann anderswo ein Schritt sein.** Ein Schritt, der in einer anderen App mehr als

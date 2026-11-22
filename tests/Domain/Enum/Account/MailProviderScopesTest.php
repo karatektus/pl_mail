@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Domain\Enum\Account;
 
+use App\Domain\Enum\Account\AccountService;
 use App\Domain\Enum\Account\MailProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -112,5 +113,20 @@ final class MailProviderScopesTest extends TestCase
                 sprintf('%s: the requested set minus calendar must not', $provider->value),
             );
         }
+    }
+
+    /** To Do rides the calendars at Microsoft; Google has no task API plMail speaks. */
+    public function testTasksAreAskedForWithTheCalendarsAtMicrosoftOnly(): void
+    {
+        $microsoft = MailProvider::Microsoft;
+
+        self::assertSame([], MailProvider::Google->taskScopes());
+        self::assertContains('https://graph.microsoft.com/Tasks.ReadWrite', $microsoft->serviceScopes(AccountService::Calendar));
+        self::assertNotContains('https://graph.microsoft.com/Tasks.ReadWrite', $microsoft->serviceScopes(AccountService::Contacts));
+
+        self::assertTrue($microsoft->grantsTaskAccess(implode(' ', $microsoft->scopes())));
+        self::assertTrue($microsoft->grantsTaskAccess('Mail.ReadWrite Calendars.ReadWrite tasks.readwrite'), 'the bare name, in any case');
+        self::assertFalse($microsoft->grantsTaskAccess('Mail.ReadWrite Calendars.ReadWrite Contacts.ReadWrite'));
+        self::assertNull($microsoft->grantsTaskAccess(null), 'nothing said, nothing missing');
     }
 }

@@ -23,7 +23,9 @@ use Psr\Log\LoggerInterface;
  * seen yet is never in the running: it has no remote id to be missed by.
  *
  * Steps are placed in a second pass, because a step can arrive before its parent
- * in the same window and a row does not exist yet to point at.
+ * in the same window and a row does not exist yet to point at. Where a task says
+ * which steps it has (RemoteTask::$stepRemoteIds), a step of it the remote no
+ * longer names is removed, since nothing else would say it is gone.
  *
  * Does not flush — it joins the caller's unit of work.
  */
@@ -44,6 +46,9 @@ final readonly class TaskPuller
         /** @var array<string, array{Task, string|null}> $placed uid → the row and its parent's uid */
         $placed = [];
 
+        /** @var array<string, list<string>> $stepSets a task's remote id → every step it has */
+        $stepSets = [];
+
         foreach ($changes->tasks as $remote) {
             if (true === $remote->isDeleted) {
                 $task = $this->tasks->findOneByRemoteId($list, $remote->remoteId);
@@ -57,6 +62,10 @@ final readonly class TaskPuller
             }
 
             $seen[$remote->remoteId] = true;
+
+            if (null !== $remote->stepRemoteIds) {
+                $stepSets[$remote->remoteId] = $remote->stepRemoteIds;
+            }
 
             $task = $this->tasks->findOneByRemoteId($list, $remote->remoteId)
                 ?? $this->tasks->findOneByUid($list, $remote->uid);
@@ -77,6 +86,10 @@ final readonly class TaskPuller
 
         foreach ($placed as [$task, $parentUid]) {
             $this->placeUnderParent($list, $task, $parentUid);
+        }
+
+        foreach ($stepSets as $remoteId => $stepRemoteIds) {
+            $touched += $this->dropStepsNotIn($list, $remoteId, $stepRemoteIds);
         }
 
         if (true === $wasFullRead) {
@@ -187,7 +200,9 @@ final readonly class TaskPuller
             return;
         }
 
-        $parent = $this->tasks->findOneByUid($list, $parentUid);
+        // By uid, which is how CalDAV names a parent, or by remote id, which is how
+        // a remote with no uids of its own does.
+        $parent = $this->tasks->findOneByUid($list, $parentUid) ?? $this->tasks->findOneByRemoteId($list, $parentUid);
         $hops   = 0;
 
         while (null !== $parent?->parent && $hops < 16) {
@@ -196,5 +211,26 @@ final readonly class TaskPuller
         }
 
         $task->parent = $parent === $task ? null : $parent;
+    }
+
+    /**
+     * A step not yet sent has no remote id and is left for the push to send.
+     *
+     * @param list<string> $stepRemoteIds
+     */
+    private function dropStepsNotIn(TaskList $list, string $remoteId, array $stepRemoteIds): int
+    {
+        $task    = $this->tasks->findOneByRemoteId($list, $remoteId);
+        $dropped = 0;
+
+        foreach (null === $task ? [] : $task->steps as $step) {
+            if (null !== $step->remoteId && false === in_array($step->remoteId, $stepRemoteIds, true)) {
+                $task->steps->removeElement($step);
+                $this->em->remove($step);
+                ++$dropped;
+            }
+        }
+
+        return $dropped;
     }
 }

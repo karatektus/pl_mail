@@ -65,8 +65,10 @@ export default class extends Controller {
         this.panelTargets.forEach((panel) => {
             panel.hidden = panel.dataset.panel !== name || false === panel.hidden;
 
+            // The repeat is a ui--select, whose own select is hidden: the
+            // widget it draws is what takes the focus.
             if (false === panel.hidden) {
-                panel.querySelector("input, select")?.focus();
+                panel.querySelector("[role='combobox'], input, select")?.focus();
             }
         });
 

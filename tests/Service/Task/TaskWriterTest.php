@@ -7,6 +7,7 @@ namespace App\Tests\Service\Task;
 use App\Domain\DTO\Task\TaskDraft;
 use App\Domain\Enum\Calendar\SyncState;
 use App\Domain\Exception\TaskListReadOnlyException;
+use App\Entity\Mail\Account;
 use App\Entity\Task\Task;
 use App\Entity\Task\TaskList;
 use App\Entity\User\User;
@@ -322,6 +323,39 @@ final class TaskWriterTest extends KernelTestCase
 
         self::assertSame('FREQ=DAILY', $task->recurrenceRule);
         self::assertNotNull($task->reminderAt);
+    }
+
+    /** Microsoft moves it on when the tick arrives; doing it here as well would move it twice. */
+    public function testOnAListWhoseRemoteMovesRepeatsATickOnlyTicks(): void
+    {
+        $task = $this->writer->create($this->user, $this->microsoftList(), new TaskDraft('Weekly', dueDate: '2026-06-01', recurrence: 'weekly'));
+
+        $this->writer->complete($task, new DateTimeImmutable('2026-06-01 10:00:00', new DateTimeZone('UTC')));
+
+        self::assertFalse($task->status->isOpen());
+        self::assertSame('2026-06-01', $task->dueDate?->format('Y-m-d'), 'not moved to its next date');
+        self::assertSame('FREQ=WEEKLY', $task->recurrenceRule);
+    }
+
+    /** Microsoft To Do keeps the day only, and a time saved here would be gone at the next pull. */
+    public function testOnAListThatKeepsNoTimeADueTimeIsADay(): void
+    {
+        $task = $this->writer->create($this->user, $this->microsoftList(), new TaskDraft('Call', dueDate: '2026-06-01', dueTime: '15:30'));
+
+        self::assertSame('2026-06-01', $task->dueDate?->format('Y-m-d'));
+        self::assertNull($task->dueAt);
+    }
+
+    /** Not persisted: the account would need a whole mailbox behind it, and nothing here is flushed. */
+    private function microsoftList(): TaskList
+    {
+        $list           = new TaskList();
+        $list->usr      = $this->user;
+        $list->name     = 'To Do';
+        $list->account  = new Account();
+        $list->remoteId = 'L1';
+
+        return $list;
     }
 
     /** @return list<Task> */

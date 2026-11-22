@@ -144,6 +144,25 @@ class TaskList
     }
 
     /**
+     * Whether the remote moves a repeating task on by itself when it is ticked.
+     *
+     * Microsoft To Do does: the same task goes to its next date and a finished copy
+     * appears beside it. Doing the same here would move it twice and leave two
+     * copies, so TaskWriter only ticks it and the next pull brings both back. An
+     * account's lists are Microsoft's, as only Graph syncs tasks through an account.
+     */
+    public function remoteAdvancesRepeats(): bool
+    {
+        return null !== $this->account;
+    }
+
+    /** Whether a due date here can carry a time. Microsoft To Do keeps the day only. */
+    public function keepsDueTime(): bool
+    {
+        return null === $this->account;
+    }
+
+    /**
      * Whether the user may rename or delete the list itself.
      *
      * A synced list's name and existence are the remote's, and the default is
