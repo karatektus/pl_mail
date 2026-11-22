@@ -58,6 +58,7 @@ account:
         services:
             help: 'The next screen only asks for what you tick. You can change it later in Settings → Accounts.'
             legend: 'Use this account for'
+            tasks_microsoft: '(Microsoft To Do)'
     primary_set: Primary account changed
     removal_started: 'Removing the account. Its mail goes in the background; the server keeps its copy.'
     removed: Account removed
@@ -68,6 +69,9 @@ account:
         contacts:
             off: 'Contacts switched off'
             on: 'Contacts switched on'
+        tasks:
+            off: 'Tasks switched off'
+            on: 'Tasks switched on'
         mail:
             off: 'Receiving switched off. What is already here stays.'
             on: 'Receiving switched on'
@@ -3690,6 +3694,8 @@ settings:
             close: 'Done'
             contacts: 'Contacts'
             contacts_help: 'Its address books, kept in step both ways'
+            tasks: 'Tasks'
+            tasks_help: 'Its Microsoft To Do lists, kept in step both ways'
             intro: 'Switch off what you do not use this account for. plMail then stops talking to the server about it and keeps what is already here.'
             mail: 'Receive mail'
             mail_help: 'Syncing its mail and every change you make to it'

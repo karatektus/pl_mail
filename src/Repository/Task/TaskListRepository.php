@@ -38,7 +38,8 @@ class TaskListRepository extends ServiceEntityRepository
 
     /**
      * What the sweep syncs: mirrors not read since $before and not backing off,
-     * longest waiting first. The epoch puts a list never synced at the front.
+     * longest waiting first. The epoch puts a list never synced at the front. A
+     * list of an account whose Tasks switch is off waits, as AccountService says.
      *
      * @return list<TaskList>
      */
@@ -46,7 +47,9 @@ class TaskListRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('list')
             ->addSelect('COALESCE(list.lastSyncedAt, :epoch) AS HIDDEN dueSince')
+            ->leftJoin('list.account', 'account')
             ->where('list.remoteId IS NOT NULL')
+            ->andWhere('list.account IS NULL OR account.tasksEnabled = true')
             ->andWhere('list.lastSyncedAt IS NULL OR list.lastSyncedAt < :before')
             ->andWhere('list.syncBackoffUntil IS NULL OR list.syncBackoffUntil <= :now')
             ->setParameter('before', $before)

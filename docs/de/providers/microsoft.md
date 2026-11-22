@@ -1,4 +1,4 @@
-<!-- translated-from: providers/microsoft.md sha1:239dfe28a7c8623d5d751bfe304a14ac39835ae0 -->
+<!-- translated-from: providers/microsoft.md sha1:e1b47fee02ac806119bed86a53b63f50ca46c61a -->
 
 # Microsoft
 
@@ -67,7 +67,7 @@ stimmt dem Satz als Ganzem zu; anders als bei Google gibt es keine Teilerteilung
 | `MailboxSettings.ReadWrite` | Master-Kategorien, unter `/me/outlook/masterCategories`. Diese sind **nicht** von `Mail.ReadWrite` abgedeckt: Sie liegen unter der Outlook-Ressource für Benutzereinstellungen und liefern ohne diese Berechtigung `ErrorAccessDenied`. ReadWrite statt Read, weil plMail Kategoriedefinitionen anlegt, wenn ein Label gespiegelt wird. |
 | `Calendars.ReadWrite` | Kalender auf demselben Konto, lesend und schreibend. |
 | `Contacts.ReadWrite` | Outlook-Kontakte auf demselben Konto, lesend und schreibend: Jeder Kontaktordner ist ein Adressbuch. |
-| `Tasks.ReadWrite` | Microsoft-To-Do-Listen auf demselben Konto, lesend und schreibend. Wird mit den Kalendern verlangt. |
+| `Tasks.ReadWrite` | Microsoft-To-Do-Listen auf demselben Konto, lesend und schreibend. Wird verlangt, wenn der Schalter **Aufgaben** des Kontos an ist. |
 
 Zwei davon lohnen ein genaueres Verständnis, bevor du dich entscheidest, eine wegzulassen.
 
@@ -123,7 +123,8 @@ dessen Knopf dich noch einmal anmeldet und sie ergänzt.
 
 ### To Do hängt ebenfalls an derselben Anmeldung
 
-`Tasks.ReadWrite` reist auf derselben Freigabe und wird immer mit den Kalendern verlangt. Die To-Do-Listen eines
+`Tasks.ReadWrite` reist auf derselben Freigabe und wird verlangt, wenn der Schalter **Aufgaben** des Kontos an ist —
+beim Verbinden oder später unter **Einstellungen → Konten**, das dann bei Microsoft danach fragt. Die To-Do-Listen eines
 mit plMail verbundenen Microsoft-Kontos lassen sich dann neben der Mail abonnieren — siehe
 [Aufgaben](../features/tasks.md#microsoft-to-do), wo auch steht, worin To Do sich unterscheidet. Ohne die
 Berechtigung laufen Mail, Kalender und Kontakte weiter, und das Konto wird für Aufgaben einfach nicht angeboten;

@@ -835,6 +835,7 @@ final readonly class ConfigBackupUsers
                 'sendEnabled'       => $account->sendEnabled,
                 'calendarEnabled'   => $account->calendarEnabled,
                 'contactsEnabled'   => $account->contactsEnabled,
+                'tasksEnabled'      => $account->tasksEnabled,
                 'pushEnabled'       => $account->pushEnabled,
                 'settings'          => $this->settingsOfAccount($account),
                 'aliases'           => $this->exportAliases($account),

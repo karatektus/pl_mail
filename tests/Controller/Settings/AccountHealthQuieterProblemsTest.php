@@ -160,7 +160,10 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         self::assertStringContainsString((string) $this->urlFor($account), $card->html(), 'and it offers the reconnect');
     }
 
-    /** The same for To Do: a Microsoft grant that predates Tasks.ReadWrite refused nothing. */
+    /**
+     * The same for To Do: a Microsoft grant that predates Tasks.ReadWrite refused
+     * nothing. Only with the switch on, which is what says tasks are wanted.
+     */
     public function testAMicrosoftAccountThatPredatesToDoGetsTheQuietTasksCard(): void
     {
         $client  = static::createClient();
@@ -169,6 +172,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
 
         $account->oauthProvider      = MailProvider::Microsoft->value;
         $account->oauthGrantedScopes = 'Mail.ReadWrite Mail.Send MailboxSettings.ReadWrite Calendars.ReadWrite Contacts.ReadWrite User.Read';
+        $account->tasksEnabled       = true;
         $this->em->flush();
 
         $crawler = $client->request('GET', '/settings/health');

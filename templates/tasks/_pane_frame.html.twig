@@ -39,8 +39,8 @@ Accepts: pane  TaskPane
                     title="{{ 'tasks.new'|trans }}">
                 <i class="fa-solid fa-plus text-sm" aria-hidden="true"></i>
             </button>
-            {# What changes the lists rather than what is on them. A menu of one for
-               now, so the next setting has somewhere to go. #}
+            {# What changes the lists rather than what is on them. Syncing is offered
+               only with something to sync from: see TaskSyncSources. #}
             <div class="relative" data-controller="ui--dropdown">
                 <button type="button"
                         data-action="click->ui--dropdown#toggle"
@@ -51,7 +51,7 @@ Accepts: pane  TaskPane
                     <i class="fa-solid fa-gear text-sm" aria-hidden="true"></i>
                 </button>
                 <div data-ui--dropdown-target="menu" hidden role="menu"
-                     class="absolute right-0 top-full mt-1 z-30 w-44 rounded-pane bg-pane-soft backdrop-blur-sm border border-line shadow-pop py-1 text-sm">
+                     class="absolute right-0 top-full mt-1 z-30 w-60 rounded-pane bg-pane-soft backdrop-blur-sm border border-line shadow-pop py-1 text-sm">
                     <button type="button"
                             role="menuitem"
                             data-controller="ui--modal"
@@ -61,6 +61,18 @@ Accepts: pane  TaskPane
                             class="flex w-full items-center gap-2 px-4 py-2 text-left text-ink-soft hover:bg-hover cursor-pointer">
                         <i class="fa-solid fa-list-ul w-4 text-center" aria-hidden="true"></i>{{ 'tasks.lists.manage'|trans }}
                     </button>
+                    {% if pane.canSubscribe %}
+                        <button type="button"
+                                role="menuitem"
+                                data-tasks-subscribe
+                                data-controller="ui--modal"
+                                data-action="click->ui--modal#open click->ui--dropdown#close"
+                                data-ui--modal-src-value="{{ path('app_tasks_subscribe') }}"
+                                data-ui--modal-title-value="{{ 'tasks.subscribe.title'|trans }}"
+                                class="flex w-full items-center gap-2 px-4 py-2 text-left text-ink-soft hover:bg-hover cursor-pointer">
+                            <i class="fa-solid fa-rotate w-4 text-center" aria-hidden="true"></i>{{ 'tasks.subscribe.title'|trans }}
+                        </button>
+                    {% endif %}
                 </div>
             </div>
             <button type="button"
@@ -96,20 +108,6 @@ Accepts: pane  TaskPane
                     {% if candidate.isReadOnly %}<i class="fa-solid fa-lock text-[0.625rem]" title="{{ 'tasks.lists.read_only'|trans }}" aria-label="{{ 'tasks.lists.read_only'|trans }}"></i>{% endif %}
                 </a>
             {% endfor %}
-            {# Only with something to sync from: see TaskSyncSources. #}
-            {% if pane.canSubscribe %}
-                <button type="button"
-                        data-tasks-subscribe
-                        data-controller="ui--modal"
-                        data-action="click->ui--modal#open"
-                        data-ui--modal-src-value="{{ path('app_tasks_subscribe') }}"
-                        data-ui--modal-title-value="{{ 'tasks.subscribe.title'|trans }}"
-                        class="{{ pillOff }} cursor-pointer"
-                        aria-label="{{ 'tasks.subscribe.title'|trans }}"
-                        title="{{ 'tasks.subscribe.title'|trans }}">
-                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
-                </button>
-            {% endif %}
         </nav>
 
         {# Quick add. Enter submits, as a single field does by itself. The list is

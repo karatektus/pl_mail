@@ -58,6 +58,7 @@ account:
         services:
             help: 'Auf der nächsten Seite wird nur das angefragt, was du ankreuzt. Ändern kannst du es später unter Einstellungen → Konten.'
             legend: 'Konto verwenden für'
+            tasks_microsoft: '(Microsoft To Do)'
     primary_set: Primäres Konto geändert
     removal_started: 'Das Konto wird entfernt. Seine E-Mails werden im Hintergrund gelöscht; auf dem Server bleiben sie.'
     removed: Konto entfernt
@@ -68,6 +69,9 @@ account:
         contacts:
             off: 'Kontakte ausgeschaltet'
             on: 'Kontakte eingeschaltet'
+        tasks:
+            off: 'Aufgaben ausgeschaltet'
+            on: 'Aufgaben eingeschaltet'
         mail:
             off: 'Empfangen ausgeschaltet. Was schon da ist, bleibt.'
             on: 'Empfangen eingeschaltet'
@@ -3682,6 +3686,8 @@ settings:
             close: 'Fertig'
             contacts: 'Kontakte'
             contacts_help: 'Seine Adressbücher, in beide Richtungen abgeglichen'
+            tasks: 'Aufgaben'
+            tasks_help: 'Seine Microsoft-To-Do-Listen, in beide Richtungen abgeglichen'
             intro: 'Schalte aus, wofür du dieses Konto nicht verwendest. plMail spricht dann mit dem Server nicht mehr darüber und behält, was schon da ist.'
             mail: 'E-Mail empfangen'
             mail_help: 'Seine E-Mails synchronisieren und jede Änderung, die du daran machst'

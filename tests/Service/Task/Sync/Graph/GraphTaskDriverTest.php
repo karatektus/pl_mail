@@ -32,11 +32,15 @@ use Symfony\Component\HttpClient\Response\MockResponse;
  */
 final class GraphTaskDriverTest extends TestCase
 {
-    public function testOnlyAMicrosoftAccountWhoseGrantDoesNotLackTasksIsClaimed(): void
+    public function testOnlyAMicrosoftAccountWithTasksOnAndAGrantThatDoesNotLackThemIsClaimed(): void
     {
         $driver = $this->driver(new MockHttpClient([]));
 
         self::assertTrue($driver->supports(CalendarSource::ofAccount($this->account())));
+
+        $off               = $this->account();
+        $off->tasksEnabled = false;
+        self::assertFalse($driver->supports(CalendarSource::ofAccount($off)), 'its Tasks switch is off');
 
         $before                     = $this->account();
         $before->oauthGrantedScopes = 'Mail.ReadWrite Calendars.ReadWrite Contacts.ReadWrite User.Read';
@@ -116,6 +120,23 @@ final class GraphTaskDriverTest extends TestCase
         $this->expectExceptionMessage('Reconnect the account and allow tasks');
 
         $this->driver($http)->pull($this->list(), null);
+    }
+
+    /**
+     * Regression guard: an account with no Exchange mailbox answers 401 with the
+     * permission granted, and was told to reconnect, which cannot help it.
+     */
+    public function testA401DespiteAGrantedPermissionNamesTheMissingMailbox(): void
+    {
+        $http = new MockHttpClient([$this->json(['error' => ['code' => 'UnknownError', 'message' => '']], 401)]);
+
+        $list                              = $this->list();
+        $list->account->oauthGrantedScopes = 'Mail.ReadWrite Tasks.ReadWrite User.Read';
+
+        $this->expectException(CalendarSyncPermanentException::class);
+        $this->expectExceptionMessage('it has no Exchange Online mailbox');
+
+        $this->driver($http)->discover(CalendarSource::ofAccount($list->account));
     }
 
     /** No etag: a completed repeating task comes back open, and the next pull must not skip it. */
@@ -216,6 +237,7 @@ final class GraphTaskDriverTest extends TestCase
         $account                = new Account();
         $account->authType      = AuthType::OAuth2->value;
         $account->oauthProvider = $provider->value;
+        $account->tasksEnabled  = true;
 
         return $account;
     }

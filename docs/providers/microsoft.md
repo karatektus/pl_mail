@@ -58,7 +58,7 @@ the set as a whole; unlike Google there is no partial grant to handle.
 | `MailboxSettings.ReadWrite` | Master categories, at `/me/outlook/masterCategories`. These are **not** covered by `Mail.ReadWrite`: they live under the Outlook user-settings resource and return `ErrorAccessDenied` without this. ReadWrite rather than Read because plMail creates category definitions when a label is mirrored. |
 | `Calendars.ReadWrite` | Calendars on the same account, read and write. |
 | `Contacts.ReadWrite` | Outlook contacts on the same account, read and write: each contact folder is an address book. |
-| `Tasks.ReadWrite` | Microsoft To Do lists on the same account, read and write. Asked for with the calendars. |
+| `Tasks.ReadWrite` | Microsoft To Do lists on the same account, read and write. Asked for when the account's **Tasks** switch is on. |
 
 Two of them are worth understanding before you decide to skip one.
 
@@ -110,8 +110,9 @@ and adds it.
 
 ### To Do is on the same sign-in too
 
-`Tasks.ReadWrite` rides the same grant, asked for whenever the calendars are. A Microsoft account
-connected to plMail can then have its To Do lists subscribed to beside the mail — see
+`Tasks.ReadWrite` rides the same grant, asked for when the account's **Tasks** switch is on — at
+connect time, or later under **Settings → Accounts**, which then asks Microsoft for it. A Microsoft
+account connected to plMail can then have its To Do lists subscribed to beside the mail — see
 [Tasks](../features/tasks.md#microsoft-to-do), which also says where To Do differs. Without the
 permission, mail, calendars and contacts carry on and the account is simply not offered for tasks;
 one connected before plMail asked for it gets the same kind of notice as for contacts.

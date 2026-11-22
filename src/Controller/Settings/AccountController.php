@@ -162,7 +162,7 @@ final class AccountController extends AbstractController
      * on an account added to send through a relay: the page links to the
      * account form for that one.
      */
-    #[Route('/{id}/service/{service}', name: 'service', requirements: ['service' => 'mail|send|calendar|contacts'], methods: ['POST'])]
+    #[Route('/{id}/service/{service}', name: 'service', requirements: ['service' => 'mail|send|calendar|contacts|tasks'], methods: ['POST'])]
     public function service(Request $request, Account $account, string $service, AccountServiceSwitch $switch): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
@@ -173,6 +173,10 @@ final class AccountController extends AbstractController
 
         $which   = AccountService::from($service);
         $enabled = true === $request->request->getBoolean('enabled');
+
+        if (true === $enabled && false === $account->offers($which)) {
+            throw new BadRequestHttpException('This account cannot be used for that service.');
+        }
 
         if (true === $enabled && true === $switch->needsConsent($account, $which)) {
             throw new BadRequestHttpException('The account\'s grant does not cover this service; reconnect to allow it.');

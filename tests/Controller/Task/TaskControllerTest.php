@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Task;
 
+use App\Domain\DTO\Task\RemoteTaskList;
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Integration\Provider;
@@ -21,8 +22,11 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 
 /**
  * The tasks routes refuse what is not yours, and what is not writable.
@@ -851,6 +855,30 @@ final class TaskControllerTest extends WebTestCase
         self::assertNull($crawler->filter('#task-due-time')->attr('disabled'));
     }
 
+    /** The first time, the list somebody with one list means; after that, what is mirrored and nothing else. */
+    public function testTheSubscribeDialogTicksTheDefaultListOnlyTheFirstTime(): void
+    {
+        // The form's CSRF token wants a session, which a bare render has not got.
+        $request = new Request();
+        $request->setSession(new Session(new MockArraySessionStorage()));
+        static::getContainer()->get('request_stack')->push($request);
+
+        $twig    = static::getContainer()->get('twig');
+        $default = new RemoteTaskList('L1', 'Tasks', isDefault: true);
+        $other   = new RemoteTaskList('L2', 'Groceries');
+        $render  = static fn (array $offered): Crawler => new Crawler($twig->render('tasks/_subscribe.html.twig', [
+            'offered'     => $offered,
+            'sourceKind'  => 'account',
+            'sourceId'    => 1,
+            'sourceLabel' => 'someone@example.test',
+            'error'       => null,
+        ]));
+        $ticked = static fn (Crawler $page): array => $page->filter('input[name="remoteIds[]"][checked]')->each(static fn (Crawler $box): ?string => $box->attr('value'));
+
+        self::assertSame(['L1'], $ticked($render([['remote' => $default, 'local' => null], ['remote' => $other, 'local' => null]])));
+        self::assertSame(['L2'], $ticked($render([['remote' => $default, 'local' => null], ['remote' => $other, 'local' => $this->list()]])));
+    }
+
     public function testTheDialogGoesInTheAgreedOrderForANewTaskAndASavedOne(): void
     {
         $order = ['title', 'steps', 'reminder', 'due', 'repeat', 'files', 'notes'];
@@ -878,7 +906,8 @@ final class TaskControllerTest extends WebTestCase
         self::assertSame('FREQ=DAILY', $this->reloaded($task)->recurrenceRule);
     }
 
-    public function testTheSyncButtonIsOnlyDrawnWithSomethingToSyncFrom(): void
+    /** In the gear's menu, and only with something to sync from. */
+    public function testTheSyncEntryIsOnlyOfferedWithSomethingToSyncFrom(): void
     {
         $this->client->request('GET', '/tasks');
         self::assertSelectorNotExists('[data-tasks-subscribe]');
@@ -887,7 +916,8 @@ final class TaskControllerTest extends WebTestCase
         $this->em->flush();
 
         $this->client->request('GET', '/tasks');
-        self::assertSelectorExists('[data-tasks-subscribe]');
+        self::assertSelectorExists('[data-ui--dropdown-target="menu"] [data-tasks-subscribe][role="menuitem"]');
+        self::assertCount(1, $this->client->getCrawler()->filter('[data-tasks-subscribe]'), 'and nowhere else');
     }
 
     public function testAFileConnectionNoDriverSpeaksForDoesNotBringTheButton(): void

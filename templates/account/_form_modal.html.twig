@@ -68,6 +68,10 @@
                                        class="rounded border-field-border">
                                 <i class="{{ service.icon }} w-4 text-center text-ink-faint" aria-hidden="true"></i>
                                 {{ service.labelKey|trans }}
+                                {# Microsoft To Do: ticked on a Google account it asks for nothing. #}
+                                {% if 'tasks' == service.value %}
+                                    <span class="text-xs text-ink-faint">{{ 'account.oauth.services.tasks_microsoft'|trans }}</span>
+                                {% endif %}
                             </label>
                         {% endfor %}
                         <p class="pt-1 text-xs text-ink-faint">{{ 'account.oauth.services.help'|trans }}</p>

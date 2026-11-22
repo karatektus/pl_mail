@@ -115,14 +115,14 @@ final class MailProviderScopesTest extends TestCase
         }
     }
 
-    /** To Do rides the calendars at Microsoft; Google has no task API plMail speaks. */
-    public function testTasksAreAskedForWithTheCalendarsAtMicrosoftOnly(): void
+    /** To Do is a service of its own, at Microsoft only; Google has no task API plMail speaks. */
+    public function testTasksAreAskedForByTheirOwnServiceAtMicrosoftOnly(): void
     {
         $microsoft = MailProvider::Microsoft;
 
-        self::assertSame([], MailProvider::Google->taskScopes());
-        self::assertContains('https://graph.microsoft.com/Tasks.ReadWrite', $microsoft->serviceScopes(AccountService::Calendar));
-        self::assertNotContains('https://graph.microsoft.com/Tasks.ReadWrite', $microsoft->serviceScopes(AccountService::Contacts));
+        self::assertSame([], MailProvider::Google->serviceScopes(AccountService::Tasks));
+        self::assertSame(['https://graph.microsoft.com/Tasks.ReadWrite'], $microsoft->serviceScopes(AccountService::Tasks));
+        self::assertNotContains('https://graph.microsoft.com/Tasks.ReadWrite', $microsoft->serviceScopes(AccountService::Calendar));
 
         self::assertTrue($microsoft->grantsTaskAccess(implode(' ', $microsoft->scopes())));
         self::assertTrue($microsoft->grantsTaskAccess('Mail.ReadWrite Calendars.ReadWrite tasks.readwrite'), 'the bare name, in any case');

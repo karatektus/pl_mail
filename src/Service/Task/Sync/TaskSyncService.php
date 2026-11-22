@@ -54,6 +54,12 @@ final readonly class TaskSyncService
      */
     public function sync(TaskList $list): int
     {
+        // Switched off: nothing goes out and nothing is read. A change made here
+        // meanwhile stays pending and leaves when it is on again.
+        if (null !== $list->account && false === $list->account->tasksEnabled) {
+            return 0;
+        }
+
         try {
             $touched = $this->run($list, $this->drivers->forList($list));
         } catch (Throwable $e) {

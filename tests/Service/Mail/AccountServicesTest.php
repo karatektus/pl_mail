@@ -18,10 +18,13 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
+use App\Entity\Task\TaskList;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
+use App\Infrastructure\Messaging\Message\SyncTaskListMessage;
 use App\Repository\Calendar\Calendar\CalendarRepository;
+use App\Repository\Task\TaskListRepository;
 use App\Service\Imap\ImapFolderManager;
 use App\Service\Imap\MessageSendService;
 use App\Service\Mail\AccountServiceSwitch;
@@ -207,6 +210,75 @@ final class AccountServicesTest extends KernelTestCase
         $this->em->flush();
 
         self::assertNotContains($calendar->id, $due($repo->findDueForSync($cutoff, 10000)));
+    }
+
+    public function testSwitchingTasksOnQueuesASyncOfEachMirroredListAndOffHoldsThemOutOfTheSweep(): void
+    {
+        $user    = MailFixtures::user($this->em, 'svc');
+        $account = MailFixtures::account($this->em, $user);
+
+        $account->authType      = AuthType::OAuth2->value;
+        $account->oauthProvider = MailProvider::Microsoft->value;
+
+        $list           = new TaskList();
+        $list->usr      = $user;
+        $list->account  = $account;
+        $list->name     = 'To Do';
+        $list->remoteId = 'L1';
+        $this->em->persist($list);
+        $this->em->flush();
+
+        $due    = static fn (array $lists): array => array_map(static fn (TaskList $each): ?int => $each->id, $lists);
+        $repo   = self::getContainer()->get(TaskListRepository::class);
+        $cutoff = new DateTimeImmutable('+1 year');
+
+        self::assertNotContains($list->id, $due($repo->findDueForSync($cutoff, 10000)), 'off, as a new column leaves it');
+
+        $this->switch->set($account, AccountService::Tasks, true);
+
+        $queued = array_map(
+            static fn ($envelope): ?int => $envelope->getMessage() instanceof SyncTaskListMessage ? $envelope->getMessage()->taskListId : null,
+            $this->transport('ingest')->getSent(),
+        );
+
+        self::assertContains($list->id, $queued);
+        self::assertContains($list->id, $due($repo->findDueForSync($cutoff, 10000)));
+    }
+
+    /** Tasks are Microsoft To Do: no other account is offered the switch, nor counted short of it. */
+    public function testOnlyAMicrosoftAccountIsOfferedTasks(): void
+    {
+        $user      = MailFixtures::user($this->em, 'svc');
+        $password  = MailFixtures::account($this->em, $user);
+        $microsoft = MailFixtures::account($this->em, $user);
+        $google    = MailFixtures::account($this->em, $user);
+
+        $microsoft->authType      = AuthType::OAuth2->value;
+        $microsoft->oauthProvider = MailProvider::Microsoft->value;
+        $google->authType         = AuthType::OAuth2->value;
+        $google->oauthProvider    = MailProvider::Google->value;
+        $google->tasksEnabled     = true;
+
+        self::assertFalse($password->offers(AccountService::Tasks));
+        self::assertFalse($google->offers(AccountService::Tasks));
+        self::assertTrue($microsoft->offers(AccountService::Tasks));
+        self::assertNotContains(AccountService::Tasks, $google->services, 'switched on, and still nothing to use it for');
+    }
+
+    public function testTurningTasksOnAsksMicrosoftWhenTheGrantLacksIt(): void
+    {
+        $account = MailFixtures::account($this->em, MailFixtures::user($this->em, 'svc'));
+
+        $account->authType           = AuthType::OAuth2->value;
+        $account->oauthProvider      = MailProvider::Microsoft->value;
+        $account->oauthGrantedScopes = implode(' ', MailProvider::Microsoft->scopesFor([AccountService::Mail]));
+        $this->em->flush();
+
+        self::assertTrue($this->switch->needsConsent($account, AccountService::Tasks));
+
+        $account->oauthGrantedScopes = implode(' ', MailProvider::Microsoft->scopesFor([AccountService::Mail, AccountService::Tasks]));
+
+        self::assertFalse($this->switch->needsConsent($account, AccountService::Tasks));
     }
 
     public function testACalendarOnlyGrantNeedsConsentForMailAndNotForCalendar(): void

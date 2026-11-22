@@ -58,6 +58,7 @@ account:
         services:
             help: '下一页只会请求你勾选的权限。之后可在“设置 → 账户”中更改。'
             legend: '此账户用于'
+            tasks_microsoft: '（Microsoft To Do）'
     primary_set: 主账户已更改
     removal_started: '正在移除此账户。其邮件将在后台删除，服务器上的副本会保留。'
     removed: 账户已移除
@@ -68,6 +69,9 @@ account:
         contacts:
             off: '联系人已关闭'
             on: '联系人已开启'
+        tasks:
+            off: '任务已关闭'
+            on: '任务已开启'
         mail:
             off: '接收已关闭。已有的邮件会保留。'
             on: '接收已开启'
@@ -3268,6 +3272,8 @@ settings:
             close: '完成'
             contacts: '联系人'
             contacts_help: '其通讯录，双向同步'
+            tasks: '任务'
+            tasks_help: '其 Microsoft To Do 列表，双向同步'
             intro: '关闭此账户不需要的功能。plMail 将不再就此与服务器通信，已有的内容会保留。'
             mail: '接收邮件'
             mail_help: '同步其邮件以及你对其所做的每一项更改'

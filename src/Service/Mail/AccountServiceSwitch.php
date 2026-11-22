@@ -13,9 +13,11 @@ use App\Infrastructure\Messaging\Message\SubscribeAccountContactsMessage;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
+use App\Infrastructure\Messaging\Message\SyncTaskListMessage;
 use App\Repository\AddressBook\AddressBook\AddressBookRepository;
 use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Task\TaskListRepository;
 use App\Service\Push\PushSubscriptionRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -63,6 +65,7 @@ final readonly class AccountServiceSwitch
         private AliasSeeder              $aliasSeeder,
         private CalendarRepository       $calendars,
         private AddressBookRepository    $addressBooks,
+        private TaskListRepository       $taskLists,
         private MessageBusInterface      $bus,
         private LoggerInterface          $logger,
     ) {
@@ -113,6 +116,7 @@ final readonly class AccountServiceSwitch
             AccountService::Send     => $this->sendChanged($account),
             AccountService::Calendar => true === $enabled ? $this->calendarOn($account) : null,
             AccountService::Contacts => true === $enabled ? $this->contactsOn($account) : null,
+            AccountService::Tasks    => true === $enabled ? $this->tasksOn($account) : null,
         };
 
         $this->em->flush();
@@ -153,6 +157,14 @@ final readonly class AccountServiceSwitch
         $this->aliasSeeder->seed($account);
 
         $this->bus->dispatch(new SyncAccountMessage((int) $account->id, SyncTrigger::Manual));
+    }
+
+    /** What waited while it was off goes out, as calendarOn() does for calendars. */
+    private function tasksOn(Account $account): void
+    {
+        foreach ($this->taskLists->findBy(['account' => $account]) as $list) {
+            $this->bus->dispatch(new SyncTaskListMessage((int) $list->id));
+        }
     }
 
     private function calendarOn(Account $account): void

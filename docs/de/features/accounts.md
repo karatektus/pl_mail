@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:62da6ef95e256b92e983cc39412c57814c53401a -->
+<!-- translated-from: features/accounts.md sha1:ca34537eb96ebfe6547eae6f58eded01b96bbbf2 -->
 
 # Konten und Aliase
 
@@ -122,7 +122,8 @@ Microsoft** an, und der gesamte Ablauf ist die Zustimmungsseite des Anbieters se
 wird überhaupt kein Passwort gespeichert.
 
 Kreuz über den beiden Knöpfen an, wofür das Konto da ist: **E-Mail empfangen**, **E-Mail senden**,
-**Kalender** und **Kontakte**, vorgegeben sind alle vier. Für das Senden fragt plMail Google oder
+**Kalender**, **Kontakte** und **Aufgaben**, vorgegeben sind alle. **Aufgaben** ist Microsoft To Do und fragt
+Google deshalb nach nichts. Für das Senden fragt plMail Google oder
 Microsoft um dieselbe Erlaubnis wie für das Empfangen. Die Zustimmungsseite fragt dann nur danach. Ein
 Google-Konto, das du nur für seinen Kalender verbindest, wird nie um Zugriff auf seine E-Mails
 gebeten und taucht in der Mail-Seitenleiste nicht auf. Die anderen kannst du später einschalten;
@@ -247,6 +248,11 @@ ist, wird nie entfernt:
 | **E-Mail senden** | Das Konto unter **Von** und alles, was darüber hinausgeht — gesendete E-Mails, fällig werdende geplante Sendungen, Lesebestätigungen | Entwürfe. Eine geplante Nachricht, die fällig wird, wird als nicht gesendet markiert, mit dem Grund |
 | **Kalender** | Das Synchronisieren der Kalender des Kontos | Ihre Termine. Eine Änderung in der Zwischenzeit wartet und geht raus, sobald du den Kalender wieder einschaltest |
 | **Kontakte** | Das Synchronisieren der Adressbücher des Kontos | Ihre Kontakte. Eine Änderung wartet genauso; ein ganz gelöschter Kontakt kommt mit der ersten Synchronisierung zurück |
+| **Aufgaben** | Das Synchronisieren der Microsoft-To-Do-Listen des Kontos | Ihre Aufgaben. Eine Änderung wartet genauso |
+
+**Aufgaben** gibt es nur bei einem Microsoft-Konto, denn es ist Microsoft To Do; siehe
+[Aufgaben](tasks.md#microsoft-to-do). Bei einem Konto, das verbunden wurde, bevor plMail es kannte, ist es aus,
+und Einschalten fragt zuerst bei Microsoft nach der Erlaubnis.
 
 Änderungen an E-Mails, solange Empfangen aus ist, bleiben in plMail. Schaltest du es wieder ein,
 liest die nächste Synchronisierung den Server neu, und wo sich beide unterscheiden, gewinnt der

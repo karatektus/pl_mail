@@ -32,10 +32,10 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * Microsoft To Do lists behind a Microsoft mail account, over Microsoft Graph.
  *
  * Rides the mail account's grant, as GraphCalendarSyncDriver does: Tasks.ReadWrite
- * is asked for with the calendars (MailProvider::taskScopes()), so there is no
- * connection of its own. supports() also turns down an account whose recorded
- * grant is known to lack it, so the subscribe dialog does not offer an account that
- * would only answer 403.
+ * is asked for when the account's Tasks switch is on (MailProvider::taskScopes()),
+ * so there is no connection of its own. supports() turns down an account with the
+ * switch off, or whose recorded grant is known to lack the permission, so the
+ * subscribe dialog does not offer an account that would only answer 403.
  *
  * ── What Microsoft does, tried rather than read ───────────────────────────
  *
@@ -83,6 +83,16 @@ final readonly class GraphTaskDriver implements TaskSyncDriverInterface
     private const string RECONNECT_HINT = 'Microsoft refused access to To Do for this account. '
         . 'Reconnect the account and allow tasks.';
 
+    /**
+     * The same 401 from an account whose grant does hold Tasks.ReadWrite. To Do lives
+     * in the Exchange mailbox, and Microsoft answers an account without one, such as
+     * a work or school account with no mailbox licence, exactly as it answers one
+     * without the permission: 401, UnknownError, no message. Telling that account to
+     * reconnect sends it round in a circle, so the grant decides which this is.
+     */
+    private const string NO_MAILBOX_HINT = 'Microsoft has no To Do for this account: it has no Exchange Online mailbox. '
+        . 'A work or school account needs a mailbox licence; a personal account has to be signed in as the personal one.';
+
     public function __construct(
         #[Target('graph.client')]
         private HttpClientInterface  $httpClient,
@@ -98,6 +108,7 @@ final readonly class GraphTaskDriver implements TaskSyncDriverInterface
 
         return MailProvider::Microsoft === $source->mailProvider()
             && null !== $account
+            && true === $account->tasksEnabled
             && false !== MailProvider::Microsoft->grantsTaskAccess($account->oauthGrantedScopes);
     }
 
@@ -325,7 +336,7 @@ final readonly class GraphTaskDriver implements TaskSyncDriverInterface
         }
 
         if (200 > $status || 300 <= $status) {
-            throw $this->translate($response, $status, $what);
+            throw $this->translate($response, $status, $what, $account);
         }
 
         try {
@@ -352,7 +363,7 @@ final readonly class GraphTaskDriver implements TaskSyncDriverInterface
     }
 
     /** See GraphCalendarSyncDriver::translate(); the message never carries the URL, which holds the delta token. */
-    private function translate(ResponseInterface $response, int $status, string $what): CalendarSyncException
+    private function translate(ResponseInterface $response, int $status, string $what, Account $account): CalendarSyncException
     {
         try {
             $decoded = json_decode($response->getContent(false), true);
@@ -381,6 +392,10 @@ final readonly class GraphTaskDriver implements TaskSyncDriverInterface
 
         $denied = in_array(strtolower($code), self::AUTHORIZATION_CODES, true)
             || str_contains(strtolower($message), 'access is denied');
+
+        if (401 === $status && true === MailProvider::Microsoft->grantsTaskAccess($account->oauthGrantedScopes)) {
+            return new CalendarSyncPermanentException(self::NO_MAILBOX_HINT, $status);
+        }
 
         if (401 === $status || (403 === $status && $denied)) {
             return new CalendarSyncPermanentException(self::RECONNECT_HINT, $status);

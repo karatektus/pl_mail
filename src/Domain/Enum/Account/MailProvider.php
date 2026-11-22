@@ -118,10 +118,9 @@ enum MailProvider: string
             // what a person connecting it to read is asked for.
             AccountService::Mail,
             AccountService::Send     => $this->mailScopes(),
-            // Tasks ride the calendars: a fifth switch for a list beside them
-            // would be a switch nobody wants apart from the other.
-            AccountService::Calendar => array_merge($this->calendarScopes(), $this->taskScopes()),
+            AccountService::Calendar => $this->calendarScopes(),
             AccountService::Contacts => $this->contactScopes(),
+            AccountService::Tasks    => $this->taskScopes(),
         };
     }
 
@@ -196,9 +195,9 @@ enum MailProvider: string
     }
 
     /**
-     * The scopes that buy task access: Microsoft To Do, asked for with the
-     * calendars (serviceScopes()). Google has none here, as plMail speaks no
-     * Google task API.
+     * The scopes that buy task access: Microsoft To Do, asked for when the
+     * account's Tasks switch is (serviceScopes()). Google has none here, as
+     * plMail speaks no Google task API.
      *
      * Added after accounts existed, as contactScopes() were, and for the same
      * reason named apart: a grant that predates them has refused nothing, and

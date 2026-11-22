@@ -16,6 +16,7 @@ use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Interface\TaskSyncDriverInterface;
 use App\Entity\Integration\Integration;
+use App\Entity\Mail\Account;
 use App\Entity\Task\Task;
 use App\Entity\Task\TaskAttachment;
 use App\Entity\Task\TaskList;
@@ -313,6 +314,23 @@ final class TaskSyncServiceTest extends KernelTestCase
 
         self::assertNull($this->em->find(Task::class, $droppedId));
         self::assertSame(['Kept'], array_map(static fn (Task $step): string => $step->title, $parent->liveSteps()));
+    }
+
+    /** Off is plMail not talking to the server about it: nothing goes out, nothing is read. */
+    public function testAListOfAnAccountWithTasksOffIsLeftAlone(): void
+    {
+        $task = $this->localTask('Waits', SyncState::PendingCreate);
+
+        // Not persisted, and nothing flushes before the sync turns back.
+        $account               = new Account();
+        $account->tasksEnabled = false;
+        $this->list->account   = $account;
+
+        self::assertSame(0, $this->service()->sync($this->list));
+        self::assertSame([], $this->calls);
+        self::assertSame(SyncState::PendingCreate, $task->syncState);
+
+        $this->list->account = null;
     }
 
     public function testAStepWhoseParentNobodyHasStaysATaskRatherThanVanishing(): void

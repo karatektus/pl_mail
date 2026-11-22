@@ -105,8 +105,9 @@ button does anything. Once that is done, **Add account** offers **Continue with 
 **Continue with Microsoft** on the **OAuth** tab, and the whole flow is the provider's own consent
 screen — no password is stored here at all.
 
-Above the two buttons, tick what the account is for: **Receive mail**, **Send mail**, **Calendar**
-and **Contacts**, all four by default. Sending asks Google or Microsoft for the same permission as
+Above the two buttons, tick what the account is for: **Receive mail**, **Send mail**, **Calendar**,
+**Contacts** and **Tasks**, all of them by default. **Tasks** is Microsoft To Do, so it asks Google
+for nothing. Sending asks Google or Microsoft for the same permission as
 receiving. The consent screen then asks only for those. A Google account connected for its
 calendar alone is never asked for access to its mail, and does not show up in the mail sidebar. You
 can switch the others on later; see [Mail, calendar and contacts](#mail-calendar-and-contacts).
@@ -221,6 +222,11 @@ removes what is already here:
 | **Send mail** | The account in **From**, and everything going out through it — mail you send, scheduled sends that come due, read receipts | Drafts. A scheduled message that comes due is marked as not sent, with the reason |
 | **Calendar** | Syncing the account's calendars | Their events. An edit made meanwhile waits, and goes out when you switch the calendar back on |
 | **Contacts** | Syncing the account's address books | Their contacts. An edit waits the same way; a contact deleted outright comes back with the first sync |
+| **Tasks** | Syncing the account's Microsoft To Do lists | Their tasks. An edit waits the same way |
+
+**Tasks** is there for a Microsoft account only, since it is Microsoft To Do; see
+[Tasks](tasks.md#microsoft-to-do). It is off for an account connected before plMail had it, and
+switching it on asks Microsoft for the permission first.
 
 Changes you make to mail while receiving is off stay in plMail. When you switch it back on, the next
 sync reads the server again, and where the two disagree the server wins.

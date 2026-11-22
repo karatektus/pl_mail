@@ -58,6 +58,7 @@ account:
         services:
             help: 'The next screen only asks for what ye tick. Ye can change it later under Settings → Accounts.'
             legend: 'Sail this ship for'
+            tasks_microsoft: '(Microsoft To Do)'
     primary_set: A new flagship be named
     removal_started: 'Scuttlin’ this ship. Her letters go overboard below decks; the far port keeps its copy.'
     removed: Crew member put ashore
@@ -68,6 +69,9 @@ account:
         contacts:
             off: 'Crew roster be lashed shut'
             on: 'Crew roster be open again'
+        tasks:
+            off: 'Tasks struck'
+            on: 'Tasks hoisted'
         mail:
             off: 'Receivin’ becalmed. What’s aboard stays aboard.'
             on: 'Receivin’ under way'
@@ -3538,6 +3542,8 @@ settings:
             close: 'Aye'
             contacts: 'Crew roster'
             contacts_help: 'Its crew rosters, kept true both ways'
+            tasks: 'Tasks'
+            tasks_help: 'Its Microsoft To Do lists, kept true both ways'
             intro: 'Furl what ye don’t sail this ship for. plMail then stops hailin’ the far port about it an’ keeps what’s already aboard.'
             mail: 'Receive letters'
             mail_help: 'Fetchin’ its letters an’ every change ye make to ’em'

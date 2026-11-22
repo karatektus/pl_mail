@@ -1,4 +1,4 @@
-<!-- translated-from: features/tasks.md sha1:3e04af3e9f7bad04bcdb5d933b3b8683ddcbba9c -->
+<!-- translated-from: features/tasks.md sha1:6112384dbb3c0e488e6d352b5e12dc60a08c3c27 -->
 
 # Aufgaben
 
@@ -100,8 +100,8 @@ behält sie an der Aufgabe, hält aber keine Kopie.
 ## Mit einem Server abgleichen
 
 Verbinde den Server zuerst unter **Einstellungen → Kalender**, wie bei einem
-[verbundenen Kalender](calendar-sync.md): Dieselbe Verbindung dient beidem. Danach erscheinen die kreisenden Pfeile
-neben den Listen im Bereich. Drücke sie, wähle die Verbindung und hake die Listen an, die synchron bleiben sollen.
+[verbundenen Kalender](calendar-sync.md): Dieselbe Verbindung dient beidem. Danach bietet das Zahnrad oben im Bereich
+**Listen von einem Server synchronisieren** an. Wähle dort die Verbindung und hake die Listen an, die synchron bleiben sollen.
 Kalender eines Servers, die nur Termine führen, werden nicht angeboten.
 
 Deine Änderungen gehen innerhalb von Augenblicken an den Server. Änderungen von anderswo kommen etwa alle
@@ -119,8 +119,11 @@ bleiben sie erhalten.
 
 ### Microsoft To Do
 
-Ein Microsoft-Konto, das für Mail oder Kalender verbunden ist, bringt seine To-Do-Listen mit derselben Anmeldung
-mit: Die kreisenden Pfeile bieten das Konto neben jeder CalDAV-Verbindung an, mit **Aufgaben** als erster Liste.
+Ein Microsoft-Konto bringt seine To-Do-Listen mit derselben Anmeldung mit, sobald sein Schalter **Aufgaben** an ist.
+Hake **Aufgaben** beim Verbinden des Kontos an, oder schalte es später unter **Einstellungen → Konten** ein und erlaube
+es bei Microsoft. **Listen von einem Server synchronisieren** hinter dem Zahnrad bietet das Konto dann neben jeder CalDAV-Verbindung an, beim ersten Mal mit
+der Standardliste **Aufgaben** angehakt. Ausgeschaltet bleiben seine Listen, wie sie sind, und nichts wird
+abgeglichen, bis es wieder an ist.
 Die Liste **Gekennzeichnete E-Mail** wird nicht angeboten, weil gekennzeichnete Mail hier schon gekennzeichnet ist.
 Ein Konto, das verbunden wurde, bevor plMail nach To Do gefragt hat, bekommt unter **Einstellungen → Zustand der
 Konten** einen Hinweis, dessen Knopf dich noch einmal anmeldet und den Zugriff ergänzt; vorher trägt der

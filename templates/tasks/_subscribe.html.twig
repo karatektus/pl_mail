@@ -32,12 +32,16 @@ Accepts:
             {% elseif offered is empty %}
                 <p class="py-6 text-center text-sm text-ink-faint italic">{{ 'tasks.subscribe.empty'|trans({ '%name%': sourceLabel }) }}</p>
             {% else %}
+                {# The first time a source is opened, its default list is ticked, which
+                   is the one somebody who uses one list at all means. Once anything is
+                   mirrored, the ticks say what is, and nothing is ticked for them. #}
+                {% set firstVisit = offered|filter(entry => entry.local)|length == 0 %}
                 <ul class="divide-y divide-line">
                     {% for entry in offered %}
                         {% set field = 'remote-task-list-' ~ loop.index %}
                         <li class="flex items-start gap-3 py-2.5">
                             <input type="checkbox" id="{{ field }}" name="remoteIds[]" value="{{ entry.remote.remoteId }}"
-                                   {% if entry.local %}checked{% endif %}
+                                   {% if entry.local or (firstVisit and entry.remote.isDefault) %}checked{% endif %}
                                    class="mt-0.5 size-4 rounded accent-accent">
                             <label for="{{ field }}" class="min-w-0 flex-1 text-sm text-ink">
                                 <span class="flex items-center gap-2">

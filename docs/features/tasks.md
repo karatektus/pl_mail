@@ -90,8 +90,8 @@ task but does not hold a copy.
 ## Syncing with a server
 
 First connect the server under **Settings → Calendars**, as for a [connected
-calendar](calendar-sync.md): the same connection serves both. The circling arrows then appear beside
-the lists in the pane. Press them, pick the connection, and tick the lists to keep in sync. A server's calendars
+calendar](calendar-sync.md): the same connection serves both. The gear at the top of the pane then
+offers **Sync lists from a server**. Pick the connection there, and tick the lists to keep in sync. A server's calendars
 that hold only events are not offered.
 
 Changes you make go to the server within moments. Changes made elsewhere arrive every fifteen minutes
@@ -108,8 +108,11 @@ Unticking a list removes it and its tasks from plMail. They stay on the server.
 
 ### Microsoft To Do
 
-A Microsoft account connected for mail or calendars brings its To Do lists with the same sign-in:
-the circling arrows offer the account beside any CalDAV connection, with **Tasks** ticked first. The
+A Microsoft account brings its To Do lists with the same sign-in once its **Tasks** switch is on.
+Tick **Tasks** when you connect the account, or switch it on later under **Settings → Accounts**
+and allow it at Microsoft. **Sync lists from a server** behind the gear then offers the account beside any CalDAV connection,
+with its default list **Tasks** ticked the first time. Switched off, its lists stay as they are and
+nothing is synced until it is on again. The
 **Flagged email** list is not offered, since flagged mail is already flagged here. An account
 connected before plMail asked for To Do gets a notice in **Settings → Account health** whose button
 signs in once more and adds it; the administrator first adds `Tasks.ReadWrite` to the app
