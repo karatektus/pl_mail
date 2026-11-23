@@ -7,5 +7,7 @@ instead of an eight-character checksum, so it downloads with its extension and a
 preview ([#718](https://github.com/karatektus/pl_mail/issues/718)); an attachment with no name at
 all is called after its type (`attachment.pdf`); and a message the old parser could not read at
 all, such as a multipart message without a boundary, is stored instead of retried. Attachments
-already stored under a checksum keep it. No schema change.
-[#82](https://github.com/karatektus/pl_mail/issues/82)
+already stored under a checksum get their names back from each message's stored original, by
+`app:backfill attachment-content-type-names`, which also runs as an upgrade task. No schema change.
+[#82](https://github.com/karatektus/pl_mail/issues/82); the backfill after
+[#721](https://github.com/karatektus/pl_mail/pull/721) by @james-e-morrison (written with Claude).
