@@ -246,6 +246,76 @@ class MessageBackfillRepository extends ServiceEntityRepository
     }
 
     /**
+     * The raw HTML bodies after an id, keyed by message id — what the
+     * unknown-element repair reads to choose which mail to sanitise again.
+     *
+     * SQL cannot tell which tags the allow-list names, so the choice is made
+     * in PHP (MailBodySanitizer::containsElementOutside()), and this only
+     * hands over the bodies. As scalars, not entities: almost every body
+     * passes the check, and hydrating a Message for each would cost more than
+     * the check itself.
+     *
+     * @return array<int, string>
+     */
+    public function findHtmlBodiesAfter(int $afterId, int $limit): array
+    {
+        $rows = $this->htmlBodyQueryBuilder($afterId)
+            ->select('m.id', 'm.bodyHtml')
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getArrayResult();
+
+        $bodies = [];
+
+        foreach ($rows as $row) {
+            $bodies[(int) $row['id']] = (string) $row['bodyHtml'];
+        }
+
+        return $bodies;
+    }
+
+    /**
+     * The messages a repair chose by id, as entities it can sanitise again.
+     *
+     * @param list<int> $ids
+     *
+     * @return list<Message>
+     */
+    public function findByIds(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->orderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithHtmlBody(): int
+    {
+        return (int) $this->htmlBodyQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function htmlBodyQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            ->andWhere("m.bodyHtml <> ''")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
      * Messages whose HTML body carries a charset declaration of its own — the
      * set the safe-html re-tag repair has to walk.
      *
