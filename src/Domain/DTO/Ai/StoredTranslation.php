@@ -34,4 +34,14 @@ final readonly class StoredTranslation
         public ?DateTimeImmutable $writtenAt,
     ) {
     }
+
+    /**
+     * The model said the mail is already in this language, so there is no
+     * text: nothing is shown, and the message is not asked about again while
+     * this is fresh.
+     */
+    public function isAlreadyInTarget(): bool
+    {
+        return $this->language->isLanguage($this->from);
+    }
 }

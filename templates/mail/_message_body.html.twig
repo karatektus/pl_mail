@@ -55,7 +55,9 @@ Variables:
 {# Translating (#713): null where it is not offered. Not for a body the server
    does not hold — the browser draws those, and there is nothing to send. #}
 {% set translation = (encryptedHere or sealedDraft or sendingSealed) ? null : message_translation(message) %}
-{% set translated = translation is not null and translation.stored is not null %}
+{# A message the model said is already in the reader's language has a stored
+   row and no translation: it opens as it is. #}
+{% set translated = translation is not null and translation.stored is not null and not translation.stored.isAlreadyInTarget %}
 
 <div id="message_body_{{ message.id }}" class="mail-message-body">
 
@@ -270,6 +272,7 @@ Variables:
              data-mail--message-translation-working-label-value="{{ 'message.translation.state.working'|trans({ '%language%': translation.intoLabel }) }}"
              data-mail--message-translation-waiting-label-value="{{ 'message.translation.state.waiting'|trans }}"
              data-mail--message-translation-reading-label-value="{{ 'message.translation.state.reading'|trans }}"
+             data-mail--message-translation-already-label-value="{{ 'message.translation.already_in'|trans({ '%language%': translation.intoLabel }) }}"
              data-mail--message-translation-error-labels-value="{{ {
                  connection_lost: 'message.translation.error.connection_lost'|trans,
                  disabled:        'message.translation.error.disabled'|trans,

@@ -3350,6 +3350,7 @@ message:
             title: Diese Nachricht ist im Spam
     translation:
         again: 'Noch einmal übersetzen'
+        already_in: 'Diese Nachricht ist schon in der Zielsprache (%language%). Es gibt nichts zu übersetzen.'
         error:
             connection_lost: 'Die Verbindung zu plMail ist abgerissen, während die Übersetzung geschrieben wurde. Am Modell-Host liegt es nicht — irgendetwas zwischen diesem Browser und dem Server hat die Verbindung geschlossen.'
             disabled: 'Übersetzen ist ausgeschaltet.'

@@ -54,4 +54,15 @@ final class TranslationLanguageTest extends TestCase
         self::assertSame(TranslationLanguage::English, TranslationLanguage::forInterface(null));
         self::assertSame(TranslationLanguage::English, TranslationLanguage::forInterface('xx'));
     }
+
+    /** The two letters the model names, against a target that may carry a script. */
+    public function testAMailIsInTheTargetLanguageByItsLanguageAlone(): void
+    {
+        self::assertTrue(TranslationLanguage::Russian->isLanguage('ru'));
+        self::assertTrue(TranslationLanguage::Russian->isLanguage('RU'));
+        self::assertTrue(TranslationLanguage::ChineseSimplified->isLanguage('zh'));
+        self::assertTrue(TranslationLanguage::ChineseTraditional->isLanguage('zh'));
+        self::assertFalse(TranslationLanguage::Russian->isLanguage('uk'));
+        self::assertFalse(TranslationLanguage::Russian->isLanguage(null));
+    }
 }

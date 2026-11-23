@@ -38,6 +38,7 @@ export default class extends Controller {
         workingLabel: String,
         waitingLabel: String,
         readingLabel: String,
+        alreadyLabel: String,
         errorLabels: Object,
     };
 
@@ -187,6 +188,17 @@ export default class extends Controller {
 
         if ("done" === frame.type) {
             this.#controller = null;
+
+            if (true === frame.alreadyInTarget) {
+                // Nothing to translate: the original stays, and the bar says why.
+                this.#answer = "";
+                this.translationTarget.textContent = "";
+                this.pendingTarget.hidden = true;
+                this.#say(this.alreadyLabelValue);
+                this.#show("original");
+
+                return;
+            }
 
             if ("string" === typeof frame.text && "" !== frame.text.trim()) {
                 this.#answer = frame.text;

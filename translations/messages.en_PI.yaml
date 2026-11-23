@@ -3228,6 +3228,7 @@ message:
             title: This bottle sits in the bilge
     translation:
         again: "Translate 'er again"
+        already_in: 'This message already be in %language%. There be naught to translate.'
         error:
             connection_lost: "Th' line to plMail parted while th' translation were bein' writ. Th' oracle's berth be blameless — summat betwixt this glass an' th' server cut it."
             disabled: "Translatin' be switched off."

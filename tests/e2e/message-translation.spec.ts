@@ -139,4 +139,34 @@ test.describe("message translation", () => {
         await expect(body.locator(TEXT)).toBeHidden();
         await expect(body.locator(TOGGLE)).toBeHidden();
     });
+
+    test("a message already in the reader's language says so and stays as it is", async ({ page }) => {
+        seed("seed-conversation");
+
+        await page.route(/\/mail\/message\/\d+\/translation$/, (route) =>
+            route.fulfill({
+                status: 200,
+                contentType: "application/x-ndjson",
+                body: JSON.stringify({ type: "done", text: "", from: "en", fromLabel: "English", alreadyInTarget: true, partial: false, leavesOutQuote: false }) + "\n",
+            }),
+        );
+
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await page.goto("/mail/inbox");
+        await settled(page);
+
+        await mailRow(page, "E2E Conversation").click();
+
+        const message = page.locator('[id^="thread_message_"]').last();
+        const body = message.locator('[data-controller="mail--message-translation"]');
+
+        await message.locator('[data-action="click->mail--message-actions#toggle"]').click();
+        await message.locator('[data-testid="translate-message"]').click();
+
+        await expect(body.locator(BAR)).toContainText("This message is already in English. There is nothing to translate.");
+        await expect(body.locator(BAR)).not.toContainText("by AI");
+        await expect(body.locator(ORIGINAL)).toBeVisible();
+        await expect(body.locator(TEXT)).toBeHidden();
+        await expect(body.locator(TOGGLE)).toBeHidden();
+    });
 });

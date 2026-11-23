@@ -3381,6 +3381,7 @@ message:
             title: Ce message est dans Spam
     translation:
         again: 'Traduire à nouveau'
+        already_in: 'Ce message est déjà dans la langue cible (%language%). Il n’y a rien à traduire.'
         error:
             connection_lost: 'La connexion à plMail a été perdue pendant l’écriture de la traduction. L’hôte du modèle n’y est pour rien ; quelque chose entre ce navigateur et le serveur a fermé la connexion.'
             disabled: 'La traduction est désactivée.'

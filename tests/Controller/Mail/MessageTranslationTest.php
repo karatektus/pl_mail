@@ -354,6 +354,52 @@ final class MessageTranslationTest extends WebTestCase
     }
 
     /**
+     * The model names the reader's own language: it is stopped there, nothing
+     * is shown in place of the mail, and what is stored is that language and no
+     * text. Asked again, the answer comes from the store without the model; the
+     * page opens the message as it is.
+     */
+    public function testAMessageAlreadyInTheReadersLanguageIsLeftAsItIsAndNotAskedAgain(): void
+    {
+        $client  = $this->signIn();
+        $message = $this->seedMessage('Привет! Пришли, пожалуйста, счёт до четверга.');
+
+        $this->configureAi();
+        $this->user->aiPreferences->translateInto = 'ru';
+        $this->em->flush();
+
+        $this->answer = ["Language: ru\n", "\nПривет! Пришли, ", 'пожалуйста, счёт до четверга.'];
+
+        $frames = $this->frames($this->post($client, $message));
+        $done   = $frames[array_key_last($frames)];
+
+        self::assertSame([], array_values(array_filter($frames, static fn (array $frame): bool => 'token' === $frame['type'])));
+        self::assertSame('done', $done['type']);
+        self::assertTrue($done['alreadyInTarget']);
+        self::assertSame('', $done['text']);
+        self::assertSame('ru', $done['from']);
+        self::assertSame(
+            ['', 'ru'],
+            array_values((array) $this->connection->fetchAssociative(
+                'SELECT translation, source_language FROM message_translation WHERE message_id = ?',
+                [$message->id],
+            )),
+        );
+
+        $again = $this->frames($this->post($client, $message));
+
+        self::assertCount(1, $this->sent, 'asked again, the model is not');
+        self::assertCount(1, $again);
+        self::assertTrue($again[0]['alreadyInTarget']);
+
+        $crawler = $client->request('GET', sprintf('/mail/thread/%d', $message->thread?->id));
+
+        self::assertNotNull($crawler->filter('[data-testid="translation-bar"]')->attr('hidden'));
+        self::assertNotNull($crawler->filter('[data-testid="translation-text"]')->attr('hidden'));
+        self::assertNull($crawler->filter('[data-mail--message-translation-target="original"]')->attr('hidden'));
+    }
+
+    /**
      * ThreadViewQueryBudgetTest's rule with translation switched on and stored
      * translations on the page: ten messages cost no more queries than two.
      * The person's permission, language, model and prompt are read once, and

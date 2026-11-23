@@ -3364,6 +3364,7 @@ message:
             title: This message is in Spam
     translation:
         again: 'Translate again'
+        already_in: 'This message is already in %language%. There is nothing to translate.'
         error:
             connection_lost: 'The connection to plMail was lost while the translation was being written. The model host is not involved; something between this browser and the server closed the connection.'
             disabled: 'Translating is switched off.'

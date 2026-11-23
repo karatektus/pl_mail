@@ -220,7 +220,7 @@ final readonly class MessageTranslator
             ThreadSummariser::timeoutFor($source->text),
         );
 
-        return null === $tokens ? null : $this->tidied($tokens);
+        return null === $tokens ? null : $this->tidied($tokens, $into);
     }
 
     /**
@@ -228,6 +228,11 @@ final readonly class MessageTranslator
      * language and is held back until SourceLanguageLine can tell it from the
      * translation, so it never reaches the page. Pings pass while it is held:
      * they are what keeps the page saying the model is still reading.
+     *
+     * A mail the line says is already in the reader's language is not
+     * translated: the model is stopped there, which AiAssistant records as a
+     * cancelled call, and the result says so instead of carrying a copy of the
+     * mail written out word by word.
      *
      * tidy() is applied to the return only. See ThreadSummariser::tidied():
      * what the return carries is what is stored, and it is built from what was
@@ -237,7 +242,7 @@ final readonly class MessageTranslator
      *
      * @return \Generator<int, string, void, TranslationResult>
      */
-    private function tidied(\Generator $tokens): \Generator
+    private function tidied(\Generator $tokens, TranslationLanguage $into): \Generator
     {
         $held  = '';
         $line  = null;
@@ -258,6 +263,10 @@ final readonly class MessageTranslator
                     continue;
                 }
 
+                if (true === $into->isLanguage($line->language)) {
+                    return TranslationResult::alreadyIn((string) $line->language);
+                }
+
                 $token = $line->rest;
             }
 
@@ -276,6 +285,11 @@ final readonly class MessageTranslator
             // An answer shorter than the line it was waiting for: whatever it
             // is, it has all arrived now.
             $line = SourceLanguageLine::read($held, true);
+
+            if (true === $into->isLanguage($line?->language)) {
+                return TranslationResult::alreadyIn((string) $line?->language);
+            }
+
             $rest = ltrim((string) $line?->rest, "\r\n");
 
             if ('' !== $rest) {

@@ -36,6 +36,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *
  * No stop button and no queued variant: a translation is one message, and
  * "Show original" while it is being written only hides it.
+ *
+ * A mail the model said is already in the reader's language is not translated
+ * (MessageTranslator stops the model there) and not asked about again: what is
+ * stored for it is that language and no text, and the next request is answered
+ * from the store at once.
  */
 final class MessageTranslationController extends AbstractController
 {
@@ -72,9 +77,20 @@ final class MessageTranslationController extends AbstractController
             return new JsonResponse(['error' => 'empty'], Response::HTTP_CONFLICT);
         }
 
-        $into       = MessageTranslator::targetFor($user, $request->getLocale());
+        $locale     = $request->getLocale();
+        $into       = MessageTranslator::targetFor($user, $locale);
         $model      = $this->translator->model();
         $promptHash = $this->translator->promptFingerprint();
+
+        $stored = $this->store->forMessage((int) $message->id, $into, $model, $promptHash, static fn (): string => $source->hash());
+
+        if (null !== $stored && true === $stored->isFresh && true === $stored->isAlreadyInTarget()) {
+            return new Response(
+                $this->encoded($this->done('', $stored->from, true, $source, $locale)),
+                Response::HTTP_OK,
+                ['Content-Type' => 'application/x-ndjson', 'Cache-Control' => 'no-cache, no-store, must-revalidate, private'],
+            );
+        }
 
         // Released before the stream for ThreadSummaryController's reason: the
         // lock would hold every other request of this person for minutes.
@@ -83,8 +99,6 @@ final class MessageTranslationController extends AbstractController
         if (true === $session->isStarted()) {
             $session->save();
         }
-
-        $locale = $request->getLocale();
 
         $response = new StreamedResponse(function () use ($user, $message, $into, $source, $model, $promptHash, $locale): void {
             $this->generate($user, $message, $into, $source, $model, $promptHash, $locale);
@@ -169,25 +183,44 @@ final class MessageTranslationController extends AbstractController
 
         // The stored text again, so what the reader sees is what the next
         // opening of this message shows.
-        $this->frame([
-            'type'           => 'done',
-            'text'           => $result->content,
-            'from'           => $translated->sourceLanguage,
-            'fromLabel'      => null === $translated->sourceLanguage ? null : SourceLanguageLine::nameOf($translated->sourceLanguage, $locale),
-            'partial'        => $source->isPartial,
-            'leavesOutQuote' => $source->leavesOutQuote,
-        ]);
+        $this->frame($this->done($result->content, $translated->sourceLanguage, $translated->alreadyInTarget, $source, $locale));
+    }
+
+    /**
+     * The last frame: the text as stored, and the language the model named for
+     * the mail. alreadyInTarget: that is the reader's language, and there is no
+     * text.
+     *
+     * @return array<string, mixed>
+     */
+    private function done(string $text, ?string $from, bool $alreadyInTarget, TranslationSource $source, string $locale): array
+    {
+        return [
+            'type'            => 'done',
+            'text'            => $text,
+            'from'            => $from,
+            'fromLabel'       => null === $from ? null : SourceLanguageLine::nameOf($from, $locale),
+            'alreadyInTarget' => $alreadyInTarget,
+            'partial'         => $source->isPartial,
+            'leavesOutQuote'  => $source->leavesOutQuote,
+        ];
     }
 
     /** @param array<string, mixed> $frame */
     private function frame(array $frame): void
     {
-        echo json_encode($frame, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), "\n";
+        echo $this->encoded($frame);
 
         if (0 < ob_get_level()) {
             ob_flush();
         }
 
         flush();
+    }
+
+    /** @param array<string, mixed> $frame */
+    private function encoded(array $frame): string
+    {
+        return json_encode($frame, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) . "\n";
     }
 }

@@ -3029,6 +3029,7 @@ message:
             title: '此邮件位于垃圾邮件中'
     translation:
         again: '重新翻译'
+        already_in: '这封邮件已经是%language%，无需翻译。'
         error:
             connection_lost: '翻译过程中与 plMail 的连接断开了。问题不在模型主机，而是浏览器与服务器之间的某处关闭了连接。'
             disabled: '翻译功能已关闭。'

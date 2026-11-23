@@ -79,6 +79,19 @@ enum TranslationLanguage: string
         return Locales::getName($this->intlCode(), 'en');
     }
 
+    /**
+     * Whether a mail the model said is written in $code (SourceLanguageLine)
+     * is already in this language, so there is nothing to translate.
+     *
+     * By the language alone, because the model names two letters: Chinese in
+     * either script is Chinese, and a reader of one is not sent a copy of the
+     * mail converted to the other.
+     */
+    public function isLanguage(?string $code): bool
+    {
+        return null !== $code && strtolower(explode('-', $this->value)[0]) === strtolower($code);
+    }
+
     /** The default for a reader who has not chosen: their interface language. */
     public static function forInterface(?string $locale): self
     {

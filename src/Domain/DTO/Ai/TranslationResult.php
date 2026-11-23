@@ -11,13 +11,22 @@ namespace App\Domain\DTO\Ai;
 final readonly class TranslationResult
 {
     /**
-     * @param AiChatResult $chat           the translation, tidied, or why there is none
-     * @param string|null  $sourceLanguage the ISO 639-1 code the model named for the mail;
-     *                                     null when it named none. See SourceLanguageLine.
+     * @param AiChatResult $chat            the translation, tidied, or why there is none
+     * @param string|null  $sourceLanguage  the ISO 639-1 code the model named for the mail;
+     *                                      null when it named none. See SourceLanguageLine.
+     * @param bool         $alreadyInTarget the model named the language the reader reads, and
+     *                                      was stopped there: there is no translation, and
+     *                                      nothing is wrong
      */
     public function __construct(
         public AiChatResult $chat,
         public ?string $sourceLanguage,
+        public bool $alreadyInTarget = false,
     ) {
+    }
+
+    public static function alreadyIn(string $language): self
+    {
+        return new self(AiChatResult::ok('', AiCallTiming::none()), $language, true);
     }
 }
