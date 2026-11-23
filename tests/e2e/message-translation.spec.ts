@@ -53,7 +53,7 @@ test.describe("message translation", () => {
                     { type: "ping", elapsed: 12 },
                     { type: "token", text: "Привет, " },
                     { type: "token", text: "это перевод." },
-                    { type: "done", text: "Привет, это перевод.", partial: false, leavesOutQuote: true },
+                    { type: "done", text: "Привет, это перевод.", from: "he", fromLabel: "Hebrew", partial: false, leavesOutQuote: true },
                 ].map((frame) => JSON.stringify(frame) + "\n").join(""),
             }),
         );
@@ -81,6 +81,8 @@ test.describe("message translation", () => {
         await expect(bar).toContainText("This is not the original text.");
         await expect(bar).toContainText("e2e-translation-model");
         await expect(bar).toContainText("The quoted earlier messages were left out");
+        // The language the model named for the mail, once the answer is in.
+        await expect(bar).toContainText("Translated from Hebrew into");
 
         // The translation in place of the original.
         await expect(body.locator(TEXT)).toHaveText("Привет, это перевод.");
@@ -97,9 +99,10 @@ test.describe("message translation", () => {
         await expect(toggle).toHaveText("Show translation");
         await expect(bar).toContainText("The original text.");
 
-        // …and one back.
+        // …and one back, still naming the language.
         await toggle.click();
 
+        await expect(bar).toContainText("Translated from Hebrew into");
         await expect(body.locator(TEXT)).toBeVisible();
         await expect(body.locator(ORIGINAL)).toBeHidden();
         await expect(toggle).toHaveText("Show original");

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Domain\Ai\SourceLanguageLine;
 use App\Domain\DTO\Ai\StoredTranslation;
 use App\Domain\DTO\Ai\TranslationSource;
 use App\Domain\Enum\Ai\TranslationLanguage;
@@ -35,7 +36,7 @@ use Twig\TwigFunction;
  */
 final class MessageTranslationExtension extends AbstractExtension implements ResetInterface
 {
-    /** @var array{into: TranslationLanguage, intoLabel: string, model: string, prompt: string}|false|null false: not offered */
+    /** @var array{into: TranslationLanguage, intoLabel: string, locale: string, model: string, prompt: string}|false|null false: not offered */
     private array|false|null $context = null;
 
     /** @var array<int, array<int, array{translation: string, source_language: string|null, source_hash: string, created_at: string}>> stored rows by thread id, then message id */
@@ -71,9 +72,10 @@ final class MessageTranslationExtension extends AbstractExtension implements Res
 
     /**
      * The language the reader gets, and the translation already stored for it,
-     * or null where translating is not offered.
+     * or null where translating is not offered. fromLabel names the language
+     * the model said the mail is in, null when it named none.
      *
-     * @return array{into: string, intoLabel: string, model: string, stored: StoredTranslation|null, partial: bool, leavesOutQuote: bool}|null
+     * @return array{into: string, intoLabel: string, model: string, stored: StoredTranslation|null, fromLabel: string|null, partial: bool, leavesOutQuote: bool}|null
      */
     public function translation(Message $message): ?array
     {
@@ -91,12 +93,13 @@ final class MessageTranslationExtension extends AbstractExtension implements Res
             'intoLabel'      => $context['intoLabel'],
             'model'          => $context['model'],
             'stored'         => $stored,
+            'fromLabel'      => null === $stored?->from ? null : SourceLanguageLine::nameOf($stored->from, $context['locale']),
             'partial'        => true === $source?->isPartial,
             'leavesOutQuote' => true === $source?->leavesOutQuote,
         ];
     }
 
-    /** @return array{into: TranslationLanguage, intoLabel: string, model: string, prompt: string}|false */
+    /** @return array{into: TranslationLanguage, intoLabel: string, locale: string, model: string, prompt: string}|false */
     private function context(): array|false
     {
         if (null !== $this->context) {
@@ -115,6 +118,7 @@ final class MessageTranslationExtension extends AbstractExtension implements Res
         return $this->context = [
             'into'      => $into,
             'intoLabel' => $into->label($locale ?? 'en'),
+            'locale'    => $locale ?? 'en',
             'model'     => $this->translator->model(),
             'prompt'    => $this->translator->promptFingerprint(),
         ];
@@ -126,7 +130,7 @@ final class MessageTranslationExtension extends AbstractExtension implements Res
      * would be translated from is read only for a message that has a row, and
      * handed back in $source for what the page says about it.
      *
-     * @param array{into: TranslationLanguage, intoLabel: string, model: string, prompt: string} $context
+     * @param array{into: TranslationLanguage, intoLabel: string, locale: string, model: string, prompt: string} $context
      */
     private function storedFor(Message $message, array $context, ?TranslationSource &$source): ?StoredTranslation
     {

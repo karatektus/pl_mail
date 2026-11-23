@@ -3041,6 +3041,7 @@ message:
             timeout: '模型主机响应超时。'
             unreachable: '无法连接到模型主机。'
         generated: '由 AI（%model%）翻译为%language%。这不是原文。'
+        generated_from: '由 AI（%model%）从%source%翻译为%language%。这不是原文。'
         original_shown: '这是原文。AI 翻译（%language%）已准备好。'
         partial: '这封邮件较长，只翻译了开头部分。'
         quote_left_out: '引用的早前邮件未翻译；可以单独翻译它们。'

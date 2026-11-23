@@ -3240,6 +3240,7 @@ message:
             timeout: "Th' oracle's berth took o'er long t' answer."
             unreachable: "Th' oracle's berth could nay be raised."
         generated: "Turned into %language% by th' oracle (%model%). This be NOT th' original text."
+        generated_from: "Turned from %source% into %language% by th' oracle (%model%). This be NOT th' original text."
         original_shown: "Th' original text. Th' oracle's translation into %language% be ready."
         partial: "This letter be long, so only its beginnin' were translated."
         quote_left_out: "Th' quoted earlier letters were left out; they can be translated on their own."

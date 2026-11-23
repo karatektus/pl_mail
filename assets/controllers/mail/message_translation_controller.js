@@ -30,6 +30,8 @@ export default class extends Controller {
         token: String,
         shown: { type: String, default: "original" },
         generatedLabel: String,
+        generatedFromLabel: String,
+        fromLabel: String,
         originalLabel: String,
         showOriginalLabel: String,
         showTranslationLabel: String,
@@ -84,10 +86,20 @@ export default class extends Controller {
         this.barTarget.hidden = false;
         this.translationTarget.hidden = false === translation;
         this.originalTarget.hidden = translation;
-        this.headlineTarget.textContent = false === has ? "" : (translation ? this.generatedLabelValue : this.originalLabelValue);
+        this.headlineTarget.textContent = false === has ? "" : (translation ? this.#generated() : this.originalLabelValue);
         this.headlineTarget.hidden = false === has;
         this.toggleTarget.textContent = translation ? this.showOriginalLabelValue : this.showTranslationLabelValue;
         this.toggleTarget.hidden = false === has;
+    }
+
+    /**
+     * What the bar says over the translation: the language the mail is in when
+     * the model named it, and only then.
+     */
+    #generated() {
+        return "" === this.fromLabelValue
+            ? this.generatedLabelValue
+            : this.generatedFromLabelValue.replace("%source%", this.fromLabelValue);
     }
 
     async #start() {
@@ -181,6 +193,7 @@ export default class extends Controller {
                 this.translationTarget.textContent = this.#answer;
             }
 
+            this.fromLabelValue = "string" === typeof frame.fromLabel ? frame.fromLabel : "";
             this.pendingTarget.hidden = true;
             this.#say("");
             this.partialTarget.hidden = true !== frame.partial;

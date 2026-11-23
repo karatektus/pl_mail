@@ -166,6 +166,8 @@ final class MessageTranslationTest extends WebTestCase
         self::assertSame('Пришлите счёт до четверга.', $done['text']);
         self::assertFalse($done['partial']);
         self::assertFalse($done['leavesOutQuote']);
+        self::assertNull($done['from']);
+        self::assertNull($done['fromLabel']);
 
         // An answer without the line naming the language is all translation,
         // and names none.
@@ -198,7 +200,11 @@ final class MessageTranslationTest extends WebTestCase
         $tokens = array_filter($frames, static fn (array $frame): bool => 'token' === $frame['type']);
 
         self::assertSame('Пришлите счёт до четверга.', implode('', array_column($tokens, 'text')));
-        self::assertSame('Пришлите счёт до четверга.', $frames[array_key_last($frames)]['text']);
+        $done = $frames[array_key_last($frames)];
+
+        self::assertSame('Пришлите счёт до четверга.', $done['text']);
+        self::assertSame('he', $done['from']);
+        self::assertSame('Hebrew', $done['fromLabel']);
         self::assertSame(
             ['Пришлите счёт до четверга.', 'he'],
             array_values((array) $this->connection->fetchAssociative(
@@ -297,6 +303,23 @@ final class MessageTranslationTest extends WebTestCase
         self::assertSame('Hello, please send the invoice by Thursday.', $text->text());
         self::assertNotNull($crawler->filter('[data-mail--message-translation-target="original"]')->attr('hidden'));
         self::assertCount(1, $crawler->filter('[data-testid="translate-message"]'));
+    }
+
+    /** The bar names the mail's language when the model named it, in the reader's interface language. */
+    public function testAStoredTranslationNamesTheLanguageTheModelNamed(): void
+    {
+        $client  = $this->signIn();
+        $message = $this->seedMessage('שלום, אנא שלחו את החשבונית עד יום חמישי.');
+
+        $this->configureAi();
+        $this->store($message, 'en', 'Hello, please send the invoice by Thursday.', true, 'he');
+
+        $crawler = $client->request('GET', sprintf('/mail/thread/%d', $message->thread?->id));
+
+        self::assertStringContainsString(
+            sprintf('Translated from Hebrew into English by AI (%s).', self::MODEL),
+            $crawler->filter('[data-testid="translation-bar"]')->text(),
+        );
     }
 
     public function testAStaleTranslationIsShownMarkedWithTheOfferToTranslateAgain(): void
@@ -489,17 +512,18 @@ final class MessageTranslationTest extends WebTestCase
         }
     }
 
-    private function store(Message $message, string $language, string $text, bool $fresh): void
+    private function store(Message $message, string $language, string $text, bool $fresh, ?string $from = null): void
     {
         $this->connection->executeStatement(
             <<<'SQL'
-                INSERT INTO message_translation (message_id, target_language, translation, source_hash, model, prompt_hash, created_at)
-                VALUES (:id, :language, :text, :hash, :model, :prompt, NOW())
+                INSERT INTO message_translation (message_id, target_language, translation, source_language, source_hash, model, prompt_hash, created_at)
+                VALUES (:id, :language, :text, :from, :hash, :model, :prompt, NOW())
             SQL,
             [
                 'id'       => $message->id,
                 'language' => $language,
                 'text'     => $text,
+                'from'     => $from,
                 'hash'     => true === $fresh ? MessageTranslator::sourceOf($message)->hash() : str_repeat('0', 64),
                 'model'    => self::MODEL,
                 'prompt'   => static::getContainer()->get(MessageTranslator::class)->promptFingerprint(),

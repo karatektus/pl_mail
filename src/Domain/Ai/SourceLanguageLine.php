@@ -87,4 +87,15 @@ final readonly class SourceLanguageLine
 
         return new self(true === Languages::exists($code) ? $code : null, $rest);
     }
+
+    /**
+     * The name of a language the model named, in the reader's interface
+     * language: any language Intl knows, not only the ones TranslationLanguage
+     * translates into. Null for a code it does not know, which a stored row
+     * could hold only if somebody wrote it there by hand.
+     */
+    public static function nameOf(string $code, string $displayLocale): ?string
+    {
+        return true === Languages::exists($code) ? Languages::getName($code, $displayLocale) : null;
+    }
 }

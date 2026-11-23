@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Ai\SourceLanguageLine;
 use App\Domain\DTO\Ai\TranslationSource;
 use App\Domain\Enum\Ai\TranslationLanguage;
 use App\Domain\Helper\RequestTimeLimit;
@@ -83,8 +84,10 @@ final class MessageTranslationController extends AbstractController
             $session->save();
         }
 
-        $response = new StreamedResponse(function () use ($user, $message, $into, $source, $model, $promptHash): void {
-            $this->generate($user, $message, $into, $source, $model, $promptHash);
+        $locale = $request->getLocale();
+
+        $response = new StreamedResponse(function () use ($user, $message, $into, $source, $model, $promptHash, $locale): void {
+            $this->generate($user, $message, $into, $source, $model, $promptHash, $locale);
         });
 
         $response->headers->set('Content-Type', 'application/x-ndjson');
@@ -94,7 +97,7 @@ final class MessageTranslationController extends AbstractController
         return $response;
     }
 
-    private function generate(User $user, Message $message, TranslationLanguage $into, TranslationSource $source, string $model, string $promptHash): void
+    private function generate(User $user, Message $message, TranslationLanguage $into, TranslationSource $source, string $model, string $promptHash, string $locale): void
     {
         ignore_user_abort(true);
 
@@ -169,6 +172,8 @@ final class MessageTranslationController extends AbstractController
         $this->frame([
             'type'           => 'done',
             'text'           => $result->content,
+            'from'           => $translated->sourceLanguage,
+            'fromLabel'      => null === $translated->sourceLanguage ? null : SourceLanguageLine::nameOf($translated->sourceLanguage, $locale),
             'partial'        => $source->isPartial,
             'leavesOutQuote' => $source->leavesOutQuote,
         ]);

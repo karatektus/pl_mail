@@ -3393,6 +3393,7 @@ message:
             timeout: 'L’hôte du modèle a mis trop de temps à répondre.'
             unreachable: 'L’hôte du modèle est injoignable.'
         generated: 'Traduit en %language% par une IA (%model%). Ce n’est pas le texte original.'
+        generated_from: 'Traduit par une IA (%source% → %language%, %model%). Ce n’est pas le texte original.'
         original_shown: 'Le texte original. Une traduction en %language% par une IA est prête.'
         partial: 'Ce message est long : seul son début a été traduit.'
         quote_left_out: 'Les messages précédents cités ont été laissés de côté ; vous pouvez les traduire séparément.'

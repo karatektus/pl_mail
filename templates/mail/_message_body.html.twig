@@ -250,6 +250,11 @@ Variables:
        Twig escapes it here and the controller writes it with textContent, so
        nothing a model writes is ever markup. #}
     {% if translation is not null %}
+        {# Names the mail's language when the model named it (SourceLanguageLine),
+           and only then: never a guess. #}
+        {% set generatedLabel = translation.fromLabel is not null
+            ? 'message.translation.generated_from'|trans({ '%source%': translation.fromLabel, '%language%': translation.intoLabel, '%model%': translation.model })
+            : 'message.translation.generated'|trans({ '%language%': translation.intoLabel, '%model%': translation.model }) %}
         <div data-controller="mail--message-translation"
              data-action="mail--message-actions:translate@document->mail--message-translation#request"
              data-mail--message-translation-message-value="{{ message.id }}"
@@ -257,6 +262,8 @@ Variables:
              data-mail--message-translation-token-value="{{ csrf_token('message_translation') }}"
              data-mail--message-translation-shown-value="{{ translated ? 'translation' : 'original' }}"
              data-mail--message-translation-generated-label-value="{{ 'message.translation.generated'|trans({ '%language%': translation.intoLabel, '%model%': translation.model }) }}"
+             data-mail--message-translation-generated-from-label-value="{{ 'message.translation.generated_from'|trans({ '%language%': translation.intoLabel, '%model%': translation.model }) }}"
+             data-mail--message-translation-from-label-value="{{ translation.fromLabel }}"
              data-mail--message-translation-original-label-value="{{ 'message.translation.original_shown'|trans({ '%language%': translation.intoLabel }) }}"
              data-mail--message-translation-show-original-label-value="{{ 'message.translation.show_original'|trans }}"
              data-mail--message-translation-show-translation-label-value="{{ 'message.translation.show_translation'|trans }}"
@@ -286,7 +293,7 @@ Variables:
                 <div class="min-w-0 flex-1">
                     <p data-mail--message-translation-target="headline"
                        class="text-xs font-semibold text-ink"
-                    >{{ translated ? ('message.translation.generated'|trans({ '%language%': translation.intoLabel, '%model%': translation.model })) : '' }}</p>
+                    >{{ translated ? generatedLabel : '' }}</p>
                     <p data-mail--message-translation-target="status" role="status" aria-live="polite" hidden
                        class="text-[11px] leading-snug text-ink-muted"></p>
                     <p data-mail--message-translation-target="partial" {{ translated and translation.partial ? '' : 'hidden' }}
