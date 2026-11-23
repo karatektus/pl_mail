@@ -26,7 +26,8 @@ use Throwable;
  *
  * Those messages render blank with one chip named something like `09704cea`,
  * and the mail the chip contains is the mail the message is supposed to show.
- * MessageSyncer stops new ones arriving; this is for the ones already here.
+ * MessageParser reads such parts as bodies, so no new ones arrive; this is for
+ * the ones stored while webklex parsed.
  *
  * ── Repairable without a mail server, which is the whole reason it exists ────
  * The bytes were saved. persistAttachment() wrote the part's content to
@@ -220,7 +221,7 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
             return false;
         }
 
-        if (false === $this->detector->isBody($part->contentType, null, null)) {
+        if (false === $this->detector->isBodyType($part->contentType)) {
             return false;
         }
 

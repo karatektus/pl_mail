@@ -4,122 +4,83 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Domain\Helper\MessageParser;
 use App\Service\Imap\MessageSyncer;
 use PHPUnit\Framework\TestCase;
-use Webklex\PHPIMAP\Address;
-use Webklex\PHPIMAP\Attribute;
 
 /**
- * Recipients survive the trip out of webklex.
+ * Recipients survive the trip from the header to the row.
  *
- * The bug this pins was silent and total: `foreach ($attribute as $address)`
- * over a webklex Attribute looks like an iteration and is not one. Attribute
- * implements ArrayAccess and nothing else — no Iterator, no IteratorAggregate
- * — so PHP falls back to walking the object's public properties, of which it
- * has none. No error, no warning, zero rounds of the loop, and an empty list
- * returned for every message ever synced over IMAP. The message header had no
- * "to" line, reply-all had nobody to reply to, and no contact was ever
- * harvested from a recipient.
+ * The bug this was written for was silent and total: webklex handed the
+ * recipients over as an Attribute, which is not Traversable, so the loop over
+ * them ran zero times and every message ever synced over IMAP was stored with
+ * no recipients. The message header had no "to" line, reply-all had nobody to
+ * reply to, and no contact was ever harvested from a recipient.
  *
- * The first test is the one that matters: it is written against a REAL
- * Attribute, because a hand-rolled array double iterates perfectly and would
- * have gone on passing against the broken code.
+ * Written end to end, from the header text through MessageParser to the list
+ * a row stores, because a hand-built list of addresses would iterate
+ * perfectly and would have gone on passing against the broken code.
  */
 final class ImapRecipientCaptureTest extends TestCase
 {
-    public function testARealWebklexAttributeYieldsItsAddresses(): void
+    public function testEveryRecipientOfARealHeaderIsCaptured(): void
     {
-        $attribute = new Attribute('to', [
-            self::address('Alice Example', 'Alice@Example.COM'),
-            self::address('', 'bob@example.com'),
-        ]);
-
         self::assertSame(
             [
                 ['name' => 'Alice Example', 'address' => 'alice@example.com'],
                 ['name' => '', 'address' => 'bob@example.com'],
             ],
-            MessageSyncer::addressesOf($attribute),
-            'an Attribute is not Traversable — reading it as one captured nothing',
+            $this->recipients('To: Alice Example <Alice@Example.COM>, bob@example.com'),
         );
     }
 
-    public function testTheAttributeIsIndeedNotTraversable(): void
+    /**
+     * `undisclosed-recipients:;` is a group with no members. Storing it would
+     * put a recipient called "undisclosed-recipients" in the header. The
+     * honest answer is an empty list, which the template states out loud.
+     */
+    public function testAGroupWithNobodyInItNamesNobody(): void
     {
-        $attribute = new Attribute('to', [self::address('Alice', 'alice@example.com')]);
-
-        $rounds = 0;
-
-        // PHPStan is right, and that is the point of the line: it says this
-        // exact thing about this exact expression. The syncer's parameter was
-        // typed `mixed`, so the analyser had nothing to say there and the
-        // mistake shipped. Reproduced here on purpose, and only here.
-        // @phpstan-ignore foreach.nonIterable
-        foreach ($attribute as $ignored) {
-            ++$rounds;
-        }
-
-        self::assertSame(0, $rounds, 'the day this iterates, the guard above stops being the point');
-        self::assertCount(1, MessageSyncer::addressesOf($attribute));
+        self::assertSame([], $this->recipients('To: undisclosed-recipients:;'));
     }
 
-    /**
-     * `undisclosed-recipients:;` is a group with no members. It parses to
-     * something with a name and no addr-spec, and storing that would put a
-     * recipient called "undisclosed-recipients" in the header. The honest
-     * answer is an empty list, which the template states out loud.
-     */
-    public function testAnEntryWithNoAddressIsDropped(): void
+    /** A group's members are recipients like any other. */
+    public function testTheMembersOfAGroupAreCaptured(): void
     {
-        $attribute = new Attribute('to', [
-            self::address('undisclosed-recipients', ''),
-            self::address('Carol', 'carol@example.com'),
-        ]);
-
         self::assertSame(
             [['name' => 'Carol', 'address' => 'carol@example.com']],
-            MessageSyncer::addressesOf($attribute),
+            $this->recipients('To: Team: Carol <carol@example.com>;'),
         );
     }
 
     public function testAQuotedDisplayNameLosesOnlyItsQuotes(): void
     {
-        $attribute = new Attribute('to', [self::address('"Doe, John"', 'john@example.com')]);
-
         self::assertSame(
             [['name' => 'Doe, John', 'address' => 'john@example.com']],
-            MessageSyncer::addressesOf($attribute),
+            $this->recipients('To: "Doe, John" <john@example.com>'),
         );
     }
 
-    /**
-     * A header webklex could not split into parts arrives as a plain string.
-     * Keeping the address out of it is better than dropping the recipient.
-     */
-    public function testAStringEntryStillYieldsItsAddress(): void
+    /** An encoded name, and one written in raw UTF-8 without any encoding. */
+    public function testANameIsDecodedHoweverItWasWritten(): void
     {
-        $attribute = new Attribute('to', ['Dave <dave@example.com>']);
-
         self::assertSame(
-            [['name' => '', 'address' => 'dave@example.com']],
-            MessageSyncer::addressesOf($attribute),
+            [
+                ['name' => 'Jörg Müller', 'address' => 'joerg@example.com'],
+                ['name' => 'Jörg Müller', 'address' => 'j2@example.com'],
+            ],
+            $this->recipients("To: =?UTF-8?Q?J=C3=B6rg_M=C3=BCller?= <joerg@example.com>, J\xC3\xB6rg M\xC3\xBCller <j2@example.com>"),
         );
     }
 
-    public function testAnEmptyOrAbsentHeaderIsAnEmptyList(): void
+    public function testAnAbsentHeaderIsAnEmptyList(): void
     {
-        self::assertSame([], MessageSyncer::addressesOf(new Attribute('to', [])));
-        self::assertSame([], MessageSyncer::addressesOf(null));
+        self::assertSame([], $this->recipients('Subject: Nobody'));
     }
 
-    private static function address(string $personal, string $mail): Address
+    /** @return list<array{name: string, address: string}> */
+    private function recipients(string $header): array
     {
-        return new Address((object) [
-            'personal' => $personal,
-            'mail'     => $mail,
-            'host'     => '',
-            'mailbox'  => '',
-            'full'     => '' === $personal ? $mail : sprintf('%s <%s>', $personal, $mail),
-        ]);
+        return MessageSyncer::addressesOf(MessageParser::parse("From: a@example.test\r\n{$header}\r\n\r\nBody.\r\n")->to);
     }
 }

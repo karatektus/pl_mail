@@ -537,8 +537,8 @@ class MessageBackfillRepository extends ServiceEntityRepository
     /**
      * Messages whose body webklex filed as an attachment, oldest id first.
      *
-     * The set MisfiledBodyDetector now keeps out of the database, found after
-     * the fact. Two conditions, and each carries half the confidence:
+     * Mail stored while webklex parsed, found after the fact; MessageParser
+     * reads these parts as bodies, so no new ones are stored. Two conditions, and each carries half the confidence:
      *
      * `multipart/*` IS IN THE LIST, and it is what the real reports turned out
      * to be. webklex hands over a whole `multipart/related` when it holds a

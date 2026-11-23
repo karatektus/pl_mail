@@ -17,7 +17,7 @@ namespace App\Domain\Helper;
  *
  * Two key spellings have to be understood, because the paths disagree:
  * Gmail and Graph store the header name as it arrived (`To`, `Reply-To`),
- * while webklex normalises to lowercase with underscores (`to`, `reply_to`).
+ * while webklex normalised to lowercase with underscores (`to`, `reply_to`).
  * Lookup canonicalises both to the lowercase hyphen form.
  */
 final class RecipientHeaderHelper

@@ -297,8 +297,8 @@ keyring on the password cannot use the proof-free route: it would bypass the thr
 Phase 3 of issue #28. `MessageCryptoDetector` classifies every message in each provider's builder,
 **before the row is first written** — a trigger builds `search_vector` from `body_text` on insert, so a
 body blanked any later would already be indexed. It reads the top-level Content-Type and its
-`protocol=` / `smime-type=` parameters (parsed by hand: webklex's extension attributes are
-first-come across every header and turn `-` into `_`), falls back to the attachment list only for
+`protocol=` / `smime-type=` parameters (parsed by hand off the stored header, one rule for every
+provider), falls back to the attachment list only for
 Graph, and to armor at the start of a line in the body. Encrypted kinds get an empty body; the
 parts that are only wrapping (`signature.asc`, `smime.p7s`, the ciphertext) are not stored as
 attachments.
