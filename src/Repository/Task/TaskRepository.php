@@ -78,6 +78,43 @@ class TaskRepository extends ServiceEntityRepository
         );
     }
 
+    /**
+     * Every task of a synced list, made local on another list: TaskListTransfer's
+     * move, in two statements rather than one entity per task, since a To Do list
+     * can hold thousands.
+     *
+     * A task deleted here and never told to the server is just gone, with nothing
+     * left to tell. A uid is unique within a list, and transferring a list a
+     * second time, after subscribing to it again, brings the same uids to the same
+     * list: those get new ones. Nothing outside a local list reads them.
+     */
+    public function moveAllToLocalList(TaskList $from, TaskList $to): void
+    {
+        $db = $this->getEntityManager()->getConnection();
+
+        $db->executeStatement(
+            'DELETE FROM task WHERE task_list_id = :from AND sync_state = :pendingDelete',
+            ['from' => $from->id, 'pendingDelete' => SyncState::PendingDelete->value],
+        );
+
+        $db->executeStatement(
+            <<<'SQL'
+                UPDATE task SET
+                    task_list_id   = :to,
+                    uid            = CASE WHEN EXISTS (
+                                         SELECT 1 FROM task there
+                                         WHERE there.task_list_id = :to AND there.uid_hash = task.uid_hash
+                                     ) THEN gen_random_uuid()::text ELSE task.uid END,
+                    remote_id      = NULL,
+                    remote_etag    = NULL,
+                    remote_payload = NULL,
+                    sync_state     = :clean
+                WHERE task_list_id = :from
+                SQL,
+            ['from' => $from->id, 'to' => $to->id, 'clean' => SyncState::Clean->value],
+        );
+    }
+
     /** @return array{list<string>, array<string, mixed>, array<string, mixed>} */
     private function listConditions(User $user, ?TaskList $list, bool $finished): array
     {

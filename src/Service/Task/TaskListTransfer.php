@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace App\Service\Task;
 
 use App\Domain\DTO\Task\TaskTransfer;
-use App\Domain\Enum\Calendar\SyncState;
 use App\Domain\Exception\CalendarSyncException;
 use App\Entity\Task\Task;
 use App\Entity\Task\TaskList;
 use App\Entity\User\User;
 use App\Repository\Task\TaskRepository;
 use App\Service\Task\Sync\TaskSyncService;
-use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
 
@@ -81,45 +79,20 @@ final readonly class TaskListTransfer
 
         $this->em->flush();
 
-        $this->em->getConnection()->transactional(function (Connection $db) use ($from, $to): void {
-            // Deleted here and never told to the server. With nothing left to tell, they are just gone.
-            $db->executeStatement(
-                'DELETE FROM task WHERE task_list_id = :from AND sync_state = :pendingDelete',
-                ['from' => $from->id, 'pendingDelete' => SyncState::PendingDelete->value],
-            );
+        $this->em->wrapInTransaction(function () use ($from, $to): void {
+            $this->tasks->moveAllToLocalList($from, $to);
 
-            // A uid is unique within a list. Transferring a list a second time,
-            // after subscribing to it again, brings the same uids to the same
-            // list, so those get new ones. Nothing outside a local list reads them.
-            $db->executeStatement(
-                <<<'SQL'
-                    UPDATE task SET
-                        task_list_id   = :to,
-                        uid            = CASE WHEN EXISTS (
-                                             SELECT 1 FROM task there
-                                             WHERE there.task_list_id = :to AND there.uid_hash = task.uid_hash
-                                         ) THEN gen_random_uuid()::text ELSE task.uid END,
-                        remote_id      = NULL,
-                        remote_etag    = NULL,
-                        remote_payload = NULL,
-                        sync_state     = :clean
-                    WHERE task_list_id = :from
-                    SQL,
-                ['from' => $from->id, 'to' => $to->id, 'clean' => SyncState::Clean->value],
-            );
-
-            $db->executeStatement('DELETE FROM task_list WHERE id = :from', ['from' => $from->id]);
-        });
-
-        // The rows changed under the entities the pull loaded. Let go of them, so
-        // no later flush writes their old list back.
-        foreach ($this->em->getUnitOfWork()->getIdentityMap()[Task::class] ?? [] as $task) {
-            if ($task instanceof Task && $task->taskList === $from) {
-                $this->em->detach($task);
+            // The rows changed under the entities the pull loaded. Let go of
+            // them, so the flush that ends this does not write their old list back.
+            foreach ($this->em->getUnitOfWork()->getIdentityMap()[Task::class] ?? [] as $task) {
+                if ($task instanceof Task && $task->taskList === $from) {
+                    $this->em->detach($task);
+                }
             }
-        }
 
-        $this->em->detach($from);
+            // Unsubscribed: the list itself, empty by now.
+            $this->em->remove($from);
+        });
 
         return new TaskTransfer($to, $moved);
     }
