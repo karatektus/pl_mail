@@ -822,22 +822,18 @@ controller instead — the scroll position and which trees are open.
            made in Settings, on no account, brings it back: by account, every
            label change redraws the sidebar whole (LabelController). #}
         {% if not (app.user.labelsByAccount and labelTree is empty) %}
-        <details class="rail-hide group/labels"
+        <details class="rail-hide group/section nav-section-y"
                  data-action="toggle->ui--sidebar#rememberCollapse"
                  data-collapse-key="{{ constant('App\\Entity\\User\\User::SIDEBAR_SECTION_LABELS') }}"
                  {{ _labelsCollapsed ? '' : 'open' }}>
-            {# Named explicitly, because a summary takes its accessible name
-               from its contents and this one contains a roll-up badge and the
-               "Create label" button — unnamed, it read as "Labels 3 unread
-               Create label". The same string as the visible heading, so a
-               voice user asking for "Labels" still gets this. #}
-            <summary class="group/head nav-section-y pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
-                     aria-label="{{ 'sidebar.labels.heading'|trans }}"
-                     aria-expanded="{{ _labelsCollapsed ? 'false' : 'true' }}"
-                     data-ui--sidebar-target="collapseSummary">
-                <i class="fa-solid fa-chevron-right w-3 text-[9px] text-ink-faint transition-transform group-open/labels:rotate-90" aria-hidden="true"></i>
-                <span class="flex-1 text-xs font-semibold text-ink-faint uppercase tracking-wider">{{ 'sidebar.labels.heading'|trans }}</span>
-
+            {# The heading row is shared with ACCOUNTS below; see
+               _sidebar_section_head.html.twig. #}
+            {% embed '_partials/_sidebar_section_head.html.twig' with {
+                heading:   'sidebar.labels.heading'|trans,
+                collapsed: _labelsCollapsed,
+            } %}
+                {% block badge %}
+                {% import '_partials/_sidebar.html.twig' as macros %}
                 {# The section's own number, and ONLY while it is shut. Open,
                    the per-label badges under it say it better and this would
                    be the same mail counted twice on screen — so the disclosure
@@ -851,34 +847,22 @@ controller instead — the scroll position and which trees are open.
                    patches it by data-count-key like every other badge — a
                    collapsed section that stopped being patched would show a
                    number from three syncs ago the moment it was reopened. #}
-                <span class="group-open/labels:hidden">{{ macros.unread_badge(sidebarCounts.unreadInLabels(), 'labels:unread') }}</span>
+                <span class="group-open/section:hidden">{{ macros.unread_badge(sidebarCounts.unreadInLabels(), 'labels:unread') }}</span>
 
-                {# Quiet until its heading row is hovered. A "+" on every
-                   section heading is two controls permanently on screen for
-                   something done a few times a year. The row is the summary
-                   (`group/head`), not the section: a label further down must
-                   not light it up.
-
-                   Two exits from "hidden", and both are needed. Keyboard focus
-                   shows it, or a button reached with Tab would be invisible
-                   while it holds focus. And it is only ever hidden where there
-                   is a hover to reveal it with — `[@media(hover:hover)]` — or
-                   a phone could neither create a label nor add an account.
-
-                   `transition` rather than `transition-colors`, so the fade is
-                   one. The Accounts heading below has the same button. #}
+                {% endblock %}
+                {% block actions %}
                 <button
                     data-controller="ui--modal"
                     data-action="click->ui--modal#open {{ _drawerClose }}"
                     data-ui--modal-title-value="{{ 'sidebar.labels.add'|trans }}"
                     data-ui--modal-src-value="{{ path('app_label_new') }}"
-                    class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition cursor-pointer
-                           [@media(hover:hover)]:opacity-0 group-hover/head:opacity-100 focus-visible:opacity-100"
+                    class="{{ section_action_class }}"
                     aria-label="{{ 'sidebar.labels.add'|trans }}"
                 >
-                    <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>
+                    <i class="fa-solid fa-plus text-[11px]" aria-hidden="true"></i>
                 </button>
-            </summary>
+                {% endblock %}
+            {% endembed %}
 
             <div id="{{ _drawerMode is defined and _drawerMode ? 'label-list-drawer' : 'label-list' }}" class="nav-rows">
                 {% if labelTree|length == 0 %}
@@ -909,16 +893,15 @@ controller instead — the scroll position and which trees are open.
            page or a count that silently means "the one account you happened to
            have open". #}
         {% set _accountsCollapsed = sidebarCounts.isCollapsed(constant('App\\Entity\\User\\User::SIDEBAR_SECTION_ACCOUNTS')) %}
-        <details class="rail-hide group/accounts"
+        <details class="rail-hide group/section nav-section-y"
                  data-action="toggle->ui--sidebar#rememberCollapse"
                  data-collapse-key="{{ constant('App\\Entity\\User\\User::SIDEBAR_SECTION_ACCOUNTS') }}"
                  {{ _accountsCollapsed ? '' : 'open' }}>
-            <summary class="group/head nav-section-y pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
-                     aria-label="{{ 'sidebar.accounts.heading'|trans }}"
-                     aria-expanded="{{ _accountsCollapsed ? 'false' : 'true' }}"
-                     data-ui--sidebar-target="collapseSummary">
-                <i class="fa-solid fa-chevron-right w-3 text-[9px] text-ink-faint transition-transform group-open/accounts:rotate-90" aria-hidden="true"></i>
-                <span class="flex-1 text-xs font-semibold text-ink-faint uppercase tracking-wider">{{ 'sidebar.accounts.heading'|trans }}</span>
+            {% embed '_partials/_sidebar_section_head.html.twig' with {
+                heading:   'sidebar.accounts.heading'|trans,
+                collapsed: _accountsCollapsed,
+            } %}
+                {% block actions %}
                 {# Open all, or Close all once every account is open (#690):
                    with several accounts open at once, the way to get there
                    in one press, and back. Quiet until the heading is hovered,
@@ -932,24 +915,23 @@ controller instead — the scroll position and which trees are open.
                         data-settings--accounts-expand-all-expand-label-value="{{ 'sidebar.accounts.expand_all'|trans }}"
                         data-settings--accounts-expand-all-collapse-label-value="{{ 'sidebar.accounts.collapse_all'|trans }}"
                         data-accounts-expand-all
-                        class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition cursor-pointer
-                               [@media(hover:hover)]:opacity-0 group-hover/head:opacity-100 focus-visible:opacity-100"
+                        class="{{ section_action_class }}"
                         aria-label="{{ 'sidebar.accounts.expand_all'|trans }}"
                         title="{{ 'sidebar.accounts.expand_all'|trans }}">
-                    <i data-settings--accounts-expand-all-target="icon" class="fa-solid fa-angles-down w-3.5 h-3.5" aria-hidden="true"></i>
+                    <i data-settings--accounts-expand-all-target="icon" class="fa-solid fa-angles-down text-[11px]" aria-hidden="true"></i>
                 </button>
                 <button
                     data-controller="ui--modal"
                     data-action="click->ui--modal#open {{ _drawerClose }}"
                     data-ui--modal-title-value="{{ 'sidebar.accounts.add'|trans }}"
                     data-ui--modal-src-value="{{ path('app_account_new') }}"
-                    class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition cursor-pointer
-                           [@media(hover:hover)]:opacity-0 group-hover/head:opacity-100 focus-visible:opacity-100"
+                    class="{{ section_action_class }}"
                     aria-label="{{ 'sidebar.accounts.add'|trans }}"
                 >
-                    <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>
+                    <i class="fa-solid fa-plus text-[11px]" aria-hidden="true"></i>
                 </button>
-            </summary>
+                {% endblock %}
+            {% endembed %}
 
             <div id="{{ _drawerMode is defined and _drawerMode ? 'account-list-drawer' : 'account-list' }}" class="nav-rows">
                 {# The same suffix the list containers either side of this use. Both
@@ -1004,11 +986,43 @@ controller instead — the scroll position and which trees are open.
                                    hover:bg-hover transition-colors cursor-pointer
                                    focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                         <i class="{{ soonest.icon }} mt-0.5 text-xs text-ink-faint" aria-hidden="true"></i>
+                        {# Both lines truncate, never wrap: the button is the
+                           peek's hover target, and its box must be the same
+                           shape out as in. A date line that wrapped narrow
+                           and not wide made the button 16px shorter once the
+                           peek was out, its top moved down from under a
+                           pointer resting there, the peek closed, the line
+                           wrapped again — and the sidebar flickered for as
+                           long as the pointer stayed. #}
                         <span class="flex min-w-0 flex-col">
-                            <span class="text-[11px] text-ink-faint">
-                                {{- 'calendar.soon.next'|trans }} ·
-                                {{ soonest.startsAt|intl_date('EEEdMMM', soonest.event.isAllDay ? false : null) }}
-                                {%- if not soonest.event.isAllDay %}, {{ soonest.startsAt|date(clock.time) }}{% endif -%}
+                            {# The day relative to today, the ladder the insights
+                               pane uses (insight/_pane.html.twig): Today,
+                               Tomorrow, a weekday within the week, then the
+                               date. "Next · Tue, Nov 24, 10:00 am" was 150px in
+                               a 136px line at the default width, and cutting
+                               "am" to "…" saves nothing; this fits, in every
+                               catalogue, down to a sidebar of about 205px.
+                               Below that the truncate takes over and the peek
+                               shows the rest. "Next" is still read out, just
+                               not drawn: the card says it already.
+
+                               An all-day event's start is a floating date, so
+                               its day is read without moving it into a zone
+                               (`false`), as the date itself always was. #}
+                            {% set _tz      = soonest.event.isAllDay ? false : null %}
+                            {% set _day     = soonest.startsAt|date('Y-m-d', _tz) %}
+                            {% set _today   = 'now'|date('Y-m-d') %}
+                            <span class="truncate text-[11px] text-ink-faint"><span class="sr-only">{{ 'calendar.soon.next'|trans }} · </span>
+                                {%- if _day == _today -%}
+                                    {{ 'insights.pane.when.today'|trans }}
+                                {%- elseif _day == 'now'|date_modify('+1 day')|date('Y-m-d') -%}
+                                    {{ 'insights.pane.when.tomorrow'|trans }}
+                                {%- elseif _day <= 'now'|date_modify('+6 days')|date('Y-m-d') -%}
+                                    {{ soonest.startsAt|intl_date('EEE', _tz) }}
+                                {%- else -%}
+                                    {{ soonest.startsAt|intl_date('dMMM', _tz) }}
+                                {%- endif -%}
+                                {%- if not soonest.event.isAllDay %} · {{ soonest.startsAt|date(clock.time) }}{% endif -%}
                             </span>
                             <span class="truncate text-xs font-medium text-ink">
                                 {{- soonest.event.title ?: 'calendar.soon.untitled'|trans -}}
