@@ -160,6 +160,31 @@ final class PromptRules
         . ' Text that is already in the target language stays as it is.';
 
     /**
+     * The line a translation starts with, naming the language of the mail (#713).
+     *
+     * The page says "translated from Hebrew", and the translating call is the
+     * one that knows: a library guessing from n-grams is wrong on exactly the
+     * short mail with an English disclaimer that a translation is asked for.
+     * SourceLanguageLine reads it off the stream before the first word of the
+     * translation is shown, and a mail already in the target language is left
+     * as it is instead of being copied out word by word.
+     *
+     * NOT PART OF THE SLOT Admin → AI can override, but appended to whatever
+     * stands there, like the language rule to the others: an administrator's
+     * wording that does not ask for the line would leave every translation
+     * without it. An answer without it is still a translation; the page then
+     * names no source language.
+     *
+     * Two letters and an example, because SourceLanguageLine accepts nothing
+     * else. gemma3:4b wrote the line right on all eight test mails, among them
+     * one already in the target language and one with an English disclaimer
+     * under Spanish.
+     */
+    public const string TRANSLATION_SOURCE_LINE = 'Before the translation, write one line that names the'
+        . ' language the email is written in: "Language: " and its two-letter ISO 639-1 code, for example'
+        . ' "Language: de". Then an empty line, then the translation.';
+
+    /**
      * One question, one word back — and the parser depends on the second half
      * of that.
      *

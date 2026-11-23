@@ -26,14 +26,14 @@ final readonly class MessageTranslationRepository
      * The stored translation of a message into a language, made by this model
      * and prompt.
      *
-     * @return array{translation: string, source_hash: string, created_at: string}|false
+     * @return array{translation: string, source_language: string|null, source_hash: string, created_at: string}|false
      */
     public function findForMessage(int $messageId, string $language, string $model, string $promptHash): array|false
     {
-        /** @var array{translation: string, source_hash: string, created_at: string}|false */
+        /** @var array{translation: string, source_language: string|null, source_hash: string, created_at: string}|false */
         return $this->connection->fetchAssociative(
             <<<'SQL'
-                SELECT translation, source_hash, created_at
+                SELECT translation, source_language, source_hash, created_at
                   FROM message_translation
                  WHERE message_id = :id
                    AND target_language = :language
@@ -50,14 +50,14 @@ final readonly class MessageTranslationRepository
      * for the whole of it rather than one per message it shows, and by the
      * thread's id so that nobody has to load its messages to ask.
      *
-     * @return array<int, array{translation: string, source_hash: string, created_at: string}>
+     * @return array<int, array{translation: string, source_language: string|null, source_hash: string, created_at: string}>
      */
     public function findForThread(int $threadId, string $language, string $model, string $promptHash): array
     {
-        /** @var list<array{message_id: int|string, translation: string, source_hash: string, created_at: string}> $rows */
+        /** @var list<array{message_id: int|string, translation: string, source_language: string|null, source_hash: string, created_at: string}> $rows */
         $rows = $this->connection->fetchAllAssociative(
             <<<'SQL'
-                SELECT t.message_id, t.translation, t.source_hash, t.created_at
+                SELECT t.message_id, t.translation, t.source_language, t.source_hash, t.created_at
                   FROM message_translation t
                   JOIN message m ON m.id = t.message_id
                  WHERE m.thread_id = :thread
@@ -73,9 +73,10 @@ final readonly class MessageTranslationRepository
 
         foreach ($rows as $row) {
             $byMessage[(int) $row['message_id']] = [
-                'translation' => $row['translation'],
-                'source_hash' => $row['source_hash'],
-                'created_at'  => $row['created_at'],
+                'translation'     => $row['translation'],
+                'source_language' => $row['source_language'],
+                'source_hash'     => $row['source_hash'],
+                'created_at'      => $row['created_at'],
             ];
         }
 
@@ -83,23 +84,25 @@ final readonly class MessageTranslationRepository
     }
 
     /** Store a message's translation into a language, replacing the one it had. */
-    public function upsert(int $messageId, string $language, string $translation, string $sourceHash, string $model, string $promptHash, DateTimeImmutable $now): void
+    public function upsert(int $messageId, string $language, string $translation, ?string $sourceLanguage, string $sourceHash, string $model, string $promptHash, DateTimeImmutable $now): void
     {
         $this->connection->executeStatement(
             <<<'SQL'
-                INSERT INTO message_translation (message_id, target_language, translation, source_hash, model, prompt_hash, created_at)
-                VALUES (:id, :language, :translation, :hash, :model, :prompt, :now)
+                INSERT INTO message_translation (message_id, target_language, translation, source_language, source_hash, model, prompt_hash, created_at)
+                VALUES (:id, :language, :translation, :source, :hash, :model, :prompt, :now)
                 ON CONFLICT (message_id, target_language) DO UPDATE
-                    SET translation = EXCLUDED.translation,
-                        source_hash = EXCLUDED.source_hash,
-                        model       = EXCLUDED.model,
-                        prompt_hash = EXCLUDED.prompt_hash,
-                        created_at  = EXCLUDED.created_at
+                    SET translation     = EXCLUDED.translation,
+                        source_language = EXCLUDED.source_language,
+                        source_hash     = EXCLUDED.source_hash,
+                        model           = EXCLUDED.model,
+                        prompt_hash     = EXCLUDED.prompt_hash,
+                        created_at      = EXCLUDED.created_at
             SQL,
             [
                 'id'          => $messageId,
                 'language'    => $language,
                 'translation' => $translation,
+                'source'      => $sourceLanguage,
                 'hash'        => $sourceHash,
                 'model'       => $model,
                 'prompt'      => $promptHash,

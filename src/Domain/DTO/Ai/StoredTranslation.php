@@ -18,6 +18,8 @@ final readonly class StoredTranslation
     /**
      * @param string                 $text      what the model wrote, already tidied
      * @param TranslationLanguage    $language  the language it is in
+     * @param string|null            $from      the ISO 639-1 code the model named for the
+     *                                          mail; null when it named none
      * @param bool                   $isFresh   whether the stored source hash still
      *                                          matches the text this message would be
      *                                          translated from right now
@@ -27,6 +29,7 @@ final readonly class StoredTranslation
     public function __construct(
         public string $text,
         public TranslationLanguage $language,
+        public ?string $from,
         public bool $isFresh,
         public ?DateTimeImmutable $writtenAt,
     ) {

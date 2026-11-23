@@ -73,7 +73,7 @@ final readonly class TranslationStore
      * message pane). The view draws them all, and one lookup per message is
      * what ThreadViewQueryBudgetTest exists to refuse.
      *
-     * @return array<int, array{translation: string, source_hash: string, created_at: string}>
+     * @return array<int, array{translation: string, source_language: string|null, source_hash: string, created_at: string}>
      */
     public function rowsForThread(int $threadId, TranslationLanguage $language, string $model, string $promptHash): array
     {
@@ -94,7 +94,7 @@ final readonly class TranslationStore
      * A stored row as a translation, fresh when its hash is the hash of the
      * text the message would be translated from now.
      *
-     * @param array{translation: string, source_hash: string, created_at: string} $row
+     * @param array{translation: string, source_language: string|null, source_hash: string, created_at: string} $row
      */
     public static function stored(array $row, TranslationLanguage $language, string $sourceHash): StoredTranslation
     {
@@ -108,6 +108,7 @@ final readonly class TranslationStore
         return new StoredTranslation(
             (string) $row['translation'],
             $language,
+            null === $row['source_language'] ? null : (string) $row['source_language'],
             hash_equals((string) $row['source_hash'], $sourceHash),
             $writtenAt,
         );
@@ -120,10 +121,10 @@ final readonly class TranslationStore
      *
      * @return bool whether anything was stored
      */
-    public function save(int $messageId, TranslationLanguage $language, string $translation, string $sourceHash, string $model, string $promptHash): bool
+    public function save(int $messageId, TranslationLanguage $language, string $translation, ?string $sourceLanguage, string $sourceHash, string $model, string $promptHash): bool
     {
         try {
-            $this->translations->upsert($messageId, $language->value, $translation, $sourceHash, $model, $promptHash, new DateTimeImmutable());
+            $this->translations->upsert($messageId, $language->value, $translation, $sourceLanguage, $sourceHash, $model, $promptHash, new DateTimeImmutable());
 
             return true;
         } catch (Throwable $exception) {

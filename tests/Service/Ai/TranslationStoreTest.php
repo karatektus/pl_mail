@@ -66,21 +66,22 @@ final class TranslationStoreTest extends KernelTestCase
 
     public function testTheStoredTextComesBackWithItsLanguageAndFreshness(): void
     {
-        $this->store->save($this->messageId, TranslationLanguage::Russian, 'Пришлите счёт до четверга.', 'hash-one', self::MODEL, self::PROMPT);
+        $this->store->save($this->messageId, TranslationLanguage::Russian, 'Пришлите счёт до четверга.', 'he', 'hash-one', self::MODEL, self::PROMPT);
 
         $stored = $this->read(TranslationLanguage::Russian, 'hash-one');
 
         self::assertNotNull($stored);
         self::assertSame('Пришлите счёт до четверга.', $stored->text);
         self::assertSame(TranslationLanguage::Russian, $stored->language);
+        self::assertSame('he', $stored->from);
         self::assertTrue($stored->isFresh);
         self::assertInstanceOf(DateTimeImmutable::class, $stored->writtenAt);
     }
 
     public function testATranslationIntoAnotherLanguageIsAnotherRow(): void
     {
-        $this->store->save($this->messageId, TranslationLanguage::Russian, 'по-русски', 'hash-one', self::MODEL, self::PROMPT);
-        $this->store->save($this->messageId, TranslationLanguage::German, 'auf Deutsch', 'hash-one', self::MODEL, self::PROMPT);
+        $this->store->save($this->messageId, TranslationLanguage::Russian, 'по-русски', null, 'hash-one', self::MODEL, self::PROMPT);
+        $this->store->save($this->messageId, TranslationLanguage::German, 'auf Deutsch', null, 'hash-one', self::MODEL, self::PROMPT);
 
         self::assertSame('по-русски', $this->read(TranslationLanguage::Russian, 'hash-one')?->text);
         self::assertSame('auf Deutsch', $this->read(TranslationLanguage::German, 'hash-one')?->text);
@@ -89,11 +90,11 @@ final class TranslationStoreTest extends KernelTestCase
 
     public function testATranslationByAnotherModelOrUnderAnotherPromptIsNotOffered(): void
     {
-        $this->store->save($this->messageId, TranslationLanguage::Russian, 'old', 'hash-one', 'llama3.1:8b', self::PROMPT);
+        $this->store->save($this->messageId, TranslationLanguage::Russian, 'old', null, 'hash-one', 'llama3.1:8b', self::PROMPT);
 
         self::assertNull($this->read(TranslationLanguage::Russian, 'hash-one'));
 
-        $this->store->save($this->messageId, TranslationLanguage::Russian, 'new', 'hash-one', self::MODEL, self::PROMPT);
+        $this->store->save($this->messageId, TranslationLanguage::Russian, 'new', null, 'hash-one', self::MODEL, self::PROMPT);
 
         self::assertNull($this->store->forMessage($this->messageId, TranslationLanguage::Russian, self::MODEL, self::OTHER_PROMPT, static fn (): string => 'hash-one'));
         self::assertSame('new', $this->read(TranslationLanguage::Russian, 'hash-one')?->text);
@@ -101,7 +102,7 @@ final class TranslationStoreTest extends KernelTestCase
 
     public function testAMessageWhoseTextChangedMakesItsTranslationStaleRatherThanAbsent(): void
     {
-        $this->store->save($this->messageId, TranslationLanguage::Russian, 'старый текст', 'hash-one', self::MODEL, self::PROMPT);
+        $this->store->save($this->messageId, TranslationLanguage::Russian, 'старый текст', null, 'hash-one', self::MODEL, self::PROMPT);
 
         $stored = $this->read(TranslationLanguage::Russian, 'hash-two');
 
@@ -125,15 +126,15 @@ final class TranslationStoreTest extends KernelTestCase
         $this->store->forMessage($this->messageId, TranslationLanguage::Russian, self::MODEL, self::PROMPT, $hash);
         self::assertSame(0, $asked);
 
-        $this->store->save($this->messageId, TranslationLanguage::Russian, 'текст', 'hash-one', self::MODEL, self::PROMPT);
+        $this->store->save($this->messageId, TranslationLanguage::Russian, 'текст', null, 'hash-one', self::MODEL, self::PROMPT);
         $this->store->forMessage($this->messageId, TranslationLanguage::Russian, self::MODEL, self::PROMPT, $hash);
         self::assertSame(1, $asked);
     }
 
     public function testTranslatingAgainReplacesTheRow(): void
     {
-        self::assertTrue($this->store->save($this->messageId, TranslationLanguage::Russian, 'first', 'hash-one', self::MODEL, self::PROMPT));
-        self::assertTrue($this->store->save($this->messageId, TranslationLanguage::Russian, 'second', 'hash-two', self::MODEL, self::PROMPT));
+        self::assertTrue($this->store->save($this->messageId, TranslationLanguage::Russian, 'first', null, 'hash-one', self::MODEL, self::PROMPT));
+        self::assertTrue($this->store->save($this->messageId, TranslationLanguage::Russian, 'second', null, 'hash-two', self::MODEL, self::PROMPT));
 
         self::assertSame(1, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM message_translation WHERE message_id = ?', [$this->messageId]));
         self::assertSame('second', $this->read(TranslationLanguage::Russian, 'hash-two')?->text);
@@ -141,7 +142,7 @@ final class TranslationStoreTest extends KernelTestCase
 
     public function testDeletingTheMessageTakesItsTranslationsWithIt(): void
     {
-        $this->store->save($this->messageId, TranslationLanguage::Russian, 'текст', 'hash-one', self::MODEL, self::PROMPT);
+        $this->store->save($this->messageId, TranslationLanguage::Russian, 'текст', null, 'hash-one', self::MODEL, self::PROMPT);
 
         $this->connection->executeStatement('DELETE FROM message WHERE id = ?', [$this->messageId]);
 
@@ -157,7 +158,7 @@ final class TranslationStoreTest extends KernelTestCase
         $broken = new TranslationStore(new MessageTranslationRepository($connection), new NullLogger());
 
         self::assertNull($broken->forMessage($this->messageId, TranslationLanguage::Russian, self::MODEL, self::PROMPT, static fn (): string => 'hash-one'));
-        self::assertFalse($broken->save($this->messageId, TranslationLanguage::Russian, 'text', 'hash', self::MODEL, self::PROMPT));
+        self::assertFalse($broken->save($this->messageId, TranslationLanguage::Russian, 'text', null, 'hash', self::MODEL, self::PROMPT));
     }
 
     private function read(TranslationLanguage $language, string $hash): ?StoredTranslation

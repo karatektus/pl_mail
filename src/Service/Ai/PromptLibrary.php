@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Ai;
 
+use App\Domain\Ai\PromptRules;
 use App\Domain\Enum\Ai\PromptSlot;
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Embeddable\AiPrompts;
@@ -97,10 +98,13 @@ final readonly class PromptLibrary
      * like categorisation, and for a sharper reason: the rule says "never
      * translate the message into another language", which is this job's whole
      * point (#713).
+     *
+     * The line naming the mail's language is appended whatever the slot says;
+     * see PromptRules::TRANSLATION_SOURCE_LINE.
      */
     public function forTranslation(): string
     {
-        return $this->text(PromptSlot::Translation);
+        return $this->joined($this->text(PromptSlot::Translation), PromptRules::TRANSLATION_SOURCE_LINE);
     }
 
     /** The language rule as it stands: the administrator's wording, or ours. */

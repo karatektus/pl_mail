@@ -138,7 +138,8 @@ final class MessageTranslationController extends AbstractController
             }
         }
 
-        $result = $tokens->getReturn();
+        $translated = $tokens->getReturn();
+        $result     = $translated->chat;
 
         if (false === $result->succeeded || null === $result->content) {
             $kind = $result->errorKind ?? OllamaClient::ERROR_UNEXPECTED;
@@ -157,7 +158,7 @@ final class MessageTranslationController extends AbstractController
             return;
         }
 
-        $this->store->save((int) $message->id, $into, $result->content, $source->hash(), $model, $promptHash);
+        $this->store->save((int) $message->id, $into, $result->content, $translated->sourceLanguage, $source->hash(), $model, $promptHash);
 
         if (true === $lostTheReader) {
             return;

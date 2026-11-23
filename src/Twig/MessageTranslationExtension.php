@@ -38,7 +38,7 @@ final class MessageTranslationExtension extends AbstractExtension implements Res
     /** @var array{into: TranslationLanguage, intoLabel: string, model: string, prompt: string}|false|null false: not offered */
     private array|false|null $context = null;
 
-    /** @var array<int, array<int, array{translation: string, source_hash: string, created_at: string}>> stored rows by thread id, then message id */
+    /** @var array<int, array<int, array{translation: string, source_language: string|null, source_hash: string, created_at: string}>> stored rows by thread id, then message id */
     private array $rows = [];
 
     public function __construct(

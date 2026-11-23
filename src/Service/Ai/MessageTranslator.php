@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Ai;
 
+use App\Domain\Ai\SourceLanguageLine;
 use App\Domain\DTO\Ai\AiChatResult;
+use App\Domain\DTO\Ai\TranslationResult;
 use App\Domain\DTO\Ai\TranslationSource;
 use App\Domain\Enum\Ai\TranslationLanguage;
 use App\Domain\Enum\Crypto\PlaintextSource;
@@ -188,13 +190,14 @@ final readonly class MessageTranslator
 
     /**
      * The translation, arriving as it is written. Yields each token and returns
-     * the finished AiChatResult, its content tidied; null when it was refused
-     * before anybody was asked.
+     * the finished TranslationResult, its content tidied and without the line
+     * that names the mail's language; null when it was refused before anybody
+     * was asked.
      *
      * Not a generator function itself, for ThreadSummariser::stream()'s reason:
      * the refusals have to happen when this is called.
      *
-     * @return \Generator<int, string, void, AiChatResult>|null
+     * @return \Generator<int, string, void, TranslationResult>|null
      */
     public function stream(User $user, Message $message, TranslationLanguage $into, TranslationSource $source): ?\Generator
     {
@@ -221,36 +224,85 @@ final readonly class MessageTranslator
     }
 
     /**
-     * Tokens raw on the wire, tidy() applied to the return only. See
-     * ThreadSummariser::tidied(): what the return carries is what is stored.
+     * Tokens raw on the wire but for the first line, which names the mail's
+     * language and is held back until SourceLanguageLine can tell it from the
+     * translation, so it never reaches the page. Pings pass while it is held:
+     * they are what keeps the page saying the model is still reading.
+     *
+     * tidy() is applied to the return only. See ThreadSummariser::tidied():
+     * what the return carries is what is stored, and it is built from what was
+     * yielded, so the stored text is the text the reader watched arrive.
      *
      * @param \Generator<int, string, void, AiChatResult> $tokens
      *
-     * @return \Generator<int, string, void, AiChatResult>
+     * @return \Generator<int, string, void, TranslationResult>
      */
     private function tidied(\Generator $tokens): \Generator
     {
+        $held  = '';
+        $line  = null;
+        $shown = '';
+
         foreach ($tokens as $token) {
-            yield $token;
+            if ('' === $token) {
+                yield $token;
+
+                continue;
+            }
+
+            if (null === $line) {
+                $held .= $token;
+                $line  = SourceLanguageLine::read($held, false);
+
+                if (null === $line) {
+                    continue;
+                }
+
+                $token = $line->rest;
+            }
+
+            // The empty line after the line naming the language can arrive in
+            // a token of its own, after the line was read.
+            $token = '' === $shown ? ltrim($token, "\r\n") : $token;
+
+            if ('' !== $token) {
+                $shown .= $token;
+
+                yield $token;
+            }
         }
 
-        $result = $tokens->getReturn();
+        if (null === $line) {
+            // An answer shorter than the line it was waiting for: whatever it
+            // is, it has all arrived now.
+            $line = SourceLanguageLine::read($held, true);
+            $rest = ltrim((string) $line?->rest, "\r\n");
+
+            if ('' !== $rest) {
+                $shown .= $rest;
+
+                yield $rest;
+            }
+        }
+
+        $result   = $tokens->getReturn();
+        $language = $line?->language;
 
         if (false === $result->succeeded || null === $result->content) {
-            return $result;
+            return new TranslationResult($result, $language);
         }
 
-        $tidied = trim($result->content);
+        $tidied = trim($shown);
 
         if (1 === preg_match('/^```[a-z]*\n(.*)\n```$/s', $tidied, $matches)) {
             $tidied = trim($matches[1]);
         }
 
         if ('' === $tidied) {
-            return AiChatResult::failed(OllamaClient::ERROR_BAD_RESPONSE, $result->timing);
+            return new TranslationResult(AiChatResult::failed(OllamaClient::ERROR_BAD_RESPONSE, $result->timing), $language);
         }
 
-        return AiChatResult::ok($tidied, $result->timing);
+        return new TranslationResult(AiChatResult::ok($tidied, $result->timing), $language);
     }
 
     /**

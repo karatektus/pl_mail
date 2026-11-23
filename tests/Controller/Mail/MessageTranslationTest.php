@@ -45,6 +45,9 @@ final class MessageTranslationTest extends WebTestCase
     /** @var list<array<string, mixed>> what was sent to /api/chat */
     private array $sent = [];
 
+    /** @var list<string> the tokens the model host answers with */
+    private array $answer = ['Пришлите счёт ', 'до четверга.'];
+
     public function testAnInstallationWithTranslationOffAnswers409AndOffersNothing(): void
     {
         $client  = $this->signIn();
@@ -151,7 +154,7 @@ final class MessageTranslationTest extends WebTestCase
         self::assertCount(1, $this->sent);
         $sent = $this->sent[0];
 
-        self::assertSame(PromptRules::TRANSLATION, $sent['messages'][0]['content']);
+        self::assertSame(PromptRules::TRANSLATION . ' ' . PromptRules::TRANSLATION_SOURCE_LINE, $sent['messages'][0]['content']);
         self::assertStringNotContainsString('Never translate', $sent['messages'][0]['content']);
         self::assertStringContainsString('שלום, אנא שלחו את החשבונית עד יום חמישי.', $sent['messages'][1]['content']);
         self::assertStringEndsWith('Translate it into Russian.', $sent['messages'][1]['content']);
@@ -164,10 +167,64 @@ final class MessageTranslationTest extends WebTestCase
         self::assertFalse($done['partial']);
         self::assertFalse($done['leavesOutQuote']);
 
+        // An answer without the line naming the language is all translation,
+        // and names none.
         self::assertSame(
-            ['ru', 'Пришлите счёт до четверга.', self::MODEL],
+            ['ru', 'Пришлите счёт до четверга.', null, self::MODEL],
             array_values((array) $this->connection->fetchAssociative(
-                'SELECT target_language, translation, model FROM message_translation WHERE message_id = ?',
+                'SELECT target_language, translation, source_language, model FROM message_translation WHERE message_id = ?',
+                [$message->id],
+            )),
+        );
+    }
+
+    /**
+     * The model names the mail's language on a line before the translation.
+     * The line arrives split across tokens like any other text, and none of it
+     * may reach the page or the store: only the language is kept.
+     */
+    public function testTheLineNamingTheLanguageIsKeptOutOfTheTranslation(): void
+    {
+        $client  = $this->signIn();
+        $message = $this->seedMessage('שלום, אנא שלחו את החשבונית עד יום חמישי.');
+
+        $this->configureAi();
+        $this->user->aiPreferences->translateInto = 'ru';
+        $this->em->flush();
+
+        $this->answer = ['Lang', 'uage: h', "e\n", "\nПришлите счёт ", 'до четверга.'];
+
+        $frames = $this->frames($this->post($client, $message));
+        $tokens = array_filter($frames, static fn (array $frame): bool => 'token' === $frame['type']);
+
+        self::assertSame('Пришлите счёт до четверга.', implode('', array_column($tokens, 'text')));
+        self::assertSame('Пришлите счёт до четверга.', $frames[array_key_last($frames)]['text']);
+        self::assertSame(
+            ['Пришлите счёт до четверга.', 'he'],
+            array_values((array) $this->connection->fetchAssociative(
+                'SELECT translation, source_language FROM message_translation WHERE message_id = ?',
+                [$message->id],
+            )),
+        );
+    }
+
+    /** A whole answer fenced as code: the fence comes off, and the line inside it with it. */
+    public function testAFencedAnswerKeepsNeitherTheFenceNorTheLine(): void
+    {
+        $client  = $this->signIn();
+        $message = $this->seedMessage('שלום, אנא שלחו את החשבונית עד יום חמישי.');
+
+        $this->configureAi();
+
+        $this->answer = ["```\n", "Language: he\n", "\nPlease send ", "the invoice by Thursday.\n```"];
+
+        $frames = $this->frames($this->post($client, $message));
+
+        self::assertSame('Please send the invoice by Thursday.', $frames[array_key_last($frames)]['text']);
+        self::assertSame(
+            ['Please send the invoice by Thursday.', 'he'],
+            array_values((array) $this->connection->fetchAssociative(
+                'SELECT translation, source_language FROM message_translation WHERE message_id = ?',
                 [$message->id],
             )),
         );
@@ -608,11 +665,12 @@ final class MessageTranslationTest extends WebTestCase
 
             $this->sent[] = (array) json_decode((string) ($options['body'] ?? ''), true);
 
-            return new MockResponse(
-                json_encode(['message' => ['content' => 'Пришлите счёт '], 'done' => false], JSON_UNESCAPED_UNICODE) . "\n"
-                . json_encode(['message' => ['content' => 'до четверга.'], 'done' => false], JSON_UNESCAPED_UNICODE) . "\n"
-                . json_encode(['done' => true, 'eval_count' => 2]) . "\n",
+            $lines = array_map(
+                static fn (string $token): string => json_encode(['message' => ['content' => $token], 'done' => false], JSON_UNESCAPED_UNICODE) . "\n",
+                $this->answer,
             );
+
+            return new MockResponse(implode('', $lines) . json_encode(['done' => true, 'eval_count' => count($this->answer)]) . "\n");
         }));
 
         $this->em         = $container->get(EntityManagerInterface::class);

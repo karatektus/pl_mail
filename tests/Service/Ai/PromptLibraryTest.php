@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Ai;
 
+use App\Domain\Ai\PromptRules;
 use App\Domain\Enum\Ai\PromptSlot;
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Ai\AiSettings;
@@ -202,11 +203,12 @@ final class PromptLibraryTest extends KernelTestCase
     /**
      * Categorisation and translation are the prompts with no language rule on
      * the end — translation because the rule says never to translate (#713).
+     * Translation has the line naming the mail's language on the end instead.
      */
     public function testCategorisationIsSentAloneWhileTheOthersAreJoined(): void
     {
         self::assertSame(PromptSlot::Categorise->shipped(), $this->prompts->forCategorisation());
-        self::assertSame(PromptSlot::Translation->shipped(), $this->prompts->forTranslation());
+        self::assertSame(PromptSlot::Translation->shipped() . ' ' . PromptRules::TRANSLATION_SOURCE_LINE, $this->prompts->forTranslation());
         self::assertStringNotContainsString($this->prompts->language(), $this->prompts->forTranslation());
 
         self::assertStringEndsWith($this->prompts->language(), $this->prompts->forSummary());

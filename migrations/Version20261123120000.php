@@ -20,7 +20,9 @@ use Doctrine\Migrations\AbstractMigration;
  * message_translation is raw SQL like thread_summary and message_embedding, and
  * hidden from the ORM's schema diff the same way (doctrine.yaml schema_filter).
  * One row per message and language: a reader who changes their language keeps
- * the first translation for when they change back. source_hash, model and
+ * the first translation for when they change back. source_language is the
+ * language the model named for the mail (SourceLanguageLine), null when it
+ * named none. source_hash, model and
  * prompt_hash decide whether a stored row still answers, as for the summary;
  * VARCHAR and not CHAR for the blank padding Version20260902100100 explains.
  * ON DELETE CASCADE: a translation has no meaning without its message, and
@@ -48,6 +50,7 @@ final class Version20261123120000 extends AbstractMigration
                 message_id INT NOT NULL,
                 target_language VARCHAR(16) NOT NULL,
                 translation TEXT NOT NULL,
+                source_language VARCHAR(16) DEFAULT NULL,
                 source_hash VARCHAR(64) NOT NULL,
                 model VARCHAR(128) NOT NULL,
                 prompt_hash VARCHAR(64) NOT NULL,
