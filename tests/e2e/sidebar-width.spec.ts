@@ -361,6 +361,54 @@ test.describe("the peek", () => {
     });
 
     /**
+     * The other way: closing what the peek was opened for, with the pointer
+     * still on the sidebar, takes it back in to what is left, and closing the
+     * last of it lets go — no leaving and coming back.
+     */
+    test("shrinks under the pointer when the longest name is folded away", async ({ page }) => {
+        const folder = "Northwind Traders International Accounts Receivable Archive";
+        const folderRow = () => aside(page).getByText(folder, { exact: true });
+        const section = (key: string) => aside(page).locator(`details[data-collapse-key="${key}"] > summary`);
+        const fold = async (key: string) => {
+            const persisted = page.waitForResponse((r) => r.url().includes("/mail/sidebar/section-collapsed"));
+            await section(key).click({ position: { x: 20, y: 8 } });
+            await persisted;
+        };
+
+        seed("seed-mail", `seed-label --path='${folder}'`);
+
+        try {
+            await page.goto("/mail/inbox");
+            await aside(page).getByRole("button", { name: "Show or hide folders in E2E Mailbox" }).click();
+            await expect(folderRow()).toBeVisible();
+
+            await folderRow().hover();
+            await expect
+                .poll(() => folderRow().evaluate((el) => el.scrollWidth - el.clientWidth))
+                .toBeLessThanOrEqual(0);
+            const widest = await width(page, "#sidebar");
+
+            // Accounts folded: only the label is left clipped, a shorter name.
+            await fold("section:accounts");
+            await expect.poll(() => width(page, "#sidebar")).toBeLessThan(widest);
+            expect(await width(page, "#sidebar")).toBeGreaterThan(224);
+            await expect
+                .poll(() => longRow(page).evaluate((el) => el.scrollWidth - el.clientWidth))
+                .toBeLessThanOrEqual(0);
+
+            // Labels folded too: nothing is clipped, and the peek lets go.
+            await fold("section:labels");
+            await expect.poll(async () => aside(page).getAttribute("data-sidebar-truncated")).toBeNull();
+            await expect.poll(() => width(page, "#sidebar")).toBe(224);
+        } finally {
+            await post(page, "/mail/sidebar/section-collapsed", { key: "section:accounts", collapsed: false });
+            await post(page, "/mail/sidebar/section-collapsed", { key: "section:labels", collapsed: false });
+            await post(page, "/mail/sidebar/account-expanded", { account: null });
+            seed(`seed-label --path='${folder}' --remove`);
+        }
+    });
+
+    /**
      * The next event under the clock is clipped like any row, but it leans
      * the sidebar out only while it is hovered itself: a title worth reading
      * on purpose is not worth the sidebar lurching out every time the pointer
@@ -393,6 +441,12 @@ test.describe("the peek", () => {
 
             const event = aside(page).locator("[data-sidebar-peek-own]");
             await expect(event).toContainText(title);
+
+            // The day relative to today, and short enough to fit the default
+            // width whole: the seeded event is tomorrow at 10:00.
+            const when = event.locator(".truncate").first();
+            await expect(when).toHaveText(/^Next · Tomorrow · 10:00/);
+            expect(await when.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
             await expect(aside(page)).toHaveAttribute("data-sidebar-truncated-own", "");
             await expect.poll(async () => aside(page).getAttribute("data-sidebar-truncated")).toBeNull();
 
@@ -405,12 +459,33 @@ test.describe("the peek", () => {
             await event.hover();
             await expect.poll(() => width(page, "#sidebar")).toBeGreaterThan(224);
             await expect
-                .poll(() => event.locator(".truncate").evaluate((el) => el.scrollWidth - el.clientWidth))
+                .poll(() => event.locator(".truncate").last().evaluate((el) => el.scrollWidth - el.clientWidth))
                 .toBeLessThanOrEqual(0);
 
             // Off it, still inside the sidebar: back.
             await aside(page).getByRole("link", { name: /^Inbox/ }).first().hover();
             await expect.poll(() => width(page, "#sidebar")).toBe(224);
+
+            // The button keeps its box when the sidebar leans out. Its date
+            // line used to wrap narrow and not wide: the button got shorter
+            // once out, its top moved down from under a pointer resting
+            // there, and the peek opened and closed for as long as the
+            // pointer stayed. Rested 2px inside the top edge, it must open
+            // and stay open.
+            const closed = (await event.boundingBox())!;
+            await page.mouse.move(closed.x + closed.width / 2, closed.y + 2);
+            await expect.poll(() => width(page, "#sidebar")).toBeGreaterThan(224);
+
+            const open = (await event.boundingBox())!;
+            expect(open.y).toBe(closed.y);
+            expect(open.height).toBe(closed.height);
+
+            const samples: number[] = [];
+            for (let i = 0; i < 10; i++) {
+                await page.waitForTimeout(100);
+                samples.push(await width(page, "#sidebar"));
+            }
+            expect(Math.min(...samples), samples.join(", ")).toBeGreaterThan(224);
         } finally {
             await placement("topbar");
             await labels(false);

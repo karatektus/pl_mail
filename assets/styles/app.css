@@ -4924,8 +4924,14 @@ html:not(.sidebar-rail) body:not(.cursor-col-resize)
     }
 }
 
+/* On the section's <details>, not on its heading: as the heading's own top
+   padding, the space above the section was inside the heading's hover
+   background, which then sat a whole section-gap above the word and a
+   pb-1 below it. The heading pads itself evenly (py-1) and this takes that
+   py-1's top back off, so the heading's text is exactly where it was.
+   Padding rather than margin, which would collapse into nav-rows' gap. */
 @utility nav-section-y {
-    padding-block-start: var(--surface-sidebar-section-y);
+    padding-block-start: calc(var(--surface-sidebar-section-y) - --spacing(1));
 }
 
 /* A floor for fingers.

@@ -554,6 +554,33 @@ export default class extends Controller {
         this._onDisclosure = () => this._measureTruncation();
         this.element.addEventListener("toggle", this._onDisclosure, true);
 
+        // Rows going away: a label deleted or renamed shorter, the next event
+        // changing, a stream replacing a list. Arrivals are covered here too,
+        // on top of linkTargetConnected. childList only — the measurement
+        // writes attributes and a style on this element, and observing those
+        // would have it trigger itself.
+        this._truncationMutations = new MutationObserver(() => this._measureTruncation());
+        this._truncationMutations.observe(this.element, { childList: true, subtree: true });
+
+        // While the width is animating, a measurement would have to stop the
+        // animation to take it (see _measureTruncation). Skipped then, and
+        // taken once it has finished.
+        this._peekMoving = false;
+        this._onPeekMove = (event) => {
+            if (event.target !== this.element || "width" !== event.propertyName) {
+                return;
+            }
+
+            this._peekMoving = "transitionrun" === event.type;
+
+            if (false === this._peekMoving) {
+                this._measureTruncation();
+            }
+        };
+        ["transitionrun", "transitionend", "transitioncancel"].forEach((name) =>
+            this.element.addEventListener(name, this._onPeekMove),
+        );
+
         this._measureTruncation();
     }
 
@@ -593,16 +620,33 @@ export default class extends Controller {
                 return;
             }
 
-            // While the peek is open the rows it was opened for fit, and a
-            // measurement taken then is a measurement of the answer, not of
-            // the question: taking the attribute off on it would close the
-            // peek under the pointer, measure a clipped row again and reopen
-            // it, forever. What an open peek CAN still learn is that it is
-            // too narrow — an account opened under the pointer, its long
-            // folder names arriving — so while open it only ever grows, and
-            // shrinking waits for the measurement after it closes (the
-            // ResizeObserver sees that).
-            const open = this.element.offsetWidth > (this.element.parentElement?.clientWidth ?? 0) + 1;
+            const box = this.element.parentElement?.clientWidth ?? 0;
+            const open = this.element.offsetWidth > box + 1;
+
+            // Mid-animation: the transitionend handler measures again.
+            if (true === open && true === this._peekMoving) {
+                return;
+            }
+
+            // While the peek is open the rows it was opened for fit, so a
+            // measurement of the open sidebar is a measurement of the answer,
+            // not of the question: it cannot tell a row that fits from one
+            // that only fits because the peek is out. So the question is
+            // always asked of the CLOSED sidebar. While open, the aside is
+            // pinned to the box's width for the reads and let go again, all
+            // in this one task — nothing is painted in between, so nothing is
+            // seen. The transition is held off throughout, or pinning it would
+            // start an animation towards the box and letting go another back.
+            // That is what lets the peek follow what is in it while the
+            // pointer stays: grow when an account opens a longer name, and
+            // shrink, or let go entirely, when a section closes or the longest
+            // name goes away.
+            const style = this.element.style;
+
+            if (true === open) {
+                style.transition = "none";
+                style.width = `${box}px`;
+            }
 
             let missing = 0;
             let missingOwn = 0;
@@ -625,8 +669,18 @@ export default class extends Controller {
                 }
             });
 
-            this._applyPeek("sidebarTruncated", "--sidebar-peek-width", missing, open);
-            this._applyPeek("sidebarTruncatedOwn", "--sidebar-peek-own-width", missingOwn, open);
+            const closedWidth = this.element.clientWidth;
+
+            if (true === open) {
+                style.removeProperty("width");
+                // Flushed while the transition is still off, so the way back
+                // to the peek's width is not animated either.
+                void this.element.offsetWidth;
+                style.removeProperty("transition");
+            }
+
+            this._applyPeek("sidebarTruncated", "--sidebar-peek-width", missing, closedWidth);
+            this._applyPeek("sidebarTruncatedOwn", "--sidebar-peek-own-width", missingOwn, closedWidth);
         });
     }
 
@@ -640,19 +694,17 @@ export default class extends Controller {
      * not worth a sidebar lurching out every time the pointer crosses it on
      * the way to Inbox. See "The peek" in app.css for the two rules.
      */
-    _applyPeek(flag, property, missing, open) {
+    _applyPeek(flag, property, missing, closedWidth) {
         // The slack is the ellipsis's own width, which scrollWidth does not
         // count; without it the longest row can open to exactly its text and
         // still end in "…".
-        const wanted = Math.min(this.peekMaxValue, this.element.clientWidth + missing + 6);
+        const wanted = Math.min(this.peekMaxValue, closedWidth + missing + 6);
 
         // Sub-pixel text rounds to a hair over on rows that do fit, and a
         // sidebar already as wide as it may get would lean out to show nothing.
-        if (1 > missing || wanted <= this.element.clientWidth) {
-            if (false === open) {
-                delete this.element.dataset[flag];
-                this.element.style.removeProperty(property);
-            }
+        if (1 > missing || wanted <= closedWidth) {
+            delete this.element.dataset[flag];
+            this.element.style.removeProperty(property);
 
             return;
         }
@@ -733,6 +785,13 @@ export default class extends Controller {
 
         this._truncationObserver?.disconnect();
         this._truncationObserver = undefined;
+        this._truncationMutations?.disconnect();
+
+        if (this._onPeekMove) {
+            ["transitionrun", "transitionend", "transitioncancel"].forEach((name) =>
+                this.element.removeEventListener(name, this._onPeekMove),
+            );
+        }
 
         if (this._onDisclosure) {
             this.element.removeEventListener("toggle", this._onDisclosure, true);
