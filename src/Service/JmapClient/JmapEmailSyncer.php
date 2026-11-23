@@ -454,7 +454,7 @@ final readonly class JmapEmailSyncer
 
         try {
             $raw    = $this->jmap->download($account, $accountId, $blobId, 'message/rfc822', 'message.eml');
-            $parsed = MessageParser::fromString($raw, MessageParser::config());
+            $parsed = MessageParser::parse($raw);
 
             // Already here under another name: a copy this account sent, or
             // a row the IMAP sync stored before the account switched to JMAP.
@@ -463,7 +463,7 @@ final readonly class JmapEmailSyncer
             // id yet: one that has one is a different Email on this server —
             // the copy in Sent and the copy that came back to the sender are
             // two Emails with one Message-ID — and stays its own row.
-            $rfcId = MessageIdHelper::normalise((string) $parsed->getMessageId());
+            $rfcId = MessageIdHelper::normalise($parsed->messageId);
 
             if ('' !== $rfcId) {
                 $existing = $this->messageThreadingRepository->findOneForAccountByMessageId($account, $rfcId);

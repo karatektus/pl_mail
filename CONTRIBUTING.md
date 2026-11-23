@@ -55,7 +55,7 @@ this is what keeps an unreviewed commit off running installs.
 |---|---|
 | Backend | Symfony 8, Doctrine ORM, PHP 8.4+ |
 | Database | PostgreSQL 18 |
-| IMAP | plMail's own client (`App\Infrastructure\ImapClient`); webklex/php-imap still parses MIME (#82) |
+| IMAP | plMail's own client (`App\Infrastructure\ImapClient`); MIME parsed by zbateson/mail-mime-parser (`MessageParser`) |
 | Gmail | Gmail REST + Batch API, OAuth2 (league/oauth2-client) |
 | Microsoft | Microsoft Graph API, OAuth2 |
 | Async | Symfony Messenger, Doctrine transport |

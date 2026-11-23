@@ -9,12 +9,11 @@ namespace App\Domain\Helper;
  * takes it off again.
  *
  * ── The shape ────────────────────────────────────────────────────────────────
- * The IMAP sync asks for a message in two halves, RFC822.HEADER and
- * RFC822.TEXT (webklex's Query::fetch()), and keeps them apart. Some messages
- * on a Stalwart server answer the second with the WHOLE message, headers
- * included (#173). Nothing between the socket and MessageSyncer looks at what
- * the TEXT literal holds, so webklex parses "headers, blank line, body" as the
- * body: a single-part HTML mail is shown with `Delivered-To: …` above its
+ * Some messages on a Stalwart server answer the body of a fetch with the
+ * WHOLE message, headers included (#173), so what arrives is the header block
+ * twice. Nothing between the socket and MessageSyncer looks at what the body
+ * holds, so the parser reads "headers, blank line, body" as the body: a
+ * single-part HTML mail is shown with `Delivered-To: …` above its
  * content, and the stored .eml carries the headers twice. Sometimes there is no
  * blank line between the repeated block and the `<!DOCTYPE`, which is why the
  * blank line is optional below.
@@ -26,7 +25,7 @@ namespace App\Domain\Helper;
  * "Note: …", and cutting a real body is worse than the bug. A body that
  * genuinely begins with an exact copy of its own header block does not occur.
  *
- * Static and free of webklex, so the ingest path and the backfill that repairs
+ * Static and free of any parser, so the ingest path and the backfill that repairs
  * stored mail share one rule, and a test can state it without a server.
  */
 final class RepeatedHeaderHelper

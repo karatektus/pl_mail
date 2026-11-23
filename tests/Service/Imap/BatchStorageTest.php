@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Domain\DTO\Mail\ParsedMessage;
+use App\Domain\Helper\MessageParser;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
-use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
 use App\Infrastructure\ImapClient\ImapLoop;
 use App\Service\Imap\ImapUidPresence;
 use App\Service\Imap\MessageSyncer;
@@ -18,8 +19,6 @@ use Doctrine\ORM\Event\PostPersistEventArgs;
 use Doctrine\ORM\Events;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * A batch of fetched mail reaches the database, and one message the database
@@ -90,20 +89,64 @@ final class BatchStorageTest extends KernelTestCase
         );
     }
 
+    /**
+     * The name given only in Content-Type, with a bare disposition (#718).
+     * Stored under webklex's checksum of the part before, so the chip read
+     * "57d5c7cb" and the download had no extension.
+     */
+    public function testAnAttachmentNamedOnlyInItsContentTypeIsStoredUnderThatName(): void
+    {
+        $this->storeBatch($this->parsed(
+            101,
+            "Content-Type: multipart/mixed; boundary=\"B\"\r\n\r\n"
+            . "--B\r\n" . self::PLAIN
+            . "--B\r\n"
+            . "Content-Type: application/octet-stream; name=TNNTST02_10561121.PDF\r\n"
+            . "Content-Transfer-Encoding: base64\r\n"
+            . "Content-Disposition: attachment\r\n\r\n"
+            . "JVBERi0xLjcNCg==\r\n"
+            . "--B--\r\n",
+        ));
+
+        self::assertSame(['TNNTST02_10561121.PDF'], $this->partNames());
+    }
+
+    /**
+     * A part that names nothing anywhere is named for its type, so it opens
+     * on the machine it is downloaded to — not after a checksum.
+     */
+    public function testANamelessAttachmentIsNamedForItsType(): void
+    {
+        $this->storeBatch($this->parsed(
+            101,
+            "Content-Type: multipart/mixed; boundary=\"B\"\r\n\r\n"
+            . "--B\r\n" . self::PLAIN
+            . "--B\r\n"
+            . "Content-Type: application/pdf\r\n"
+            . "Content-Transfer-Encoding: base64\r\n"
+            . "Content-Disposition: attachment\r\n\r\n"
+            . "JVBERi0xLjcNCg==\r\n"
+            . "--B--\r\n",
+        ));
+
+        self::assertSame(['attachment.pdf'], $this->partNames());
+    }
+
     public function testABodyThatSaysUtf8AndCarriesAWindowsEuroIsStoredReadable(): void
     {
         // Valid UTF-8 ("für") beside one raw windows-1252 byte (0x80, "€"),
-        // under a label that says UTF-8. webklex converts nothing when the
-        // label already names the target, so the bytes went to body_html as
+        // under a label that says UTF-8. webklex converted nothing when the
+        // label already named the target, so the bytes went to body_html as
         // they came, and the INSERT was refused on its 30th parameter.
+        // Trimmed: a single-part body keeps the line break that ends it.
         $this->storeBatch($this->mail(101, html: "<p>Nur 10 \x80 für Sie</p>"));
 
         self::assertSame(
             ['<p>Nur 10 € für Sie</p>'],
-            $this->connection->fetchFirstColumn(
+            array_map(rtrim(...), $this->connection->fetchFirstColumn(
                 'SELECT body_html FROM message WHERE mailbox_id = ?',
                 [$this->mailboxId],
-            ),
+            )),
             'the valid UTF-8 around the one bad byte must survive the repair',
         );
     }
@@ -365,7 +408,7 @@ final class BatchStorageTest extends KernelTestCase
         self::assertSame(101, (int) $mailbox['last_seen_uid']);
     }
 
-    private function storeBatch(ImapMessage ...$batch): void
+    private function storeBatch(ParsedMessage ...$batch): void
     {
         $synced = [];
 
@@ -378,11 +421,20 @@ final class BatchStorageTest extends KernelTestCase
      *
      * @param array<int, \Throwable> $unreadable
      */
-    private function storeBatchWith(array $unreadable, ImapMessage ...$batch): void
+    private function storeBatchWith(array $unreadable, ParsedMessage ...$batch): void
     {
         $synced = array_fill_keys($this->storedUids(), true);
 
         $this->invokeProcessBatch($batch, $synced, $unreadable, (int) $this->mailboxRow()['last_seen_uid']);
+    }
+
+    /** @return list<string> */
+    private function partNames(): array
+    {
+        return $this->connection->fetchFirstColumn(
+            'SELECT p.filename FROM message_part p JOIN message m ON m.id = p.message_id WHERE m.mailbox_id = ? ORDER BY p.id',
+            [$this->mailboxId],
+        );
     }
 
     /** @return list<int> */
@@ -406,7 +458,7 @@ final class BatchStorageTest extends KernelTestCase
     }
 
     /**
-     * @param array<int, ImapMessage> $batch
+     * @param array<int, ParsedMessage> $batch
      * @param array<int, bool>        $synced
      * @param array<int, \Throwable>  $unreadable
      */
@@ -434,7 +486,7 @@ final class BatchStorageTest extends KernelTestCase
      *
      * @param string $entity the entity headers and the body, from Content-Type on
      */
-    private function parsed(int $uid, string $entity, ?string $id = null, string $headers = ''): ImapMessage
+    private function parsed(int $uid, string $entity, ?string $id = null, string $headers = ''): ParsedMessage
     {
         $id ??= "<batch-{$uid}@example.test>";
 
@@ -447,13 +499,11 @@ final class BatchStorageTest extends KernelTestCase
             . "MIME-Version: 1.0\r\n"
             . $entity;
 
-        return ImapMessage::fromString($raw, Config::make([
-            'decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]],
-        ]))->setUid($uid);
+        return MessageParser::parse($raw)->withEnvelope($uid, []);
     }
 
-    /** Parsed through the decoder MessageParser::config() installs, not the default. */
-    private function mail(int $uid, ?string $attachment = null, ?string $html = null): ImapMessage
+    /** Parsed as the sync parses it. */
+    private function mail(int $uid, ?string $attachment = null, ?string $html = null): ParsedMessage
     {
         $raw = "From: Sender <sender@example.test>\r\n"
             . "To: {$this->account->email}\r\n"
@@ -481,8 +531,6 @@ final class BatchStorageTest extends KernelTestCase
                 . "--B--\r\n";
         }
 
-        return ImapMessage::fromString($raw, Config::make([
-            'decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]],
-        ]))->setUid($uid);
+        return MessageParser::parse($raw)->withEnvelope($uid, []);
     }
 }

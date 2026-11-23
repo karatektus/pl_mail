@@ -10,16 +10,14 @@ use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Types\DateTimeImmutableType;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Header;
 
 /**
  * IMAP has to store the same thing Gmail and Graph do.
  *
  * The whole app leans on one unwritten rule — every timestamp column holds UTC
  * — because the columns are TIMESTAMP WITHOUT TIME ZONE and therefore cannot
- * enforce it. IMAP broke that rule silently: webklex parses the `Date:` header
- * with a bare Carbon::parse() and keeps the sender's offset, and Doctrine
+ * enforce it. IMAP broke that rule silently: webklex parsed the `Date:` header
+ * with a bare Carbon::parse() and kept the sender's offset, and Doctrine
  * formats a DateTimeImmutable in whatever zone it carries, so a +0200 sender's
  * mail landed as their wall clock while a UTC sender's landed as UTC. Nothing
  * failed; the same mailbox just held two different conventions.
@@ -58,14 +56,13 @@ final class MessageDateStorageTest extends TestCase
     #[DataProvider('dateHeaders')]
     public function testHeaderIsStoredAsUtc(string $header, string $expected): void
     {
-        $parsed = new Header("Date: {$header}\r\nSubject: Test\r\n", Config::make())
-            ->get('date')
-            ->toDate();
+        $parsed = MessageParser::parse("Date: {$header}\r\nSubject: Test\r\n\r\n")->date;
 
+        self::assertNotNull($parsed);
         self::assertSame(
             $expected,
             new DateTimeImmutableType()->convertToDatabaseValue(
-                MessageSyncer::toUtc($parsed),
+                MessageSyncer::dateFromHeader($parsed, new \DateTimeImmutable()),
                 new PostgreSQLPlatform(),
             ),
         );
@@ -77,9 +74,7 @@ final class MessageDateStorageTest extends TestCase
      */
     public function testTheUnconvertedHeaderWouldHaveStoredTheSendersWallClock(): void
     {
-        $parsed = new Header("Date: Fri, 25 Jul 2025 15:58:46 +0200\r\nSubject: Test\r\n", Config::make())
-            ->get('date')
-            ->toDate();
+        $parsed = new \DateTimeImmutable('Fri, 25 Jul 2025 15:58:46 +0200');
 
         self::assertSame('+02:00', $parsed->format('P'));
 
@@ -99,10 +94,7 @@ final class MessageDateStorageTest extends TestCase
      */
     public function testTheInstantIsUnchanged(): void
     {
-        $parsed = new Header("Date: Fri, 25 Jul 2025 15:58:46 +0200\r\nSubject: Test\r\n", Config::make())
-            ->get('date')
-            ->toDate();
-
+        $parsed = new \DateTimeImmutable('Fri, 25 Jul 2025 15:58:46 +0200');
         $stored = MessageSyncer::toUtc($parsed);
 
         self::assertSame($parsed->getTimestamp(), $stored->getTimestamp());
@@ -113,16 +105,27 @@ final class MessageDateStorageTest extends TestCase
      * A Date header nobody can parse still imports, dated by its arrival.
      *
      * webklex used to throw while building such a message, which failed the
-     * fetch and with it every sync of the folder. With the factory's fallback
-     * configured the header parses to the epoch, and dateFromHeader() reads
-     * that as "no usable date" rather than filing the mail under 1970.
+     * fetch and with it every sync of the folder. MessageParser reads the
+     * header as no date, the header is still known to have been there, and
+     * dateFromHeader() puts the arrival in its place rather than 1970.
      */
     public function testAnUnparseableDateStillImports(): void
     {
-        $config = Config::make(['options' => ['fallback_date' => MessageParser::UNPARSEABLE_DATE]]);
-        $header = new Header("Date: sometime last tuesday-ish\r\nSubject: Test\r\n", $config);
+        $parsed = MessageParser::parse("Date: sometime last tuesday-ish\r\nSubject: Test\r\n\r\n");
         $now    = new \DateTimeImmutable('2026-09-23 12:00:00 UTC');
 
-        self::assertEquals($now, MessageSyncer::dateFromHeader($header->get('date'), $now));
+        self::assertNull($parsed->date);
+        self::assertTrue($parsed->hasDateHeader, 'there was a Date, so the fetch is a message');
+        self::assertEquals($now, MessageSyncer::dateFromHeader($parsed->date, $now));
+    }
+
+    /** A mailer's zero is not when the mail was written. */
+    public function testADateAtTheEpochIsNoDate(): void
+    {
+        $parsed = MessageParser::parse("Date: Thu, 01 Jan 1970 00:00:00 +0000\r\nSubject: Test\r\n\r\n");
+        $now    = new \DateTimeImmutable('2026-09-23 12:00:00 UTC');
+
+        self::assertNotNull($parsed->date);
+        self::assertEquals($now, MessageSyncer::dateFromHeader($parsed->date, $now));
     }
 }

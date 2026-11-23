@@ -535,10 +535,49 @@ class MessageBackfillRepository extends ServiceEntityRepository
     }
 
     /**
+     * Messages after $afterId, in id order, whose original is stored and
+     * which have an unsealed part named like webklex's eight-character
+     * checksum: the set AttachmentNameBackfillTask reads. LENGTH only narrows
+     * it; the task checks the exact shape.
+     *
+     * @return list<Message>
+     */
+    public function findWithChecksumNamedPart(int $afterId, int $limit): array
+    {
+        return $this->checksumNamedPartQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithChecksumNamedPart(): int
+    {
+        return (int) $this->checksumNamedPartQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function checksumNamedPartQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.rawPath IS NOT NULL')
+            ->andWhere(
+                'EXISTS (SELECT p.id FROM ' . MessagePart::class . ' p'
+                . ' WHERE p.message = m AND p.sealed = false AND LENGTH(p.filename) = 8)',
+            )
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
      * Messages whose body webklex filed as an attachment, oldest id first.
      *
-     * The set MisfiledBodyDetector now keeps out of the database, found after
-     * the fact. Two conditions, and each carries half the confidence:
+     * Mail stored while webklex parsed, found after the fact; MessageParser
+     * reads these parts as bodies, so no new ones are stored. Two conditions, and each carries half the confidence:
      *
      * `multipart/*` IS IN THE LIST, and it is what the real reports turned out
      * to be. webklex hands over a whole `multipart/related` when it holds a

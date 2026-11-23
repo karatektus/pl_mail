@@ -12,7 +12,8 @@ use App\Domain\Helper\CharsetHelper;
  *
  * Without this the same header has a different key per provider: the Gmail and
  * Graph builders keep the wire casing ("List-Id"), while php-imap's
- * getAttributes() lowercases and turns dashes into underscores ("list_id").
+ * getAttributes() lowercased and turned dashes into underscores ("list_id"),
+ * which IMAP mail stored before #82 still carries.
  * Any header-based filter would then match on one account and silently not on
  * another — which is why mail rules had no header condition at all until now.
  *
@@ -98,7 +99,7 @@ final class HeaderNormalizer
     {
         $name = strtolower(trim($name));
 
-        // php-imap reports "list_id"; the wire name is "List-Id".
+        // php-imap reported "list_id"; the wire name is "List-Id".
         $name = str_replace('_', '-', $name);
 
         return $name;

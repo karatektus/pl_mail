@@ -52,10 +52,12 @@ final class ImapMailboxImporterTest extends KernelTestCase
     private array $sessions = [];
 
     /**
-     * A multipart message with no boundary: the parser finds no content in it
-     * and throws, which is what a message that will not store looks like.
+     * A message the server lists and then sends nothing for, which is what a
+     * message that will not store looks like from here (iCloud does it for a
+     * message deleted and not yet expunged, #96). A message the parser could
+     * not read used to stand in for it; MessageParser reads everything.
      */
-    private const string UNREADABLE = "From: a@example.test\r\nSubject: Broken\r\nMessage-ID: <broken@example.test>\r\nContent-Type: multipart/mixed\r\n\r\n--\r\nhello\r\n";
+    private const null UNREADABLE = null;
 
     protected function setUp(): void
     {

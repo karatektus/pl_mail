@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Domain\Helper\CharsetHelper;
 use App\Domain\Helper\MessageParser;
 use App\Domain\Helper\RawMessageStorage;
 use App\Domain\Helper\RepeatedHeaderHelper;
@@ -16,8 +15,6 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Throwable;
-use Webklex\PHPIMAP\IMAP;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * Takes the repeated header block out of IMAP mail stored before
@@ -41,9 +38,9 @@ use Webklex\PHPIMAP\Message as ImapMessage;
  * the one part, so body_html or body_text is the header block plus the body,
  * and a fresh parse of the repaired file is the right answer. A multipart
  * message is different: its parts start after the boundary, so the bodies
- * were parsed correctly, and they may hold a repair the sync made
- * (MisfiledBodyDetector) that a plain re-parse would not repeat. Overwriting
- * them would trade a correct body for a possibly worse one.
+ * were parsed correctly, and they may hold a repair the sync made then
+ * (MisfiledBodyDetector, while webklex parsed) that is better left as it is.
+ * Overwriting them would trade a correct body for one nobody has looked at.
  *
  * Attachments are not touched. A single-part message has none, and a
  * multipart one's were parsed from the parts, like its bodies.
@@ -137,7 +134,7 @@ final readonly class RepeatedHeaderBackfillTask implements BackfillTaskInterface
 
             $raw = (string) file_get_contents($this->rawStorage->getAbsolutePath($path));
 
-            // MessageSyncer::rawOf() joins the halves with exactly this.
+            // The sync wrote the header and the body joined by exactly this.
             $split = strpos($raw, "\r\n\r\n");
 
             if (false === $split) {
@@ -153,9 +150,9 @@ final readonly class RepeatedHeaderBackfillTask implements BackfillTaskInterface
 
             $repaired = $header . "\r\n\r\n" . $body;
 
-            // Parsed before anything is written, so a message the library
+            // Parsed before anything is written, so a message the parser
             // cannot read is left exactly as it was rather than half repaired.
-            $parsed = ImapMessage::fromString($repaired, MessageParser::config());
+            $parsed = MessageParser::parse($repaired);
         } catch (Throwable $e) {
             // Skipped rather than fatal: one unreadable file is one message
             // that stays as it was, and stopping here would leave every later
@@ -170,9 +167,9 @@ final readonly class RepeatedHeaderBackfillTask implements BackfillTaskInterface
 
         $message->rawPath = $this->rawStorage->store((int) $message->account->id, (int) $message->id, $repaired);
 
-        if (IMAP::MESSAGE_TYPE_MULTIPART !== $parsed->getStructure()?->type) {
-            $message->bodyText = CharsetHelper::ensureUtf8($parsed->getTextBody());
-            $message->bodyHtml = CharsetHelper::ensureUtf8($parsed->getHTMLBody());
+        if (false === $parsed->isMultipart()) {
+            $message->bodyText = $parsed->textBody;
+            $message->bodyHtml = $parsed->htmlBody;
 
             // bodyHtmlSafe is what the reading pane renders; bodyHtml alone
             // would repair the database and leave the screen as it was.
