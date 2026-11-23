@@ -269,4 +269,54 @@ test.describe("the peek", () => {
         await longRow(page).hover();
         expect(await width(page, "#sidebar")).toBe(480);
     });
+
+    /**
+     * A collapsed section hides its rows, and a hidden row is not clipped.
+     * Closed <details> content is `content-visibility: hidden` now, and
+     * scrollWidth lays it out anyway, so a long name in a collapsed ACCOUNTS
+     * or LABELS section used to keep the sidebar leaning out over nothing.
+     * Checked both ways in: collapsed by a click, and rendered collapsed on
+     * the next page load.
+     */
+    test("ignores the rows of a collapsed section", async ({ page }) => {
+        const labels = aside(page).locator('details[data-collapse-key="section:labels"]');
+        const collapse = async (collapsed: boolean) => {
+            const token = await page.evaluate(
+                () => document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "",
+            );
+            const response = await page.request.post("/mail/sidebar/section-collapsed", {
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
+                data: { key: "section:labels", collapsed },
+            });
+            expect(response.ok()).toBe(true);
+        };
+
+        try {
+            await expect(aside(page)).toHaveAttribute("data-sidebar-truncated", "");
+
+            const persisted = page.waitForResponse((r) => r.url().includes("/mail/sidebar/section-collapsed"));
+            await labels.locator("> summary").click();
+            await persisted;
+            await expect(labels).not.toHaveAttribute("open", "");
+
+            // Off the sidebar: while the peek is out it measures nothing (see
+            // _measureTruncation), and the click left the pointer on it.
+            const column = (await page.locator("[data-mail-column]").boundingBox())!;
+            await page.mouse.move(column.x + column.width / 2, column.y + 200);
+            await expect.poll(async () => aside(page).getAttribute("data-sidebar-truncated")).toBeNull();
+
+            await page.goto("/mail/inbox");
+            await expect(labels).not.toHaveAttribute("open", "");
+            await expect.poll(async () => aside(page).getAttribute("data-sidebar-truncated")).toBeNull();
+
+            await aside(page).locator("summary").first().hover();
+            expect(await width(page, "#sidebar")).toBe(224);
+
+            // Opened again, the long name is back on screen and clipped.
+            await labels.locator("> summary").click();
+            await expect(aside(page)).toHaveAttribute("data-sidebar-truncated", "");
+        } finally {
+            await collapse(false);
+        }
+    });
 });

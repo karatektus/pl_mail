@@ -563,8 +563,18 @@ export default class extends Controller {
      * padding on the row around the clipped span, so the span's box already
      * has the indent taken out and a deep label asks for more than a shallow
      * one of the same name — no separate sum of indents to keep in step with
-     * the CSS. Collapsed trees and rows behind More are not laid out and
-     * measure 0.
+     * the CSS.
+     *
+     * Only rows on screen count. Rows inside a closed <details> — a collapsed
+     * section, label tree or account, the rows behind More — are NOT measured
+     * as 0: browsers now hide closed disclosure content with
+     * `content-visibility: hidden`, and reading scrollWidth lays the skipped
+     * subtree out on demand, at full width. A collapsed ACCOUNTS section with
+     * one long folder name in it kept the sidebar leaning out with nothing
+     * clipped in sight. checkVisibility() answers false for anything under a
+     * closed disclosure, display:none or [hidden]; getClientRects() is the
+     * fallback for browsers without it, and is right for everything but the
+     * content-visibility case those browsers do not have.
      *
      * Coalesced into one frame: a tree of forty labels opening is forty hook
      * calls for one answer.
@@ -593,6 +603,14 @@ export default class extends Controller {
             let missing = 0;
 
             this.element.querySelectorAll(".truncate").forEach((clipped) => {
+                const shown = "function" === typeof clipped.checkVisibility
+                    ? clipped.checkVisibility()
+                    : clipped.getClientRects().length > 0;
+
+                if (false === shown) {
+                    return;
+                }
+
                 missing = Math.max(missing, clipped.scrollWidth - clipped.clientWidth);
             });
 
