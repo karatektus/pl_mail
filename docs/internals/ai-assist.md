@@ -422,10 +422,23 @@ What differs is the length of the answer, and three constants follow from it:
 of a reply, which is earlier mail translated where it is shown. A message with no own words (a bare
 forward) falls back to the whole readable body. The page says when the history was left out.
 
-**No language rule.** `PromptLibrary::forTranslation()` sends `PromptRules::TRANSLATION` alone, like
+**No language rule.** `PromptLibrary::forTranslation()` sends `PromptRules::TRANSLATION` without it, like
 categorisation, because the rule says "never translate the message into another language". The
 target language is named in the user message, not in the system prompt, so the prompt hash — and
 every stored translation's validity — does not depend on who is reading.
+
+**The model names the mail's language.** `PromptRules::TRANSLATION_SOURCE_LINE` is appended to the
+slot, whatever an administrator wrote there, and asks for a first line `Language: <ISO 639-1 code>`
+before the translation. No language-detection library: n-gram guessing is unreliable on exactly the
+short mail with a quoted reply or an English disclaimer that gets translated, and the model is
+reading the mail anyway. `SourceLanguageLine` reads the line off the stream, holding back at most
+64 characters until it can tell the line from the translation, so the line never reaches the page or
+the store; only a two-letter code Intl knows is kept, in `message_translation.source_language`. An
+answer without the line is all translation and names no language; the bar then says "translated
+into", never a guess. When the code is the reader's language, the model is stopped there
+(`AiAssistant` records a cancelled call), a row with the language and no text is stored, the bar
+says there is nothing to translate, and while that row is fresh the controller answers from it
+without asking the model again.
 
 **The output is text.** It is rendered by Twig's escaping or written with `textContent`, never as
 HTML, and it sits outside the sandboxed frame like the warnings, because a "this is not the

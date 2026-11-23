@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:40a23807a5bb884face8456a8822f8014c6dbfd6 -->
+<!-- translated-from: features/mail.md sha1:ddff98f1aaa5dc18dc3b46272f7204162dc5fc33 -->
 
 # Mail
 
@@ -672,17 +672,22 @@ Wo die Administration das Übersetzen eingeschaltet hat, steht im **⋮**-Menü 
 plMail läuft, oder in die, die du unter **Einstellungen → Assistent → Übersetzen in** gewählt hast —
 dort gibt es viel mehr Sprachen als Oberflächen von plMail. Übersetzt wird erst, wenn du darum bittest.
 
-Die Übersetzung tritt an die Stelle der Nachricht, in einem getönten Kasten unter einem Balken,
-der sagt, dass eine KI übersetzt hat, mit welchem Modell, und dass es nicht der Originaltext
-ist. Der Knopf im Balken schaltet mit einem Klick zum Original und zurück, so oft du willst. Die
-Übersetzung kommt Stück für Stück an; wie lange das dauert, hängt von der Maschine ab, auf der das
-Modell läuft, und auf einer ohne Grafikkarte braucht eine lange Nachricht Minuten. Du musst nicht
-warten: Verlässt du die Nachricht, wird sie trotzdem fertig übersetzt und öffnet sich beim nächsten
-Mal übersetzt.
+Die Übersetzung tritt an die Stelle der Nachricht, in einem getönten Kasten unter einem Balken, der
+sagt, dass eine KI übersetzt hat, aus welcher Sprache, mit welchem Modell, und dass es nicht der
+Originaltext ist. Die Sprache der Nachricht ist die, die das Modell beim Übersetzen nennt; nennt es
+keine, sagt der Balken nur, in welche Sprache übersetzt wurde. Der Knopf im Balken schaltet mit
+einem Klick zum Original und zurück, so oft du willst. Die Übersetzung kommt Stück für Stück an; wie
+lange das dauert, hängt von der Maschine ab, auf der das Modell läuft, und auf einer ohne
+Grafikkarte braucht eine lange Nachricht Minuten. Du musst nicht warten: Verlässt du die Nachricht,
+wird sie trotzdem fertig übersetzt und öffnet sich beim nächsten Mal übersetzt.
 
 Einmal geschrieben, wird die Übersetzung aufbewahrt, und die Nachricht öffnet sich ohne Wartezeit als
 Übersetzung. Ändert sich die Nachricht selbst danach, sagt der Balken das und bietet eine neue
 Übersetzung an.
+
+Eine Nachricht, die schon in deiner Sprache ist, wird nicht übersetzt: Das Modell hört auf, sobald
+es die Sprache genannt hat, der Balken sagt, dass es nichts zu übersetzen gibt, und die Nachricht
+bleibt, wie sie ist. Auch das wird aufbewahrt, eine neue Anfrage kostet also nichts.
 
 Geschickt wird der eigene Text der Nachricht, als reiner Text:
 

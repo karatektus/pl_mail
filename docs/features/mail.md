@@ -611,14 +611,20 @@ under **Settings → Assistant → Translate into**, which lists many more langu
 interface in. Nothing is translated until you ask.
 
 The translation takes the place of the message, in a tinted box under a bar that says it was
-translated by AI, with which model, and that it is not the original text. The bar's button switches
-to the original and back, in one click, as often as you like. The translation arrives a few words at
-a time; how long it takes depends on the machine running the model, and on one without a graphics
-card a long message takes minutes. You do not have to wait for it: leave the message and it is
-finished anyway, and the message opens translated the next time.
+translated by AI, from which language, with which model, and that it is not the original text. The
+language of the message is the one the model names while translating; when it names none, the bar
+says only which language it was translated into. The bar's button switches to the original and back,
+in one click, as often as you like. The translation arrives a few words at a time; how long it takes
+depends on the machine running the model, and on one without a graphics card a long message takes
+minutes. You do not have to wait for it: leave the message and it is finished anyway, and the
+message opens translated the next time.
 
 Once written, a translation is kept, and the message opens as its translation, at no cost. If the
 message itself changes afterwards, the bar says so and offers to translate it again.
+
+A message that is already in your language is not translated: the model stops as soon as it has
+named the language, the bar says there is nothing to translate, and the message stays as it is.
+That is remembered too, so asking again costs nothing.
 
 What is sent is the message's own text, as plain text:
 
