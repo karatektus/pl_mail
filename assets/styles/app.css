@@ -4693,13 +4693,21 @@ body.cursor-col-resize .sidebar-pane {
    from the mail, the pointer crosses the handle first and the sidebar only
    widens once it carries on into the sidebar. Hover follows the DOM rather
    than the box, so the peek stays open over the part that has leaned out.
+
+   Keyboard focus opens it too, through :focus-visible, not :focus-within.
+   A click in the sidebar leaves focus there: on the folder just opened, on
+   Create label once its dialog hands focus back. With :focus-within the
+   peek then stayed out after the pointer had left, over the left edge of
+   the list, and the next click meant for a row's checkbox opened the
+   sidebar's Inbox instead. A keyboard user still gets the clipped names; a
+   mouse user's peek follows the mouse.
    ────────────────────────────────────────────────────────────────────────── */
 #sidebar[data-sidebar-peek][data-sidebar-truncated] {
     transition: width 160ms ease-out, box-shadow 160ms ease-out;
 }
 
 html:not(.sidebar-rail) body:not(.cursor-col-resize)
-    .sidebar-pane:is(:hover, :focus-within)
+    .sidebar-pane:is(:hover, :has(:focus-visible))
     > #sidebar[data-sidebar-peek][data-sidebar-truncated] {
     width: var(--sidebar-peek-width, 100%);
 
@@ -4716,7 +4724,7 @@ html:not(.sidebar-rail) body:not(.cursor-col-resize)
    an edge that is not there. Gone, and not grabbable; it comes back where it
    always was when the peek lets go. */
 html:not(.sidebar-rail) body:not(.cursor-col-resize)
-    .sidebar-pane:is(:hover, :focus-within):has(> #sidebar[data-sidebar-peek][data-sidebar-truncated])
+    .sidebar-pane:is(:hover, :has(:focus-visible)):has(> #sidebar[data-sidebar-peek][data-sidebar-truncated])
     + [data-sidebar-handle] {
     opacity: 0;
     pointer-events: none;
