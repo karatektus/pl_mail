@@ -2315,6 +2315,8 @@ compose:
     formatting: Formatting options
     forward: Forward
     from: From
+    from_pick: Choose an address to send from
+    from_via: '%label% · via %account%'
     image: Insert image
     image_edit:
         crop: Crop

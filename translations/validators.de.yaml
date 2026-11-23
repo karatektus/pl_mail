@@ -27,6 +27,7 @@ carddav.username_required: Gib den Benutzernamen ein, unter dem dich dein CardDA
 contacts.invalid_email: "„%email%“ ist keine gültige E-Mail-Adresse."
 contacts.name_or_email_required: Gib dem Kontakt einen Namen oder mindestens eine E-Mail-Adresse.
 calendar.name_required: Gib dem Kalender einen Namen — daran erkennst du ihn zwischen den anderen.
+compose.from_required: Wähle eine Absenderadresse, bevor du sendest.
 compose.recipient_invalid: "„{{ address }}“ ist keine gültige E-Mail-Adresse."
 compose.recipient_required: Füge mindestens einen Empfänger hinzu, bevor du sendest.
 integration.name_taken: Du hast schon eine Verbindung zu diesem Dienst mit dem Namen {{ value }}. Gib dieser einen anderen Namen — etwa Privat und Arbeit.

@@ -2328,6 +2328,8 @@ compose:
     formatting: Options de mise en forme
     forward: Transférer
     from: De
+    from_pick: Choisissez une adresse d’expédition
+    from_via: '%label% · via %account%'
     image: Insérer une image
     image_edit:
         crop: Recadrer

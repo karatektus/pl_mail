@@ -441,6 +441,14 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                     aria-labelledby="{{ form.vars.id }}_from_label"
                     data-compose--compose-target="accountSelect"
                     class="sr-only">
+                {# With no option selected a browser posts the first one, which
+                   is how #704 sent through an account the user never saw: the
+                   window opened on a token that was not among the options. An
+                   empty option in front, selected, posts nothing instead, and
+                   ComposeType refuses a send with no From. #}
+                {% if form.account.vars.value not in form.account.vars.choices|map(c => c.value) %}
+                    <option value="" selected></option>
+                {% endif %}
                 {% for choice in form.account.vars.choices %}
                     <option value="{{ choice.value }}"
                             {% if form.account.vars.value == choice.value %}selected{% endif %}>
@@ -511,9 +519,11 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                             class="flex-1 flex items-center justify-between gap-2 text-sm
                                    text-ink-soft text-left">
                         <span data-compose--compose-target="fromLabel" id="{{ form.vars.id }}_from_value" class="truncate">
-                            {% for choice in form.account.vars.choices %}
-                                {% if form.account.vars.value == choice.value %}{{ choice.label }}{% endif %}
-                            {% endfor %}
+                            {%- set from_label = null -%}
+                            {%- for choice in form.account.vars.choices -%}
+                                {%- if form.account.vars.value == choice.value %}{% set from_label = choice.label %}{% endif -%}
+                            {%- endfor -%}
+                            {{- from_label ?? ('compose.from_pick'|trans) -}}
                         </span>
                         <i class="fa-solid fa-chevron-down text-[10px] text-ink-faint shrink-0 transition-transform duration-150"
                            data-compose--compose-target="fromChevron"></i>

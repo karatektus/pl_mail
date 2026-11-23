@@ -2211,6 +2211,8 @@ compose:
     formatting: Fancy lettering
     forward: Pass it along
     from: From
+    from_pick: Pick the colours ye sail under
+    from_via: '%label% · by way o'' %account%'
     image: Paste in a likeness
     image_edit:
         crop: Trim

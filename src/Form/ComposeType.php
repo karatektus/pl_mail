@@ -24,7 +24,9 @@ use Symfony\Component\Form\FormInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\Validator\Constraints\Callback;
+use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 class ComposeType extends AbstractType
@@ -32,6 +34,7 @@ class ComposeType extends AbstractType
     public function __construct(
         private readonly RouterInterface   $router,
         private readonly AccountRepository $accountRepository,
+        private readonly TranslatorInterface $translator,
     ) {
     }
 
@@ -51,7 +54,7 @@ class ComposeType extends AbstractType
         // yet — the one send() binds a first POST to — has no account to read:
         // the property is typed and uninitialised, not null.
         if (null !== $draft && true === isset($draft->account, $draft->fromAddress)) {
-            $choices += $this->catchAllChoice($user, $draft->account->id . '|' . strtolower($draft->fromAddress), $choices);
+            $choices += $this->catchAllOption($user, $draft->account->id . '|' . strtolower($draft->fromAddress), $choices);
         }
 
         $builder
@@ -176,7 +179,7 @@ class ComposeType extends AbstractType
                 return;
             }
 
-            $extra = $this->catchAllChoice($user, $token, $choices);
+            $extra = $this->catchAllOption($user, $token, $choices);
 
             if ([] !== $extra) {
                 $event->getForm()->add('account', ChoiceType::class, $this->fromField($choices + $extra));
@@ -185,19 +188,77 @@ class ComposeType extends AbstractType
     }
 
     /**
-     * @param array<string,string> $choices
+     * The From field over a set of options.
+     *
+     * The choices are the tokens themselves, and the text shown for each comes
+     * from `choice_label`. They used to be `label => token`, which let an
+     * option overwrite another (#704): two accounts that both send as one
+     * address under one sender name — Gmail's "Send mail as", listed on both
+     * sides — produce the same label, and the later account's token replaced
+     * the earlier one's in place. The window then opened on a token that was no
+     * longer an option, showed an empty From, and the browser posted the first
+     * option instead: the other account, with nothing on screen to say so. A
+     * token is unique by construction, so as the key it cannot collide.
+     *
+     * Required for a send (`send` group, as the recipients are), not for a
+     * draft. The select posts an empty value when the window opened on a token
+     * that is not among the options (see the template); a draft saved that way
+     * stays on its account, but a send is refused rather than guessed at.
+     *
+     * @param array<string,array{account: Account, label: string}> $options
      *
      * @return array<string,mixed>
      */
-    private function fromField(array $choices): array
+    private function fromField(array $options): array
     {
+        $labels = $this->distinctLabels($options);
+
         return [
-            'label'        => false,
-            'mapped'       => false,
-            'choices'      => $choices,
-            'choice_value' => static fn (?string $token): string => $token ?? '',
-            'attr'         => ['class' => 'compose-from-select'],
+            'label'                     => false,
+            'mapped'                    => false,
+            'choices'                   => array_map(strval(...), array_keys($labels)),
+            'choice_value'              => static fn (?string $token): string => $token ?? '',
+            'choice_label'              => static fn (string $token): string => $labels[$token] ?? $token,
+            'choice_translation_domain' => false,
+            'attr'                      => ['class' => 'compose-from-select'],
+            // ChoiceType keeps its errors to itself, and the window has no
+            // place under a From line that is a custom menu; the message's
+            // own error block is where a refusal is seen.
+            'error_bubbling'            => true,
+            'constraints'               => [
+                new NotBlank(message: 'compose.from_required', groups: ['send']),
+            ],
         ];
+    }
+
+    /**
+     * The text for each option, told apart where two would read the same.
+     *
+     * Keying by token stops one option replacing another, but two options
+     * still showing "Jane Doe <a@example.com>" would leave the user unable to
+     * see which account each one sends through. Only the clashing ones get the
+     * account added; everyone else's From reads as it always did.
+     *
+     * @param array<string,array{account: Account, label: string}> $options
+     *
+     * @return array<string,string>  token => label
+     */
+    private function distinctLabels(array $options): array
+    {
+        $seen = array_count_values(array_column($options, 'label'));
+
+        $labels = [];
+
+        foreach ($options as $token => $option) {
+            $labels[(string) $token] = $seen[$option['label']] > 1
+                ? $this->translator->trans('compose.from_via', [
+                    '%label%'   => $option['label'],
+                    '%account%' => $option['account']->email ?? $option['account']->displayAddress ?? $option['account']->name ?? (string) $option['account']->id,
+                ])
+                : $option['label'];
+        }
+
+        return $labels;
     }
 
     /**
@@ -209,13 +270,13 @@ class ComposeType extends AbstractType
      * from the browser on a submit, so this is the authorisation for sending
      * as an address no alias row names.
      *
-     * @param array<string,string> $choices
+     * @param array<string,array{account: Account, label: string}> $options
      *
-     * @return array<string,string>  label => token, at most one entry
+     * @return array<string,array{account: Account, label: string}>  at most one entry
      */
-    private function catchAllChoice(UserInterface $user, string $token, array $choices): array
+    private function catchAllOption(UserInterface $user, string $token, array $options): array
     {
-        if (true === in_array($token, $choices, true) || false === str_contains($token, '|')) {
+        if (true === isset($options[$token]) || false === str_contains($token, '|')) {
             return [];
         }
 
@@ -236,11 +297,14 @@ class ComposeType extends AbstractType
             return [];
         }
 
-        return [$this->fromLabel($address, $account->senderNameFor($address)) => $token];
+        return [$token => ['account' => $account, 'label' => $this->fromLabel($address, $account->senderNameFor($address))]];
     }
 
     /**
-     * @return array<string,string>  label => "accountId|address" token
+     * One option per address each sending account may use, keyed by its
+     * "accountId|address" token.
+     *
+     * @return array<string,array{account: Account, label: string}>
      */
     private function fromChoices(UserInterface $user): array
     {
@@ -259,15 +323,17 @@ class ComposeType extends AbstractType
                 $address = $account->displayAddress ?? $account->email;
 
                 if (null !== $address && '' !== $address) {
-                    $choices[$this->fromLabel($address, $account->name)] = $account->id . '|' . $address;
+                    $choices[$account->id . '|' . $address] = ['account' => $account, 'label' => $this->fromLabel($address, $account->name)];
                 }
 
                 continue;
             }
 
             foreach ($sendable as $alias) {
-                $choices[$this->fromLabel($alias->address, $account->senderNameFor($alias->address))]
-                    = $account->id . '|' . $alias->address;
+                $choices[$account->id . '|' . $alias->address] = [
+                    'account' => $account,
+                    'label'   => $this->fromLabel($alias->address, $account->senderNameFor($alias->address)),
+                ];
             }
         }
 

@@ -22,6 +22,7 @@ caldav.credential_required: '请输入应用密码，或勾选使用邮件账户
 caldav.reuse_account_required: '请选择要使用哪个邮件账户的密码，或取消勾选并手动输入密码。'
 caldav.username_required: '请输入你在 CalDAV 服务器上的用户名。'
 calendar.name_required: '请为日历命名，以便与其他日历区分。'
+compose.from_required: '发送前请选择发件地址。'
 compose.recipient_invalid: '“{{ address }}”不是有效的电子邮件地址。'
 compose.recipient_required: '发送前请至少添加一位收件人。'
 integration.name_taken: '你已为此服务创建了名为 {{ value }} 的连接。请换一个名称，例如“家庭”或“工作”。'

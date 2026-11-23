@@ -2326,6 +2326,8 @@ compose:
     formatting: Formatierung
     forward: Weiterleiten
     from: Von
+    from_pick: Wähle eine Absenderadresse
+    from_via: '%label% · über %account%'
     image: Bild einfügen
     image_edit:
         crop: Zuschneiden

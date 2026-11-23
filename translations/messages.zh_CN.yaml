@@ -2066,6 +2066,8 @@ compose:
     formatting: 格式选项
     forward: 转发
     from: 发件人
+    from_pick: 请选择发件地址
+    from_via: '%label% · 经由 %account%'
     image: 插入图片
     image_edit:
         crop: 裁剪
