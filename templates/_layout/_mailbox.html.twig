@@ -86,6 +86,16 @@ dozen other reasons while the conversation was open.
    every list rather than only the two that care. #}
 {% block list_scope_value %}{% endblock %}
 
+{# What the toolbar's "select all N" posts as the view, which is list_scope and
+   list_scope_value everywhere except a search. There list_scope has to stay
+   `*` — it is also the sync scope, and a search shows mail from every mailbox
+   — while the toolbar has to name the search and its query, or the worker is
+   handed `*` and resolves it to no conversations at all (#711). Two blocks of
+   their own rather than a second meaning for the two above: those reach the
+   frame too, where every row button reads them (assets/list_view.js). #}
+{% block list_view_scope %}{{ block('list_scope') }}{% endblock %}
+{% block list_view_value %}{{ block('list_scope_value') }}{% endblock %}
+
 {% set selectedMessage = selectedMessage|default(null) %}
 
 {#
@@ -475,13 +485,14 @@ which of the two is happening.
                names itself once. list_scope_value carries the one thing that
                varies within a scope: the category tab for the inbox, the label
                id for a label view. Both go to the server's closed set — see
-               App\Service\Mail\ListViewResolver. #}
+               App\Service\Mail\ListViewResolver — through list_view_scope and
+               list_view_value, which only a search overrides. #}
             {% include '_partials/_list_toolbar.html.twig' with {
                 page:             page     ?? 1,
                 total:            total    ?? 0,
                 per_page:         per_page ?? 50,
-                list_scope:       block('list_scope'),
-                list_scope_value: block('list_scope_value'),
+                list_scope:       block('list_view_scope'),
+                list_scope_value: block('list_view_value'),
                 unread_only:      unread_only ?? false,
             } %}
         {% endblock %}

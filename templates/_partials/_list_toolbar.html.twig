@@ -249,12 +249,16 @@ closes the menu: ui--dropdown closes on a click OUTSIDE it, and a row is inside.
                    The wrapper is the pagination region's sibling in spirit:
                    `total` moves when mail arrives or a bulk action runs, and
                    the controller redraws the label from its own total value
-                   rather than trusting the number rendered here. #}
+                   rather than trusting the number rendered here.
+
+                   Not on a list with no scope (`*`, the layout's default):
+                   the server has nothing to resolve it to and refuses the
+                   whole-view action (#711). #}
                 <button type="button"
                         data-mail--list-toolbar-target="wholeView"
                         data-action="click->mail--list-toolbar#selectWholeView"
                         data-label="{{ 'toolbar.select.whole_view'|trans }}"
-                        class="{{ total > per_page ? 'block' : 'hidden' }} w-full text-left px-3 py-1.5
+                        class="{{ total > per_page and list_scope|default('') not in ['', '*'] ? 'block' : 'hidden' }} w-full text-left px-3 py-1.5
                                border-t border-line mt-1 pt-2
                                text-ink-soft whitespace-nowrap
                                hover:bg-hover
