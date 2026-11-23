@@ -217,6 +217,32 @@ test.describe("the peek", () => {
         await expect(handle(page)).toHaveCSS("opacity", "1");
     });
 
+    /**
+     * A click leaves focus in the sidebar, and the peek used to hold on to it
+     * (:focus-within): out over the list after the pointer had left, so the
+     * next click on a row's checkbox opened the sidebar's Inbox instead.
+     */
+    test("lets go when the pointer leaves after a click, and keyboard focus still opens it", async ({ page }) => {
+        await setState(page, { key: "peek", enabled: "1" });
+        await page.goto("/mail/inbox");
+        await expect(aside(page)).toHaveAttribute("data-sidebar-truncated", "");
+
+        const column = (await page.locator("[data-mail-column]").boundingBox())!;
+
+        await aside(page).getByRole("button", { name: "Create label" }).click();
+        await page.locator("#modal-backdrop").getByRole("button", { name: "Cancel" }).click();
+        await expect(page.locator("#modal-backdrop")).toBeHidden();
+        expect(await aside(page).evaluate((el) => el.contains(document.activeElement))).toBe(true);
+
+        await page.mouse.move(column.x + column.width / 2, column.y + 200);
+        await expect.poll(() => width(page, "#sidebar")).toBe(224);
+
+        // From the keyboard it is the way to read a clipped name.
+        await page.keyboard.press("Shift+Tab");
+        await page.keyboard.press("Tab");
+        await expect.poll(() => width(page, "#sidebar")).toBeGreaterThan(224);
+    });
+
     test("is not opened by reaching for the handle", async ({ page }) => {
         await setState(page, { key: "peek", enabled: "1" });
         await page.goto("/mail/inbox");
