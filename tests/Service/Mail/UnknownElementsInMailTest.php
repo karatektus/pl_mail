@@ -104,6 +104,28 @@ final class UnknownElementsInMailTest extends KernelTestCase
         self::assertStringNotContainsString('margin', $composed);
     }
 
+    /**
+     * The check the repair uses to choose which stored mail to sanitise
+     * again: yes for an element the allow-list does not name, no for an
+     * ordinary letter, whose `<meta>` and document tags must not count.
+     */
+    public function testTheRepairCheckFindsAnElementTheAllowListDoesNotName(): void
+    {
+        $known = $this->sanitizer->knownElements();
+
+        self::assertTrue(MailBodySanitizer::containsElementOutside('<message id="mail_body"><p>Hi</p></message>', $known));
+        self::assertTrue(MailBodySanitizer::containsElementOutside('<p>Hi<o:p>&nbsp;</o:p></p>', $known));
+        self::assertTrue(MailBodySanitizer::containsElementOutside('<P>Hi <X-Name>James</X-Name></P>', $known), 'case does not hide one');
+
+        self::assertFalse(MailBodySanitizer::containsElementOutside(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="a.css"><title>T</title>'
+            . '<style>td{color:red}</style></head><body><table><tr><td><a href="https://example.test/">Hi</a><br>'
+            . '<img src="https://example.test/a.png"></td></tr></table><!-- a comment --></body></html>',
+            $known,
+        ));
+        self::assertFalse(MailBodySanitizer::containsElementOutside('just text, 1 < 2', $known));
+    }
+
     private function sanitize(string $html): HTMLDocument
     {
         $message           = new Message();

@@ -20,8 +20,12 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * now; this is for the mail that arrived before it.
  *
  * Sanitising again from bodyHtml, the sender's untouched copy, is the whole
- * fix. The walk is every HTML body, because SQL cannot tell which mail held an
- * unknown element; it reports how many came out different.
+ * fix. Which mail needs it SQL cannot say, since it does not know the tags the
+ * allow-list names, so the walk reads every HTML body as a plain string and
+ * asks MailBodySanitizer::containsElementOutside(). Only the mail it says yes
+ * to is loaded and sanitised again: the check is a regular expression, the
+ * sanitise a CSS inliner and two HTML parses, and on most mailboxes few bodies
+ * hold an unknown element.
  */
 final readonly class SafeHtmlUnknownElementBackfillTask implements BackfillTaskInterface
 {
@@ -40,7 +44,7 @@ final readonly class SafeHtmlUnknownElementBackfillTask implements BackfillTaskI
 
     public function getDescription(): string
     {
-        return 'Re-sanitize Message.bodyHtmlSafe for every HTML body, restoring content that sat inside an element the allow-list does not name.';
+        return 'Re-sanitize Message.bodyHtmlSafe for HTML bodies with an element the allow-list does not name, restoring the content that sat inside it.';
     }
 
     public function run(SymfonyStyle $io): int
@@ -53,21 +57,36 @@ final readonly class SafeHtmlUnknownElementBackfillTask implements BackfillTaskI
             return Command::SUCCESS;
         }
 
+        $known = $this->bodySanitizer->knownElements();
+
         $io->progressStart($total);
 
-        $lastId    = 0;
-        $processed = 0;
-        $repaired  = 0;
+        $lastId   = 0;
+        $checked  = 0;
+        $affected = 0;
+        $repaired = 0;
 
         while (true) {
-            $messages = $this->messageBackfillRepository->findWithHtmlBody($lastId, self::BATCH_SIZE);
+            $bodies = $this->messageBackfillRepository->findHtmlBodiesAfter($lastId, self::BATCH_SIZE);
 
-            if (count($messages) === 0) {
+            if ([] === $bodies) {
                 break;
             }
 
-            foreach ($messages as $message) {
-                $lastId = (int) $message->id;
+            $lastId   = (int) array_key_last($bodies);
+            $checked += count($bodies);
+            $io->progressAdvance(count($bodies));
+            $ids      = [];
+
+            foreach ($bodies as $id => $html) {
+                if (MailBodySanitizer::containsElementOutside($html, $known)) {
+                    $ids[] = $id;
+                }
+            }
+
+            unset($bodies);
+
+            foreach ($this->messageBackfillRepository->findByIds($ids) as $message) {
                 $before = $message->bodyHtmlSafe;
 
                 $this->bodySanitizer->sanitize($message);
@@ -75,17 +94,21 @@ final readonly class SafeHtmlUnknownElementBackfillTask implements BackfillTaskI
                 if ($before !== $message->bodyHtmlSafe) {
                     ++$repaired;
                 }
-
-                ++$processed;
-                $io->progressAdvance();
             }
+
+            $affected += count($ids);
 
             $this->em->flush();
             $this->em->clear();
         }
 
         $io->progressFinish();
-        $io->success(sprintf('Re-sanitized %d message(s), %d of them changed.', $processed, $repaired));
+        $io->success(sprintf(
+            'Checked %d message(s): %d had an element the allow-list does not name, %d of them changed.',
+            $checked,
+            $affected,
+            $repaired,
+        ));
 
         return Command::SUCCESS;
     }

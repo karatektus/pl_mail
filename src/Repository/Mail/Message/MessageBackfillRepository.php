@@ -246,18 +246,52 @@ class MessageBackfillRepository extends ServiceEntityRepository
     }
 
     /**
-     * Every message with an HTML body — the set the unknown-element repair
-     * has to walk. What an unknown element took with it is gone from
-     * bodyHtmlSafe and SQL cannot tell which tags the allow-list knows, so
-     * the walk is the whole set, as the table-link one nearly is.
+     * The raw HTML bodies after an id, keyed by message id — what the
+     * unknown-element repair reads to choose which mail to sanitise again.
+     *
+     * SQL cannot tell which tags the allow-list names, so the choice is made
+     * in PHP (MailBodySanitizer::containsElementOutside()), and this only
+     * hands over the bodies. As scalars, not entities: almost every body
+     * passes the check, and hydrating a Message for each would cost more than
+     * the check itself.
+     *
+     * @return array<int, string>
+     */
+    public function findHtmlBodiesAfter(int $afterId, int $limit): array
+    {
+        $rows = $this->htmlBodyQueryBuilder($afterId)
+            ->select('m.id', 'm.bodyHtml')
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getArrayResult();
+
+        $bodies = [];
+
+        foreach ($rows as $row) {
+            $bodies[(int) $row['id']] = (string) $row['bodyHtml'];
+        }
+
+        return $bodies;
+    }
+
+    /**
+     * The messages a repair chose by id, as entities it can sanitise again.
+     *
+     * @param list<int> $ids
      *
      * @return list<Message>
      */
-    public function findWithHtmlBody(int $afterId, int $limit): array
+    public function findByIds(array $ids): array
     {
-        return $this->htmlBodyQueryBuilder($afterId)
+        if ([] === $ids) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id IN (:ids)')
+            ->setParameter('ids', $ids)
             ->orderBy('m.id', 'ASC')
-            ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
     }

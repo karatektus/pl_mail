@@ -42,6 +42,22 @@ final readonly class MailBodySanitizer
     private const int MAX_INPUT_LENGTH = 2_000_000;
 
     /**
+     * Elements the allow-list need not name for containsElementOutside() to
+     * call a body unaffected.
+     *
+     * The void elements have no content, so dropping one and unwrapping it
+     * come out the same; `<meta>` alone is in nearly every mail and would
+     * otherwise make the check say yes to all of them. `html`, `head` and
+     * `body` never reach the sanitizer as elements: it parses the input as
+     * the content of a `<body>`, where the parser ignores those three tags.
+     */
+    private const array CONTENTLESS_ELEMENTS = [
+        'area', 'base', 'basefont', 'bgsound', 'br', 'col', 'embed', 'frame', 'hr', 'image', 'img',
+        'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr',
+        'html', 'head', 'body',
+    ];
+
+    /**
      * The attributes a body composed in plMail is allowed to keep, on top of
      * the inbound-mail allow-list.
      *
@@ -357,6 +373,60 @@ final readonly class MailBodySanitizer
         } finally {
             restore_error_handler();
         }
+    }
+
+    /**
+     * Every element name the allow-list has an answer for (allow, unwrap or
+     * drop), plus the ones without content: what containsElementOutside()
+     * measures a body against.
+     *
+     * Read from the configuration itself rather than kept as a second list,
+     * so the two cannot drift apart. Asked for once per walk by its caller:
+     * this class is readonly and cannot keep it, and building the
+     * configuration clones it once per element.
+     *
+     * @return array<string, true>
+     */
+    public function knownElements(): array
+    {
+        $config = $this->allowList();
+        $known  = array_fill_keys(self::CONTENTLESS_ELEMENTS, true);
+
+        foreach ([$config->getAllowedElements(), $config->getBlockedElements(), $config->getDroppedElements()] as $elements) {
+            foreach (array_keys($elements) as $element) {
+                $known[strtolower($element)] = true;
+            }
+        }
+
+        return $known;
+    }
+
+    /**
+     * Whether the raw body has a tag the allow-list does not name — the mail
+     * an earlier sanitizer dropped content from, before unknown elements were
+     * unwrapped (#719).
+     *
+     * A look at the tag names, not a parse: it runs over every stored HTML
+     * body during the repair, and nearly all of them say no. It errs towards
+     * yes — a tag inside a comment, such as Outlook's `<v:roundrect>` in an
+     * `[if mso]` block, counts too — which costs a sanitise that changes
+     * nothing, never a body left blank.
+     *
+     * @param array<string, true> $known from knownElements()
+     */
+    public static function containsElementOutside(string $html, array $known): bool
+    {
+        if (0 === preg_match_all('/<([a-z][^\s\/>]*)/i', $html, $matches)) {
+            return false;
+        }
+
+        foreach ($matches[1] as $name) {
+            if (!isset($known[strtolower($name)])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

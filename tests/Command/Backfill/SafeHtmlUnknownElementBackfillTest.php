@@ -9,7 +9,6 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Service\Mail\MailBodySanitizer;
-use Dom\HTMLDocument;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -59,8 +58,7 @@ final class SafeHtmlUnknownElementBackfillTest extends KernelTestCase
     public function testItGivesABlankBodyItsLetterBack(): void
     {
         // What the sanitizer used to write: nothing.
-        $message = $this->message(self::CARD, "
-");
+        $message = $this->message(self::CARD, "\n");
         $id      = (int) $message->id;
 
         self::assertSame(Command::SUCCESS, $this->runTask());
@@ -99,6 +97,27 @@ final class SafeHtmlUnknownElementBackfillTest extends KernelTestCase
         $this->runTask();
 
         self::assertSame($before, (string) $this->reload($id)->bodyHtmlSafe);
+    }
+
+    /**
+     * A body made only of elements the allow-list names is not sanitised
+     * again at all: the walk reads every HTML body, but only the ones with an
+     * unknown element are worth the CSS inliner and two parses. The stored
+     * copy here is deliberately not what the sanitizer would write, so a
+     * second sanitise would show.
+     */
+    public function testItSkipsABodyWithoutAnUnknownElement(): void
+    {
+        $message = $this->message(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hi</title><style>p{margin:0}</style></head>'
+            . '<body><p>Nothing unknown here.<br><img src="https://example.test/a.png" alt=""></p></body></html>',
+            '<p>stored earlier</p>',
+        );
+        $id      = (int) $message->id;
+
+        $this->runTask();
+
+        self::assertSame('<p>stored earlier</p>', $this->reload($id)->bodyHtmlSafe);
     }
 
     private function runTask(): int
