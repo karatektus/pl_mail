@@ -520,6 +520,8 @@ export default class extends Controller {
      * The CSS needs two attributes on this element (see "The peek" in
      * app.css): `data-sidebar-peek`, the setting, rendered by the server, and
      * `data-sidebar-truncated`, set here only while something IS clipped.
+     * `data-sidebar-truncated-own` is the same for the rows that peek only
+     * when hovered themselves (`data-sidebar-peek-own`, see _applyPeek).
      */
 
     /**
@@ -591,16 +593,19 @@ export default class extends Controller {
                 return;
             }
 
-            // While the peek is open nothing is clipped any more, and taking
-            // the attribute off on that measurement would close the peek under
-            // the pointer, measure a clipped row again and reopen it, forever.
-            // A measurement taken while the sidebar is wider than its box is a
-            // measurement of the answer, not of the question.
-            if (this.element.offsetWidth > (this.element.parentElement?.clientWidth ?? 0) + 1) {
-                return;
-            }
+            // While the peek is open the rows it was opened for fit, and a
+            // measurement taken then is a measurement of the answer, not of
+            // the question: taking the attribute off on it would close the
+            // peek under the pointer, measure a clipped row again and reopen
+            // it, forever. What an open peek CAN still learn is that it is
+            // too narrow — an account opened under the pointer, its long
+            // folder names arriving — so while open it only ever grows, and
+            // shrinking waits for the measurement after it closes (the
+            // ResizeObserver sees that).
+            const open = this.element.offsetWidth > (this.element.parentElement?.clientWidth ?? 0) + 1;
 
             let missing = 0;
+            let missingOwn = 0;
 
             this.element.querySelectorAll(".truncate").forEach((clipped) => {
                 const shown = "function" === typeof clipped.checkVisibility
@@ -611,31 +616,49 @@ export default class extends Controller {
                     return;
                 }
 
-                missing = Math.max(missing, clipped.scrollWidth - clipped.clientWidth);
+                const short = clipped.scrollWidth - clipped.clientWidth;
+
+                if (null === clipped.closest("[data-sidebar-peek-own]")) {
+                    missing = Math.max(missing, short);
+                } else {
+                    missingOwn = Math.max(missingOwn, short);
+                }
             });
 
-            // Sub-pixel text rounds to a hair over on rows that do fit.
-            if (1 > missing) {
-                delete this.element.dataset.sidebarTruncated;
-
-                return;
-            }
-
-            // The slack is the ellipsis's own width, which scrollWidth does
-            // not count; without it the longest row can open to exactly its
-            // text and still end in "…".
-            const wanted = Math.min(this.peekMaxValue, this.element.clientWidth + missing + 6);
-
-            // Already as wide as it may get: leaning out would show nothing.
-            if (wanted <= this.element.clientWidth) {
-                delete this.element.dataset.sidebarTruncated;
-
-                return;
-            }
-
-            this.element.style.setProperty("--sidebar-peek-width", `${Math.round(wanted)}px`);
-            this.element.dataset.sidebarTruncated = "";
+            this._applyPeek("sidebarTruncated", "--sidebar-peek-width", missing, open);
+            this._applyPeek("sidebarTruncatedOwn", "--sidebar-peek-own-width", missingOwn, open);
         });
+    }
+
+    /**
+     * One kind of peek, from how many pixels its longest row is missing.
+     *
+     * Two kinds: the nav rows, which lean the sidebar out whenever the pointer
+     * is anywhere over it, and the rows marked `data-sidebar-peek-own` (the
+     * next event under the clock), which do so only while that row itself is
+     * hovered or focused. A clipped event title is worth reading on purpose,
+     * not worth a sidebar lurching out every time the pointer crosses it on
+     * the way to Inbox. See "The peek" in app.css for the two rules.
+     */
+    _applyPeek(flag, property, missing, open) {
+        // The slack is the ellipsis's own width, which scrollWidth does not
+        // count; without it the longest row can open to exactly its text and
+        // still end in "…".
+        const wanted = Math.min(this.peekMaxValue, this.element.clientWidth + missing + 6);
+
+        // Sub-pixel text rounds to a hair over on rows that do fit, and a
+        // sidebar already as wide as it may get would lean out to show nothing.
+        if (1 > missing || wanted <= this.element.clientWidth) {
+            if (false === open) {
+                delete this.element.dataset[flag];
+                this.element.style.removeProperty(property);
+            }
+
+            return;
+        }
+
+        this.element.style.setProperty(property, `${Math.round(wanted)}px`);
+        this.element.dataset[flag] = "";
     }
 
     /**

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./support/test";
-import { seed } from "./support/config";
+import { consoleCommand, seed } from "./support/config";
 
 /**
  * The sidebar's width and its peek (#699).
@@ -39,6 +39,16 @@ async function setState(page: Page, fields: Record<string, string>): Promise<voi
     const response = await page.request.post("/mail/sidebar/state", {
         form: { ...fields, _token: token ?? "" },
         headers: { "X-Requested-With": "fetch" },
+    });
+    expect(response.ok()).toBe(true);
+}
+
+/** A JSON POST with the page's own CSRF token, as the sidebar sends them. */
+async function post(page: Page, url: string, data: object): Promise<void> {
+    const token = await page.locator("meta[name='csrf-token']").getAttribute("content");
+    const response = await page.request.post(url, {
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": token ?? "" },
+        data,
     });
     expect(response.ok()).toBe(true);
 }
@@ -280,16 +290,8 @@ test.describe("the peek", () => {
      */
     test("ignores the rows of a collapsed section", async ({ page }) => {
         const labels = aside(page).locator('details[data-collapse-key="section:labels"]');
-        const collapse = async (collapsed: boolean) => {
-            const token = await page.evaluate(
-                () => document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "",
-            );
-            const response = await page.request.post("/mail/sidebar/section-collapsed", {
-                headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
-                data: { key: "section:labels", collapsed },
-            });
-            expect(response.ok()).toBe(true);
-        };
+        const collapse = (collapsed: boolean) =>
+            post(page, "/mail/sidebar/section-collapsed", { key: "section:labels", collapsed });
 
         try {
             await expect(aside(page)).toHaveAttribute("data-sidebar-truncated", "");
@@ -317,6 +319,102 @@ test.describe("the peek", () => {
             await expect(aside(page)).toHaveAttribute("data-sidebar-truncated", "");
         } finally {
             await collapse(false);
+        }
+    });
+
+    /**
+     * An open peek used to measure nothing at all — a measurement taken while
+     * it is out is one of the answer, not of the question — so an account
+     * opened under the pointer, with a longer folder name in it, stayed
+     * clipped until the pointer left the sidebar and came back. It may grow
+     * while open now; only shrinking waits for it to close.
+     */
+    test("grows under the pointer when an account opens a longer name", async ({ page }) => {
+        const folder = "Northwind Traders International Accounts Receivable Archive";
+        const folderRow = () => aside(page).getByText(folder, { exact: true });
+
+        seed("seed-mail", `seed-label --path='${folder}'`);
+
+        try {
+            await page.goto("/mail/inbox");
+            await expect(aside(page)).toHaveAttribute("data-sidebar-truncated", "");
+
+            await longRow(page).hover();
+            await expect
+                .poll(() => longRow(page).evaluate((el) => el.scrollWidth - el.clientWidth))
+                .toBeLessThanOrEqual(0);
+            const before = await width(page, "#sidebar");
+            expect(before).toBeGreaterThan(224);
+
+            // The expander is in the sidebar: the pointer never leaves it.
+            await aside(page).getByRole("button", { name: "Show or hide folders in E2E Mailbox" }).click();
+            await expect(folderRow()).toBeVisible();
+
+            await expect.poll(() => width(page, "#sidebar")).toBeGreaterThan(before);
+            await expect
+                .poll(() => folderRow().evaluate((el) => el.scrollWidth - el.clientWidth))
+                .toBeLessThanOrEqual(0);
+        } finally {
+            await post(page, "/mail/sidebar/account-expanded", { account: null });
+            seed(`seed-label --path='${folder}' --remove`);
+        }
+    });
+
+    /**
+     * The next event under the clock is clipped like any row, but it leans
+     * the sidebar out only while it is hovered itself: a title worth reading
+     * on purpose is not worth the sidebar lurching out every time the pointer
+     * crosses it on the way to Inbox.
+     */
+    test("leans out for the next event only while the event is hovered", async ({ page }) => {
+        const title = "Northwind Traders quarterly planning";
+        const labels = (collapsed: boolean) => post(page, "/mail/sidebar/section-collapsed", { key: "section:labels", collapsed });
+        const placement = async (value: string) => {
+            await page.goto("/settings/region");
+            const token = await page
+                .locator('form[action$="/settings/clock/placement"] input[name="_token"]')
+                .inputValue();
+            const response = await page.request.post("/settings/clock/placement", {
+                form: { placement: value, _token: token },
+            });
+            expect(response.ok()).toBe(true);
+        };
+
+        // Users get their default calendar from the backfill, which a fresh
+        // worker user has not been through yet.
+        consoleCommand("app:backfill calendars");
+        seed(`seed-share-event --title='${title}'`);
+
+        try {
+            // The long label out of the way, so only the event is clipped.
+            await labels(true);
+            await placement("sidebar");
+            await page.goto("/mail/inbox");
+
+            const event = aside(page).locator("[data-sidebar-peek-own]");
+            await expect(event).toContainText(title);
+            await expect(aside(page)).toHaveAttribute("data-sidebar-truncated-own", "");
+            await expect.poll(async () => aside(page).getAttribute("data-sidebar-truncated")).toBeNull();
+
+            // Anywhere else in the sidebar: nothing.
+            await aside(page).getByRole("link", { name: /^Inbox/ }).first().hover();
+            await page.waitForTimeout(300);
+            expect(await width(page, "#sidebar")).toBe(224);
+
+            // On the event itself: out, far enough for the title.
+            await event.hover();
+            await expect.poll(() => width(page, "#sidebar")).toBeGreaterThan(224);
+            await expect
+                .poll(() => event.locator(".truncate").evaluate((el) => el.scrollWidth - el.clientWidth))
+                .toBeLessThanOrEqual(0);
+
+            // Off it, still inside the sidebar: back.
+            await aside(page).getByRole("link", { name: /^Inbox/ }).first().hover();
+            await expect.poll(() => width(page, "#sidebar")).toBe(224);
+        } finally {
+            await placement("topbar");
+            await labels(false);
+            seed(`seed-share-event --title='${title}' --clear`);
         }
     });
 });

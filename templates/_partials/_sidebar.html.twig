@@ -989,7 +989,12 @@ controller instead — the scroll position and which trees are open.
                 <div class="-mt-1 text-xs text-ink-muted">{{ clockui.longDate() }}</div>
 
                 {% if soonest %}
+                    {# data-sidebar-peek-own: a clipped title leans the
+                       sidebar out only while this button is hovered or
+                       focused, not whenever the pointer is over the sidebar
+                       (see "The peek" in app.css). #}
                     <button type="button"
+                            data-sidebar-peek-own
                             data-controller="ui--modal"
                             data-action="click->ui--modal#open {{ _drawerClose }}"
                             data-ui--modal-src-value="{{ path('app_calendar_soon') }}"
