@@ -7,6 +7,7 @@ namespace App\Command\Backfill;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Mail\HeaderNormalizer;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
@@ -46,6 +47,16 @@ final readonly class HeaderNormalizationBackfillTask implements BackfillTaskInte
     public function getDescription(): string
     {
         return 'Fold stored header keys to the canonical lowercase, dash-separated form';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-07-29');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
     }
 
     public function run(SymfonyStyle $io): int

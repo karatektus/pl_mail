@@ -163,6 +163,43 @@ the database role was not allowed to create the extension, the panel says so and
 now**. Statistics start from the moment the extension is created, so queries from before it will
 never appear. **Reset stats** clears the collected numbers.
 
+## Backfills
+
+Some fixes can only change mail that arrives after the update. A **backfill** repairs what was
+stored before: it rewrites a column that was computed wrongly, or re-reads stored mail with a reader
+that has improved. The release notes say when one is worth running. This section runs them without
+a terminal, the same tasks `app:backfill` runs.
+
+The list is **newest first**, grouped by the month each task was added, because the newest is
+nearly always the one an update asks for. A task added in the last month that has not been run from
+this page carries a **New** mark. Choosing one shows what it does in plain words, when it was added
+and when it last ran here, and whether it is **safe to run again**. Most are: they pick out only the
+rows that still have the fault, or rebuild from the original, so a second run arrives where the
+first did. Two are not, and say why beside the explanation: `contacts` counts every address again
+each time, which moves the people in older mail ahead in address suggestions, and `rethread` throws
+away the AI summaries made since its last run.
+
+- **Count first** asks a task how many messages it would look at, without changing any. Some read
+  every candidate and change only those with the fault, so the number is what it will read, not
+  what it will change. Tasks that walk every message cannot count beforehand and say so.
+- Tasks that **re-read mail** (events, insights) take a window: the last 24 hours, 7 days, 4 weeks,
+  or all mail. The table repairs take none; a fault that is in every row is repaired in every row.
+- **Run** queues the task for the maintenance worker. It does not run in the page, so you can leave
+  it. A second click while it is queued or running shows the same run rather than starting another.
+- **Same on the console** shows the `app:backfill` line for the task and window, for running it from
+  a shell instead.
+
+**Recent runs** lists what was started here: when, by whom, over which window, and how it ended.
+While a run is going its last lines of output show under it and the card refreshes itself; a
+finished run keeps its output behind **Show output**. A run that has printed nothing for half an
+hour is shown as *No word for 30 minutes*: its worker was most likely restarted. A task marked safe
+to run again can simply be started again.
+
+Two tasks ask a question on the console, `rethread` ("Rebuild all threads now?") and `category`
+("Re-run messages that already have a category?"). Started from this page the answer is yes,
+because pressing Run after reading the explanation is that answer; the output records it. Runs
+from the console are not listed here.
+
 ## Logs
 
 A filterable browser over what plMail has written to the database: a minimum level — info, notice,

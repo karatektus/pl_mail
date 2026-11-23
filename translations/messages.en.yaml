@@ -375,6 +375,172 @@ admin:
             timeout: 'The host was still loading after four minutes and plMail stopped waiting. It may well finish; the model is very likely too big for the memory it has.'
             unexpected: 'Something went wrong before the host could answer. (%error%)'
             unreachable: 'Nothing answered at that address. (%error%)'
+    backfills:
+        active:
+            queued: 'Queued — waiting for the maintenance worker.'
+            running: 'Running. Its output is under Recent runs.'
+        added: 'Added %date%'
+        console: 'Same on the console'
+        count:
+            button: 'Count first'
+            none: 'Nothing to look at — this repair has no work on this installation.'
+            some: 'It will look at %count% messages. Some tasks read every candidate and change only the ones with the fault.'
+            unavailable: 'This one cannot count beforehand.'
+        heading: 'Backfills'
+        kind:
+            repairs: 'Repairs stored data'
+            rereads: 'Re-reads mail'
+        last_run: 'Last run from this page %date%'
+        list_label: 'Backfills, newest first'
+        never_run: 'Not run from this page yet'
+        new: 'New'
+        none: 'No backfills are registered.'
+        order_hint: 'Newest first. An update that needs one says so in its release notes, and it is usually the newest.'
+        repeat:
+            careful: 'Think before running it twice'
+            safe: 'Safe to run again'
+        run: 'Run %task%'
+        run_hint: 'Queued for the maintenance worker, not run in this page. You can leave it; the run carries on.'
+        runs:
+            empty: 'Nothing has been run from this page yet.'
+            everything: 'Everything'
+            heading: 'Recent runs'
+            removed_user: 'a removed user'
+            show_output: 'Show output'
+            state:
+                done: 'Done'
+                failed: 'Failed'
+                queued: 'Queued'
+                quiet: 'No word for 30 minutes'
+                running: 'Running'
+        task:
+            addresses:
+                explanation: >-
+                    Mail stored before addresses were cleaned up on arrival kept names exactly as the server sent them, so some senders show as "Doe, John" in quotes, and a quoted name with a comma could turn into two addresses.
+
+                    This rewrites the stored names and addresses of every message into the form new mail gets. Contacts whose address would change are counted rather than merged, so you can see whether any need merging by hand.
+                summary: 'Clean up quoted sender and recipient names'
+            attachment_content_type_names:
+                explanation: >-
+                    Some attachments that gave their file name only in their content type were stored under a checksum such as "57d5c7cb", with no extension to open them by.
+
+                    This reads each affected message's stored original and gives the attachment back its real name, where the original names it unambiguously. It also runs by itself after an update.
+                summary: 'Give back their names to attachments stored under a checksum'
+            calendars:
+                explanation: >-
+                    Every new user gets a personal calendar, and one for each mail account. This gives the same calendars to users who were here before that started. It only fills gaps, so running it again after adding accounts is fine.
+                summary: 'Create the default calendars for existing users'
+            category:
+                explanation: >-
+                    Works out the inbox tab of every message again — Primary, Updates, Promotions and so on — from what is stored, without asking the mail server.
+
+                    Run from this page it recomputes every message, including those that already have a tab, which is what you want after an update changed how mail is sorted.
+                summary: 'Sort every message into its inbox tab again'
+            contacts:
+                explanation: >-
+                    Contacts are learned as mail arrives. This learns them from every message already stored, for accounts synced before that existed, or after the rules for what counts as an address changed. It reads all mail of every account, one account at a time.
+                repeat_warning: 'Each run counts every stored address again, so the people in older mail move ahead of the people you write to now in address suggestions. Run it once after the change that calls for it.'
+                summary: 'Rebuild contacts from all stored mail'
+            events:
+                explanation: >-
+                    Reads stored mail again for bookings and invitations — flights, hotels, tickets, calendar invites — and puts them in the calendar. Use it after an update improved how they are read.
+
+                    Only mail that could carry an event is read, and only as far back as the window says. Events you edited or removed stay as you left them.
+                summary: 'Read stored mail again for calendar events'
+            gmailify_placement:
+                explanation: >-
+                    For an IMAP account whose mail a Gmail account also collects, plMail used to copy Gmail's placement onto the IMAP copy: mail Gmail had archived or deleted went to Archive or Trash here while the IMAP server still had it in the Inbox.
+
+                    This puts each such message back where its IMAP folder says it is. Run it while nobody is moving mail, or a move that has not reached the server yet may flicker back for a moment.
+                summary: 'Put Gmail-collected IMAP mail back in its own folder'
+            headers:
+                explanation: >-
+                    Mail stored before header names were made uniform kept them as each provider spelled them ("List-Id", "list_id"). Filters that test a header did not match those messages. This rewrites the stored header names into one form; values are not changed.
+                summary: 'Make stored header names uniform'
+            html_body_text:
+                explanation: >-
+                    After the update that rebuilt the search index, every message waits to be indexed again, and the scheduler works through them a little at a time, newest first. This does the rest in one go, so older mail is back in search now rather than over an evening.
+
+                    It also stores the words of mail sent as HTML only, so search, embeddings and summaries read its body. Running both at once is fine; they share the work.
+                summary: 'Finish putting all mail back in search'
+            insights:
+                explanation: >-
+                    Reads stored mail again for parcels, flights, tickets and code reviews — the cards on the radar. Use it after an update taught it a new sender or a better reading.
+
+                    Only stored mail is read; no provider is asked anything. A card someone dismissed stays dismissed.
+                summary: 'Read stored mail again for parcels, flights and tickets'
+            message_arrival:
+                explanation: >-
+                    Admin → Performance shows how late mail arrives, measured from when the provider accepted it. Mail stored before that time was recorded has none. This reads it from the headers for the last week's mail, which is as far back as the panel looks. It also runs by itself after an update.
+                summary: 'Work out arrival times for the last week, for Performance'
+            misfiled_bodies_v2:
+                explanation: >-
+                    Some messages were stored with their body as an attachment with a name like "09704cea", so they open blank with one chip.
+
+                    The body was saved all along; this puts it back where it belongs and removes the chip. It also runs by itself after an update.
+                summary: 'Restore bodies that were stored as attachments'
+            proposals:
+                explanation: >-
+                    Reads stored mail in Primary again for dates written in sentences — "let's meet Thursday at 3" — and offers them as calendar proposals. A message that already has a proposal, or one you threw away, is left alone.
+                summary: 'Read stored mail again for dates to propose'
+            recipients:
+                explanation: >-
+                    Mail synced over IMAP before a fix stored no To and Cc lists, though the headers were kept. This fills the empty lists from those headers. Recipients that are already there are left as they are.
+                summary: 'Fill in missing To and Cc lists'
+            repeated_headers:
+                explanation: >-
+                    Some IMAP servers repeated the header block at the top of the message body, so those messages open with "Delivered-To: …" above the text, and their original holds the headers twice.
+
+                    This reads the stored original of every IMAP message and removes the repeat where it finds one. That is one file read per message, which is why it is not run automatically.
+                summary: 'Remove header blocks repeated at the top of IMAP mail'
+            rethread:
+                explanation: >-
+                    Throws away every conversation and builds them again from the stored messages, with the threading rules in use now.
+
+                    Stars, snoozes, tabs and labels on a conversation are carried over. Stored AI summaries are not and have to be asked for again. Run from this page, pressing Run is the confirmation the console asks for.
+                repeat_warning: 'Each run throws the conversations away again, and AI summaries made since the last run go with them. Run it once after the change that calls for it.'
+                summary: 'Rebuild all conversations from scratch'
+            safe_html:
+                explanation: >-
+                    Every HTML message is shown from a cleaned copy. This makes that copy for messages that have none yet.
+                summary: 'Make the safe copy of HTML mail that has none'
+            safe_html_absolute_position:
+                explanation: >-
+                    Some HTML mail kept elements positioned on top of the page, so a banner could cover the text under it. This cleans those messages' display copy again with the fixed rules.
+                summary: 'Stop banners covering the text in HTML mail'
+            safe_html_charset:
+                explanation: >-
+                    HTML mail that declared its own character set could show garbled characters such as "Ã¤" for "ä". This cleans those messages' display copy again with the fixed rules.
+                summary: 'Repair garbled characters in HTML mail'
+            safe_html_conditional_comments:
+                explanation: >-
+                    Mail written for Outlook could show stray text such as "<![endif]-->". This cleans those messages' display copy again with the fixed rules.
+                summary: 'Remove stray Outlook markup shown as text'
+            safe_html_hidden_cards:
+                explanation: >-
+                    HTML mail with a form, or with certain styles, could lose or hide part of its content. This cleans those messages' display copy again with the fixed rules.
+                summary: 'Restore content hidden in HTML mail'
+            safe_html_table_links:
+                explanation: >-
+                    In HTML mail where a whole table was a link, the link could come out empty. This cleans those messages' display copy again with the fixed rules.
+                summary: 'Restore links around tables in HTML mail'
+            safe_html_unknown_elements:
+                explanation: >-
+                    HTML mail using elements the cleaner did not know — some booking confirmations, for example — could be shown with a blank body. This reads every HTML message and cleans the display copy again for those that hold such an element.
+                summary: 'Restore HTML mail shown blank because of unknown elements'
+            spam_in_archive:
+                explanation: >-
+                    Until a fix, a "Mark as spam" filter labelled mail Spam here but archived it on the server, so the next sync found it in the archive and it sat there unread.
+
+                    This moves each such message into Spam the way you would by hand: on the server it goes from Archive to Junk. IMAP accounts without a Junk folder are skipped and counted.
+                summary: 'Move spam a filter archived into Spam'
+        what_it_does: 'What it does'
+        window:
+            24h: 'Last 24 hours'
+            4w: '4 weeks'
+            7d: '7 days'
+            all: 'All mail'
+            label: 'Mail to read again'
     client_errors:
         browser: 'Browser'
         clear: 'Clear'
@@ -870,6 +1036,7 @@ admin:
     nav:
         address: Address
         ai: AI
+        backfills: 'Backfills'
         backup: Backup
         database: Database
         demo_stats: 'Demo visitors'

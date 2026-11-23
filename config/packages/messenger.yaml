@@ -446,6 +446,11 @@ framework:
             # ingest queue — new mail would stop appearing until an old mailbox
             # had finished being catalogued.
             App\Infrastructure\Messaging\Message\BackfillEmbeddingsMessage: maintenance
+            # Admin → Backfills. maintenance, where backfills have always been
+            # meant to go: nobody is watching a list fill, and a repair that
+            # walks every message for ten minutes must not sit in front of a
+            # bulk action somebody is waiting for. See BackfillRunner.
+            App\Infrastructure\Messaging\Message\RunBackfillMessage: maintenance
             # ingest, because it is mail arriving — the delay that makes the
             # reply feel like a reply is a DelayStamp, not this queue's doing.
             # Routing it at all is what matters: unrouted it would run inside

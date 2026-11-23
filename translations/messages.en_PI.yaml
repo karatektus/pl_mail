@@ -376,6 +376,172 @@ admin:
             timeout: "Four minutes an' the host were still haulin', so plMail stopped waitin'. It may yet finish — like as not the model be too heavy for the hold it has."
             unexpected: "Somethin' went wrong afore the host could answer. (%error%)"
             unreachable: "Nothin' answered at that address. (%error%)"
+    backfills:
+        active:
+            queued: 'In the queue — waitin’ fer the maintenance hand.'
+            running: 'Under way. Its log be under Recent voyages.'
+        added: 'Brought aboard %date%'
+        console: 'Same thing from the console'
+        count:
+            button: 'Count heads first'
+            none: 'Naught to look at — this repair has no work aboard this ship.'
+            some: 'It’ll look over %count% messages. Some tasks read every one an’ mend only them with the fault.'
+            unavailable: 'This one cannot count afore it sails.'
+        heading: 'Backfills'
+        kind:
+            repairs: 'Mends stored cargo'
+            rereads: 'Reads the post again'
+        last_run: 'Last sailed from this page %date%'
+        list_label: 'Backfills, newest first'
+        never_run: 'Ne’er sailed from this page'
+        new: 'New'
+        none: 'No backfills be registered.'
+        order_hint: 'Newest first. An update that wants one says so in its notes, an’ it be mostly the newest.'
+        repeat:
+            careful: 'Think afore sailin’ it twice'
+            safe: 'Safe to sail again'
+        run: 'Set %task% sailin’'
+        run_hint: 'Queued fer the maintenance hand, not run in this page. Ye can leave it; the voyage carries on.'
+        runs:
+            empty: 'Naught has sailed from this page yet.'
+            everything: 'The whole hold'
+            heading: 'Recent voyages'
+            removed_user: 'a hand who left the crew'
+            show_output: 'Show the log'
+            state:
+                done: 'Done'
+                failed: 'Sunk'
+                queued: 'Queued'
+                quiet: 'No word fer 30 minutes'
+                running: 'Under way'
+        task:
+            addresses:
+                explanation: >-
+                    Post stored afore addresses were scrubbed on arrival kept names just as the server sent ’em, so some senders show as "Doe, John" in quotes, an’ a quoted name with a comma could split into two addresses.
+
+                    This rewrites the stored names an’ addresses o’ every message into the shape new post gets. Contacts whose address would change be counted, not merged, so ye can see if any need mergin’ by hand.
+                summary: 'Scrub quoted sender an’ recipient names'
+            attachment_content_type_names:
+                explanation: >-
+                    Some attachments that gave their name only in their content type were stowed under a checksum like "57d5c7cb", with no ending to open ’em by.
+
+                    This reads each such message’s stored original an’ gives the attachment back its true name, where the original names it plain. It also sails by itself after an update.
+                summary: 'Give attachments back their names'
+            calendars:
+                explanation: >-
+                    Every new hand gets a calendar o’ their own, an’ one fer each mail account. This gives the same calendars to the hands who were aboard afore. It only fills gaps, so sailin’ it again after addin’ accounts does no harm.
+                summary: 'Make the usual calendars fer the old crew'
+            category:
+                explanation: >-
+                    Works out the inbox tab o’ every message again — Main deck, Dispatches, Peddlers an’ the rest — from what be stored, without askin’ the mail server.
+
+                    Sailed from this page it reckons every message anew, them with a tab already too, which be what ye want after an update changed how post is sorted.
+                summary: 'Sort every message into its tab again'
+            contacts:
+                explanation: >-
+                    Contacts be learned as post arrives. This learns ’em from every message already stored, fer accounts synced afore that, or after the rules fer what counts as an address changed. It reads all the post o’ every account, one at a time.
+                repeat_warning: 'Each voyage counts every stored address again, so hands from old post crowd ahead o’ them ye write to now in address suggestions. Sail it once after the change that calls fer it.'
+                summary: 'Rebuild contacts from all stored post'
+            events:
+                explanation: >-
+                    Reads stored post again fer bookings an’ invitations — flights, inns, tickets, calendar invites — an’ puts ’em in the calendar. Use it after an update taught it better readin’.
+
+                    Only post that might carry an event be read, an’ only as far back as the window says. Events ye changed or threw overboard stay as ye left ’em.
+                summary: 'Read stored post again fer calendar events'
+            gmailify_placement:
+                explanation: >-
+                    Fer an IMAP account whose post a Gmail account also hauls in, plMail used to copy Gmail’s stowin’ onto the IMAP copy: post Gmail had archived or binned went to Archive or Trash here while the IMAP server still had it in the Inbox.
+
+                    This puts each such message back where its IMAP folder says. Sail it when nobody be movin’ post, or a move not yet at the server may flicker back fer a moment.
+                summary: 'Put Gmail-hauled IMAP post back in its own folder'
+            headers:
+                explanation: >-
+                    Post stored afore header names were made uniform kept ’em as each provider spelled ’em ("List-Id", "list_id"). Filters that test a header missed those messages. This rewrites the stored header names into one shape; the values be left alone.
+                summary: 'Make stored header names shipshape'
+            html_body_text:
+                explanation: >-
+                    After the update that rebuilt the search index, every message waits to be indexed again, an’ the scheduler works through ’em a bit at a time, newest first. This does the rest in one haul, so older post be back in search now an’ not over an evenin’.
+
+                    It also stores the words o’ post sent as HTML only, so search, embeddings an’ summaries read its body. Both at once be fine; they share the work.
+                summary: 'Put all the post back in search'
+            insights:
+                explanation: >-
+                    Reads stored post again fer parcels, flights, tickets an’ code reviews — the cards on the radar. Use it after an update taught it a new sender or a better readin’.
+
+                    Only stored post be read; no provider is asked a thing. A card somebody tossed stays tossed.
+                summary: 'Read stored post again fer parcels, flights an’ tickets'
+            message_arrival:
+                explanation: >-
+                    Admin → Speed shows how late post arrives, measured from when the provider took it. Post stored afore that moment was logged has none. This reads it from the headers fer the last week’s post, which be as far back as the panel looks. It also sails by itself after an update.
+                summary: 'Work out arrival times fer the last week, fer Speed'
+            misfiled_bodies_v2:
+                explanation: >-
+                    Some messages were stowed with their body as an attachment named like "09704cea", so they open empty with one chip.
+
+                    The body was kept all along; this puts it back where it belongs an’ takes the chip away. It also sails by itself after an update.
+                summary: 'Restore bodies stowed as attachments'
+            proposals:
+                explanation: >-
+                    Reads stored post on the Main deck again fer dates written in sentences — "let’s meet Thursday at three bells" — an’ offers ’em as calendar proposals. A message with a proposal already, or one ye threw overboard, be left alone.
+                summary: 'Read stored post again fer dates to propose'
+            recipients:
+                explanation: >-
+                    Post synced over IMAP afore a fix stored no To an’ Cc lists, though the headers were kept. This fills the empty lists from them headers. Recipients already there be left as they are.
+                summary: 'Fill in missin’ To an’ Cc lists'
+            repeated_headers:
+                explanation: >-
+                    Some IMAP servers repeated the header block at the top o’ the message body, so those messages open with "Delivered-To: …" above the text, an’ their original holds the headers twice.
+
+                    This reads the stored original o’ every IMAP message an’ cuts the repeat where it finds one. That be one file read per message, which is why it don’t sail by itself.
+                summary: 'Cut header blocks repeated atop IMAP post'
+            rethread:
+                explanation: >-
+                    Throws every conversation overboard an’ builds ’em again from the stored messages, with the threadin’ rules in use now.
+
+                    Stars, snoozes, tabs an’ labels on a conversation be carried over. Stored AI summaries be not, an’ must be asked fer again. Sailed from this page, pressin’ the button be the aye the console asks fer.
+                repeat_warning: 'Each voyage throws the conversations overboard again, an’ AI summaries made since the last one go with ’em. Sail it once after the change that calls fer it.'
+                summary: 'Rebuild every conversation from the keel up'
+            safe_html:
+                explanation: >-
+                    Every HTML message be shown from a scrubbed copy. This makes that copy fer messages that have none yet.
+                summary: 'Make the safe copy o’ HTML post that has none'
+            safe_html_absolute_position:
+                explanation: >-
+                    Some HTML post kept bits pinned atop the page, so a banner could cover the text below it. This scrubs those messages’ display copy again with the mended rules.
+                summary: 'Stop banners coverin’ the text in HTML post'
+            safe_html_charset:
+                explanation: >-
+                    HTML post that declared its own character set could show garbled letters like "Ã¤" fer "ä". This scrubs those messages’ display copy again with the mended rules.
+                summary: 'Mend garbled letters in HTML post'
+            safe_html_conditional_comments:
+                explanation: >-
+                    Post written fer Outlook could show stray text like "<![endif]-->". This scrubs those messages’ display copy again with the mended rules.
+                summary: 'Cut stray Outlook markup shown as text'
+            safe_html_hidden_cards:
+                explanation: >-
+                    HTML post with a form, or with certain styles, could lose or hide part o’ its cargo. This scrubs those messages’ display copy again with the mended rules.
+                summary: 'Bring back cargo hidden in HTML post'
+            safe_html_table_links:
+                explanation: >-
+                    In HTML post where a whole table was a link, the link could come out empty. This scrubs those messages’ display copy again with the mended rules.
+                summary: 'Bring back links round tables in HTML post'
+            safe_html_unknown_elements:
+                explanation: >-
+                    HTML post usin’ elements the scrubber didn’t know — some booking confirmations, fer one — could show with an empty body. This reads every HTML message an’ scrubs the display copy again fer them that hold such an element.
+                summary: 'Bring back HTML post shown empty from strange elements'
+            spam_in_archive:
+                explanation: >-
+                    Until a fix, a "Mark as spam" filter flagged post as Spam here but archived it on the server, so the next sync found it in the archive an’ there it sat unread.
+
+                    This moves each such message into Spam the way ye would by hand: on the server it goes from Archive to Junk. IMAP accounts with no Junk folder be skipped an’ counted.
+                summary: 'Move spam a filter archived into Spam'
+        what_it_does: 'What it does'
+        window:
+            24h: 'Last 24 hours'
+            4w: '4 weeks'
+            7d: '7 days'
+            all: 'All the post'
+            label: 'Post to read again'
     client_errors:
         browser: 'Browser'
         clear: 'Empty it'
@@ -808,6 +974,7 @@ admin:
     nav:
         address: Home port
         ai: Oracle
+        backfills: 'Backfills'
         backup: "Ship's papers"
         database: Database
         demo_stats: 'Trial hands'

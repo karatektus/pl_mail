@@ -32,7 +32,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * writes into mail_insight and never touches `message`, so the set it pages
  * over cannot shift under it.
  */
-final readonly class InsightsBackfillTask implements WindowedBackfillTaskInterface
+final readonly class InsightsBackfillTask implements WindowedBackfillTaskInterface, CountableBackfillTaskInterface
 {
     private const int BATCH_SIZE = 200;
 
@@ -51,6 +51,21 @@ final readonly class InsightsBackfillTask implements WindowedBackfillTaskInterfa
     public function getDescription(): string
     {
         return 'Re-read stored mail for parcels, flights, tickets and code review — the cards on the radar.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-08-17');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageBackfillRepository->countReceivedSince($since);
     }
 
     public function run(SymfonyStyle $io): int

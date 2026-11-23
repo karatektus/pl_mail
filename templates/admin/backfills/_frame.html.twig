@@ -1,0 +1,192 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+{% import '_partials/_segmented.html.twig' as seg %}
+{#
+admin/backfills/_frame.html.twig — Admin → Backfills.
+
+Accepts:
+  entries  — list<App\Domain\DTO\Maintenance\BackfillEntry>, newest first
+  selected — the BackfillEntry shown in the detail, or null when none is registered.
+             Its safeToRunAgain decides the chip beside the name and, when false, the
+             warning under the explanation (see BackfillTaskInterface::isSafeToRunAgain())
+  window   — the window chosen for a task that re-reads mail (one of `windows`)
+  windows  — BackfillWindow::PRESETS
+  count    — what the chosen task would look at, after Count; null otherwise
+  active   — the chosen task's queued or running BackfillRun, or null
+  runs, now — for admin/backfills/_runs.html.twig, included at the end
+
+The list is grouped by the month a task was added, newest first: the order is
+the point of the page, since the newest repair is the one an update most
+likely asks for, and the month headings let an administrator find "the one
+from the October release" without reading dates.
+
+The detail is a frame of its own (admin-backfill-detail): a row and the
+form target it, so the list is never re-rendered and keeps its scroll
+position. admin--backfill-list moves the row highlight (aria-current).
+
+One form under the detail with two submit buttons, Count and Run, so the
+window chosen above them is posted with whichever is pressed. After Run, the
+runs card reloads itself when the detail frame loads (admin--backfill-runs).
+
+No auto-refresh here. The runs card included at the bottom is a frame of its
+own and reloads itself while a run is going; see BackfillAdminController.
+#}
+{% set rowBase = 'flex flex-col gap-0.5 px-4 py-2 text-left transition-colors' %}
+<turbo-frame id="admin-backfills">
+
+    <section class="{{ chrome.shell() }}">
+
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-screwdriver-wrench text-xs text-ink-faint" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.backfills.heading'|trans }}</h2>
+        </div>
+
+        {% if selected is null %}
+            <p class="{{ chrome.body() }} text-sm text-ink-muted">{{ 'admin.backfills.none'|trans }}</p>
+        {% else %}
+            <div class="@container">
+                <div class="flex flex-col @3xl:flex-row">
+
+                    {# The list scrolls inside itself, at every width,
+                       so the explanation beside it stays in view whichever task
+                       is chosen. Sticky would have done it, were the card not
+                       overflow-hidden for its corners. #}
+                    <nav aria-label="{{ 'admin.backfills.list_label'|trans }}"
+                         data-controller="admin--backfill-list"
+                         data-action="turbo:frame-load@document->admin--backfill-list#sync"
+                         class="@3xl:w-80 shrink-0 border-b @3xl:border-b-0 @3xl:border-r border-line py-2 max-h-80 @3xl:max-h-[70vh] overflow-y-auto">
+                        <p class="px-4 pt-1 pb-2 text-xs text-ink-muted leading-snug">{{ 'admin.backfills.order_hint'|trans }}</p>
+                        {% set month = null %}
+                        {% for entry in entries %}
+                            {% if entry.addedOn|date('Y-m') != month %}
+                                {% set month = entry.addedOn|date('Y-m') %}
+                                <h3 class="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{{ entry.addedOn|intl_date('yMMMM') }}</h3>
+                            {% endif %}
+                            <a href="{{ path('app_admin_backfills_panel', { task: entry.name, window: window }) }}"
+                               data-turbo-frame="admin-backfill-detail"
+                               data-task="{{ entry.name }}"
+                               data-action="admin--backfill-list#select"
+                               aria-current="{{ entry.name == selected.name ? 'true' : 'false' }}"
+                               class="group {{ rowBase }} hover:bg-hover aria-[current=true]:bg-accent-soft">
+                                <span class="flex items-center gap-2 min-w-0">
+                                    <span class="flex-1 min-w-0 truncate font-mono text-[13px] text-ink group-aria-[current=true]:text-accent group-aria-[current=true]:font-medium">{{ entry.name }}</span>
+                                    {% if entry.isNew %}
+                                        <span class="shrink-0 text-[10px] font-semibold px-1.5 py-px rounded-full bg-accent text-accent-ink">{{ 'admin.backfills.new'|trans }}</span>
+                                    {% endif %}
+                                    <span class="shrink-0 text-xs text-ink-faint">{{ entry.addedOn|intl_date('dMMM') }}</span>
+                                </span>
+                                <span class="text-xs text-ink-muted truncate">{{ (entry.translationKey ~ '.summary')|trans }}</span>
+                            </a>
+                        {% endfor %}
+                    </nav>
+
+                    {# A frame of its own, so choosing a task replaces only this
+                       and the list beside it keeps its scroll position. The whole
+                       panel used to be replaced, and the list jumped to the top
+                       on every click. #}
+                    <turbo-frame id="admin-backfill-detail" class="block flex-1 min-w-0">
+                    <div class="{{ chrome.body() }} space-y-5" data-backfill-detail data-task="{{ selected.name }}">
+
+                        <div class="space-y-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h3 class="text-base font-semibold font-mono text-ink break-all">{{ selected.name }}</h3>
+                                <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-soft">
+                                    {{ (selected.windowed ? 'admin.backfills.kind.rereads' : 'admin.backfills.kind.repairs')|trans }}
+                                </span>
+                                {% if selected.safeToRunAgain %}
+                                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-success">{{ 'admin.backfills.repeat.safe'|trans }}</span>
+                                {% else %}
+                                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-warning-soft text-warning">{{ 'admin.backfills.repeat.careful'|trans }}</span>
+                                {% endif %}
+                            </div>
+                            <p class="text-xs text-ink-muted">
+                                {{ 'admin.backfills.added'|trans({ '%date%': selected.addedOn|intl_date('dMMMy') }) }}
+                                ·
+                                {% if selected.latestRun %}
+                                    {{ 'admin.backfills.last_run'|trans({ '%date%': selected.latestRun.queuedAt|intl_date('dMMMy') }) }}
+                                {% else %}
+                                    {{ 'admin.backfills.never_run'|trans }}
+                                {% endif %}
+                            </p>
+                        </div>
+
+                        <div class="space-y-2 max-w-2xl">
+                            <h4 class="text-sm font-semibold text-ink">{{ 'admin.backfills.what_it_does'|trans }}</h4>
+                            {% for paragraph in (selected.translationKey ~ '.explanation')|trans|split("\n") %}
+                                <p class="text-sm text-ink-soft leading-relaxed">{{ paragraph }}</p>
+                            {% endfor %}
+                            {# Said beside the explanation, not under the Run button: it
+                               is part of what the task does, and the button is where
+                               the decision is already made. #}
+                            {% if not selected.safeToRunAgain %}
+                                <p class="flex items-start gap-2 rounded-lg bg-warning-soft px-3.5 py-3 text-sm text-ink">
+                                    <i class="fa-solid fa-triangle-exclamation mt-0.5 text-warning" aria-hidden="true"></i>
+                                    <span>{{ (selected.translationKey ~ '.repeat_warning')|trans }}</span>
+                                </p>
+                            {% endif %}
+                        </div>
+
+                        <form method="post" class="space-y-4 max-w-2xl" data-turbo-frame="admin-backfill-detail">
+                            <input type="hidden" name="_token" value="{{ csrf_token('admin-backfills') }}">
+
+                            {% if selected.windowed %}
+                                <div class="space-y-1.5">
+                                    <span class="block text-xs font-medium text-ink-muted" id="backfill-window-label">{{ 'admin.backfills.window.label'|trans }}</span>
+                                    {{ seg.control('window', windows|map(option => {
+                                        value: option,
+                                        label: ('admin.backfills.window.' ~ option)|trans,
+                                    }), window, {
+                                        labelledby: 'backfill-window-label',
+                                        width:      'max-w-md w-full',
+                                    }) }}
+                                </div>
+                            {% endif %}
+
+                            {% if count is not null %}
+                                <p role="status" class="rounded-lg bg-info-soft px-3.5 py-3 text-sm text-ink">
+                                    {{ (count == 0 ? 'admin.backfills.count.none' : 'admin.backfills.count.some')|trans({ '%count%': count|number_format(0, '.', ' ') }) }}
+                                </p>
+                            {% elseif not selected.countable %}
+                                <p class="text-xs text-ink-faint leading-relaxed">{{ 'admin.backfills.count.unavailable'|trans }}</p>
+                            {% endif %}
+
+                            {% if active %}
+                                <p role="status" class="flex items-center gap-2 text-sm text-ink-soft"
+                                   data-backfill-active
+                                   data-url="{{ path('app_admin_backfills_panel', { task: selected.name, window: window }) }}">
+                                    <i class="fa-solid fa-circle-notch fa-spin text-ink-faint" aria-hidden="true"></i>
+                                    {{ (active.state.value == 'queued' ? 'admin.backfills.active.queued' : 'admin.backfills.active.running')|trans }}
+                                </p>
+                            {% else %}
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <button type="submit"
+                                            formaction="{{ path('app_admin_backfills_run', { task: selected.name }) }}"
+                                            class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer">
+                                        <i class="fa-solid fa-play text-[10px]" aria-hidden="true"></i>
+                                        {{ 'admin.backfills.run'|trans({ '%task%': selected.name }) }}
+                                    </button>
+                                    {% if selected.countable %}
+                                        <button type="submit"
+                                                formaction="{{ path('app_admin_backfills_count', { task: selected.name }) }}"
+                                                class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm font-medium btn-quiet hover:bg-hover transition-colors cursor-pointer">
+                                            {{ 'admin.backfills.count.button'|trans }}
+                                        </button>
+                                    {% endif %}
+                                </div>
+                                <p class="text-xs text-ink-faint leading-relaxed">{{ 'admin.backfills.run_hint'|trans }}</p>
+                            {% endif %}
+                        </form>
+
+                        <details class="text-xs max-w-2xl">
+                            <summary class="cursor-pointer text-ink-muted hover:text-ink">{{ 'admin.backfills.console'|trans }}</summary>
+                            <pre class="mt-2 px-3 py-2 rounded-lg bg-sunken text-ink-soft overflow-x-auto">php bin/console app:backfill {{ selected.name }}{% if selected.windowed %} --since={{ window }}{% endif %}</pre>
+                        </details>
+                    </div>
+                    </turbo-frame>
+                </div>
+            </div>
+        {% endif %}
+    </section>
+
+    {{ include('admin/backfills/_runs.html.twig') }}
+
+</turbo-frame>

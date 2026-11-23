@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\Message;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Calendar\Proposal\EventProposer;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -58,6 +59,16 @@ final readonly class EventProposalBackfillTask implements BackfillTaskInterface
     public function getDescription(): string
     {
         return 'Re-read stored mail for dates written in prose and offer them as calendar proposals.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-08-04');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
     }
 
     public function run(SymfonyStyle $io): int

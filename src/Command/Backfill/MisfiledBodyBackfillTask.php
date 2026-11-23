@@ -14,6 +14,7 @@ use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MisfiledBodyDetector;
 use App\Service\Mail\MisfiledBodyUnpacker;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -52,7 +53,7 @@ use Throwable;
  * interrupted and re-run, and a backfill an administrator types twice must do
  * nothing the second time.
  */
-final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, UpgradeTaskInterface
+final readonly class MisfiledBodyBackfillTask implements CountableBackfillTaskInterface, UpgradeTaskInterface
 {
     private const int BATCH_SIZE = 100;
 
@@ -86,6 +87,22 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
     public function getDescription(): string
     {
         return 'Restore message bodies that were stored as nameless attachments, leaving the message blank.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-09-21');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    /** A table repair walks everything, so it has no window to count within. */
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageBackfillRepository->countWithMisfiledBodyPart();
     }
 
     public function run(SymfonyStyle $io): int

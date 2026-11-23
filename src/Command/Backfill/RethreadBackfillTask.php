@@ -13,6 +13,7 @@ use App\Repository\Mail\Message\MessageThreadingRepository;
 use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
 use App\Service\Imap\MessageThreader;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -57,6 +58,20 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
     public function getDescription(): string
     {
         return 'Normalise stored Message-IDs and rebuild all threads from scratch.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-07-28');
+    }
+
+    /**
+     * Not safe to repeat: the threads are discarded each time, and the AI
+     * summaries written since the last run go with them (see run()).
+     */
+    public function isSafeToRunAgain(): bool
+    {
+        return false;
     }
 
     public function run(SymfonyStyle $io): int
