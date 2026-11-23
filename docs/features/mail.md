@@ -853,8 +853,10 @@ all** has a menu beside it offering **All**, **None**, **Read**, **Unread** and 
 
 A selection belongs to the list, not to the page: what you tick stays ticked when you go to the
 next page, and the number beside the actions counts all of it. On a list longer than a page the
-menu also offers **All … in this view**, which selects every conversation in it. **None** clears
-every page, and going to a different list starts with nothing selected.
+menu also offers **All … in this view**, which selects every conversation in it. In search results
+that is every conversation the search's words found; one listed only because it is similar in
+meaning is left out. One account's own inbox does not offer it. **None** clears every page, and
+going to a different list starts with nothing selected.
 
 To select a run of conversations, click one avatar, then hold Shift and click another: both, and
 every conversation between them on the page, are selected. The run always starts at the avatar you

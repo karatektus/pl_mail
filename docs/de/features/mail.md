@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:43342c6c0bd0ec34b111e3e6dc28e8e08e02caf3 -->
+<!-- translated-from: features/mail.md sha1:e20b1f755e846669b4edf8755206fc59485efa07 -->
 
 # Mail
 
@@ -929,8 +929,10 @@ Spam stehen daneben unter **Mehr**. Neben der Auswahl aller Konversationen steht
 Eine Auswahl gehört zur Liste, nicht zur Seite: Was du anhakst, bleibt angehakt, wenn du
 weiterblätterst, und die Zahl neben den Aktionen zählt alles mit. In einer Liste, die länger als
 eine Seite ist, bietet das Menü außerdem **Alle … in dieser Ansicht** an — das wählt jede
-Unterhaltung darin aus. **Keine** leert jede Seite, und in einer anderen Liste beginnst du wieder
-ohne Auswahl.
+Unterhaltung darin aus. In Suchergebnissen ist das jede Unterhaltung, die die Wörter der Suche
+gefunden haben; eine, die nur wegen ähnlicher Bedeutung dabei ist, bleibt außen vor. Der eigene
+Posteingang eines einzelnen Kontos bietet es nicht an. **Keine** leert jede Seite, und in einer
+anderen Liste beginnst du wieder ohne Auswahl.
 
 Um mehrere Konversationen am Stück auszuwählen, klickst du einen Avatar an, hältst dann Umschalt
 gedrückt und klickst einen anderen: Beide und jede Konversation dazwischen auf der Seite sind
