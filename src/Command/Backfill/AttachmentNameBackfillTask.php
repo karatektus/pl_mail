@@ -11,6 +11,7 @@ use App\Domain\Interface\UpgradeTaskInterface;
 use App\Entity\Mail\Message;
 use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Mail\MisfiledBodyDetector;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -47,7 +48,7 @@ use Throwable;
  * Proposed in #721 by James Morrison, who found the bug and wrote the first
  * version against webklex's checksum.
  */
-final readonly class AttachmentNameBackfillTask implements BackfillTaskInterface, UpgradeTaskInterface
+final readonly class AttachmentNameBackfillTask implements CountableBackfillTaskInterface, UpgradeTaskInterface
 {
     private const int BATCH_SIZE = 100;
 
@@ -68,6 +69,22 @@ final readonly class AttachmentNameBackfillTask implements BackfillTaskInterface
     public function getDescription(): string
     {
         return 'Restore the names of attachments that gave their name only in Content-Type and were stored under a checksum.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-11-23');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    /** A table repair walks everything, so it has no window to count within. */
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageBackfillRepository->countWithChecksumNamedPart();
     }
 
     public function run(SymfonyStyle $io): int

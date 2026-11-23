@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:324a314460bc99f31831b3de7c113a6ff9c42520 -->
+<!-- translated-from: features/admin.md sha1:df4207ab54859543805d62c5e78e583c823271e7 -->
 
 # Administration
 
@@ -186,6 +186,48 @@ aktiviert. Durfte die Datenbankrolle die Erweiterung nicht anlegen, sagt das Pan
 **Jetzt aktivieren** an. Die Statistik beginnt in dem Moment, in dem die Erweiterung angelegt
 wird, Abfragen von davor erscheinen also nie. **Statistik zurücksetzen** leert die gesammelten
 Zahlen.
+
+## Nachträge
+
+Manche Korrekturen können nur Mail ändern, die nach dem Update ankommt. Ein **Nachtrag** repariert,
+was vorher gespeichert wurde: Er schreibt eine falsch berechnete Spalte neu oder liest gespeicherte
+Mail mit einem verbesserten Leser noch einmal. Die Versionshinweise sagen, wann sich einer lohnt.
+Dieser Bereich startet sie ohne Terminal, dieselben Aufgaben, die `app:backfill` ausführt.
+
+Die Liste ist **neueste zuerst**, gruppiert nach dem Monat, in dem eine Aufgabe dazukam, denn ein
+Update verlangt fast immer nach der neuesten. Eine Aufgabe aus dem letzten Monat, die noch nicht von
+dieser Seite gestartet wurde, trägt ein **Neu**. Wählst du eine aus, siehst du in einfachen Worten,
+was sie tut, wann sie dazukam, wann sie hier zuletzt lief und ob sie **mehrfach ausführbar** ist. Die
+meisten sind es: Sie wählen nur die Zeilen, die den Fehler noch haben, oder bauen aus dem Original
+neu, ein zweiter Lauf kommt also dort an, wo der erste war. Zwei sind es nicht und sagen neben der
+Erklärung, warum: `contacts` zählt jede Adresse bei jedem Lauf erneut, wodurch Leute aus älterer
+Mail in den Adressvorschlägen nach vorn rücken, und `rethread` verwirft die KI-Zusammenfassungen,
+die seit dem letzten Lauf entstanden sind.
+
+- **Erst zählen** fragt eine Aufgabe, wie viele Nachrichten sie sich ansehen würde, ohne etwas zu
+  ändern. Manche lesen jeden Kandidaten und ändern nur die mit dem Fehler; die Zahl sagt also, was
+  sie liest, nicht was sie ändert. Aufgaben, die jede Nachricht durchgehen, können nicht vorher
+  zählen und sagen das.
+- Aufgaben, die **Mail neu lesen** (Termine, Insights), nehmen einen Zeitraum: die letzten 24
+  Stunden, 7 Tage, 4 Wochen oder alle Mail. Die Tabellenreparaturen nehmen keinen; ein Fehler, der
+  in jeder Zeile steckt, wird in jeder Zeile repariert.
+- **Starten** reiht die Aufgabe für den Wartungs-Worker ein. Sie läuft nicht in der Seite, du kannst
+  sie also verlassen. Ein zweiter Klick, solange sie eingereiht ist oder läuft, zeigt denselben Lauf,
+  statt einen weiteren zu starten.
+- **Dasselbe auf der Konsole** zeigt die `app:backfill`-Zeile für Aufgabe und Zeitraum, falls du sie
+  lieber in einer Shell startest.
+
+**Letzte Läufe** listet, was hier gestartet wurde: wann, von wem, über welchen Zeitraum und wie es
+endete. Solange ein Lauf geht, stehen seine letzten Ausgabezeilen darunter, und die Karte lädt sich
+selbst neu; ein fertiger Lauf behält seine Ausgabe hinter **Ausgabe zeigen**. Ein Lauf, der eine
+halbe Stunde nichts ausgegeben hat, erscheint als *Seit 30 Minuten still*: Sein Worker wurde
+wahrscheinlich neu gestartet. Eine als mehrfach ausführbar markierte Aufgabe startest du einfach
+noch einmal.
+
+Zwei Aufgaben stellen auf der Konsole eine Frage, `rethread` ("Rebuild all threads now?") und
+`category` ("Re-run messages that already have a category?"). Von dieser Seite gestartet lautet die
+Antwort ja, denn Starten nach dem Lesen der Erklärung ist diese Antwort; die Ausgabe hält sie fest.
+Läufe von der Konsole erscheinen hier nicht.
 
 ## Protokolle
 

@@ -55,6 +55,16 @@ final readonly class MessageArrivalBackfillTask implements UpgradeTaskInterface
         return 'Work out when the provider accepted each of the last week\'s messages, for Admin → Performance.';
     }
 
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-10-08');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
     public function run(SymfonyStyle $io): int
     {
         $firstId = $this->messageBackfillRepository->firstIdStoredSince(new DateTimeImmutable(self::REACH));

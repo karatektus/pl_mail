@@ -379,6 +379,172 @@ admin:
             timeout: 'Der Host hat nach vier Minuten immer noch geladen, plMail hat aufgehört zu warten. Gut möglich, dass er fertig wird — vermutlich ist das Modell aber zu groß für seinen Speicher.'
             unexpected: 'Etwas ist schiefgegangen, bevor der Host antworten konnte. (%error%)'
             unreachable: 'Unter der Adresse hat nichts geantwortet. (%error%)'
+    backfills:
+        active:
+            queued: 'In der Warteschlange — wartet auf den Wartungs-Worker.'
+            running: 'Läuft. Die Ausgabe steht unter Letzte Läufe.'
+        added: 'Hinzugefügt am %date%'
+        console: 'Dasselbe auf der Konsole'
+        count:
+            button: 'Erst zählen'
+            none: 'Nichts zu tun — auf dieser Installation gibt es für diese Reparatur keine Arbeit.'
+            some: 'Sie sieht sich %count% Nachrichten an. Manche Aufgaben lesen jeden Kandidaten und ändern nur die mit dem Fehler.'
+            unavailable: 'Diese Aufgabe kann vorher nicht zählen.'
+        heading: 'Nachträge'
+        kind:
+            repairs: 'Repariert gespeicherte Daten'
+            rereads: 'Liest Mail neu'
+        last_run: 'Zuletzt von dieser Seite gestartet am %date%'
+        list_label: 'Nachträge, neueste zuerst'
+        never_run: 'Noch nie von dieser Seite gestartet'
+        new: 'Neu'
+        none: 'Es sind keine Nachträge registriert.'
+        order_hint: 'Neueste zuerst. Braucht ein Update einen, steht das in den Versionshinweisen, und meist ist es der neueste.'
+        repeat:
+            careful: 'Vor einem zweiten Lauf nachdenken'
+            safe: 'Mehrfach ausführbar'
+        run: '%task% starten'
+        run_hint: 'Wird für den Wartungs-Worker eingereiht, nicht in dieser Seite ausgeführt. Du kannst sie verlassen; der Lauf geht weiter.'
+        runs:
+            empty: 'Von dieser Seite wurde noch nichts gestartet.'
+            everything: 'Alles'
+            heading: 'Letzte Läufe'
+            removed_user: 'eine entfernte Person'
+            show_output: 'Ausgabe zeigen'
+            state:
+                done: 'Fertig'
+                failed: 'Fehlgeschlagen'
+                queued: 'Eingereiht'
+                quiet: 'Seit 30 Minuten still'
+                running: 'Läuft'
+        task:
+            addresses:
+                explanation: >-
+                    Mail, die gespeichert wurde, bevor Adressen beim Eingang bereinigt wurden, behielt die Namen genau so, wie der Server sie schickte. Manche Absender erscheinen deshalb als "Doe, John" in Anführungszeichen, und ein Name mit Komma konnte zu zwei Adressen werden.
+
+                    Das schreibt die gespeicherten Namen und Adressen jeder Nachricht in die Form um, die neue Mail bekommt. Kontakte, deren Adresse sich ändern würde, werden gezählt statt zusammengeführt, damit du siehst, ob du welche von Hand zusammenführen musst.
+                summary: 'Namen in Anführungszeichen bei Absendern und Empfängern bereinigen'
+            attachment_content_type_names:
+                explanation: >-
+                    Manche Anhänge, die ihren Dateinamen nur im Content-Type nannten, wurden unter einer Prüfsumme wie "57d5c7cb" gespeichert, ohne Endung, mit der man sie öffnen könnte.
+
+                    Das liest das gespeicherte Original jeder betroffenen Nachricht und gibt dem Anhang seinen echten Namen zurück, wo das Original ihn eindeutig nennt. Läuft nach einem Update auch von selbst.
+                summary: 'Anhängen ihren Namen statt einer Prüfsumme zurückgeben'
+            calendars:
+                explanation: >-
+                    Jede neue Person bekommt einen persönlichen Kalender und einen für jedes Mailkonto. Das gibt dieselben Kalender allen, die schon vorher da waren. Es füllt nur Lücken, ein zweiter Lauf nach neuen Konten schadet also nicht.
+                summary: 'Standardkalender für bestehende Personen anlegen'
+            category:
+                explanation: >-
+                    Bestimmt den Posteingangs-Tab jeder Nachricht neu — Allgemein, Benachrichtigungen, Werbung und so weiter — aus dem, was gespeichert ist, ohne den Mailserver zu fragen.
+
+                    Von dieser Seite gestartet berechnet es jede Nachricht neu, auch die, die schon einen Tab haben. Das willst du, wenn ein Update geändert hat, wie Mail sortiert wird.
+                summary: 'Jede Nachricht neu in ihren Posteingangs-Tab sortieren'
+            contacts:
+                explanation: >-
+                    Kontakte werden gelernt, während Mail ankommt. Das lernt sie aus jeder bereits gespeicherten Nachricht, für Konten, die vorher synchronisiert wurden, oder nachdem sich geändert hat, was als Adresse zählt. Es liest alle Mail jedes Kontos, ein Konto nach dem anderen.
+                repeat_warning: 'Jeder Lauf zählt jede gespeicherte Adresse erneut, sodass Leute aus älterer Mail in den Adressvorschlägen vor die rücken, denen du jetzt schreibst. Starte es einmal nach der Änderung, die es verlangt.'
+                summary: 'Kontakte aus aller gespeicherten Mail neu aufbauen'
+            events:
+                explanation: >-
+                    Liest gespeicherte Mail erneut nach Buchungen und Einladungen — Flüge, Hotels, Tickets, Kalendereinladungen — und trägt sie in den Kalender ein. Nutze es, nachdem ein Update das Lesen verbessert hat.
+
+                    Gelesen wird nur Mail, die einen Termin enthalten kann, und nur so weit zurück, wie der Zeitraum sagt. Termine, die du bearbeitet oder entfernt hast, bleiben, wie du sie gelassen hast.
+                summary: 'Gespeicherte Mail erneut nach Terminen lesen'
+            gmailify_placement:
+                explanation: >-
+                    Bei einem IMAP-Konto, dessen Mail ein Gmail-Konto ebenfalls abholt, hat plMail früher Gmails Ablage auf die IMAP-Kopie übertragen: Mail, die Gmail archiviert oder gelöscht hatte, landete hier im Archiv oder Papierkorb, obwohl der IMAP-Server sie noch im Posteingang hatte.
+
+                    Das legt jede solche Nachricht dorthin zurück, wo ihr IMAP-Ordner sagt. Starte es, wenn gerade niemand Mail verschiebt, sonst springt eine Verschiebung, die den Server noch nicht erreicht hat, kurz zurück.
+                summary: 'Von Gmail abgeholte IMAP-Mail zurück in ihren Ordner legen'
+            headers:
+                explanation: >-
+                    Mail, die gespeichert wurde, bevor Header-Namen vereinheitlicht wurden, behielt die Schreibweise des jeweiligen Anbieters ("List-Id", "list_id"). Filter, die einen Header prüfen, trafen diese Nachrichten nicht. Das schreibt die gespeicherten Header-Namen in eine Form um; Werte bleiben unverändert.
+                summary: 'Gespeicherte Header-Namen vereinheitlichen'
+            html_body_text:
+                explanation: >-
+                    Nach dem Update, das den Suchindex neu aufgebaut hat, wartet jede Nachricht darauf, wieder indexiert zu werden, und der Zeitplan arbeitet sie nach und nach ab, neueste zuerst. Das erledigt den Rest in einem Zug, damit ältere Mail jetzt wieder in der Suche ist und nicht erst im Lauf eines Abends.
+
+                    Außerdem speichert es die Wörter von Mail, die nur als HTML verschickt wurde, damit Suche, Embeddings und Zusammenfassungen ihren Text lesen. Beides gleichzeitig ist in Ordnung; sie teilen sich die Arbeit.
+                summary: 'Alle Mail wieder vollständig in die Suche bringen'
+            insights:
+                explanation: >-
+                    Liest gespeicherte Mail erneut nach Paketen, Flügen, Tickets und Code-Reviews — den Karten auf dem Radar. Nutze es, nachdem ein Update einen neuen Absender oder ein besseres Lesen gelernt hat.
+
+                    Gelesen wird nur gespeicherte Mail; kein Anbieter wird gefragt. Eine weggeklickte Karte bleibt weg.
+                summary: 'Gespeicherte Mail erneut nach Paketen, Flügen und Tickets lesen'
+            message_arrival:
+                explanation: >-
+                    Admin → Leistung zeigt, wie spät Mail ankommt, gemessen ab dem Moment, in dem der Anbieter sie angenommen hat. Mail, die gespeichert wurde, bevor dieser Zeitpunkt erfasst wurde, hat keinen. Das liest ihn für die Mail der letzten Woche aus den Headern — so weit schaut die Anzeige zurück. Läuft nach einem Update auch von selbst.
+                summary: 'Ankunftszeiten der letzten Woche für Leistung ermitteln'
+            misfiled_bodies_v2:
+                explanation: >-
+                    Manche Nachrichten wurden mit ihrem Text als Anhang mit einem Namen wie "09704cea" gespeichert und öffnen sich deshalb leer mit einem einzigen Chip.
+
+                    Der Text war die ganze Zeit gespeichert; das legt ihn dorthin zurück, wo er hingehört, und entfernt den Chip. Läuft nach einem Update auch von selbst.
+                summary: 'Als Anhang gespeicherte Nachrichtentexte wiederherstellen'
+            proposals:
+                explanation: >-
+                    Liest gespeicherte Mail in Allgemein erneut nach Terminen, die in Sätzen stehen — "treffen wir uns Donnerstag um drei" — und schlägt sie für den Kalender vor. Eine Nachricht, die schon einen Vorschlag hat oder deren Vorschlag du verworfen hast, bleibt unberührt.
+                summary: 'Gespeicherte Mail erneut nach Terminvorschlägen lesen'
+            recipients:
+                explanation: >-
+                    Über IMAP synchronisierte Mail hat vor einer Korrektur keine An- und Cc-Listen gespeichert, obwohl die Header erhalten blieben. Das füllt die leeren Listen aus diesen Headern. Vorhandene Empfänger bleiben, wie sie sind.
+                summary: 'Fehlende An- und Cc-Listen ergänzen'
+            repeated_headers:
+                explanation: >-
+                    Manche IMAP-Server haben den Header-Block oben im Nachrichtentext wiederholt. Diese Nachrichten beginnen deshalb mit "Delivered-To: …" über dem Text, und ihr Original enthält die Header zweimal.
+
+                    Das liest das gespeicherte Original jeder IMAP-Nachricht und entfernt die Wiederholung, wo es eine findet. Das ist ein Dateizugriff pro Nachricht, deshalb läuft es nicht automatisch.
+                summary: 'Wiederholte Header-Blöcke oben in IMAP-Mail entfernen'
+            rethread:
+                explanation: >-
+                    Verwirft alle Unterhaltungen und baut sie aus den gespeicherten Nachrichten neu auf, mit den jetzt geltenden Regeln.
+
+                    Sterne, Zurückstellungen, Tabs und Labels einer Unterhaltung werden übernommen. Gespeicherte KI-Zusammenfassungen nicht; sie müssen neu angefordert werden. Von dieser Seite gestartet ist der Klick auf Starten die Bestätigung, nach der die Konsole fragt.
+                repeat_warning: 'Jeder Lauf verwirft die Unterhaltungen erneut, und KI-Zusammenfassungen seit dem letzten Lauf gehen mit. Starte es einmal nach der Änderung, die es verlangt.'
+                summary: 'Alle Unterhaltungen von Grund auf neu aufbauen'
+            safe_html:
+                explanation: >-
+                    Jede HTML-Nachricht wird aus einer bereinigten Kopie angezeigt. Das legt diese Kopie für Nachrichten an, die noch keine haben.
+                summary: 'Fehlende sichere Kopie von HTML-Mail anlegen'
+            safe_html_absolute_position:
+                explanation: >-
+                    Manche HTML-Mail behielt Elemente, die über der Seite liegen, sodass ein Banner den Text darunter verdecken konnte. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Banner, die Text in HTML-Mail verdecken, beheben'
+            safe_html_charset:
+                explanation: >-
+                    HTML-Mail, die ihren eigenen Zeichensatz angab, konnte verstümmelte Zeichen wie "Ã¤" statt "ä" zeigen. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Verstümmelte Zeichen in HTML-Mail reparieren'
+            safe_html_conditional_comments:
+                explanation: >-
+                    Für Outlook geschriebene Mail konnte verirrten Text wie "<![endif]-->" zeigen. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Als Text angezeigtes Outlook-Markup entfernen'
+            safe_html_hidden_cards:
+                explanation: >-
+                    HTML-Mail mit einem Formular oder bestimmten Stilen konnte einen Teil ihres Inhalts verlieren oder verstecken. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Versteckten Inhalt in HTML-Mail wiederherstellen'
+            safe_html_table_links:
+                explanation: >-
+                    In HTML-Mail, in der eine ganze Tabelle ein Link war, konnte der Link leer herauskommen. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Links um Tabellen in HTML-Mail wiederherstellen'
+            safe_html_unknown_elements:
+                explanation: >-
+                    HTML-Mail mit Elementen, die die Bereinigung nicht kannte — etwa manche Buchungsbestätigungen —, konnte mit leerem Text angezeigt werden. Das liest jede HTML-Nachricht und bereinigt die Anzeigekopie erneut für die, die ein solches Element enthalten.
+                summary: 'Wegen unbekannter Elemente leere HTML-Mail wiederherstellen'
+            spam_in_archive:
+                explanation: >-
+                    Bis zu einer Korrektur hat ein Filter "Als Spam markieren" Mail hier als Spam markiert, sie auf dem Server aber archiviert. Die nächste Synchronisation fand sie im Archiv, und dort lag sie ungelesen.
+
+                    Das verschiebt jede solche Nachricht in den Spam, so wie du es von Hand tun würdest: Auf dem Server wandert sie vom Archiv in den Junk-Ordner. IMAP-Konten ohne Junk-Ordner werden übersprungen und gezählt.
+                summary: 'Von einem Filter archivierten Spam in den Spam verschieben'
+        what_it_does: 'Was es tut'
+        window:
+            24h: 'Letzte 24 Stunden'
+            4w: '4 Wochen'
+            7d: '7 Tage'
+            all: 'Alle Mail'
+            label: 'Erneut zu lesende Mail'
     client_errors:
         browser: 'Browser'
         clear: 'Leeren'
@@ -882,6 +1048,7 @@ admin:
     nav:
         address: Adresse
         ai: KI
+        backfills: 'Nachträge'
         backup: Sicherung
         database: Datenbank
         demo_stats: 'Demo-Besucher'

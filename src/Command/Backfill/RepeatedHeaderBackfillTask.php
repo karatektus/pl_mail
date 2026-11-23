@@ -10,6 +10,7 @@ use App\Domain\Helper\RepeatedHeaderHelper;
 use App\Entity\Mail\Message;
 use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Mail\MailBodySanitizer;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -54,7 +55,7 @@ use Throwable;
  * Idempotent: a repaired file no longer starts its body with its header
  * block, so the second run changes nothing.
  */
-final readonly class RepeatedHeaderBackfillTask implements BackfillTaskInterface
+final readonly class RepeatedHeaderBackfillTask implements CountableBackfillTaskInterface
 {
     private const int BATCH_SIZE = 100;
 
@@ -74,6 +75,22 @@ final readonly class RepeatedHeaderBackfillTask implements BackfillTaskInterface
     public function getDescription(): string
     {
         return 'Remove the header block some IMAP servers repeated at the top of a message body, from stored mail and its original.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-10-16');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    /** A table repair walks everything, so it has no window to count within. */
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageBackfillRepository->countImapWithStoredRaw();
     }
 
     public function run(SymfonyStyle $io): int

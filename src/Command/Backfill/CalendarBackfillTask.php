@@ -7,6 +7,7 @@ namespace App\Command\Backfill;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\User\User\UserRepository;
 use App\Service\Calendar\CalendarProvisioner;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -43,6 +44,16 @@ final readonly class CalendarBackfillTask implements BackfillTaskInterface
     public function getDescription(): string
     {
         return 'Provision the default and per-account calendars for existing users.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-08-01');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
     }
 
     public function run(SymfonyStyle $io): int

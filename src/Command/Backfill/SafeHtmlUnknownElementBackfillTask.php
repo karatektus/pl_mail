@@ -6,6 +6,7 @@ namespace App\Command\Backfill;
 
 use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Mail\MailBodySanitizer;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -27,7 +28,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * sanitise a CSS inliner and two HTML parses, and on most mailboxes few bodies
  * hold an unknown element.
  */
-final readonly class SafeHtmlUnknownElementBackfillTask implements BackfillTaskInterface
+final readonly class SafeHtmlUnknownElementBackfillTask implements CountableBackfillTaskInterface
 {
     private const int BATCH_SIZE = 100;
 
@@ -45,6 +46,26 @@ final readonly class SafeHtmlUnknownElementBackfillTask implements BackfillTaskI
     public function getDescription(): string
     {
         return 'Re-sanitize Message.bodyHtmlSafe for HTML bodies with an element the allow-list does not name, restoring the content that sat inside it.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-11-23');
+    }
+
+    /**
+     * Safe to repeat: the display copy is rebuilt from bodyHtml, the sender's
+     * untouched original, so a second run arrives at the same copy.
+     */
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    /** A table repair walks everything, so it has no window to count within. */
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageBackfillRepository->countWithHtmlBody();
     }
 
     public function run(SymfonyStyle $io): int

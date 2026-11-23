@@ -31,7 +31,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * mostly newsletters, and parsing all of it to find the few per cent that are
  * bookings is work nobody gets back.
  */
-final readonly class EventExtractionBackfillTask implements WindowedBackfillTaskInterface
+final readonly class EventExtractionBackfillTask implements WindowedBackfillTaskInterface, CountableBackfillTaskInterface
 {
     private const int BATCH_SIZE = 200;
 
@@ -51,6 +51,21 @@ final readonly class EventExtractionBackfillTask implements WindowedBackfillTask
     public function getDescription(): string
     {
         return 'Re-run calendar event extraction over stored mail.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-08-01');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageAiRepository->countExtractionCandidates($since);
     }
 
     public function run(SymfonyStyle $io): int
