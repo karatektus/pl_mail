@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Domain\Helper;
 
 use App\Domain\DTO\Mail\ParsedPart;
+use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\MessageParser;
 use App\Domain\Helper\PdfAttachment;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -187,6 +188,54 @@ final class MessageParserTest extends TestCase
         self::assertSame(['one', 'two'], $message->headers['Received']);
         self::assertStringContainsString('protocol="application/pgp-signature"', (string) $message->header('content-type'));
         self::assertTrue($message->isMultipart());
+    }
+
+    /**
+     * Hebrew as Outlook sends it: both parts, the subject and the sender's name
+     * in ISO-8859-8-I, a label mbstring and iconv do not know. The body was
+     * stored empty and the name as "éùøàì éùøàìé" (#714). The subject and the
+     * name are zbateson's to decode, the bodies CharsetHelper's; asserted
+     * together because a user sees them together.
+     */
+    public function testHebrewMailFromOutlookKeepsItsTextAndItsSenderName(): void
+    {
+        $message = MessageParser::parse(
+            "From: =?iso-8859-8-i?B?6fn44Owg6fn44Ozp?= <sender@example.test>\r\n"
+            . "To: reader@example.test\r\n"
+            . "Subject: =?iso-8859-8-i?B?+ezl7Q==?=\r\n"
+            . "MIME-Version: 1.0\r\n"
+            . "Content-Type: multipart/alternative; boundary=\"b\"\r\n\r\n"
+            . "--b\r\n"
+            . "Content-Type: text/plain; charset=\"iso-8859-8-i\"\r\n"
+            . "Content-Transfer-Encoding: quoted-printable\r\n\r\n"
+            . "=F9=EC=E5=ED, =E6=E4 =EE=EB=FA=E1 =F0=E9=F1=E9=E5=EF.\r\n"
+            . "--b\r\n"
+            . "Content-Type: text/html; charset=\"iso-8859-8-i\"\r\n"
+            . "Content-Transfer-Encoding: quoted-printable\r\n\r\n"
+            . "<p dir=3D\"rtl\">=F9=EC=E5=ED</p>\r\n"
+            . "--b--\r\n",
+        );
+
+        self::assertSame('שלום, זה מכתב ניסיון.', trim($message->textBody));
+        self::assertStringContainsString('<p dir="rtl">שלום</p>', $message->htmlBody);
+        self::assertSame('שלום', $message->subject);
+        self::assertSame('ישראל ישראלי', AddressHelper::name($message->from->name ?? ''), 'as MessageSyncer stores from_name');
+    }
+
+    /**
+     * The Arabic counterpart, in its explicit-direction variant and in base64:
+     * the same family of labels through the other transfer encoding.
+     */
+    public function testArabicMailLabelledIso88596EKeepsItsText(): void
+    {
+        $message = MessageParser::parse(
+            self::ENVELOPE
+            . "Content-Type: text/plain; charset=ISO-8859-6-E\r\n"
+            . "Content-Transfer-Encoding: base64\r\n\r\n"
+            . base64_encode("\xe5\xd1\xcd\xc8\xc7 \xc8\xe3\xe5") . "\r\n",
+        );
+
+        self::assertSame('مرحبا بكم', trim($message->textBody));
     }
 
     private function onlyAttachment(string $partHeaders, string $body = 'JVBERi0xLjcNCg=='): ParsedPart
