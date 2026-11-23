@@ -102,6 +102,11 @@ final class AiPrompts
         set => self::normalised($value);
     }
 
+    #[ORM\Column(name: 'translation', type: 'text', nullable: true)]
+    public ?string $translation = null {
+        set => self::normalised($value);
+    }
+
     #[ORM\Column(name: 'language', type: 'text', nullable: true)]
     public ?string $language = null {
         set => self::normalised($value);
@@ -123,8 +128,9 @@ final class AiPrompts
             PromptSlot::Formal     => $this->formal,
             PromptSlot::Proofread  => $this->proofread,
             PromptSlot::Summary    => $this->summary,
-            PromptSlot::Categorise => $this->categorise,
-            PromptSlot::Language   => $this->language,
+            PromptSlot::Categorise  => $this->categorise,
+            PromptSlot::Translation => $this->translation,
+            PromptSlot::Language    => $this->language,
         };
     }
 
@@ -137,8 +143,9 @@ final class AiPrompts
             PromptSlot::Formal     => $this->formal = $text,
             PromptSlot::Proofread  => $this->proofread = $text,
             PromptSlot::Summary    => $this->summary = $text,
-            PromptSlot::Categorise => $this->categorise = $text,
-            PromptSlot::Language   => $this->language = $text,
+            PromptSlot::Categorise  => $this->categorise = $text,
+            PromptSlot::Translation => $this->translation = $text,
+            PromptSlot::Language    => $this->language = $text,
         };
     }
 

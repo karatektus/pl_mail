@@ -322,6 +322,8 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('aiSettings.isEnabled', true, $ai?->isEnabled);
         $this->check('aiSettings.summaryEnabled', true, $ai?->summaryEnabled);
         $this->check('aiSettings.contactHelpEnabled', true, $ai?->contactHelpEnabled);
+        $this->check('aiSettings.translationEnabled', true, $ai?->translationEnabled);
+        $this->check('aiSettings.prompts.translation', 'Übersetze wörtlich.', $ai?->prompts->of(PromptSlot::Translation));
         $this->check('aiSettings.categoriseBacklogDays', 7, $ai?->categoriseBacklogDays);
         $this->check('aiSettings.prompts.summary', 'Fasse dich kurz.', $ai?->prompts->of(PromptSlot::Summary));
 
@@ -600,6 +602,8 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $ai->searchEnabled       = true;
         $ai->summaryEnabled      = true;
         $ai->contactHelpEnabled  = true;
+        $ai->translationEnabled  = true;
+        $ai->prompts->put(PromptSlot::Translation, 'Übersetze wörtlich.');
         // Not the default, so a restore that dropped it would show.
         $ai->categoriseBacklogDays = 7;
         $ai->prompts->put(PromptSlot::Summary, 'Fasse dich kurz.');

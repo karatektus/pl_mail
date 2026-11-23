@@ -188,9 +188,11 @@ admin:
             chat_keep_alive: 写作模型保持加载的时长
             chat_keep_alive_help: '可填写 5m、30m、4h，或直接填写秒数。-1 表示始终保持加载，0 表示每次请求后卸载。时间越长，首次回复越快，但主机会在整个时段持续占用内存。留空则使用主机自身的设置。'
             chat_model: 写作模型
-            chat_model_help: 用于回复、摘要和分类，请选择经过指令微调的模型。
+            chat_model_help: '用于回复、摘要、翻译和分类，请选择经过指令微调的模型。'
             contact_help: "联系人辅助"
             contact_help_help: "从粘贴的文本中提取联系人，并根据其最新邮件的签名建议修正联系人信息。使用写作模型，并将该文本发送给模型。"
+            translation: '邮件翻译'
+            translation_help: '使用写作模型，并把邮件发送给它。译文与邮件一样长，因此在没有 GPU 的主机上，一封长邮件需要数分钟。'
             embedding_keep_alive: 搜索模型保持加载的时长
             embedding_keep_alive_help: '格式同上。此模型体积小且频繁调用，因此设为 -1 始终保持加载通常开销很小，并能免去每次搜索的等待；主机内存充足时建议设置。留空则使用主机自身的设置。'
             embedding_base_url: 搜索主机
@@ -245,6 +247,7 @@ admin:
                 warm: 已加载
             feature:
                 thread_summary: 摘要
+                message_translation: '翻译'
                 categorise: 邮件分类
                 mail_index: 邮件索引
                 search_query: 搜索
@@ -312,7 +315,7 @@ admin:
                 hint: 用于按要求将同一封邮件改为更正式的语气。
                 label: 更正式
             language:
-                hint: 附加到上方除分类以外的所有提示词末尾，用于确保德语邮件得到德语回复。没有此指令时，模型会遵循这些英文指令的语言，甚至把德语草稿校对成英语。可以修改措辞，但不能移除；清空后会恢复默认内容。
+                hint: 附加到上方除分类和翻译以外的所有提示词末尾，用于确保德语邮件得到德语回复。没有此指令时，模型会遵循这些英文指令的语言，甚至把德语草稿校对成英语。可以修改措辞，但不能移除；清空后会恢复默认内容。
                 label: 始终使用邮件的语言回答
             proofread:
                 hint: 用于仅修正拼写和语法。请保留“不要改动其他内容”的要求，否则模型会改写原本正确的句子。
@@ -326,13 +329,16 @@ admin:
             summary:
                 hint: 用于阅读窗格中的摘要按钮。更改后，所有现有摘要都会标记为过期；不会删除，用户下次请求时会重新生成。
                 label: 概括会话
+            translation:
+                hint: '用于邮件菜单中的“翻译”。目标语言随邮件一起发送，不在这里设置。更改后，所有现有译文都会标记为过期；不会删除，用户下次请求时会重新生成。'
+                label: '翻译邮件'
         prompts:
             changed: '已修改 %count% 项'
             heading: 系统提示词
             intro: '这些是 plMail 发送给模型的指令。留空可使用 plMail 默认措辞，后续更新也能继续改进。输入的内容将完全替换默认措辞。'
             reset: 恢复默认措辞
             save: 保存提示词
-            saved: 已保存。新摘要将使用这些指令；已有摘要现已标记为过期。
+            saved: '已保存。新的摘要和译文将使用这些指令；已有的现已标记为过期。'
             show_shipped: 查看默认措辞
             untouched: 默认内容
         save: 保存
@@ -2864,6 +2870,7 @@ message:
         filter_from_message: 根据此邮件创建过滤器
         show_original: '查看原始邮件'
         star: '加星标'
+        translate: '翻译'
         unstar: '移除星标'
     attachments: '附件'
     back: '返回'
@@ -3020,6 +3027,30 @@ message:
         spam:
             body: '此邮件已被归为垃圾邮件。其中的链接和图片存在风险，请像对待陌生人的请求一样谨慎对待其中的要求。'
             title: '此邮件位于垃圾邮件中'
+    translation:
+        again: '重新翻译'
+        error:
+            connection_lost: '翻译过程中与 plMail 的连接断开了。问题不在模型主机，而是浏览器与服务器之间的某处关闭了连接。'
+            disabled: '翻译功能已关闭。'
+            empty: '这封邮件没有可翻译的文字。'
+            encrypted: '这封邮件是加密的，其账户不允许把解密后的文字交给助手。'
+            generic: '无法翻译这封邮件。'
+            model_missing: '模型主机上没有写作模型，需要管理员先拉取。'
+            no_answer: '模型没有返回任何内容。'
+            refused: '模型主机拒绝了请求。'
+            timeout: '模型主机响应超时。'
+            unreachable: '无法连接到模型主机。'
+        generated: '由 AI（%model%）翻译为%language%。这不是原文。'
+        original_shown: '这是原文。AI 翻译（%language%）已准备好。'
+        partial: '这封邮件较长，只翻译了开头部分。'
+        quote_left_out: '引用的早前邮件未翻译；可以单独翻译它们。'
+        show_original: '查看原文'
+        show_translation: '查看译文'
+        stale: '翻译之后，这封邮件已有变化。'
+        state:
+            reading: '仍在读取邮件——已用时 %elapsed%。之后译文会逐词出现。'
+            waiting: '闲置一段时间后的首次请求需要等待模型加载。'
+            working: '正在翻译为%language%…'
 mercure:
     status:
         connected: '实时更新已启用'
@@ -3289,6 +3320,8 @@ settings:
             search_hint: '查找与你的搜索意图相符的邮件，而不只匹配字面文字。关闭后，邮件的索引和语义搜索都会停止。'
             summary: '会话摘要'
             summary_hint: '按需概括较长的会话。不会自动生成摘要。'
+            translation: '翻译邮件'
+            translation_hint: '在邮件菜单中请求时，将邮件翻译成你的语言。不会自动翻译。'
             writing_help: '帮我写作'
             writing_help_hint: '在撰写窗口中按需起草回复、精简文字、调整为正式表达或校对。'
         features:
@@ -3311,10 +3344,14 @@ settings:
             heading: '提供给助手的内容'
             search: '建立索引：每封邮件的主题、发件人和开头。'
             summary: '你要求生成摘要的会话中的邮件'
+            translation: '翻译：你要求翻译的邮件正文，不含其中引用的早前邮件。'
             writing_help: '写作：邮件主题、你已输入的内容，以及上方设置允许读取的会话内容。'
         seg:
             off: '关闭'
             on: '开启'
+        translate_into:
+            follow_language: 'plMail 的界面语言（%language%）'
+            label: '翻译为'
     accounts:
         categories:
             off_hint: '关闭：在 Outlook 中添加或移除的类别不会更改这里的标签。开启时会重新列出此账户的每个文件夹一次。'
@@ -4505,7 +4542,7 @@ settings:
         keywords:
             accent: "颜色 强调色 高亮 color"
             accounts: "imap smtp pop3 jmap 服务器 添加 邮箱"
-            ai: "ai 人工智能 摘要 写作 帮助 模型"
+            ai: "ai 人工智能 摘要 写作 帮助 模型 翻译 translation"
             aliases: "别名 身份 发件人 地址"
             app_passwords: "imap smtp 客户端 thunderbird 令牌 api jmap"
             calendars: "caldav ics 订阅"

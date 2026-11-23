@@ -603,6 +603,37 @@ the messages themselves changing.
 It is a model's account of the mail, not the mail. The line under it says so, and the messages are
 directly below.
 
+### Translating a message
+
+Where the administrator has switched translation on, a message's **⋮** menu carries **Translate**.
+It translates that one message into your language: the language plMail is in, or the one you chose
+under **Settings → Assistant → Translate into**, which lists many more languages than plMail has an
+interface in. Nothing is translated until you ask.
+
+The translation takes the place of the message, in a tinted box under a bar that says it was
+translated by AI, with which model, and that it is not the original text. The bar's button switches
+to the original and back, in one click, as often as you like. The translation arrives a few words at
+a time; how long it takes depends on the machine running the model, and on one without a graphics
+card a long message takes minutes. You do not have to wait for it: leave the message and it is
+finished anyway, and the message opens translated the next time.
+
+Once written, a translation is kept, and the message opens as its translation, at no cost. If the
+message itself changes afterwards, the bar says so and offers to translate it again.
+
+What is sent is the message's own text, as plain text:
+
+- **Without the earlier messages it quotes.** They are mail you already have, each translatable on
+  its own, and sending them again would make every reply in a long conversation slower to translate.
+  The bar says when something was left out. A forward that adds nothing of its own is sent whole.
+- **Up to about 6,000 characters.** A longer message is translated from its beginning, and the bar
+  says so.
+
+The translation is plain text: the layout, pictures and links of the original stay in the original.
+Replying or forwarding always quotes the original, never the translation.
+
+It is a model's translation, and small models make mistakes that read well — a day of the week, a
+number, a name. Where it matters, check the original or ask the sender.
+
 ## Labels
 
 Labels are yours to create, from **Create label** in the sidebar or **Settings → Labels**. A label

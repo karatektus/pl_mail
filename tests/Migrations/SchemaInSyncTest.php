@@ -61,6 +61,7 @@ final class SchemaInSyncTest extends KernelTestCase
         yield 'ai_backfill_state' => ['ai_backfill_state'];
         yield 'ai_call_metric' => ['ai_call_metric'];
         yield 'message_embedding' => ['message_embedding'];
+        yield 'message_translation' => ['message_translation'];
         yield 'thread_summary' => ['thread_summary'];
     }
 }

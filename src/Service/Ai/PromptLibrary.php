@@ -92,6 +92,17 @@ final readonly class PromptLibrary
         return $this->text(PromptSlot::Categorise);
     }
 
+    /**
+     * The whole system message the translator is sent — with NO language rule,
+     * like categorisation, and for a sharper reason: the rule says "never
+     * translate the message into another language", which is this job's whole
+     * point (#713).
+     */
+    public function forTranslation(): string
+    {
+        return $this->text(PromptSlot::Translation);
+    }
+
     /** The language rule as it stands: the administrator's wording, or ours. */
     public function language(): string
     {

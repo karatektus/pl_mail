@@ -198,6 +198,8 @@ final class ConfigBackupUsersTest extends KernelTestCase
         // forgotten in applyArray()'s hard-coded list.
         self::assertTrue($user->aiPreferences->summaryOff);
         self::assertTrue($user->aiPreferences->contactHelpOff);
+        self::assertTrue($user->aiPreferences->translationOff);
+        self::assertSame('he', $user->aiPreferences->translateInto);
         self::assertSame('Ich repariere Fahrräder in Leipzig.', $user->aiPreferences->aboutMe);
         self::assertSame('Halte dich kurz.', $user->aiPreferences->systemPrompt);
         self::assertSame(ReplyContext::Thread, $user->aiPreferences->replyContext);
@@ -731,6 +733,8 @@ final class ConfigBackupUsersTest extends KernelTestCase
         $user->aiPreferences->writingHelpOff = true;
         $user->aiPreferences->summaryOff     = true;
         $user->aiPreferences->contactHelpOff = true;
+        $user->aiPreferences->translationOff = true;
+        $user->aiPreferences->translateInto  = 'he';
         $user->aiPreferences->aboutMe        = 'Ich repariere Fahrräder in Leipzig.';
         $user->aiPreferences->systemPrompt   = 'Halte dich kurz.';
         $user->aiPreferences->replyContext   = ReplyContext::Thread;

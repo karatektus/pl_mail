@@ -206,9 +206,11 @@ admin:
             chat_keep_alive: 'Keep the writing model loaded for'
             chat_keep_alive_help: '5m, 30m, 4h, or a plain number of seconds. -1 keeps it loaded for good, 0 unloads it after every request. Longer means the first reply comes back sooner; the host keeps the memory reserved for the whole time either way. Leave empty to use whatever the host itself is set to.'
             chat_model: 'Writing model'
-            chat_model_help: 'Used for replies, summaries and sorting. Something instruction-tuned.'
+            chat_model_help: 'Used for replies, summaries, translations and sorting. Something instruction-tuned.'
             contact_help: 'Contact help'
             contact_help_help: 'Reads a contact out of pasted text, and suggests fixes to a contact from the signature of their latest mail. Uses the writing model, and sends that text to it.'
+            translation: 'Translating a message'
+            translation_help: 'Uses the writing model, and sends it the message. The answer is as long as the mail, so on a host without a GPU a long message takes minutes.'
             embedding_keep_alive: 'Keep the search model loaded for'
             embedding_keep_alive_help: 'Same format as above. This model is small and asked for constantly, so -1 — loaded for good — usually costs little and saves a wait on every search; it is worth setting if the host has the memory to spare. Leave empty to use whatever the host itself is set to.'
             embedding_base_url: 'Search host'
@@ -263,6 +265,7 @@ admin:
                 warm: 'Loaded'
             feature:
                 thread_summary: 'Summaries'
+                message_translation: 'Translations'
                 categorise: 'Sorting mail'
                 mail_index: 'Indexing mail'
                 search_query: 'Search'
@@ -330,7 +333,7 @@ admin:
                 hint: 'Used when someone asks for the same message in a more formal tone.'
                 label: 'Make it more formal'
             language:
-                hint: 'Added to the end of every prompt above except sorting. It is what makes a German mail get a German reply — without it the model follows the English these instructions are written in, and proofreading a German draft translates it. You can reword it; you cannot remove it. Empty the box and the shipped wording comes back.'
+                hint: 'Added to the end of every prompt above except sorting and translation. It is what makes a German mail get a German reply — without it the model follows the English these instructions are written in, and proofreading a German draft translates it. You can reword it; you cannot remove it. Empty the box and the shipped wording comes back.'
                 label: 'Always answer in the language of the mail'
             proofread:
                 hint: 'Used when someone asks for spelling and grammar to be fixed and nothing else. Keep "change nothing else" in it — without that the model rewrites sentences that were already right.'
@@ -344,13 +347,16 @@ admin:
             summary:
                 hint: 'Used by the summary button in the reading pane. Changing this marks every summary already written as out of date — nothing is deleted, they are rewritten the next time somebody asks.'
                 label: 'Summarise a conversation'
+            translation:
+                hint: "Used by \"Translate\" in a message's menu. The language goes with the message, not in here. Changing this marks every translation already written as out of date — nothing is deleted, they are rewritten the next time somebody asks."
+                label: 'Translate a message'
         prompts:
             changed: '%count% changed'
             heading: 'System prompts'
             intro: 'These are the instructions plMail gives the model. Leave a box empty to use the wording plMail ships — that way a later update can still improve it. What you type replaces the shipped wording completely.'
             reset: 'Back to the shipped wording'
             save: 'Save prompts'
-            saved: 'Saved. New summaries use these; summaries already written are now out of date.'
+            saved: 'Saved. New summaries and translations use these; the ones already written are now out of date.'
             show_shipped: 'Show the shipped wording'
             untouched: 'As shipped'
         save: 'Save'
@@ -3181,6 +3187,7 @@ message:
         filter_from_message: 'Create a filter from this message'
         show_original: Show original
         star: Star
+        translate: 'Translate'
         unstar: Remove star
     attachments: Attachments
     back: Back
@@ -3355,6 +3362,30 @@ message:
         spam:
             body: "This message was filed as spam. Its links and images are risky — treat anything it asks of you as a stranger's request."
             title: This message is in Spam
+    translation:
+        again: 'Translate again'
+        error:
+            connection_lost: 'The connection to plMail was lost while the translation was being written. The model host is not involved; something between this browser and the server closed the connection.'
+            disabled: 'Translating is switched off.'
+            empty: 'There is no text in this message to translate.'
+            encrypted: 'This message was encrypted, and its account keeps the decrypted text from the assistant.'
+            generic: 'The message could not be translated.'
+            model_missing: 'The model host does not have the writing model. An administrator has to pull it first.'
+            no_answer: 'The model gave no answer.'
+            refused: 'The model host refused the request.'
+            timeout: 'The model host took too long to answer.'
+            unreachable: 'The model host could not be reached.'
+        generated: 'Translated into %language% by AI (%model%). This is not the original text.'
+        original_shown: 'The original text. An AI translation into %language% is ready.'
+        partial: 'This message is long, so only its beginning was translated.'
+        quote_left_out: 'The quoted earlier messages were left out; they can be translated on their own.'
+        show_original: 'Show original'
+        show_translation: 'Show translation'
+        stale: 'The message has changed since this was translated.'
+        state:
+            reading: 'Still reading the message — %elapsed% so far. After that, the translation appears word by word.'
+            waiting: 'The first request after a while waits for the model to load.'
+            working: 'Translating into %language%…'
 
 mercure:
     status:
@@ -3683,6 +3714,8 @@ settings:
             search_hint: 'Finds mail that means what you asked for, not only mail that spells it the same way. Off stops your mail being indexed as well as searched.'
             summary: 'Thread summaries'
             summary_hint: 'Summarise a long conversation when you ask for it. Nothing is summarised on its own.'
+            translation: 'Translate a message'
+            translation_hint: "Translates a message into your language when you ask for it, from the message's menu. Nothing is translated on its own."
             writing_help: 'Help me write'
             writing_help_hint: 'Drafts a reply, shortens, makes formal, proofreads — in the compose window, when you ask for it.'
         features:
@@ -3705,10 +3738,14 @@ settings:
             heading: 'What the assistant is given'
             search: 'Indexing: the subject, the sender and the start of each message.'
             summary: 'The messages in a conversation you ask to have summarised'
+            translation: 'Translating: the text of the message you ask to have translated, without the earlier messages it quotes.'
             writing_help: 'Writing: your subject line, what you have typed, and as much of the conversation as the setting above allows.'
         seg:
             off: 'Off'
             on: 'On'
+        translate_into:
+            follow_language: 'The language of plMail (%language%)'
+            label: 'Translate into'
     accounts:
         categories:
             off_hint: 'Off: a category put on or taken off in Outlook does not change labels here. Turning it on lists every folder of this account once more.'
@@ -5184,7 +5221,7 @@ settings:
         keywords:
             accent: "colour color highlight"
             accounts: "imap smtp pop3 jmap server add mailbox"
-            ai: "ai artificial intelligence summary writing help model"
+            ai: "ai artificial intelligence summary writing help model translation translate"
             aliases: "alias identity sender from address"
             app_passwords: "imap smtp client thunderbird token api jmap"
             calendars: "caldav ics subscribe feed"

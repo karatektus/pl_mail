@@ -132,6 +132,34 @@ final class PromptRules
         . ' unanswered. Name people the way the messages name them.';
 
     /**
+     * What a translation IS (#713). The language it goes into is not here: it
+     * is named in the message the model is given, so this text, and with it the
+     * hash every stored translation is checked against, is the same for every
+     * reader.
+     *
+     * "Add nothing" because the reader cannot check a translation against the
+     * original — that is why they asked for one — so a model that also answers,
+     * explains or tidies the mail puts words in the sender's mouth.
+     *
+     * The list of things that must stay exact is the one a small model gets
+     * wrong while the prose around it reads well: in a test, a Hebrew "until
+     * Thursday" came back as "until Friday". Saying so does not make a weak
+     * model good, but it is the instruction the failure needs.
+     *
+     * "Plain text, no markdown" for the summary's reason: the translation is
+     * shown with textContent, never as HTML.
+     *
+     * EDITING THIS INVALIDATES EVERY STORED TRANSLATION, as for the summary.
+     */
+    public const string TRANSLATION = 'You translate one email for a reader who cannot read its'
+        . ' language. Write only the translation: no preamble about what you are doing, no note about'
+        . ' the translation, no closing remark, and no markdown. Translate everything and add nothing:'
+        . ' never summarise, shorten, explain or answer the email. Numbers, amounts, dates, days of the'
+        . ' week, times, names, addresses, email addresses, links and codes must say exactly what the'
+        . ' original says. Keep the paragraph breaks, and the line breaks of lists and signatures.'
+        . ' Text that is already in the target language stays as it is.';
+
+    /**
      * One question, one word back — and the parser depends on the second half
      * of that.
      *

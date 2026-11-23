@@ -52,6 +52,10 @@ Variables:
    (phase 6c of #28). Without one, S/MIME is only said to be unreadable. #}
 {% set encryptedHere = not sendingSealed and not sealedDraft and not decryptedKept and message.crypto is not null and message.crypto.encrypted %}
 {% set encryptedInBrowser = encryptedHere and (message.crypto.pgp or has_smime_certificate()) %}
+{# Translating (#713): null where it is not offered. Not for a body the server
+   does not hold — the browser draws those, and there is nothing to send. #}
+{% set translation = (encryptedHere or sealedDraft or sendingSealed) ? null : message_translation(message) %}
+{% set translated = translation is not null and translation.stored is not null %}
 
 <div id="message_body_{{ message.id }}" class="mail-message-body">
 
@@ -237,6 +241,89 @@ Variables:
         {% endif %}
     {% endif %}
 
+    {# ── The translation ────────────────────────────────────────────────── #}
+    {# Above the frame and outside it, like the warnings: a "this is not the
+       original" the mail could draw for itself would be worth nothing. A
+       stored translation opens AS the translation — the reader asked for one
+       because they cannot read the original — and one press of the bar's
+       button shows the original instead, and back. The translation is text:
+       Twig escapes it here and the controller writes it with textContent, so
+       nothing a model writes is ever markup. #}
+    {% if translation is not null %}
+        <div data-controller="mail--message-translation"
+             data-action="mail--message-actions:translate@document->mail--message-translation#request"
+             data-mail--message-translation-message-value="{{ message.id }}"
+             data-mail--message-translation-url-value="{{ path('app_mail_message_translation', { id: message.id }) }}"
+             data-mail--message-translation-token-value="{{ csrf_token('message_translation') }}"
+             data-mail--message-translation-shown-value="{{ translated ? 'translation' : 'original' }}"
+             data-mail--message-translation-generated-label-value="{{ 'message.translation.generated'|trans({ '%language%': translation.intoLabel, '%model%': translation.model }) }}"
+             data-mail--message-translation-original-label-value="{{ 'message.translation.original_shown'|trans({ '%language%': translation.intoLabel }) }}"
+             data-mail--message-translation-show-original-label-value="{{ 'message.translation.show_original'|trans }}"
+             data-mail--message-translation-show-translation-label-value="{{ 'message.translation.show_translation'|trans }}"
+             data-mail--message-translation-working-label-value="{{ 'message.translation.state.working'|trans({ '%language%': translation.intoLabel }) }}"
+             data-mail--message-translation-waiting-label-value="{{ 'message.translation.state.waiting'|trans }}"
+             data-mail--message-translation-reading-label-value="{{ 'message.translation.state.reading'|trans }}"
+             data-mail--message-translation-error-labels-value="{{ {
+                 connection_lost: 'message.translation.error.connection_lost'|trans,
+                 disabled:        'message.translation.error.disabled'|trans,
+                 empty:           'message.translation.error.empty'|trans,
+                 encrypted:       'message.translation.error.encrypted'|trans,
+                 generic:         'message.translation.error.generic'|trans,
+                 model_missing:   'message.translation.error.model_missing'|trans,
+                 no_answer:       'message.translation.error.no_answer'|trans,
+                 refused:         'message.translation.error.refused'|trans,
+                 timeout:         'message.translation.error.timeout'|trans,
+                 unreachable:     'message.translation.error.unreachable'|trans,
+             }|json_encode }}"
+        >
+            <div data-mail--message-translation-target="bar"
+                 {{ translated ? '' : 'hidden' }}
+                 class="flex flex-wrap items-start gap-x-3 gap-y-1.5 mb-3 rounded-lg border border-info/60 bg-info/15 px-3 py-2"
+                 data-testid="translation-bar">
+                <i class="fa-solid fa-language text-info mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+                <span data-mail--message-translation-target="pending" hidden aria-hidden="true"
+                      class="ai-pending mt-[5px] shrink-0"><i></i><i></i><i></i></span>
+                <div class="min-w-0 flex-1">
+                    <p data-mail--message-translation-target="headline"
+                       class="text-xs font-semibold text-ink"
+                    >{{ translated ? ('message.translation.generated'|trans({ '%language%': translation.intoLabel, '%model%': translation.model })) : '' }}</p>
+                    <p data-mail--message-translation-target="status" role="status" aria-live="polite" hidden
+                       class="text-[11px] leading-snug text-ink-muted"></p>
+                    <p data-mail--message-translation-target="partial" {{ translated and translation.partial ? '' : 'hidden' }}
+                       class="text-[11px] leading-snug text-ink-muted">{{ 'message.translation.partial'|trans }}</p>
+                    <p data-mail--message-translation-target="quote" {{ translated and translation.leavesOutQuote ? '' : 'hidden' }}
+                       class="text-[11px] leading-snug text-ink-muted">{{ 'message.translation.quote_left_out'|trans }}</p>
+                    <p data-mail--message-translation-target="stale" {{ translated and not translation.stored.isFresh ? '' : 'hidden' }}
+                       class="text-[11px] leading-snug text-ink-muted">{{ 'message.translation.stale'|trans }}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="button"
+                            data-mail--message-translation-target="toggle"
+                            data-action="mail--message-translation#toggle"
+                            data-testid="translation-toggle"
+                            {{ translated ? '' : 'hidden' }}
+                            class="text-xs font-medium text-link hover:underline cursor-pointer"
+                    >{{ 'message.translation.show_original'|trans }}</button>
+                    <button type="button"
+                            data-mail--message-translation-target="again"
+                            data-action="mail--message-translation#again"
+                            {{ translated and not translation.stored.isFresh ? '' : 'hidden' }}
+                            class="text-xs font-medium text-link hover:underline cursor-pointer"
+                    >{{ 'message.translation.again'|trans }}</button>
+                </div>
+            </div>
+
+            <pre data-mail--message-translation-target="translation"
+                 {{ translated ? '' : 'hidden' }}
+                 dir="auto"
+                 lang="{{ translation.into }}"
+                 data-testid="translation-text"
+                 class="mail-sheet whitespace-pre-wrap break-words font-sans text-sm rounded-lg border-l-4 border-info bg-info/5 px-4 py-3"
+            >{{ translated ? translation.stored.text : '' }}</pre>
+
+            <div data-mail--message-translation-target="original" {{ translated ? 'hidden' : '' }}>
+    {% endif %}
+
     {# ── The reading frame ──────────────────────────────────────────────── #}
     {% if encryptedHere or sealedDraft or sendingSealed %}
         {# Drawn above, by the browser — or, for a sealed draft and a message
@@ -278,6 +365,11 @@ Variables:
         {# No HTML body: plain text needs no sandbox, because there is no markup
            to sandbox. Twig escapes it, so it is text all the way down. #}
         <pre class="mail-sheet whitespace-pre-wrap break-words font-sans text-sm">{{ render.text }}</pre>
+    {% endif %}
+
+    {% if translation is not null %}
+            </div>
+        </div>
     {% endif %}
 
     {% if render.senderTrusted and render.content.allowed > 0 %}

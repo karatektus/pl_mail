@@ -199,10 +199,15 @@ final class PromptLibraryTest extends KernelTestCase
         );
     }
 
-    /** Categorisation is the one prompt with no language rule on the end. */
+    /**
+     * Categorisation and translation are the prompts with no language rule on
+     * the end — translation because the rule says never to translate (#713).
+     */
     public function testCategorisationIsSentAloneWhileTheOthersAreJoined(): void
     {
         self::assertSame(PromptSlot::Categorise->shipped(), $this->prompts->forCategorisation());
+        self::assertSame(PromptSlot::Translation->shipped(), $this->prompts->forTranslation());
+        self::assertStringNotContainsString($this->prompts->language(), $this->prompts->forTranslation());
 
         self::assertStringEndsWith($this->prompts->language(), $this->prompts->forSummary());
         self::assertStringEndsWith($this->prompts->language(), $this->prompts->forTask(WritingTask::Proofread));

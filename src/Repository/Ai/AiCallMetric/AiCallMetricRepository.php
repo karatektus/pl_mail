@@ -159,7 +159,8 @@ final readonly class AiCallMetricRepository
      * survive it.
      *
      * `contact_help` joined them for the same reason: somebody pressed a
-     * button on a contact and is watching it think.
+     * button on a contact and is watching it think. `message_translation` too:
+     * somebody is waiting to read a mail (#713).
      *
      * The index `idx_ai_call_metric_feature_created` serves an IN() exactly as
      * it serves an equality, so this costs nothing.
@@ -178,7 +179,7 @@ final readonly class AiCallMetricRepository
         $sql = <<<'SQL'
             SELECT MAX(created_at)
               FROM ai_call_metric
-             WHERE feature IN ('writing_help', 'thread_summary', 'contact_help')
+             WHERE feature IN ('writing_help', 'thread_summary', 'contact_help', 'message_translation')
                AND created_at >= :since
         SQL;
 

@@ -203,6 +203,8 @@ admin:
             base_url: "Oracle's berth"
             contact_help: 'Crew roster help'
             contact_help_help: 'Reads a shipmate out o’ pasted text, an’ suggests fixes from the signature o’ their latest letter. Uses the writin’ model, an’ sends it that text.'
+            translation: "Turnin' a letter into yer tongue"
+            translation_help: "Uses the writin' model, an' sends it the letter. Th' answer be as long as th' letter, so on a berth without a GPU a long one takes minutes."
             embedding_base_url: "Searcher's berth"
             embedding_own: 'The searcher sails from another berth'
             embedding_own_help: "For keepin' the search model somewhere other than the scrivener: a hired oracle for writin' an' a small one at home for searchin', or t'other way about. Ev'ry message goes to the searcher's berth once to be charted. If the search model bears the same name there, the old chart be kept."
@@ -219,7 +221,7 @@ admin:
             chat_keep_alive: "Keep the scrivener aboard for"
             chat_keep_alive_help: "5m, 30m, 4h, or a plain count o' seconds. -1 keeps it aboard for good, 0 puts it ashore after ev'ry errand. Longer means the first reply comes quicker — but the berth stays taken the whole while. Leave it empty to sail by whatever the host itself says."
             chat_model: 'Scrivener model'
-            chat_model_help: "For replies, summaries an' sortin'. Somethin' instruction-tuned."
+            chat_model_help: "For replies, summaries, translations an' sortin'. Somethin' instruction-tuned."
             embedding_keep_alive: "Keep the diviner aboard for"
             embedding_keep_alive_help: "Same shape as above. This one be small an' called for constantly, so -1 — aboard for good — mostly costs barely a crumb an' spares a wait on ev'ry search; worth settin' if the host has the hold to spare. Leave it empty to sail by whatever the host itself says."
             embedding_model: "Divinin' model"
@@ -264,6 +266,7 @@ admin:
                 warm: 'Aboard'
             feature:
                 thread_summary: 'Yarns-in-short'
+                message_translation: "Translatin'"
                 categorise: "Sortin' mail"
                 mail_index: "Chartin' mail"
                 search_query: 'Search'
@@ -331,7 +334,7 @@ admin:
                 hint: 'Used when someone asks for the same message in a statelier tone.'
                 label: 'Make it statelier'
             language:
-                hint: "Hung on the end o' ev'ry order above, save the sortin'. 'Tis what makes a German letter get a German answer — without it the oracle follows the English these orders be writ in, an' proofreadin' a German draft turns it English. Ye may reword her; ye cannot cast her overboard. Empty the box an' the shipped words come back."
+                hint: "Hung on the end o' ev'ry order above, save the sortin' an' the translatin'. 'Tis what makes a German letter get a German answer — without it the oracle follows the English these orders be writ in, an' proofreadin' a German draft turns it English. Ye may reword her; ye cannot cast her overboard. Empty the box an' the shipped words come back."
                 label: "Answer in the tongue o' the letter"
             proofread:
                 hint: "Used when someone asks for spellin' an' grammar mended an' nowt else. Keep \"change nowt else\" in it — without that the oracle rewrites lines that were already sound."
@@ -345,13 +348,16 @@ admin:
             summary:
                 hint: "Used by the yarn button in the readin' pane. Change this an' ev'ry yarn already writ be stale — nowt goes overboard, they be writ anew next time someone asks."
                 label: 'Yarn-in-short'
+            translation:
+                hint: "Used by 'Translate' in a letter's menu. Th' tongue goes with th' letter, not in here. Changin' this marks ev'ry translation already writ as stale — nowt be thrown overboard, they be writ anew next time somebody asks."
+                label: 'Turn a letter into another tongue'
         prompts:
             changed: '%count% rewritten'
             heading: "The oracle's standin' orders"
             intro: "These be the orders plMail gives the oracle. Leave a box empty an' the shipped words stand — that way a later update can still better 'em. What ye write replaces the shipped words entire."
             reset: 'Back to the shipped words'
             save: 'Save the orders'
-            saved: 'Saved. New yarns use these; yarns already writ be stale now.'
+            saved: "Saved. New yarns an' translations use these; them already writ be stale now."
             show_shipped: 'Show the shipped words'
             untouched: 'As shipped'
         save: 'Save'
@@ -3063,6 +3069,7 @@ message:
         filter_from_message: 'Rig a sorting order from this yarn'
         show_original: Show the original scroll
         star: Mark with an X
+        translate: 'Translate'
         unstar: Rub out the X
     attachments: Cargo
     back: Back
@@ -3219,6 +3226,30 @@ message:
         spam:
             body: "This bottle was fished from the bilge. Its links and pictures be treacherous — treat aught it asks of ye as a stranger's demand."
             title: This bottle sits in the bilge
+    translation:
+        again: "Translate 'er again"
+        error:
+            connection_lost: "Th' line to plMail parted while th' translation were bein' writ. Th' oracle's berth be blameless — summat betwixt this glass an' th' server cut it."
+            disabled: "Translatin' be switched off."
+            empty: "There be no words in this letter t' translate."
+            encrypted: "This letter were sealed, an' its account keeps th' unsealed words from th' oracle."
+            generic: "Th' letter could nay be translated."
+            model_missing: "That berth holds no writin' oracle. Somebody with the captain's keys must haul it aboard first."
+            no_answer: "Th' oracle gave nowt back."
+            refused: "Th' oracle's berth turned th' askin' away."
+            timeout: "Th' oracle's berth took o'er long t' answer."
+            unreachable: "Th' oracle's berth could nay be raised."
+        generated: "Turned into %language% by th' oracle (%model%). This be NOT th' original text."
+        original_shown: "Th' original text. Th' oracle's translation into %language% be ready."
+        partial: "This letter be long, so only its beginnin' were translated."
+        quote_left_out: "Th' quoted earlier letters were left out; they can be translated on their own."
+        show_original: "Show th' original"
+        show_translation: "Show th' translation"
+        stale: "Th' letter has changed since this were translated."
+        state:
+            reading: "Still readin' th' letter — %elapsed% so far. After that, th' translation comes word by word."
+            waiting: "Th' first askin' after a while waits for th' oracle t' wake."
+            working: "Turnin' it into %language%…"
 
 mercure:
     status:
@@ -3532,6 +3563,8 @@ settings:
             search_hint: "Finds mail that means what ye asked, not only mail that spells it so. Off stops yer mail bein' charted as well as searched."
             summary: 'Yarn-in-short'
             summary_hint: 'Boils a long yarn down when ye ask. Nowt be boiled unasked.'
+            translation: 'Translate a letter'
+            translation_hint: "Turns a letter into yer own tongue when ye ask, from th' letter's menu. Nowt be translated unasked."
             writing_help: "Quill Wranglin'"
             writing_help_hint: "Drafts a reply, shortens, makes fancy, proofreads — in the writin' window, when ye ask."
         features:
@@ -3554,10 +3587,14 @@ settings:
             heading: 'What the Oracle Be Handed'
             search: "Chartin': the subject, the sender an' the start o' each message."
             summary: "Th' messages o' a yarn ye ask t' have boiled down"
+            translation: "Translatin': th' words o' th' letter ye ask t' have translated, without th' earlier letters it quotes."
             writing_help: "Writin': yer subject line, what ye typed, an' as much o' the parley as the setting above allows."
         seg:
             off: 'Nay'
             on: 'Aye'
+        translate_into:
+            follow_language: "Th' tongue o' plMail (%language%)"
+            label: 'Translate into'
     accounts:
         categories:
             off_hint: 'Off: a category hoisted or struck in Outlook changes no flags here. Turning it on charts every folder of this account once more.'
@@ -4994,7 +5031,7 @@ settings:
         keywords:
             accent: "colour color highlight"
             accounts: "imap smtp pop3 jmap server add mailbox"
-            ai: "ai artificial intelligence summary writing help model"
+            ai: "ai artificial intelligence summary writing help model translation translate"
             aliases: "alias identity sender from address"
             app_passwords: "imap smtp client thunderbird token api jmap"
             calendars: "caldav ics subscribe feed"

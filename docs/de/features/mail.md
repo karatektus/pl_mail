@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:e20b1f755e846669b4edf8755206fc59485efa07 -->
+<!-- translated-from: features/mail.md sha1:40a23807a5bb884face8456a8822f8014c6dbfd6 -->
 
 # Mail
 
@@ -664,6 +664,40 @@ löst das nicht aus — nur die Nachrichten selbst.
 
 Es ist die Darstellung eines Modells, nicht die Mail. Die Zeile darunter sagt das, und die
 Nachrichten stehen direkt darunter.
+
+### Eine Nachricht übersetzen
+
+Wo die Administration das Übersetzen eingeschaltet hat, steht im **⋮**-Menü einer Nachricht
+**Übersetzen**. Damit wird diese eine Nachricht in deine Sprache übersetzt: in die Sprache, in der
+plMail läuft, oder in die, die du unter **Einstellungen → Assistent → Übersetzen in** gewählt hast —
+dort gibt es viel mehr Sprachen als Oberflächen von plMail. Übersetzt wird erst, wenn du darum bittest.
+
+Die Übersetzung tritt an die Stelle der Nachricht, in einem getönten Kasten unter einem Balken,
+der sagt, dass eine KI übersetzt hat, mit welchem Modell, und dass es nicht der Originaltext
+ist. Der Knopf im Balken schaltet mit einem Klick zum Original und zurück, so oft du willst. Die
+Übersetzung kommt Stück für Stück an; wie lange das dauert, hängt von der Maschine ab, auf der das
+Modell läuft, und auf einer ohne Grafikkarte braucht eine lange Nachricht Minuten. Du musst nicht
+warten: Verlässt du die Nachricht, wird sie trotzdem fertig übersetzt und öffnet sich beim nächsten
+Mal übersetzt.
+
+Einmal geschrieben, wird die Übersetzung aufbewahrt, und die Nachricht öffnet sich ohne Wartezeit als
+Übersetzung. Ändert sich die Nachricht selbst danach, sagt der Balken das und bietet eine neue
+Übersetzung an.
+
+Geschickt wird der eigene Text der Nachricht, als reiner Text:
+
+- **Ohne die früheren Nachrichten, die sie zitiert.** Die hast du schon, jede lässt sich für sich
+  übersetzen, und sie jedes Mal mitzuschicken, würde jede Antwort in einem langen Gespräch langsamer
+  machen. Der Balken sagt, wenn etwas weggelassen wurde. Eine Weiterleitung ohne eigenen Text wird
+  ganz geschickt.
+- **Bis etwa 6.000 Zeichen.** Eine längere Nachricht wird von ihrem Anfang her übersetzt, und der
+  Balken sagt das.
+
+Die Übersetzung ist reiner Text: Layout, Bilder und Links bleiben im Original. Antworten und
+Weiterleiten zitieren immer das Original, nie die Übersetzung.
+
+Es ist die Übersetzung eines Modells, und kleine Modelle machen Fehler, die sich gut lesen — ein
+Wochentag, eine Zahl, ein Name. Wo es darauf ankommt, sieh ins Original oder frag beim Absender nach.
 
 ## Labels
 
