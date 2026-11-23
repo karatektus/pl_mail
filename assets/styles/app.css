@@ -4683,6 +4683,9 @@ body.cursor-col-resize .sidebar-pane {
                                Sidebar). On by default.
      [data-sidebar-truncated]  something IS clipped, measured by
                                ui--sidebar#_measureTruncation.
+                               [data-sidebar-truncated-own] is the same
+                               for the next event, which opens only on its
+                               own hover (see below).
 
    Without the second, a sidebar wide enough for everything would still lurch
    whenever the pointer crossed it. Never while railed — the rail is icons on
@@ -4702,13 +4705,22 @@ body.cursor-col-resize .sidebar-pane {
    sidebar's Inbox instead. A keyboard user still gets the clipped names; a
    mouse user's peek follows the mouse.
    ────────────────────────────────────────────────────────────────────────── */
-#sidebar[data-sidebar-peek][data-sidebar-truncated] {
+#sidebar[data-sidebar-peek]:is([data-sidebar-truncated], [data-sidebar-truncated-own]) {
     transition: width 160ms ease-out, box-shadow 160ms ease-out;
 }
 
+/* The second selector is the next event under the clock, marked
+   [data-sidebar-peek-own]: it leans out only while IT is hovered or
+   focused, never just because the pointer crossed the sidebar. Its width
+   is the wider of its own and the nav's — the pane is hovered too, and the
+   nav's peek must not shrink under it. The rule after this one sets it:
+   the same selector, so the later rule wins. */
 html:not(.sidebar-rail) body:not(.cursor-col-resize)
     .sidebar-pane:is(:hover, :has(:focus-visible))
-    > #sidebar[data-sidebar-peek][data-sidebar-truncated] {
+    > #sidebar[data-sidebar-peek][data-sidebar-truncated],
+html:not(.sidebar-rail) body:not(.cursor-col-resize)
+    .sidebar-pane:has([data-sidebar-peek-own]:is(:hover, :focus-visible))
+    > #sidebar[data-sidebar-peek][data-sidebar-truncated-own] {
     width: var(--sidebar-peek-width, 100%);
 
     /* Over a list of subjects now, so opaque — the pane surface is
@@ -4719,12 +4731,21 @@ html:not(.sidebar-rail) body:not(.cursor-col-resize)
                 0 0 0 1px rgb(var(--rgb-border) / var(--border-alpha));
 }
 
+html:not(.sidebar-rail) body:not(.cursor-col-resize)
+    .sidebar-pane:has([data-sidebar-peek-own]:is(:hover, :focus-visible))
+    > #sidebar[data-sidebar-peek][data-sidebar-truncated-own] {
+    width: max(var(--sidebar-peek-own-width), var(--sidebar-peek-width, 0px));
+}
+
 /* While the peek is out there is no handle. The boundary has not moved, so
    the handle would float over the labels of the leaned-out sidebar, marking
    an edge that is not there. Gone, and not grabbable; it comes back where it
    always was when the peek lets go. */
 html:not(.sidebar-rail) body:not(.cursor-col-resize)
     .sidebar-pane:is(:hover, :has(:focus-visible)):has(> #sidebar[data-sidebar-peek][data-sidebar-truncated])
+    + [data-sidebar-handle],
+html:not(.sidebar-rail) body:not(.cursor-col-resize)
+    .sidebar-pane:has([data-sidebar-peek-own]:is(:hover, :focus-visible)):has(> #sidebar[data-sidebar-peek][data-sidebar-truncated-own])
     + [data-sidebar-handle] {
     opacity: 0;
     pointer-events: none;
@@ -4733,7 +4754,7 @@ html:not(.sidebar-rail) body:not(.cursor-col-resize)
 @media (prefers-reduced-motion: reduce) {
     .sidebar-pane,
     [data-sidebar-handle],
-    #sidebar[data-sidebar-peek][data-sidebar-truncated] {
+    #sidebar[data-sidebar-peek]:is([data-sidebar-truncated], [data-sidebar-truncated-own]) {
         transition: none;
     }
 }
