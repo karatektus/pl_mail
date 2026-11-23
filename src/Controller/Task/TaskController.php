@@ -818,6 +818,7 @@ final class TaskController extends AbstractController
             'list'     => $list,
             'query'    => $query,
             'failure'  => $failure,
+            'zone'     => $this->time->zoneFor($user),
             'target'   => $target,
             'open'     => $this->tasks->countForList($user, $list, false),
             'finished' => $this->tasks->countForList($user, $list, true),
