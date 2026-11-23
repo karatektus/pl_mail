@@ -7,6 +7,7 @@ namespace App\Tests\Controller\Task;
 use App\Domain\DTO\Task\RemoteTaskList;
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
+use App\Domain\Enum\Calendar\SyncState;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Task\TaskStatus;
 use App\Entity\Calendar\Calendar;
@@ -1075,6 +1076,165 @@ final class TaskControllerTest extends WebTestCase
     }
 
     /** The session the token lives in, carried by hand, as AccountColourTest does. */
+    // ── Transfer to a local list ─────────────────────────────────────────
+
+    public function testOnlyASyncedListOffersATransfer(): void
+    {
+        $own    = $this->list();
+        $synced = $this->synced();
+
+        $crawler = $this->client->request('GET', '/tasks/lists');
+
+        $transfers = static fn (TaskList $list): int => $crawler->filter(sprintf('[data-task-list="%d"] a[href*="/transfer"]', $list->id))->count();
+
+        self::assertSame(1, $transfers($synced));
+        self::assertSame(0, $transfers($own));
+
+        $this->client->request('GET', sprintf('/tasks/list/%d/transfer', $own->id));
+        self::assertResponseStatusCodeSame(404);
+
+        $crawler = $this->client->request('GET', sprintf('/tasks/list/%d/transfer', $synced->id));
+        self::assertResponseIsSuccessful();
+        self::assertSame('0', $crawler->filter('#task-transfer-target option')->first()->attr('value'), 'a new list first');
+        self::assertCount(0, $crawler->filter(sprintf('#task-transfer-target option[value="%d"]', $synced->id)), 'not into itself');
+        self::assertCount(1, $crawler->filter(sprintf('#task-transfer-target option[value="%d"]', $own->id)));
+    }
+
+    /**
+     * Regression guard for the server that is gone for good: asking it first is
+     * right, and failing to must not leave the tasks stuck in it.
+     */
+    public function testAServerThatCannotBeAskedMovesNothingAndOffersToGoAhead(): void
+    {
+        $synced = $this->synced();
+        $taskId = $this->task($synced, 'Stays for now')->id;
+
+        $crawler = $this->client->request('POST', sprintf('/tasks/list/%d/transfer', $synced->id), [
+            '_token' => $this->token('tasks_list_editor'),
+            'target' => 0,
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorExists('[data-task-transfer-failure]');
+        self::assertSame('1', $crawler->filter('input[name="stale"]')->attr('value'));
+
+        $this->em->clear();
+        self::assertSame($synced->id, $this->em->find(Task::class, $taskId)?->taskList->id);
+    }
+
+    public function testATransferTakesEveryTaskToANewListInTheSyncedOnesPlaceAndLeavesTheServerAlone(): void
+    {
+        $synced            = $this->synced();
+        $synced->color     = '#dc2626';
+        $synced->sortOrder = 7;
+
+        $open                = $this->task($synced, 'Open');
+        $open->remoteId      = 'T1';
+        $open->remoteEtag    = 'W/"1"';
+        $open->remotePayload = '{"id":"T1"}';
+        $step                = $this->stepOf($open, 'Step');
+        $done                = $this->task($synced, 'Done');
+        $done->status        = TaskStatus::Completed;
+        $gone                = $this->task($synced, 'Deleted here');
+        $gone->remoteId      = 'T3';
+        $gone->syncState     = SyncState::PendingDelete;
+
+        $this->user->setSetting(User::SETTING_TASKS_ADD_TO, $synced->id);
+        $this->em->flush();
+
+        $ids      = [$open->id, $step->id, $done->id];
+        $goneId   = $gone->id;
+        $syncedId = $synced->id;
+
+        $this->client->request('POST', sprintf('/tasks/list/%d/transfer', $syncedId), [
+            '_token' => $this->token('tasks_list_editor'),
+            'target' => 0,
+            'stale'  => 1,
+        ]);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('2 tasks moved to “Synced”', (string) $this->client->getResponse()->getContent(), 'the step is not counted as a task');
+        self::assertSelectorExists('turbo-stream[action="open_pane"]');
+
+        $this->em->clear();
+
+        self::assertNull($this->em->find(TaskList::class, $syncedId), 'unsubscribed');
+        self::assertNull($this->em->find(Task::class, $goneId), 'a delete never sent is just gone');
+
+        $moved = array_map(fn (int $id): Task => $this->em->find(Task::class, $id), $ids);
+        $to    = $moved[0]->taskList;
+
+        self::assertNull($to->remoteId);
+        self::assertSame('Synced', $to->name);
+        self::assertSame('#dc2626', $to->color);
+        self::assertSame(7, $to->sortOrder);
+
+        foreach ($moved as $task) {
+            self::assertSame($to->id, $task->taskList->id);
+            self::assertNull($task->remoteId);
+            self::assertNull($task->remoteEtag);
+            self::assertNull($task->remotePayload);
+            self::assertSame(SyncState::Clean, $task->syncState);
+        }
+
+        self::assertSame($moved[0]->id, $moved[1]->parent?->id, 'a step stays with its task');
+        self::assertSame($to->id, $this->em->find(User::class, $this->user->id)?->tasksAddToListId, 'new tasks land where the tasks went');
+    }
+
+    /** Transferring a list again, after subscribing to it again, brings the same uids to the same list. */
+    public function testATransferIntoAListThatHasTheSameUidGivesTheNewcomerAnother(): void
+    {
+        $own    = $this->list();
+        $synced = $this->synced();
+        $there  = $this->task($own, 'From last time');
+        $again  = $this->task($synced, 'Again');
+
+        $again->uid = $there->uid;
+        $this->em->flush();
+
+        $againId = $again->id;
+        $uid     = $there->uid;
+
+        $this->client->request('POST', sprintf('/tasks/list/%d/transfer', $synced->id), [
+            '_token' => $this->token('tasks_list_editor'),
+            'target' => $own->id,
+            'stale'  => 1,
+        ]);
+
+        self::assertResponseIsSuccessful();
+
+        $this->em->clear();
+        $moved = $this->em->find(Task::class, $againId);
+
+        self::assertSame($own->id, $moved?->taskList->id);
+        self::assertNotSame($uid, $moved->uid);
+    }
+
+    public function testATransferGoesOnlyToALocalListOfTheSameUser(): void
+    {
+        $synced = $this->synced();
+        $other  = $this->synced();
+        $local  = $this->list();
+        $theirs = $this->list($this->otherUser());
+
+        foreach ([$other, $theirs] as $target) {
+            $this->client->request('POST', sprintf('/tasks/list/%d/transfer', $synced->id), [
+                '_token' => $this->token('tasks_list_editor'),
+                'target' => $target->id,
+                'stale'  => 1,
+            ]);
+
+            self::assertResponseStatusCodeSame(404);
+        }
+
+        $this->client->request('POST', sprintf('/tasks/list/%d/transfer', $local->id), [
+            '_token' => $this->token('tasks_list_editor'),
+            'stale'  => 1,
+        ]);
+
+        self::assertResponseStatusCodeSame(404, 'a local list has nothing to transfer from');
+    }
+
     private function token(string $id): string
     {
         $this->client->request('GET', '/tasks');
@@ -1117,6 +1277,17 @@ final class TaskControllerTest extends WebTestCase
         $list->usr  = $owner ?? $this->user;
         $list->name = 'List';
         $this->em->persist($list);
+        $this->em->flush();
+
+        return $list;
+    }
+
+    /** Synced to nothing at all, so a pull of it fails the way an unreachable server's does. */
+    private function synced(): TaskList
+    {
+        $list           = $this->list();
+        $list->name     = 'Synced';
+        $list->remoteId = uniqid('remote-', true);
         $this->em->flush();
 
         return $list;

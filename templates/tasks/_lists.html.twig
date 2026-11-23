@@ -8,7 +8,8 @@ different frame, and its pills name the lists, so a change also tells it with
 `open_pane`, as the task editor does.
 
 The first list and a synced one have no delete, for the reasons
-TaskController::listDelete() gives. The star says where a new task lands when
+TaskController::listDelete() gives. A synced one has a transfer in that place
+instead, which takes its tasks to a local list: see TaskListTransfer. The star says where a new task lands when
 nothing else was picked, and moves it: see TaskListProvisioner::landingFor(). The
 order is the pane's, and is changed by dragging or with the arrows: see
 tasks--list-order.
@@ -122,6 +123,14 @@ Accepts:
                                 <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
                             </button>
                         </form>
+                    {% elseif not managed %}
+                        <a href="{{ path('app_tasks_list_transfer', { id: list.id }|merge(params)) }}"
+                           data-turbo-frame="modal"
+                           aria-label="{{ 'tasks.transfer.open_named'|trans({ '%name%': list.name }) }}"
+                           title="{{ 'tasks.transfer.open_named'|trans({ '%name%': list.name }) }}"
+                           class="{{ iconBtn }} hover:text-ink hover:bg-hover">
+                            <i class="fa-solid fa-file-export text-xs" aria-hidden="true"></i>
+                        </a>
                     {% else %}
                         {# Its place kept, so the column of buttons stays straight. #}
                         <span class="w-8 h-8 shrink-0" aria-hidden="true"></span>

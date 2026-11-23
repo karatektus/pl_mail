@@ -9,6 +9,7 @@ use App\Controller\RendersTurboStreams;
 use App\Domain\DTO\Task\TaskDraft;
 use App\Domain\DTO\Task\TaskPaneQuery;
 use App\Domain\Enum\Task\TaskView;
+use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\TaskListReadOnlyException;
 use App\Domain\Helper\InlineDisposition;
 use App\Entity\Calendar\Calendar;
@@ -24,6 +25,7 @@ use App\Service\Calendar\CalendarTimeResolver;
 use App\Service\Demo\DemoMode;
 use App\Service\Task\TaskAttachmentStorage;
 use App\Service\Task\TaskListProvisioner;
+use App\Service\Task\TaskListTransfer;
 use App\Service\Task\TaskPaneReader;
 use App\Service\Task\TaskWriter;
 use DateTimeImmutable;
@@ -68,6 +70,7 @@ final class TaskController extends AbstractController
         private readonly MessageBusInterface    $bus,
         private readonly TaskAttachmentStorage  $files,
         private readonly DemoMode               $demo,
+        private readonly TaskListTransfer       $transfer,
     ) {}
 
     /**
@@ -526,13 +529,6 @@ final class TaskController extends AbstractController
     }
 
     /**
-     * Deleting a list takes its tasks with it, through the foreign key.
-     *
-     * Refused for the default, which is where a task with nowhere else to go
-     * lands, and for a synced list, whose existence is the remote's — a mirror
-     * deleted here would only be there again after the next discovery.
-     */
-    /**
      * The order of the lists, as arranged in Lists: the whole order, as JSON, so a
      * repeated request lands on the same arrangement. Built from the user's own
      * rows, so an id that is not theirs finds nothing, and a list the request left
@@ -591,6 +587,13 @@ final class TaskController extends AbstractController
         return $this->renderLists(TaskPaneQuery::fromParameters($request->request->all()), 'tasks.lists.landing_set', ['%name%' => $list->name]);
     }
 
+    /**
+     * Deleting a list takes its tasks with it, through the foreign key.
+     *
+     * Refused for the default, which is where a task with nowhere else to go
+     * lands, and for a synced list, whose existence is the remote's — a mirror
+     * deleted here would only be there again after the next discovery.
+     */
     #[Route('/list/{id}/delete', name: 'list_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function listDelete(Request $request, TaskList $list): Response
     {
@@ -612,6 +615,69 @@ final class TaskController extends AbstractController
         $this->em->flush();
 
         return $this->renderLists($query, 'tasks.lists.deleted');
+    }
+
+    /**
+     * Taking a synced list's tasks into plMail for good: see TaskListTransfer.
+     * Its own view in the Lists dialog, which says what moves and what does not
+     * before anything does.
+     */
+    #[Route('/list/{id}/transfer', name: 'list_transfer', requirements: ['id' => '\d+'], methods: ['GET'])]
+    public function listTransfer(Request $request, TaskList $list): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $list);
+
+        if (false === $list->isSynced()) {
+            throw $this->createNotFoundException();
+        }
+
+        return $this->renderListTransfer($list, TaskPaneQuery::fromParameters($request->query->all()));
+    }
+
+    /**
+     * Asks the server for its latest first. When it cannot be reached, nothing
+     * moves and the view offers to take what is here instead (`stale`), which is
+     * the only way left once the server is gone for good.
+     */
+    #[Route('/list/{id}/transfer', name: 'list_transfer_run', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function listTransferRun(Request $request, TaskList $list): Response
+    {
+        $this->assertCsrf($request, 'tasks_list_editor');
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $list);
+
+        if (false === $list->isSynced()) {
+            throw $this->createNotFoundException();
+        }
+
+        $query    = TaskPaneQuery::fromParameters($request->request->all());
+        $targetId = $request->request->getInt('target');
+        $target   = null;
+
+        if (0 !== $targetId) {
+            $target = $this->lists->findOwned($this->currentUser(), $targetId);
+
+            if (null === $target || false === $target->isManagedLocally() || true === $target->isReadOnly) {
+                throw $this->createNotFoundException();
+            }
+        }
+
+        $fromId = $list->id;
+
+        try {
+            $done = $this->transfer->transfer($list, $target, false === $request->request->getBoolean('stale'));
+        } catch (CalendarSyncException $e) {
+            return $this->renderListTransfer($list, $query, $e->getMessage(), $targetId);
+        }
+
+        // The pane was showing the list that is gone: it shows where the tasks went.
+        if ($query->listId === $fromId) {
+            $query = $query->withList($done->to->id);
+        }
+
+        return $this->renderLists($query, 'tasks.lists.transferred', [
+            '%count%' => $done->moved,
+            '%name%'  => $done->to->name,
+        ]);
     }
 
     // ---------------------------------------------------------------- helpers
@@ -720,7 +786,7 @@ final class TaskController extends AbstractController
     /**
      * The Lists dialog, telling the pane about a change when there was one.
      *
-     * @param array<string, string> $messageParams
+     * @param array<string, string|int> $messageParams
      */
     private function renderLists(TaskPaneQuery $query, ?string $messageKey = null, array $messageParams = []): Response
     {
@@ -741,6 +807,25 @@ final class TaskController extends AbstractController
             'error'  => $error,
             'colors' => Calendar::COLORS,
         ], new Response(status: null === $error ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY));
+    }
+
+    /** @param string|null $failure why the server could not be asked, which offers to go ahead without it */
+    private function renderListTransfer(TaskList $list, TaskPaneQuery $query, ?string $failure = null, int $target = 0): Response
+    {
+        $user = $this->currentUser();
+
+        return $this->render('tasks/_list_transfer.html.twig', [
+            'list'     => $list,
+            'query'    => $query,
+            'failure'  => $failure,
+            'target'   => $target,
+            'open'     => $this->tasks->countForList($user, $list, false),
+            'finished' => $this->tasks->countForList($user, $list, true),
+            'targets'  => array_values(array_filter(
+                $this->lists->findForUser($user),
+                static fn (TaskList $each): bool => true === $each->isManagedLocally() && false === $each->isReadOnly,
+            )),
+        ], new Response(status: null === $failure ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY));
     }
 
     private function renderPaneStream(TaskPaneQuery $query, string $messageKey): Response

@@ -1,4 +1,4 @@
-<!-- translated-from: features/tasks.md sha1:c6317da10457f967a3e6a67eeb1cde07535c21b1 -->
+<!-- translated-from: features/tasks.md sha1:095f20ccaec75e4fb6a057f675c88406245e8793 -->
 
 # Aufgaben
 
@@ -150,6 +150,21 @@ Microsoft To Do funktioniert ein wenig anders, und plMail folgt ihm:
 
 Google Tasks sowie plMails eigene CalDAV- und JMAP-Server führen noch keine Aufgaben. Listen, die nur in plMail
 liegen, erreichen dein Telefon also nicht.
+
+### Eine Liste nach plMail holen
+
+Microsoft stellt die To-Do-Apps am 30. Juni 2027 ein, und auch ein CalDAV-Server kann verschwinden. Um die
+Aufgaben einer synchronisierten Liste dauerhaft in plMail zu behalten, öffne **Listen** hinter dem Zahnrad und
+drücke den Übertragen-Knopf neben der synchronisierten Liste. Wähle, wohin die Aufgaben gehen, in eine neue Liste
+mit demselben Namen und derselben Farbe oder in eine deiner eigenen Listen, und drücke **Übertragen**.
+
+- Alle Aufgaben werden verschoben, offene und erledigte, mit Schritten, Notizen, Terminen, Wiederholung,
+  Erinnerung und Dateien.
+- Auf dem Server wird nichts gelöscht. plMail synchronisiert die Liste danach nicht mehr, damit nichts doppelt
+  erscheint.
+- Was nur andere Apps verstehen, etwa Verknüpfungen zu anderen Elementen in To Do, geht verloren.
+- plMail holt vorher die neuesten Änderungen vom Server. Ist der Server nicht erreichbar, wird nichts verschoben,
+  und **Trotzdem übertragen** verschiebt, was plMail seit dem letzten Abgleich hat.
 
 ## Befehle
 

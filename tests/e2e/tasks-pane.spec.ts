@@ -1,5 +1,7 @@
+import { execSync } from "node:child_process";
 import { expect, type Page } from "@playwright/test";
 import { acceptConfirm } from "./support/confirm";
+import { TEST_USER } from "./support/config";
 import { choose } from "./support/select";
 import { test } from "./support/test";
 
@@ -40,6 +42,45 @@ async function openCompleted(page: Page): Promise<void> {
     }
 
     await expect(completed(page)).toHaveAttribute("open", "");
+}
+
+/** Straight into Postgres, for what the UI cannot make: a list synced to a server. */
+function psql(sql: string): void {
+    const compose = process.env.E2E_COMPOSE ?? "docker compose -f compose.test.yaml";
+
+    execSync(`${compose} exec -T database psql -U app -d app_test -v ON_ERROR_STOP=1 -q -c ${JSON.stringify(sql)}`, { stdio: "pipe" });
+}
+
+/** The rest of the transfer test, so a failure halfway still cleans up after it. */
+async function transferAnyway(page: Page, name: string): Promise<void> {
+    await page.goto("/mail/inbox");
+    await toggle(page).click();
+    await openLists(page);
+
+    const row = modal(page).locator("[data-task-list]", { hasText: name });
+
+    await expect(row.getByText("Synced")).toBeVisible();
+    await row.getByRole("link", { name: `Transfer “${name}” to a local list` }).click();
+
+    // The dialog keeps the title it was opened with, as the list editor does.
+    await expect(modal(page).getByLabel("Move them to")).toBeAttached();
+    await expect(modal(page).getByText(`“${name}” has 1 open and 1 finished tasks.`)).toBeVisible();
+    await expect(modal(page).getByText("Nothing is deleted on the server.", { exact: false })).toBeVisible();
+
+    await modal(page).getByRole("button", { name: "Transfer", exact: true }).click();
+
+    // Nothing moved yet: the server was asked and could not answer.
+    await expect(modal(page).getByRole("alert")).toContainText("could not be read from the server");
+    await modal(page).getByRole("button", { name: "Transfer anyway" }).click();
+
+    await expect(toast(page, `2 tasks moved to “${name}”.`)).toBeAttached();
+    await expect(modal(page).getByRole("heading", { name: "Lists" })).toBeVisible();
+    await expect(row).toBeVisible();
+    await expect(row.getByText("Synced")).toHaveCount(0);
+
+    await modal(page).getByRole("button", { name: "Done" }).click();
+    await frame(page).getByRole("link", { name }).click();
+    await expect(frame(page).getByText("Carried over")).toBeVisible();
 }
 
 /** A name no earlier test of this worker's user can have left behind. */
@@ -718,7 +759,7 @@ test.describe("tasks pane on a notebook", () => {
         await expect(frame(page).getByRole("button", { name: "New list" })).toHaveCount(0);
         await openLists(page);
         await modal(page).getByRole("link", { name: "New list" }).click();
-        await modal(page).getByLabel("Name").fill(name);
+        await modal(page).getByLabel("Name", { exact: true }).fill(name);
         await modal(page).getByRole("button", { name: "Save" }).click();
 
         // Back in the dialog, which stays open, and the pane has the new pill.
@@ -730,7 +771,7 @@ test.describe("tasks pane on a notebook", () => {
         await expect(pill).toBeVisible();
 
         await modal(page).getByRole("link", { name: `Edit “${name}”` }).click();
-        await modal(page).getByLabel("Name").fill(`${name} renamed`);
+        await modal(page).getByLabel("Name", { exact: true }).fill(`${name} renamed`);
         await modal(page).getByRole("button", { name: "Save" }).click();
         await expect(modal(page).locator("[data-task-list]", { hasText: `${name} renamed` })).toBeVisible();
         await expect(frame(page).getByRole("link", { name: `${name} renamed` })).toBeVisible();
@@ -800,6 +841,30 @@ test.describe("tasks pane on a notebook", () => {
         await expect(modal(page)).toBeVisible();
         await expect(frame(page).getByRole("link", { name: `${name} renamed` })).toHaveCount(0);
         await expect(frame(page).getByRole("link", { name: "All", exact: true })).toHaveAttribute("aria-current", "page");
+    });
+
+    /**
+     * A synced list taken into plMail for good, as To Do's retirement asks for. Its
+     * server cannot be asked (the seeded list is synced to nothing), which is the
+     * case that matters most: once the server is gone, Transfer anyway is the way.
+     */
+    test("a synced list's tasks are transferred to a local list, even with the server out of reach", async ({ page }) => {
+        const name = unique("Old To Do");
+
+        psql(
+            `with u as (select id from "user" where email = '${TEST_USER.email}'), ` +
+                `l as (insert into task_list (usr_id, name, color, remote_id, sort_order, created_at, updated_at) ` +
+                `select id, '${name}', '#16a34a', 'gone-${Date.now()}', 99, now(), now() from u returning id, usr_id) ` +
+                `insert into task (task_list_id, usr_id, uid, title, status, remote_id, created_at, updated_at) ` +
+                `select l.id, l.usr_id, md5(random()::text), t.title, t.status, md5(random()::text), now(), now() from l, ` +
+                `(values ('Carried over', 'needs-action'), ('Long done', 'completed')) as t(title, status)`,
+        );
+
+        try {
+            await transferAnyway(page, name);
+        } finally {
+            psql(`delete from task_list where name = '${name}'`);
+        }
     });
 });
 

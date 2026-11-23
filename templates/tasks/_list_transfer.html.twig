@@ -1,0 +1,83 @@
+{#
+tasks/_list_transfer.html.twig — taking a synced list's tasks into plMail for
+good, inside the Lists dialog (tasks/_lists.html.twig), which Back and a finished
+transfer both return to. See TaskListTransfer.
+
+It says what moves and what does not before anything does: every task moves,
+nothing is deleted on the server, and the synced list is unsubscribed. When the
+server could not be asked for its latest, the failure is shown and the button
+takes what is here instead (`stale`), since a server that is gone for good would
+otherwise keep the tasks in it forever.
+
+Accepts:
+  list      TaskList, the synced one
+  query     TaskPaneQuery, where the pane goes back to
+  failure   string|null, why the server could not be asked
+  target    int, the list picked before a failure, 0 for a new one
+  open      int, its open tasks
+  finished  int, its finished tasks
+  targets   list<TaskList>, the local lists that can take them
+#}
+{% import '_partials/_select.html.twig' as select %}
+{% set params = query.toParameters() %}
+
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'tasks.transfer.title'|trans }}</template>
+
+    <form action="{{ path('app_tasks_list_transfer_run', { id: list.id }) }}" method="post"
+          data-turbo-frame="modal" data-ui--modal-keep-open class="flex-1 min-h-0 flex flex-col">
+        <input type="hidden" name="_token" value="{{ csrf_token('tasks_list_editor') }}">
+        {% for name, value in params %}
+            <input type="hidden" name="{{ name }}" value="{{ value }}">
+        {% endfor %}
+        {% if failure %}<input type="hidden" name="stale" value="1">{% endif %}
+
+        <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4 max-md:px-4">
+            {% if failure %}
+                <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger" data-task-transfer-failure>
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <div class="space-y-1 leading-snug">
+                        <p>{{ 'tasks.transfer.pull_failed'|trans }} {{ failure }}</p>
+                        <p>{{ (list.lastSyncedAt ? 'tasks.transfer.stale_since' : 'tasks.transfer.stale')|trans({ '%date%': list.lastSyncedAt ? list.lastSyncedAt|date('Y-m-d H:i') : '' }) }}</p>
+                    </div>
+                </div>
+            {% endif %}
+
+            <p class="flex items-center gap-2 text-sm text-ink">
+                <span class="size-2.5 rounded-full shrink-0" style="background-color: {{ list.color }}" aria-hidden="true"></span>
+                <span>{{ 'tasks.transfer.what'|trans({ '%name%': list.name, '%open%': open, '%finished%': finished }) }}</span>
+            </p>
+
+            <div>
+                <label class="block mb-1 text-sm font-medium text-ink" for="task-transfer-target">{{ 'tasks.transfer.target'|trans }}</label>
+                <select id="task-transfer-target" name="target"
+                        {{ select.enhance() }}
+                        class="select-field w-full h-9 text-sm">
+                    <option value="0">{{ 'tasks.transfer.new_list'|trans({ '%name%': list.name }) }}</option>
+                    {% for candidate in targets %}
+                        <option value="{{ candidate.id }}" {% if candidate.id == target %}selected{% endif %}>{{ candidate.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <ul class="space-y-1.5 text-xs text-ink-muted">
+                <li class="flex gap-2"><i class="fa-solid fa-check mt-0.5 text-ink-faint" aria-hidden="true"></i><span>{{ 'tasks.transfer.moves'|trans }}</span></li>
+                <li class="flex gap-2"><i class="fa-solid fa-server mt-0.5 text-ink-faint" aria-hidden="true"></i><span>{{ 'tasks.transfer.remote_kept'|trans }}</span></li>
+                <li class="flex gap-2"><i class="fa-solid fa-link-slash mt-0.5 text-ink-faint" aria-hidden="true"></i><span>{{ 'tasks.transfer.unsubscribes'|trans({ '%name%': list.name }) }}</span></li>
+                <li class="flex gap-2"><i class="fa-solid fa-circle-info mt-0.5 text-ink-faint" aria-hidden="true"></i><span>{{ 'tasks.transfer.foreign'|trans }}</span></li>
+            </ul>
+        </div>
+
+        <footer class="shrink-0 flex items-center gap-2 border-t border-line px-6 py-3 max-md:px-4">
+            <a href="{{ path('app_tasks_lists', params) }}"
+               data-turbo-frame="modal"
+               class="ml-auto px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors">
+                {{ 'tasks.lists.back'|trans }}
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 rounded-lg text-sm bg-accent text-accent-ink hover:opacity-90 transition-opacity">
+                {{ (failure ? 'tasks.transfer.submit_stale' : 'tasks.transfer.submit')|trans }}
+            </button>
+        </footer>
+    </form>
+</turbo-frame>

@@ -138,6 +138,20 @@ Microsoft To Do works a little differently, and plMail follows it:
 Google Tasks and plMail's own CalDAV and JMAP servers do not carry tasks yet, so lists that live only
 in plMail do not reach your phone.
 
+### Moving a list into plMail
+
+Microsoft retires the To Do apps on 30 June 2027, and a CalDAV server can go away too. To keep a
+synced list's tasks in plMail for good, open **Lists** behind the gear and press the transfer button
+beside the synced list. Pick where the tasks go, a new list with the same name and colour or one of
+your own lists, and press **Transfer**.
+
+- Every task moves, open and finished, with its steps, notes, dates, repeat, reminder and files.
+- Nothing is deleted on the server. plMail stops syncing the list afterwards, so nothing shows up
+  twice.
+- What only other apps understand, such as links to other items in To Do, is not kept.
+- plMail first fetches the latest changes from the server. If the server cannot be reached, nothing
+  moves, and **Transfer anyway** moves what plMail has from its last sync.
+
 ## Commands
 
 `app:tasks:sync` queues a sync of connected lists, and `app:tasks:alerts` sends the reminders that have
