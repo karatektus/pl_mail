@@ -36,7 +36,14 @@ Variables:
         background: #fff;
         color: #27272a;
         font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        word-break: break-word;
+        /* A long URL still wraps rather than running off the sheet, but a
+           table column is never made narrower than its longest word.
+           `word-break: break-word` did both: it lets the browser break between
+           any two letters when it works out how narrow a column may go, so on
+           a phone a table with fixed-width columns beside a free one squeezed
+           the free one to a letter a line (#747). Gmail keeps whole words and
+           lets the table scroll sideways, which overflow-x below allows. */
+        overflow-wrap: break-word;
         overflow-x: auto;
     }
     a { color: #1d4ed8; }
