@@ -238,6 +238,7 @@ account inside ThreadStatusUpdater.
         <details class="group/tree"
                  data-collapse-key="{{ _treeKey }}"
                  data-action="toggle->ui--sidebar#rememberCollapse"
+                 data-collapse-saved="{{ sidebarCounts.isCollapsed(_treeKey) ? 'closed' : 'open' }}"
                  {{ sidebarCounts.isCollapsed(_treeKey) ? '' : 'open' }}>
             <summary class="nav-item group/label flex items-center gap-1 cursor-pointer list-none
                             transition-colors {{ sidebar_row_state(_href) }}"
@@ -825,6 +826,7 @@ controller instead — the scroll position and which trees are open.
         <details class="rail-hide group/section nav-section-y"
                  data-action="toggle->ui--sidebar#rememberCollapse"
                  data-collapse-key="{{ constant('App\\Entity\\User\\User::SIDEBAR_SECTION_LABELS') }}"
+                 data-collapse-saved="{{ _labelsCollapsed ? 'closed' : 'open' }}"
                  {{ _labelsCollapsed ? '' : 'open' }}>
             {# The heading row is shared with ACCOUNTS below; see
                _sidebar_section_head.html.twig. #}
@@ -896,6 +898,7 @@ controller instead — the scroll position and which trees are open.
         <details class="rail-hide group/section nav-section-y"
                  data-action="toggle->ui--sidebar#rememberCollapse"
                  data-collapse-key="{{ constant('App\\Entity\\User\\User::SIDEBAR_SECTION_ACCOUNTS') }}"
+                 data-collapse-saved="{{ _accountsCollapsed ? 'closed' : 'open' }}"
                  {{ _accountsCollapsed ? '' : 'open' }}>
             {% embed '_partials/_sidebar_section_head.html.twig' with {
                 heading:   'sidebar.accounts.heading'|trans,

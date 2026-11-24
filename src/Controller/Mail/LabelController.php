@@ -365,11 +365,16 @@ final class LabelController extends AbstractController
      * For a tab told by LabelNotifier::publishLabelsStale() that its lists are
      * out of date — a label removed by a background job, where nobody was
      * signed in to render them for. Read-only, and this user's own labels.
+     *
+     * Answered to the asking tab only, not published (#745). Every tab of the
+     * user heard the same nudge and asks for itself, so publishing here turned
+     * one nudge into one redraw per tab in EVERY tab — N tabs, N² redraws of
+     * the label trees, for a change that had already been made.
      */
     #[Route('/lists', name: 'lists', methods: ['GET'])]
     public function lists(): Response
     {
-        return $this->labelListsStream();
+        return $this->labelListsStream(publish: false);
     }
 
     /**
@@ -443,7 +448,7 @@ final class LabelController extends AbstractController
      * rendered from the stored preference rather than from the live DOM, which
      * is the same reason a navigation has always been able to rebuild them.
      */
-    private function labelListsStream(?string $toastMessage = null, bool $refreshSidebar = false): Response
+    private function labelListsStream(?string $toastMessage = null, bool $refreshSidebar = false, bool $publish = true): Response
     {
         $user   = $this->currentUser();
 
@@ -458,7 +463,9 @@ final class LabelController extends AbstractController
             'labels'       => $labels,
         ]);
 
-        $this->labelNotifier->publishLabelsChanged($user, $lists);
+        if (true === $publish) {
+            $this->labelNotifier->publishLabelsChanged($user, $lists);
+        }
 
         if (null === $toastMessage && false === $refreshSidebar) {
             $body = $lists;
