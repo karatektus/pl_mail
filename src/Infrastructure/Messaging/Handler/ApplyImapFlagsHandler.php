@@ -93,6 +93,8 @@ use Throwable;
  *   move                    — move to the explicit destinationPath computed by
  *                             the LabelChangePropagator (custom location-label
  *                             replacement)
+ *   copy                    — UID COPY to destinationPath, keeping the source:
+ *                             a folder put on as a label (#693; see copyOne())
  *   delete                  — flag \Deleted and UID EXPUNGE that one UID (UIDPLUS
  *                             only; see deleteOne())
  */
@@ -264,11 +266,11 @@ final class ApplyImapFlagsHandler
         // folder at any time, and moving into one that is not there fails per
         // message with nothing that says why. Making it is cheaper than losing
         // the move, and it is the same folder the row already describes.
-        if ('move' === $action && null !== $destinationPath) {
+        if (('move' === $action || 'copy' === $action) && null !== $destinationPath) {
             $destinationPath = $this->ensureDestinationExists($session, $account, $destinationPath);
         }
 
-        $needsDestination = in_array($action, self::MOVE_ACTIONS, true);
+        $needsDestination = 'copy' === $action || in_array($action, self::MOVE_ACTIONS, true);
 
         if (true === $needsDestination && null === $destinationPath) {
             $this->logger->warning('ApplyImapFlagsHandler: destination not resolvable', [
@@ -456,6 +458,12 @@ final class ApplyImapFlagsHandler
             return;
         }
 
+        if ('copy' === $action) {
+            $this->copyOne($session, $mailbox, $msg, $uid, (string) $destinationPath);
+
+            return;
+        }
+
         $change = self::FLAG_ACTIONS[$action] ?? null;
 
         if (null === $change) {
@@ -486,6 +494,75 @@ final class ApplyImapFlagsHandler
         // flag actions clear it. A move is not a flag change, and 'delete' is
         // on its way to having no row at all.
         $msg->flagsTouchedAt = null;
+    }
+
+    /**
+     * Put a copy of this message in another folder and leave it where it is
+     * (#693): a folder put on as a label.
+     *
+     * Not when it is there already — the folder it is copied from, a copy
+     * another client made, or this very job redelivered after its COPY went
+     * through. A second copy is the one thing this must not make, so the
+     * destination is searched for the Message-ID first, the way
+     * adoptFromDestination() searches it after a move. Mail with no
+     * Message-ID cannot be looked for and is copied anyway.
+     *
+     * The copy becomes a location of the email as soon as the server says
+     * its UID (COPYUID, RFC 4315), and otherwise when the folder is next read
+     * (ImapCopies). The label is already on the email in the database.
+     */
+    private function copyOne(ImapSession $session, Mailbox $source, Message $msg, int $uid, string $destinationPath): void
+    {
+        if ($source->fullPath === $destinationPath) {
+            return;
+        }
+
+        $there = $this->findInFolder($session, $msg, $destinationPath);
+
+        if (null !== $there) {
+            $this->recordCopy($msg, $source->account, $destinationPath, $there);
+
+            return;
+        }
+
+        $copied = $session->uidCopy($source->serverPath(), (string) $uid, $destinationPath);
+
+        if (true === isset($copied[$uid])) {
+            $this->recordCopy($msg, $source->account, $destinationPath, $copied[$uid]);
+        }
+    }
+
+    /** The UID of this message in a folder, matched on its whole Message-ID, or null. */
+    private function findInFolder(ImapSession $session, Message $msg, string $path): ?int
+    {
+        $wanted = MessageIdHelper::normalise((string) $msg->messageId);
+
+        if ('' === $wanted) {
+            return null;
+        }
+
+        $candidates = $session->uidSearchHeader($path, 'Message-ID', $wanted);
+
+        if ([] === $candidates) {
+            return null;
+        }
+
+        foreach ($session->uidFetchHeader($path, ImapSession::uidSet($candidates), 'Message-ID') as $found => $header) {
+            if ($wanted === MessageIdHelper::normalise((string) $header)) {
+                return (int) $found;
+            }
+        }
+
+        return null;
+    }
+
+    private function recordCopy(Message $msg, Account $account, string $path, int $uid): void
+    {
+        $destination = $this->mailboxRepository->findOneBy(['account' => $account, 'fullPath' => $path]);
+
+        if (null !== $destination) {
+            $msg->addLocation($destination, $uid);
+        }
     }
 
     /**

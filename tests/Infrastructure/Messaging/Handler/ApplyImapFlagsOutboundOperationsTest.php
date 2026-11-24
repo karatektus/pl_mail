@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageLocation;
 use App\Entity\User\User;
 use App\Infrastructure\ImapClient\ImapSession;
 use App\Infrastructure\Messaging\Handler\ApplyImapFlagsHandler;
@@ -239,6 +240,48 @@ final class ApplyImapFlagsOutboundOperationsTest extends KernelTestCase
         $this->issue('INBOX', $uid, 'delete');
 
         self::assertSame([$other], $this->server->uidSearch('INBOX', 'ALL'), 'gone, and only it');
+    }
+
+    // ── copies (#693) ──────────────────────────────────────────────────────
+
+    /**
+     * A folder put on as a label: the mail is copied there and stays in the
+     * inbox, and the copy is one more location of the email, at the UID the
+     * server gave it.
+     */
+    public function testACopyLeavesTheMailWhereItIsAndAddsALocation(): void
+    {
+        $this->server->create('Work');
+        $uid = $this->put('INBOX');
+
+        $row = $this->issue('INBOX', $uid, 'copy', destinationPath: 'Work', rowKeepsUid: true);
+
+        $inWork = $this->server->uidSearch('Work', 'ALL');
+
+        $work = array_values(array_filter(
+            $row->locations->toArray(),
+            static fn (MessageLocation $location): bool => 'Work' === $location->mailbox->fullPath,
+        ));
+
+        self::assertSame([$uid], $this->server->uidSearch('INBOX', 'ALL'), 'still in the inbox');
+        self::assertCount(1, $inWork);
+        self::assertCount(1, $work, 'the copy is a location of the email');
+        self::assertSame($inWork[0], $work[0]->imapUid);
+        self::assertSame('INBOX', $row->mailbox?->fullPath, 'the inbox stays the primary');
+        self::assertSame($uid, $row->imapUid);
+    }
+
+    /** A copy already there — this job redelivered, or another client's — is not made twice. */
+    public function testACopyAlreadyInTheFolderIsNotMadeAgain(): void
+    {
+        $this->server->create('Work');
+        $there = $this->put('Work');
+        $uid   = $this->put('INBOX');
+
+        $row = $this->issue('INBOX', $uid, 'copy', destinationPath: 'Work', rowKeepsUid: true);
+
+        self::assertSame([$there], $this->server->uidSearch('Work', 'ALL'), 'one copy, not two');
+        self::assertSame($there, $row->locations->last()->imapUid);
     }
 
     // ── moves ──────────────────────────────────────────────────────────────

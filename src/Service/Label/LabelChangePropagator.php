@@ -207,6 +207,7 @@ final readonly class LabelChangePropagator
         $this->dispatchGmail($messages, ['add' => [(string) $label->id], 'remove' => []]);
         $this->dispatchJmap($messages, add: [self::entryFor($label)]);
         $this->dispatchKeywords($messages, $label, true);
+        $this->dispatchCopies($messages, $label);
 
         // Graph: a folder-backed label is a move into that folder; a plain
         // (category) label is derived from DB state by the handler. Folder
@@ -251,10 +252,28 @@ final readonly class LabelChangePropagator
         /** @var array<int, Message[]> $archives  accountless bucket for rule 3 */
         $archives = [];
 
+        /** @var list<array{int, int, int}> $deletes [message id, folder id, UID] of each copy to delete */
+        $deletes = [];
+
         foreach ($messages as $message) {
             $sourceMailbox = $message->mailbox;
 
             if (null === $sourceMailbox || null === $message->imapUid) {
+                continue;
+            }
+
+            // The mail is in the label's folder AND somewhere else: the label
+            // was put on as a copy (attachLabel(), #693), or another client
+            // filed it twice. Taking it off deletes the copy in that folder and
+            // leaves the others where they are. Moving it, the rule below,
+            // would put a second copy where one already is.
+            $copiesHere = self::copiesInLabelFolder($message, $label);
+
+            if ([] !== $copiesHere && true === self::keptElsewhere($message, $label)) {
+                foreach ($copiesHere as $copy) {
+                    $deletes[] = [(int) $message->id, (int) $copy->mailbox->id, (int) $copy->imapUid];
+                }
+
                 continue;
             }
 
@@ -289,6 +308,16 @@ final readonly class LabelChangePropagator
 
         if (count($archives) > 0) {
             $this->dispatchFlags($archives, 'archive');
+        }
+
+        if ([] !== $deletes) {
+            $idMap = [];
+
+            foreach ($deletes as [$messageId, $folderId]) {
+                $idMap[$messageId] = $folderId;
+            }
+
+            $this->bus->dispatch(new ApplyImapFlagsMessage($idMap, 'delete', null, [], $deletes));
         }
     }
 
@@ -377,6 +406,99 @@ final readonly class LabelChangePropagator
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * A folder label put on mail on a plain IMAP account, as a copy into that
+     * folder (#693).
+     *
+     * With "Folders in Labels" a folder is offered in "Label as", and labelling
+     * mail with it means what a label means: the mail is there too, and stays
+     * where it was. On IMAP that is a COPY. The copy becomes one more location
+     * of the email when the server says where it landed, or when the folder is
+     * next read (ImapCopies), and a location in a folder is that folder's label
+     * (#415), so the label the database already has stays true.
+     *
+     * Only on plain IMAP: Gmail and JMAP keep labels as such, Outlook's
+     * folder-backed labels are moves (dispatchGraph()), and POP3 has no folders.
+     * Not for mail already in that folder.
+     *
+     * @param iterable<Message> $messages
+     */
+    private function dispatchCopies(iterable $messages, Label $label): void
+    {
+        if (null !== $label->role) {
+            return;
+        }
+
+        /** @var array<string, array{0: array<int,int>, 1: array<int,int>}> $byFolder destination path → [message id => source folder id, message id => source UID] */
+        $byFolder = [];
+
+        foreach ($messages as $message) {
+            $account = $message->account;
+            $source  = $message->mailbox;
+
+            if (false === $account->isPlainImap() || null === $source || null === $message->imapUid || null === $message->id) {
+                continue;
+            }
+
+            $folder = $label->bindingFor($account)?->mailbox;
+
+            if (null === $folder || [] !== self::copiesInLabelFolder($message, $label)) {
+                continue;
+            }
+
+            $byFolder[(string) $folder->fullPath][0][$message->id] = (int) $source->id;
+            $byFolder[(string) $folder->fullPath][1][$message->id] = $message->imapUid;
+        }
+
+        foreach ($byFolder as $path => [$idMap, $uidMap]) {
+            $this->bus->dispatch(new ApplyImapFlagsMessage($idMap, 'copy', $path, $uidMap));
+        }
+    }
+
+    /**
+     * The message's copies, with an address, in the folder that is this
+     * label on its account.
+     *
+     * @return list<MessageLocation>
+     */
+    private static function copiesInLabelFolder(Message $message, Label $label): array
+    {
+        $folder = $label->bindingFor($message->account)?->mailbox;
+
+        if (null === $folder) {
+            return [];
+        }
+
+        $copies = [];
+
+        foreach ($message->locations as $location) {
+            if ($location->mailbox === $folder && null !== $location->imapUid) {
+                $copies[] = $location;
+            }
+        }
+
+        return $copies;
+    }
+
+    /**
+     * Whether the message has a copy in a real folder other than this label's.
+     * A mirror (All Mail) does not count: it is wherever the mail is, and
+     * says nothing about where that is.
+     */
+    private static function keptElsewhere(Message $message, Label $label): bool
+    {
+        foreach ($message->locations as $location) {
+            if (null !== $location->imapUid
+                && $location->mailbox->label !== $label
+                && false === $location->mailbox->mirrorsOtherFolders
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /**
      * A label as an IMAP keyword on every server copy of these messages, where
