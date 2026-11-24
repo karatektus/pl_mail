@@ -670,7 +670,7 @@ admin:
                 Without it, mail keeps working and calendars simply do not
                 appear.
             consent_heading: 'If your organisation approves apps for its users'
-            consent_microsoft: 'Some Microsoft 365 organisations do not let users approve apps themselves: an administrator approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite and Tasks.ReadWrite, which that approval does not cover, so Microsoft refuses every sign-in to plMail, mail included, until it is approved again. Before anyone signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and organisations where users approve apps themselves, are not affected.'
+            consent_microsoft: 'Some Microsoft 365 organisations do not let users approve apps themselves: an administrator approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval does not cover, so Microsoft refuses every sign-in to plMail, mail included, until it is approved again. Before anyone signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Tasks.ReadWrite is asked for only when an account''s Tasks switch is turned on, and is refused the same way until it is approved. Personal Microsoft accounts, and organisations where users approve apps themselves, are not affected.'
             contacts_google: >-
                 Enable the Google People API for this project and add the
                 .../auth/contacts scope to the consent screen — users then get

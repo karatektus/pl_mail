@@ -585,7 +585,7 @@ admin:
             calendar_google: '此处无需设置。为此项目启用 Google Calendar API，并在授权页面添加 .../auth/calendar 权限范围；用户即可通过现有邮件登录访问日历。未配置时邮件仍可使用，只是不会显示日历。'
             calendar_microsoft: '此处无需设置。为此应用注册添加 Calendars.ReadWrite 委托权限；用户即可通过现有邮件登录访问日历。未配置时邮件仍可使用，只是不会显示日历。'
             consent_heading: "如果你的组织为用户审批应用"
-            consent_microsoft: "部分 Microsoft 365 组织不允许用户自行批准应用：管理员此前批准 plMail 时，仅授予了当时请求的权限。plMail 现在还请求 Contacts.ReadWrite 和 Tasks.ReadWrite，原来的批准并未涵盖这些权限，因此在重新批准前，Microsoft 会拒绝所有 plMail 登录，包括邮件登录。在用户重新登录前，请打开 Microsoft Entra 管理中心 → 企业应用程序 → plMail → 权限，选择“授予管理员同意”。个人 Microsoft 账户和允许用户自行批准应用的组织不受影响。"
+            consent_microsoft: "部分 Microsoft 365 组织不允许用户自行批准应用：管理员此前批准 plMail 时，仅授予了当时请求的权限。plMail 现在还请求 Contacts.ReadWrite，原来的批准并未涵盖此权限，因此在重新批准前，Microsoft 会拒绝所有 plMail 登录，包括邮件登录。在用户重新登录前，请打开 Microsoft Entra 管理中心 → 企业应用程序 → plMail → 权限，选择“授予管理员同意”。只有在为某个账户打开“任务”开关时才会请求 Tasks.ReadWrite，在获得批准之前同样会被拒绝。个人 Microsoft 账户和允许用户自行批准应用的组织不受影响。"
             contacts_google: "为此项目启用 Google People API，并在同意屏幕中添加 .../auth/contacts 权限范围，用户即可通过同一次登录同步联系人。此前已连接的账户会在设置中被要求重新登录一次。未启用时，邮件和日历仍可正常使用，只是不显示联系人。"
             tasks_heading: 'Microsoft To Do 使用同一应用'
             tasks_microsoft: '为此应用注册添加 Tasks.ReadWrite 委托权限，用户即可通过同一次登录同步 To Do 列表。此前已连接的账户会在设置中被要求重新登录一次。未添加时，邮件、日历和联系人仍可正常使用，只是无法订阅 To Do 列表。'

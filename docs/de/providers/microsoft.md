@@ -1,4 +1,4 @@
-<!-- translated-from: providers/microsoft.md sha1:e1b47fee02ac806119bed86a53b63f50ca46c61a -->
+<!-- translated-from: providers/microsoft.md sha1:1dd9f736af28d23b9ad2944fdb0e767d2f3b60cc -->
 
 # Microsoft
 
@@ -240,10 +240,13 @@ es ausdrücklich, wenn es die Lücke findet.
 Berechtigung jede Anmeldung ab.** In einem Tenant, in dem Benutzer Apps nicht selbst zustimmen
 dürfen, hat ein Administrator plMail einmal freigegeben, für die Berechtigungen, die es damals
 verlangt hat. Eine plMail-Version, die eine weitere verlangt (`Contacts.ReadWrite`, seit es die
-Kontaktsynchronisierung gibt, `Tasks.ReadWrite` mit To Do), wird bei der Anmeldung abgelehnt, auch für Mail, mit `AADSTS65001`
+Kontaktsynchronisierung gibt), wird bei der Anmeldung abgelehnt, auch für Mail, mit `AADSTS65001`
 oder `AADSTS90094`, bis der Administrator erneut zustimmt: **Microsoft Entra Admin Center →
 Unternehmensanwendungen → plMail → Berechtigungen → Administratorzustimmung erteilen**. Tu das vor
-dem Update oder bevor sich jemand neu verbindet. Die Fehlermeldung bei der Anmeldung sagt dem
+dem Update oder bevor sich jemand neu verbindet. Bei `Tasks.ReadWrite` ist es anders: Es wird erst
+verlangt, wenn der Schalter **Aufgaben** eines Kontos an ist, also ändert das Update, das To Do
+gebracht hat, an keiner Anmeldung etwas. Stimm zu, bevor du in einem solchen Tenant für ein Konto
+Aufgaben einschaltest; bis dahin wird die Anmeldung dieses Kontos genauso abgelehnt, auch für Mail. Die Fehlermeldung bei der Anmeldung sagt dem
 Benutzer, dass er seinen Administrator fragen soll, **Admin → Integrationen → Microsoft-Mail-Anmeldung**
 trägt dieselbe Warnung, und ebenso das Angebot zum erneuten Verbinden unter
 **Einstellungen → Kontakte**. Private Microsoft-Konten und Tenants, in denen Benutzer Apps selbst

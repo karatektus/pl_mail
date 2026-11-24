@@ -217,10 +217,13 @@ removing the account, and `app:graph:diagnose` says so explicitly when it finds 
 **An organisation that approves apps for its users refuses every sign-in after an upgrade that
 adds a permission.** In a tenant where users may not consent to apps themselves, an administrator
 approved plMail once, for the permissions it asked for then. A plMail version that asks for one
-more (`Contacts.ReadWrite` when contact sync arrived, `Tasks.ReadWrite` with To Do) is refused at sign-in, mail included, with
+more (`Contacts.ReadWrite` when contact sync arrived) is refused at sign-in, mail included, with
 `AADSTS65001` or `AADSTS90094`, until the administrator approves again: **Microsoft Entra admin
 centre → Enterprise applications → plMail → Permissions → Grant admin consent**. Do it before
-upgrading, or before anyone reconnects. The sign-in error tells the user to ask their administrator,
+upgrading, or before anyone reconnects. `Tasks.ReadWrite` is different: it is asked for only once an
+account's **Tasks** switch is on, so the upgrade that brought To Do changes no sign-in. Approve it
+before switching Tasks on for an account in such a tenant; until then, that account's sign-in is
+refused the same way, mail included. The sign-in error tells the user to ask their administrator,
 **Admin → Integrations → Microsoft mail sign-in** carries the same warning, and so does the
 reconnect offer in **Settings → Contacts**. Personal Microsoft accounts and tenants where users
 approve apps themselves are not affected.
