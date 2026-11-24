@@ -206,6 +206,8 @@ admin:
             base_url: 'Modell-Host'
             contact_help: 'Kontakthilfe'
             contact_help_help: 'Liest einen Kontakt aus eingefügtem Text und schlägt Korrekturen anhand der Signatur der letzten Mail vor. Nutzt das Schreibmodell und schickt ihm diesen Text.'
+            translation: 'Nachrichten übersetzen'
+            translation_help: 'Nutzt das Schreibmodell und schickt ihm die Nachricht. Die Antwort ist so lang wie die Mail, auf einem Host ohne GPU dauert eine lange Nachricht also Minuten.'
             embedding_base_url: 'Such-Host'
             embedding_own: 'Die Suche nutzt einen anderen Modell-Host'
             embedding_own_help: 'Wenn das Such-Modell woanders laufen soll als das Schreib-Modell: ein gehostetes Modell zum Schreiben und ein kleines zu Hause für die Suche, oder umgekehrt. Jede Nachricht geht einmal an den Such-Host, um indiziert zu werden. Heißt das Such-Modell dort gleich, bleibt der vorhandene Index erhalten.'
@@ -222,7 +224,7 @@ admin:
             chat_keep_alive: 'Schreib-Modell geladen lassen für'
             chat_keep_alive_help: '5m, 30m, 4h oder einfach eine Zahl in Sekunden. -1 lässt es dauerhaft geladen, 0 entlädt es nach jeder Anfrage. Je länger, desto schneller kommt die erste Antwort — der Host hält den Speicher aber die ganze Zeit belegt. Leer lassen, um das zu nehmen, was am Host selbst eingestellt ist.'
             chat_model: 'Schreib-Modell'
-            chat_model_help: 'Für Antworten, Zusammenfassungen und das Einsortieren. Nimm ein instruction-tuned Modell.'
+            chat_model_help: 'Für Antworten, Zusammenfassungen, Übersetzungen und das Einsortieren. Nimm ein instruction-tuned Modell.'
             embedding_keep_alive: 'Such-Modell geladen lassen für'
             embedding_keep_alive_help: 'Gleiches Format wie oben. Dieses Modell ist klein und wird ständig gebraucht, deshalb kostet -1 — dauerhaft geladen — meist kaum etwas und spart bei jeder Suche eine Wartezeit; wenn der Host den Speicher übrig hat, lohnt es sich. Leer lassen, um das zu nehmen, was am Host selbst eingestellt ist.'
             embedding_model: 'Such-Modell'
@@ -267,6 +269,7 @@ admin:
                 warm: 'Geladen'
             feature:
                 thread_summary: 'Zusammenfassungen'
+                message_translation: 'Übersetzungen'
                 categorise: 'Mail einsortieren'
                 mail_index: 'Mail indexieren'
                 search_query: 'Suche'
@@ -334,7 +337,7 @@ admin:
                 hint: 'Wird benutzt, wenn jemand dieselbe Nachricht in förmlicherem Ton will.'
                 label: 'Förmlicher machen'
             language:
-                hint: 'Wird an jeden Prompt oben angehängt, außer ans Einsortieren. Das ist der Grund, warum eine deutsche Mail eine deutsche Antwort bekommt — ohne das folgt das Modell dem Englisch, in dem diese Anweisungen geschrieben sind, und beim Korrekturlesen übersetzt es deinen deutschen Entwurf. Du kannst es umformulieren, aber nicht entfernen: Wenn du das Feld leerst, gilt wieder der mitgelieferte Text.'
+                hint: 'Wird an jeden Prompt oben angehängt, außer ans Einsortieren und ans Übersetzen. Das ist der Grund, warum eine deutsche Mail eine deutsche Antwort bekommt — ohne das folgt das Modell dem Englisch, in dem diese Anweisungen geschrieben sind, und beim Korrekturlesen übersetzt es deinen deutschen Entwurf. Du kannst es umformulieren, aber nicht entfernen: Wenn du das Feld leerst, gilt wieder der mitgelieferte Text.'
                 label: 'Immer in der Sprache der Mail antworten'
             proofread:
                 hint: 'Wird benutzt, wenn jemand nur Rechtschreibung und Grammatik korrigiert haben will. Lass "sonst nichts ändern" drin — ohne das schreibt das Modell Sätze um, die schon richtig waren.'
@@ -348,13 +351,16 @@ admin:
             summary:
                 hint: 'Wird vom Zusammenfassen-Knopf im Lesebereich benutzt. Wenn du das änderst, gelten alle schon geschriebenen Zusammenfassungen als veraltet — gelöscht wird nichts, sie werden beim nächsten Mal neu geschrieben.'
                 label: 'Gespräch zusammenfassen'
+            translation:
+                hint: 'Wird von „Übersetzen“ im Menü einer Nachricht benutzt. Die Sprache wird mit der Nachricht geschickt, nicht hier. Wenn du das änderst, gelten alle schon geschriebenen Übersetzungen als veraltet — gelöscht wird nichts, sie werden bei der nächsten Anfrage neu geschrieben.'
+                label: 'Eine Nachricht übersetzen'
         prompts:
             changed: '%count% geändert'
             heading: 'System-Prompts'
             intro: 'Das sind die Anweisungen, die plMail dem Modell gibt. Lass ein Feld leer, dann gilt der mitgelieferte Text — so kann ein späteres Update ihn noch verbessern. Was du einträgst, ersetzt den mitgelieferten Text vollständig.'
             reset: 'Auf den mitgelieferten Text zurücksetzen'
             save: 'Prompts speichern'
-            saved: 'Gespeichert. Neue Zusammenfassungen nutzen das hier; schon geschriebene sind jetzt veraltet.'
+            saved: 'Gespeichert. Neue Zusammenfassungen und Übersetzungen nutzen das hier; schon geschriebene sind jetzt veraltet.'
             show_shipped: 'Mitgelieferten Text anzeigen'
             untouched: 'Wie ausgeliefert'
         save: 'Speichern'
@@ -3187,6 +3193,7 @@ message:
         filter_from_message: 'Filter aus dieser Nachricht erstellen'
         show_original: Original anzeigen
         star: Markieren
+        translate: 'Übersetzen'
         unstar: Markierung entfernen
     attachments: Anhänge
     back: Zurück
@@ -3343,6 +3350,35 @@ message:
         spam:
             body: "Diese Nachricht wurde als Spam eingestuft. Ihre Links und Bilder sind riskant — behandle jede Aufforderung darin wie die eines Fremden."
             title: Diese Nachricht ist im Spam
+    translation:
+        again: 'Noch einmal übersetzen'
+        already_in: 'Diese Nachricht ist schon in der Zielsprache (%language%). Es gibt nichts zu übersetzen.'
+        error:
+            connection_lost: 'Die Verbindung zu plMail ist abgerissen, während die Übersetzung geschrieben wurde. Am Modell-Host liegt es nicht — irgendetwas zwischen diesem Browser und dem Server hat die Verbindung geschlossen.'
+            disabled: 'Übersetzen ist ausgeschaltet.'
+            empty: 'In dieser Nachricht gibt es keinen Text zum Übersetzen.'
+            encrypted: 'Diese Nachricht war verschlüsselt, und ihr Konto gibt den entschlüsselten Text nicht an den Assistenten.'
+            generic: 'Die Nachricht konnte nicht übersetzt werden.'
+            model_missing: 'Der Modell-Host hat das Schreib-Modell nicht. Jemand mit Admin-Rechten muss es erst ziehen.'
+            no_answer: 'Das Modell hat nichts geantwortet.'
+            refused: 'Der Modell-Host hat die Anfrage abgelehnt.'
+            timeout: 'Der Modell-Host hat zu lange gebraucht.'
+            unreachable: 'Der Modell-Host war nicht erreichbar.'
+        generated: 'Von einer KI übersetzt, Sprache: %language% (%model%). Das ist nicht der Originaltext.'
+        generated_from: 'Von einer KI übersetzt (%source% → %language%, %model%). Das ist nicht der Originaltext.'
+        partial: 'Die Nachricht ist lang, deshalb wurde nur ihr Anfang übersetzt.'
+        quote_left_out: 'Die zitierten früheren Nachrichten wurden weggelassen; die kannst du einzeln übersetzen.'
+        stale: 'Die Nachricht hat sich seit der Übersetzung geändert.'
+        state:
+            reading: 'Die Nachricht wird noch gelesen — bisher %elapsed%. Danach erscheint die Übersetzung Wort für Wort.'
+            waiting: 'Die erste Anfrage nach einer Pause wartet, bis das Modell geladen ist.'
+            working: 'Wird übersetzt (%language%) …'
+        switch:
+            label: 'Anzeigen'
+            original: 'Original'
+            original_from: 'Original · %source%'
+            translation: '%language% · KI'
+        tag: 'KI-Übersetzung'
 
 mercure:
     status:
@@ -3670,6 +3706,8 @@ settings:
             search_hint: 'Findet Mails, die meinen, wonach du gefragt hast — nicht nur solche, die es genauso schreiben. Aus bedeutet: Deine Mails werden weder durchsucht noch indiziert.'
             summary: 'Zusammenfassungen'
             summary_hint: 'Fasst ein langes Gespräch zusammen, wenn du darum bittest. Von allein passiert nichts.'
+            translation: 'Nachrichten übersetzen'
+            translation_hint: 'Übersetzt eine Nachricht in deine Sprache, wenn du im Menü der Nachricht darum bittest. Von allein wird nichts übersetzt.'
             writing_help: 'Schreibhilfe'
             writing_help_hint: 'Entwirft Antworten, kürzt, formuliert förmlicher, liest Korrektur — im Schreibfenster, wenn du danach fragst.'
         features:
@@ -3692,10 +3730,14 @@ settings:
             heading: 'Was der Assistent bekommt'
             search: 'Indizierung: Betreff, Absender und der Anfang jeder Mail.'
             summary: 'Die Nachrichten eines Gesprächs, das du zusammenfassen lässt'
+            translation: 'Übersetzen: der Text der Nachricht, die du übersetzen lässt, ohne die früheren Nachrichten, die sie zitiert.'
             writing_help: 'Schreiben: deine Betreffzeile, was du getippt hast, und so viel vom Gespräch, wie die Einstellung oben zulässt.'
         seg:
             off: 'Aus'
             on: 'An'
+        translate_into:
+            follow_language: 'Die Sprache von plMail (%language%)'
+            label: 'Übersetzen in'
     accounts:
         categories:
             off_hint: 'Aus: Eine Kategorie, die in Outlook gesetzt oder entfernt wird, ändert hier keine Labels. Beim Einschalten werden alle Ordner dieses Kontos noch einmal aufgelistet.'
@@ -5242,7 +5284,7 @@ settings:
         keywords:
             accent: "farbe akzent hervorhebung color"
             accounts: "imap smtp pop3 jmap server hinzufügen postfach"
-            ai: "ki künstliche intelligenz zusammenfassung schreibhilfe modell ai"
+            ai: "ki künstliche intelligenz zusammenfassung schreibhilfe modell ai übersetzung übersetzen translation"
             aliases: "alias identität absender von adresse"
             app_passwords: "imap smtp programm thunderbird token api jmap"
             calendars: "caldav ics abonnieren feed"

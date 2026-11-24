@@ -671,7 +671,7 @@ on the host itself applies. plMail cannot read that variable, so an empty box is
 nothing. Useful after a restart, and useful for finding out what a cold load actually costs on your
 hardware before you decide how long to hold it.
 
-### The five features are separate switches
+### The six features are separate switches
 
 They have very different costs, and very different consequences when the model is wrong.
 
@@ -682,6 +682,7 @@ They have very different costs, and very different consequences when the model i
 | **Help me write** | Offers drafts and rewrites in the composer | Only when you ask |
 | **Thread summaries** | Writes a short account of a long conversation | Only when somebody asks for one |
 | **Contact help** | Reads a contact out of pasted text, and suggests updates to a contact from the signature of their latest mail | Only when somebody presses **Improve with AI** |
+| **Translating a message** | Translates one message into the reader's language | Only when somebody presses **Translate** |
 
 Sorting is the one to be careful with: it runs unattended. It can only ever act as a tie-breaker â€”
 if a header, a Gmail label or the fact that you have written to somebody already decided the
@@ -715,7 +716,7 @@ Three things keep sorting from getting in the way of mail arriving:
 
 Writing help never replaces what you wrote. It appends, so the original is always still there.
 
-Summaries are the most expensive of the five. They use the same writing model, but a whole
+Summaries are the largest prompt of the six. They use the same writing model, but a whole
 conversation is a much larger prompt than a draft: on a 30B model and one GPU, expect around a
 minute for the first summary after a quiet spell and around half that once the model is warm. The
 GPU is held for the whole of it, so on a shared machine a summary is felt by everybody. Nothing is
@@ -729,6 +730,15 @@ contact together with the signature block of the newest mail that contact sent â
 nothing from that mail. Nothing it suggests is saved until the person ticks it and saves the
 contact. Without it, pasting still works: plMail reads the text by rules, and only the button that
 asks the model goes away.
+
+Translation sends one message's own text, without the earlier mail it quotes and up to about 6,000
+characters, to the writing model, and the answer is as long as the message. That makes it the
+slowest of the six per call where the model has no GPU: the whole translation is generated on the
+CPU, a few words a second, so a long message takes minutes, and holds a PHP worker while it is being
+written. A translation is kept per message and language, so opening the message again costs nothing.
+The model matters more here than anywhere else, because the reader cannot check the result against a
+language they do not read: a small model writes fluent text with the wrong day of the week in it.
+Try yours on a message whose original you can read before you switch it on for others.
 
 ### Searching by meaning needs one pass first
 

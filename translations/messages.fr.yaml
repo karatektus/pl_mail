@@ -207,9 +207,11 @@ admin:
             chat_keep_alive: 'Garder le modèle de rédaction chargé pendant'
             chat_keep_alive_help: '5m, 30m, 4h, ou un nombre de secondes. -1 le garde chargé en permanence, 0 le décharge après chaque requête. Plus c’est long, plus la première réponse arrive vite ; l’hôte garde la mémoire réservée pendant toute la durée dans les deux cas. Laissez vide pour utiliser le réglage de l’hôte.'
             chat_model: 'Modèle de rédaction'
-            chat_model_help: 'Utilisé pour les réponses, les résumés et le tri. Un modèle entraîné aux instructions.'
+            chat_model_help: 'Utilisé pour les réponses, les résumés, les traductions et le tri. Un modèle entraîné aux instructions.'
             contact_help: 'Aide aux contacts'
             contact_help_help: 'Lit un contact dans un texte collé et propose des corrections d’après la signature de son dernier e-mail. Utilise le modèle de rédaction et lui envoie ce texte.'
+            translation: 'Traduction d’un message'
+            translation_help: 'Utilise le modèle de rédaction et lui envoie le message. La réponse est aussi longue que le mail : sur un hôte sans GPU, un long message prend des minutes.'
             embedding_keep_alive: 'Garder le modèle de recherche chargé pendant'
             embedding_keep_alive_help: 'Même format que ci-dessus. Ce modèle est petit et sollicité en permanence, donc -1 — chargé pour de bon — coûte généralement peu et évite une attente à chaque recherche ; à régler si l’hôte a la mémoire nécessaire. Laissez vide pour utiliser le réglage de l’hôte.'
             embedding_base_url: 'Hôte de recherche'
@@ -264,6 +266,7 @@ admin:
                 warm: 'Chargé'
             feature:
                 thread_summary: 'Résumés'
+                message_translation: 'Traductions'
                 categorise: 'Tri du courrier'
                 mail_index: 'Indexation du courrier'
                 search_query: 'Recherche'
@@ -331,7 +334,7 @@ admin:
                 hint: 'Utilisé quand on demande le même message sur un ton plus formel.'
                 label: 'Rendre plus formel'
             language:
-                hint: 'Ajouté à la fin de chaque instruction ci-dessus, sauf le tri. C’est ce qui fait qu’un mail en allemand reçoit une réponse en allemand — sans cela, le modèle suit l’anglais dans lequel ces instructions sont écrites, et la relecture d’un brouillon allemand le traduit. Vous pouvez le reformuler ; pas le supprimer. Videz le champ et le texte d’origine revient.'
+                hint: 'Ajouté à la fin de chaque instruction ci-dessus, sauf le tri et la traduction. C’est ce qui fait qu’un mail en allemand reçoit une réponse en allemand — sans cela, le modèle suit l’anglais dans lequel ces instructions sont écrites, et la relecture d’un brouillon allemand le traduit. Vous pouvez le reformuler ; pas le supprimer. Videz le champ et le texte d’origine revient.'
                 label: 'Toujours répondre dans la langue du mail'
             proofread:
                 hint: 'Utilisé quand on demande de corriger l’orthographe et la grammaire et rien d’autre. Gardez « ne change rien d’autre » — sans cela, le modèle réécrit des phrases qui étaient déjà correctes.'
@@ -345,13 +348,16 @@ admin:
             summary:
                 hint: 'Utilisé par le bouton de résumé du volet de lecture. Le modifier marque tous les résumés déjà écrits comme périmés — rien n’est supprimé, ils sont réécrits à la prochaine demande.'
                 label: 'Résumer une conversation'
+            translation:
+                hint: 'Utilisé par « Traduire » dans le menu d’un message. La langue est envoyée avec le message, pas ici. Le modifier marque toutes les traductions déjà écrites comme périmées — rien n’est supprimé, elles sont réécrites à la prochaine demande.'
+                label: 'Traduire un message'
         prompts:
             changed: '%count% modifiés'
             heading: 'Instructions système'
             intro: 'Ce sont les instructions que plMail donne au modèle. Laissez un champ vide pour utiliser le texte fourni par plMail — ainsi une mise à jour pourra encore l’améliorer. Ce que vous saisissez remplace entièrement le texte fourni.'
             reset: 'Revenir au texte d’origine'
             save: 'Enregistrer les instructions'
-            saved: 'Enregistré. Les nouveaux résumés les utilisent ; les résumés déjà écrits sont maintenant périmés.'
+            saved: 'Enregistré. Les nouveaux résumés et les nouvelles traductions les utilisent ; ceux déjà écrits sont maintenant périmés.'
             show_shipped: 'Afficher le texte d’origine'
             untouched: 'D’origine'
         save: 'Enregistrer'
@@ -3200,6 +3206,7 @@ message:
         filter_from_message: 'Créer un filtre à partir de ce message'
         show_original: Afficher l’original
         star: Suivre
+        translate: 'Traduire'
         unstar: Ne plus suivre
     attachments: Pièces jointes
     back: Retour
@@ -3374,6 +3381,35 @@ message:
         spam:
             body: "Ce message a été classé comme spam. Ses liens et images sont risqués — traitez tout ce qu’il vous demande comme la requête d’un inconnu."
             title: Ce message est dans Spam
+    translation:
+        again: 'Traduire à nouveau'
+        already_in: 'Ce message est déjà dans la langue cible (%language%). Il n’y a rien à traduire.'
+        error:
+            connection_lost: 'La connexion à plMail a été perdue pendant l’écriture de la traduction. L’hôte du modèle n’y est pour rien ; quelque chose entre ce navigateur et le serveur a fermé la connexion.'
+            disabled: 'La traduction est désactivée.'
+            empty: 'Ce message ne contient aucun texte à traduire.'
+            encrypted: 'Ce message était chiffré, et son compte ne confie pas le texte déchiffré à l’assistant.'
+            generic: 'Le message n’a pas pu être traduit.'
+            model_missing: 'L’hôte du modèle n’a pas le modèle de rédaction. Un administrateur doit d’abord le télécharger.'
+            no_answer: 'Le modèle n’a donné aucune réponse.'
+            refused: 'L’hôte du modèle a refusé la requête.'
+            timeout: 'L’hôte du modèle a mis trop de temps à répondre.'
+            unreachable: 'L’hôte du modèle est injoignable.'
+        generated: 'Traduit en %language% par une IA (%model%). Ce n’est pas le texte original.'
+        generated_from: 'Traduit par une IA (%source% → %language%, %model%). Ce n’est pas le texte original.'
+        partial: 'Ce message est long : seul son début a été traduit.'
+        quote_left_out: 'Les messages précédents cités ont été laissés de côté ; vous pouvez les traduire séparément.'
+        stale: 'Le message a changé depuis cette traduction.'
+        state:
+            reading: 'Lecture du message en cours — %elapsed% jusqu’ici. Ensuite, la traduction apparaît mot à mot.'
+            waiting: 'La première requête après une pause attend le chargement du modèle.'
+            working: 'Traduction en %language%…'
+        switch:
+            label: 'Afficher'
+            original: 'Original'
+            original_from: 'Original · %source%'
+            translation: '%language% · IA'
+        tag: 'Traduction IA'
 
 mercure:
     status:
@@ -3706,6 +3742,8 @@ settings:
             search_hint: 'Trouve le courrier qui veut dire ce que vous cherchez, pas seulement celui qui l’écrit de la même façon. Désactivé, votre courrier cesse d’être indexé autant que d’être recherché.'
             summary: 'Résumés de conversation'
             summary_hint: 'Résume une longue conversation quand vous le demandez. Rien n’est résumé de lui-même.'
+            translation: 'Traduire un message'
+            translation_hint: 'Traduit un message dans votre langue quand vous le demandez, depuis le menu du message. Rien n’est traduit de lui-même.'
             writing_help: 'Aide-moi à écrire'
             writing_help_hint: 'Rédige une réponse, raccourcit, rend formel, relit — dans la fenêtre de rédaction, quand vous le demandez.'
         features:
@@ -3728,10 +3766,14 @@ settings:
             heading: 'Ce que reçoit l’assistant'
             search: 'Indexation : l’objet, l’expéditeur et le début de chaque message.'
             summary: 'Les messages d’une conversation dont vous demandez le résumé'
+            translation: 'Traduction : le texte du message que vous demandez de traduire, sans les messages précédents qu’il cite.'
             writing_help: 'Rédaction : votre objet, ce que vous avez tapé, et autant de conversation que le réglage ci-dessus le permet.'
         seg:
             off: 'Désactivé'
             on: 'Activé'
+        translate_into:
+            follow_language: 'La langue de plMail (%language%)'
+            label: 'Traduire en'
     accounts:
         categories:
             off_hint: 'Désactivé : une catégorie posée ou retirée dans Outlook ne change pas les libellés ici. L’activer relit une fois chaque dossier de ce compte.'
@@ -5278,7 +5320,7 @@ settings:
         keywords:
             accent: "couleur accent surbrillance"
             accounts: "imap smtp pop3 jmap serveur ajouter boîte"
-            ai: "ia intelligence artificielle résumé aide rédaction modèle ai"
+            ai: "ia intelligence artificielle résumé aide rédaction modèle ai traduction traduire translation"
             aliases: "alias identité expéditeur adresse"
             app_passwords: "imap smtp client thunderbird jeton api jmap"
             calendars: "caldav ics abonner flux"

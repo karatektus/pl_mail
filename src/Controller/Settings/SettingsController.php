@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Domain\Enum\Ai\TranslationLanguage;
 use App\Domain\Enum\AppLocale;
 use App\Domain\Enum\User\ClockFormat;
 use App\Domain\Enum\User\ClockPlacement;
@@ -82,6 +83,7 @@ final class SettingsController extends AbstractController
         'writing_help' => 'fa-solid fa-wand-magic-sparkles',
         'summary'      => 'fa-solid fa-align-left',
         'contact_help' => 'fa-solid fa-address-card',
+        'translation'  => 'fa-solid fa-language',
     ];
 
     public function __construct(
@@ -553,6 +555,7 @@ final class SettingsController extends AbstractController
         // through findOneBy(), which issues SQL every call, so three
         // isEnabledFor() calls would be three queries for one card.
         $settings = $this->ai->settings();
+        $locale   = $this->container->get('request_stack')->getCurrentRequest()?->getLocale() ?? $this->defaultLocale;
 
         return [
             'aiFeatures' => array_map(
@@ -567,6 +570,14 @@ final class SettingsController extends AbstractController
             'aiReplyContext' => $preferences->replyContext,
             'aiAboutMe'      => $preferences->aboutMe,
             'aiSystemPrompt' => $preferences->systemPrompt,
+            // The reader's choice, null while it follows the interface language,
+            // and the languages in the order of their names on this page. The
+            // request's locale, which is the one the translate endpoint and the
+            // message page resolve the default from: the select must not name
+            // a language the translation does not go into.
+            'aiTranslateInto'        => $preferences->translateInto,
+            'aiTranslateIntoDefault' => TranslationLanguage::forInterface($locale),
+            'aiTranslationLanguages' => TranslationLanguage::sortedFor($locale),
         ];
     }
 

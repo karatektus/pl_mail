@@ -6193,6 +6193,106 @@ html[data-list-star="always"] [data-row-star] {
 }
 
 /*
+   ── A translated message (#713) ─────────────────────────────────────────────
+
+   The switch under the sender and the sheet the translation sits on. Chosen
+   from mockups over a tinted bar with a rounded, fat-edged box, which did not
+   look like a model's output: the reader has to see at once that the words in
+   front of them are not the sender's.
+
+   The assistant's colours, violet into blue, because that is what people
+   already read as "a model made this". Nothing else in plMail uses them, so
+   they mean only that. The sheet's tint is mixed into the surface rather than
+   painted over it, so it is the same faint wash on a light and a dark theme.
+
+   Square corners and a dashed edge: a sheet laid over the mail, not a card
+   that belongs to it. "AI translation" is a watermark in the lower right
+   corner, behind the text, rather than a label repeating the switch right
+   above it; its words come from data-tag, so nothing inside the translation
+   can be mistaken for it. The element is a mail-sheet too, for the sheet's ink
+   on every theme; this rule's background replaces the one mail-sheet paints,
+   because unlayered CSS outranks the utilities layer.
+*/
+.translation-switch {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 9px;
+    background: rgb(var(--rgb-ink) / 0.06);
+}
+
+.translation-switch button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px;
+    border-radius: 7px;
+    font-size: 12px;
+    color: rgb(var(--rgb-ink-muted));
+    cursor: pointer;
+}
+
+.translation-switch button:hover {
+    color: rgb(var(--rgb-ink));
+}
+
+.translation-switch button[aria-pressed="true"] {
+    background: rgb(var(--rgb-surface));
+    color: rgb(var(--rgb-ink));
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.translation-switch button.is-ai[aria-pressed="true"] {
+    background: linear-gradient(90deg, rgb(139 92 246), rgb(59 130 246));
+    color: #fff;
+    box-shadow: none;
+}
+
+.translation-sheet {
+    position: relative;
+    padding: 16px 20px 18px;
+    border: 1px dashed rgb(139 92 246 / 0.5);
+    background: linear-gradient(
+        180deg,
+        color-mix(in oklab, rgb(var(--rgb-surface)), rgb(139 92 246) 7%),
+        color-mix(in oklab, rgb(var(--rgb-surface)), rgb(59 130 246) 4%)
+    );
+}
+
+.translation-sheet::before {
+    content: "\2726\00a0" attr(data-tag);
+    position: absolute;
+    right: 16px;
+    bottom: 9px;
+    z-index: 0;
+    pointer-events: none;
+    user-select: none;
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    white-space: nowrap;
+    background: linear-gradient(90deg, rgb(139 92 246), rgb(59 130 246));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    opacity: 0.16;
+}
+
+.translation-sheet > * {
+    position: relative;
+    z-index: 1;
+}
+
+.translation-sheet .translation-note {
+    margin-top: 10px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: rgb(var(--rgb-ink-muted));
+}
+
+/*
    ── A message header outranks its followers while its menu is open ─────────
 
    The per-message overflow menu is z-30 and that never helped, because it is
