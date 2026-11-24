@@ -19,7 +19,8 @@ use App\Service\Mail\UserAccounts;
  * label beside it. So each picker is asked per account:
  *
  *  - plain IMAP: a place where the label has a folder there, a tag where it
- *    has none (a keyword, or plMail's alone);
+ *    has none (a keyword, or plMail's alone). With "Folders in Labels" a
+ *    folder is a tag too, put on as a copy into it (#693);
  *  - Microsoft: a place where it has an Outlook folder, a category otherwise;
  *  - Gmail: every label is a tag. "Move to" offers the system places only,
  *    unless the account says otherwise (Account::$gmailMoveOffersLabels),
@@ -136,8 +137,15 @@ final readonly class LabelKinds
      */
     public function tags(array $labels, User $user, ?Account $account = null): array
     {
+        // Folders listed under LABELS are labels to the user, and "Label as"
+        // offers them too (#693): on a plain IMAP account, labelling mail
+        // with one copies it into that folder and leaves it where it was
+        // (LabelChangePropagator::dispatchCopies()).
+        $copies = true === $user->foldersInLabels;
+
         if (null !== $account) {
-            return $this->keep($labels, $user, $account, $this->isTagOn(...));
+            return $this->keep($labels, $user, $account, fn (Label $label, Account $candidate): bool => true === $this->isTagOn($label, $candidate)
+                || (true === $copies && true === $this->isCopyTargetOn($label, $candidate)));
         }
 
         // With no account, the same rule as LABELS (inLabels()): a folder of
@@ -145,8 +153,18 @@ final readonly class LabelKinds
         // bulk "Label as" listed every folder of every other account (#221).
         // The picker of one message still offers it on its account, which is
         // where it starts being a tag there.
-        return $this->keep($labels, $user, null, fn (Label $label, Account $candidate): bool => true === $this->isTagOn($label, $candidate)
-            && (false === $this->sidebar->isFolderAnywhere($label) || true === $this->sidebar->isTagInUseOn($label, $candidate)));
+        return $this->keep($labels, $user, null, fn (Label $label, Account $candidate): bool => (true === $this->isTagOn($label, $candidate)
+            && (false === $this->sidebar->isFolderAnywhere($label) || true === $this->sidebar->isTagInUseOn($label, $candidate)))
+            || (true === $copies && true === $this->isCopyTargetOn($label, $candidate)));
+    }
+
+    /**
+     * Whether putting this label on mail of the account copies the mail into
+     * a folder: a plain IMAP account where the label is a folder (#693).
+     */
+    public function isCopyTargetOn(Label $label, Account $account): bool
+    {
+        return true === $account->isPlainImap() && true === $this->sidebar->isFolderOn($label, $account);
     }
 
     /**

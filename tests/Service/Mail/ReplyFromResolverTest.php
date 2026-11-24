@@ -119,6 +119,66 @@ final class ReplyFromResolverTest extends TestCase
         self::assertSame('yo@shop.test', $this->resolver->addressFor($original, $account));
     }
 
+    /**
+     * #631, Purelymail: catch-all mail for test@ is delivered to the mailbox
+     * user@, Delivered-To is rewritten to user@, and the original recipient
+     * is kept in X-Pm-Original-To.
+     */
+    public function testAProviderThatRewritesDeliveredToIsAnsweredFromTheOriginalRecipient(): void
+    {
+        $account           = $this->mailboxAtTheCatchAllDomain();
+        $original          = $this->original(to: ['test@shop.test'], account: $account);
+        $original->headers = [
+            'Delivered-To'      => 'user@shop.test',
+            'X-Pm-Original-To'  => 'test@shop.test',
+            'X-Pm-Known-Alias'  => 'test@shop.test',
+        ];
+
+        self::assertSame('test@shop.test', $this->resolver->addressFor($original, $account));
+    }
+
+    /**
+     * #631, Soverin: the original recipient is only in To and in a Received
+     * hop; Delivered-To and the newest hop name the mailbox.
+     */
+    public function testTheOriginalRecipientIsReadOffAReceivedHop(): void
+    {
+        $account           = $this->mailboxAtTheCatchAllDomain();
+        $original          = $this->original(to: ['test@shop.test'], account: $account);
+        $original->headers = [
+            'Delivered-To' => 'user@shop.test',
+            'Received'     => [
+                "from mx.provider.test by store.provider.test with LMTP\n\tfor <user@shop.test>; Tue, 24 Nov 2026 10:00:02 +0100",
+                "from mail.elsewhere.test by mx.provider.test with ESMTPS\n\tfor <test@shop.test>; Tue, 24 Nov 2026 10:00:01 +0100",
+            ],
+        ];
+
+        self::assertSame('test@shop.test', $this->resolver->addressFor($original, $account));
+    }
+
+    /**
+     * A delivery header that only names the mailbox says nothing about the
+     * catch-all, so To answers, as with no delivery header at all.
+     */
+    public function testADeliveredToNamingOnlyTheMailboxLeavesToToAnswer(): void
+    {
+        $account           = $this->mailboxAtTheCatchAllDomain();
+        $original          = $this->original(to: ['test@shop.test'], account: $account);
+        $original->headers = ['Delivered-To' => 'user@shop.test'];
+
+        self::assertSame('test@shop.test', $this->resolver->addressFor($original, $account));
+    }
+
+    /** Mail really sent to the mailbox's own address is still answered from it. */
+    public function testMailToTheMailboxItselfIsAnsweredFromIt(): void
+    {
+        $account           = $this->mailboxAtTheCatchAllDomain();
+        $original          = $this->original(to: ['user@shop.test'], account: $account);
+        $original->headers = ['Delivered-To' => 'user@shop.test'];
+
+        self::assertSame('user@shop.test', $this->resolver->addressFor($original, $account));
+    }
+
     /** Mail FROM the catch-all domain is a colleague's, not the user's own: never answered as them. */
     public function testMailFromSomebodyElseAtTheCatchAllDomainIsNotAnsweredAsThem(): void
     {
@@ -150,6 +210,18 @@ final class ReplyFromResolverTest extends TestCase
         $original->fromAddress = 'sales@example.test';
 
         self::assertSame('sales@example.test', $this->resolver->addressFor($original, $original->account));
+    }
+
+    /** A mailbox whose own address is at its catch-all domain, as with Purelymail and Soverin. */
+    private function mailboxAtTheCatchAllDomain(): Account
+    {
+        $account                  = new Account();
+        $account->email           = 'user@shop.test';
+        $account->catchAllDomains = ['shop.test'];
+
+        $account->addAlias(new EmailAlias($account, 'user@shop.test', EmailAliasSource::Manual, EmailAliasStatus::Primary));
+
+        return $account;
     }
 
     private function catchAllAccount(): Account

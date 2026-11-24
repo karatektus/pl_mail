@@ -262,8 +262,36 @@ final class LabelResolver
             }
         }
 
+        $label = $this->path($segments, $user);
+
+        $this->pathIdCache[$userId][$fullName] = (int) $label->id;
+
+        $this->binding($label, $account);
+
+        return $label;
+    }
+
+    /**
+     * Drop the user's path → label cache, after a label was renamed or moved
+     * outside this class (RemoteLabelLinker): an entry under the old full name
+     * would hand out the renamed label for it.
+     */
+    public function forgetPaths(User $user): void
+    {
+        unset($this->pathIdCache[(int) $user->id]);
+    }
+
+    /**
+     * Find-or-create the labels along a path and return the last, binding
+     * none of them: the parent a label renamed on a server moves under
+     * (RemoteLabelLinker, #691), which is structure and not a label on that
+     * account. customChain() is this plus the leaf's binding.
+     *
+     * @param non-empty-list<string> $segments
+     */
+    public function path(array $segments, User $user): Label
+    {
         $parent = null;
-        $label  = null;
 
         foreach ($segments as $segment) {
             $label = $this->labelRepository->findOneChildByName($user, $parent, $segment);
@@ -281,11 +309,8 @@ final class LabelResolver
             $parent = $label;
         }
 
-        $this->pathIdCache[$userId][$fullName] = (int) $label->id;
-
-        $this->binding($label, $account);
-
-        return $label;
+        /** @var Label $parent the last segment's label; there is at least one */
+        return $parent;
     }
 
     /**

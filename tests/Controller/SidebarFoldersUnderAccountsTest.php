@@ -93,6 +93,26 @@ final class SidebarFoldersUnderAccountsTest extends WebTestCase
     }
 
     /**
+     * #607: the LABELS list a label change redraws is the one a page load
+     * draws. Until #697 the redraw left out the in_labels() filter, so every
+     * folder showed under LABELS after a label was edited, and an F5 took
+     * them away again. Both ways round, with "Folders in Labels" off and on.
+     */
+    public function testALabelChangeRedrawsLabelsAsAPageLoadDoes(): void
+    {
+        $this->folder('Projects');
+        $this->tag('Later');
+
+        $this->client->request('GET', '/labels/lists');
+        self::assertSame(['Later'], $this->names(new Crawler($this->streamed('label-list')), '#label-list'));
+
+        $this->switchView('folders_in_labels', true);
+
+        $this->client->request('GET', '/labels/lists');
+        self::assertSame(['Later', 'Projects'], $this->names(new Crawler($this->streamed('label-list')), '#label-list'));
+    }
+
+    /**
      * By account (#690): every label on the account is under it, tags with
      * folders, and LABELS keeps only the label on no account. Switched in its
      * own card in Settings → Labels, like the other On/Off switches there.
@@ -344,6 +364,18 @@ final class SidebarFoldersUnderAccountsTest extends WebTestCase
      *
      * @return list<string> the custom labels named in that part of the sidebar
      */
+    /** The HTML a Turbo Stream reply puts in for one target. */
+    private function streamed(string $target): string
+    {
+        self::assertResponseIsSuccessful();
+
+        $body = (string) $this->client->getResponse()->getContent();
+
+        self::assertSame(1, preg_match('#<turbo-stream action="replace" target="' . preg_quote($target, '#') . '">\s*<template>(.*?)</template>#s', $body, $match), 'a stream for #' . $target);
+
+        return $match[1];
+    }
+
     private function names(Crawler $crawler, string $where, array $known = ['Projects', 'Later']): array
     {
         $names = $crawler->filter($where . ' .nav-item')->each(static fn (Crawler $row): string => trim($row->text()));

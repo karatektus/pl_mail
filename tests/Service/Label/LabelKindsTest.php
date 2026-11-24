@@ -171,6 +171,33 @@ final class LabelKindsTest extends TestCase
     }
 
     /**
+     * #693: with folders listed under LABELS, "Label as" offers them too on a
+     * plain IMAP account, where putting one on copies the mail into it. Not
+     * without the setting, and not on Outlook, where a folder label is a move.
+     */
+    public function testFoldersInLabelsOffersAnImapFolderInLabelAs(): void
+    {
+        $user   = new User();
+        $imap   = $this->account(user: $user);
+        $folder = $this->label('Work', $imap, mailbox: true);
+        $tag    = $this->label('Later');
+
+        self::assertSame([$tag], $this->kinds->tags([$folder, $tag], $user, $imap), 'off: a folder is a place');
+        self::assertSame([$tag], $this->kinds->tags([$folder, $tag], $user), 'off, for a selection');
+
+        $user->foldersInLabels = true;
+
+        self::assertSame([$folder, $tag], $this->kinds->tags([$folder, $tag], $user, $imap));
+        self::assertSame([$folder, $tag], $this->kinds->tags([$folder, $tag], $user));
+        self::assertTrue($this->kinds->isPlaceOn($folder, $imap), 'still in Move to');
+
+        $outlook       = $this->account(MailProvider::Microsoft, $user);
+        $outlookFolder = $this->label('Projects', $outlook, graphFolder: true);
+
+        self::assertSame([], $this->kinds->tags([$outlookFolder], $user, $outlook));
+    }
+
+    /**
      * Listed by account (#690), a label that is on an account is under that
      * account, so LABELS keeps only what is on none — and the parent of one
      * such, so it is not cut loose — or a label made in plMail and not used
