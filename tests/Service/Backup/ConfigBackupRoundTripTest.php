@@ -269,6 +269,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('account setting sync.backfill_target', null, $account->getSetting(Account::SETTING_BACKFILL_TARGET));
         $this->check('account setting compose.signature', '<p>Viele Grüße, Anna</p>', $account->getSetting(Account::SETTING_SIGNATURE));
         $this->check('account setting compose.read_receipt.default', 'ask', $account->getSetting(Account::SETTING_READ_RECEIPT_DEFAULT));
+        $this->check('account setting compose.bcc', ['backup@audit.test'], $account->getSetting(Account::SETTING_DEFAULT_BCC));
         $this->check('account setting mail.catch_all_domains', ['shop.test'], $account->catchAllDomains);
         $this->check(
             'account setting compose.signature.alias.N',
@@ -279,6 +280,11 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
             'account setting compose.read_receipt.alias.N',
             'always',
             $account->getSetting(Account::readReceiptAliasSetting((int) $restoredAlias->id)),
+        );
+        $this->check(
+            'account setting compose.bcc.alias.N (empty is "nobody", and must survive as such)',
+            [],
+            $account->getSetting(Account::defaultBccAliasSetting((int) $restoredAlias->id)),
         );
 
         // ── The app password ──────────────────────────────────────────────
@@ -521,6 +527,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $account->setSetting(Account::SETTING_BACKFILL_TARGET, 0);
         $account->setSetting(Account::SETTING_SIGNATURE, '<p>Viele Grüße, Anna</p>');
         $account->setSetting(Account::SETTING_READ_RECEIPT_DEFAULT, 'ask');
+        $account->setSetting(Account::SETTING_DEFAULT_BCC, ['backup@audit.test']);
         $account->catchAllDomains = ['shop.test'];
 
         $this->entityManager->persist($account);
@@ -622,6 +629,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         // The per-alias keys can only be written once the alias has an id.
         $account->setSetting(Account::signatureAliasSetting($aliasId), '<p>Anna, privat</p>');
         $account->setSetting(Account::readReceiptAliasSetting($aliasId), 'always');
+        $account->setSetting(Account::defaultBccAliasSetting($aliasId), []);
 
         $this->entityManager->flush();
         $this->entityManager->clear();

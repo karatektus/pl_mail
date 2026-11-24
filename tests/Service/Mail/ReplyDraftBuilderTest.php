@@ -498,6 +498,34 @@ final class ReplyDraftBuilderTest extends TestCase
         self::assertNotSame('anna@shop.test', $draft->fromAddress);
     }
 
+    // ── default Bcc (#692) ───────────────────────────────────────────────────
+
+    public function testAReplyAReplyAllAndAForwardAllCarryTheDefaultBcc(): void
+    {
+        $original          = $this->original();
+        $original->account = $this->account();
+        $original->account->setSetting(Account::SETTING_DEFAULT_BCC, ['backup@example.test']);
+
+        $expected = [['name' => null, 'address' => 'backup@example.test']];
+
+        self::assertSame($expected, $this->builder->reply($original, $original->account)->bccAddresses);
+        self::assertSame($expected, $this->builder->reply($original, $original->account, replyAll: true)->bccAddresses);
+        self::assertSame($expected, $this->builder->forward($original)->bccAddresses);
+    }
+
+    /** Replying to all when the backup was in Cc keeps it in Cc, once. */
+    public function testAReplyAllThatAlreadyCopiesTheBackupDoesNotBccItAgain(): void
+    {
+        $original          = $this->original();
+        $original->account = $this->account();
+        $original->account->setSetting(Account::SETTING_DEFAULT_BCC, ['cc@example.test']);
+
+        $draft = $this->builder->reply($original, $original->account, replyAll: true);
+
+        self::assertContains(['name' => '', 'address' => 'cc@example.test'], $draft->ccAddresses);
+        self::assertNull($draft->bccAddresses);
+    }
+
     private function signedAccount(string $signature): Account
     {
         $account = $this->account();

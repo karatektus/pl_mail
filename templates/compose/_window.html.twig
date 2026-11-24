@@ -125,6 +125,10 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             a keystroke-level interaction and a network round trip inside it is
             a spinner where a signature should be. See signature_map(). #}
          data-compose--compose-signatures-value="{{ signature_map()|json_encode|e('html_attr') }}"
+         {# The default Bcc of every From option (#692), the same way and for
+            the same reason: changing From swaps the copies the old address
+            asked for for the ones the new one asks for. See default_bcc_map(). #}
+         data-compose--compose-default-bcc-value="{{ default_bcc_map()|json_encode|e('html_attr') }}"
          data-compose--compose-inline-value="{{ inline ? 'true' : 'false' }}"
          {# Encryption: see compose--encryption. Encrypted from the start when
             the draft is already sealed, or when it answers encrypted mail —
