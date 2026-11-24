@@ -73,7 +73,7 @@ class TaskList
     #[ORM\Column(length: 120)]
     public string $name = '';
 
-    /** #rrggbb, one of Calendar::COLORS. */
+    /** #rrggbb: one of Calendar::COLORS, or the remote's own, which the drivers have already checked is a colour. */
     #[ORM\Column(length: 7, options: ['default' => self::DEFAULT_COLOR])]
     public string $color = self::DEFAULT_COLOR;
 

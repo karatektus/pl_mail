@@ -931,7 +931,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     /**
      * The list a new task lands on when nothing else was picked (My Day, All, quick
      * add from either). An id, read through TaskListProvisioner::landingFor(), which
-     * falls back to the first list when this one is gone, foreign or read-only.
+     * falls back to the default list when this one is gone, foreign or read-only.
      */
     public const string SETTING_TASKS_ADD_TO = 'tasks.add_to';
 

@@ -31,7 +31,7 @@ final readonly class TaskListProvisioner
     /**
      * Where a new task goes when nothing else was picked: the list the user chose
      * for it (User::SETTING_TASKS_ADD_TO) while it is theirs and writable, and the
-     * first list otherwise, which is always both.
+     * default list otherwise, which is always both.
      */
     public function landingFor(User $user): TaskList
     {

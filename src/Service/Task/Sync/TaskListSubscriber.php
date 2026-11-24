@@ -107,9 +107,7 @@ final readonly class TaskListSubscriber
         $list->name        = mb_substr($remote->name, 0, 120);
         $list->isReadOnly  = $remote->isReadOnly;
         $list->sortOrder   = $this->lists->nextSortOrder($user);
-        $list->color       = true === in_array($remote->color, Calendar::COLORS, true)
-            ? (string) $remote->color
-            : ($remote->color ?? TaskList::DEFAULT_COLOR);
+        $list->color       = $remote->color ?? TaskList::DEFAULT_COLOR;
 
         $this->em->persist($list);
 
