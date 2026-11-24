@@ -76,7 +76,11 @@ final class TaskRecurrence
             return false;
         }
 
-        $this->moveTo($task, $anchor, $next, $isDate);
+        // Where the start and the reminder are moved: on the clock they were set
+        // by, which for a date is the owner's, since a date is walked in UTC.
+        $local = $isDate ? (null === $task->timeZone ? $zone : $this->zone($task->timeZone, $zone)) : $walk;
+
+        $this->moveTo($task, $anchor, $next, $isDate, $local);
         $task->recurrenceRule = $this->spendCount($task->recurrenceRule, $steps);
 
         return true;
@@ -98,8 +102,12 @@ final class TaskRecurrence
         return ($instant ?? $now)->setTimezone($walk);
     }
 
-    /** The start and the reminder keep their distance from the due date. */
-    private function moveTo(Task $task, DateTimeImmutable $anchor, DateTimeImmutable $next, bool $isDate): void
+    /**
+     * The start and the reminder keep their distance from the due date, on the
+     * clock: a reminder at 08:30 for a 09:00 task is at 08:30 again after the
+     * clocks change, not at 09:30, after what it reminds of.
+     */
+    private function moveTo(Task $task, DateTimeImmutable $anchor, DateTimeImmutable $next, bool $isDate, DateTimeZone $local): void
     {
         $utc   = new DateTimeZone('UTC');
         $delta = $anchor->diff($next);
@@ -109,24 +117,25 @@ final class TaskRecurrence
             $task->dueDate = true === $hasDue ? new DateTimeImmutable($next->format('Y-m-d'), $utc) : null;
 
             if (null !== $task->startDate) {
-                $task->startDate = $this->shifted($task->startDate, $delta);
+                $task->startDate = $task->startDate->add($delta);
             }
         } else {
             $task->dueAt = $next->setTimezone($utc);
 
             if (null !== $task->startAt) {
-                $task->startAt = $this->shifted($task->startAt, $delta);
+                $task->startAt = $this->shifted($task->startAt, $delta, $local);
             }
         }
 
         if (null !== $task->reminderAt) {
-            $task->reminderAt = $this->shifted($task->reminderAt, $delta);
+            $task->reminderAt = $this->shifted($task->reminderAt, $delta, $local);
         }
     }
 
-    private function shifted(DateTimeImmutable $date, DateInterval $delta): DateTimeImmutable
+    /** An instant moved by a span of the calendar, read on the given clock and stored in UTC. */
+    private function shifted(DateTimeImmutable $instant, DateInterval $delta, DateTimeZone $local): DateTimeImmutable
     {
-        return $date->add($delta);
+        return $instant->setTimezone($local)->add($delta)->setTimezone(new DateTimeZone('UTC'));
     }
 
     /** RRULE's COUNT, less the occurrences just stepped over. The rest of it stays as written. */

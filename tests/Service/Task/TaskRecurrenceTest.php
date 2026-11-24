@@ -58,6 +58,35 @@ final class TaskRecurrenceTest extends TestCase
         self::assertSame('2026-03-29 07:00', $task->dueAt->format('Y-m-d H:i'), 'still 09:00 in Berlin, now 07:00 UTC');
     }
 
+    public function testTheReminderKeepsItsHourAcrossAClockChange(): void
+    {
+        // 09:00 in Berlin with a reminder at 08:30, the day before summer time.
+        $task                 = new Task();
+        $task->dueAt          = new DateTimeImmutable('2026-03-28 08:00:00', new DateTimeZone('UTC'));
+        $task->startAt        = new DateTimeImmutable('2026-03-28 07:00:00', new DateTimeZone('UTC'));
+        $task->reminderAt     = new DateTimeImmutable('2026-03-28 07:30:00', new DateTimeZone('UTC'));
+        $task->timeZone       = 'Europe/Berlin';
+        $task->recurrenceRule = 'FREQ=DAILY';
+
+        $this->recurrence->advance($task, $this->at('2026-03-28 09:00'), $this->berlin);
+
+        self::assertSame('2026-03-29 07:00', $task->dueAt->format('Y-m-d H:i'));
+        self::assertSame('2026-03-29 06:30', $task->reminderAt->format('Y-m-d H:i'), 'still 08:30 in Berlin, before the due time');
+        self::assertSame('2026-03-29 06:00', $task->startAt->format('Y-m-d H:i'), 'still 08:00 in Berlin');
+    }
+
+    public function testADatesReminderKeepsItsHourAcrossAClockChange(): void
+    {
+        // Due on the day, reminded at 08:00 Berlin time, the day before summer time.
+        $task             = $this->dated('2026-03-28', 'FREQ=DAILY');
+        $task->reminderAt = new DateTimeImmutable('2026-03-28 07:00:00', new DateTimeZone('UTC'));
+
+        $this->recurrence->advance($task, $this->at('2026-03-28 09:00'), $this->berlin);
+
+        self::assertSame('2026-03-29', $task->dueDate?->format('Y-m-d'));
+        self::assertSame('2026-03-29 06:00', $task->reminderAt->format('Y-m-d H:i'), 'still 08:00 in Berlin');
+    }
+
     public function testCountIsSpentSoARuleOfThreeEnds(): void
     {
         $task = $this->dated('2026-06-01', 'FREQ=WEEKLY;COUNT=3');
