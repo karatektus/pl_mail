@@ -219,10 +219,12 @@ which the app itself refuses unless an administrator allowed the host under Admi
 
 CI runs the same suites the same way — it boots this very stack from `compose.test.yaml` and then
 runs the same commands against it, so "works locally, fails in CI" no longer has a serving path to
-hide in. See [.github/workflows/e2e.yml](.github/workflows/e2e.yml). It runs **only on a release
-tag, on a pull request, or when you start it by hand:** it is the expensive workflow in this
-repository, and running it on every commit to `main` spent most of the account's capacity proving
-the same thing over and over.
+hide in. See [.github/workflows/e2e.yml](.github/workflows/e2e.yml). It runs **only on a push to a
+milestone branch, on a pull request into `main`, on a release tag, or when you start it by hand.**
+A pull request into a milestone branch is not run on its own: those are merged one after another,
+and the push that lands them runs the suite on the branch where they meet. It is the expensive
+workflow in this repository, and running it on every commit spent most of the account's capacity
+proving the same thing over and over.
 
 **It is six jobs, not one, and each has a stack of its own.** One builds the image so that the rest
 start from a warm layer cache; one runs PHPStan and PHPUnit; four run the browser suite in quarters
