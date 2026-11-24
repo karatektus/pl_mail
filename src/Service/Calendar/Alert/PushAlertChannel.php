@@ -89,6 +89,11 @@ final readonly class PushAlertChannel implements AlertChannelInterface
 
         $delivered = $this->notifier->notify($due->userId, $payload);
 
+        // Nowhere to send it is how most installs and most users are.
+        if (null === $delivered) {
+            return false;
+        }
+
         if (false === $delivered) {
             $this->logger->warning('CalendarAlert: no device accepted the notification', [
                 'userId'  => $due->userId,

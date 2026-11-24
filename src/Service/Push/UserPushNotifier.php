@@ -25,20 +25,28 @@ final readonly class UserPushNotifier
     /**
      * @param array<string, mixed> $payload
      *
-     * @return bool whether any device took it; false also for a user with none,
-     *              which is an ordinary state and not an error
+     * @return bool|null whether any device took it; null when there was nowhere to
+     *                   send it (no transport, or a user with no devices), which is
+     *                   an ordinary state and not worth a warning, unlike devices
+     *                   that all refused
      */
-    public function notify(int $userId, array $payload): bool
+    public function notify(int $userId, array $payload): ?bool
     {
         // Any transport, not Web Push specifically. An install that runs Firebase
         // and no VAPID keys still has devices to remind.
         if (false === $this->senders->anyConfigured()) {
-            return false;
+            return null;
+        }
+
+        $devices = $this->subscriptions->findDeliverableForUser($userId);
+
+        if ([] === $devices) {
+            return null;
         }
 
         $delivered = false;
 
-        foreach ($this->subscriptions->findDeliverableForUser($userId) as $device) {
+        foreach ($devices as $device) {
             $sender = $this->senders->for($device);
 
             if (null === $sender || false === $sender->isConfigured()) {

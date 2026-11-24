@@ -69,8 +69,8 @@ final readonly class TaskAlertDeliverer
             return true;
         }
 
-        if (false === $delivered) {
-            $this->logger->info('TaskAlert: nowhere to deliver it', ['taskId' => $task->id, 'userId' => $task->usr->id]);
+        if (true !== $delivered) {
+            $this->logger->info(null === $delivered ? 'TaskAlert: nowhere to deliver it' : 'TaskAlert: no device accepted it', ['taskId' => $task->id, 'userId' => $task->usr->id]);
         }
 
         return true;
