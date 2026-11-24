@@ -3,16 +3,15 @@ import { consoleCommand, mailRow, seed } from "./support/config";
 import { settled } from "./support/motion";
 
 /**
- * Translating a message (#713): from the message's ⋮ menu to a translation that
- * says it is one, and the one click between it and the original.
+ * Translating a message (#713): from the message's ⋮ menu to a translation on
+ * a sheet tagged as the AI's, and the switch between it and the original.
  *
  * The two states either side are server-rendered and pinned in
  * MessageTranslationTest: an untranslated message with the offer in its menu,
  * and a stored translation opening as the translation. What only a browser can
  * check is everything between: that the menu reaches the body it names, that
- * the bar appears with what the page must say about the text under it, that
- * the translation replaces the original as it arrives, and that the toggle
- * goes both ways.
+ * the switch appears and names both sides, that the translation replaces the
+ * original as it arrives, and that the switch goes both ways.
  *
  * The server's frames are served by page.route(), without a model: what is
  * checked is what the page does with an answer, not what a model would say.
@@ -24,8 +23,11 @@ import { settled } from "./support/motion";
  * suite.
  */
 const BAR = '[data-testid="translation-bar"]';
+const SWITCH = '[data-testid="translation-switch"]';
+const SHEET = '[data-testid="translation-sheet"]';
 const TEXT = '[data-testid="translation-text"]';
-const TOGGLE = '[data-testid="translation-toggle"]';
+const TO_ORIGINAL = '[data-testid="translation-show-original"]';
+const TO_TRANSLATION = '[data-testid="translation-show-translation"]';
 const ORIGINAL = '[data-mail--message-translation-target="original"]';
 
 test.beforeAll(() => {
@@ -38,7 +40,7 @@ test.afterAll(() => {
 });
 
 test.describe("message translation", () => {
-    test("translates from the menu, says it is the AI's, and switches to the original and back", async ({ page }) => {
+    test("translates from the menu onto the AI's sheet, and switches to the original and back", async ({ page }) => {
         seed("seed-conversation");
 
         const errors: string[] = [];
@@ -74,38 +76,38 @@ test.describe("message translation", () => {
         await message.locator('[data-action="click->mail--message-actions#toggle"]').click();
         await message.locator('[data-testid="translate-message"]').click();
 
-        // The bar, saying what the text under it is.
-        const bar = body.locator(BAR);
-        await expect(bar).toBeVisible();
-        await expect(bar).toContainText("by AI");
-        await expect(bar).toContainText("This is not the original text.");
-        await expect(bar).toContainText("e2e-translation-model");
-        await expect(bar).toContainText("The quoted earlier messages were left out");
-        // The language the model named for the mail, once the answer is in.
-        await expect(bar).toContainText("Translated from Hebrew into");
+        // The switch, its translation half pressed, and the language the model
+        // named for the mail once the answer is in.
+        await expect(body.locator(SWITCH)).toBeVisible();
+        const toOriginal = body.locator(TO_ORIGINAL);
+        const toTranslation = body.locator(TO_TRANSLATION);
+        await expect(toOriginal).toHaveText("Original · Hebrew");
+        await expect(toTranslation).toContainText("· AI");
+        await expect(toTranslation).toHaveAttribute("aria-pressed", "true");
 
-        // The translation in place of the original.
+        // The translation in place of the original, on the AI's sheet.
+        const sheet = body.locator(SHEET);
+        await expect(sheet).toBeVisible();
+        await expect(sheet).toHaveAttribute("data-tag", "AI translation");
+        await expect(sheet).toHaveAttribute("title", /Translated from Hebrew into .* by AI \(e2e-translation-model\)\. This is not the original text\./);
+        await expect(sheet).toContainText("The quoted earlier messages were left out");
         await expect(body.locator(TEXT)).toHaveText("Привет, это перевод.");
-        await expect(body.locator(TEXT)).toBeVisible();
         await expect(body.locator(ORIGINAL)).toBeHidden();
 
         // One click to the original…
-        const toggle = body.locator(TOGGLE);
-        await expect(toggle).toHaveText("Show original");
-        await toggle.click();
+        await toOriginal.click();
 
         await expect(body.locator(ORIGINAL)).toBeVisible();
-        await expect(body.locator(TEXT)).toBeHidden();
-        await expect(toggle).toHaveText("Show translation");
-        await expect(bar).toContainText("The original text.");
+        await expect(sheet).toBeHidden();
+        await expect(toOriginal).toHaveAttribute("aria-pressed", "true");
+        await expect(toTranslation).toHaveAttribute("aria-pressed", "false");
 
-        // …and one back, still naming the language.
-        await toggle.click();
+        // …and one back.
+        await toTranslation.click();
 
-        await expect(bar).toContainText("Translated from Hebrew into");
-        await expect(body.locator(TEXT)).toBeVisible();
+        await expect(sheet).toBeVisible();
         await expect(body.locator(ORIGINAL)).toBeHidden();
-        await expect(toggle).toHaveText("Show original");
+        await expect(toTranslation).toHaveAttribute("aria-pressed", "true");
 
         expect(errors).toEqual([]);
     });
@@ -136,8 +138,8 @@ test.describe("message translation", () => {
         await expect(body.locator(BAR)).toContainText("The model host could not be reached.");
         await expect(body.locator('[data-mail--message-translation-target="again"]')).toBeVisible();
         await expect(body.locator(ORIGINAL)).toBeVisible();
-        await expect(body.locator(TEXT)).toBeHidden();
-        await expect(body.locator(TOGGLE)).toBeHidden();
+        await expect(body.locator(SHEET)).toBeHidden();
+        await expect(body.locator(SWITCH)).toBeHidden();
     });
 
     test("a message already in the reader's language says so and stays as it is", async ({ page }) => {
@@ -164,9 +166,8 @@ test.describe("message translation", () => {
         await message.locator('[data-testid="translate-message"]').click();
 
         await expect(body.locator(BAR)).toContainText("This message is already in English. There is nothing to translate.");
-        await expect(body.locator(BAR)).not.toContainText("by AI");
         await expect(body.locator(ORIGINAL)).toBeVisible();
-        await expect(body.locator(TEXT)).toBeHidden();
-        await expect(body.locator(TOGGLE)).toBeHidden();
+        await expect(body.locator(SHEET)).toBeHidden();
+        await expect(body.locator(SWITCH)).toBeHidden();
     });
 });

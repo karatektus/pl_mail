@@ -3378,16 +3378,19 @@ message:
             unreachable: 'The model host could not be reached.'
         generated: 'Translated into %language% by AI (%model%). This is not the original text.'
         generated_from: 'Translated from %source% into %language% by AI (%model%). This is not the original text.'
-        original_shown: 'The original text. An AI translation into %language% is ready.'
         partial: 'This message is long, so only its beginning was translated.'
         quote_left_out: 'The quoted earlier messages were left out; they can be translated on their own.'
-        show_original: 'Show original'
-        show_translation: 'Show translation'
         stale: 'The message has changed since this was translated.'
         state:
             reading: 'Still reading the message — %elapsed% so far. After that, the translation appears word by word.'
             waiting: 'The first request after a while waits for the model to load.'
             working: 'Translating into %language%…'
+        switch:
+            label: 'Show'
+            original: 'Original'
+            original_from: 'Original · %source%'
+            translation: '%language% · AI'
+        tag: 'AI translation'
 
 mercure:
     status:

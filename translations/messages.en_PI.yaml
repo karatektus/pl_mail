@@ -3242,16 +3242,19 @@ message:
             unreachable: "Th' oracle's berth could nay be raised."
         generated: "Turned into %language% by th' oracle (%model%). This be NOT th' original text."
         generated_from: "Turned from %source% into %language% by th' oracle (%model%). This be NOT th' original text."
-        original_shown: "Th' original text. Th' oracle's translation into %language% be ready."
         partial: "This letter be long, so only its beginnin' were translated."
         quote_left_out: "Th' quoted earlier letters were left out; they can be translated on their own."
-        show_original: "Show th' original"
-        show_translation: "Show th' translation"
         stale: "Th' letter has changed since this were translated."
         state:
             reading: "Still readin' th' letter — %elapsed% so far. After that, th' translation comes word by word."
             waiting: "Th' first askin' after a while waits for th' oracle t' wake."
             working: "Turnin' it into %language%…"
+        switch:
+            label: 'Show'
+            original: "Th' original"
+            original_from: "Th' original · %source%"
+            translation: "%language% · th' oracle"
+        tag: "Th' oracle's translation"
 
 mercure:
     status:

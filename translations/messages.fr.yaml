@@ -3395,16 +3395,19 @@ message:
             unreachable: 'L’hôte du modèle est injoignable.'
         generated: 'Traduit en %language% par une IA (%model%). Ce n’est pas le texte original.'
         generated_from: 'Traduit par une IA (%source% → %language%, %model%). Ce n’est pas le texte original.'
-        original_shown: 'Le texte original. Une traduction en %language% par une IA est prête.'
         partial: 'Ce message est long : seul son début a été traduit.'
         quote_left_out: 'Les messages précédents cités ont été laissés de côté ; vous pouvez les traduire séparément.'
-        show_original: 'Afficher l’original'
-        show_translation: 'Afficher la traduction'
         stale: 'Le message a changé depuis cette traduction.'
         state:
             reading: 'Lecture du message en cours — %elapsed% jusqu’ici. Ensuite, la traduction apparaît mot à mot.'
             waiting: 'La première requête après une pause attend le chargement du modèle.'
             working: 'Traduction en %language%…'
+        switch:
+            label: 'Afficher'
+            original: 'Original'
+            original_from: 'Original · %source%'
+            translation: '%language% · IA'
+        tag: 'Traduction IA'
 
 mercure:
     status:

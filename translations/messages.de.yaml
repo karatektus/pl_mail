@@ -3364,16 +3364,19 @@ message:
             unreachable: 'Der Modell-Host war nicht erreichbar.'
         generated: 'Von einer KI übersetzt, Sprache: %language% (%model%). Das ist nicht der Originaltext.'
         generated_from: 'Von einer KI übersetzt (%source% → %language%, %model%). Das ist nicht der Originaltext.'
-        original_shown: 'Der Originaltext. Eine KI-Übersetzung (%language%) liegt bereit.'
         partial: 'Die Nachricht ist lang, deshalb wurde nur ihr Anfang übersetzt.'
         quote_left_out: 'Die zitierten früheren Nachrichten wurden weggelassen; die kannst du einzeln übersetzen.'
-        show_original: 'Original zeigen'
-        show_translation: 'Übersetzung zeigen'
         stale: 'Die Nachricht hat sich seit der Übersetzung geändert.'
         state:
             reading: 'Die Nachricht wird noch gelesen — bisher %elapsed%. Danach erscheint die Übersetzung Wort für Wort.'
             waiting: 'Die erste Anfrage nach einer Pause wartet, bis das Modell geladen ist.'
             working: 'Wird übersetzt (%language%) …'
+        switch:
+            label: 'Anzeigen'
+            original: 'Original'
+            original_from: 'Original · %source%'
+            translation: '%language% · KI'
+        tag: 'KI-Übersetzung'
 
 mercure:
     status:

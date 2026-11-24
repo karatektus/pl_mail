@@ -288,24 +288,31 @@ final class MessageTranslationTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame([], $this->sent, 'opening a translated message asks the model nothing');
 
-        $bar = $crawler->filter('[data-testid="translation-bar"]');
+        self::assertNull($crawler->filter('[data-testid="translation-bar"]')->attr('hidden'));
 
-        self::assertCount(1, $bar);
-        self::assertNull($bar->attr('hidden'));
-        self::assertStringContainsString('This is not the original text.', $bar->text());
-        self::assertStringContainsString(self::MODEL, $bar->text());
-        self::assertStringContainsString('English', $bar->text());
-        self::assertSame('Show original', trim($crawler->filter('[data-testid="translation-toggle"]')->text()));
+        // The switch, with the translation's half pressed.
+        $switch = $crawler->filter('[data-testid="translation-switch"]');
 
-        $text = $crawler->filter('[data-testid="translation-text"]');
+        self::assertCount(1, $switch);
+        self::assertNull($switch->attr('hidden'));
+        self::assertSame('Original', trim($crawler->filter('[data-testid="translation-show-original"]')->text()));
+        self::assertSame('false', $crawler->filter('[data-testid="translation-show-original"]')->attr('aria-pressed'));
+        self::assertSame('English · AI', trim($crawler->filter('[data-testid="translation-show-translation"]')->text()));
+        self::assertSame('true', $crawler->filter('[data-testid="translation-show-translation"]')->attr('aria-pressed'));
 
-        self::assertNull($text->attr('hidden'));
-        self::assertSame('Hello, please send the invoice by Thursday.', $text->text());
+        // The sheet it is written on: tagged as the AI's, and naming the model.
+        $sheet = $crawler->filter('[data-testid="translation-sheet"]');
+
+        self::assertNull($sheet->attr('hidden'));
+        self::assertSame('AI translation', $sheet->attr('data-tag'));
+        self::assertStringContainsString('This is not the original text.', (string) $sheet->attr('title'));
+        self::assertStringContainsString(self::MODEL, (string) $sheet->attr('title'));
+        self::assertSame('Hello, please send the invoice by Thursday.', $crawler->filter('[data-testid="translation-text"]')->text());
         self::assertNotNull($crawler->filter('[data-mail--message-translation-target="original"]')->attr('hidden'));
         self::assertCount(1, $crawler->filter('[data-testid="translate-message"]'));
     }
 
-    /** The bar names the mail's language when the model named it, in the reader's interface language. */
+    /** The switch names the mail's language when the model named it, in the reader's interface language. */
     public function testAStoredTranslationNamesTheLanguageTheModelNamed(): void
     {
         $client  = $this->signIn();
@@ -316,9 +323,10 @@ final class MessageTranslationTest extends WebTestCase
 
         $crawler = $client->request('GET', sprintf('/mail/thread/%d', $message->thread?->id));
 
+        self::assertSame('Original · Hebrew', trim($crawler->filter('[data-testid="translation-show-original"]')->text()));
         self::assertStringContainsString(
             sprintf('Translated from Hebrew into English by AI (%s).', self::MODEL),
-            $crawler->filter('[data-testid="translation-bar"]')->text(),
+            (string) $crawler->filter('[data-testid="translation-sheet"]')->attr('title'),
         );
     }
 
@@ -395,7 +403,7 @@ final class MessageTranslationTest extends WebTestCase
         $crawler = $client->request('GET', sprintf('/mail/thread/%d', $message->thread?->id));
 
         self::assertNotNull($crawler->filter('[data-testid="translation-bar"]')->attr('hidden'));
-        self::assertNotNull($crawler->filter('[data-testid="translation-text"]')->attr('hidden'));
+        self::assertNotNull($crawler->filter('[data-testid="translation-sheet"]')->attr('hidden'));
         self::assertNull($crawler->filter('[data-mail--message-translation-target="original"]')->attr('hidden'));
     }
 
@@ -426,7 +434,7 @@ final class MessageTranslationTest extends WebTestCase
         $longCost  = $this->queriesFor($client, sprintf('/mail/thread/%d', $long->id));
 
         self::assertLessThanOrEqual($shortCost, $longCost, sprintf('two messages cost %d queries and ten cost %d', $shortCost, $longCost));
-        self::assertCount(5, $client->getCrawler()->filter('[data-testid="translation-text"]:not([hidden])'));
+        self::assertCount(5, $client->getCrawler()->filter('[data-testid="translation-sheet"]:not([hidden])'));
     }
 
     /**

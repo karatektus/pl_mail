@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:ddff98f1aaa5dc18dc3b46272f7204162dc5fc33 -->
+<!-- translated-from: features/mail.md sha1:3e454aee0b5c9ea7b0340c2b9570f5c9dd072b69 -->
 
 # Mail
 
@@ -672,31 +672,33 @@ Wo die Administration das Übersetzen eingeschaltet hat, steht im **⋮**-Menü 
 plMail läuft, oder in die, die du unter **Einstellungen → Assistent → Übersetzen in** gewählt hast —
 dort gibt es viel mehr Sprachen als Oberflächen von plMail. Übersetzt wird erst, wenn du darum bittest.
 
-Die Übersetzung tritt an die Stelle der Nachricht, in einem getönten Kasten unter einem Balken, der
-sagt, dass eine KI übersetzt hat, aus welcher Sprache, mit welchem Modell, und dass es nicht der
-Originaltext ist. Die Sprache der Nachricht ist die, die das Modell beim Übersetzen nennt; nennt es
-keine, sagt der Balken nur, in welche Sprache übersetzt wurde. Der Knopf im Balken schaltet mit
-einem Klick zum Original und zurück, so oft du willst. Die Übersetzung kommt Stück für Stück an; wie
+Die Übersetzung tritt an die Stelle der Nachricht, auf einem Blatt mit gestricheltem violettem Rand
+und einem Etikett **KI-Übersetzung** an der Ecke, damit sie nie für das gehalten wird, was der
+Absender geschrieben hat. Zeigst du auf das Blatt, nennt es das Modell, das übersetzt hat. Darüber,
+unter dem Absender, steht ein Schalter **Original · Deutsch** und **Englisch · KI**: Die gedrückte
+Hälfte ist die, die du liest, und ein Klick auf die andere schaltet um, so oft du willst. Die Sprache
+der Nachricht ist die, die das Modell beim Übersetzen nennt; nennt es keine, steht im Schalter nur
+**Original**. Die Übersetzung kommt Stück für Stück an; wie
 lange das dauert, hängt von der Maschine ab, auf der das Modell läuft, und auf einer ohne
 Grafikkarte braucht eine lange Nachricht Minuten. Du musst nicht warten: Verlässt du die Nachricht,
 wird sie trotzdem fertig übersetzt und öffnet sich beim nächsten Mal übersetzt.
 
 Einmal geschrieben, wird die Übersetzung aufbewahrt, und die Nachricht öffnet sich ohne Wartezeit als
-Übersetzung. Ändert sich die Nachricht selbst danach, sagt der Balken das und bietet eine neue
-Übersetzung an.
+Übersetzung. Ändert sich die Nachricht selbst danach, sagt das Blatt das, und neben dem Schalter
+erscheint **Noch einmal übersetzen**.
 
 Eine Nachricht, die schon in deiner Sprache ist, wird nicht übersetzt: Das Modell hört auf, sobald
-es die Sprache genannt hat, der Balken sagt, dass es nichts zu übersetzen gibt, und die Nachricht
-bleibt, wie sie ist. Auch das wird aufbewahrt, eine neue Anfrage kostet also nichts.
+es die Sprache genannt hat, eine Zeile unter dem Absender sagt, dass es nichts zu übersetzen gibt,
+und die Nachricht bleibt, wie sie ist. Auch das wird aufbewahrt, eine neue Anfrage kostet also nichts.
 
 Geschickt wird der eigene Text der Nachricht, als reiner Text:
 
 - **Ohne die früheren Nachrichten, die sie zitiert.** Die hast du schon, jede lässt sich für sich
   übersetzen, und sie jedes Mal mitzuschicken, würde jede Antwort in einem langen Gespräch langsamer
-  machen. Der Balken sagt, wenn etwas weggelassen wurde. Eine Weiterleitung ohne eigenen Text wird
+  machen. Das Blatt sagt, wenn etwas weggelassen wurde. Eine Weiterleitung ohne eigenen Text wird
   ganz geschickt.
-- **Bis etwa 6.000 Zeichen.** Eine längere Nachricht wird von ihrem Anfang her übersetzt, und der
-  Balken sagt das.
+- **Bis etwa 6.000 Zeichen.** Eine längere Nachricht wird von ihrem Anfang her übersetzt, und das
+  Blatt sagt das.
 
 Die Übersetzung ist reiner Text: Layout, Bilder und Links bleiben im Original. Antworten und
 Weiterleiten zitieren immer das Original, nie die Übersetzung.

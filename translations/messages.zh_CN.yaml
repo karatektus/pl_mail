@@ -3043,16 +3043,19 @@ message:
             unreachable: '无法连接到模型主机。'
         generated: '由 AI（%model%）翻译为%language%。这不是原文。'
         generated_from: '由 AI（%model%）从%source%翻译为%language%。这不是原文。'
-        original_shown: '这是原文。AI 翻译（%language%）已准备好。'
         partial: '这封邮件较长，只翻译了开头部分。'
         quote_left_out: '引用的早前邮件未翻译；可以单独翻译它们。'
-        show_original: '查看原文'
-        show_translation: '查看译文'
         stale: '翻译之后，这封邮件已有变化。'
         state:
             reading: '仍在读取邮件——已用时 %elapsed%。之后译文会逐词出现。'
             waiting: '闲置一段时间后的首次请求需要等待模型加载。'
             working: '正在翻译为%language%…'
+        switch:
+            label: '显示'
+            original: '原文'
+            original_from: '原文 · %source%'
+            translation: '%language% · AI'
+        tag: 'AI 翻译'
 mercure:
     status:
         connected: '实时更新已启用'

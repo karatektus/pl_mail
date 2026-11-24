@@ -434,15 +434,15 @@ short mail with a quoted reply or an English disclaimer that gets translated, an
 reading the mail anyway. `SourceLanguageLine` reads the line off the stream, holding back at most
 64 characters until it can tell the line from the translation, so the line never reaches the page or
 the store; only a two-letter code Intl knows is kept, in `message_translation.source_language`. An
-answer without the line is all translation and names no language; the bar then says "translated
-into", never a guess. When the code is the reader's language, the model is stopped there
-(`AiAssistant` records a cancelled call), a row with the language and no text is stored, the bar
-says there is nothing to translate, and while that row is fresh the controller answers from it
+answer without the line is all translation and names no language; the switch then says only
+"Original", never a guess. When the code is the reader's language, the model is stopped there
+(`AiAssistant` records a cancelled call), a row with the language and no text is stored, a line
+under the sender says there is nothing to translate, and while that row is fresh the controller answers from it
 without asking the model again.
 
 **The output is text.** It is rendered by Twig's escaping or written with `textContent`, never as
 HTML, and it sits outside the sandboxed frame like the warnings, because a "this is not the
-original" bar the mail could draw for itself would be worth nothing.
+original" tag the mail could draw for itself would be worth nothing.
 
 ## When new mail gets indexed
 
