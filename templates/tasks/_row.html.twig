@@ -6,6 +6,8 @@ it, because the title and the notes can hold links of their own, and a link insi
 a button is invalid HTML. The checkbox and those links sit above it on `z-10`.
 
 A tick is a form with one button, so it works before any script has connected.
+With one, tasks--tick shows it before the save is through, which is why the
+button and the title are drawn from aria-checked.
 
 Steps fold out under the row, outside what the stretched button covers. Folded
 until tasks--row says otherwise, so a page with no script is a row as it always
@@ -26,8 +28,10 @@ Accepts: task Task · pane TaskPane · params array, the pane's current address
 <li data-task-row="{{ task.id }}"
     {% if steps is not empty %}data-controller="tasks--row" data-tasks--row-id-value="{{ task.id }}"{% endif %}>
     <div class="group relative flex items-start gap-2 rounded-lg px-3 py-1.5 hover:bg-hover">
+        {# tasks--row first: it reads which way the tick goes before tasks--tick turns it. #}
         <form action="{{ path('app_tasks_toggle', { id: task.id }) }}" method="post"
-              {% if steps is not empty %}data-action="submit->tasks--row#taskTicked"{% endif %}
+              data-controller="tasks--tick"
+              data-action="{% if steps is not empty %}submit->tasks--row#taskTicked {% endif %}submit->tasks--tick#show turbo:submit-end->tasks--tick#settled"
               class="relative z-10 shrink-0 leading-none">
             <input type="hidden" name="_token" value="{{ csrf_token('tasks_toggle') }}">
             {% for name, value in params %}
@@ -37,16 +41,17 @@ Accepts: task Task · pane TaskPane · params array, the pane's current address
                     role="checkbox"
                     aria-checked="{{ open ? 'false' : 'true' }}"
                     aria-label="{{ (open ? 'tasks.row.complete' : 'tasks.row.reopen')|trans({ '%title%': task.title }) }}"
+                    data-tasks--tick-target="box"
                     {% if readOnly %}disabled{% endif %}
-                    class="flex items-center justify-center size-[1.125rem] mt-0.5 rounded-full border transition-colors
-                           {{ readOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }}
-                           {{ open ? 'border-ink-faint hover:border-accent' : 'border-accent bg-accent text-accent-ink' }}">
-                {% if not open %}<i class="fa-solid fa-check text-[0.625rem]" aria-hidden="true"></i>{% endif %}
+                    class="group/tick flex items-center justify-center size-[1.125rem] mt-0.5 rounded-full border border-ink-faint transition-colors
+                           aria-checked:border-accent aria-checked:bg-accent aria-checked:text-accent-ink
+                           {{ readOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-accent' }}">
+                <i class="fa-solid fa-check text-[0.625rem] invisible group-aria-checked/tick:visible" aria-hidden="true"></i>
             </button>
         </form>
 
         <div class="flex-1 min-w-0">
-            <p class="text-sm break-words [&_a]:relative [&_a]:z-10 {{ open ? 'text-ink' : 'text-ink-faint line-through' }}">{{ task.title|linkify }}</p>
+            <p data-task-title class="text-sm break-words [&_a]:relative [&_a]:z-10 {{ open ? 'text-ink' : 'text-ink-faint line-through' }}">{{ task.title|linkify }}</p>
 
             {% if task.dueDate or task.dueAt or steps is not empty or repeats or showList %}
                 <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-ink-muted">

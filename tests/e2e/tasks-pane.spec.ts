@@ -240,6 +240,48 @@ test.describe("tasks pane on a notebook", () => {
         await expect(modal(page)).toBeHidden();
     });
 
+    test("a tick shows at once while it saves, and comes back off when the save fails", async ({ page }) => {
+        const title = unique("Post the parcel");
+        const row = frame(page).locator("[data-task-row]", { hasText: title }).first();
+
+        await page.goto("/mail/inbox");
+        await toggle(page).click();
+        await quickAdd(page).fill(title);
+        await quickAdd(page).press("Enter");
+        await expect(row).toBeVisible();
+
+        // A server that answers slowly: the tick is there before it has.
+        await page.route("**/tasks/*/toggle", async (route) => {
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+            await route.continue();
+        });
+
+        await row.getByRole("checkbox").click();
+        expect(await row.getByRole("checkbox").getAttribute("aria-checked")).toBe("true");
+        expect(await row.locator("[data-task-title]").getAttribute("class")).toContain("line-through");
+        await expect(toast(page, "Task completed.")).toBeVisible();
+
+        // And one that cannot be reached: the tick comes back off.
+        await page.unroute("**/tasks/*/toggle");
+        await page.route("**/tasks/*/toggle", async (route) => {
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            await route.abort("connectionrefused");
+        });
+
+        await openCompleted(page);
+        const done = frame(page).locator("[data-task-row]", { hasText: title }).first();
+
+        await done.getByRole("checkbox").click();
+        expect(await done.getByRole("checkbox").getAttribute("aria-checked")).toBe("false");
+        await expect(done.getByRole("checkbox")).toHaveAttribute("aria-checked", "true");
+        await expect(done.locator("[data-task-title]")).toHaveClass(/line-through/);
+
+        await page.unroute("**/tasks/*/toggle");
+        await done.getByRole("button", { name: `Edit “${title}”` }).click();
+        await modal(page).getByRole("button", { name: "Delete", exact: true }).click();
+        await expect(modal(page)).toBeHidden();
+    });
+
     test("tasks typed straight after one another are each added, and what is typed meanwhile stays", async ({ page }) => {
         const first = unique("Confirm the booking");
         const second = unique("Measure the alcove");
