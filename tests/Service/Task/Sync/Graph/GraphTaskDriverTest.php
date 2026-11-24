@@ -8,7 +8,9 @@ use App\Domain\DTO\Calendar\CalendarSource;
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Task\TaskStatus;
+use App\Domain\Enum\Calendar\SyncState;
 use App\Domain\Exception\CalendarResyncRequiredException;
+use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\Mail\Account;
 use App\Entity\Task\Task;
@@ -139,6 +141,40 @@ final class GraphTaskDriverTest extends TestCase
         $this->driver($http)->discover(CalendarSource::ofAccount($list->account));
     }
 
+    /** The other spelling of the same answer. */
+    public function testAMailboxNotEnabledForRestNamesTheMissingMailbox(): void
+    {
+        $http = new MockHttpClient([$this->json(['error' => ['code' => 'MailboxNotEnabledForRESTAPI', 'message' => 'REST API is not yet supported for this mailbox.']], 401)]);
+
+        $list                              = $this->list();
+        $list->account->oauthGrantedScopes = 'Mail.ReadWrite Tasks.ReadWrite User.Read';
+
+        $this->expectException(CalendarSyncPermanentException::class);
+        $this->expectExceptionMessage('it has no Exchange Online mailbox');
+
+        $this->driver($http)->pull($list, null);
+    }
+
+    /**
+     * Regression guard: a token that ran out mid-run was told it had no mailbox,
+     * and the push it happened in gave up on the edit.
+     */
+    public function testAnExpiredTokenDespiteAGrantedPermissionIsTriedAgain(): void
+    {
+        $http = new MockHttpClient([$this->json(['error' => ['code' => 'InvalidAuthenticationToken', 'message' => 'Lifetime validation failed, the token is expired.']], 401)]);
+
+        $list                              = $this->list();
+        $list->account->oauthGrantedScopes = 'Mail.ReadWrite Tasks.ReadWrite User.Read';
+
+        try {
+            $this->driver($http)->pull($list, null);
+            self::fail('A refused token must not pass.');
+        } catch (CalendarSyncException $e) {
+            self::assertNotInstanceOf(CalendarSyncPermanentException::class, $e);
+            self::assertStringContainsString('renewed on the next run', $e->getMessage());
+        }
+    }
+
     /** No etag: a completed repeating task comes back open, and the next pull must not skip it. */
     public function testACreateStoresWhatCameBackAndNoEtag(): void
     {
@@ -207,6 +243,64 @@ final class GraphTaskDriverTest extends TestCase
 
         self::assertSame('DELETE', $sent[1][0]);
         self::assertStringEndsWith('/tasks/T1/checklistItems/C1', $sent[1][1]);
+    }
+
+    public function testAStepOfATaskWithASlashInItsIdIsStillFound(): void
+    {
+        $sent = [];
+        $http = new MockHttpClient(function (string $method, string $url) use (&$sent): MockResponse {
+            $sent[] = $url;
+
+            return new MockResponse('', ['http_code' => 204]);
+        });
+
+        $parent           = new Task();
+        $parent->remoteId = 'AAMk/T1';
+
+        $step           = new Task();
+        $step->parent   = $parent;
+        $step->remoteId = 'AAMk/T1/C1';
+
+        $this->driver($http)->delete($this->list(), $step);
+
+        self::assertStringEndsWith('/tasks/AAMk%2FT1/checklistItems/C1', $sent[0]);
+    }
+
+    /**
+     * Regression guard: a step under a task Microsoft refused for good waited for
+     * it on every run, and stopped the list's push and pull each time.
+     */
+    public function testAStepOfARefusedTaskIsRefusedWithIt(): void
+    {
+        $parent            = new Task();
+        $parent->syncState = SyncState::Clean;
+
+        $step            = new Task();
+        $step->title     = 'Step';
+        $step->parent    = $parent;
+        $step->syncState = SyncState::PendingCreate;
+
+        $this->expectException(CalendarSyncPermanentException::class);
+
+        $this->driver(new MockHttpClient([]))->push($this->list(), $step);
+    }
+
+    public function testAStepOfATaskStillOnItsWayWaitsForIt(): void
+    {
+        $parent            = new Task();
+        $parent->syncState = SyncState::PendingCreate;
+
+        $step            = new Task();
+        $step->title     = 'Step';
+        $step->parent    = $parent;
+        $step->syncState = SyncState::PendingCreate;
+
+        try {
+            $this->driver(new MockHttpClient([]))->push($this->list(), $step);
+            self::fail('A step must not go before its task.');
+        } catch (CalendarSyncException $e) {
+            self::assertNotInstanceOf(CalendarSyncPermanentException::class, $e);
+        }
     }
 
     private function driver(MockHttpClient $http): GraphTaskDriver

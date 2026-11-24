@@ -9,6 +9,7 @@ use App\Domain\DTO\Task\RemoteTaskList;
 use App\Domain\DTO\Task\RemoteTaskWriteResult;
 use App\Domain\DTO\Task\TaskChangeSet;
 use App\Domain\Enum\Account\MailProvider;
+use App\Domain\Enum\Calendar\SyncState;
 use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
@@ -210,14 +211,20 @@ final readonly class GraphTaskDriver implements TaskSyncDriverInterface
 
     /**
      * A step is a checklistItem of its task, so the task has to be at Microsoft
-     * first. The pusher sends parents before their steps; a parent still without an
-     * id here failed on its own, and this waits for it rather than being lost.
+     * first. The pusher sends parents before their steps, so a parent still without
+     * an id here was either refused for good, and the step goes with it, or is still
+     * on its way, and this waits for it rather than being lost. Waiting on a parent
+     * that will never go would stop every push and pull of the list after it.
      */
     private function pushStep(Account $account, TaskList $list, Task $step): RemoteTaskWriteResult
     {
         $parentId = $step->parent?->remoteId;
 
         if (null === $parentId) {
+            if (SyncState::PendingCreate !== $step->parent?->syncState) {
+                throw new CalendarSyncPermanentException('A step cannot go to Microsoft when its task was refused there.');
+            }
+
             throw new CalendarSyncException('A step cannot go to Microsoft before its task has.');
         }
 
@@ -246,9 +253,15 @@ final readonly class GraphTaskDriver implements TaskSyncDriverInterface
         return new RemoteTaskWriteResult($step->remoteId, null, $this->encode($updated));
     }
 
+    /**
+     * Split at the last separator: a checklistItem id is a GUID, while a task id
+     * is Microsoft's to spell, and nothing promises it never holds a slash.
+     */
     private function stepUrl(TaskList $list, string $remoteId): string
     {
-        [$taskId, $itemId] = array_pad(explode(GraphTaskMapper::STEP_SEPARATOR, $remoteId, 2), 2, '');
+        $at     = strrpos($remoteId, GraphTaskMapper::STEP_SEPARATOR);
+        $taskId = false === $at ? $remoteId : substr($remoteId, 0, $at);
+        $itemId = false === $at ? '' : substr($remoteId, $at + 1);
 
         return $this->taskUrl($list, $taskId) . '/checklistItems/' . rawurlencode($itemId);
     }
@@ -393,8 +406,20 @@ final readonly class GraphTaskDriver implements TaskSyncDriverInterface
         $denied = in_array(strtolower($code), self::AUTHORIZATION_CODES, true)
             || str_contains(strtolower($message), 'access is denied');
 
+        // With the permission granted, only the answer seen for a missing mailbox
+        // means one. Any other 401 is a token that lapsed or was refused mid-run,
+        // and a permanent failure would read as "no mailbox" and drop a push.
         if (401 === $status && true === MailProvider::Microsoft->grantsTaskAccess($account->oauthGrantedScopes)) {
-            return new CalendarSyncPermanentException(self::NO_MAILBOX_HINT, $status);
+            $lower = strtolower($code);
+
+            if ('mailboxnotenabledforrestapi' === $lower || ('unknownerror' === $lower && '' === $message)) {
+                return new CalendarSyncPermanentException(self::NO_MAILBOX_HINT, $status);
+            }
+
+            return new CalendarSyncException(
+                sprintf('Microsoft did not accept the sign-in while %s, and it is renewed on the next run: %s', $what, $reason),
+                $status,
+            );
         }
 
         if (401 === $status || (403 === $status && $denied)) {
