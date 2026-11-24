@@ -219,12 +219,18 @@ test.describe("sidebar section collapse (touch)", () => {
             .first()
             .click();
 
+        // Every heading button, not one: ACCOUNTS has Open all beside Add
+        // account (#690), and it needs to be reachable on a phone just as much.
         for (const key of [LABELS, ACCOUNTS]) {
-            await expect(
-                section(page, key, "#sidebar-drawer-inner")
-                    .locator("> summary")
-                    .getByRole("button"),
-            ).toHaveCSS("opacity", "1");
+            const buttons = section(page, key, "#sidebar-drawer-inner")
+                .locator("> summary")
+                .getByRole("button");
+
+            await expect(buttons.first()).toBeVisible();
+
+            for (const button of await buttons.all()) {
+                await expect(button).toHaveCSS("opacity", "1");
+            }
         }
     });
 });

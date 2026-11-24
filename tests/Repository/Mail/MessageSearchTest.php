@@ -1304,6 +1304,55 @@ final class MessageSearchTest extends KernelTestCase
         );
     }
 
+    /**
+     * "Select all" on a search drains it a chunk at a time (#711), and the
+     * chunks have to add up to the result: every conversation once, none
+     * twice, none skipped at a chunk boundary — including where two share a
+     * date and only the id tiebreaker orders them.
+     */
+    public function testTheBulkChunksAddUpToTheWholeResult(): void
+    {
+        foreach (range(1, 5) as $n) {
+            $this->seedMessage(sprintf('Invoice %d', $n), receivedAt: 1 === $n % 2 ? '2026-01-01' : '2026-01-02');
+        }
+
+        $this->seedMessage('Lunch on Thursday');
+
+        $parsed = $this->parser->parse('invoice');
+
+        $drained = [];
+
+        foreach (range(1, 4) as $page) {
+            foreach ($this->messageThreadSearchRepository->bulkPage($this->user, $parsed, false, $page, 2) as $thread) {
+                $drained[] = (int) $thread->id;
+            }
+        }
+
+        $whole = $this->searchIds($parsed);
+
+        self::assertCount(5, $drained);
+        self::assertSame($drained, array_values(array_unique($drained)), 'a conversation came back in two chunks');
+        self::assertEqualsCanonicalizing($whole, $drained);
+    }
+
+    /**
+     * Whether a whole-result action includes the body pass follows the page:
+     * thin words run it, a screenful does not. Decided once for the drain, so
+     * the short last chunk of a long result does not switch statements.
+     */
+    public function testTheBodyPassIsNeededOnlyWhereTheWordsCameBackThin(): void
+    {
+        $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
+
+        self::assertTrue($this->messageThreadSearchRepository->needsBodyRescue($this->user, $this->parser->parse('elica')));
+
+        foreach (range(1, 50) as $n) {
+            $this->seedMessage(sprintf('Receipt %d', $n));
+        }
+
+        self::assertFalse($this->messageThreadSearchRepository->needsBodyRescue($this->user, $this->parser->parse('receipt')));
+    }
+
     private function seedMessage(
         string $subject,
         string $fromAddress = 'sender@example.test',

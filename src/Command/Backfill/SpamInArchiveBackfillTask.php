@@ -11,6 +11,7 @@ use App\Entity\Mail\Message;
 use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\ThreadStatusUpdater;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -39,7 +40,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * Idempotent: a moved message no longer matches.
  */
-final readonly class SpamInArchiveBackfillTask implements BackfillTaskInterface
+final readonly class SpamInArchiveBackfillTask implements CountableBackfillTaskInterface
 {
     private const int BATCH_SIZE = 200;
 
@@ -58,6 +59,22 @@ final readonly class SpamInArchiveBackfillTask implements BackfillTaskInterface
     public function getDescription(): string
     {
         return 'Move mail a "Mark as spam" filter archived on the server into Spam, and Junk on the server.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-11-08');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    /** A table repair walks everything, so it has no window to count within. */
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageBackfillRepository->countSpamInArchive();
     }
 
     public function run(SymfonyStyle $io): int

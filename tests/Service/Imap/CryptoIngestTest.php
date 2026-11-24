@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Domain\Helper\MessageParser;
 use App\Entity\Mail\Mailbox;
-use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
 use App\Infrastructure\ImapClient\ImapLoop;
 use App\Service\Imap\ImapUidPresence;
 use App\Service\Imap\MessageSyncer;
@@ -16,8 +16,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * OpenPGP and S/MIME mail is recognised as it is stored, and stored the way
@@ -187,9 +185,7 @@ final class CryptoIngestTest extends KernelTestCase
             . "MIME-Version: 1.0\r\n"
             . $mime;
 
-        $message = ImapMessage::fromString($raw, Config::make([
-            'decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]],
-        ]))->setUid(101);
+        $message = MessageParser::parse($raw)->withEnvelope(101, []);
 
         $synced   = [];
         $lowest   = null;

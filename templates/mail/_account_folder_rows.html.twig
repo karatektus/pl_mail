@@ -44,11 +44,32 @@
     {% endif %}
     {# The account's places: its system folders, and the labels that are a
        folder here (#221 step 3, LabelKinds::isPlaceOn()). A tag is in the
-       LABELS section, because a tag is not somewhere mail is. #}
+       LABELS section, because a tag is not somewhere mail is — unless labels
+       are listed by account (#690), and then the account's tags are here too,
+       each with its colour dot, so the two kinds still read apart. #}
     {% import _self as rows %}
     {% for node in account_folder_tree(account, labels) %}
         {{ rows.folder_node(node, account) }}
     {% endfor %}
+
+    {# "+ New label", listed by account (#690): a label made here is on this
+       account only (LabelController::new(), `account`). Beside New folder on
+       plain IMAP, where the two are different things — a folder is a place on
+       the server, a label there is a keyword. #}
+    {% if account.usr.labelsByAccount %}
+        <div class="nav-item flex items-center text-xs" data-nav-tier="tree" style="--label-depth: 12px">
+            <button type="button"
+                    data-controller="ui--modal"
+                    data-action="click->ui--modal#open"
+                    data-ui--modal-title-value="{{ 'sidebar.labels.add'|trans }}"
+                    data-ui--modal-src-value="{{ path('app_label_new', { account: account.id }) }}"
+                    data-account-label-new
+                    class="flex-1 min-w-0 flex items-center gap-1.5 text-left text-ink-faint hover:text-ink cursor-pointer">
+                <i class="fa-solid fa-plus text-[9px]" aria-hidden="true"></i>
+                <span class="truncate">{{ 'sidebar.accounts.new_label'|trans }}</span>
+            </button>
+        </div>
+    {% endif %}
 
     {# "+ New folder" as the last row of the account's folders (#221): the
        place a tree is added to, the way "Create new label" ends a label list
@@ -129,6 +150,11 @@
            dropping there tags instead. One label, two rows, two meanings; see
            the drop_target macro. #}
         {% set droppable = label.role is null or label.role.acceptsMoves %}
+        {# Listed by account (#690), the account's tags are rows here too, and
+           a tag is not a place: dropping on one labels the mail and leaves it
+           where it is, as under LABELS — but only this account's mail, which
+           `account` on the target already says. #}
+        {% set _place = label.role is not null or is_place(label, account) %}
         {# Open or closed is rendered, not applied on connect — see
            App\Twig\SidebarRowStateExtension. Only on the sidebar's own render
            can it be right: fetched into the frame, these rows are rendered for
@@ -143,7 +169,7 @@
         {% set _tag = collapseKey is null ? 'div' : 'summary' %}
         <{{ _tag }} class="nav-item group/folder flex items-center justify-between text-xs transition-colors {{ sidebar_row_state(_href) }}
                     {{- collapseKey is null ? '' : ' cursor-pointer list-none' }}"
-             {% if droppable %}{{ sidebarMacros.drop_target(label.id, account, true) }}{% endif %}
+             {% if droppable %}{{ sidebarMacros.drop_target(label.id, account, _place) }}{% endif %}
              data-nav-tier="tree"
              {% if collapseKey is not null %}
              aria-expanded="{{ sidebarCounts.isCollapsed(collapseKey) ? 'false' : 'true' }}"
@@ -153,6 +179,9 @@
             {% if collapseKey is not null %}
                 <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3 shrink-0
                           transition-transform group-open/tree:rotate-90" aria-hidden="true"></i>
+            {% endif %}
+            {% if not _place %}
+                <span class="mr-1.5 flex items-center" data-label-tag-dot>{{ sidebarMacros.label_dot(label.color) }}</span>
             {% endif %}
             <a
                 data-ui--sidebar-target="link"
@@ -201,6 +230,20 @@
                     path('app_mail_label', { id: label.id, account: account.id, unread: 1 }),
                 ) }}
             {% endif %}
+            {# On other accounts too (#690): renaming or deleting it from the
+               merged list reaches all of them, and the mark says so before
+               anybody gets as far as the dialog. The tooltip names the others.
+               Renaming from here, with the pencil beside it, renames it on
+               this account alone. #}
+            {% set _others = label.isSystem ? [] : sidebarCounts.accountsOf(label)|filter(a => a.id != account.id) %}
+            {% if _others is not empty %}
+                {% set _sharedWith = 'sidebar.labels.shared_with'|trans({ '%accounts%': _others|map(a => a.displayAddress)|join(', ') }) %}
+                <i class="fa-solid fa-link shrink-0 w-4 text-center text-[9px] text-ink-faint"
+                   data-label-shared
+                   role="img"
+                   title="{{ _sharedWith }}"
+                   aria-label="{{ _sharedWith }}"></i>
+            {% endif %}
             {# Rename, from the folder itself (#221): the same dialog as in
                Settings → Accounts → Folders, opened here so a folder can be
                managed where it is seen. Plain IMAP only, and never on the inbox
@@ -223,6 +266,24 @@
                                [@media(hover:none)]:hidden"
                         aria-label="{{ 'settings.accounts.folders.rename.button'|trans({ '%folder%': _folder.name }) }}"
                         title="{{ 'settings.accounts.folders.rename.button'|trans({ '%folder%': _folder.name }) }}">
+                    <i class="fa-solid fa-pen text-[9px]" aria-hidden="true"></i>
+                </button>
+            {% elseif not label.isSystem and account.usr.labelsByAccount %}
+                {# Listed by account (#690), every other label of the account
+                   gets the label dialog, opened for this account: a label on
+                   other accounts too is renamed here for this one alone
+                   (LabelSplitter). #}
+                <button type="button"
+                        data-controller="ui--modal"
+                        data-action="click->ui--modal#open"
+                        data-ui--modal-title-value="{{ 'label.form.edit_title'|trans }}"
+                        data-ui--modal-src-value="{{ path('app_label_edit', { id: label.id, account: account.id }) }}"
+                        data-account-label-edit
+                        class="shrink-0 w-5 h-5 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover
+                               [@media(hover:hover)]:opacity-0 group-hover/folder:opacity-100 focus-visible:opacity-100 transition-opacity cursor-pointer
+                               [@media(hover:none)]:hidden"
+                        aria-label="{{ 'settings.labels.edit'|trans({ '%name%': label|label_name }) }}"
+                        title="{{ 'settings.labels.edit'|trans({ '%name%': label|label_name }) }}">
                     <i class="fa-solid fa-pen text-[9px]" aria-hidden="true"></i>
                 </button>
             {% endif %}

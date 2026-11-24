@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:cae28a62c202f63393469aa265cf8775b06adfc1 -->
+<!-- translated-from: internals/security-model.md sha1:e6b487fb2b28f0622530664887a12bbc60f2cfed -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -329,9 +329,8 @@ Drosselung umgehen.
 Phase 3 von Issue #28. `MessageCryptoDetector` ordnet jede Nachricht im Builder des jeweiligen
 Anbieters ein, **bevor die Zeile zum ersten Mal geschrieben wird** — `search_vector` wird beim
 INSERT aus `body_text` erzeugt, ein später geleerter Body wäre also schon im Index. Er liest den
-obersten Content-Type mit seinen Parametern `protocol=` / `smime-type=` (von Hand geparst: die
-Erweiterungsattribute von webklex nimmt der erste Header, der sie setzt, und sie machen aus `-` ein
-`_`), weicht nur für Graph auf die Anhangsliste aus und auf Armor am Zeilenanfang im Body.
+obersten Content-Type mit seinen Parametern `protocol=` / `smime-type=` (von Hand aus dem
+gespeicherten Header geparst, eine Regel für jeden Anbieter), weicht nur für Graph auf die Anhangsliste aus und auf Armor am Zeilenanfang im Body.
 Verschlüsselte Arten bekommen einen leeren Body; Teile, die nur Hülle sind (`signature.asc`,
 `smime.p7s`, das Chiffrat), werden nicht als Anhänge gespeichert.
 

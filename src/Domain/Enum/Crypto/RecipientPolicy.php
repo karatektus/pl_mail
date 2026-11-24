@@ -13,8 +13,12 @@ namespace App\Domain\Enum\Crypto;
  * contact whose client mangles signed mail, say, or one who must never get
  * anything in the clear.
  *
- * Stored now and read by nothing yet: the setting belongs with the key it is
- * about, and the person can set it in the same place they manage the key.
+ * The composer reads it (compose--encryption, #plan()): Never keeps a message
+ * on automatic unencrypted, Always refuses to send it unencrypted to some
+ * recipients because others lack a key. A contact's sits on their key, where
+ * the person manages it; one of the person's own addresses keeps it in their
+ * settings (User::$ownAddressEncrypt). Both are set from the lock's popover
+ * in the composer as well (RecipientPolicies, #703).
  */
 enum RecipientPolicy: string
 {

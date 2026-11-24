@@ -9,6 +9,13 @@
     {%- if q %}{{ 'search.title_query'|trans({ '%query%': q }) }}{% else %}{{ 'search.title'|trans }}{% endif %} — {{ 'app.name'|trans -}}
 {% endblock %}
 
+{# The search as the toolbar names it, so "select all N" acts on these results:
+   the query as typed, re-parsed by the worker — see
+   App\Service\Mail\ListViewResolver. list_scope itself stays `*`, the sync
+   scope a list of mail from every mailbox needs. #}
+{% block list_view_scope %}search{% endblock %}
+{% block list_view_value %}{{ q }}{% endblock %}
+
 {% block inbox_tabs %}
     <div class="px-4 py-2.5 border-b border-line flex items-center gap-3">
         <h2 class="text-sm font-semibold text-ink-soft flex-1 min-w-0 truncate">

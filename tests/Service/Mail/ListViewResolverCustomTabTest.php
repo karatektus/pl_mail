@@ -13,10 +13,12 @@ use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use App\Repository\Mail\Message\MessageListRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadSearchRepository;
 use App\Service\Mail\UnifiedInboxes;
 use App\Service\Mail\AllMailView;
 use App\Service\Mail\InboxTabs;
 use App\Service\Mail\ListViewResolver;
+use App\Service\Search\SearchQueryParser;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -54,6 +56,8 @@ final class ListViewResolverCustomTabTest extends KernelTestCase
             new InboxTabs($container->get(InboxCategoryRepository::class)),
             new AllMailView($container->get(AccountRepository::class)),
             $container->get(UnifiedInboxes::class),
+            $container->get(SearchQueryParser::class),
+            $container->get(MessageThreadSearchRepository::class),
         );
 
         $this->connection->beginTransaction();

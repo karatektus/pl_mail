@@ -4,140 +4,303 @@ declare(strict_types=1);
 
 namespace App\Domain\Helper;
 
-use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Message;
+use App\Domain\DTO\Mail\ParsedAddress;
+use App\Domain\DTO\Mail\ParsedMessage;
+use App\Domain\DTO\Mail\ParsedPart;
+use DateTimeImmutable;
+use DateTimeZone;
+use ZBateson\MailMimeParser\Header\AddressHeader;
+use ZBateson\MailMimeParser\Header\DateHeader;
+use ZBateson\MailMimeParser\IMessage;
+use ZBateson\MailMimeParser\MailMimeParser;
+use ZBateson\MailMimeParser\Message\IMessagePart;
+use ZBateson\MailMimeParser\Message\IMimePart;
 
 /**
- * Message::fromString(), with a repeated once-only header collapsed when that
- * is what the library could not read (#357).
+ * Turns the bytes of an RFC 822 message into a ParsedMessage.
  *
- * Every message plMail parses comes through here as a string: an IMAP fetch,
- * a POP3 RETR or TOP answer, a JMAP Email/import blob, a decrypted message, a
- * stored .eml. A Date line three times makes webklex hand preg_match() an
- * array, and each caller used to catch the TypeError and give up on the
- * message — POP3 never stored it, Email/import refused it, decryption left it
- * sealed.
+ * Every message plMail reads as bytes comes through here: an IMAP fetch, a
+ * POP3 RETR, a JMAP Email/import blob, a decrypted message, a stored .eml a
+ * backfill re-reads. One parser and one set of rules, so the same bytes make
+ * the same row whichever protocol delivered them.
  *
- * Tried as it came first, so a message the parser reads is parsed exactly as
- * before. The repaired copy is parsed only when the first try fails and there
- * is something to repair; the header as it arrived is put back on the result,
- * so whoever writes the message out writes every line of it (see
- * RepeatedSingletonHeaders for why the first copy is kept).
+ * ── Why zbateson/mail-mime-parser (#82) ──────────────────────────────────────
+ * The parser was webklex/php-imap's until #82, and its parsing was where most
+ * IMAP bugs came from: a repeated Date header threw (#357), `boundary = "…"`
+ * with spaces stopped a folder (#45), a single-child multipart/related was
+ * handed over as one attachment and the message had no body, a part named
+ * only in Content-Type was stored under a hash (#718). Each had a correction
+ * of its own here, and the library had stopped being maintained. zbateson
+ * reads all of those correctly as they are, which is what removed the
+ * corrections; the tests that held each bug are what proved it.
  *
- * Only three throwables: a TypeError or ValueError is a value the parser did
- * not expect, an InvalidArgumentException is Carbon refusing a date. Anything else is not about this header and is
- * thrown as it is — and so is the first failure when the repair changes
- * nothing.
+ * Writing a parser of our own was the other option #82 left open. The
+ * malformed mail is the hard part of a MIME parser, and zbateson is a library
+ * whose whole subject is that, kept up by people who see more of it than one
+ * mail client does.
+ *
+ * ── What is still ours: the charset of a body ────────────────────────────────
+ * zbateson converts a body from the charset it declares, as any parser does.
+ * The declaration is the sender's claim, and two lies are common: UTF-8 under
+ * `charset=ISO-8859-1`, which converted reads "GrÃ¼ÃŸe", and 8-bit Latin-1
+ * under `us-ascii` or `utf-8`, which Postgres refuses outright and takes the
+ * whole batch with it (#81). So the body is taken as bytes and converted by
+ * CharsetHelper::toUtf8(), the rule the Gmail builder already uses — which
+ * keeps one judgement about charsets for every provider rather than one per
+ * parser.
+ *
+ * ── What the parser's types do not leave ─────────────────────────────────────
+ * Nothing of zbateson crosses this class's boundary: callers get ParsedMessage,
+ * ParsedPart and ParsedAddress. webklex's Message and Attribute objects had
+ * reached a dozen services, and each had learned a fact about the library
+ * (an empty Attribute's first() is false, an Attribute is not Traversable)
+ * that had nothing to do with mail.
  */
 final class MessageParser
 {
     /**
-     * What webklex puts in place of a Date header it cannot parse.
-     *
-     * Without a fallback it throws InvalidMessageDateException while building
-     * the message, the fetch fails, and every sync of that folder fails at the
-     * same message for ever. The epoch is chosen because nothing real is dated
-     * 1970: MessageSyncer::dateFromHeader() reads it as "no usable date" and
-     * dates the message by when it arrived here instead.
+     * One parser for the process. It is a dependency-injection container of
+     * its own underneath, and building that for every message of a first
+     * sync would cost more than the parse.
      */
-    public const string UNPARSEABLE_DATE = '1970-01-01 00:00:00 UTC';
+    private static ?MailMimeParser $parser = null;
 
     /**
-     * How the boundary of a multipart message is read out of its Content-Type.
-     *
-     * The library's own pattern is `/boundary=(.*?(?=;)|(.*))/i`, which wants
-     * the equals sign hard against the word. RFC 2045 does not: a parameter is
-     * tokens under RFC 822's lexical rules, and whitespace may stand between
-     * them, so
-     *
-     *     Content-Type: multipart/mixed; boundary = "--=_Part_1"
-     *
-     * is a legal header that some mailers write. The library found no boundary
-     * in it, declared the message to have "no content", and — because that is
-     * thrown while a page of mail is being fetched — took the whole folder's
-     * sync down with it, on every poll, until the message was deleted (#45).
-     *
-     * Whitespace is allowed on both sides of the sign. A quoted value is taken
-     * whole, spaces and all, since quoting is how a boundary is allowed to
-     * contain them; an unquoted one ends at the first semicolon or whitespace.
-     * The branch reset `(?|…)` puts either form in group 1, which is the one
-     * group Header::find() returns. Nothing trails the value: the obvious
-     * smaller change — the library's pattern with `\s*` added — captures the
-     * space before a following semicolon, and the library's clean-up does not
-     * strip it, so the boundary would be found and then match no line.
+     * @throws \Throwable whatever the parser could not get past; the caller
+     *                    decides what an unreadable message costs (see
+     *                    ImapPagedFetch, where it costs only that message)
      */
-    public const string BOUNDARY_PATTERN = '/boundary\s*=\s*(?|"([^"]+)"|([^;\s]+))/i';
-
-    /**
-     * The library's configuration as every parse in this application uses
-     * it: how mail is decoded and parsed.
-     *
-     * Every caller that turns bytes into a message passes this — IMAP, POP3,
-     * JMAP, decryption, the backfills — and a test that parses a message has
-     * to parse it the same way, or it is testing the library's defaults.
-     * It lived beside the IMAP connection factory while webklex was also the
-     * IMAP client; parsing is all it is about now.
-     */
-    public static function config(): Config
+    public static function parse(string $raw): ParsedMessage
     {
-        return Config::make([
-            // The library converts every body part from whatever charset it
-            // declares, which is wrong for the senders that declare
-            // ISO-8859-1 and send UTF-8 — see Utf8AwareMessageDecoder.
-            // Config::make merges into the vendor defaults, so the header and
-            // attachment decoders stay as they were.
-            'decoding' => [
-                'decoder' => [
-                    'message' => Utf8AwareMessageDecoder::class,
-                ],
-            ],
-            'options' => [
-                'fallback_date' => self::UNPARSEABLE_DATE,
-                'boundary'      => self::BOUNDARY_PATTERN,
-            ],
-        ]);
-    }
+        $message = (self::$parser ??= new MailMimeParser())->parse($raw, false);
 
-    public static function fromString(string $blob, Config $config): Message
-    {
-        try {
-            return self::build($blob, $config);
-        } catch (\TypeError|\ValueError|\InvalidArgumentException $failure) {
-            // Repaired below, or thrown as it is when there is nothing to repair.
-        }
+        $date = $message->getHeader('Date');
 
-        // Split where fromString() splits, so the header repaired is the one
-        // it failed to read.
-        if (false === str_contains($blob, "\r\n")) {
-            $blob = str_replace("\n", "\r\n", $blob);
-        }
+        [$text, $html, $attachments] = self::reclaimNamelessBodies(
+            self::bodyOf($message, 'text/plain'),
+            self::bodyOf($message, 'text/html'),
+            array_map(self::partOf(...), $message->getAllAttachmentParts()),
+        );
 
-        $split    = strpos($blob, "\r\n\r\n");
-        $header   = false === $split ? $blob : substr($blob, 0, $split);
-        $repaired = RepeatedSingletonHeaders::keepFirst($header);
-
-        if ($repaired === $header) {
-            throw $failure;
-        }
-
-        $message = self::build($repaired . (false === $split ? '' : substr($blob, $split)), $config);
-        $built   = $message->getHeader();
-
-        if (null !== $built) {
-            $built->raw = $header;
-        }
-
-        return $message;
+        return new ParsedMessage(
+            raw:           $raw,
+            headers:       self::headersOf($message),
+            messageId:     self::raw($message, 'Message-ID'),
+            subject:       CharsetHelper::ensureUtf8((string) $message->getSubject()),
+            from:          self::addressesOf($message, 'From')[0] ?? null,
+            to:            self::addressesOf($message, 'To'),
+            cc:            self::addressesOf($message, 'Cc'),
+            bcc:           self::addressesOf($message, 'Bcc'),
+            date:          self::dateOf($date),
+            hasDateHeader: null !== $date && '' !== trim($date->getRawValue()),
+            inReplyTo:     self::raw($message, 'In-Reply-To'),
+            references:    self::raw($message, 'References'),
+            textBody:      $text,
+            htmlBody:      $html,
+            attachments:   $attachments,
+        );
     }
 
     /**
-     * The library's own fromString(), apart because its @throws names only
-     * the library's exceptions: called directly, the catch above reads as
-     * dead to static analysis, though a TypeError is the very thing it is for.
+     * A text part that names no file, marked as an attachment, in a message
+     * that has no body of its type: that part is the body.
+     *
+     * By the letter of RFC 2183 a part marked `attachment` is one, and the
+     * parser says so. Senders mean otherwise — transactional mail stamps
+     * `Content-Disposition: attachment` on its only HTML part — and a message
+     * shown blank with one chip called "attachment.html" is a message lost.
+     * The rule is about what senders do, not about any parser, which is why
+     * it outlived webklex (see MisfiledBodyDetector for the mail it stored
+     * that way).
+     *
+     * Only into an empty slot, and only without a name. A body of that type
+     * already there means the tree was read right and this is something else;
+     * a name means a person attached a file, and `Rechnung.html` stays a file.
+     *
+     * @param list<ParsedPart> $attachments
+     *
+     * @return array{string, string, list<ParsedPart>}
      */
-    private static function build(string $blob, Config $config): Message
+    private static function reclaimNamelessBodies(string $text, string $html, array $attachments): array
     {
-        return Message::fromString($blob, $config);
+        $kept = [];
+
+        foreach ($attachments as $part) {
+            $nameless = null === $part->filename;
+
+            if (true === $nameless && 'text/html' === $part->contentType && '' === $html) {
+                $html = CharsetHelper::toUtf8($part->content, $part->charset);
+
+                continue;
+            }
+
+            if (true === $nameless && 'text/plain' === $part->contentType && '' === $text) {
+                $text = CharsetHelper::toUtf8($part->content, $part->charset);
+
+                continue;
+            }
+
+            $kept[] = $part;
+        }
+
+        return [$text, $html, $kept];
+    }
+
+    /**
+     * Every header, decoded and UTF-8, in the order it was written.
+     *
+     * Decoded with MimeHeaderHelper rather than taken from the parser's own
+     * value, because the parser's value is the header's meaning — for a
+     * Content-Type, the type without its parameters — and the stored header
+     * bag is read for its parameters (MessageCryptoDetector reads `protocol`
+     * and `smime-type` off it).
+     *
+     * @return array<string, string|list<string>>
+     */
+    private static function headersOf(IMessage $message): array
+    {
+        $headers = [];
+
+        foreach ($message->getAllHeaders() as $header) {
+            $name  = $header->getName();
+            $value = CharsetHelper::ensureUtf8(MimeHeaderHelper::decode($header->getRawValue()));
+
+            if (false === array_key_exists($name, $headers)) {
+                $headers[$name] = $value;
+
+                continue;
+            }
+
+            $headers[$name] = [...(array) $headers[$name], $value];
+        }
+
+        return $headers;
+    }
+
+    /**
+     * A header's value as written, unfolded; '' when the message has none.
+     */
+    private static function raw(IMessage $message, string $name): string
+    {
+        return CharsetHelper::ensureUtf8(trim((string) $message->getHeader($name)?->getRawValue()));
+    }
+
+    /**
+     * The mailboxes an address header names, members of a group included. A
+     * group with nobody in it (`undisclosed-recipients:;`) names none.
+     *
+     * @return list<ParsedAddress>
+     */
+    private static function addressesOf(IMessage $message, string $name): array
+    {
+        $header = $message->getHeader($name);
+
+        if (false === $header instanceof AddressHeader) {
+            return [];
+        }
+
+        $addresses = [];
+
+        foreach ($header->getAddresses() as $address) {
+            $addresses[] = new ParsedAddress(
+                CharsetHelper::ensureUtf8($address->getName()),
+                CharsetHelper::ensureUtf8($address->getEmail()),
+            );
+        }
+
+        return $addresses;
+    }
+
+    /**
+     * The instant a Date header names, in UTC, or null when it names none.
+     *
+     * Null rather than a stand-in: the caller knows what to put in its place
+     * (MessageSyncer dates the message by its arrival). A repeated Date is
+     * read by its first line, which is what the parser hands back. webklex
+     * threw on one, and a repair had to rewrite the header first (#357).
+     */
+    private static function dateOf(mixed $header): ?DateTimeImmutable
+    {
+        if (false === $header instanceof DateHeader) {
+            return null;
+        }
+
+        return $header->getDateTimeImmutable()?->setTimezone(new DateTimeZone('UTC'));
+    }
+
+    /**
+     * The message's body of one type, UTF-8.
+     *
+     * Every inline part of that type, joined by a line break, as webklex
+     * joined them before: Apple Mail splits an HTML body around each inline
+     * image, and a mailing list adds its footer as a text part of its own.
+     * Taking the first would drop the rest of the letter.
+     */
+    private static function bodyOf(IMessage $message, string $type): string
+    {
+        $count = 'text/html' === $type ? $message->getHtmlPartCount() : $message->getTextPartCount();
+        $parts = [];
+
+        for ($index = 0; $index < $count; ++$index) {
+            $part = 'text/html' === $type ? $message->getHtmlPart($index) : $message->getTextPart($index);
+
+            if (null === $part) {
+                continue;
+            }
+
+            $text = CharsetHelper::toUtf8(self::bytesOf($part), self::charsetOf($part));
+
+            if ('' !== $text) {
+                $parts[] = $text;
+            }
+        }
+
+        return implode("\n", $parts);
+    }
+
+    private static function partOf(IMessagePart $part): ParsedPart
+    {
+        $filename    = $part->getFilename();
+        $disposition = $part instanceof IMimePart ? $part->getHeader('Content-Disposition') : null;
+        $contentId   = trim((string) $part->getContentId(), "<> \t\r\n");
+
+        return new ParsedPart(
+            contentType: CharsetHelper::ensureUtf8(strtolower(trim($part->getContentType()))),
+            filename:    null === $filename || '' === trim($filename) ? null : CharsetHelper::ensureUtf8(trim($filename)),
+            disposition: null === $disposition ? null : strtolower(trim((string) $disposition->getValue())),
+            contentId:   '' === $contentId ? null : CharsetHelper::ensureUtf8($contentId),
+            charset:     self::charsetOf($part),
+            content:     self::bytesOf($part),
+        );
+    }
+
+    /**
+     * The part's bytes with the transfer encoding undone, and no charset
+     * conversion: that is CharsetHelper's to do, or the caller's.
+     */
+    private static function bytesOf(IMessagePart $part): string
+    {
+        return (string) $part->getBinaryContentStream()?->getContents();
+    }
+
+    /**
+     * The charset the part declared, or null when it declared none.
+     *
+     * Read off the header rather than through the parser's getCharset(),
+     * which answers ISO-8859-1 for an undeclared text part. CharsetHelper
+     * treats "undeclared" differently from "declared Latin-1", deliberately:
+     * undeclared bytes that are valid UTF-8 are kept as UTF-8. A part that
+     * is not MIME (uuencoded inside a plain body) has no header to declare
+     * one in.
+     */
+    private static function charsetOf(IMessagePart $part): ?string
+    {
+        if (false === $part instanceof IMimePart) {
+            return null;
+        }
+
+        $charset = trim((string) $part->getHeaderParameter('Content-Type', 'charset'));
+
+        return '' === $charset ? null : $charset;
     }
 }

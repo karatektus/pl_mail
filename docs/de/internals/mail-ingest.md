@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:bb313a4bb4ef1f8e1238b698ecb510b22a88db34 -->
+<!-- translated-from: internals/mail-ingest.md sha1:9cb66e176c5d6af8fcc0fea019ab2ed2fa520eb8 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -30,6 +30,15 @@ Nachricht versucht, sich in eine davon aufzulösen. `MessageSyncer` holt in Stap
 reicht die rohen RFC822-Bytes weiter, weil jede Nachricht als Ganzes geholt (`BODY.PEEK[]`) und
 aus diesen Bytes geparst wird — deshalb ist IMAP der einzige Weg, auf dem das Original gratis
 gespeichert wird.
+
+**Ein Parser für jede Nachricht, die als Bytes ankommt.** IMAP, POP3, JMAP `Email/import`, die
+Entschlüsselung und die Backfills, die ein gespeichertes Original neu lesen, gehen alle durch
+`MessageParser`, der zbateson/mail-mime-parser kapselt und plMails eigene `ParsedMessage`
+zurückgibt. Zwei Regeln darin sind plMails und nicht die der Bibliothek: Ein Body wird von
+`CharsetHelper` aus seinen Bytes umgewandelt statt nach dem Zeichensatz, den sein Teil angibt, weil
+diese Angabe oft falsch ist, und ein namenloser Textteil, der als Anhang markiert ist, in einer
+Nachricht ohne Body dieses Typs wird als Body gelesen. Bis #82 war das webklex/php-imap, und jeder
+seiner Parse-Fehler hatte in der Synchronisierung eine eigene Korrektur.
 
 **Gmail hat überhaupt keine `Mailbox`-Zeilen.** `GmailApiSyncer` plant die Arbeit direkt auf dem
 Konto und fächert `SyncGmailMessageBatchMessage`-Jobs zu je 100 Ids auf, während er mit der

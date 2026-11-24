@@ -7,26 +7,23 @@ namespace App\Tests\Domain\Helper;
 use App\Domain\Helper\MessageParser;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Exceptions\MessageContentFetchingException;
-use Webklex\PHPIMAP\Message;
 
 /**
  * A multipart message is read whatever way its boundary is legally written.
  *
  * RFC 2045 lets whitespace stand around the equals sign of a parameter, and
- * some mailers put it there: `boundary = "XYZ"`. The library's own pattern
- * wants the sign hard against the word, found no boundary, and called the
- * message one with "no content" — an exception thrown while a page of mail is
- * fetched, which stopped the whole folder's sync on every poll until somebody
- * deleted the message on the server (#45).
+ * some mailers put it there: `boundary = "XYZ"`. webklex's pattern wanted the
+ * sign hard against the word, found no boundary, and called the message one
+ * with "no content" — an exception thrown while a page of mail was fetched,
+ * which stopped the whole folder's sync on every poll until somebody deleted
+ * the message on the server (#45). It took a pattern of our own in the
+ * library's configuration to read it.
  *
- * Parsed through MessageParser::config(), which is the configuration a
- * sync parses with. That is half the point: the pattern is a config value, and
- * a test that handed the library its own config would pass without the value
- * ever reaching the header that reads it.
+ * MessageParser reads every form below without one, which is what let that
+ * configuration go with the library. Kept, through the parser a sync uses,
+ * so a parser that stops reading one of them fails here and not in a folder.
  */
-final class ImapBoundaryParsingTest extends TestCase
+final class BoundaryParsingTest extends TestCase
 {
     /**
      * @return iterable<string, array{string}>
@@ -51,23 +48,18 @@ final class ImapBoundaryParsingTest extends TestCase
     #[DataProvider('waysToWriteABoundary')]
     public function testTheBodyIsReadHoweverTheBoundaryIsWritten(string $parameter): void
     {
-        $message = Message::fromString($this->multipart($parameter, 'XYZ'), MessageParser::config());
-
-        self::assertSame('hello', trim((string) $message->getTextBody()));
+        self::assertSame('hello', trim(MessageParser::parse($this->multipart($parameter, 'XYZ'))->textBody));
     }
 
     /** Quoting is how a boundary is allowed to contain a space, so the space is part of it. */
     public function testAQuotedBoundaryKeepsTheSpacesInsideIt(): void
     {
-        $message = Message::fromString(
-            $this->multipart('boundary = "part one"', 'part one'),
-            MessageParser::config(),
-        );
+        $message = MessageParser::parse($this->multipart('boundary = "part one"', 'part one'));
 
-        self::assertSame('hello', trim((string) $message->getTextBody()));
+        self::assertSame('hello', trim($message->textBody));
     }
 
-    /** A part that is itself multipart reads its own boundary through the same pattern. */
+    /** A part that is itself multipart reads its own boundary the same way. */
     public function testANestedMultipartWithASpacedBoundaryIsReadToo(): void
     {
         $raw = "From: sender@example.com\r\n"
@@ -90,25 +82,10 @@ final class ImapBoundaryParsingTest extends TestCase
             . "--INNER--\r\n"
             . "--OUTER--\r\n";
 
-        $message = Message::fromString($raw, MessageParser::config());
+        $message = MessageParser::parse($raw);
 
-        self::assertSame('hello', trim((string) $message->getTextBody()));
-        self::assertSame('<p>hello</p>', trim((string) $message->getHTMLBody()));
-    }
-
-    /**
-     * The contrast, and the reason the pattern is configured at all: the same
-     * bytes through the library's defaults. If this ever stops throwing, the
-     * library has fixed its pattern and BOUNDARY_PATTERN can be looked at
-     * again — until then it is what stands between this header and a folder
-     * that never syncs.
-     */
-    public function testTheLibrarysOwnPatternDoesNotReadTheSpacedForm(): void
-    {
-        $this->expectException(MessageContentFetchingException::class);
-        $this->expectExceptionMessage('no content found');
-
-        Message::fromString($this->multipart('boundary = "XYZ"', 'XYZ'), Config::make([]));
+        self::assertSame('hello', trim($message->textBody));
+        self::assertSame('<p>hello</p>', trim($message->htmlBody));
     }
 
     /** The message of the report: synthetic, and CRLF as on the wire. */

@@ -7,6 +7,7 @@ namespace App\Service\Mail;
 use App\Domain\Exception\GmailApiException;
 use App\Domain\Exception\GmailPermanentException;
 use App\Domain\Exception\GmailThrottledException;
+use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\OAuth\OAuthTokenManager;
@@ -90,8 +91,10 @@ final class GmailApiClient
      * from In-Reply-To and References for a send the way it does for mail it
      * receives: without the id a reply starts a thread of its own, and the
      * other side's answer follows it there (#676).
+     *
+     * Answers the Gmail id of the sent message, or null if Gmail named none.
      */
-    public function sendRaw(Account $account, string $raw, ?string $threadId = null): void
+    public function sendRaw(Account $account, string $raw, ?string $threadId = null): ?string
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
@@ -107,6 +110,47 @@ final class GmailApiClient
         ]);
 
         $this->assertSuccess($account, $response, 'messages.send');
+
+        // The mail has left. An answer that will not decode is a missing id,
+        // not a failure: thrown from here it would be taken for a send that
+        // did not go, and the mail sent again.
+        try {
+            $id = $response->toArray(false)['id'] ?? null;
+        } catch (HttpException) {
+            return null;
+        }
+
+        return true === is_string($id) && '' !== $id ? $id : null;
+    }
+
+    /**
+     * The Message-ID header of one message, as Gmail holds it: bare, or null
+     * when it has none.
+     *
+     * For a message plMail has just sent (#702): Gmail replaces the
+     * Message-ID of mail sent through messages.send, and the send's answer
+     * carries only the Gmail id, so the header is read back with this.
+     * format=metadata with the one header asked for, the smallest answer
+     * messages.get gives.
+     */
+    public function getMessageIdHeader(Account $account, string $gmailId): ?string
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        $response = $this->httpClient->request('GET', self::BASE . '/messages/' . urlencode($gmailId), [
+            'auth_bearer' => $token,
+            'query'       => ['format' => 'metadata', 'metadataHeaders' => 'Message-ID'],
+        ]);
+
+        foreach ($this->decode($account, $response, 'messages.get')['payload']['headers'] ?? [] as $header) {
+            if (true === is_array($header) && 'message-id' === strtolower((string) ($header['name'] ?? ''))) {
+                $value = MessageIdHelper::normalise((string) ($header['value'] ?? ''));
+
+                return '' !== $value ? $value : null;
+            }
+        }
+
+        return null;
     }
 
     /**

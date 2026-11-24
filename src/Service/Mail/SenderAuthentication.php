@@ -154,16 +154,17 @@ final readonly class SenderAuthentication
                 static fn (mixed $line): string => trim((string) preg_replace('/\s+/', ' ', (string) $line)),
                 (array) $raw,
             ),
-            // Not a line: webklex/php-imap hands a header back as the whole value plus
-            // its leading token on its own, so an IMAP message carries
+            // Not a line: webklex/php-imap handed a header back as the whole value plus
+            // its leading token on its own, so IMAP mail it parsed carries
             // ["mx.google.com; dkim=pass …", "mx.google.com"]. Taken for a
             // second line from the believed server, the bare name passed
             // nothing and failed every message, which kept File in category
             // from filing anything at all on an IMAP account. A real line
             // always has a `;` (RFC 8601 — "authserv-id; none" when there is
             // nothing to say) or, nameless from Microsoft, an `=`; a token with
-            // neither carries no verdict either way. A library workaround: #82
-            // replaces the parsing and removes it with the others.
+            // neither carries no verdict either way. MessageParser stores the
+            // header as it was written; the filter stays for the mail stored
+            // before #82, whose header bags still hold the bare token.
             static fn (string $line): bool => '' !== $line && 1 === preg_match('/[;=]/', $line),
         ));
 

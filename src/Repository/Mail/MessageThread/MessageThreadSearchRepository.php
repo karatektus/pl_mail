@@ -248,25 +248,7 @@ class MessageThreadSearchRepository extends ServiceEntityRepository
         // Every row carries the same window count, so the first one will do.
         $total = (int) $rows[0]['total_threads'];
 
-        $ids = array_column($rows, 'thread_id');
-
-        // Hydrate via Doctrine so we get full entities (same as other finders).
-        // Order does not matter here — it is restored below, from the order the
-        // SQL returned.
-        $threads = $this->findBy(['id' => $ids]);
-
-        // Re-order to match the sort order from SQL
-        $indexed = [];
-        foreach ($threads as $thread) {
-            $indexed[$thread->id] = $thread;
-        }
-
-        $ordered = [];
-        foreach ($ids as $id) {
-            if (isset($indexed[$id])) {
-                $ordered[] = $indexed[$id];
-            }
-        }
+        $ordered = $this->inRowOrder($rows);
 
         // Provenance rides out on the same rows it was computed from. Read as
         // ids rather than as a flag on the entity: MessageThread is a mapped
@@ -286,6 +268,110 @@ class MessageThreadSearchRepository extends ServiceEntityRepository
         // $semantic, not the argument: cheapRows() may have given the vector
         // up, and the reader has to be told about the search that ran.
         return new SearchPage($ordered, $total, $semanticOnly, $semantic);
+    }
+
+    /**
+     * Whether a search's words alone come back thin enough that the body pass
+     * runs — the decision searchPage() makes for the first page, asked on its
+     * own for a whole-view action (#711).
+     *
+     * A search that "select all" acts on has to be the search that was on
+     * screen, and which statement produced that list is decided by the cheap
+     * pass on page one: fewer than a screenful and the body arms are added,
+     * otherwise they are not. Asked once here rather than per chunk by
+     * bulkPage(), because the answer for a later chunk is a different question
+     * — the last chunk of any long result is short — and a drain that switched
+     * statements halfway would page through two different result sets with one
+     * offset.
+     *
+     * Without the vector, as bulkPage() is; see there.
+     */
+    public function needsBodyRescue(UserInterface $user, ParsedSearchQuery $query): bool
+    {
+        $rows = $this->searchRows($user, $query, SearchSortOrder::Recent, self::SEARCH_RESCUE_BELOW, 0, false);
+
+        return count($rows) < self::SEARCH_RESCUE_BELOW;
+    }
+
+    /**
+     * One chunk of the conversations a search matches, for "select all" and an
+     * action on the whole result (#711).
+     *
+     * The statement searchPage() runs, with two things taken out.
+     *
+     * **No vector.** The semantic arm is a suggestion — ten rows the words did
+     * not find, badged "meaning" so somebody can tell them apart — and a
+     * whole-view action cannot badge anything. Archiving or binning every
+     * result of a search for an invoice number must not also take the
+     * newsletter the model thought was similar. So the set acted on is what the
+     * words matched, and on an installation with semantic search on that can be
+     * up to SEMANTIC_HITS conversations fewer than the count beside the button.
+     * Fewer is the direction to be wrong in.
+     *
+     * **No time budget on the body pass.** The budget in rescueRows() protects
+     * a request from a scan PHP would kill at thirty seconds, and falls back to
+     * the cheap rows when it fires. In a worker there is no such limit, and the
+     * fallback would be worse than the wait: one chunk from one statement and
+     * the next from another, under the same offset. $withBodyRescue comes from
+     * needsBodyRescue(), once, for the whole drain.
+     *
+     * Ordered by recency whatever order the page was in. Membership does not
+     * depend on the order, and Recent is the one that does not pay for ts_rank;
+     * its thread-id tiebreaker is what keeps LIMIT/OFFSET from repeating or
+     * skipping a conversation between chunks.
+     *
+     * @return list<MessageThread>
+     */
+    public function bulkPage(
+        UserInterface     $user,
+        ParsedSearchQuery $query,
+        bool              $withBodyRescue,
+        int               $page,
+        int               $perPage,
+    ): array {
+        $rows = $this->searchRows(
+            $user,
+            $query,
+            SearchSortOrder::Recent,
+            $perPage,
+            ($page - 1) * $perPage,
+            $withBodyRescue,
+        );
+
+        return $this->inRowOrder($rows);
+    }
+
+    /**
+     * The threads the rows name, hydrated through Doctrine and put back in the
+     * order the SQL returned them — findBy() answers in whatever order it likes.
+     *
+     * @param list<array<string,mixed>> $rows
+     *
+     * @return list<MessageThread>
+     */
+    private function inRowOrder(array $rows): array
+    {
+        $ids = array_column($rows, 'thread_id');
+
+        if ([] === $ids) {
+            return [];
+        }
+
+        $indexed = [];
+
+        foreach ($this->findBy(['id' => $ids]) as $thread) {
+            $indexed[$thread->id] = $thread;
+        }
+
+        $ordered = [];
+
+        foreach ($ids as $id) {
+            if (true === isset($indexed[$id])) {
+                $ordered[] = $indexed[$id];
+            }
+        }
+
+        return $ordered;
     }
 
     /**

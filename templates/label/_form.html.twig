@@ -19,6 +19,7 @@ shell's `after_fields` slot, and an include cannot fill a block.
         form: form,
         label: label,
         places: places|default([]),
+        note: note|default(null),
         title: label.id is null ? 'sidebar.labels.add'|trans : 'label.form.edit_title'|trans,
     } only %}
         {#
@@ -45,6 +46,12 @@ shell's `after_fields` slot, and an include cannot fill a block.
         dropped by the browser.
         #}
         {% block after_fields %}
+            {# Opened from under one account (#690): which account this is for,
+               and, for a rename, that the others keep the label as it is
+               (LabelController::accountNote()). #}
+            {% if note %}
+                <p class="text-xs text-ink-muted" data-label-account-note>{{ note }}</p>
+            {% endif %}
             {# Where this label is kept on each IMAP and Microsoft account (#221
                steps 2 and 4): a folder there, a keyword the server keeps, an
                Outlook category, or plMail's alone —

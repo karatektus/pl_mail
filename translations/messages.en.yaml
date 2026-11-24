@@ -375,6 +375,172 @@ admin:
             timeout: 'The host was still loading after four minutes and plMail stopped waiting. It may well finish; the model is very likely too big for the memory it has.'
             unexpected: 'Something went wrong before the host could answer. (%error%)'
             unreachable: 'Nothing answered at that address. (%error%)'
+    backfills:
+        active:
+            queued: 'Queued — waiting for the maintenance worker.'
+            running: 'Running. Its output is under Recent runs.'
+        added: 'Added %date%'
+        console: 'Same on the console'
+        count:
+            button: 'Count first'
+            none: 'Nothing to look at — this repair has no work on this installation.'
+            some: 'It will look at %count% messages. Some tasks read every candidate and change only the ones with the fault.'
+            unavailable: 'This one cannot count beforehand.'
+        heading: 'Backfills'
+        kind:
+            repairs: 'Repairs stored data'
+            rereads: 'Re-reads mail'
+        last_run: 'Last run from this page %date%'
+        list_label: 'Backfills, newest first'
+        never_run: 'Not run from this page yet'
+        new: 'New'
+        none: 'No backfills are registered.'
+        order_hint: 'Newest first. An update that needs one says so in its release notes, and it is usually the newest.'
+        repeat:
+            careful: 'Think before running it twice'
+            safe: 'Safe to run again'
+        run: 'Run %task%'
+        run_hint: 'Queued for the maintenance worker, not run in this page. You can leave it; the run carries on.'
+        runs:
+            empty: 'Nothing has been run from this page yet.'
+            everything: 'Everything'
+            heading: 'Recent runs'
+            removed_user: 'a removed user'
+            show_output: 'Show output'
+            state:
+                done: 'Done'
+                failed: 'Failed'
+                queued: 'Queued'
+                quiet: 'No word for 30 minutes'
+                running: 'Running'
+        task:
+            addresses:
+                explanation: >-
+                    Mail stored before addresses were cleaned up on arrival kept names exactly as the server sent them, so some senders show as "Doe, John" in quotes, and a quoted name with a comma could turn into two addresses.
+
+                    This rewrites the stored names and addresses of every message into the form new mail gets. Contacts whose address would change are counted rather than merged, so you can see whether any need merging by hand.
+                summary: 'Clean up quoted sender and recipient names'
+            attachment_content_type_names:
+                explanation: >-
+                    Some attachments that gave their file name only in their content type were stored under a checksum such as "57d5c7cb", with no extension to open them by.
+
+                    This reads each affected message's stored original and gives the attachment back its real name, where the original names it unambiguously. It also runs by itself after an update.
+                summary: 'Give back their names to attachments stored under a checksum'
+            calendars:
+                explanation: >-
+                    Every new user gets a personal calendar, and one for each mail account. This gives the same calendars to users who were here before that started. It only fills gaps, so running it again after adding accounts is fine.
+                summary: 'Create the default calendars for existing users'
+            category:
+                explanation: >-
+                    Works out the inbox tab of every message again — Primary, Updates, Promotions and so on — from what is stored, without asking the mail server.
+
+                    Run from this page it recomputes every message, including those that already have a tab, which is what you want after an update changed how mail is sorted.
+                summary: 'Sort every message into its inbox tab again'
+            contacts:
+                explanation: >-
+                    Contacts are learned as mail arrives. This learns them from every message already stored, for accounts synced before that existed, or after the rules for what counts as an address changed. It reads all mail of every account, one account at a time.
+                repeat_warning: 'Each run counts every stored address again, so the people in older mail move ahead of the people you write to now in address suggestions. Run it once after the change that calls for it.'
+                summary: 'Rebuild contacts from all stored mail'
+            events:
+                explanation: >-
+                    Reads stored mail again for bookings and invitations — flights, hotels, tickets, calendar invites — and puts them in the calendar. Use it after an update improved how they are read.
+
+                    Only mail that could carry an event is read, and only as far back as the window says. Events you edited or removed stay as you left them.
+                summary: 'Read stored mail again for calendar events'
+            gmailify_placement:
+                explanation: >-
+                    For an IMAP account whose mail a Gmail account also collects, plMail used to copy Gmail's placement onto the IMAP copy: mail Gmail had archived or deleted went to Archive or Trash here while the IMAP server still had it in the Inbox.
+
+                    This puts each such message back where its IMAP folder says it is. Run it while nobody is moving mail, or a move that has not reached the server yet may flicker back for a moment.
+                summary: 'Put Gmail-collected IMAP mail back in its own folder'
+            headers:
+                explanation: >-
+                    Mail stored before header names were made uniform kept them as each provider spelled them ("List-Id", "list_id"). Filters that test a header did not match those messages. This rewrites the stored header names into one form; values are not changed.
+                summary: 'Make stored header names uniform'
+            html_body_text:
+                explanation: >-
+                    After the update that rebuilt the search index, every message waits to be indexed again, and the scheduler works through them a little at a time, newest first. This does the rest in one go, so older mail is back in search now rather than over an evening.
+
+                    It also stores the words of mail sent as HTML only, so search, embeddings and summaries read its body. Running both at once is fine; they share the work.
+                summary: 'Finish putting all mail back in search'
+            insights:
+                explanation: >-
+                    Reads stored mail again for parcels, flights, tickets and code reviews — the cards on the radar. Use it after an update taught it a new sender or a better reading.
+
+                    Only stored mail is read; no provider is asked anything. A card someone dismissed stays dismissed.
+                summary: 'Read stored mail again for parcels, flights and tickets'
+            message_arrival:
+                explanation: >-
+                    Admin → Performance shows how late mail arrives, measured from when the provider accepted it. Mail stored before that time was recorded has none. This reads it from the headers for the last week's mail, which is as far back as the panel looks. It also runs by itself after an update.
+                summary: 'Work out arrival times for the last week, for Performance'
+            misfiled_bodies_v2:
+                explanation: >-
+                    Some messages were stored with their body as an attachment with a name like "09704cea", so they open blank with one chip.
+
+                    The body was saved all along; this puts it back where it belongs and removes the chip. It also runs by itself after an update.
+                summary: 'Restore bodies that were stored as attachments'
+            proposals:
+                explanation: >-
+                    Reads stored mail in Primary again for dates written in sentences — "let's meet Thursday at 3" — and offers them as calendar proposals. A message that already has a proposal, or one you threw away, is left alone.
+                summary: 'Read stored mail again for dates to propose'
+            recipients:
+                explanation: >-
+                    Mail synced over IMAP before a fix stored no To and Cc lists, though the headers were kept. This fills the empty lists from those headers. Recipients that are already there are left as they are.
+                summary: 'Fill in missing To and Cc lists'
+            repeated_headers:
+                explanation: >-
+                    Some IMAP servers repeated the header block at the top of the message body, so those messages open with "Delivered-To: …" above the text, and their original holds the headers twice.
+
+                    This reads the stored original of every IMAP message and removes the repeat where it finds one. That is one file read per message, which is why it is not run automatically.
+                summary: 'Remove header blocks repeated at the top of IMAP mail'
+            rethread:
+                explanation: >-
+                    Throws away every conversation and builds them again from the stored messages, with the threading rules in use now.
+
+                    Stars, snoozes, tabs and labels on a conversation are carried over. Stored AI summaries are not and have to be asked for again. Run from this page, pressing Run is the confirmation the console asks for.
+                repeat_warning: 'Each run throws the conversations away again, and AI summaries made since the last run go with them. Run it once after the change that calls for it.'
+                summary: 'Rebuild all conversations from scratch'
+            safe_html:
+                explanation: >-
+                    Every HTML message is shown from a cleaned copy. This makes that copy for messages that have none yet.
+                summary: 'Make the safe copy of HTML mail that has none'
+            safe_html_absolute_position:
+                explanation: >-
+                    Some HTML mail kept elements positioned on top of the page, so a banner could cover the text under it. This cleans those messages' display copy again with the fixed rules.
+                summary: 'Stop banners covering the text in HTML mail'
+            safe_html_charset:
+                explanation: >-
+                    HTML mail that declared its own character set could show garbled characters such as "Ã¤" for "ä". This cleans those messages' display copy again with the fixed rules.
+                summary: 'Repair garbled characters in HTML mail'
+            safe_html_conditional_comments:
+                explanation: >-
+                    Mail written for Outlook could show stray text such as "<![endif]-->". This cleans those messages' display copy again with the fixed rules.
+                summary: 'Remove stray Outlook markup shown as text'
+            safe_html_hidden_cards:
+                explanation: >-
+                    HTML mail with a form, or with certain styles, could lose or hide part of its content. This cleans those messages' display copy again with the fixed rules.
+                summary: 'Restore content hidden in HTML mail'
+            safe_html_table_links:
+                explanation: >-
+                    In HTML mail where a whole table was a link, the link could come out empty. This cleans those messages' display copy again with the fixed rules.
+                summary: 'Restore links around tables in HTML mail'
+            safe_html_unknown_elements:
+                explanation: >-
+                    HTML mail using elements the cleaner did not know — some booking confirmations, for example — could be shown with a blank body. This reads every HTML message and cleans the display copy again for those that hold such an element.
+                summary: 'Restore HTML mail shown blank because of unknown elements'
+            spam_in_archive:
+                explanation: >-
+                    Until a fix, a "Mark as spam" filter labelled mail Spam here but archived it on the server, so the next sync found it in the archive and it sat there unread.
+
+                    This moves each such message into Spam the way you would by hand: on the server it goes from Archive to Junk. IMAP accounts without a Junk folder are skipped and counted.
+                summary: 'Move spam a filter archived into Spam'
+        what_it_does: 'What it does'
+        window:
+            24h: 'Last 24 hours'
+            4w: '4 weeks'
+            7d: '7 days'
+            all: 'All mail'
+            label: 'Mail to read again'
     client_errors:
         browser: 'Browser'
         clear: 'Clear'
@@ -870,6 +1036,7 @@ admin:
     nav:
         address: Address
         ai: AI
+        backfills: 'Backfills'
         backup: Backup
         database: Database
         demo_stats: 'Demo visitors'
@@ -2131,6 +2298,15 @@ compose:
         no_own_certificate: "You have no S/MIME certificate for this From address, so this message cannot be signed or encrypted with S/MIME."
         failed: "The message could not be encrypted. Nothing was sent."
         sealed_attachment: "Encrypted: until the message is sent, only you can open it."
+        policy:
+            auto: 'Auto'
+            failed: "That choice could not be saved."
+            heading: "Encryption for these addresses"
+            hint: "Kept for future mail too. Auto encrypts whenever plMail has a key."
+            label: "Encryption for %email%"
+            no_key: "No key — unencrypted"
+            off: 'Off'
+            on: 'On'
     seal:
         refused: "The encrypted message did not arrive intact. Nothing was sent; try again."
         keys_changed: "A recipient's key changed while you were writing. Nothing was sent; send it again."
@@ -2139,6 +2315,8 @@ compose:
     formatting: Formatting options
     forward: Forward
     from: From
+    from_pick: Choose an address to send from
+    from_via: '%label% · via %account%'
     image: Insert image
     image_edit:
         crop: Crop
@@ -2288,6 +2466,8 @@ contact_keys:
     removed: "Key removed."
     preferences_saved: "Saved."
     not_found: "That key is no longer there."
+    policy:
+        no_key: "plMail has no key for this address, so mail to it goes out unencrypted anyway."
     signer_unknown: "plMail does not have the key that made this signature. Look it up or import it first."
     certificates:
         heading: "Contacts' S/MIME certificates"
@@ -2918,6 +3098,9 @@ label:
     error:
         duplicate: A label with this name already exists here. Capitals do not make it a different name.
     form:
+        account_note:
+            new: 'Made on %account% only.'
+            rename: 'Renaming it here renames it on %account% only. %others% keep “%name%”.'
         color: Color
         delete: Delete label
         delete_hint: 'Deleting removes the label from every account, along with any labels nested under it. Mail carrying it keeps its other labels and is not deleted.'
@@ -4053,6 +4236,29 @@ settings:
             scaleHint: Applies to the whole interface. The compose window keeps its own font and size — those go out with the message.
             subheading: The typeface and size the interface is drawn in.
     compose_defaults:
+        bcc:
+            chips:
+                create: 'Add %s'
+                no_results: 'No contact matches. Type the whole address.'
+            for_alias: 'Always Bcc for %alias%'
+            hint: 'Every message also goes to these addresses, unseen: a backup copy, or proof it left. They are filled into Bcc when you start writing, and you can take one off for a single message.'
+            invalid: '"%address%" is not a valid email address.'
+            label: 'Always Bcc'
+            per_address:
+                account_list: 'Same as the account: %addresses%'
+                account_none: 'Same as the account: no Bcc'
+                inherit: 'Same as account'
+                nobody: 'Nobody, this address sends no copy'
+                override: 'Its own list'
+            placeholder: 'Add an address…'
+            save: 'Save'
+            too_many: 'At most %max% addresses.'
+        exceptions:
+            add: 'Add an exception for…'
+            edit: 'Edit'
+            heading: 'Addresses that differ'
+            remove: 'Remove exception'
+            remove_for: 'for %alias%'
         heading: 'Compose defaults'
         invalid: 'That setting could not be saved.'
         read_receipt:
@@ -4065,7 +4271,14 @@ settings:
                 ask: 'Ask each time'
                 never: 'Never send'
         saved: 'Saved.'
-        subheading: 'What each of your addresses does by default when it sends and receives.'
+        subheading: 'What each account does by default when it sends and receives, and the addresses that differ.'
+        summary:
+            bcc: 'Bcc %addresses%'
+            bcc_nobody: 'Bcc nobody'
+            exceptions: 'Exceptions: %number%'
+            no_bcc: 'No Bcc'
+            receipts: 'Receipts: %mode%'
+            same_as_account: 'Same as the account'
     filters:
         account: Account
         action:
@@ -4818,19 +5031,27 @@ settings:
         sync_now_title: Sync now
         zone_follows: Follows plMail
     labels:
+        by_account:
+            hint: 'Lists each account’s labels under that account in the sidebar, beside its folders. The Labels section then keeps only labels that are on no account yet, and a label renamed from under an account is renamed for that account alone.'
+            title: 'Labels by account'
         count: '%count% labels'
         delete: Delete label "%name%"
         edit: Edit label "%name%"
         empty: No labels yet — create one, or they appear after the first sync.
         folders_in_labels:
-            off_hint: 'Off: folders are listed under their account, and the Labels section holds the labels you put on mail.'
-            on_hint: 'On: the Labels section in the sidebar lists folders too, beside their place under each account.'
+            hint: 'Lists folders in the merged Labels section too, beside their place under each account. Only for the merged list: with labels by account, everything is under its account already.'
             title: 'Folders in Labels'
         heading: Labels
         hide: Hide label
+        seg:
+            off: 'Off'
+            on: 'On'
         show: Show label
         subheading: Create, rename and organise your labels, and choose which appear in the sidebar.
         system: System
+        view:
+            heading: 'Labels in the sidebar'
+            subheading: 'Choose whether the sidebar lists your labels once for all accounts, or under each account.'
     pinning:
         duration:
             custom: 'A number of days'
@@ -5011,6 +5232,7 @@ settings:
             inbox_tabs: "tabs promotions social updates forums"
             insights: "parcel tracking invoice flight"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            label_view: "by account grouped merged folders sidebar"
             labels: "folders tags unread all mail"
             language: "locale english german french chinese"
             libravatar: 'libravatar avatar picture photo share public profile'
@@ -5021,11 +5243,12 @@ settings:
             password: "login sign-in"
             pinning: 'pin pinned thumbtack sticky top reminder'
             profile: "name avatar photo picture"
-            read_receipts: "mdn receipt confirmation"
+            read_receipts: "mdn receipt confirmation bcc copy backup always"
             reading_pane: "preview split right bottom"
             sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender'
             sharing: "link public booking"
             shortcuts: "keyboard hotkeys keys"
+            sidebar: 'width wide narrow resize drag long names truncated cut off hover peek more folders'
             swipe_actions: "swipe gesture phone archive"
             templates: "canned responses snippets text blocks"
             theme: "dark light mode night colours colors"
@@ -5202,8 +5425,13 @@ settings:
         hide_note: To hide a folder altogether, switch it off under Labels.
         hint: Ticked folders wait behind More. The others stay in the sidebar itself.
         label: Behind More
+        peek:
+            hint: 'When a name is cut off, the sidebar widens over the mail while the pointer is on it. To make it wider for good, drag its edge.'
+            off: 'Off'
+            on: 'On'
+            title: 'Show long names on hover'
         pinned: The Inbox always stays where it is.
-        subheading: Which folders wait behind More.
+        subheading: 'How long names show, and which folders wait behind More.'
     signature:
         for_alias: 'Signature for %alias%'
         heading: Signatures
@@ -5431,12 +5659,15 @@ shortcuts:
 sidebar:
     accounts:
         add: Add account
+        collapse_all: 'Close all accounts'
         colour: 'Colour marking %account%'
         colour_disabled: 'Colour marking %account%, whose mail is switched off'
+        expand_all: 'Open all accounts'
         folders: 'Folders…'
         heading: Accounts
         menu: 'Folders of %account%'
         new_folder: 'New folder…'
+        new_label: 'New label…'
         none: No accounts yet
         open: 'Open %account%'
         toggle: 'Show or hide folders in %account%'
@@ -5450,6 +5681,7 @@ sidebar:
         folder_on: 'Folder on %accounts%'
         heading: Labels
         none: No labels yet
+        shared_with: 'Also on %accounts%'
     new_mail_here: 'New mail in %where%'
     new_mail_here_count: '%count% new in %where%'
     nav:
@@ -5466,6 +5698,8 @@ sidebar:
         starred: Starred
         trash: Trash
         unread: Unread
+    resize: 'Resize the sidebar'
+    resize_hint: 'Drag to resize, double-click to reset'
     toggle: Show or hide the sidebar
 
 snooze:

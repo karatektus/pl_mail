@@ -11,10 +11,7 @@ the hint says that the notes are still one click away.
 Accepts:
   show  bool
 #}
-{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                  peer-checked:bg-accent peer-checked:text-accent-ink
-                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                  transition-colors cursor-pointer' %}
+{% import '_partials/_segmented.html.twig' as seg %}
 <div class="px-4 py-3">
 <form method="post" action="{{ path('app_settings_whats_new_update') }}" data-controller="ui--auto-submit">
     <input type="hidden" name="_token" value="{{ csrf_token('settings-whats-new') }}">
@@ -23,20 +20,13 @@ Accepts:
             <span class="block text-xs font-medium text-ink-muted">{{ 'settings.whats_new.show'|trans }}</span>
             <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.whats_new.show_hint'|trans }}</span>
         </span>
-        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
-             role="radiogroup" aria-label="{{ 'settings.whats_new.show'|trans }}">
-            {% for on in [true, false] %}
-                <label>
-                    <input type="radio" name="show" class="peer sr-only"
-                           value="{{ on ? '1' : '0' }}"
-                           data-action="change->ui--auto-submit#submit"
-                           {{ show == on ? 'checked' : '' }}>
-                    <span class="{{ segText }}">
-                        {{ (on ? 'settings.whats_new.on' : 'settings.whats_new.off')|trans }}
-                    </span>
-                </label>
-            {% endfor %}
-        </div>
+        {{ seg.control('show', [
+            { value: '1', label: 'settings.whats_new.on'|trans },
+            { value: '0', label: 'settings.whats_new.off'|trans },
+        ], show ? '1' : '0', {
+            label:  'settings.whats_new.show'|trans,
+            action: 'change->ui--auto-submit#submit',
+        }) }}
     </div>
 </form>
 </div>

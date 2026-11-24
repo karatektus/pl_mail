@@ -12,12 +12,9 @@ decided from public keys and settings, so nothing here waits on the keyring.
 
 Reads wkd_settings() (App\Twig\WkdExtension).
 #}
+{% import '_partials/_segmented.html.twig' as seg %}
 {% set state = wkd_settings() %}
 {% set button = 'inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer' %}
-{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                  peer-checked:bg-accent peer-checked:text-accent-ink
-                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                  transition-colors cursor-pointer' %}
 {% set host = app.request.host %}
 {# The last check's two verdicts (WkdSettingsController::check()), drawn beside
    the address they were asked for. #}
@@ -56,18 +53,13 @@ Reads wkd_settings() (App\Twig\WkdExtension).
                                   data-controller="ui--auto-submit" class="shrink-0">
                                 <input type="hidden" name="_token" value="{{ csrf_token('settings-wkd') }}">
                                 <input type="hidden" name="email" value="{{ entry.email }}">
-                                <div class="grid grid-flow-col auto-cols-fr rounded-pane border border-line overflow-hidden"
-                                     role="radiogroup" aria-label="{{ 'encryption.wkd.publish'|trans({ '%email%': entry.email }) }}">
-                                    {% for on in [true, false] %}
-                                        <label>
-                                            <input type="radio" name="publish" class="peer sr-only"
-                                                   value="{{ on ? '1' : '0' }}"
-                                                   data-action="change->ui--auto-submit#submit"
-                                                   {{ (entry.state.value != 'switched_off') == on ? 'checked' : '' }}>
-                                            <span class="{{ segText }}">{{ (on ? 'encryption.sending.on' : 'encryption.sending.off')|trans }}</span>
-                                        </label>
-                                    {% endfor %}
-                                </div>
+                                {{ seg.control('publish', [
+                                    { value: '1', label: 'encryption.sending.on'|trans },
+                                    { value: '0', label: 'encryption.sending.off'|trans },
+                                ], entry.state.value != 'switched_off' ? '1' : '0', {
+                                    label:  'encryption.wkd.publish'|trans({ '%email%': entry.email }),
+                                    action: 'change->ui--auto-submit#submit',
+                                }) }}
                             </form>
                         {% endif %}
                     </div>

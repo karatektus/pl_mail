@@ -38,6 +38,18 @@ More comes back open when you are on a page inside it. The choice is remembered 
 account, is kept in a configuration backup, and shows only in the full sidebar: the narrow icon rail
 has no More, so a folder tucked behind it is not in the rail.
 
+**The sidebar's width** is yours to set: drag the edge between the sidebar and the mail, or focus
+that edge with Tab and use the arrow keys; a double-click puts it back to the standard width. It goes
+from 180 to 480 pixels and never squeezes the mail below a phone's width. The width is remembered
+against your account and kept in a configuration backup, so it is the same on the mail, the calendar,
+Settings and the admin panel, and on your other devices. For a long label that you only want to read
+now and then, there is no need to widen it: when a name is cut off, the sidebar leans out over the
+mail while the pointer or the keyboard focus is on it, just far enough for the longest name, and the
+mail beside it does not move. It does nothing while nothing is cut off, and **Show long names on
+hover** in Settings → General → Layout & controls → Sidebar switches it off. The narrow icon rail has
+neither. Only the row you are on is highlighted; a parent label stays plain while one of its
+children is open.
+
 **Unread** gathers unread mail from everywhere — archived and labelled conversations included, with
 no category tabs — and leaves out only what you have put away: the bin, spam and anything snoozed.
 Dropping a conversation on it marks the conversation unread and leaves it where it is, which is
@@ -615,6 +627,38 @@ Labels** in **Settings → Labels** to list folders there too, where they wear a
 dot. Folders are made, renamed and deleted in the account's own folder list, never by making or
 renaming a label; see [Folders](accounts.md#folders).
 
+### Labels by account
+
+A label with the same name on several accounts is one label in plMail: "Sports" on two Gmail
+accounts is listed once, and opening it shows both accounts' mail. Switch on **Labels by account** in
+**Settings → Labels** to list labels under their account instead. Each account in the sidebar then
+shows all of its labels, beside its folders, nested as on the account itself; a label wears its
+colour dot, and a folder none. The LABELS section keeps only labels that are on no account yet, and is left out while there are
+none.
+
+- Opening a label under an account shows that account's mail with the label, and its unread count
+  is that account's.
+- A label that is on other accounts too has a link mark; hovering over it names them. Renaming or
+  deleting it from **Settings → Labels** affects every one of them.
+- The pencil beside a label renames it **for that account only**. That account's label and its
+  mail move to a label under the new name, and the label is renamed on the mail server; the other
+  accounts keep the old name. Labels nested under it on that account go with it. A filter that only
+  runs on that account and puts the label on mail now puts the new label on, and if you get
+  notifications for the label, you get them for the new one too. A colour changed there, without a
+  new name, is the label's on every account.
+- Renaming a label to the name another label already has joins that label, as long as it is not on
+  that account yet. Renamed back to its old name, a label you renamed for one account is one label
+  again; this works from **Settings → Labels** too.
+- **New label…** at the end of an account's list makes a label on that account only. Gmail and
+  Outlook get it straight away, rather than when it is first put on mail.
+
+Dragging a conversation onto a label under an account labels it, as in LABELS; onto a folder, moves
+it. Either way it only takes conversations from that account.
+
+Several accounts can be open in the sidebar at once, and each stays open until you close it. The
+button beside **Add account** in the ACCOUNTS heading opens them all, or closes them all once every
+one is open.
+
 In an open conversation each message shows its labels. A folder it is in wears a folder and has no
 ×, because taking mail out of a folder is a move; a label has an × that takes it off that message.
 
@@ -809,8 +853,10 @@ all** has a menu beside it offering **All**, **None**, **Read**, **Unread** and 
 
 A selection belongs to the list, not to the page: what you tick stays ticked when you go to the
 next page, and the number beside the actions counts all of it. On a list longer than a page the
-menu also offers **All … in this view**, which selects every conversation in it. **None** clears
-every page, and going to a different list starts with nothing selected.
+menu also offers **All … in this view**, which selects every conversation in it. In search results
+that is every conversation the search's words found; one listed only because it is similar in
+meaning is left out. One account's own inbox does not offer it. **None** clears every page, and
+going to a different list starts with nothing selected.
 
 To select a run of conversations, click one avatar, then hold Shift and click another: both, and
 every conversation between them on the page, are selected. The run always starts at the avatar you
@@ -1416,6 +1462,27 @@ see it spread out from the start, **Settings → Reading & writing → Compose**
 the default, and either way the quote counts as the message's content: sending a forward without a
 word of your own above it is not questioned as an empty mail.
 
+### Always Bcc
+
+To send a copy of every mail to another mailbox of yours (as a backup, or as proof it left), set
+**Always Bcc** under **Settings → Reading & writing → Compose → Compose defaults**. Each account is a
+row there with a one-line summary; open it to set its list. Addresses are added as chips, with the
+same contact suggestions as the compose window, up to ten per list, and each change is saved at
+once.
+
+Below that, **Addresses that differ** lists only the sending addresses that do not follow their
+account. **Add an exception for…** picks one. Its Always Bcc can then be **Same as account**, or
+**Its own list**, which may be empty so that mail from that address is not copied at all. **Remove
+exception** puts the address back to following its account in everything.
+
+The addresses go into the **Bcc** row when the compose window opens, on a new message, a reply, a
+reply-all and a forward. You can see them there and remove one for a single message. An address the
+message already goes to in To or Cc is not added again, and an address is never copied to itself.
+Changing **From** replaces the old address's copies with the new address's. An address you typed into
+Bcc yourself stays. A draft you open again keeps the Bcc row it was saved with.
+
+The JMAP identities carry the same list as their `bcc`, so the apps can copy mail to the same places.
+
 ### Scheduled send
 
 The chevron beside **Send** opens **Send later**: *Tomorrow morning* (08:00), *Tomorrow afternoon*
@@ -1478,7 +1545,7 @@ if you do not.
 
 ### Being asked for one
 
-**Settings → Aliases → Compose defaults**, per address. Three modes:
+**Settings → Reading & writing → Compose → Compose defaults**, per account, and for any address under **Addresses that differ**. Three modes:
 
 | Mode | What your mailbox does |
 |---|---|
@@ -1598,6 +1665,11 @@ or deleted. Editing it does not lift the mark, because the mail has still not go
 - [JMAP](../internals/jmap.md) — the same operations as a client sees them.
 
 ## Things that bite
+
+**An Always Bcc address can stop a mail from being encrypted.** The composer encrypts automatically
+only when every recipient has a key, and S/MIME only when there is no Bcc at all. A backup address
+in Bcc is a recipient like any other. Give it a key, or remove it from Bcc for the mails you
+encrypt.
 
 **"Use plMail" for email links needs HTTPS and a browser that allows it.** Browsers only let a web
 app take `mailto:` links over HTTPS (or on `localhost`), so an install reached over plain HTTP shows

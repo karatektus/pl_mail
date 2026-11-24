@@ -909,8 +909,15 @@ final class MailController extends AbstractController
     }
 
     /**
-     * Remembers which account's folder list is open, so the sidebar can render
-     * it already expanded rather than expanding it afterwards.
+     * Remembers which accounts' folder lists are open, so the sidebar can
+     * render them already expanded rather than expanding them afterwards.
+     *
+     * `{account, expanded}` opens or closes one, leaving the others as they
+     * are (#690: several can be open). `{all: true|false}` opens every one of
+     * the user's accounts or closes them all, for the heading's Open all
+     * button. `{account: null}` closes them all too, which is what the browser
+     * suite resets with between tests. An `account` with no `expanded` opens
+     * it, the shape a page loaded before the change still sends.
      *
      * Server-side rather than in localStorage, for the reason the calendar
      * pane's width is: the sidebar re-renders on every visit, and a list
@@ -926,16 +933,33 @@ final class MailController extends AbstractController
 
         /** @var User $user */
         $user      = $this->getUser();
-        $accountId = $request->toArray()['account'] ?? null;
+        $body      = $request->toArray();
+        $accountId = $body['account'] ?? null;
+
+        if (true === is_bool($body['all'] ?? null)) {
+            $user->expandedAccountIds = true === $body['all']
+                ? array_map(static fn (Account $account): int => (int) $account->id, $this->accountRepository->findBy(['usr' => $user]))
+                : [];
+            $em->flush();
+
+            return $this->json(['ok' => true]);
+        }
+
+        if (null === $accountId) {
+            $user->expandedAccountIds = [];
+            $em->flush();
+
+            return $this->json(['ok' => true]);
+        }
 
         // Ownership is checked even though this is only a preference: the id
         // comes back in the next render, where it decides whose folder list
         // gets read.
         $account = is_int($accountId) ? $this->accountRepository->find($accountId) : null;
 
-        $user->expandedAccountId = (null !== $account && $account->usr === $user)
-            ? (int) $account->id
-            : null;
+        if (null !== $account && $account->usr === $user) {
+            $user->setAccountExpanded((int) $account->id, false !== ($body['expanded'] ?? true));
+        }
 
         $em->flush();
 
@@ -986,6 +1010,64 @@ final class MailController extends AbstractController
         $em->flush();
 
         return $this->json(['ok' => true]);
+    }
+
+    /**
+     * Remembers how wide the sidebar is, and whether a row too long for it may
+     * lean out over the mail to show itself (#699).
+     *
+     * One endpoint for both, because both are about the same box, but they
+     * arrive from two places in two shapes: the boundary posts `width` on
+     * release (ui--sidebar-split), and the switch in Settings → Layout →
+     * Sidebar posts `key=peek` + `enabled` (settings--toggle). A field that is
+     * absent is left as it is, so switching the peek on does not reset the
+     * width. Its own token, like the reading pane's divider: the drag handle
+     * posts a form body, not JSON under the shared `ajax` header.
+     *
+     * The width is clamped here as well as in the browser — the client's
+     * bounds are a convenience for the person dragging, and a stored 40000
+     * would wedge the mailbox for whoever opened it next.
+     *
+     * The peek answers with the sidebar re-rendered, so the sidebar beside the
+     * switch starts (or stops) peeking at once: the setting is rendered onto
+     * the aside, which the stream replaces.
+     */
+    #[Route('/sidebar/state', name: 'sidebar_state', methods: ['POST'])]
+    public function sidebarState(Request $request, EntityManagerInterface $em): Response
+    {
+        $this->denyAccessUnlessGranted('ROLE_USER');
+
+        $this->assertCsrf($request, 'sidebar_state');
+
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $peek = false;
+
+        if (true === $request->request->has('width')) {
+            $user->sidebarWidth = $request->request->getInt('width');
+        }
+
+        if (true === $request->request->has('key')) {
+            // An unknown key is a bug in our own page, not something to store.
+            if ('peek' !== $request->request->getString('key')) {
+                return $this->json(['ok' => false], Response::HTTP_BAD_REQUEST);
+            }
+
+            $user->sidebarPeek = $request->request->getBoolean('enabled');
+            $peek              = true;
+        }
+
+        $em->flush();
+
+        if (true === $peek) {
+            return new Response(
+                $this->renderView('_partials/_sidebar.stream.html.twig'),
+                headers: ['Content-Type' => 'text/vnd.turbo-stream.html'],
+            );
+        }
+
+        return $this->json(['width' => $user->sidebarWidth, 'peek' => $user->sidebarPeek]);
     }
 
     /**
@@ -1107,17 +1189,15 @@ final class MailController extends AbstractController
             $payload[NewMailMarkers::labelKey($label)] = $newMail->forLabel($label);
         }
 
-        // The expanded account's folder rows count within that account and are
-        // keyed accordingly, so they need their own entries — patched with the
-        // user-wide number they would claim mail the list beside them does not
-        // show. Only the expanded account: it is the only one on screen.
+        // The expanded accounts' folder rows count within their account and
+        // are keyed accordingly, so they need their own entries — patched with
+        // the user-wide number they would claim mail the list beside them does
+        // not show. Only the expanded accounts: they are the ones on screen,
+        // and each costs one grouped count.
         /** @var User $user */
-        $user    = $this->getUser();
-        $account = null === $user->expandedAccountId
-            ? null
-            : $this->accountRepository->find($user->expandedAccountId);
+        $user = $this->getUser();
 
-        if (null !== $account && $account->usr === $user) {
+        foreach ($this->accountRepository->findBy(['id' => $user->expandedAccountIds, 'usr' => $user]) as $account) {
             foreach ($labels as $label) {
                 $payload['label:' . $label->id . ':account:' . $account->id]
                     = $counts->forLabelInAccount($label, $account);

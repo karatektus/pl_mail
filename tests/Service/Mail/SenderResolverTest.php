@@ -187,6 +187,24 @@ final class SenderResolverTest extends TestCase
         self::assertSame($this->resolver->token($account), $this->resolver->tokenFor($this->draft($account, null), $account));
     }
 
+    /**
+     * An account with no alias rows offers its email as typed, and the From
+     * selector keys that option by exactly that spelling. A draft of it has to
+     * reopen on the same token, or the window opens with no From and the send
+     * is refused.
+     */
+    public function testADraftOfAnAccountWithoutAliasesOpensOnItsAddressAsTheAccountSpellsIt(): void
+    {
+        $account        = $this->account();
+        $account->email = 'Jane.Doe@Example.test';
+
+        self::assertSame(
+            $this->resolver->token($account),
+            $this->resolver->tokenFor($this->draft($account, 'jane.doe@example.test'), $account),
+        );
+        self::assertSame('0|Jane.Doe@Example.test', $this->resolver->token($account));
+    }
+
     private function draft(Account $account, ?string $from): Message
     {
         $draft              = new Message();

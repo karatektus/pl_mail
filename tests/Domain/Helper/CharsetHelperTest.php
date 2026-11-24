@@ -66,6 +66,15 @@ final class CharsetHelperTest extends TestCase
         // conversion is real and not a cp1252 rubber stamp.
         yield 'koi8-r' => ["\xf0\xd2\xc9\xd7\xc5\xd4", 'KOI8-R', 'Привет'];
 
+        // Hebrew as Outlook labels it, and the other spellings of RFC 1556's
+        // directional charsets. The suffix names a direction, not an encoding,
+        // and mbstring does not know it: these came out as cp1252, "ùìåí" for
+        // "שלום" (#714).
+        yield 'iso-8859-8-i'             => ["\xf9\xec\xe5\xed", 'iso-8859-8-i', 'שלום'];
+        yield 'iso-8859-8-e, upper case' => ["\xf9\xec\xe5\xed", 'ISO-8859-8-E', 'שלום'];
+        yield 'csiso88598i'              => ["\xf9\xec\xe5\xed", 'csISO88598I', 'שלום'];
+        yield 'iso-8859-6-i'             => ["\xd3\xe4\xc7\xe5", 'iso-8859-6-i', 'سلام'];
+
         // Declared UTF-8 and not UTF-8. Repaired rather than rejected: the
         // alternative is the failed INSERT this class exists to stop.
         yield 'mislabelled utf-8' => ["Gr\xfc\xdfe", 'utf-8', 'Grüße'];

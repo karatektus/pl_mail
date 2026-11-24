@@ -236,6 +236,14 @@ start, with the original quoted as you read it.
 The lock in the toolbar, and **Encrypt** and **Sign** under *More options*, decide for this one
 message instead.
 
+The lock also opens a small panel listing the recipients plMail has a key for, each with **On**,
+**Off** and **Auto**: whether mail to that address is encrypted from now on, not just this time.
+Leave it alone and nothing changes; click or tab anywhere else, or press Escape, and it goes away.
+Choosing **Off** for one of your own addresses is how mail to an account you also read in the
+provider's own app, such as Gmail, stays readable there. **Auto** follows the keys, as above; **On**
+also refuses to send the message unencrypted to that person because somebody else on it has no
+key. A contact's choice is the same as their **Preferences for this recipient**.
+
 An encrypted message never reaches the server readable, not even as a draft: your browser encrypts
 the draft to your own key before every save, encrypts attachments before they are uploaded, and
 builds and encrypts the whole message — to every recipient and to you, so the copy in *Sent* stays

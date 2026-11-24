@@ -117,16 +117,6 @@ test.describe("What's new screenshots", () => {
 
         await capture(page, "html-signature", signature);
     });
-
-    test("tab-unread-counts", async ({ page }) => {
-        await page.goto("/mail/inbox");
-        await expect(page.locator("#message-list li").first()).toBeVisible();
-        await capture(page, "tab-unread-counts", page.locator(".main-pane").first());
-    });
-
-    test("permanent-delete", async ({ page }) => {
-        await capture(page, "permanent-delete", await card(page, "disposal", "Disposal"));
-    });
 });
 
 /**
@@ -1001,5 +991,199 @@ test.describe("What's new screenshots, v0.4.4", () => {
         });
 
         await capture(page, "event-colours", page.locator('[data-controller~="calendar--time-grid"]').first(), 520);
+    });
+});
+
+/**
+ * The sidebar's width as stored for the user (#699), posted the way the
+ * handle posts it. Put back to the default after the picture, so the demo
+ * user's other pictures keep the sidebar they were taken with.
+ */
+async function sidebarWidth(page: Page, width: number): Promise<void> {
+    const token = await page.locator("[data-ui--sidebar-split-token-value]").first()
+        .getAttribute("data-ui--sidebar-split-token-value");
+    const response = await page.request.post("/mail/sidebar/state", {
+        form: { width: String(width), _token: token ?? "" },
+        headers: { "X-Requested-With": "fetch" },
+    });
+    expect(response.ok()).toBe(true);
+}
+
+/** One of the two switches on Settings → Labels → Labels in the sidebar. */
+async function labelView(page: Page, key: "by_account", on: boolean): Promise<void> {
+    await page.goto("/settings/labels");
+    const row = page.locator(`[data-label-view="${key}"]`);
+    const saved = page.waitForResponse((r) => r.url().includes("/labels") && "POST" === r.request().method());
+    await row.getByText(on ? "On" : "Off", { exact: true }).click();
+    await saved;
+}
+
+test.describe("What's new screenshots, v0.4.5", () => {
+    test.skip(undefined === process.env.E2E_SCREENSHOTS, 'Demo mailbox required — run "npm run test:e2e:screenshots".');
+
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.beforeAll(() => {
+        seedUser({ email: TEST_DEMO.email, password: TEST_DEMO.password });
+        consoleCommand(`app:test:seed-demo --email=${TEST_DEMO.email}`);
+    });
+
+    test.beforeEach(async ({ page }) => {
+        await login(page, TEST_DEMO.email, TEST_DEMO.password);
+    });
+
+    /**
+     * The sidebar halfway through a drag to the right (#699): the handle
+     * held, the sidebar wider than its old fixed 224 pixels and the list
+     * moved over for it. The top left of the window, where the names are.
+     */
+    test("sidebar-width", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expect(page.locator("#message-list li").first()).toBeVisible();
+
+        try {
+            const grip = (await page.locator("[data-sidebar-handle]").boundingBox())!;
+            await page.mouse.move(grip.x + grip.width / 2, grip.y + 160);
+            await page.mouse.down();
+            await page.mouse.move(grip.x + grip.width / 2 + 96, grip.y + 160, { steps: 8 });
+            const saved = page.waitForResponse((r) => r.url().includes("/mail/sidebar/state"));
+            await page.mouse.up();
+            await saved;
+
+            // The pointer back on the grip, after the drag: the grip lit and
+            // the handle's tooltip saying what it does, which is the feature
+            // as somebody first meets it. From the top of the window down to
+            // the grip.
+            const pill = (await page.locator("[data-sidebar-handle] .split-grip").boundingBox())!;
+            await page.mouse.move(pill.x + pill.width / 2, pill.y + pill.height / 2);
+            await page.waitForTimeout(800);
+
+            const bottom = Math.round(pill.y + pill.height + 24);
+            await page.screenshot({ path: `${OUT}/sidebar-width.png`, clip: { x: 0, y: 0, width: 640, height: bottom } });
+        } finally {
+            await sidebarWidth(page, 224);
+        }
+    });
+
+    /**
+     * The demo account open in the sidebar with its labels under it (#690),
+     * switched on through the settings card and off again afterwards. The
+     * demo's three labels are made on its account, so all of them move there.
+     */
+    test("labels-by-account", async ({ page }) => {
+        await labelView(page, "by_account", true);
+
+        try {
+            await page.goto("/mail/inbox");
+            const toggle = page.locator("#sidebar [data-settings--account-expand-target=toggle]").first();
+            if ("false" === (await toggle.getAttribute("aria-expanded"))) {
+                await toggle.click();
+            }
+            await expect(page.locator("#sidebar [data-account-label-new]").first()).toBeVisible();
+
+            const account = page.locator("#sidebar [data-account-label-new]").first();
+            const top = (await toggle.boundingBox())!;
+            const bottom = (await account.boundingBox())!;
+            const sidebar = (await page.locator(".sidebar-pane").boundingBox())!;
+
+            await page.mouse.move(700, 400);
+            await page.waitForLoadState("networkidle");
+            await page.waitForTimeout(400);
+            await page.screenshot({
+                path: `${OUT}/labels-by-account.png`,
+                clip: { x: sidebar.x, y: top.y - 12, width: sidebar.width, height: bottom.y + bottom.height + 12 - (top.y - 12) },
+            });
+        } finally {
+            await labelView(page, "by_account", false);
+        }
+    });
+
+    /** Compose defaults with the account opened and two Bcc addresses on it (#692). */
+    test("always-bcc", async ({ page }) => {
+        await page.goto("/settings/compose");
+
+        const account = page.locator("[data-compose-defaults-account]").first();
+        if (null === (await account.getAttribute("open"))) {
+            await account.locator("summary").first().click();
+        }
+
+        const field = account.locator("form[action$='/compose-defaults/bcc'] .ts-wrapper");
+
+        for (const address of ["archive@ramanjoinery.example", "office@ramanjoinery.example"]) {
+            if (0 === (await field.locator(".item").filter({ hasText: address }).count())) {
+                const saved = page.waitForResponse((r) => r.url().endsWith("/bcc") && "POST" === r.request().method());
+                await field.locator("input").fill(address);
+                await field.locator("input").press("Enter");
+                await saved;
+            }
+        }
+        await field.locator("input").blur();
+
+        const card = page.locator("section", { has: page.locator("[data-compose-defaults-account]") }).first();
+        await capture(page, "always-bcc", card, 520);
+    });
+
+    /**
+     * Admin → Backfills with its newest repair chosen (#726): the list by
+     * month, and what the chosen one does. As the administrator demo user.
+     */
+    test("admin-backfills", async ({ page }) => {
+        seedUser({ email: TEST_DEMO_ADMIN.email, password: TEST_DEMO_ADMIN.password, admin: true });
+        await page.context().clearCookies();
+        await login(page, TEST_DEMO_ADMIN.email, TEST_DEMO_ADMIN.password);
+        await page.setViewportSize({ width: 1400, height: 900 });
+        await page.goto("/admin?section=backfills");
+
+        const frame = page.locator("turbo-frame#admin-backfills");
+        await expect(frame.locator("nav a, nav button").first()).toBeVisible();
+
+        await capture(page, "admin-backfills", frame.locator("section").first(), 560);
+    });
+});
+
+test.describe("What's new screenshots, v0.4.5 encryption", () => {
+    test.skip(undefined === process.env.E2E_SCREENSHOTS, 'Demo mailbox required — run "npm run test:e2e:screenshots".');
+
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    /**
+     * The lock's panel in the compose window (#703): On / Off / Auto for the
+     * one recipient with a key, one's own address, as the encryption picture
+     * is taken. A person of their own, for the keyring.
+     */
+    test("encrypt-per-recipient", async ({ page }) => {
+        const email = `e2e-demo-crypto-${Date.now()}@plmail.test`;
+        const password = "a-password-for-the-picture";
+
+        seedUser({ email, password, stretched: true });
+        consoleCommand(`app:test:seed-demo --email=${email}`);
+
+        await login(page, email, password);
+        await page.goto("/settings/encryption");
+        await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 20000 });
+
+        const dock = await composeTo(
+            page,
+            ["you@example.com"],
+            "Invoices for the Brunnengasse workshop",
+            "Copies for my other account, so I can read them on the go.",
+        );
+        await expect(dock.locator("[data-testid=compose-encrypted]")).toBeVisible({ timeout: 15000 });
+
+        await dock.locator('button[aria-label="More options"]').click();
+        await dock.locator("[data-testid=compose-encrypt-toggle]").click();
+        const panel = dock.locator("[data-testid=compose-encrypt-policy]");
+        await expect(panel).toBeVisible();
+        await page.waitForLoadState("networkidle");
+        await page.waitForTimeout(400);
+
+        // The panel opens over the window's right edge: the picture is the
+        // window and the panel together.
+        const [w, p] = [(await dock.locator(".compose-window").boundingBox())!, (await panel.boundingBox())!];
+        const right = Math.max(w.x + w.width, p.x + p.width) + 8;
+        await page.screenshot({
+            path: `${OUT}/encrypt-per-recipient.png`,
+            clip: { x: w.x, y: w.y, width: right - w.x, height: w.height },
+        });
     });
 });

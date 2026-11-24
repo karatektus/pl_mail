@@ -23,6 +23,7 @@ use App\Service\Mail\AllMailView;
 use App\Service\Mail\DiscardedView;
 use App\Service\Mail\DraftsView;
 use App\Service\Mail\InboxTabs;
+use App\Service\Mail\ListViewResolver;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
 use App\Service\Mail\MoveToService;
@@ -164,6 +165,17 @@ final class BulkStatusController extends AbstractController
         if (true === ($body['all'] ?? false) && true === in_array($action, self::EXPLICIT_ONLY, true)) {
             throw $this->createAccessDeniedException(
                 sprintf('The "%s" action takes an explicit list of conversations.', $action),
+            );
+        }
+
+        // A view the worker cannot resolve is refused here, while somebody is
+        // waiting for the answer. Accepted, it became a job over no
+        // conversations that finished as Done: "Started moving to bin" and
+        // then nothing, with no error anywhere — which is what "select all"
+        // on a search did before it had a scope of its own (#711).
+        if (true === ($body['all'] ?? false) && false === ListViewResolver::names((string) ($body['scope'] ?? ''))) {
+            throw $this->createAccessDeniedException(
+                sprintf('"%s" is not a list a whole-view action can act on.', (string) ($body['scope'] ?? '')),
             );
         }
 

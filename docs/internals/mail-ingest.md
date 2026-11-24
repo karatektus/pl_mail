@@ -28,6 +28,14 @@ batches of 50 and hands the raw RFC822 bytes forward, because each message is fe
 (`BODY.PEEK[]`) and parsed from those bytes — which is why IMAP is the only path that stores the
 original for free.
 
+**One parser for every message that arrives as bytes.** IMAP, POP3, JMAP `Email/import`,
+decryption and the backfills that re-read a stored original all go through `MessageParser`, which
+wraps zbateson/mail-mime-parser and hands back plMail's own `ParsedMessage`. Two rules there are
+plMail's and not the library's: a body is converted from its bytes by `CharsetHelper` rather than
+by the charset its part declares, because that declaration is often wrong, and a nameless text part
+marked as an attachment in a message with no body of its type is read as the body. Until #82 this
+was webklex/php-imap, and each of its parsing mistakes had a correction of its own in the sync.
+
 **Gmail has no `Mailbox` rows at all.** `GmailApiSyncer` plans work directly on the account
 and fans out `SyncGmailMessageBatchMessage` jobs of 100 ids each, listing at the API's page
 size of 500. The account's `gmailHistoryId` is snapshotted *before* any message is fetched,

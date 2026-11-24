@@ -576,12 +576,26 @@ export default class extends Controller {
     }
 
     /**
+     * Whether this list names itself to the server at all.
+     *
+     * `*` is the layout's default, left by a list that has no scope the worker
+     * can resolve — one account's inbox, for one. "Select all N" there used to
+     * be offered, accepted and run as a job over nothing (#711); the server
+     * refuses it now, and this keeps the offer from being made in the first
+     * place rather than answered with an error.
+     */
+    #viewNamed() {
+        return "" !== this.viewScopeValue && "*" !== this.viewScopeValue;
+    }
+
+    /**
      * The menu entry, kept true to the total.
      *
      * Rendered by the server for the total it knew, and the total moves: mail
      * arrives, a bulk action empties a page. Redrawn from the value the banner
      * reads, so the two cannot name different numbers, and hidden where the
-     * view fits on the page and "All" already means all of it.
+     * view fits on the page and "All" already means all of it — or where the
+     * list has no name the server could act on.
      */
     #syncWholeViewEntry(rowCount) {
         if (false === this.hasWholeViewTarget) {
@@ -590,12 +604,12 @@ export default class extends Controller {
 
         const entry = this.wholeViewTarget;
 
-        const fits = this.totalValue <= rowCount;
+        const offered = this.totalValue > rowCount && true === this.#viewNamed();
 
         // Both, as the actions wrapper does with `flex`: two display utilities
         // on one element are decided by stylesheet order, not by intent.
-        entry.classList.toggle("hidden", fits);
-        entry.classList.toggle("block", false === fits);
+        entry.classList.toggle("hidden", false === offered);
+        entry.classList.toggle("block", offered);
         entry.textContent = (entry.dataset.label ?? "").replace("%count%", String(this.totalValue));
     }
 
@@ -612,7 +626,9 @@ export default class extends Controller {
             return;
         }
 
-        const extendable = allChecked && this.totalValue > this._rowCheckboxes().length;
+        const extendable = allChecked
+            && this.totalValue > this._rowCheckboxes().length
+            && true === this.#viewNamed();
 
         this.viewBannerTarget.classList.toggle("hidden", false === (extendable || this.#allInView));
 

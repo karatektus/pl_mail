@@ -111,7 +111,7 @@ services:
 
   worker-bulk:
     <<: *test-app
-    command: php bin/console messenger:consume bulk --time-limit=600 --memory-limit=256M -vv
+    command: php bin/console app:work --only=worker-bulk
     restart: unless-stopped
     stop_grace_period: 5s
     healthcheck:

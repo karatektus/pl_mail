@@ -37,6 +37,15 @@ test.describe("compose window", () => {
         ).toBeVisible();
     });
 
+    test("opens with the caret in To", async ({ page }) => {
+        // #688: a new message started in the body, under an empty To. Nobody
+        // is addressed yet, so the first thing to type is the recipient.
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).click();
+
+        await expect(page.locator(dock).locator(".ts-control input").first()).toBeFocused();
+    });
+
     test("reveals the Cc field on demand", async ({ page }) => {
         await page.goto("/mail/inbox");
         await page.getByRole("link", { name: "Compose" }).click();

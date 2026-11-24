@@ -1,0 +1,4 @@
+{# The label count in the Labels card's heading row. An id of its own, because
+   the heading is outside #settings-label-list and a label change redraws both
+   (label/_lists.stream.html.twig). #}
+<span id="settings-label-count" class="text-xs text-ink-faint">{{ 'settings.labels.count'|trans({ '%count%': labels|length }) }}</span>

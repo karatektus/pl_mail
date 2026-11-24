@@ -10,6 +10,7 @@ use App\Repository\Mail\Contact\ContactRepository;
 use App\Repository\Mail\Message\MessageAiRepository;
 use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use App\Service\Mail\MessageCategorizer;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -50,6 +51,23 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
     public function getDescription(): string
     {
         return 'Recompute message and thread inbox categories from stored headers/labels.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-07-23');
+    }
+
+    /**
+     * Safe to repeat: the category is worked out again from what the row
+     * stores — headers, labels and the assistant's stored verdict, which
+     * MessageCategorizer reads — so a second run arrives at the same tabs.
+     * Conversations somebody put in a tab by hand are skipped
+     * (category_pinned_at).
+     */
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
     }
 
     public function run(SymfonyStyle $io): int

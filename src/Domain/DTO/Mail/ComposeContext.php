@@ -60,10 +60,11 @@ final readonly class ComposeContext
     /**
      * What the window is FOR, and it has to survive the round trip.
      *
-     * Only 'forward' means anything to the client so far, and it means three
-     * things: the caret starts in To, the quoted original may be left
-     * unfolded, and the "this message has no text" question is not asked about
-     * a body whose whole content is the quote.
+     * Only 'forward' means anything to the client so far, and it means two
+     * things: the quoted original may be left unfolded, and the "this message
+     * has no text" question is not asked about a body whose whole content is
+     * the quote. (It used to mean a third, the caret starting in To; since
+     * #688 every window without a recipient starts there, forward or not.)
      *
      * It used to be a render-time extra — `renderWindow(..., ['mode' =>
      * 'forward'])`, set by exactly one action — so every OTHER render of the
