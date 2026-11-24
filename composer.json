@@ -21,7 +21,7 @@
         "minishlink/web-push": "^11.0",
         "phpdocumentor/reflection-docblock": "^6.0",
         "phpstan/phpdoc-parser": "^2.3.3",
-        "sabre/vobject": "^4.6",
+        "sabre/vobject": "^5.0",
         "scheb/2fa-backup-code": "^8.6",
         "scheb/2fa-bundle": "^8.6",
         "scheb/2fa-totp": "^8.6",
@@ -39,7 +39,7 @@
         "symfony/http-client": "8.1.*",
         "symfony/intl": "8.1.*",
         "symfony/mailer": "8.1.*",
-        "symfony/mercure-bundle": "^0.6.1",
+        "symfony/mercure-bundle": "^0.7.0",
         "symfony/mime": "8.1.*",
         "symfony/monolog-bundle": "^3.0|^4.0",
         "symfony/notifier": "8.1.*",
@@ -75,6 +75,9 @@
             "symfony/runtime": true
         },
         "bump-after-update": true,
+        "platform": {
+            "php": "8.4.28"
+        },
         "sort-packages": true
     },
     "autoload": {

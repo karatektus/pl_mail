@@ -191,8 +191,13 @@ final class ProviderTest extends TestCase
         foreach ($drivers as $shortName) {
             $class = 'App\\Service\\Integration\\Driver\\'.$shortName;
 
-            self::assertTrue(class_exists($class), $class.' is missing');
-            self::assertContains(IntegrationDriverInterface::class, class_implements($class) ?: []);
+            // class_implements() is false for a class that does not exist, so
+            // this one assertion covers "missing" as well as "not a driver".
+            self::assertContains(
+                IntegrationDriverInterface::class,
+                class_implements($class) ?: [],
+                $class.' is missing or is not a driver',
+            );
         }
     }
 

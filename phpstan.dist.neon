@@ -106,6 +106,16 @@ parameters:
     # "condition is always false" on code that is fine.
     treatPhpDocTypesAsCertain: false
 
+    # PHPStan 2.3 started remembering a method call's result across a second,
+    # identical call, as if every getter were pure. In tests that reads
+    # `assertSame(404, $client->getResponse()->getStatusCode())` after a second
+    # request as "404 and 404 will always evaluate to true" (ten such reports
+    # on the 2.2 → 2.3 bump). The calls are not pure: the client, the task
+    # runner and the secrets file all change state between them. Rewriting each
+    # test to dodge the inference would hide what it checks, so the inference
+    # goes instead.
+    rememberPossiblyImpureFunctionValues: false
+
     symfony:
         containerXmlPath: var/cache/test/App_KernelTestDebugContainer.xml
         consoleApplicationLoader: tests/phpstan-console-loader.php
