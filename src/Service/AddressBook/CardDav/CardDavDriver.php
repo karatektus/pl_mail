@@ -388,8 +388,10 @@ final readonly class CardDavDriver implements VerifiableDriverInterface, Address
             . '<card:addressbook-multiget xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">'
             . '<d:prop><d:getetag/><card:address-data/></d:prop>';
 
+        // Paths, not absolute URLs: iCloud refuses the whole report with a
+        // 400 when the hrefs are absolute (CalDavClient::pathOf(), #637).
         foreach ($hrefs as $href) {
-            $body .= sprintf('<d:href>%s</d:href>', htmlspecialchars($href, ENT_XML1));
+            $body .= sprintf('<d:href>%s</d:href>', htmlspecialchars($this->client->pathOf($href), ENT_XML1));
         }
 
         $response = $this->client->request($integration, 'REPORT', $collection, [
@@ -413,6 +415,8 @@ final readonly class CardDavDriver implements VerifiableDriverInterface, Address
                 );
             }
         }
+
+        $this->client->assertMultigetAnswered(DavService::AddressBook, $collection, count($hrefs), count($cards));
 
         return $cards;
     }
