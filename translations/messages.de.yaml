@@ -4233,6 +4233,29 @@ settings:
             scaleHint: Gilt für die gesamte Oberfläche. Das Verfassen-Fenster behält seine eigene Schrift und Größe — die gehen mit der Nachricht hinaus.
             subheading: Schriftart und Größe, in der die Oberfläche gezeichnet wird.
     compose_defaults:
+        bcc:
+            chips:
+                create: '%s hinzufügen'
+                no_results: 'Kein Kontakt passt. Tipp die ganze Adresse.'
+            for_alias: 'Immer Bcc an für %alias%'
+            hint: 'Jede Nachricht geht unsichtbar auch an diese Adressen: als Sicherungskopie oder als Beleg, dass sie raus ist. Sie stehen beim Schreiben schon im Bcc, und du kannst eine für einzelne Nachrichten herausnehmen.'
+            invalid: '„%address%“ ist keine gültige E-Mail-Adresse.'
+            label: 'Immer Bcc an'
+            per_address:
+                account_list: 'Wie das Konto: %addresses%'
+                account_none: 'Wie das Konto: kein Bcc'
+                inherit: 'Wie das Konto'
+                nobody: 'Niemand, diese Adresse schickt keine Kopie'
+                override: 'Eigene Liste'
+            placeholder: 'Adresse hinzufügen…'
+            save: 'Speichern'
+            too_many: 'Höchstens %max% Adressen.'
+        exceptions:
+            add: 'Ausnahme hinzufügen für…'
+            edit: 'Bearbeiten'
+            heading: 'Adressen, die abweichen'
+            remove: 'Ausnahme entfernen'
+            remove_for: 'für %alias%'
         heading: 'Standards fürs Verfassen'
         invalid: 'Diese Einstellung konnte nicht gespeichert werden.'
         read_receipt:
@@ -4245,7 +4268,14 @@ settings:
                 ask: 'Jedes Mal fragen'
                 never: 'Nie senden'
         saved: 'Gespeichert.'
-        subheading: 'Was jede deiner Adressen beim Senden und Empfangen standardmäßig tut.'
+        subheading: 'Was jedes Konto beim Senden und Empfangen standardmäßig tut, und welche Adressen davon abweichen.'
+        summary:
+            bcc: 'Bcc an %addresses%'
+            bcc_nobody: 'Bcc an niemanden'
+            exceptions: 'Ausnahmen: %number%'
+            no_bcc: 'Kein Bcc'
+            receipts: 'Lesebestätigungen: %mode%'
+            same_as_account: 'Wie das Konto'
     filters:
         account: Account
         action:
@@ -5239,7 +5269,7 @@ settings:
             password: "kennwort anmeldung login"
             pinning: 'anheften angeheftet reißzwecke oben erinnerung pin'
             profile: "name avatar foto bild"
-            read_receipts: "mdn empfangsbestätigung bestätigung"
+            read_receipts: "mdn empfangsbestätigung bestätigung bcc kopie sicherung blindkopie"
             reading_pane: "vorschau geteilt rechts unten"
             sender_pictures: 'avatar bild foto gravatar libravatar bimi logo symbol absender'
             sharing: "link öffentlich buchung"

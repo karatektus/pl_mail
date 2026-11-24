@@ -4084,6 +4084,29 @@ settings:
             scaleHint: Applies to the whole ship. The writin' desk keeps its own hand an' size — those sail out with the message.
             subheading: The hand an' the size the ship be lettered in.
     compose_defaults:
+        bcc:
+            chips:
+                create: 'Add %s'
+                no_results: 'No shipmate matches. Write the whole name out.'
+            for_alias: 'Secret copy fer %alias%'
+            hint: 'Every bottle also sails, unseen, to these names: a spare in the hold, or proof she left port. They be filled into Bcc when ye start writin'', an'' ye can strike one off fer a single bottle.'
+            invalid: '"%address%" be no proper address.'
+            label: 'Always send a secret copy'
+            per_address:
+                account_list: 'Same as the ship: %addresses%'
+                account_none: 'Same as the ship: no secret copy'
+                inherit: 'Same as the ship'
+                nobody: 'Nobody, this name sends no copy'
+                override: 'Its own list'
+            placeholder: 'Add a name…'
+            save: 'Set down'
+            too_many: 'No more''n %max% names.'
+        exceptions:
+            add: 'Add an exception fer…'
+            edit: 'Change'
+            heading: 'Names that sail different'
+            remove: 'Strike the exception'
+            remove_for: 'fer %alias%'
         heading: 'Standin'' orders fer writin'''
         invalid: 'That order could not be set down.'
         read_receipt:
@@ -4096,7 +4119,14 @@ settings:
                 ask: 'Ask me each time'
                 never: 'Never send word'
         saved: 'Set down.'
-        subheading: 'What each o'' yer names does by default, sendin'' and receivin''.'
+        subheading: 'What each ship does by default, sendin'' an'' receivin'', an'' the names that sail different.'
+        summary:
+            bcc: 'Secret copy to %addresses%'
+            bcc_nobody: 'Secret copy to nobody'
+            exceptions: 'Exceptions: %number%'
+            no_bcc: 'No secret copy'
+            receipts: 'Word back: %mode%'
+            same_as_account: 'Same as the ship'
     filters:
         account: Account
         action:
@@ -5023,7 +5053,7 @@ settings:
             password: "login sign-in"
             pinning: 'pin pinned nail mast top nag'
             profile: "name avatar photo picture"
-            read_receipts: "mdn receipt confirmation"
+            read_receipts: "mdn receipt confirmation bcc copy backup always"
             reading_pane: "preview split right bottom"
             sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender likeness flag'
             sharing: "link public booking"

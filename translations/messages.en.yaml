@@ -4236,6 +4236,29 @@ settings:
             scaleHint: Applies to the whole interface. The compose window keeps its own font and size — those go out with the message.
             subheading: The typeface and size the interface is drawn in.
     compose_defaults:
+        bcc:
+            chips:
+                create: 'Add %s'
+                no_results: 'No contact matches. Type the whole address.'
+            for_alias: 'Always Bcc for %alias%'
+            hint: 'Every message also goes to these addresses, unseen: a backup copy, or proof it left. They are filled into Bcc when you start writing, and you can take one off for a single message.'
+            invalid: '"%address%" is not a valid email address.'
+            label: 'Always Bcc'
+            per_address:
+                account_list: 'Same as the account: %addresses%'
+                account_none: 'Same as the account: no Bcc'
+                inherit: 'Same as account'
+                nobody: 'Nobody, this address sends no copy'
+                override: 'Its own list'
+            placeholder: 'Add an address…'
+            save: 'Save'
+            too_many: 'At most %max% addresses.'
+        exceptions:
+            add: 'Add an exception for…'
+            edit: 'Edit'
+            heading: 'Addresses that differ'
+            remove: 'Remove exception'
+            remove_for: 'for %alias%'
         heading: 'Compose defaults'
         invalid: 'That setting could not be saved.'
         read_receipt:
@@ -4248,7 +4271,14 @@ settings:
                 ask: 'Ask each time'
                 never: 'Never send'
         saved: 'Saved.'
-        subheading: 'What each of your addresses does by default when it sends and receives.'
+        subheading: 'What each account does by default when it sends and receives, and the addresses that differ.'
+        summary:
+            bcc: 'Bcc %addresses%'
+            bcc_nobody: 'Bcc nobody'
+            exceptions: 'Exceptions: %number%'
+            no_bcc: 'No Bcc'
+            receipts: 'Receipts: %mode%'
+            same_as_account: 'Same as the account'
     filters:
         account: Account
         action:
@@ -5213,7 +5243,7 @@ settings:
             password: "login sign-in"
             pinning: 'pin pinned thumbtack sticky top reminder'
             profile: "name avatar photo picture"
-            read_receipts: "mdn receipt confirmation"
+            read_receipts: "mdn receipt confirmation bcc copy backup always"
             reading_pane: "preview split right bottom"
             sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender'
             sharing: "link public booking"

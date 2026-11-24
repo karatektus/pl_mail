@@ -307,6 +307,9 @@ final readonly class ConfigBackupUsers
         // allowlist silently stops carrying anything that ships after it.
         Account::SETTING_SIGNATURE,
         Account::SETTING_READ_RECEIPT_DEFAULT,
+        // The addresses every mail is Bcc'd to (#692): a choice the person
+        // made, naming mailboxes that are theirs wherever plMail runs.
+        Account::SETTING_DEFAULT_BCC,
         // Whether this account keeps decrypted mail, and lets the models read
         // it. The person's choice, carried like any other; the decrypted text
         // itself is not in the backup, and a browser decrypts it anew on the
@@ -889,6 +892,7 @@ final readonly class ConfigBackupUsers
                 // is the same post-flush remap `calendar.target_id` gets.
                 'signature'          => $account->getSetting(Account::signatureAliasSetting($alias->id ?? 0)),
                 'readReceiptDefault' => $account->getSetting(Account::readReceiptAliasSetting($alias->id ?? 0)),
+                'defaultBcc'         => $account->getSetting(Account::defaultBccAliasSetting($alias->id ?? 0)),
             ];
         }
 

@@ -105,6 +105,8 @@ export default class extends Controller {
         // "accountId|address" token the hidden account <select> carries — so
         // switching From swaps the signature without asking the server.
         signatures: { type: Object, default: {} },
+        // Every From option's default Bcc list (#692), on the same tokens.
+        defaultBcc: { type: Object, default: {} },
     }
 
     #autosaveTimer = null
@@ -1963,9 +1965,10 @@ export default class extends Controller {
     }
 
     selectAccount(event) {
-        const btn   = event.currentTarget;
-        const value = btn.dataset.value;
-        const label = btn.dataset.label;
+        const btn      = event.currentTarget;
+        const value    = btn.dataset.value;
+        const label    = btn.dataset.label;
+        const previous = this.accountSelectTarget.value;
 
         this.accountSelectTarget.value = value;
         this.fromLabelTarget.textContent = label;
@@ -1981,8 +1984,77 @@ export default class extends Controller {
         // typed above it is untouched. Changing From must never cost someone
         // what they have written.
         this._swapSignature(value);
+        this._swapDefaultBcc(previous, value);
 
         this._closeFromDropdown();
+    }
+
+    // ── Default Bcc ───────────────────────────────────────────────────
+
+    /** The default Bcc list of one From token. See DefaultBccProvider::tokenMap(). */
+    _defaultBccFor(token) {
+        const map      = this.hasDefaultBccValue ? this.defaultBccValue : {};
+        const wildcard = `${String(token).split('|')[0]}|*`;
+
+        return map?.[token] ?? map?.[wildcard] ?? [];
+    }
+
+    /**
+     * Trade the copies the old From asked for for the ones the new From asks
+     * for, the way the signature is traded.
+     *
+     * Only the old address's own defaults are taken out: an address the
+     * sender typed into Bcc themselves is theirs, and stays. One that is
+     * both — typed by hand and also a default — cannot be told apart and goes
+     * with the default, which is the same answer the new From would have
+     * given had it been chosen first. Nothing new is added that the message
+     * already goes to in To or Cc.
+     */
+    _swapDefaultBcc(previous, next) {
+        if (previous === next || false === this.hasBccFieldTarget) {
+            return;
+        }
+
+        const select = this._tomSelectFor(this.bccFieldTarget.querySelector('.ts-wrapper'));
+
+        if (null === select) {
+            return;
+        }
+
+        const lower    = (list) => list.map((address) => String(address).toLowerCase());
+        const outgoing = lower(this._defaultBccFor(previous));
+        const incoming = lower(this._defaultBccFor(next));
+
+        [...select.items].forEach((value) => {
+            const address = this._chipAddress(select, value).toLowerCase();
+
+            if (outgoing.includes(address) && false === incoming.includes(address)) {
+                select.removeItem(value);
+            }
+        });
+
+        const present = new Set();
+
+        this._addressRows().forEach((row) => {
+            const field = this._tomSelectFor(row.querySelector('.ts-wrapper'));
+
+            field?.items.forEach((value) => present.add(this._chipAddress(field, value).toLowerCase()));
+        });
+
+        const added = incoming.filter((address) => false === present.has(address));
+
+        added.forEach((address) => select.createItem(address, false));
+
+        // Shown, without unfolding an inline window's header: a reply that
+        // keeps From/Cc/Bcc folded away still keeps them folded, and opening
+        // the chevron shows the row.
+        if (added.length > 0) {
+            this.bccFieldTarget.classList.remove('hidden');
+
+            if (this.hasBccBtnTarget) {
+                this.bccBtnTarget.classList.add('hidden');
+            }
+        }
     }
 
     // ── Signature ─────────────────────────────────────────────────────

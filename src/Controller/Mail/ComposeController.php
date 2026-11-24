@@ -22,6 +22,7 @@ use App\Service\Crypto\SealedDrafts;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Mail\ComposeFormFactory;
 use App\Service\Mail\ComposeWindow;
+use App\Service\Mail\DefaultBccProvider;
 use App\Service\Mail\DraftAddressFields;
 use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\DraftPersister;
@@ -105,6 +106,7 @@ class ComposeController extends AbstractController
         private readonly ScheduledSendResolver   $schedules,
         private readonly RequestStack            $requestStack,
         private readonly SealedDrafts            $sealedDrafts,
+        private readonly DefaultBccProvider      $defaultBcc,
     )
     {
     }
@@ -155,6 +157,12 @@ class ComposeController extends AbstractController
                 $message->subject      = '' === $link->subject ? null : $link->subject;
                 $message->bodyHtml     = $link->bodyHtml() . $message->bodyHtml;
             }
+
+            // After the link's own recipients, so a mailto: that already names
+            // the backup address does not get it twice. Only here, on a window
+            // being built: a saved draft reopened below keeps the Bcc row the
+            // sender left it with.
+            $this->defaultBcc->applyTo($message, $account, $account->displayAddress);
         } else {
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
             $this->assertEditableDraft($message);
