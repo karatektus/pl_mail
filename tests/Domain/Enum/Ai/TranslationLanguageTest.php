@@ -65,4 +65,18 @@ final class TranslationLanguageTest extends TestCase
         self::assertFalse(TranslationLanguage::Russian->isLanguage('uk'));
         self::assertFalse(TranslationLanguage::Russian->isLanguage(null));
     }
+
+    /**
+     * A model names a Norwegian mail "no", and the list offers Bokmål as "nb":
+     * a Bokmål reader's Norwegian mail is already in their language. Nynorsk
+     * is not.
+     */
+    public function testNorwegianIsBokmalWhicheverCodeTheModelNames(): void
+    {
+        self::assertTrue(TranslationLanguage::NorwegianBokmal->isLanguage('no'));
+        self::assertTrue(TranslationLanguage::NorwegianBokmal->isLanguage('NO'));
+        self::assertTrue(TranslationLanguage::NorwegianBokmal->isLanguage('nb'));
+        self::assertFalse(TranslationLanguage::NorwegianBokmal->isLanguage('nn'));
+        self::assertFalse(TranslationLanguage::Danish->isLanguage('no'));
+    }
 }

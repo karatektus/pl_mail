@@ -86,10 +86,25 @@ enum TranslationLanguage: string
      * By the language alone, because the model names two letters: Chinese in
      * either script is Chinese, and a reader of one is not sent a copy of the
      * mail converted to the other.
+     *
+     * NORWEGIAN HAS TWO CODES FOR ONE LANGUAGE. The list offers Bokmål, "nb",
+     * but a model asked for the language of a Norwegian mail usually answers
+     * "no", the macrolanguage, which Intl also knows. Compared as written, a
+     * Bokmål reader's Norwegian mail would be "translated" into Norwegian.
+     * Nynorsk, "nn", stays a language of its own: it is a different written
+     * standard, and a reader who chose Bokmål may want it translated.
      */
     public function isLanguage(?string $code): bool
     {
-        return null !== $code && strtolower(explode('-', $this->value)[0]) === strtolower($code);
+        return null !== $code && self::base($this->value) === self::base($code);
+    }
+
+    /** The language part of a code, lower case, with "no" read as Bokmål. */
+    private static function base(string $code): string
+    {
+        $base = strtolower(explode('-', $code)[0]);
+
+        return 'no' === $base ? 'nb' : $base;
     }
 
     /** The default for a reader who has not chosen: their interface language. */
