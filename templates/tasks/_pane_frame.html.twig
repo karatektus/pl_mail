@@ -119,7 +119,7 @@ Accepts: pane  TaskPane
         {% set quickField = 'w-full rounded-lg border border-line bg-field px-2 py-1 text-sm text-ink' %}
         <form action="{{ path('app_tasks_quick_add') }}" method="post"
               data-controller="tasks--quick-add"
-              data-action="focusin->tasks--quick-add#show focusout->tasks--quick-add#maybeHide mousedown->tasks--quick-add#keepFocus turbo:submit-end->tasks--quick-add#submitted"
+              data-action="focusin->tasks--quick-add#show focusout->tasks--quick-add#maybeHide mousedown->tasks--quick-add#keepFocus submit->tasks--quick-add#hold formdata->tasks--quick-add#fill turbo:submit-start->tasks--quick-add#started turbo:submit-end->tasks--quick-add#submitted"
               class="mx-4 mb-3 shrink-0 overflow-hidden rounded-lg border border-line bg-field focus-within:border-accent">
             <input type="hidden" name="_token" value="{{ csrf_token('tasks_quick_add') }}">
             <input type="hidden" name="listId" value="{{ pane.addTo.id }}">

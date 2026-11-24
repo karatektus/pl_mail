@@ -1,11 +1,18 @@
 import { Controller } from "@hotwired/stimulus";
 
 /**
- * Whether a task is being added again straight after one was: the frame is replaced
- * by the redirect, and with it this controller, so what the next one has to do
- * cannot live on an instance.
+ * What was in the field when the frame was redrawn after an add, for the field
+ * that replaces it: null when nothing was added. The redirect replaces the frame,
+ * and with it this controller, so it cannot live on an instance.
  */
-let refocus = false;
+let carried = null;
+
+/**
+ * Titles entered while the one before was still on its way, sent in order once it
+ * is in. Turbo stops a frame's running submission when the next one starts, and the
+ * first task would be lost with it.
+ */
+const waiting = [];
 
 /**
  * The tasks pane's quick add: one field, and the options under it once it is in use.
@@ -13,6 +20,12 @@ let refocus = false;
  * Out of the way until then, because the pane is narrow and most tasks are a title
  * and nothing else. They stay while anything has been typed or chosen, so clicking
  * away to check a date in the mail does not cost what was entered.
+ *
+ * The title leaves the field the moment Enter sends it. The answer takes a moment
+ * (about 1.5 s on a slow stack), and the field invites typing the next one straight
+ * away: left standing, the sent title had the next one typed onto its end. What is
+ * typed meanwhile moves into the field the redirect draws, and a title entered
+ * meanwhile waits its turn (`waiting`).
  *
  * The form posts with or without any of this; a browser with no script gets the
  * title alone, which is the whole of what the field promises.
@@ -28,14 +41,34 @@ export default class extends Controller {
     static targets = ["title", "options", "toggle", "panel", "field"];
 
     connect() {
-        if (refocus) {
-            refocus = false;
+        /** The title on its way from this form, null while none is. */
+        this.sent = null;
+        /** A waiting title this form is about to send in place of its field's. */
+        this.next = null;
+
+        if (null !== carried) {
+            const end = carried.length;
+
+            this.titleTarget.value = carried;
+            carried = null;
             this.titleTarget.focus();
+            this.titleTarget.setSelectionRange(end, end);
+
+            requestAnimationFrame(() => this._sendWaiting());
         }
     }
 
+    disconnect() {
+        if (null !== this.sent) {
+            carried = this.titleTarget.value;
+        }
+    }
+
+    /** The options belong to the task being sent until it is in. */
     show() {
-        this.optionsTarget.hidden = false;
+        if (null === this.sent) {
+            this.optionsTarget.hidden = false;
+        }
     }
 
     /**
@@ -79,12 +112,84 @@ export default class extends Controller {
         this._drawToggles();
     }
 
-    /** So several can be typed in a row, as the field invites. */
+    /** Enter while the one before is on its way: the title waits, out of the field. */
+    hold(event) {
+        if (null === this.sent) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const title = this.titleTarget.value.trim();
+
+        if ("" !== title) {
+            waiting.push(title);
+        }
+
+        this.titleTarget.value = "";
+    }
+
+    /** A waiting title goes in place of what the field holds now. */
+    fill(event) {
+        if (null !== this.next) {
+            event.formData.set("title", this.next);
+        }
+    }
+
+    /** Turbo has read the form, so the title can leave it. */
+    started() {
+        if (null !== this.next) {
+            this.sent = this.next;
+            this.next = null;
+        } else {
+            this.sent = this.titleTarget.value;
+            this.titleTarget.value = "";
+        }
+
+        this.optionsTarget.hidden = true;
+        this.panelTargets.forEach((panel) => { panel.hidden = true; });
+        this._drawToggles();
+    }
+
+    /**
+     * Once it is in, the redirect redraws the frame and disconnect() carries the
+     * field over. If it did not get through, the title comes back: into the field
+     * when that is empty, else first in line, so nothing typed is lost.
+     */
     submitted(event) {
-        refocus = true === event.detail.success;
+        if (true === event.detail.success) {
+            return;
+        }
+
+        waiting.unshift(this.sent.trim());
+        this.sent = null;
+
+        if ("" === this.titleTarget.value.trim()) {
+            this.titleTarget.value = waiting.shift();
+        }
+
+        if (this.element.contains(document.activeElement)) {
+            this.show();
+        }
     }
 
     // ── Private ───────────────────────────────────────────────────────────
+
+    /**
+     * The next waiting title, from the form the last one's redirect drew. The
+     * field may hold the start of another, so it is posted in place of the
+     * field's title rather than through it, and without the field's `required`.
+     */
+    _sendWaiting() {
+        if (false === this.element.isConnected || null !== this.sent || 0 === waiting.length) {
+            return;
+        }
+
+        this.next = waiting.shift();
+        this.element.noValidate = true;
+        this.element.requestSubmit();
+        this.element.noValidate = false;
+    }
 
     _isInUse() {
         return "" !== this.titleTarget.value.trim() || this.fieldTargets.some((field) => "" !== field.value);

@@ -240,6 +240,55 @@ test.describe("tasks pane on a notebook", () => {
         await expect(modal(page)).toBeHidden();
     });
 
+    test("tasks typed straight after one another are each added, and what is typed meanwhile stays", async ({ page }) => {
+        const first = unique("Confirm the booking");
+        const second = unique("Measure the alcove");
+        const third = unique("Call the plumber");
+        const rows = frame(page).locator("[data-task-row]");
+
+        await page.goto("/mail/inbox");
+        await toggle(page).click();
+
+        // Slow enough that the next title is typed while the one before is on its way.
+        await page.route("**/tasks/quick-add", async (route) => {
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+            await route.continue();
+        });
+
+        // Read at once rather than waited for: the redraw empties the field too,
+        // a second later, which is the gap a waiting assertion would hide.
+        await quickAdd(page).fill(first);
+        await quickAdd(page).press("Enter");
+        expect(await quickAdd(page).inputValue()).toBe("");
+
+        await page.keyboard.type(second);
+        await page.keyboard.press("Enter");
+        expect(await quickAdd(page).inputValue()).toBe("");
+
+        await page.keyboard.type(third);
+
+        await expect(rows.filter({ hasText: first })).toHaveCount(1);
+        await expect(rows.filter({ hasText: second })).toHaveCount(1);
+        await expect(rows.filter({ hasText: first }).filter({ hasText: second })).toHaveCount(0);
+
+        // Not sent, and still where it was typed.
+        await expect(quickAdd(page)).toHaveValue(third);
+        await expect(quickAdd(page)).toBeFocused();
+        await expect(rows.filter({ hasText: third })).toHaveCount(0);
+
+        await page.unroute("**/tasks/quick-add");
+        await quickAdd(page).press("Enter");
+        await expect(rows.filter({ hasText: third })).toHaveCount(1);
+
+        // A long My Day moves the rows later tests click on.
+        for (const title of [first, second, third]) {
+            await rows.filter({ hasText: title }).getByRole("button", { name: `Edit “${title}”` }).click();
+            await modal(page).getByRole("button", { name: "Delete", exact: true }).click();
+            await expect(modal(page)).toBeHidden();
+            await expect(rows.filter({ hasText: title })).toHaveCount(0);
+        }
+    });
+
     test("steps are worked through in the dialog, and a repeating task moves when ticked", async ({ page }) => {
         const title = unique("Weekly review");
 
