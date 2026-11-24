@@ -92,6 +92,8 @@ final readonly class CalDavTaskDriver implements TaskSyncDriverInterface
         $zone  = $this->timezones->resolve($list->usr);
         $tasks = [];
 
+        $publicUrl = (string) $this->publicUrl->current();
+
         foreach ($read->changes as $change) {
             if (true === $change->isDeleted()) {
                 $tasks[] = RemoteTask::deleted($change->href);
@@ -99,7 +101,7 @@ final readonly class CalDavTaskDriver implements TaskSyncDriverInterface
                 continue;
             }
 
-            $task = $this->converter->toRemoteTask((string) $change->data, $change->href, $change->etag, $zone);
+            $task = $this->converter->toRemoteTask((string) $change->data, $change->href, $change->etag, $zone, $publicUrl);
 
             if (null === $task) {
                 // An event, on a collection holding both. The calendar's business.

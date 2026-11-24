@@ -294,16 +294,64 @@ final class CalDavTaskConverterTest extends TestCase
         $remote = $this->converter->toRemoteTask($this->todo(
             'ATTACH;FILENAME=plan.pdf:https://files.example.org/x/plan.pdf',
             'ATTACH:https://mail.example.org/tasks/attachment/7',
+            'ATTACH:https://other-plmail.example.net/tasks/attachment/9',
             'ATTACH;ENCODING=BASE64;VALUE=BINARY:aGVsbG8=',
             'ATTACH:ftp://files.example.org/y.pdf',
             'ATTACH:javascript:alert(1)',
-        ), 'h', null, $this->zone);
+        ), 'h', null, $this->zone, 'https://mail.example.org/');
 
         self::assertSame(
-            [['url' => 'https://files.example.org/x/plan.pdf', 'filename' => 'plan.pdf']],
+            [
+                ['url' => 'https://files.example.org/x/plan.pdf', 'filename' => 'plan.pdf'],
+                ['url' => 'https://other-plmail.example.net/tasks/attachment/9', 'filename' => '9'],
+            ],
             $remote?->links,
-            'our own link, inline data and any other scheme are not a foreign file to list',
+            'our own link, inline data and any other scheme are not a foreign file to list; another plMail\'s link is',
         );
+    }
+
+    public function testAnotherSitesLinkWithTheSamePathStaysOnWrite(): void
+    {
+        $task                = $this->fromForeign();
+        $task->remotePayload = str_replace(
+            'ATTACH:https://example.org/plants.pdf',
+            "ATTACH:https://example.org/plants.pdf\nATTACH:https://other-plmail.example.net/tasks/attachment/9",
+            self::FOREIGN,
+        );
+
+        $ics = $this->unfolded($this->converter->toIcs($task, $this->now, $this->zone, 'https://mail.example.org'));
+
+        self::assertStringContainsString('ATTACH:https://other-plmail.example.net/tasks/attachment/9', $ics);
+    }
+
+    public function testATasksStartIsWrittenAndMovesWithIt(): void
+    {
+        $task            = $this->fromForeign();
+        $task->startDate = new DateTimeImmutable('2026-06-08', new DateTimeZone('UTC'));
+
+        $ics = $this->converter->toIcs($task, $this->now, $this->zone);
+
+        self::assertStringContainsString('DTSTART;VALUE=DATE:20260608', $ics);
+        self::assertStringNotContainsString('20260601', $ics, 'the start the server had is replaced');
+    }
+
+    public function testARepeatingTaskWithNoStartIsSentItsDueDateAsOne(): void
+    {
+        $task                 = new Task();
+        $task->uid            = 'local-2';
+        $task->title          = 'Bins';
+        $task->dueDate        = new DateTimeImmutable('2026-06-15', new DateTimeZone('UTC'));
+        $task->recurrenceRule = 'FREQ=WEEKLY';
+        $task->syncState      = SyncState::PendingCreate;
+
+        $ics = $this->converter->toIcs($task, $this->now, $this->zone);
+
+        self::assertStringContainsString('DTSTART;VALUE=DATE:20260615', $ics, 'what other clients anchor the RRULE on');
+        self::assertStringContainsString('RRULE:FREQ=WEEKLY', $ics);
+
+        $task->recurrenceRule = null;
+
+        self::assertStringNotContainsString('DTSTART', $this->converter->toIcs($task, $this->now, $this->zone), 'a task that does not repeat needs none');
     }
 
     private function fromForeign(string $title = 'Water the plants'): Task
@@ -318,6 +366,8 @@ final class CalDavTaskConverterTest extends TestCase
         $task->notes          = $remote->notes;
         $task->status         = $remote->status;
         $task->dueAt          = $remote->dueAt;
+        $task->startDate      = $remote->startDate;
+        $task->startAt        = $remote->startAt;
         $task->reminderAt     = $remote->reminderAt;
         $task->recurrenceRule = $remote->recurrenceRule;
         $task->remotePayload  = self::FOREIGN;

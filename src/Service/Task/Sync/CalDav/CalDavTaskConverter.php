@@ -51,7 +51,8 @@ final readonly class CalDavTaskConverter
      * @return RemoteTask|null null for a resource holding no VTODO, which on a
      *                         mixed collection is every event
      */
-    public function toRemoteTask(string $ics, string $href, ?string $etag, DateTimeZone $ownerZone): ?RemoteTask
+    /** @param string $publicUrl this install's address, by which its own links back are told from another's */
+    public function toRemoteTask(string $ics, string $href, ?string $etag, DateTimeZone $ownerZone, string $publicUrl = ''): ?RemoteTask
     {
         $calendar = $this->parse($ics);
         $todo     = null === $calendar ? null : $this->masterOf($calendar);
@@ -81,7 +82,7 @@ final readonly class CalDavTaskConverter
             recurrenceRule: '' === $this->valueOf($todo, 'RRULE') ? null : $this->valueOf($todo, 'RRULE'),
             parentUid:      $this->parentUidOf($todo),
             payload:        $ics,
-            links:          $this->linksOf($todo),
+            links:          $this->linksOf($todo, $publicUrl),
         );
     }
 
@@ -102,6 +103,7 @@ final readonly class CalDavTaskConverter
         $this->setText($todo, 'DESCRIPTION', $task->notes);
         $this->writeStatus($todo, $task);
         $this->writeDate($todo, 'DUE', $task->dueDate, $task->dueAt, $ownerZone);
+        $this->writeStart($todo, $task, $ownerZone);
         $this->writeRecurrence($todo, $task->recurrenceRule);
         $this->writeReminder($todo, $task, $ownerZone);
         $this->writeParent($todo, $task->parent?->uid);
@@ -279,7 +281,7 @@ final readonly class CalDavTaskConverter
      *
      * @return list<array{url: string, filename: string}>
      */
-    private function linksOf(VTodo $todo): array
+    private function linksOf(VTodo $todo, string $publicUrl): array
     {
         $links = [];
 
@@ -288,7 +290,7 @@ final readonly class CalDavTaskConverter
 
             if (false !== stripos((string) $this->parameterOf($attach, 'ENCODING'), 'BASE64')
                 || 1 !== preg_match('#^https?://#i', $url)
-                || true === str_contains($url, self::OWN_ATTACHMENT_PATH)) {
+                || true === $this->isOwn($url, $publicUrl)) {
                 continue;
             }
 
@@ -296,6 +298,16 @@ final readonly class CalDavTaskConverter
         }
 
         return $links;
+    }
+
+    /**
+     * A link back to a file kept here, by this install's whole address rather than
+     * the path alone: another plMail's link, or any site's with the same path, is
+     * a foreign file, to list and to leave in place. With no address known, none is.
+     */
+    private function isOwn(string $url, string $publicUrl): bool
+    {
+        return '' !== $publicUrl && true === str_starts_with($url, rtrim($publicUrl, '/') . self::OWN_ATTACHMENT_PATH);
     }
 
     /** The name another client gave it, in any of its spellings, or the address's end. */
@@ -323,14 +335,14 @@ final readonly class CalDavTaskConverter
      */
     private function writeOwnAttachments(VTodo $todo, Task $task, string $publicUrl): void
     {
-        foreach ($todo->select('ATTACH') as $attach) {
-            if (true === str_contains((string) $attach, self::OWN_ATTACHMENT_PATH)) {
-                $todo->remove($attach);
-            }
-        }
-
         if ('' === $publicUrl) {
             return;
+        }
+
+        foreach ($todo->select('ATTACH') as $attach) {
+            if (true === $this->isOwn(trim((string) $attach), $publicUrl)) {
+                $todo->remove($attach);
+            }
         }
 
         foreach ($task->attachments as $attachment) {
@@ -414,6 +426,26 @@ final readonly class CalDavTaskConverter
         } elseif (null !== $instant) {
             $todo->add($name, $instant->setTimezone(new DateTimeZone('UTC')));
         }
+    }
+
+    /**
+     * DTSTART follows the task as DUE does: a tick moves both, and a server left
+     * with the old start hands it back on the next pull. It is also what other
+     * clients anchor an RRULE on, so a repeating task with no start of its own is
+     * sent one on its due date (RFC 5545 §3.8.5.3), which comes back as a start
+     * that changes nothing here.
+     */
+    private function writeStart(VTodo $todo, Task $task, DateTimeZone $ownerZone): void
+    {
+        $date    = $task->startDate;
+        $instant = $task->startAt;
+
+        if (null === $date && null === $instant && null !== $task->recurrenceRule && '' !== $task->recurrenceRule) {
+            $date    = $task->dueDate;
+            $instant = $task->dueAt;
+        }
+
+        $this->writeDate($todo, 'DTSTART', $date, $instant, $ownerZone);
     }
 
     private function writeRecurrence(VTodo $todo, ?string $rule): void
