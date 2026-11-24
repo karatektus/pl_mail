@@ -129,7 +129,7 @@ final class AiStatusEndpointTest extends WebTestCase
     {
         $this->client->catchExceptions(false);
 
-        $this->expectException(\Symfony\Component\Security\Core\Exception\AccessDeniedException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException::class);
 
         $this->client->request('POST', '/admin/ai/backfill/start');
     }

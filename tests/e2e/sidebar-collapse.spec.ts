@@ -117,6 +117,69 @@ test.describe("sidebar section collapse (desktop)", () => {
         await expect(section(page, LABELS)).not.toHaveAttribute("open", "");
     });
 
+    // #745: `toggle` fires for every <details open> put into the live
+    // document, not only for clicks. A Turbo stream that redraws the sidebar
+    // (a label change in any tab; the whole sidebar when labels are listed by
+    // account) used to post the state it had just been sent — once per open
+    // disclosure, for both sidebar copies.
+    test("a redraw posts nothing, and a click posts once for both copies", async ({
+        page,
+    }) => {
+        const posts: string[] = [];
+        page.on("request", (request) => {
+            if (
+                "POST" === request.method() &&
+                request.url().includes("/mail/sidebar/section-collapsed")
+            ) {
+                posts.push(request.postData() ?? "");
+            }
+        });
+
+        await page.goto("/mail/inbox");
+        await expect(section(page, LABELS)).toHaveAttribute("open", "");
+
+        // A Turbo visit redraws both sidebars, which is the other way in.
+        await page.locator("#sidebar a[href='/mail/sent']").first().click();
+        await expect(page).toHaveURL(/\/mail\/sent/);
+        await expect(section(page, LABELS)).toHaveAttribute("open", "");
+
+        // The redraw itself, as _sidebar.stream.html.twig sends it: both
+        // copies replaced by the markup the server rendered. Built from the
+        // page's own copies so the test does not depend on which streams
+        // happen to carry the whole sidebar today.
+        await page.evaluate(() => {
+            const stream = ["sidebar", "sidebar-drawer-inner"]
+                .map((id) => {
+                    const html = document.getElementById(id)?.outerHTML ?? "";
+
+                    return `<turbo-stream action="replace" target="${id}"><template>${html}</template></turbo-stream>`;
+                })
+                .join("");
+
+            (window as unknown as { Turbo: { renderStreamMessage(html: string): void } })
+                .Turbo.renderStreamMessage(stream);
+        });
+        await expect(section(page, LABELS)).toHaveAttribute("open", "");
+
+        // `toggle` is queued, not dispatched inline — give it the tick it
+        // would have needed to post, then check that nothing did.
+        await page.evaluate(
+            () => new Promise((resolve) => setTimeout(resolve, 300)),
+        );
+        expect(posts).toEqual([]);
+
+        // The click mirrors onto the drawer copy, whose `toggle` must not
+        // send the same preference a second time.
+        await toggle(page, LABELS);
+        await expect(
+            section(page, LABELS, "#sidebar-drawer-inner"),
+        ).not.toHaveAttribute("open", "");
+        await page.evaluate(
+            () => new Promise((resolve) => setTimeout(resolve, 300)),
+        );
+        expect(posts).toHaveLength(1);
+    });
+
     test("the collapsed heading carries the unread roll-up, and shows it only when shut", async ({
         page,
     }) => {

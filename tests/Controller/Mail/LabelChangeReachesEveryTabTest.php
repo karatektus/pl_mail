@@ -173,6 +173,22 @@ final class LabelChangeReachesEveryTabTest extends WebTestCase
      * what comes back is three `replace` actions carrying the markup already on
      * screen, and nothing that appends.
      */
+    /**
+     * The read-only refetch a `labels.stale` nudge sends every tab on (#745).
+     * Each tab heard the nudge and asks for itself, so a publish here would
+     * hand every tab one more redraw per tab that asked.
+     */
+    public function testFetchingTheListsAnswersTheAskerAndPublishesNothing(): void
+    {
+        $this->seedLabel('Receipts');
+
+        $this->client->request('GET', '/labels/lists');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Receipts', (string) $this->client->getResponse()->getContent());
+        self::assertSame([], $this->hub->updates, 'a read published the lists to every tab');
+    }
+
     public function testTheToastStaysInTheAnswerAndOffTheWire(): void
     {
         $label = $this->seedLabel('Receipts');
