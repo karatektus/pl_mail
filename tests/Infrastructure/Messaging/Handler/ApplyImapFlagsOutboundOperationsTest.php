@@ -229,6 +229,64 @@ final class ApplyImapFlagsOutboundOperationsTest extends KernelTestCase
     }
 
     /**
+     * A folder label taken off (#693): the copy in that folder is expunged,
+     * the email forgets it at once, and the inbox copy is untouched. Left to
+     * the sweep, the row would go on claiming the copy, and labelling the mail
+     * again would copy nothing.
+     */
+    public function testDeletingOneCopyForgetsItAndKeepsTheOther(): void
+    {
+        $inUid   = $this->put('INBOX');
+        $this->server->create('Work');
+        $workUid = $this->put('Work');
+
+        $account                 = new Account();
+        $account->usr            = new User();
+        $account->imapHost       = (string) getenv('IMAP_TEST_HOST');
+        $account->imapPort       = 31143;
+        $account->imapEncryption = null;
+        $account->username       = $this->user;
+        $account->password       = (string) getenv('IMAP_TEST_PASSWORD');
+        $account->authType       = 'password';
+
+        $inbox = $this->mailbox($account, 'INBOX', MailboxSpecialUse::INBOX);
+        $work  = $this->mailbox($account, 'Work');
+        new ReflectionProperty(Mailbox::class, 'id')->setValue($inbox, 10);
+        new ReflectionProperty(Mailbox::class, 'id')->setValue($work, 13);
+
+        $row            = new Message();
+        $row->account   = $account;
+        $row->messageId = self::MESSAGE_ID;
+        $row->addLocation($inbox, $inUid);
+        $row->addLocation($work, $workUid);
+        new ReflectionProperty(Message::class, 'id')->setValue($row, 1);
+
+        $messages = $this->createStub(MessageRepository::class);
+        $messages->method('findBy')->willReturn([$row]);
+
+        $folders = $this->createStub(MailboxRepository::class);
+        $folders->method('find')->willReturnCallback(static fn (int $id): ?Mailbox => [10 => $inbox, 13 => $work][$id] ?? null);
+
+        $handler = new ApplyImapFlagsHandler(
+            $messages,
+            $folders,
+            $this->logger(),
+            self::getContainer()->get(ImapConnector::class),
+            $this->createStub(EntityManagerInterface::class),
+            $this->createStub(ImapFolderProvisioner::class),
+            $this->createStub(AccountRepository::class),
+        );
+
+        $handler(new ApplyImapFlagsMessage([1 => 13], 'delete', null, [], [[1, 13, $workUid]]));
+
+        self::assertSame([], $this->server->uidSearch('Work', 'ALL'));
+        self::assertSame([$inUid], $this->server->uidSearch('INBOX', 'ALL'));
+        self::assertNull($row->locationAt($work, $workUid), 'the email forgot the copy');
+        self::assertNotNull($row->locationAt($inbox, $inUid));
+        self::assertSame($inbox, $row->mailbox);
+    }
+
+    /**
      * `delete` expunges this one UID. A plain EXPUNGE also removes every
      * message another client has only flagged \Deleted and may still undelete.
      */

@@ -453,7 +453,18 @@ final class ApplyImapFlagsHandler
         }
 
         if ('delete' === $action) {
-            $this->deleteOne($session, $path, $uid);
+            // One copy of an email kept in other folders too — a folder
+            // label taken off (#693): the email forgets that copy as soon as
+            // the server has expunged it. Left to the sweep, the copy would
+            // be on the row until the folder's next full listing, and putting
+            // the label on again would find it there and copy nothing.
+            if (true === $this->deleteOne($session, $path, $uid)) {
+                $copy = $msg->locationAt($mailbox, $uid);
+
+                if (null !== $copy && count($msg->locations) > 1) {
+                    $msg->removeLocation($copy);
+                }
+            }
 
             return;
         }
@@ -574,8 +585,11 @@ final class ApplyImapFlagsHandler
      * server without UIDPLUS gets the flag and no expunge: the message stays
      * until that server's own client or policy expunges it, which is the
      * server's call rather than ours.
+     *
+     * True when the copy is gone from the server, false when it is only
+     * flagged.
      */
-    private function deleteOne(ImapSession $session, string $path, int $uid): void
+    private function deleteOne(ImapSession $session, string $path, int $uid): bool
     {
         $session->uidStore($path, (string) $uid, '+', ['\\Deleted']);
 
@@ -584,10 +598,12 @@ final class ApplyImapFlagsHandler
                 'uid' => $uid,
             ]);
 
-            return;
+            return false;
         }
 
         $session->expunge($path, (string) $uid);
+
+        return true;
     }
 
     /**
