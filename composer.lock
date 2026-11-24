@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "932c45ae579abc520a612e2472fcb586",
+    "content-hash": "c8b4432b29aca98d0336942805a62869",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -2267,8 +2267,7 @@
                 "issues": "https://github.com/laravel/serializable-closure/issues",
                 "source": "https://github.com/laravel/serializable-closure"
             },
-            "time": "2026-10-14T21:20:29+00:00",
-            "published-time": "2026-11-10T16:11:08+00:00"
+            "time": "2026-10-14T21:20:29+00:00"
         },
         {
             "name": "lcobucci/clock",
@@ -3131,8 +3130,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-08-30T10:22:22+00:00",
-            "published-time": "2025-08-30T10:22:43+00:00"
+            "time": "2025-08-30T10:22:22+00:00"
         },
         {
             "name": "php-di/php-di",
@@ -3205,8 +3203,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-08-16T11:10:48+00:00",
-            "published-time": "2025-08-16T11:11:08+00:00"
+            "time": "2025-08-16T11:10:48+00:00"
         },
         {
             "name": "php-http/discovery",
@@ -4192,28 +4189,33 @@
         },
         {
             "name": "sabre/vobject",
-            "version": "4.6.1",
+            "version": "5.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sabre-io/vobject.git",
-                "reference": "63613f6c53a0a2bddfe22caba0d052e6c59f7d0e"
+                "reference": "2533eb0d67b2030e4f2bdacac972beb556d50e0d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sabre-io/vobject/zipball/63613f6c53a0a2bddfe22caba0d052e6c59f7d0e",
-                "reference": "63613f6c53a0a2bddfe22caba0d052e6c59f7d0e",
+                "url": "https://api.github.com/repos/sabre-io/vobject/zipball/2533eb0d67b2030e4f2bdacac972beb556d50e0d",
+                "reference": "2533eb0d67b2030e4f2bdacac972beb556d50e0d",
                 "shasum": ""
             },
             "require": {
+                "ext-json": "*",
                 "ext-mbstring": "*",
-                "php": "^7.1 || ^8.0",
-                "sabre/xml": "^2.1 || ^3.0 || ^4.0"
+                "php": "^8.2",
+                "sabre/xml": "^3.0 || ^4.0"
             },
             "require-dev": {
-                "friendsofphp/php-cs-fixer": "~2.17.1",
-                "phpstan/phpstan": "^0.12 || ^1.12 || ^2.0",
-                "phpunit/php-invoker": "^2.0 || ^3.1",
-                "phpunit/phpunit": "^7.5 || ^8.5 || ^9.6"
+                "friendsofphp/php-cs-fixer": "^3.95",
+                "phpstan/extension-installer": "^1.4",
+                "phpstan/phpstan": "^2.2",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpstan/phpstan-strict-rules": "^2.0",
+                "phpunit/php-invoker": "^5.0",
+                "phpunit/phpunit": "^11.5",
+                "rector/rector": "^2.4"
             },
             "suggest": {
                 "hoa/bench": "If you would like to run the benchmark scripts"
@@ -4292,7 +4294,7 @@
                 "issues": "https://github.com/sabre-io/vobject/issues",
                 "source": "https://github.com/fruux/sabre-vobject"
             },
-            "time": "2026-07-07T03:20:17+00:00"
+            "time": "2026-07-07T03:29:53+00:00"
         },
         {
             "name": "sabre/xml",
@@ -11790,8 +11792,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-11-09T21:44:36+00:00",
-            "published-time": "2026-11-09T21:51:34+00:00"
+            "time": "2026-11-09T21:44:36+00:00"
         },
         {
             "name": "zbateson/mb-wrapper",
@@ -11860,8 +11861,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-24T03:02:00+00:00",
-            "published-time": "2026-06-24T03:09:16+00:00"
+            "time": "2026-06-24T03:02:00+00:00"
         },
         {
             "name": "zbateson/stream-decorators",
@@ -11924,8 +11924,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-24T23:09:40+00:00",
-            "published-time": "2026-07-30T17:54:04+00:00"
+            "time": "2026-07-24T23:09:40+00:00"
         }
     ],
     "packages-dev": [
@@ -14899,5 +14898,5 @@
         "ext-pcntl": "*"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.11.0"
+    "plugin-api-version": "2.9.0"
 }
