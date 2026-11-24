@@ -143,7 +143,7 @@ final class CalDavEventConverterTest extends TestCase
         $event = $this->converter()->toRemoteEvent($ics, '/c/1.ics', null);
 
         self::assertSame('PT1H', $event?->jscalendar['duration'] ?? null);
-        self::assertSame('2026-08-04 09:00:00', $event?->endsAt?->format('Y-m-d H:i:s'));
+        self::assertSame('2026-08-04 09:00:00', $event->endsAt?->format('Y-m-d H:i:s'));
     }
 
     /**
@@ -161,7 +161,7 @@ final class CalDavEventConverterTest extends TestCase
         self::assertSame('PT1M', $event?->jscalendar['duration'] ?? null);
         self::assertSame(
             '2026-10-16 00:00',
-            $event?->endsAt?->setTimezone(new \DateTimeZone('Europe/Berlin'))->format('Y-m-d H:i'),
+            $event->endsAt?->setTimezone(new \DateTimeZone('Europe/Berlin'))->format('Y-m-d H:i'),
             'it ends on the midnight that closes its day, not an hour into the next',
         );
     }
@@ -173,7 +173,7 @@ final class CalDavEventConverterTest extends TestCase
         $event = $this->converter()->toRemoteEvent($ics, '/c/1.ics', null);
 
         self::assertSame('PT1M', $event?->jscalendar['duration'] ?? null);
-        self::assertSame('2026-08-04 08:01:00', $event?->endsAt?->format('Y-m-d H:i:s'));
+        self::assertSame('2026-08-04 08:01:00', $event->endsAt?->format('Y-m-d H:i:s'));
     }
 
     /** The nominal hour stops at the end of the day the event starts on, in its own zone. */
@@ -186,7 +186,7 @@ final class CalDavEventConverterTest extends TestCase
         self::assertSame('PT30M', $event?->jscalendar['duration'] ?? null);
         self::assertSame(
             '2026-10-16 00:00',
-            $event?->endsAt?->setTimezone(new \DateTimeZone('Europe/Berlin'))->format('Y-m-d H:i'),
+            $event->endsAt?->setTimezone(new \DateTimeZone('Europe/Berlin'))->format('Y-m-d H:i'),
         );
     }
 
@@ -214,7 +214,7 @@ final class CalDavEventConverterTest extends TestCase
         $event = $this->converter()->toRemoteEvent($ics, '/c/1.ics', null);
 
         self::assertSame('Weekly', $event?->jscalendar['title'] ?? null);
-        self::assertSame('2026-08-04 08:00:00', $event?->startsAt?->format('Y-m-d H:i:s'));
+        self::assertSame('2026-08-04 08:00:00', $event->startsAt?->format('Y-m-d H:i:s'));
     }
 
     public function testARecurringEventArrivesAsARuleTheExpanderCanRead(): void
