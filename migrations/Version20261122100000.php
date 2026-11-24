@@ -15,6 +15,10 @@ use Doctrine\Migrations\AbstractMigration;
  * migration over rows people have already started using, and a list's source is
  * declared as a user, an account or an integration the way Calendar's is.
  *
+ * A finished entry of a repeating task is a task too, tied to the one it came
+ * from by occurrence_of_id, and cascading, since it has nothing to say once that
+ * task is gone.
+ *
  * The unique indexes on the two generated hashes are what keep a re-sync from
  * duplicating a task or a list; a btree cannot hold the ids themselves, since
  * the remote picks their length.
@@ -67,6 +71,7 @@ final class Version20261122100000 extends AbstractMigration
                 task_list_id INT NOT NULL,
                 usr_id INT NOT NULL,
                 parent_id INT DEFAULT NULL,
+                occurrence_of_id INT DEFAULT NULL,
                 uid TEXT NOT NULL,
                 uid_hash text GENERATED ALWAYS AS (md5(uid)) STORED,
                 title TEXT NOT NULL,
@@ -94,6 +99,7 @@ final class Version20261122100000 extends AbstractMigration
             SQL);
         $this->addSql('CREATE INDEX idx_task_list_parent ON task (task_list_id, parent_id)');
         $this->addSql('CREATE INDEX idx_task_parent ON task (parent_id)');
+        $this->addSql('CREATE INDEX idx_task_occurrence_of ON task (occurrence_of_id)');
         $this->addSql('CREATE INDEX idx_task_usr_due ON task (usr_id, due_date, due_at)');
         $this->addSql('CREATE INDEX idx_task_list_sync_state ON task (task_list_id, sync_state)');
         $this->addSql('CREATE INDEX idx_task_list_remote ON task (task_list_id, remote_id_hash)');
@@ -101,6 +107,7 @@ final class Version20261122100000 extends AbstractMigration
         $this->addSql('ALTER TABLE task ADD CONSTRAINT fk_task_list FOREIGN KEY (task_list_id) REFERENCES task_list (id) ON DELETE CASCADE NOT DEFERRABLE');
         $this->addSql('ALTER TABLE task ADD CONSTRAINT fk_task_usr FOREIGN KEY (usr_id) REFERENCES "user" (id) ON DELETE CASCADE NOT DEFERRABLE');
         $this->addSql('ALTER TABLE task ADD CONSTRAINT fk_task_parent FOREIGN KEY (parent_id) REFERENCES task (id) ON DELETE CASCADE NOT DEFERRABLE');
+        $this->addSql('ALTER TABLE task ADD CONSTRAINT fk_task_occurrence_of FOREIGN KEY (occurrence_of_id) REFERENCES task (id) ON DELETE CASCADE NOT DEFERRABLE');
     }
 
     public function down(Schema $schema): void
