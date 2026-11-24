@@ -19,7 +19,17 @@ instead of the console. Mail is now read by a maintained MIME parser, so attachm
 names, and Hebrew mail from Outlook, search results acted on as a whole and drafts reopened with
 encryption switched off work as they should.
 
-<!-- highlight -->
+<!-- highlight screenshot=sidebar-width -->
+**The sidebar can be made wider.** Drag the edge between the sidebar and the mail, or focus it and use
+the arrow keys; a double-click puts it back. The width is kept per user, on every device, and is the
+same on the mail, the calendar, Settings and the admin panel. It goes from 180 to 480 pixels and never
+squeezes the mail below a phone's width. A sidebar whose names are cut off widens over the mail
+while the pointer is on it, just far enough for the longest one, and the mail beside it does not
+move; **Show long names on hover** in Settings → General → Layout & controls → Sidebar switches that
+off. Only the row you are on is highlighted now: a parent label no longer lights up while one of
+its children is open. No schema change. [#699](https://github.com/karatektus/pl_mail/issues/699), requested by @PhunkyBob.
+
+<!-- highlight screenshot=labels-by-account -->
 **Labels can be listed under their account.** With **Labels by account** switched on in Settings → Labels,
 each account in the sidebar lists all of its labels beside its folders, nested the way the account
 nests them, and LABELS keeps only labels that are on no account yet, and disappears while there are none. Opening a label there shows that
@@ -36,37 +46,7 @@ or closes them all. The labels view switches moved from the label list's header 
 own in Settings → Labels, with the On/Off switches the rest of Settings uses.
 [#690](https://github.com/karatektus/pl_mail/issues/690).
 
-<!-- highlight -->
-**Always Bcc (#692).** Each account can name addresses that every mail it sends is copied to, such
-as a backup mailbox or proof that a mail left. Any of its sending addresses can use a list of its
-own instead, or none. The addresses are filled into Bcc when the compose window opens (new message,
-reply, reply-all, forward). You can remove one for a single message, and changing From swaps them
-for the new address's. The JMAP identities publish the same list as `bcc`. Set it under **Settings →
-Reading & writing → Compose → Compose defaults**, where addresses are added as chips with contact
-suggestions. That card now folds each account into one summary line and lists only the addresses
-that differ from their account, instead of one row per address.
-
-<!-- highlight -->
-**The sidebar can be made wider.** Drag the edge between the sidebar and the mail, or focus it and use
-the arrow keys; a double-click puts it back. The width is kept per user, on every device, and is the
-same on the mail, the calendar, Settings and the admin panel. It goes from 180 to 480 pixels and never
-squeezes the mail below a phone's width. A sidebar whose names are cut off widens over the mail
-while the pointer is on it, just far enough for the longest one, and the mail beside it does not
-move; **Show long names on hover** in Settings → General → Layout & controls → Sidebar switches that
-off. Only the row you are on is highlighted now: a parent label no longer lights up while one of
-its children is open. No schema change. [#699](https://github.com/karatektus/pl_mail/issues/699), requested by @PhunkyBob.
-
-<!-- highlight -->
-**Remember encryption on or off per recipient.** Clicking the lock in the compose window, or
-*More options → Encrypt*, now also opens a small panel with On / Off / Auto for each recipient
-plMail has a key for: whether mail to that address is encrypted from now on. Leaving it alone
-changes nothing, and it closes on any click, focus or Escape elsewhere. Off for one of your own
-addresses keeps mail to an account you also read in the provider's app (Gmail, say) readable there.
-Own addresses keep the choice in your settings, carried by the config backup; contacts keep it on
-their key, as before. Native apps can set it with the new JMAP method `RecipientPolicy/set`.
-No schema change. [#703](https://github.com/karatektus/pl_mail/issues/703), requested by @wbilger.
-
-<!-- highlight -->
+<!-- highlight screenshot=admin-backfills -->
 **Administrators can run backfills from the admin panel.** Admin → Backfills lists every repair
 `app:backfill` runs, newest first, because the newest is nearly always the one an update asks for.
 Choosing one explains in plain words what it does, when it was added, and whether it is safe to
@@ -78,6 +58,26 @@ shows who started what, its output while it goes, and how it ended. On the conso
 [#726](https://github.com/karatektus/pl_mail/issues/726).
 
 **Migration:** adds the `backfill_run` table. No deployment change.
+
+<!-- highlight screenshot=always-bcc -->
+**Always Bcc (#692).** Each account can name addresses that every mail it sends is copied to, such
+as a backup mailbox or proof that a mail left. Any of its sending addresses can use a list of its
+own instead, or none. The addresses are filled into Bcc when the compose window opens (new message,
+reply, reply-all, forward). You can remove one for a single message, and changing From swaps them
+for the new address's. The JMAP identities publish the same list as `bcc`. Set it under **Settings →
+Reading & writing → Compose → Compose defaults**, where addresses are added as chips with contact
+suggestions. That card now folds each account into one summary line and lists only the addresses
+that differ from their account, instead of one row per address.
+
+<!-- highlight screenshot=encrypt-per-recipient -->
+**Remember encryption on or off per recipient.** Clicking the lock in the compose window, or
+*More options → Encrypt*, now also opens a small panel with On / Off / Auto for each recipient
+plMail has a key for: whether mail to that address is encrypted from now on. Leaving it alone
+changes nothing, and it closes on any click, focus or Escape elsewhere. Off for one of your own
+addresses keeps mail to an account you also read in the provider's app (Gmail, say) readable there.
+Own addresses keep the choice in your settings, carried by the config backup; contacts keep it on
+their key, as before. Native apps can set it with the new JMAP method `RecipientPolicy/set`.
+No schema change. [#703](https://github.com/karatektus/pl_mail/issues/703), requested by @wbilger.
 
 **A new message opens with the caret in To.** Compose put the caret in the body, under an empty
 recipient field, so the first thing typed went into the message. A window with nobody to send to
