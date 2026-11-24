@@ -119,8 +119,11 @@ final readonly class LabelSplitter
      *
      * A label left with no binding and nothing under it is deleted: what was
      * split off and has been joined back has nothing left to stand for.
+     *
+     * $tellServer is false for a rename the account's server made itself
+     * (RemoteLabelLinker): only plMail's side follows it.
      */
-    public function renameOnAccount(Label $label, Account $account, string $name, ?Label $parent, ?string $color): Label
+    public function renameOnAccount(Label $label, Account $account, string $name, ?Label $parent, ?string $color, bool $tellServer = true): Label
     {
         /** @var list<array{Label, string}> $renamed */
         $renamed = [];
@@ -131,8 +134,14 @@ final readonly class LabelSplitter
 
         // For this account only. The label it joined may be on others, and
         // they already carry this name.
+        //
+        // Not told at all when the server is where the rename came from
+        // (RemoteLabelLinker, #691): it already has the name.
         foreach ($renamed as [$moved, $previousFullName]) {
-            $this->structure->renamedOn($moved, $account, $previousFullName);
+            if (true === $tellServer) {
+                $this->structure->renamedOn($moved, $account, $previousFullName);
+            }
+
             $this->changes->labelChanged($moved);
         }
 

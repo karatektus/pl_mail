@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:3e454aee0b5c9ea7b0340c2b9570f5c9dd072b69 -->
+<!-- translated-from: features/mail.md sha1:3f1282e342d7dd4d01f28f7d28f195097b38d602 -->
 
 # Mail
 
@@ -1643,6 +1643,30 @@ es lieber gleich ausgeklappt siehst: Der Schalter steht unter **Einstellungen �
 Verfassen** — eingeklappt bleibt die Vorgabe. So oder so zählt das Zitat als Inhalt der Nachricht:
 Eine Weiterleitung ohne ein eigenes Wort darüber wird nicht als leere Mail hinterfragt.
 
+### Immer Bcc an
+
+Wenn jede Mail zusätzlich in einem anderen Postfach von dir landen soll (als Sicherung oder als
+Beleg, dass sie raus ist), stell **Immer Bcc an** unter **Einstellungen → Lesen & Schreiben →
+Verfassen → Standards fürs Verfassen** ein. Jedes Konto ist dort eine Zeile mit einer kurzen
+Zusammenfassung; klapp sie auf, um seine Liste einzustellen. Adressen kommen als Chips hinzu, mit
+denselben Kontaktvorschlägen wie im Schreibfenster, bis zu zehn je Liste, und jede Änderung ist
+sofort gespeichert.
+
+Darunter listet **Adressen, die abweichen** nur die Absendeadressen, die ihrem Konto nicht folgen.
+**Ausnahme hinzufügen für…** wählt eine aus. Ihr „Immer Bcc an“ ist dann **Wie das Konto** oder
+**Eigene Liste**, die auch leer sein kann, dann wird Mail von dieser Adresse gar nicht kopiert.
+**Ausnahme entfernen** lässt die Adresse wieder in allem ihrem Konto folgen.
+
+Die Adressen stehen im **Bcc**, sobald das Schreibfenster aufgeht: bei einer neuen Nachricht, einer
+Antwort, „Allen antworten“ und beim Weiterleiten. Du siehst sie dort und kannst eine für eine
+einzelne Nachricht herausnehmen. Eine Adresse, an die die Nachricht schon über An oder Cc geht, kommt
+nicht noch einmal dazu, und keine Adresse bekommt eine Kopie an sich selbst. Wechselst du **Von**,
+werden die Kopien der alten Adresse gegen die der neuen getauscht. Was du selbst ins Bcc getippt
+hast, bleibt. Ein Entwurf, den du wieder öffnest, behält das Bcc, mit dem er gespeichert wurde.
+
+Die JMAP-Identitäten tragen dieselbe Liste als `bcc`, damit die Apps Mail an dieselben Stellen
+kopieren können.
+
 ### Später senden
 
 Der Pfeil neben **Senden** öffnet **Später senden**: *Morgen früh* (08:00), *Morgen Nachmittag*
@@ -1713,7 +1737,7 @@ da, wenn du sie willst, und nicht im Weg, wenn nicht.
 
 ### Um eine gebeten werden
 
-**Einstellungen → Aliase → Standards fürs Schreiben**, je Adresse. Drei Betriebsarten:
+**Einstellungen → Lesen & Schreiben → Verfassen → Standards fürs Verfassen**, je Konto und für jede Adresse unter **Adressen, die abweichen**. Drei Betriebsarten:
 
 | Betriebsart | Was dein Postfach tut |
 |---|---|
@@ -1850,6 +1874,11 @@ nicht raus.
 - [JMAP](../internals/jmap.md) — dieselben Operationen, wie ein Client sie sieht.
 
 ## Fallstricke
+
+**Eine Adresse unter „Immer Bcc an“ kann verhindern, dass eine Mail verschlüsselt wird.** Das
+Schreibfenster verschlüsselt von selbst nur, wenn jeder Empfänger einen Schlüssel hat, und S/MIME
+nur, wenn es gar kein Bcc gibt. Eine Sicherungsadresse im Bcc ist ein Empfänger wie jeder andere.
+Gib ihr einen Schlüssel oder nimm sie bei Mails, die du verschlüsselst, aus dem Bcc.
 
 **„plMail verwenden“ für E-Mail-Links braucht HTTPS und einen Browser, der es erlaubt.** Browser
 lassen eine Web-App `mailto:`-Links nur über HTTPS (oder auf `localhost`) übernehmen, also ist der

@@ -2072,6 +2072,8 @@ compose:
     formatting: 格式选项
     forward: 转发
     from: 发件人
+    from_pick: 请选择发件地址
+    from_via: '%label% · 经由 %account%'
     image: 插入图片
     image_edit:
         crop: 裁剪
@@ -3847,6 +3849,29 @@ settings:
             scaleHint: '应用于整个界面。撰写窗口使用独立的字体和字号，它们会随邮件一起发送。'
             subheading: '界面使用的字体和字号。'
     compose_defaults:
+        bcc:
+            chips:
+                create: '添加 %s'
+                no_results: '没有匹配的联系人。请输入完整地址。'
+            for_alias: '%alias% 的始终密送'
+            hint: '每封邮件也会悄悄发送到这些地址——作为备份，或作为已发出的凭证。开始撰写时它们会自动填入密送栏，你可以在单封邮件中移除。'
+            invalid: '“%address%”不是有效的邮箱地址。'
+            label: '始终密送'
+            per_address:
+                account_list: '与账户相同：%addresses%'
+                account_none: '与账户相同：不密送'
+                inherit: '与账户相同'
+                nobody: '无，此地址不发送副本'
+                override: '单独列表'
+            placeholder: '添加地址…'
+            save: '保存'
+            too_many: '最多 %max% 个地址。'
+        exceptions:
+            add: '为以下地址添加例外…'
+            edit: '编辑'
+            heading: '不同的地址'
+            remove: '删除例外'
+            remove_for: '用于 %alias%'
         heading: '撰写默认设置'
         invalid: '无法保存此设置。'
         read_receipt:
@@ -3859,7 +3884,14 @@ settings:
                 ask: '每次询问'
                 never: '从不发送'
         saved: '已保存。'
-        subheading: '各个地址在收发邮件时的默认行为。'
+        subheading: '各账户在收发邮件时的默认行为，以及与之不同的地址。'
+        summary:
+            bcc: '密送 %addresses%'
+            bcc_nobody: '不密送'
+            exceptions: '例外：%number%'
+            no_bcc: '不密送'
+            receipts: '回执：%mode%'
+            same_as_account: '与账户相同'
     filters:
         account: '账户'
         action:
@@ -4574,7 +4606,7 @@ settings:
             password: "密码 登录"
             pinning: '置顶 固定 图钉 提醒 pin'
             profile: "姓名 头像 照片"
-            read_receipts: "mdn 已读回执 确认"
+            read_receipts: "mdn 已读回执 确认 密送 bcc 副本 备份"
             reading_pane: "预览 分栏 右侧 下方"
             sender_pictures: '头像 图片 照片 gravatar libravatar bimi 标志 图标 发件人'
             sharing: "链接 公开 预约"

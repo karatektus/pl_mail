@@ -6,6 +6,7 @@ namespace App\Service\Graph;
 
 use App\Entity\Mail\Account;
 use App\Service\Label\LabelResolver;
+use App\Service\Label\RemoteLabelLinker;
 use App\Domain\Exception\GraphApiException;
 use App\Domain\Exception\GraphThrottledException;
 use App\Service\Mail\GraphApiClient;
@@ -36,6 +37,7 @@ final readonly class GraphCategorySyncer
     public function __construct(
         private GraphApiClient           $apiClient,
         private LabelResolver            $labelResolver,
+        private RemoteLabelLinker        $linker,
         private GraphCategoryColorMapper $colorMapper,
         private EntityManagerInterface   $em,
         private LoggerInterface          $logger,
@@ -104,8 +106,10 @@ final readonly class GraphCategorySyncer
 
             // "Work/Invoices" round-trips back into the nested chain it was
             // pushed from. A category with no slash simply becomes a top-level
-            // custom label.
-            $label = $this->labelResolver->customChain(explode('/', $displayName), $account);
+            // custom label. Found by the category's id first, so one renamed
+            // in Outlook is renamed here (RemoteLabelLinker, #691).
+            $categoryId = trim((string) ($category['id'] ?? ''));
+            $label      = $this->linker->link('graphCategoryId', $categoryId, explode('/', $displayName), $account);
 
             if (null !== $label) {
                 $created++;
@@ -127,8 +131,6 @@ final readonly class GraphCategorySyncer
                 // Only for the LEAF of a "Work/Invoices" chain — the ancestors
                 // are labels plMail invented to hold the tree, and no category
                 // on the remote corresponds to them.
-                $categoryId = trim((string) ($category['id'] ?? ''));
-
                 if ('' !== $categoryId) {
                     $this->labelResolver->binding($label, $account)->graphCategoryId = $categoryId;
                 }

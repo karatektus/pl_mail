@@ -64,6 +64,37 @@ final class OwnAddressHelperTest extends TestCase
         self::assertSame(['yo@shop.test'], OwnAddressHelper::caughtRecipients($message));
     }
 
+    /**
+     * #631: a provider that delivers catch-all mail under the mailbox's own
+     * address writes that into Delivered-To. It is no evidence about the
+     * catch-all; the original-recipient header is.
+     */
+    public function testTheMailboxsOwnAddressInDeliveredToIsNotACatch(): void
+    {
+        $account          = $this->account();
+        $account->email   = 'me@shop.test';
+        $account->addAlias(new EmailAlias($account, 'me@shop.test', EmailAliasSource::Manual, EmailAliasStatus::Active));
+
+        $message          = $this->message($account, to: ['yo@shop.test']);
+        $message->headers = ['Delivered-To' => 'me@shop.test', 'X-Pm-Original-To' => 'yo@shop.test'];
+
+        self::assertSame(['yo@shop.test'], OwnAddressHelper::caughtRecipients($message));
+        self::assertSame(['yo@shop.test', 'me@shop.test'], OwnAddressHelper::deliveredTo($message), 'original recipient first');
+    }
+
+    public function testReceivedHopsAreReadForTheirRecipient(): void
+    {
+        $message          = $this->message($this->account(), to: ['anna@shop.test', 'yo@shop.test']);
+        $message->headers = ['Received' => [
+            'from a by b with LMTP for <me@example.test>; Tue, 24 Nov 2026 10:00:02 +0100',
+            "from c by d with ESMTPS id 4F2\n\tfor yo@shop.test; Tue, 24 Nov 2026 10:00:01 +0100",
+            'from e by f with ESMTP; Tue, 24 Nov 2026 10:00:00 +0100',
+        ]];
+
+        self::assertSame(['me@example.test', 'yo@shop.test'], OwnAddressHelper::deliveredTo($message));
+        self::assertSame(['yo@shop.test'], OwnAddressHelper::caughtRecipients($message));
+    }
+
     // ── sent by the account ──────────────────────────────────────────────────
 
     public function testMailFromAnAliasIsTheAccountsOwn(): void

@@ -10,6 +10,153 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## v0.4.5 — 2026-11-24
+
+The sidebar can be dragged wider, labels can be listed under the account they belong to, every mail
+an account sends can be copied to a Bcc address of your choice, and the compose lock remembers per
+recipient whether mail to them is encrypted. Administrators can run repairs from Admin → Backfills
+instead of the console. Mail is now read by a maintained MIME parser, so attachments keep their
+names, and Hebrew mail from Outlook, search results acted on as a whole and drafts reopened with
+encryption switched off work as they should.
+
+<!-- highlight screenshot=sidebar-width -->
+**The sidebar can be made wider.** Drag the edge between the sidebar and the mail, or focus it and use
+the arrow keys; a double-click puts it back. The width is kept per user, on every device, and is the
+same on the mail, the calendar, Settings and the admin panel. It goes from 180 to 480 pixels and never
+squeezes the mail below a phone's width. A sidebar whose names are cut off widens over the mail
+while the pointer is on it, just far enough for the longest one, and the mail beside it does not
+move; **Show long names on hover** in Settings → General → Layout & controls → Sidebar switches that
+off. Only the row you are on is highlighted now: a parent label no longer lights up while one of
+its children is open. No schema change. [#699](https://github.com/karatektus/pl_mail/issues/699), requested by @PhunkyBob.
+
+<!-- highlight screenshot=labels-by-account -->
+**Labels can be listed under their account.** With **Labels by account** switched on in Settings → Labels,
+each account in the sidebar lists all of its labels beside its folders, nested the way the account
+nests them, and LABELS keeps only labels that are on no account yet, and disappears while there are none. Opening a label there shows that
+account's mail, and a label that is on other accounts too is marked, with the others named. Renaming
+it with the pencil there renames it for that account alone: "Sports" on a club account can become
+"Club sports" while a personal account keeps "Sports", and that account's mail, nested labels, the
+filters that only run on it and notifications go with it. Renamed back, it is one label again. **New label…** under an account makes a
+label on that account only. The merged list stays the default. No schema change.
+[#690](https://github.com/karatektus/pl_mail/issues/690), requested by @wbilger.
+
+**Several accounts can be open in the sidebar at once.** Opening an account used to close the one that
+was open; now each stays open until it is closed, and a button in the ACCOUNTS heading opens them all,
+or closes them all. The labels view switches moved from the label list's header into a card of their
+own in Settings → Labels, with the On/Off switches the rest of Settings uses.
+[#690](https://github.com/karatektus/pl_mail/issues/690).
+
+<!-- highlight screenshot=admin-backfills -->
+**Administrators can run backfills from the admin panel.** Admin → Backfills lists every repair
+`app:backfill` runs, newest first, because the newest is nearly always the one an update asks for.
+Choosing one explains in plain words what it does, when it was added, and whether it is safe to
+run twice; many can also count
+beforehand how many messages they would look at, and the ones that re-read mail take a window of a
+day, a week, four weeks or everything. Run queues it for the maintenance worker, and Recent runs
+shows who started what, its output while it goes, and how it ended. On the console, the task list
+`app:backfill` offers is now newest first too.
+[#726](https://github.com/karatektus/pl_mail/issues/726).
+
+**Migration:** adds the `backfill_run` table. No deployment change.
+
+<!-- highlight screenshot=always-bcc -->
+**Always Bcc (#692).** Each account can name addresses that every mail it sends is copied to, such
+as a backup mailbox or proof that a mail left. Any of its sending addresses can use a list of its
+own instead, or none. The addresses are filled into Bcc when the compose window opens (new message,
+reply, reply-all, forward). You can remove one for a single message, and changing From swaps them
+for the new address's. The JMAP identities publish the same list as `bcc`. Set it under **Settings →
+Reading & writing → Compose → Compose defaults**, where addresses are added as chips with contact
+suggestions. That card now folds each account into one summary line and lists only the addresses
+that differ from their account, instead of one row per address.
+
+<!-- highlight screenshot=encrypt-per-recipient -->
+**Remember encryption on or off per recipient.** Clicking the lock in the compose window, or
+*More options → Encrypt*, now also opens a small panel with On / Off / Auto for each recipient
+plMail has a key for: whether mail to that address is encrypted from now on. Leaving it alone
+changes nothing, and it closes on any click, focus or Escape elsewhere. Off for one of your own
+addresses keeps mail to an account you also read in the provider's app (Gmail, say) readable there.
+Own addresses keep the choice in your settings, carried by the config backup; contacts keep it on
+their key, as before. Native apps can set it with the new JMAP method `RecipientPolicy/set`.
+No schema change. [#703](https://github.com/karatektus/pl_mail/issues/703), requested by @wbilger.
+
+**A new message opens with the caret in To.** Compose put the caret in the body, under an empty
+recipient field, so the first thing typed went into the message. A window with nobody to send to
+now starts in To, as a forward already did; a reply, which comes addressed, still starts in the
+body. [#688](https://github.com/karatektus/pl_mail/issues/688), reported by @drdotnet22.
+
+**Mail sent from a Google account is listed once in Sent.** Gmail gives mail sent through its API a
+Message-ID of its own, so the copy it files in Sent did not match the row plMail wrote when it sent
+the mail: every message appeared twice, the second time in a conversation of its own, and answers
+named an id no row had. plMail now reads back the Message-ID Gmail gave the mail and keeps that one,
+so the Sent copy is merged into the row and answers find their conversation. Messages already listed
+twice stay that way. No schema change. [#702](https://github.com/karatektus/pl_mail/issues/702),
+reported by @wbilger.
+
+**Switching Encrypt or Sign off in a draft stays off when the draft is opened again.** A draft that
+was going to be encrypted when it was saved, such as mail to one of your own addresses, is kept
+encrypted on the server. Opened again from Drafts, it came back with Encrypt switched on, whatever
+had been chosen since, and went out encrypted with "..." as its subject. The Encrypt and Sign
+choices are now kept inside the encrypted draft and come back with it, and flipping either one
+saves the draft. No schema change. [#703](https://github.com/karatektus/pl_mail/issues/703),
+reported by @wbilger.
+
+**Compose no longer sends from the wrong account when two accounts share an address.** When two
+accounts could both send as one address under the same sender name, as Gmail's "Send mail as"
+often sets up, their From options read the same and one replaced the other. The window then opened
+with an empty From, and sending used the other account without saying so. Both options are now
+kept, and options that would read the same name the account they send through ("· via …"). A
+window whose From is not among the options no longer falls back to the first one: it asks for an
+address and refuses to send until one is picked. No schema change.
+[#704](https://github.com/karatektus/pl_mail/issues/704), reported by @wbilger.
+
+**"Select all" on search results acts on the results.** Searching, taking **Select all N** and
+pressing the bin (or archive, mark read, label) showed "Started moving to bin — this runs in the
+background" and then did nothing: the search page did not tell the server which list it was, so
+the background job looked for the conversations of no list, found none, and finished without an
+error. It now carries the search, and the job acts on every conversation the search's words found;
+ones listed only for a similar meaning are left out. A list the server cannot act on as a whole,
+such as one account's own inbox, no longer offers **Select all N**, and a request for one is
+refused instead of finishing as a job that did nothing. No schema change.
+[#711](https://github.com/karatektus/pl_mail/issues/711), reported by @qntxdev, cause found by
+@androidwannabe.
+
+**Hebrew mail from Outlook shows its text and its sender's name.** Outlook and Microsoft 365 label
+Hebrew mail ISO-8859-8-I, a name neither of plMail's charset converters knew: the message was stored
+with an empty body, and the sender's name came out as "éùøàì éùøàìé". The label is now read as the
+Hebrew charset it is. The text of mail in the other Hebrew and Arabic labels that name a text
+direction (ISO-8859-8-E, ISO-8859-6-I, ISO-8859-6-E) is read the same way. Mail that arrived before
+the update stays as it was stored. No schema change.
+[#714](https://github.com/karatektus/pl_mail/issues/714), by @swell-d.
+
+**Switching the clock between 12 and 24 hours takes effect at once.** The clock in the topbar, and
+the times written by the page's scripts, kept the old format after the setting was changed in
+Settings → General → Language & region, until plMail was restarted. They now change with it. No
+schema change. [#716](https://github.com/karatektus/pl_mail/issues/716), by @swell-d.
+
+**A mail wrapped in an element plMail does not know is no longer shown blank.** The sanitizer
+dropped any element missing from its allow-list together with everything inside it, and some
+senders wrap their whole letter in a non-standard element such as `<message>`, so the body came
+out empty. Unknown elements are now unwrapped and their content kept, as Gmail does; content that is
+never meant to be read (`<xml>`, `<template>`, `<noscript>`, `<noembed>`, `<noframes>`, `<style>`,
+`<title>`) is still removed. `app:backfill safe-html-unknown-elements` repairs the mail already
+stored: it checks every HTML body and sanitizes again only those with an element the allow-list does
+not name. No schema change.
+[#719](https://github.com/karatektus/pl_mail/issues/719), by @james-e-morrison (written with Claude).
+
+**Mail that arrives as bytes is read by a maintained MIME parser.** IMAP, POP3, JMAP import and
+decryption parsed mail with webklex/php-imap, which is no longer maintained, and most IMAP bugs of
+the last months were its parsing mistakes, each with a correction of its own. They now go through
+zbateson/mail-mime-parser behind plMail's own `MessageParser`, and the corrections are gone with
+the library. What a reader notices: an attachment named only in its `Content-Type` keeps its name
+instead of an eight-character checksum, so it downloads with its extension and a PDF gets its
+preview ([#718](https://github.com/karatektus/pl_mail/issues/718)); an attachment with no name at
+all is called after its type (`attachment.pdf`); and a message the old parser could not read at
+all, such as a multipart message without a boundary, is stored instead of retried. Attachments
+already stored under a checksum get their names back from each message's stored original, by
+`app:backfill attachment-content-type-names`, which also runs as an upgrade task. No schema change.
+[#82](https://github.com/karatektus/pl_mail/issues/82); the backfill after
+[#721](https://github.com/karatektus/pl_mail/pull/721) by @james-e-morrison (written with Claude).
+
 ## v0.4.4 — 2026-11-19
 
 Senders have pictures, conversations can be pinned to the top of the list, a snooze can last
@@ -2407,7 +2554,7 @@ only** goes between the mail and the calendar beside it. **All three** is the de
 behaves as before until you change it. Nothing is added to the database.
 [#80](https://github.com/karatektus/pl_mail/pull/80), by @Flouss.
 
-<!-- highlight screenshot=tab-unread-counts -->
+<!-- highlight -->
 **Unread counts on inbox tabs.** The number is the sidebar's
 Inbox badge split by category, so the tabs add up to it, and it appears on every tab, the one you
 are on included, and updates in place on sync. Before, an unread conversation in Promotions made
@@ -2488,7 +2635,7 @@ host without typing a token drops the stored one. No migration.
 percent signs of its own placeholder, so a refusal read "HTTP %403%" and the host's reason sat
 between two stray percent signs.
 
-<!-- highlight screenshot=permanent-delete -->
+<!-- highlight -->
 **Permanent delete is off until you turn it on.** Settings → Mail →
 **Disposal** has one switch, **Delete-now buttons**. It decides whether the **Delete forever**
 buttons exist at all: the flame on a row in Spam and the bin, which was always there, and now the

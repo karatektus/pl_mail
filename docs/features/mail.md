@@ -1502,6 +1502,27 @@ see it spread out from the start, **Settings → Reading & writing → Compose**
 the default, and either way the quote counts as the message's content: sending a forward without a
 word of your own above it is not questioned as an empty mail.
 
+### Always Bcc
+
+To send a copy of every mail to another mailbox of yours (as a backup, or as proof it left), set
+**Always Bcc** under **Settings → Reading & writing → Compose → Compose defaults**. Each account is a
+row there with a one-line summary; open it to set its list. Addresses are added as chips, with the
+same contact suggestions as the compose window, up to ten per list, and each change is saved at
+once.
+
+Below that, **Addresses that differ** lists only the sending addresses that do not follow their
+account. **Add an exception for…** picks one. Its Always Bcc can then be **Same as account**, or
+**Its own list**, which may be empty so that mail from that address is not copied at all. **Remove
+exception** puts the address back to following its account in everything.
+
+The addresses go into the **Bcc** row when the compose window opens, on a new message, a reply, a
+reply-all and a forward. You can see them there and remove one for a single message. An address the
+message already goes to in To or Cc is not added again, and an address is never copied to itself.
+Changing **From** replaces the old address's copies with the new address's. An address you typed into
+Bcc yourself stays. A draft you open again keeps the Bcc row it was saved with.
+
+The JMAP identities carry the same list as their `bcc`, so the apps can copy mail to the same places.
+
 ### Scheduled send
 
 The chevron beside **Send** opens **Send later**: *Tomorrow morning* (08:00), *Tomorrow afternoon*
@@ -1564,7 +1585,7 @@ if you do not.
 
 ### Being asked for one
 
-**Settings → Aliases → Compose defaults**, per address. Three modes:
+**Settings → Reading & writing → Compose → Compose defaults**, per account, and for any address under **Addresses that differ**. Three modes:
 
 | Mode | What your mailbox does |
 |---|---|
@@ -1684,6 +1705,11 @@ or deleted. Editing it does not lift the mark, because the mail has still not go
 - [JMAP](../internals/jmap.md) — the same operations as a client sees them.
 
 ## Things that bite
+
+**An Always Bcc address can stop a mail from being encrypted.** The composer encrypts automatically
+only when every recipient has a key, and S/MIME only when there is no Bcc at all. A backup address
+in Bcc is a recipient like any other. Give it a key, or remove it from Bcc for the mails you
+encrypt.
 
 **"Use plMail" for email links needs HTTPS and a browser that allows it.** Browsers only let a web
 app take `mailto:` links over HTTPS (or on `localhost`), so an install reached over plain HTTP shows

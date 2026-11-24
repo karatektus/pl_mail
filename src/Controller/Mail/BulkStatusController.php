@@ -601,7 +601,7 @@ final class BulkStatusController extends AbstractController
             $undoToken = $this->undo->remember($selected);
 
             foreach ($byAccount as $messages) {
-                $this->status->applyLabel($messages, $label, $attach);
+                $this->status->applyLabel($messages, $label, $attach, asCopy: true);
             }
 
             return $this->renderTurboStream('thread/status/_labelled.stream.html.twig', [

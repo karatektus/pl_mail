@@ -9,6 +9,7 @@ use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
+use App\Service\Mail\DefaultBccProvider;
 use App\Service\Mail\SignatureProvider;
 
 /**
@@ -72,6 +73,7 @@ final class IdentityResolver
 
     public function __construct(
         private readonly SignatureProvider $signatures,
+        private readonly DefaultBccProvider $defaultBcc = new DefaultBccProvider(),
     ) {
     }
 
@@ -178,7 +180,7 @@ final class IdentityResolver
             'name' => $account->senderNameFor($address) ?? '',
             'email' => $address,
             'replyTo' => null,
-            'bcc' => null,
+            'bcc' => $this->bcc($account, $address),
             'textSignature' => $this->signatures->toText($signature),
             'htmlSignature' => $signature ?? '',
             'mayDelete' => false,
@@ -255,7 +257,11 @@ final class IdentityResolver
             'name' => $alias->displayName ?? $account->name ?? '',
             'email' => $alias->address,
             'replyTo' => null,
-            'bcc' => null,
+            // RFC 8621 §6: the Bcc a client adds to mail sent as this
+            // identity. The composer's own default Bcc (#692), from the same
+            // lookup, so a phone and the browser copy a mail to the same
+            // places.
+            'bcc' => $this->bcc($account, $alias->address),
             'textSignature' => $this->signatures->toText($signature),
             'htmlSignature' => $signature ?? '',
             // Only aliases the user added by hand are theirs to remove. Ones
@@ -278,10 +284,27 @@ final class IdentityResolver
             'name' => $account->name ?? '',
             'email' => (string) $account->email,
             'replyTo' => null,
-            'bcc' => null,
+            'bcc' => $this->bcc($account, $account->email),
             'textSignature' => $this->signatures->toText($signature),
             'htmlSignature' => $signature ?? '',
             'mayDelete' => false,
         ];
+    }
+
+    /**
+     * An identity's `bcc`: a list of EmailAddress objects, or null for none,
+     * which is what the spec gives as the value meaning "no Bcc".
+     *
+     * @return list<array{name: null, email: string}>|null
+     */
+    private function bcc(Account $account, ?string $address): ?array
+    {
+        $addresses = $this->defaultBcc->addressesFor($account, $address);
+
+        if ([] === $addresses) {
+            return null;
+        }
+
+        return array_map(static fn (string $email): array => ['name' => null, 'email' => $email], $addresses);
     }
 }

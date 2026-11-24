@@ -2334,6 +2334,8 @@ compose:
     formatting: Options de mise en forme
     forward: Transférer
     from: De
+    from_pick: Choisissez une adresse d’expédition
+    from_via: '%label% · via %account%'
     image: Insérer une image
     image_edit:
         crop: Recadrer
@@ -4327,6 +4329,29 @@ settings:
             scaleHint: S’applique à toute l’interface. La fenêtre de rédaction garde sa propre police et sa propre taille — celles-ci partent avec le message.
             subheading: La police et la taille dans lesquelles l’interface est dessinée.
     compose_defaults:
+        bcc:
+            chips:
+                create: 'Ajouter %s'
+                no_results: 'Aucun contact ne correspond. Tapez l’adresse complète.'
+            for_alias: 'Toujours en Cci pour %alias%'
+            hint: 'Chaque message part aussi, sans être vu, vers ces adresses : une copie de sauvegarde, ou la preuve qu’il est parti. Elles sont mises en Cci dès que vous commencez à écrire, et vous pouvez en retirer une pour un seul message.'
+            invalid: '« %address% » n’est pas une adresse e-mail valide.'
+            label: 'Toujours en Cci'
+            per_address:
+                account_list: 'Comme le compte : %addresses%'
+                account_none: 'Comme le compte : pas de Cci'
+                inherit: 'Comme le compte'
+                nobody: 'Personne, cette adresse n’envoie pas de copie'
+                override: 'Sa propre liste'
+            placeholder: 'Ajouter une adresse…'
+            save: 'Enregistrer'
+            too_many: '%max% adresses au maximum.'
+        exceptions:
+            add: 'Ajouter une exception pour…'
+            edit: 'Modifier'
+            heading: 'Adresses qui diffèrent'
+            remove: 'Supprimer l’exception'
+            remove_for: 'pour %alias%'
         heading: 'Valeurs par défaut de rédaction'
         invalid: 'Ce réglage n’a pas pu être enregistré.'
         read_receipt:
@@ -4339,7 +4364,14 @@ settings:
                 ask: 'Demander à chaque fois'
                 never: 'Ne jamais envoyer'
         saved: 'Enregistré.'
-        subheading: 'Ce que fait chacune de vos adresses par défaut quand elle envoie et reçoit.'
+        subheading: 'Ce que fait chaque compte par défaut quand il envoie et reçoit, et les adresses qui diffèrent.'
+        summary:
+            bcc: 'Cci %addresses%'
+            bcc_nobody: 'Cci à personne'
+            exceptions: 'Exceptions : %number%'
+            no_bcc: 'Pas de Cci'
+            receipts: 'Accusés : %mode%'
+            same_as_account: 'Comme le compte'
     filters:
         account: Compte
         action:
@@ -5315,7 +5347,7 @@ settings:
             password: "connexion identifiant"
             pinning: 'épingler épinglé punaise haut rappel pin'
             profile: "nom avatar photo image"
-            read_receipts: "mdn accusé réception confirmation"
+            read_receipts: "mdn accusé réception confirmation cci bcc copie sauvegarde"
             reading_pane: "aperçu partagé droite bas"
             sender_pictures: 'avatar image photo gravatar libravatar bimi logo icône expéditeur'
             sharing: "lien public réservation"
