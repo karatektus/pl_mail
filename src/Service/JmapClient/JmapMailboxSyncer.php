@@ -13,6 +13,7 @@ use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
 use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Service\Label\LabelResolver;
+use App\Service\Label\RemoteLabelLinker;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -74,6 +75,7 @@ final readonly class JmapMailboxSyncer
     public function __construct(
         private JmapClient             $jmap,
         private LabelResolver          $labelResolver,
+        private RemoteLabelLinker      $linker,
         private LabelBindingRepository $bindings,
         private JmapLabelResolver      $jmapLabels,
         private EntityManagerInterface $em,
@@ -113,11 +115,21 @@ final readonly class JmapMailboxSyncer
 
         $bound = [];
 
+        // Parents before children, so a child of a mailbox renamed on the
+        // server finds its label already under the new name (#691).
+        $paths = [];
+
         foreach ($mailboxes as $id => $mailbox) {
+            $paths[(string) $id] = $this->path($mailbox, $mailboxes);
+        }
+
+        uksort($paths, static fn (int|string $a, int|string $b): int => count($paths[(string) $a]) <=> count($paths[(string) $b]));
+
+        foreach (array_keys($paths) as $id) {
             // A key, so PHP has made "1" the int 1 — and plMail's own server
             // numbers its mailboxes. Back to the string an id is (RFC 8620).
             $id      = (string) $id;
-            $binding = $this->bindingFor($account, $mailbox, $mailboxes);
+            $binding = $this->bindingFor($account, $id, $mailboxes[$id], $paths[$id]);
 
             if (null === $binding) {
                 continue;
@@ -199,10 +211,14 @@ final readonly class JmapMailboxSyncer
     /**
      * The binding a remote mailbox belongs on, or null for one not modelled.
      *
-     * @param array<string, mixed>                $mailbox
-     * @param array<string, array<string, mixed>> $all     every mailbox, by id
+     * A mailbox of the user's own is found by its id before its path
+     * (RemoteLabelLinker, #691): one renamed or moved on the server is
+     * renamed or moved here, not made again beside the old one.
+     *
+     * @param array<string, mixed> $mailbox
+     * @param list<string>         $path    path() of it
      */
-    private function bindingFor(Account $account, array $mailbox, array $all): ?LabelBinding
+    private function bindingFor(Account $account, string $id, array $mailbox, array $path): ?LabelBinding
     {
         $role = is_string($mailbox['role'] ?? null) ? strtolower($mailbox['role']) : null;
 
@@ -214,7 +230,7 @@ final readonly class JmapMailboxSyncer
             return $this->labelResolver->binding($this->labelResolver->systemLabel(self::ROLES[$role], $account), $account);
         }
 
-        $label = $this->labelResolver->customChain($this->path($mailbox, $all), $account);
+        $label = $this->linker->link('jmapMailboxId', $id, $path, $account);
 
         return null === $label ? null : $this->labelResolver->binding($label, $account);
     }

@@ -14,6 +14,7 @@ use App\Service\Graph\GraphCategoryColorMapper;
 use App\Service\Graph\GraphCategorySyncer;
 use App\Service\Graph\GraphFolderSyncer;
 use App\Service\Label\LabelResolver;
+use App\Service\Label\RemoteLabelLinker;
 use App\Service\Mail\GraphApiClient;
 use App\Service\OAuth\OAuthTokenManager;
 use App\Tests\Support\Log\RecordingLogger;
@@ -194,6 +195,7 @@ final class GraphThrottleAndFolderLookupTest extends KernelTestCase
         $syncer    = new GraphCategorySyncer(
             $this->client(),
             $container->get(LabelResolver::class),
+            $container->get(RemoteLabelLinker::class),
             $container->get(GraphCategoryColorMapper::class),
             $this->em,
             $logger,
