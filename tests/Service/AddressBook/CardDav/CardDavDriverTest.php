@@ -7,6 +7,7 @@ namespace App\Tests\Service\AddressBook\CardDav;
 use App\Domain\DTO\AddressBook\AddressBookSource;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\CalendarResyncRequiredException;
+use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\IntegrationException;
 use App\Entity\AddressBook\AddressBook;
@@ -152,6 +153,46 @@ final class CardDavDriverTest extends TestCase
         self::assertStringContainsString('addressbook-multiget', $fixture->body(2));
         self::assertStringContainsString('grace.vcf', $fixture->body(2));
         self::assertStringNotContainsString('ada.vcf', $fixture->body(2), 'only the missing body is fetched');
+    }
+
+    /**
+     * #637: iCloud refuses an addressbook-multiget with a 400 when its hrefs
+     * are absolute URLs. They go out as paths, while the cards stay keyed on
+     * the absolute URL.
+     */
+    public function testTheMultigetAsksByPathEvenForAbsoluteHrefs(): void
+    {
+        $fixture = new CardDavFixture(
+            CardDavFixture::collection('/dav/addressbooks/alice/contacts/', syncCollection: true),
+            CardDavFixture::report([self::BOOK . 'grace.vcf' => ['etag' => '"2"', 'vcard' => null]], 'token-1'),
+            CardDavFixture::report([
+                '/dav/addressbooks/alice/contacts/grace.vcf' => ['etag' => '"2"', 'vcard' => CardDavFixture::vcard('grace', 'Grace', 'grace@example.com')],
+            ]),
+        );
+
+        $changes = $fixture->driver->pull(CardDavFixture::book(self::BOOK), null);
+
+        self::assertStringContainsString('<d:href>/dav/addressbooks/alice/contacts/grace.vcf</d:href>', $fixture->body(2));
+        self::assertStringNotContainsString('https://', $fixture->body(2));
+        self::assertSame(self::BOOK . 'grace.vcf', $changes->cards[0]->href);
+    }
+
+    /**
+     * A multiget that returns none of the cards it was asked for is a failure,
+     * so no token is stored past cards that were never read.
+     */
+    public function testAMultigetThatReturnsNothingFails(): void
+    {
+        $fixture = new CardDavFixture(
+            CardDavFixture::collection('/dav/addressbooks/alice/contacts/', syncCollection: true),
+            CardDavFixture::report(['/dav/addressbooks/alice/contacts/grace.vcf' => ['etag' => '"2"', 'vcard' => null]], 'token-1'),
+            CardDavFixture::report(['/dav/addressbooks/alice/contacts/grace.vcf' => null]),
+        );
+
+        $this->expectException(CalendarSyncException::class);
+        $this->expectExceptionMessage('The contacts server listed changed contacts but returned none of them when asked.');
+
+        $fixture->driver->pull(CardDavFixture::book(self::BOOK), null);
     }
 
     /**

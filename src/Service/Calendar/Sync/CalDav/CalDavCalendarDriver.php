@@ -500,7 +500,8 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
             'body' => $this->multigetBody($hrefs),
         ]);
 
-        $events = [];
+        $events   = [];
+        $answered = 0;
 
         foreach ($this->parser->parse($response['body']) as $resource) {
             $data = $resource->prop('calendar-data');
@@ -508,6 +509,8 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
             if (null === $data) {
                 continue;
             }
+
+            ++$answered;
 
             $event = $this->converter->toRemoteEvent(
                 $data,
@@ -519,6 +522,8 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
                 $events[] = $event;
             }
         }
+
+        $this->client->assertMultigetAnswered(DavService::Calendar, $collection, count($hrefs), $answered);
 
         return $events;
     }
@@ -613,8 +618,10 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
             . '<cal:calendar-multiget xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">'
             . '<d:prop><d:getetag/><cal:calendar-data/></d:prop>';
 
+        // Paths, not the absolute URLs the driver keys events on: iCloud
+        // answers 404 for each absolute href (CalDavClient::pathOf(), #637).
         foreach ($hrefs as $href) {
-            $body .= sprintf('<d:href>%s</d:href>', htmlspecialchars($href, ENT_XML1));
+            $body .= sprintf('<d:href>%s</d:href>', htmlspecialchars($this->client->pathOf($href), ENT_XML1));
         }
 
         return $body . '</cal:calendar-multiget>';
