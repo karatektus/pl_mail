@@ -45,7 +45,9 @@ final class RemoteLabelLinkerTest extends KernelTestCase
         $this->em         = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
         $this->linker     = $container->get(RemoteLabelLinker::class);
-        $this->export     = $container->get('messenger.transport.export');
+        $export           = $container->get('messenger.transport.export');
+        self::assertInstanceOf(InMemoryTransport::class, $export);
+        $this->export     = $export;
 
         $this->connection->beginTransaction();
 
@@ -68,7 +70,7 @@ final class RemoteLabelLinkerTest extends KernelTestCase
         $label = $this->linker->link('gmailLabelId', 'Label_1', ['Receipts'], $this->account);
 
         self::assertSame($existing, $label);
-        self::assertSame('Label_1', $label?->bindingFor($this->account)?->gmailLabelId);
+        self::assertSame('Label_1', $label->bindingFor($this->account)?->gmailLabelId);
     }
 
     public function testALabelRenamedOnTheServerIsRenamedInPlace(): void

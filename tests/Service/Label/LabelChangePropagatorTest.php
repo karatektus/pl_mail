@@ -331,7 +331,7 @@ final class LabelChangePropagatorTest extends KernelTestCase
         $message = $this->imapMessage();
         $work    = $this->folderLabel($message->account, 'Work');
 
-        $this->propagator->attachLabel([$message], $work);
+        $this->propagator->attachLabel([$message], $work, copyIntoFolder: true);
 
         $sent = $this->sentOfType(ApplyImapFlagsMessage::class);
 
@@ -348,7 +348,7 @@ final class LabelChangePropagatorTest extends KernelTestCase
         $message->addLocation($work->bindingFor($message->account)->mailbox, 7);
         $this->em->flush();
 
-        $this->propagator->attachLabel([$message], $work);
+        $this->propagator->attachLabel([$message], $work, copyIntoFolder: true);
 
         self::assertCount(0, $this->sentOfType(ApplyImapFlagsMessage::class));
     }
@@ -366,7 +366,7 @@ final class LabelChangePropagatorTest extends KernelTestCase
         $message->addLocation($folder, 7);
         $this->em->flush();
 
-        $this->propagator->detachLabel([$message], $work);
+        $this->propagator->detachLabel([$message], $work, deleteCopy: true);
 
         $sent = $this->sentOfType(ApplyImapFlagsMessage::class);
 
@@ -375,13 +375,27 @@ final class LabelChangePropagatorTest extends KernelTestCase
         self::assertSame([[(int) $message->id, (int) $folder->id, 7]], $sent[0]->copies, 'that copy and no other');
     }
 
+    /**
+     * A move attaches the folder it goes to as well, and moves the copy
+     * itself: no copy beside it, which would leave the mail in both places.
+     */
+    public function testAMovesAttachMakesNoCopy(): void
+    {
+        $message = $this->imapMessage();
+        $work    = $this->folderLabel($message->account, 'Work');
+
+        $this->propagator->attachLabel([$message], $work);
+
+        self::assertCount(0, $this->sentOfType(ApplyImapFlagsMessage::class));
+    }
+
     /** A folder label on Gmail is a Gmail label; nothing is copied over IMAP. */
     public function testOnlyPlainImapMailIsCopied(): void
     {
         $message = $this->gmailMessage();
         $work    = $this->folderLabel($message->account, 'Work');
 
-        $this->propagator->attachLabel([$message], $work);
+        $this->propagator->attachLabel([$message], $work, copyIntoFolder: true);
 
         self::assertCount(0, array_filter(
             $this->sentOfType(ApplyImapFlagsMessage::class),

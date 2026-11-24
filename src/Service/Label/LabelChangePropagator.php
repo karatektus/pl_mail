@@ -198,7 +198,7 @@ final readonly class LabelChangePropagator
      *
      * @param iterable<Message> $messages
      */
-    public function attachLabel(iterable $messages, Label $label): void
+    public function attachLabel(iterable $messages, Label $label, bool $copyIntoFolder = false): void
     {
         foreach ($messages as $message) {
             $this->resolver->usedAsTagOn($label, $message->account);
@@ -207,7 +207,10 @@ final readonly class LabelChangePropagator
         $this->dispatchGmail($messages, ['add' => [(string) $label->id], 'remove' => []]);
         $this->dispatchJmap($messages, add: [self::entryFor($label)]);
         $this->dispatchKeywords($messages, $label, true);
-        $this->dispatchCopies($messages, $label);
+
+        if (true === $copyIntoFolder) {
+            $this->dispatchCopies($messages, $label);
+        }
 
         // Graph: a folder-backed label is a move into that folder; a plain
         // (category) label is derived from DB state by the handler. Folder
@@ -231,7 +234,7 @@ final readonly class LabelChangePropagator
      *
      * @param iterable<Message> $messages
      */
-    public function detachLabel(iterable $messages, Label $label, bool $moveOnImap = true): void
+    public function detachLabel(iterable $messages, Label $label, bool $moveOnImap = true, bool $deleteCopy = false): void
     {
         $this->dispatchGmail($messages, ['add' => [], 'remove' => [(string) $label->id]]);
         $this->dispatchGraph($messages);
@@ -267,7 +270,9 @@ final readonly class LabelChangePropagator
             // filed it twice. Taking it off deletes the copy in that folder and
             // leaves the others where they are. Moving it, the rule below,
             // would put a second copy where one already is.
-            $copiesHere = self::copiesInLabelFolder($message, $label);
+            // Only where the user takes a label off ($deleteCopy): a move
+            // detaches the folder it leaves and moves that copy itself.
+            $copiesHere = true === $deleteCopy ? self::copiesInLabelFolder($message, $label) : [];
 
             if ([] !== $copiesHere && true === self::keptElsewhere($message, $label)) {
                 foreach ($copiesHere as $copy) {
