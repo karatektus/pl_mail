@@ -592,6 +592,17 @@ final class TaskControllerTest extends WebTestCase
         self::assertTrue($this->reloaded($task)->status->isOpen(), 'a step finishing does not finish its task');
     }
 
+    /** Regression guard: a task's own id here deleted it and drew its dialog again. */
+    public function testAStepDeleteWithATasksIdIsNotFoundAndDeletesNothing(): void
+    {
+        $task = $this->task($this->list(), 'Not a step');
+
+        $this->client->request('POST', sprintf('/tasks/step/%d/delete', $task->id), ['_token' => $this->token('tasks_editor')]);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame('Not a step', $this->reloaded($task)->title, 'still there');
+    }
+
     public function testADialogActionPutsBackTheTickOfAStepNotSavedYet(): void
     {
         $task = $this->task($this->list(), 'Parent');

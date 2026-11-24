@@ -7,6 +7,7 @@ namespace App\Controller\Task;
 use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Domain\DTO\Task\TaskDraft;
+use App\Domain\DTO\Task\TaskEdit;
 use App\Domain\DTO\Task\TaskPaneQuery;
 use App\Domain\Enum\Task\TaskView;
 use App\Domain\Exception\CalendarSyncException;
@@ -24,6 +25,7 @@ use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\CalendarTimeResolver;
 use App\Service\Demo\DemoMode;
 use App\Service\Task\TaskAttachmentStorage;
+use App\Service\Task\TaskEditorSave;
 use App\Service\Task\TaskListProvisioner;
 use App\Service\Task\TaskListTransfer;
 use App\Service\Task\TaskPaneReader;
@@ -71,6 +73,7 @@ final class TaskController extends AbstractController
         private readonly TaskAttachmentStorage  $files,
         private readonly DemoMode               $demo,
         private readonly TaskListTransfer       $transfer,
+        private readonly TaskEditorSave         $editor,
     ) {}
 
     /**
@@ -279,70 +282,31 @@ final class TaskController extends AbstractController
 
         // Another of this user's lists, for a task being moved there. One that is
         // not theirs is no list, and the task stays where it is.
-        $movedFrom = null;
-        $target    = null === $task ? null : $this->lists->findOwned($user, $request->request->getInt('listId'));
+        $target = null === $task ? null : $this->lists->findOwned($user, $request->request->getInt('listId'));
+        $edit   = new TaskEdit(
+            $draft,
+            $request->request->all('stepTitles'),
+            $request->request->all('steps'),
+            $request->request->all('stepsDone'),
+            $file,
+        );
 
         try {
-            if (null === $task) {
-                $saved = $this->writer->create($user, $list, $draft);
-            } else {
-                $saved = $task;
-
-                $this->writer->update($task, $draft);
-
-                if (null !== $target && $target !== $task->taskList) {
-                    $movedFrom = $task->taskList;
-                    $this->writer->move($task, $target);
-                }
-            }
-
-            // An empty field is what the dialog always keeps one of, not a step. A
-            // step and a finished entry are offered no steps and no files, so a post
-            // naming some is not one the dialog made.
-            if (false === $saved->isStep() && false === $saved->isOccurrence()) {
-                // By this task's own steps, so an id posted for anybody else's is never read.
-                $stepTitles = $request->request->all('stepTitles');
-
-                foreach ($saved->liveSteps() as $step) {
-                    $title = $stepTitles[(string) $step->id] ?? null;
-
-                    if (true === is_string($title)) {
-                        $this->writer->rename($step, $title);
-                    }
-                }
-
-                // Every row posts both, the empty ones too, so a tick is found by position.
-                $done = $request->request->all('stepsDone');
-
-                foreach ($request->request->all('steps') as $index => $title) {
-                    if (true === is_string($title) && '' !== trim($title)) {
-                        $step = $this->writer->addStep($saved, $title);
-
-                        if ('1' === ($done[$index] ?? null)) {
-                            $this->writer->complete($step);
-                        }
-                    }
-                }
-
-                if (null !== $file) {
-                    $this->writer->attach($saved, $file);
-                }
-            }
-
-            $this->em->flush();
-            $this->syncSoon($saved->taskList);
-
-            if (null !== $movedFrom) {
-                $this->syncSoon($movedFrom);
-            }
+            $done = $this->editor->save($user, $task, $list, $target, $edit);
         } catch (TaskListReadOnlyException) {
             return $this->renderEditor($task, $query, $list, $this->translator->trans('tasks.read_only'), posted: $posted);
         }
 
+        $this->syncSoon($done->task->taskList);
+
+        if (null !== $done->movedFrom) {
+            $this->syncSoon($done->movedFrom);
+        }
+
         return $this->renderPaneStream($query, match (true) {
-            null === $task      => 'tasks.added',
-            null !== $movedFrom => 'tasks.moved',
-            default             => 'tasks.saved',
+            null === $task            => 'tasks.added',
+            null !== $done->movedFrom => 'tasks.moved',
+            default                   => 'tasks.saved',
         });
     }
 
@@ -419,7 +383,13 @@ final class TaskController extends AbstractController
         $this->assertCsrf($request, 'tasks_editor');
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $step);
 
-        return $this->changeInDialog($request, $step->parent ?? $step, fn () => $this->writer->delete($step));
+        // A task is deleted from its own dialog, which closes; here the dialog
+        // stays open on the task, and would draw one that is gone.
+        if (null === $step->parent) {
+            throw $this->createNotFoundException();
+        }
+
+        return $this->changeInDialog($request, $step->parent, fn () => $this->writer->delete($step));
     }
 
     // ── Attachments ───────────────────────────────────────────────────────
