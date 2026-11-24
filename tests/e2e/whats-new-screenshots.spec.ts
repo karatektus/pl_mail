@@ -117,16 +117,6 @@ test.describe("What's new screenshots", () => {
 
         await capture(page, "html-signature", signature);
     });
-
-    test("tab-unread-counts", async ({ page }) => {
-        await page.goto("/mail/inbox");
-        await expect(page.locator("#message-list li").first()).toBeVisible();
-        await capture(page, "tab-unread-counts", page.locator(".main-pane").first());
-    });
-
-    test("permanent-delete", async ({ page }) => {
-        await capture(page, "permanent-delete", await card(page, "disposal", "Disposal"));
-    });
 });
 
 /**
