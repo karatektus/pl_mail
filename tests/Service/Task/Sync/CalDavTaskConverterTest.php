@@ -347,11 +347,112 @@ final class CalDavTaskConverterTest extends TestCase
         $ics = $this->converter->toIcs($task, $this->now, $this->zone);
 
         self::assertStringContainsString('DTSTART;VALUE=DATE:20260615', $ics, 'what other clients anchor the RRULE on');
-        self::assertStringContainsString('RRULE:FREQ=WEEKLY', $ics);
+        self::assertStringContainsString("RRULE:FREQ=WEEKLY;BYDAY=MO\r\n", $ics);
 
         $task->recurrenceRule = null;
 
         self::assertStringNotContainsString('DTSTART', $this->converter->toIcs($task, $this->now, $this->zone), 'a task that does not repeat needs none');
+    }
+
+    /**
+     * Nextcloud Tasks shows a bare FREQ=WEEKLY as "Weekly on Monday" whatever day
+     * the task is on, and an edit there writes that back (found on a real
+     * Nextcloud 35, #722). The day goes out named, and comes back as the plain
+     * rule the editor offers.
+     */
+    public function testAPlainRepeatNamesItsDayOnTheWireAndReadsBackPlain(): void
+    {
+        $task                 = new Task();
+        $task->uid            = 'local-3';
+        $task->title          = 'Report';
+        $task->dueDate        = new DateTimeImmutable('2026-06-18', new DateTimeZone('UTC'));
+        $task->recurrenceRule = 'FREQ=WEEKLY';
+        $task->syncState      = SyncState::PendingCreate;
+
+        $weekly = $this->converter->toIcs($task, $this->now, $this->zone);
+
+        self::assertStringContainsString("RRULE:FREQ=WEEKLY;BYDAY=TH\r\n", $weekly, '18 June 2026 is a Thursday');
+        self::assertSame('FREQ=WEEKLY', $this->converter->toRemoteTask($weekly, 'h', null, $this->zone)?->recurrenceRule);
+
+        $task->recurrenceRule = 'FREQ=MONTHLY';
+        $monthly              = $this->converter->toIcs($task, $this->now, $this->zone);
+
+        self::assertStringContainsString("RRULE:FREQ=MONTHLY;BYMONTHDAY=18\r\n", $monthly);
+        self::assertSame('FREQ=MONTHLY', $this->converter->toRemoteTask($monthly, 'h', null, $this->zone)?->recurrenceRule);
+
+        // A time is read on the owner's clock: 22:00 on Thursday in New York is
+        // already Friday in UTC, and Thursday is the day the task is on.
+        $task->dueDate        = null;
+        $task->dueAt          = new DateTimeImmutable('2026-06-19 02:00:00', new DateTimeZone('UTC'));
+        $task->recurrenceRule = 'FREQ=WEEKLY';
+
+        self::assertStringContainsString("RRULE:FREQ=WEEKLY;BYDAY=TH\r\n", $this->converter->toIcs($task, $this->now, $this->zone));
+    }
+
+    public function testARuleNamingMoreThanItsOwnDayIsKeptAsItCame(): void
+    {
+        $twoDays = $this->converter->toRemoteTask(
+            $this->todo('DUE;VALUE=DATE:20260618', 'RRULE:FREQ=WEEKLY;BYDAY=MO,TH'),
+            'h',
+            null,
+            $this->zone,
+        );
+        $otherDay = $this->converter->toRemoteTask(
+            $this->todo('DUE;VALUE=DATE:20260618', 'RRULE:FREQ=WEEKLY;BYDAY=FR'),
+            'h',
+            null,
+            $this->zone,
+        );
+
+        self::assertSame('FREQ=WEEKLY;BYDAY=MO,TH', $twoDays?->recurrenceRule);
+        self::assertSame('FREQ=WEEKLY;BYDAY=FR', $otherDay?->recurrenceRule, 'a Friday rule on a Thursday task is not the editor\'s weekly');
+    }
+
+    /**
+     * The start toIcs() gives a repeating task with none is its due date. Read back
+     * as a start, it stayed behind when the due date moved in plMail, and kept the
+     * task on My Day on the old date.
+     */
+    public function testAStartThatIsTheDueOfARepeatingTaskIsNoStart(): void
+    {
+        $same = $this->converter->toRemoteTask(
+            $this->todo('DUE;VALUE=DATE:20260618', 'DTSTART;VALUE=DATE:20260618', 'RRULE:FREQ=WEEKLY;BYDAY=TH'),
+            'h',
+            null,
+            $this->zone,
+        );
+
+        self::assertNull($same?->startDate);
+        self::assertSame('2026-06-18', $same?->dueDate?->format('Y-m-d'));
+
+        $earlier = $this->converter->toRemoteTask(
+            $this->todo('DUE;VALUE=DATE:20260618', 'DTSTART;VALUE=DATE:20260617', 'RRULE:FREQ=WEEKLY'),
+            'h',
+            null,
+            $this->zone,
+        );
+        $once = $this->converter->toRemoteTask(
+            $this->todo('DUE;VALUE=DATE:20260618', 'DTSTART;VALUE=DATE:20260618'),
+            'h',
+            null,
+            $this->zone,
+        );
+
+        self::assertSame('2026-06-17', $earlier?->startDate?->format('Y-m-d'), 'a start of its own stays');
+        self::assertSame('2026-06-18', $once?->startDate?->format('Y-m-d'), 'without a repeat, plMail wrote no start, so it is somebody\'s');
+
+        // Moved here, the start follows the due date out.
+        $task                 = new Task();
+        $task->uid            = 'u';
+        $task->title          = 'T';
+        $task->dueDate        = new DateTimeImmutable('2026-06-19', new DateTimeZone('UTC'));
+        $task->recurrenceRule = 'FREQ=WEEKLY';
+        $task->remotePayload  = $this->todo('DUE;VALUE=DATE:20260618', 'DTSTART;VALUE=DATE:20260618', 'RRULE:FREQ=WEEKLY;BYDAY=TH');
+
+        $ics = $this->converter->toIcs($task, $this->now, $this->zone);
+
+        self::assertStringContainsString('DTSTART;VALUE=DATE:20260619', $ics);
+        self::assertStringContainsString("RRULE:FREQ=WEEKLY;BYDAY=FR\r\n", $ics);
     }
 
     private function fromForeign(string $title = 'Water the plants'): Task

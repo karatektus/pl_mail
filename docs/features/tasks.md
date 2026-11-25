@@ -97,7 +97,8 @@ First connect the server under **Settings → Calendars**, as for a [connected
 calendar](calendar-sync.md): the same connection serves both. The gear at the top of the pane then
 offers **Sync lists from a server**. Pick the connection there, tick the lists to keep in sync, and
 pick each one's colour beside it. A server's calendars
-that hold only events are not offered.
+that hold only events are not offered. Lists that hold only tasks come first, then calendars that
+can hold tasks as well, which on Nextcloud is every calendar made or imported in its Calendar app.
 
 Changes you make go to the server within moments. Changes made elsewhere arrive every fifteen minutes
 or so; there is no push for tasks.
@@ -171,9 +172,10 @@ docker compose exec php php bin/console app:tasks:alerts --dry-run
   one. An install that has not recorded its public address sends no link at all until it has.
 - **Files inside a task from another app are not listed.** A file embedded in the task itself, rather
   than linked, stays on the server and survives your edits, but plMail does not show it.
-- **How other apps treat steps, repeats and links has not been tried against each app.** plMail
-  follows the standard, but Nextcloud Tasks, tasks.org and Apple Reminders have not been tested
-  against it yet. Try a list you can afford to lose first.
+- **How other apps treat steps, repeats and links has not been tried against each app.** Nextcloud
+  Tasks has been tried both ways: steps, repeats, reminders, files and its own priority, tags and
+  progress all survive. tasks.org and Apple Reminders have not been tested yet. Try a list you can
+  afford to lose first.
 - **A ticked repeating task on a To Do list shows as done until the next sync.** Microsoft moves it to
   its next date when the tick arrives, and plMail learns of that with the next sync, which follows
   within moments when the worker is running.

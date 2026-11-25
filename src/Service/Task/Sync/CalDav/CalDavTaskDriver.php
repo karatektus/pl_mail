@@ -61,7 +61,14 @@ final readonly class CalDavTaskDriver implements TaskSyncDriverInterface
 
         $endpoint = $this->discovery->endpointFor($integration);
         $url      = $endpoint->collection ?? (string) $endpoint->home;
-        $lists    = [];
+
+        // Task lists first, then calendars that may hold tasks too. Nextcloud
+        // lets every calendar it imports or creates in Calendar hold tasks, so on
+        // such a server the dialog would otherwise open on a row of calendars
+        // with the actual lists somewhere among them. Each group keeps the
+        // server's order.
+        $taskLists = [];
+        $calendars = [];
 
         foreach ($this->reader->listCollections($integration, $endpoint) as $resource) {
             if (false === $resource->isCalendarCollection() || false === $this->holdsTasks($resource)) {
@@ -69,16 +76,21 @@ final readonly class CalDavTaskDriver implements TaskSyncDriverInterface
             }
 
             $href = $this->client->absolutise($resource->href, $url);
-
-            $lists[] = new RemoteTaskList(
+            $list = new RemoteTaskList(
                 remoteId:   $href,
                 name:       $this->nameOf($resource, $href),
                 color:      $this->colourOf($resource),
                 isReadOnly: $resource->isReadOnly(),
             );
+
+            if (true === $this->holdsOnlyTasks($resource)) {
+                $taskLists[] = $list;
+            } else {
+                $calendars[] = $list;
+            }
         }
 
-        return $lists;
+        return [...$taskLists, ...$calendars];
     }
 
     public function pull(TaskList $list, ?string $syncToken): TaskChangeSet
@@ -188,6 +200,18 @@ final readonly class CalDavTaskDriver implements TaskSyncDriverInterface
         }
 
         return $resource->names('supported-calendar-component-set', 'VTODO');
+    }
+
+    /**
+     * A collection that says it takes tasks and no events: a task list as the
+     * server's own tasks app made it. One that names no set at all could be
+     * either, so it is not one of these.
+     */
+    private function holdsOnlyTasks(DavResource $resource): bool
+    {
+        return true === $resource->hasProp('supported-calendar-component-set')
+            && true === $resource->names('supported-calendar-component-set', 'VTODO')
+            && false === $resource->names('supported-calendar-component-set', 'VEVENT');
     }
 
     private function nameOf(DavResource $resource, string $href): string

@@ -50,8 +50,11 @@ final class CalDavTaskDriverTest extends TestCase
 
         $lists = $driver->discover(CalendarSource::ofIntegration(CalDavFixture::integration()));
 
-        self::assertSame(['Todo only', 'Mixed', 'Unrestricted', 'Shared read only'], array_map(static fn ($list) => $list->name, $lists));
-        self::assertTrue($lists[3]->isReadOnly);
+        // Task-only collections first, then the ones that may be calendars as
+        // well, each in the server's order: Nextcloud lets its calendars hold
+        // tasks, and the real lists would otherwise sit somewhere among them.
+        self::assertSame(['Todo only', 'Shared read only', 'Mixed', 'Unrestricted'], array_map(static fn ($list) => $list->name, $lists));
+        self::assertTrue($lists[1]->isReadOnly);
         self::assertFalse($lists[0]->isReadOnly);
         self::assertSame('#ff0000', $lists[0]->color, 'the alpha channel is dropped');
     }

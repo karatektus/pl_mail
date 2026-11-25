@@ -36,10 +36,20 @@ use Throwable;
  *
  * Dates keep their shape: DUE;VALUE=DATE is a date and stays one, never midnight
  * UTC. A floating time is read in the owner's zone, the only zone it could mean.
+ *
+ * **A plain repeat names its day on the wire.** RFC 5545 takes the weekday of a
+ * bare FREQ=WEEKLY, and the day of a bare FREQ=MONTHLY, from DTSTART, but
+ * Nextcloud Tasks shows a bare weekly rule as "Weekly on Monday", and an edit
+ * there writes that back. So the editor's weekly and monthly go out with BYDAY
+ * or BYMONTHDAY taken from the start, and the same rule read back is the plain
+ * one again, which is what the editor offers and TaskRecurrence walks.
  */
 final readonly class CalDavTaskConverter
 {
     private const string PRODID = '-//plMail//Tasks//EN';
+
+    /** RFC 5545's weekday names, by ISO-8601 day number less one. */
+    private const array WEEKDAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
 
     /** What a parent's RELATED-TO counts as when it names no type: RFC 5545's default. */
     private const string RELTYPE_PARENT = 'PARENT';
@@ -48,10 +58,11 @@ final readonly class CalDavTaskConverter
     public const string OWN_ATTACHMENT_PATH = '/tasks/attachment/';
 
     /**
+     * @param string $publicUrl this install's address, by which its own links back are told from another's
+     *
      * @return RemoteTask|null null for a resource holding no VTODO, which on a
      *                         mixed collection is every event
      */
-    /** @param string $publicUrl this install's address, by which its own links back are told from another's */
     public function toRemoteTask(string $ics, string $href, ?string $etag, DateTimeZone $ownerZone, string $publicUrl = ''): ?RemoteTask
     {
         $calendar = $this->parse($ics);
@@ -63,6 +74,24 @@ final readonly class CalDavTaskConverter
 
         [$dueDate, $dueAt, $dueZone]       = $this->readDate($todo, 'DUE', $ownerZone);
         [$startDate, $startAt, $startZone] = $this->readDate($todo, 'DTSTART', $ownerZone);
+
+        $rule     = '' === $this->valueOf($todo, 'RRULE') ? null : $this->valueOf($todo, 'RRULE');
+        // What RFC 5545 takes a bare rule's day from: DTSTART, or DUE without one.
+        $hasStart = null !== $startDate || null !== $startAt;
+        $anchor   = $hasStart
+            ? $this->dayOf($startDate, $startAt, $startZone, $ownerZone)
+            : $this->dayOf($dueDate, $dueAt, $dueZone, $ownerZone);
+        $reminder = $this->reminderOf($todo, $dueAt, $startAt, $dueDate, $ownerZone);
+
+        // The start writeStart() gives a repeating task that has none of its own
+        // is its due date, so one equal to it is no start. Read as one, it would
+        // stay behind when the due date is moved here, and keep the task on My
+        // Day on the old date.
+        if (null !== $rule && $this->sameMoment($startDate, $startAt, $dueDate, $dueAt)) {
+            $startDate = null;
+            $startAt   = null;
+            $startZone = null;
+        }
 
         return new RemoteTask(
             remoteId:       $href,
@@ -78,8 +107,8 @@ final readonly class CalDavTaskConverter
             startAt:        $startAt,
             timeZone:       $dueZone ?? $startZone,
             priority:       max(0, min(9, (int) $this->valueOf($todo, 'PRIORITY'))),
-            reminderAt:     $this->reminderOf($todo, $dueAt, $startAt, $dueDate, $ownerZone),
-            recurrenceRule: '' === $this->valueOf($todo, 'RRULE') ? null : $this->valueOf($todo, 'RRULE'),
+            reminderAt:     $reminder,
+            recurrenceRule: null === $rule ? null : $this->plainRule($rule, $anchor),
             parentUid:      $this->parentUidOf($todo),
             payload:        $ics,
             links:          $this->linksOf($todo, $publicUrl),
@@ -104,7 +133,7 @@ final readonly class CalDavTaskConverter
         $this->writeStatus($todo, $task);
         $this->writeDate($todo, 'DUE', $task->dueDate, $task->dueAt, $ownerZone);
         $this->writeStart($todo, $task, $ownerZone);
-        $this->writeRecurrence($todo, $task->recurrenceRule);
+        $this->writeRecurrence($todo, $this->ruleOnWire($task, $ownerZone));
         $this->writeReminder($todo, $task, $ownerZone);
         $this->writeParent($todo, $task->parent?->uid);
         $this->writeOwnAttachments($todo, $task, $publicUrl);
@@ -446,6 +475,104 @@ final readonly class CalDavTaskConverter
         }
 
         $this->writeDate($todo, 'DTSTART', $date, $instant, $ownerZone);
+    }
+
+    /**
+     * The rule as it goes out: the editor's weekly and monthly with their day
+     * named, taken from the DTSTART writeStart() sends. See the class docblock.
+     * Anything else goes out exactly as it is held.
+     */
+    private function ruleOnWire(Task $task, DateTimeZone $ownerZone): ?string
+    {
+        $rule = $task->recurrenceRule;
+
+        if (null === $rule || '' === $rule) {
+            return $rule;
+        }
+
+        // The DTSTART writeStart() sends: the start, or the due date in its place.
+        $hasStart = null !== $task->startDate || null !== $task->startAt;
+        $anchor   = $this->dayOf(
+            $hasStart ? $task->startDate : $task->dueDate,
+            $hasStart ? $task->startAt : $task->dueAt,
+            $task->timeZone,
+            $ownerZone,
+        );
+
+        if (null === $anchor) {
+            return $rule;
+        }
+
+        return match (strtoupper($rule)) {
+            'FREQ=WEEKLY'  => sprintf('FREQ=WEEKLY;BYDAY=%s', self::WEEKDAYS[(int) $anchor->format('N') - 1]),
+            'FREQ=MONTHLY' => sprintf('FREQ=MONTHLY;BYMONTHDAY=%d', (int) $anchor->format('j')),
+            default        => $rule,
+        };
+    }
+
+    /**
+     * ruleOnWire() undone: a weekly rule naming only the start's own weekday, or a
+     * monthly one naming only its day of the month, is the plain rule, whoever
+     * wrote it. Anything more is another client's, and is kept as it came.
+     */
+    private function plainRule(string $rule, ?DateTimeImmutable $anchor): string
+    {
+        if (null === $anchor) {
+            return $rule;
+        }
+
+        $parts = [];
+
+        foreach (explode(';', strtoupper(trim($rule))) as $part) {
+            [$key, $value] = array_pad(explode('=', $part, 2), 2, '');
+            $parts[$key]   = $value;
+        }
+
+        if (2 !== count($parts)) {
+            return $rule;
+        }
+
+        return match (true) {
+            'WEEKLY' === ($parts['FREQ'] ?? null)
+                && self::WEEKDAYS[(int) $anchor->format('N') - 1] === ($parts['BYDAY'] ?? null)  => 'FREQ=WEEKLY',
+            'MONTHLY' === ($parts['FREQ'] ?? null)
+                && (string) (int) $anchor->format('j') === ($parts['BYMONTHDAY'] ?? null)       => 'FREQ=MONTHLY',
+            default                                                                            => $rule,
+        };
+    }
+
+    /** The calendar day a date, or an instant read in its zone, falls on. */
+    private function dayOf(?DateTimeImmutable $date, ?DateTimeImmutable $instant, ?string $zone, DateTimeZone $ownerZone): ?DateTimeImmutable
+    {
+        if (null !== $date) {
+            return $date;
+        }
+
+        if (null === $instant) {
+            return null;
+        }
+
+        try {
+            $in = null === $zone || '' === $zone ? $ownerZone : new DateTimeZone($zone);
+        } catch (Throwable) {
+            $in = $ownerZone;
+        }
+
+        return $instant->setTimezone($in);
+    }
+
+    /** Whether a start and a due are the same day, or the same instant. */
+    private function sameMoment(
+        ?DateTimeImmutable $startDate,
+        ?DateTimeImmutable $startAt,
+        ?DateTimeImmutable $dueDate,
+        ?DateTimeImmutable $dueAt,
+    ): bool {
+        if (null !== $startDate && null !== $dueDate) {
+            return $startDate->format('Y-m-d') === $dueDate->format('Y-m-d');
+        }
+
+        return null !== $startAt && null !== $dueAt && $startAt->getTimestamp() === $dueAt->getTimestamp();
     }
 
     private function writeRecurrence(VTodo $todo, ?string $rule): void

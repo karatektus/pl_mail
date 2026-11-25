@@ -1,4 +1,4 @@
-<!-- translated-from: features/tasks.md sha1:095f20ccaec75e4fb6a057f675c88406245e8793 -->
+<!-- translated-from: features/tasks.md sha1:3addaa899c986e6fa8e9504172b89e1199f70c20 -->
 
 # Aufgaben
 
@@ -108,7 +108,9 @@ Verbinde den Server zuerst unter **Einstellungen → Kalender**, wie bei einem
 [verbundenen Kalender](calendar-sync.md): Dieselbe Verbindung dient beidem. Danach bietet das Zahnrad oben im Bereich
 **Listen von einem Server synchronisieren** an. Wähle dort die Verbindung, hake die Listen an, die synchron bleiben
 sollen, und wähle daneben jeweils ihre Farbe.
-Kalender eines Servers, die nur Termine führen, werden nicht angeboten.
+Kalender eines Servers, die nur Termine führen, werden nicht angeboten. Listen, die nur Aufgaben
+führen, stehen zuerst, danach Kalender, die auch Aufgaben aufnehmen können. Bei Nextcloud ist das
+jeder Kalender, der in seiner Kalender-App angelegt oder importiert wurde.
 
 Deine Änderungen gehen innerhalb von Augenblicken an den Server. Änderungen von anderswo kommen etwa alle
 fünfzehn Minuten an; für Aufgaben gibt es keinen Push.
@@ -187,9 +189,10 @@ docker compose exec php php bin/console app:tasks:alerts --dry-run
 - **In eine Aufgabe eingebettete Dateien anderer Apps werden nicht aufgeführt.** Eine Datei, die in der Aufgabe
   selbst steckt statt verlinkt zu sein, bleibt auf dem Server und übersteht deine Änderungen, aber plMail zeigt
   sie nicht an.
-- **Wie andere Apps mit Schritten, Wiederholungen und Links umgehen, ist nicht für jede App ausprobiert.** plMail
-  folgt dem Standard, aber Nextcloud Tasks, tasks.org und Apple Erinnerungen sind noch nicht damit getestet. Probiere
-  es zuerst mit einer Liste, auf die du verzichten kannst.
+- **Wie andere Apps mit Schritten, Wiederholungen und Links umgehen, ist nicht für jede App ausprobiert.** Nextcloud
+  Tasks ist in beide Richtungen ausprobiert: Schritte, Wiederholungen, Erinnerungen, Dateien und seine eigene
+  Priorität, Schlagwörter und sein Fortschritt bleiben alle erhalten. tasks.org und Apple Erinnerungen sind noch nicht
+  getestet. Probiere es zuerst mit einer Liste, auf die du verzichten kannst.
 - **Eine abgehakte wiederkehrende Aufgabe auf einer To-Do-Liste steht bis zum nächsten Abgleich als erledigt da.**
   Microsoft schiebt sie auf ihren nächsten Termin, sobald der Haken ankommt, und plMail erfährt das beim nächsten
   Abgleich, der bei laufendem Worker gleich darauf folgt.
