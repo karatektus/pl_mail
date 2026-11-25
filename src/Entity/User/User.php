@@ -1671,6 +1671,25 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Whether the Inbox's unread count is drawn on plMail's icon in the browser
+     * tab, as Gmail does (#662): a pinned tab shows its icon and nothing else,
+     * so the "(3)" in the title cannot be seen there. Per user, like the
+     * switches above, because it follows the reader from browser to browser.
+     *
+     * OFF unless somebody switches it on, like SETTING_NOTIFY_SKIP_READ: only a
+     * stored true is on, and no migration writes it.
+     */
+    public const string SETTING_TAB_ICON_COUNT = 'notifications.tab_icon_count';
+
+    /** Virtual, out of the settings bag — see SETTING_TAB_ICON_COUNT. */
+    public bool $tabIconCount {
+        get => true === $this->getSetting(self::SETTING_TAB_ICON_COUNT, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_TAB_ICON_COUNT, $on ? true : null);
+        }
+    }
+
+    /**
      * How mail goes out once plMail can encrypt it — Settings → Encryption →
      * Sending. Four switches in the settings bag, each stored only when it
      * differs from its default, like the two above.

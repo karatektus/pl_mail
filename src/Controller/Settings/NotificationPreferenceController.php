@@ -19,12 +19,15 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Settings → Notifications: what mail is worth a notification, for the whole
  * user rather than one device (#369).
  *
- * Two choices. Which switches are on — a tab each, a label each —
+ * Three choices. Which switches are on — a tab each, a label each —
  * (User::$notifyScopes), which PushDispatcher applies to the browsers and the
  * phone apps read over JMAP; and whether mail that has been read in the
  * meantime is dropped (User::$notifySkipsRead), which the service worker reads
- * back through WebPushController::inboxState(). This controller only records
- * them. Which devices exist is PushDeviceController's business.
+ * back through WebPushController::inboxState(). And one that is no push at
+ * all: whether the tab icon carries the Inbox's unread count
+ * (User::$tabIconCount, #662), a way of being told about new mail that
+ * belongs beside the others. This controller only records them. Which devices
+ * exist is PushDeviceController's business.
  */
 #[IsGranted('ROLE_USER')]
 final class NotificationPreferenceController extends AbstractController
@@ -43,6 +46,10 @@ final class NotificationPreferenceController extends AbstractController
         // form that did not mention the switch must not move it.
         if (true === $request->request->has('skipRead')) {
             $user->notifySkipsRead = '1' === (string) $request->request->get('skipRead');
+        }
+
+        if (true === $request->request->has('tabIconCount')) {
+            $user->tabIconCount = '1' === (string) $request->request->get('tabIconCount');
         }
 
         // The boxes are posted with a marker, because an unchecked box sends

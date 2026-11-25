@@ -578,9 +578,10 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                 } %}
 
                                                 {% include 'settings/_notification_preferences.html.twig' with {
-                                                    skipRead: app.user.notifySkipsRead,
-                                                    chosen:   app.user.notifyScopes,
-                                                    switches: notifySwitches,
+                                                    skipRead:     app.user.notifySkipsRead,
+                                                    tabIconCount: app.user.tabIconCount,
+                                                    chosen:       app.user.notifyScopes,
+                                                    switches:     notifySwitches,
                                                 } %}
 
                                                 {# Wrapped in an id because removing

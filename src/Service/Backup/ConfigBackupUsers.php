@@ -271,6 +271,9 @@ final readonly class ConfigBackupUsers
         // that names nothing there is harmless and simply never matches.
         User::SETTING_NOTIFY_SCOPES,
         User::SETTING_NOTIFY_SKIP_READ,
+        // Whether the tab icon carries the Inbox's unread count (#662). A
+        // choice about one's own screen, like the sidebar's; a boolean, no id.
+        User::SETTING_TAB_ICON_COUNT,
         // Whether an account's own inbox has the category tabs. How the
         // mailbox is drawn, like the reading pane above; a boolean, no id.
         User::SETTING_ACCOUNT_INBOX_TABS,

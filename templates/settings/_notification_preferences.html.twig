@@ -6,14 +6,17 @@ What mail is worth a notification, for the whole user and not one device
 one for each label, Primary alone ticked until somebody chooses; and whether a
 browser drops a notification for mail read in the meantime. The boxes are
 applied where the push is sent and by the phone apps; the second choice by the
-service worker, which reads it back when a push arrives.
+service worker, which reads it back when a push arrives. Last, whether the tab
+icon carries the Inbox's unread count (#662), which the page itself draws (see
+assets/tab_icon_count.js).
 
 A plain form that submits on change and redirects, like the Disposal card.
 
 Accepts:
-  skipRead   bool
-  chosen     list<string>   the scopes that are on (NotifyScope keys)
-  switches   {inbox: list<{scope, tab: ?InboxTab}>, labels: list<Label>}
+  skipRead      bool
+  tabIconCount  bool
+  chosen        list<string>   the scopes that are on (NotifyScope keys)
+  switches      {inbox: list<{scope, tab: ?InboxTab}>, labels: list<Label>}
 #}
 {% import '_partials/_segmented.html.twig' as seg %}
 
@@ -74,6 +77,21 @@ Accepts:
             { value: '0', label: 'settings.notifications.off'|trans },
         ], skipRead ? '1' : '0', {
             label:  'settings.notifications.skip_read'|trans,
+            action: 'change->ui--auto-submit#submit',
+        }) }}
+    </div>
+
+    <div class="px-4 py-3 border-t border-line flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.notifications.tab_icon_count'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.tab_icon_count_hint'|trans }}</span>
+        </span>
+
+        {{ seg.control('tabIconCount', [
+            { value: '1', label: 'settings.notifications.on'|trans },
+            { value: '0', label: 'settings.notifications.off'|trans },
+        ], tabIconCount ? '1' : '0', {
+            label:  'settings.notifications.tab_icon_count'|trans,
             action: 'change->ui--auto-submit#submit',
         }) }}
     </div>

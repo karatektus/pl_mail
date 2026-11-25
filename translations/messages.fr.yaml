@@ -5357,7 +5357,7 @@ settings:
             list_content: 'pièces jointes puces trombone fichiers libellés expéditeur date heure nombre répondu'
             list_layout: 'lignes une ligne compact dense aperçu empilé largeur'
             list_markers: 'étoile survol avatar pastille compte coin non lu gras'
-            notifications: "push navigateur téléphone son alerte"
+            notifications: "push navigateur téléphone son alerte onglet icône favicon non lus nombre épinglé"
             password: "connexion identifiant"
             pinning: 'épingler épinglé punaise haut rappel pin'
             profile: "nom avatar photo image"
@@ -5436,6 +5436,8 @@ settings:
         subheading: >-
             Soyez prévenu du nouveau courrier sur cet appareil, même quand plMail est
             fermé.
+        tab_icon_count: 'Non-lus sur l’icône de l’onglet du navigateur'
+        tab_icon_count_hint: 'Le nombre de conversations non lues dans votre boîte de réception, tous comptes confondus, dessiné sur l’icône de plMail dans l’onglet du navigateur, pour qu’un onglet épinglé le montre aussi. S’applique à tous vos navigateurs.'
         this_device: Cet appareil
         toggle: Activer les notifications
         toggle_off: Désactiver les notifications

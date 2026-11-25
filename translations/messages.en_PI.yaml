@@ -5105,7 +5105,7 @@ settings:
             list_content: 'cargo attachments chips paperclip files flags labels sender date hour tally answered'
             list_layout: 'rows one line compact dense peek preview stacked width'
             list_markers: 'mark star hover medallion avatar crew corner unread bold'
-            notifications: "push browser phone sound alert"
+            notifications: "push browser phone sound alert tab flag favicon unread tally pinned"
             password: "login sign-in"
             pinning: 'pin pinned nail mast top nag'
             profile: "name avatar photo picture"
@@ -5175,6 +5175,8 @@ settings:
         subheading: >-
             Get word o' new mail on this here device, even when plMail be
             battened down.
+        tab_icon_count: 'Unread tally on th'' browser tab flag'
+        tab_icon_count_hint: 'How many yarns in yer Inbox be unread, all accounts together, painted on plMail''s flag in yer browser tab, so a pinned tab shows it too. Holds fer every browser o'' yers.'
         this_device: This here device
         toggle: Send up the lookout
         toggle_off: Call down the lookout

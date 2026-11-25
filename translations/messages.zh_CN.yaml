@@ -4616,7 +4616,7 @@ settings:
             list_content: '附件 文件标签 回形针 文件 标签 发件人 日期 时间 数量 已回复'
             list_layout: '行 单行 紧凑 预览 摘要 分行 宽度'
             list_markers: '星标 悬停 头像 圆圈 账户 角标 未读 粗体'
-            notifications: "推送 浏览器 手机 声音 提醒"
+            notifications: "推送 浏览器 手机 声音 提醒 标签页 图标 未读 数字 固定"
             password: "密码 登录"
             pinning: '置顶 固定 图钉 提醒 pin'
             profile: "姓名 头像 照片"
@@ -4677,6 +4677,8 @@ settings:
         state_unsupported: '此浏览器无法接收通知。在 iPhone 和 iPad 上，请先将 plMail 添加到主屏幕。'
         state_working: '正在处理…'
         subheading: '在此设备上接收新邮件通知，即使 plMail 已关闭也能收到。'
+        tab_icon_count: '浏览器标签页图标上的未读数'
+        tab_icon_count_hint: '收件箱中未读会话的数量（所有账户合计），显示在浏览器标签页的 plMail 图标上，固定的标签页也能看到。适用于你的所有浏览器。'
         this_device: '此设备'
         toggle: '启用通知'
         toggle_off: '停用通知'

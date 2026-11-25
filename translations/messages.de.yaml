@@ -5321,7 +5321,7 @@ settings:
             list_content: 'anhänge chips büroklammer dateien labels absender datum uhrzeit anzahl beantwortet'
             list_layout: 'zeilen einzeilig kompakt dicht vorschau gestapelt breite'
             list_markers: 'stern überfahren avatar kreis konto ecke ungelesen fett'
-            notifications: "push browser handy ton hinweis"
+            notifications: "push browser handy ton hinweis tab symbol favicon ungelesen zahl angeheftet"
             password: "kennwort anmeldung login"
             pinning: 'anheften angeheftet reißzwecke oben erinnerung pin'
             profile: "name avatar foto bild"
@@ -5401,6 +5401,8 @@ settings:
         subheading: >-
             Lass dich auf diesem Gerät über neue E-Mails benachrichtigen, auch
             wenn plMail geschlossen ist.
+        tab_icon_count: 'Ungelesene am Symbol des Browser-Tabs'
+        tab_icon_count_hint: 'Wie viele Unterhaltungen in deinem Posteingang ungelesen sind, alle Konten zusammen, auf dem Symbol von plMail im Browser-Tab, damit auch ein angehefteter Tab sie zeigt. Gilt für alle deine Browser.'
         this_device: Dieses Gerät
         toggle: Benachrichtigungen aktivieren
         toggle_off: Benachrichtigungen deaktivieren

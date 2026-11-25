@@ -154,6 +154,46 @@ final class NotificationPreferenceTest extends WebTestCase
         self::assertNull($this->reread()->getSetting(User::SETTING_NOTIFY_SKIP_READ));
     }
 
+    /**
+     * The count on the tab icon (#662): off until switched on, stored as the
+     * absent key when off again, left alone by a save that does not mention it
+     * — and while on, every page carries the Inbox's count for the icon, the
+     * number the title shows there.
+     */
+    public function testTheTabIconCountSwitchesOnAndOffAndThePageCarriesIt(): void
+    {
+        $page = $this->client->request('GET', '/settings/notifications');
+
+        self::assertSame('0', $page->filter('input[name="tabIconCount"]:checked')->attr('value'));
+        self::assertCount(0, $page->filter('meta[name="tab-icon-count"]'), 'off: no count for the icon');
+
+        $this->arrived('Waiting', minutesAgo: 1);
+        $this->post(['tabIconCount' => '1']);
+
+        self::assertTrue($this->reread()->tabIconCount);
+
+        $page  = $this->client->request('GET', '/settings/notifications');
+        $title = $page->filter('title')->text();
+
+        self::assertSame('1', $page->filter('input[name="tabIconCount"]:checked')->attr('value'));
+        self::assertSame(
+            1 === preg_match('/^\((\d+)\) /', $title, $count) ? $count[1] : '0',
+            $page->filter('meta[name="tab-icon-count"]')->attr('content'),
+            'the number the title counts on this page',
+        );
+        self::assertGreaterThan(0, (int) $page->filter('meta[name="tab-icon-count"]')->attr('content'), 'the unread mail is counted');
+
+        // A post that does not mention it leaves it alone.
+        $this->post(['skipRead' => '1']);
+        self::assertTrue($this->reread()->tabIconCount);
+
+        $this->post(['tabIconCount' => '0']);
+
+        self::assertFalse($this->reread()->tabIconCount);
+        self::assertNull($this->reread()->getSetting(User::SETTING_TAB_ICON_COUNT));
+        self::assertTrue($this->reread()->notifySkipsRead, 'and the other switch is its own');
+    }
+
     public function testAPostWithoutATokenIsRefused(): void
     {
         $this->client->request('POST', '/settings/notifications', ['skipRead' => '1']);

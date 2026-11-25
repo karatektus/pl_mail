@@ -5295,7 +5295,7 @@ settings:
             list_content: 'attachments chips paperclip files labels sender date time count replied answered'
             list_layout: 'rows one line compact dense preview snippet stacked lines width'
             list_markers: 'star hover avatar disc account corner unread bold'
-            notifications: "push browser phone sound alert"
+            notifications: "push browser phone sound alert tab icon favicon unread count badge pinned"
             password: "login sign-in"
             pinning: 'pin pinned thumbtack sticky top reminder'
             profile: "name avatar photo picture"
@@ -5372,6 +5372,8 @@ settings:
         state_working: Working…
         subheading: >-
             Get notified of new mail on this device, even when plMail is closed.
+        tab_icon_count: 'Unread count on the browser tab icon'
+        tab_icon_count_hint: 'How many conversations in your Inbox are unread, all accounts together, drawn on plMail''s icon in the browser tab, so a pinned tab shows it too. Applies to every browser of yours.'
         this_device: This device
         toggle: Enable notifications
         toggle_off: Disable notifications
