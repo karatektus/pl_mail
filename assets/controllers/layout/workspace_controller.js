@@ -163,10 +163,16 @@ export default class extends Controller {
             close: () => this.#close(kind),
         }));
 
+        // A change still waiting to be sent goes when the page does, not with
+        // it. keepalive (#post) lets the request outlive the document.
+        this._onLeave = () => this.#flush();
+        window.addEventListener("pagehide", this._onLeave);
+
         this.#arrange();
     }
 
     disconnect() {
+        window.removeEventListener("pagehide", this._onLeave);
         this.narrow.removeEventListener("change", this._onNarrow);
         this.rootTarget.removeEventListener("pointerdown", this._onFocus, true);
         this.rootTarget.removeEventListener("focusin", this._onFocus);
@@ -174,7 +180,9 @@ export default class extends Controller {
         this._unregister.forEach((unregister) => unregister());
         this.#closePopover();
         this.#endDrag();
-        clearTimeout(this._saveTimer);
+
+        // Sent, not dropped: a Turbo visit disconnects this mid-pause.
+        this.#flush();
     }
 
     // ── The pane menu ─────────────────────────────────────────────────────
@@ -566,6 +574,11 @@ export default class extends Controller {
         this.#adoptDeviceSizes(this.#workspace().layout);
         this.#leaveEdit();
         this.#commit();
+
+        // Asked for in so many words, so sent now rather than after the pause
+        // a burst of menu changes waits for: a reload straight after Save drew
+        // the workspace from before it, because the save had not gone yet.
+        this.#post();
         this.#toast(this.stringsValue.saved.replace("%name%", this.#workspace().name));
     }
 
@@ -1975,8 +1988,16 @@ export default class extends Controller {
         this._saveTimer = window.setTimeout(() => this.#post(), 250);
     }
 
+    /** A save still waiting out its pause, sent now. Nothing waiting, nothing sent. */
+    #flush() {
+        if (null != this._saveTimer) {
+            this.#post();
+        }
+    }
+
     async #post() {
         clearTimeout(this._saveTimer);
+        this._saveTimer = null;
 
         try {
             const response = await fetch(this.saveUrlValue, {
