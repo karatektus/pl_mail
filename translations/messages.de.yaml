@@ -430,6 +430,12 @@ admin:
 
                     Das liest das gespeicherte Original jeder betroffenen Nachricht und gibt dem Anhang seinen echten Namen zurück, wo das Original ihn eindeutig nennt. Läuft nach einem Update auch von selbst.
                 summary: 'Anhängen ihren Namen statt einer Prüfsumme zurückgeben'
+            attachment_unreferenced_inline:
+                explanation: >-
+                    Manche Anhänge, etwa in Apple Mail angehängte Dateien, hat das Mailprogramm des Absenders als „inline“ markiert, und sie wurden als Bilder im Text gespeichert. Nichts im Text zeigte sie an, also erschienen sie nirgends: kein Chip unter der Nachricht und keine Büroklammer in der Liste.
+
+                    Das zeigt jeden solchen Teil wieder als Anhang; Bilder, die der Text wirklich zeigt, und Einladungen bleiben, wie sie sind. Läuft nach einem Update auch von selbst.
+                summary: 'Als inline versteckte Anhänge wieder anzeigen'
             calendars:
                 explanation: >-
                     Jede neue Person bekommt einen persönlichen Kalender und einen für jedes Mailkonto. Das gibt dieselben Kalender allen, die schon vorher da waren. Es füllt nur Lücken, ein zweiter Lauf nach neuen Konten schadet also nicht.

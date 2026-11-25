@@ -427,6 +427,12 @@ admin:
 
                     This reads each such message’s stored original an’ gives the attachment back its true name, where the original names it plain. It also sails by itself after an update.
                 summary: 'Give attachments back their names'
+            attachment_unreferenced_inline:
+                explanation: >-
+                    Some attachments, like files lashed on in Apple Mail, were marked "inline" by the sender’s mail program an’ stowed as pictures in the text. Nothin’ in the text showed ’em, so they appeared nowhere: no chip under the message an’ no paperclip in the list.
+
+                    This hoists every such part back up as an attachment; pictures the text truly shows, an’ calendar invites, stay as they be. It also sails by itself after an update.
+                summary: 'Show attachments hidden as inline parts'
             calendars:
                 explanation: >-
                     Every new hand gets a calendar o’ their own, an’ one fer each mail account. This gives the same calendars to the hands who were aboard afore. It only fills gaps, so sailin’ it again after addin’ accounts does no harm.

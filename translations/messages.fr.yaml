@@ -427,6 +427,12 @@ admin:
 
                     Ceci lit l’original stocké de chaque message concerné et rend à la pièce jointe son vrai nom, quand l’original le donne sans ambiguïté. S’exécute aussi tout seul après une mise à jour.
                 summary: 'Rendre leur nom aux pièces jointes stockées sous une somme de contrôle'
+            attachment_unreferenced_inline:
+                explanation: >-
+                    Certaines pièces jointes, comme les fichiers joints dans Apple Mail, étaient marquées « inline » par le logiciel de messagerie de l’expéditeur et stockées comme des images dans le texte. Rien dans le texte ne les affichait, si bien qu’elles n’apparaissaient nulle part : ni puce sous le message, ni trombone dans la liste.
+
+                    Ceci affiche de nouveau chacune de ces parties comme pièce jointe ; les images que le texte affiche vraiment et les invitations restent telles quelles. S’exécute aussi tout seul après une mise à jour.
+                summary: 'Afficher les pièces jointes cachées comme parties en ligne'
             calendars:
                 explanation: >-
                     Chaque nouvel utilisateur reçoit un agenda personnel et un par compte de messagerie. Ceci donne les mêmes agendas aux utilisateurs qui étaient là avant. Il ne fait que combler les manques ; le relancer après avoir ajouté des comptes ne pose pas de problème.
