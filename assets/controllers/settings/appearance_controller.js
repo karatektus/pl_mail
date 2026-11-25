@@ -3,6 +3,7 @@ import { Controller } from '@hotwired/stimulus';
 import { csrfToken, jsonCsrfHeaders } from '../../csrf.js';
 import { requestFailed } from '../../request_errors.js';
 import { uploadAppIcons } from '../../app_icons.js';
+import { redrawTabIcon } from '../../tab_icon_count.js';
 import { showToast } from '../../toast.js';
 
 export default class extends Controller {
@@ -459,6 +460,10 @@ export default class extends Controller {
         document.querySelectorAll('link[rel="icon"][type="image/svg+xml"]').forEach((link) => {
             this.setIfChanged(link, 'href', this.iconUrl(motif, paint, 'logoFavicon'));
         });
+
+        // That was the plain icon, written over the unread count of somebody
+        // who has it on the tab icon (#662): put the count on the new pick.
+        redrawTabIcon();
 
         // The install manifest and iOS's home-screen icon name their pictures
         // by the same choice, so an app installed from this page, before a

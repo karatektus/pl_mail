@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
 import { WRITE_EVENT } from "../../mail_writes.js";
+import { TAB_ICON_COUNT_KEY, renderedTabIconCount, showOnTabIcon } from "../../tab_icon_count.js";
 
 // `is-active` carries no colour of its own — it is the hook the sidebar's
 // Gmail-style pill shape hangs off in app.css.
@@ -504,6 +505,11 @@ export default class extends Controller {
 
         this._trailing = null;
 
+        // The tab icon's count (#662), from the number the page was rendered
+        // with: the first counts request may be a sync away. Turbo's later
+        // renders are tab_icon_count.js's own business.
+        showOnTabIcon(renderedTabIconCount());
+
         this._watchTruncation();
     }
 
@@ -988,6 +994,10 @@ export default class extends Controller {
         patchTabUnread(counts);
 
         this._updateTitle(counts);
+
+        if (counts[TAB_ICON_COUNT_KEY] !== undefined) {
+            showOnTabIcon(counts[TAB_ICON_COUNT_KEY]);
+        }
 
         // A badge going from 9 to 10 takes a character off the name beside it.
         this._measureTruncation();
