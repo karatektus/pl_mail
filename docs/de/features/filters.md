@@ -74,7 +74,7 @@ eintrifft“.
 | **In den Papierkorb** | |
 | **Als Spam markieren** | |
 | **Anhänge speichern in** | Lädt die Anhänge der Nachricht in einen verbundenen Dienst hoch |
-| **In Kategorie ablegen** | Legt die Mail in einem deiner eigenen Posteingangs-Tabs ab. Wird erst angeboten, sobald du einen angelegt hast — siehe [In eigene Tabs ablegen](#in-eigene-tabs-ablegen) |
+| **In Kategorie ablegen** | Legt die Mail in einem Posteingangs-Tab ab: einem deiner eigenen oder einem eingebauten wie Benachrichtigungen — siehe [In eigene Tabs ablegen](#in-eigene-tabs-ablegen) |
 
 Mindestens eine Aktion ist Pflicht; ein Filter ohne Aktion täte nichts, und der Editor sagt das
 lieber, als ihn zu speichern.
@@ -191,6 +191,12 @@ mehr lesen lassen, als übersprungen, und bei einer Nachricht im Spam auch jeder
 nicht nennt — so, wie eintreffende Mail sie behandeln würde.
 
 ## In eigene Tabs ablegen
+
+Dieselbe Aktion legt Mail auch in einem der eingebauten Tabs ab. Für „Amazon kommt zu
+Benachrichtigungen“ wählst du in **In Kategorie ablegen** den Tab **Benachrichtigungen**, mit der
+Bedingung **Absender-Domain ist amazon.de**. Ein eingebauter Tab, den du unter **Einstellungen →
+Kategorien** ausgeschaltet hast, wird nicht angeboten, und Mail, die ein Filter dort ablegt, landet
+wie der Rest dieses Tabs in **Allgemein**.
 
 Ein Filter kann Mail in einen Posteingangs-Tab ablegen, den du selbst angelegt hast. Leg den Tab
 zuerst an, unten auf der Karte **Tabs** unter **Einstellungen → Kategorien**; dann füge einen

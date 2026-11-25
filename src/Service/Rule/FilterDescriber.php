@@ -242,6 +242,10 @@ final class FilterDescriber implements ResetInterface
             return $described . ' ' . $this->labelName($action['labelId']);
         }
 
+        if (true === is_string($action['builtIn'] ?? null)) {
+            return $described . ' ' . $this->translator->trans('tabs.' . $action['builtIn']);
+        }
+
         if (true === array_key_exists('categoryId', $action)) {
             return $described . ' ' . $this->categoryName($action['categoryId']);
         }

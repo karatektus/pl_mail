@@ -869,6 +869,25 @@ class Message extends MessageModel
     public ?InboxCategory $ruleCategory = null;
 
     /**
+     * The BUILT-IN tab a filter filed this message under — "Amazon goes to
+     * Notifications".
+     *
+     * Its own column for the reason $ruleCategory is: $category is recomputed
+     * by five writers, and a filter's verdict written there alone would be
+     * erased by the next re-sort. Unlike $ruleCategory it is not a second
+     * answer beside $category but an input to it: MessageCategorizer reads it
+     * first, so every one of those writers arrives at the filter's answer by
+     * itself, and $category — the column every tab query and JMAP read — goes
+     * on holding the built-in the message is in.
+     *
+     * Only a filter's action writes it. Filing under a tab of the reader's own
+     * leaves it be: $ruleCategory wins the tab, and this is still the built-in
+     * underneath it.
+     */
+    #[ORM\Column(name: 'rule_builtin_category', enumType: MessageCategory::class, nullable: true)]
+    public ?MessageCategory $ruleBuiltinCategory = null;
+
+    /**
      * The Gmail account that can act on this message, when it is not this
      * message's own account.
      *

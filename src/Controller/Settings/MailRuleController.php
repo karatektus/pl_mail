@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Integration\Capability;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\RuleRunState;
 use App\Domain\Filter\FilterAstValidator;
 use App\Domain\Filter\InvalidFilterException;
@@ -326,6 +327,13 @@ final class MailRuleController extends AbstractController
     private function editor(MailRule $rule, array $errors = [], ?Request $request = null, int $status = Response::HTTP_OK): Response
     {
         $categories = $this->categoryRepository->findForUserOrdered($this->getUser());
+        $user       = $this->getUser();
+
+        if (false === $user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $sorting = $user->categorySorting;
 
         return $this->render('settings/filters/_editor.html.twig', [
             'rule' => $rule,
@@ -340,7 +348,19 @@ final class MailRuleController extends AbstractController
             // The user's own arrangement, as everywhere else mail accounts are
             // offered to pick from — see findActiveForUserOrdered().
             'accounts' => $this->accountRepository->findForUserOrdered($this->getUser()),
-            'actionTypes' => $this->offeredActionTypes($rule, $categories),
+            'actionTypes' => $this->offeredActionTypes($rule, $categories, $sorting->tabs),
+            // The built-in tabs "File in category" can file into, keyed the way
+            // InboxTab keys them and named by the template through `tabs.*`.
+            // All five, each saying whether the reader switched it off: the
+            // editor offers only the ones that are on — mail filed into one
+            // that is off lands in Primary — but keeps a stored one listed.
+            'builtInCategories' => array_map(
+                static fn (MessageCategory $category): array => [
+                    'key' => $category->value,
+                    'off' => $sorting->isSwitchedOff($category),
+                ],
+                MessageCategory::cases(),
+            ),
             // What "File in category" can file into, as the editor needs it to
             // draw the choice: id and name, nothing else.
             'categories' => array_map(
@@ -359,10 +379,9 @@ final class MailRuleController extends AbstractController
     /**
      * The action types the editor's dropdown offers.
      *
-     * "File in category" is left out for somebody with no category of their own:
-     * there is nothing for it to file into, and an editor that offered it anyway
-     * would be a different editor for every user who never asked for categories.
-     * It stays in when the rule being edited already carries one — the category
+     * "File in category" is left out for somebody with the inbox tabs switched
+     * off and no category of their own: there is no tab for it to file into
+     * that they would ever see. It stays in when the rule being edited already carries one — the category
      * may have been deleted since, and a dropdown that no longer lists the
      * action's own type would show some other action while the form went on
      * submitting this one.
@@ -371,7 +390,7 @@ final class MailRuleController extends AbstractController
      *
      * @return list<string>
      */
-    private function offeredActionTypes(MailRule $rule, array $categories): array
+    private function offeredActionTypes(MailRule $rule, array $categories, bool $tabs): array
     {
         $carriesOne = [] !== array_filter(
             $rule->actions,
@@ -379,7 +398,7 @@ final class MailRuleController extends AbstractController
                 && RuleActionExecutor::FILE_IN_CATEGORY === ($action['type'] ?? null),
         );
 
-        if ([] !== $categories || true === $carriesOne) {
+        if (true === $tabs || [] !== $categories || true === $carriesOne) {
             return RuleActionExecutor::TYPES;
         }
 
@@ -456,7 +475,17 @@ final class MailRuleController extends AbstractController
                 $entry['labelId'] = $labelId;
             }
 
-            if (RuleActionExecutor::FILE_IN_CATEGORY === $type) {
+            if (RuleActionExecutor::FILE_IN_CATEGORY === $type && true === is_string($action['builtIn'] ?? null)) {
+                // One of the five built-in tabs: nothing to own, only a name
+                // to recognise.
+                $builtIn = MessageCategory::tryFrom($action['builtIn']);
+
+                if (null === $builtIn) {
+                    continue;
+                }
+
+                $entry['builtIn'] = $builtIn->value;
+            } elseif (RuleActionExecutor::FILE_IN_CATEGORY === $type) {
                 $categoryId = $action['categoryId'] ?? null;
 
                 if (false === is_int($categoryId)) {

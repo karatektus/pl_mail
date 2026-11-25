@@ -3260,6 +3260,8 @@ message:
             ai: 'ein Sprachmodell, weil keine Regel gegriffen hat: '
             ai_differs: 'die Regeln sehen das anders'
             awaiting_resort: 'Wird neu einsortiert — du hast geändert, wie Mail sortiert wird, und diese hier ist noch nicht umgezogen.'
+            # A filter's "File in category" chose this built-in tab.
+            filter: 'dort von einem deiner Filter abgelegt'
             own_filter: 'dort von einem deiner Filter abgelegt'
             gmail_overruled: 'wird nicht benutzt — du hast plMail gebeten, selbst zu sortieren'
             in_force: 'das hier entscheidet'

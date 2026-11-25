@@ -15,6 +15,7 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Service\Mail\MessageCategorizer;
 use App\Service\Rule\RuleCategoryFiler;
 use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
 use PHPUnit\Framework\TestCase;
@@ -197,6 +198,66 @@ final class RuleCategoryFilerTest extends TestCase
         self::assertNull($message->thread?->userCategory);
     }
 
+    /**
+     * "Amazon goes to Notifications": a built-in tab, filed so that it holds.
+     * The verdict is stored where MessageCategorizer reads it first, so the
+     * next re-sort, which recomputes $category from scratch, files it there
+     * again instead of undoing the filter.
+     */
+    public function testABuiltInTabIsFiledAndSurvivesTheNextResort(): void
+    {
+        $message = $this->message(self::PASS);
+
+        self::assertSame(CategoryFiling::Filed, $this->file($message, action: ['type' => 'fileInCategory', 'builtIn' => 'updates']));
+
+        self::assertSame(MessageCategory::Updates, $message->ruleBuiltinCategory);
+        self::assertSame(MessageCategory::Updates, $message->category);
+        self::assertSame(MessageCategory::Updates, $message->thread->category);
+        self::assertNull($message->thread->userCategory);
+
+        self::assertSame(
+            MessageCategory::Updates,
+            (new MessageCategorizer())->categorize($message, [], $this->owner->categorySorting),
+            'a re-sort would take the message back out of the filter\'s tab',
+        );
+    }
+
+    /** The last filter decides across the two kinds too: a built-in after the reader's own takes the mail out of it. */
+    public function testABuiltInTabAfterTheReadersOwnTakesTheMailOutOfIt(): void
+    {
+        $message = $this->message(self::PASS);
+
+        $this->file($message);
+        self::assertSame($this->shipping, $message->thread->userCategory);
+
+        $this->file($message, action: ['type' => 'fileInCategory', 'builtIn' => 'updates']);
+
+        self::assertNull($message->ruleCategory);
+        self::assertNull($message->thread->userCategory);
+        self::assertSame(MessageCategory::Updates, $message->thread->category);
+    }
+
+    /** A tab the reader switched off takes nothing, filter or not: the mail is in Primary, where the tab strip would show it. */
+    public function testABuiltInTabTheReaderSwitchedOffFilesIntoPrimary(): void
+    {
+        $this->owner->categorySorting->switchOff([MessageCategory::Updates]);
+
+        $message = $this->message(self::PASS);
+        $this->file($message, action: ['type' => 'fileInCategory', 'builtIn' => 'updates']);
+
+        self::assertSame(MessageCategory::Updates, $message->ruleBuiltinCategory, 'the filter\'s verdict is kept for the day the tab is back on');
+        self::assertSame(MessageCategory::Primary, $message->category);
+    }
+
+    public function testAnUnknownBuiltInTabFilesNothing(): void
+    {
+        $message = $this->message(self::PASS);
+
+        self::assertSame(CategoryFiling::NoCategory, $this->file($message, action: ['type' => 'fileInCategory', 'builtIn' => 'invoices']));
+        self::assertNull($message->ruleBuiltinCategory);
+        self::assertSame(MessageCategory::Promotions, $message->category);
+    }
+
     // ── fixture ──────────────────────────────────────────────────────────────
 
     /**
@@ -213,6 +274,7 @@ final class RuleCategoryFilerTest extends TestCase
         $filer = new RuleCategoryFiler(
             $repository,
             $this->threaderWithoutDatabase(),
+            new MessageCategorizer(),
             new NullLogger(),
         );
 

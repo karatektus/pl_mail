@@ -67,7 +67,7 @@ how "label everything arriving in this account" is written.
 | **Move to trash** | |
 | **Mark as spam** | |
 | **Save attachments to** | Uploads the message's attachments to a connected service |
-| **File in category** | Files the mail under one of your own inbox tabs. Only offered once you have made one — see [Filing into your own tabs](#filing-into-your-own-tabs) |
+| **File in category** | Files the mail under an inbox tab: one of your own, or a built-in one such as Notifications — see [Filing into a tab](#filing-into-a-tab) |
 
 At least one action is required; a filter with none would do nothing, and the editor says so rather
 than saving it.
@@ -169,11 +169,16 @@ filter** is shown as not reached, one whose conditions can no longer be read as 
 message in Spam every filter that does not name Spam as skipped too, as arriving mail would treat
 them.
 
-## Filing into your own tabs
+## Filing into a tab
 
-A filter can put mail into an inbox tab of your own. Make the tab first, at the bottom of the
-**Tabs** card under **Settings → Categories**; then add a filter whose action is **File in
-category** and pick it. Any condition works. For "everything from my parcel carriers" it is
+A filter can put mail into an inbox tab: one of the built-in ones, or one of your own. For
+"Amazon goes to Notifications", add a filter whose action is **File in category** and pick
+**Notifications**; the condition is **Sender's domain is amazon.fr**. A built-in tab you switched
+off under **Settings → Categories** is not offered, and mail a filter files into one that is off
+lands in Primary, like the rest of that tab's mail.
+
+For a tab of your own, make the tab first, at the bottom of the **Tabs** card under **Settings →
+Categories**; then pick it in the same action. Any condition works. For "everything from my parcel carriers" it is
 **Sender's domain is**, one row per carrier, inside an **Any** group:
 
 ```
@@ -209,7 +214,8 @@ What the action will and will not file:
   otherwise, but a filter is an instruction you wrote, and it outranks both.
 - **Nothing but a tab.** The action does not touch labels, does not archive, does not move anything
   to Spam and does not mark anything read. The Android app shows your tabs; other mail apps that
-  connect over JMAP keep seeing the five built-in categories.
+  connect over JMAP keep seeing the five built-in categories, including the one a filter chose.
+  The tab is not pushed to the provider: Gmail's web interface still shows its own category.
 
 A conversation is in **one** tab. It is in yours when the newest message you **received** in it was
 filed there, so a newer message no filter claims takes it back out, the way a newer Promotions
