@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
 import { WRITE_EVENT } from "../../mail_writes.js";
-import { TAB_ICON_COUNT_KEY, renderedTabIconCount, showOnTabIcon } from "../../tab_icon_count.js";
+import { TAB_ICON_COUNT_KEY, renderedTabIconCount, showOnTabIcon, tabIconCountOn } from "../../tab_icon_count.js";
 
 // `is-active` carries no colour of its own — it is the hook the sidebar's
 // Gmail-style pill shape hangs off in app.css.
@@ -499,7 +499,14 @@ export default class extends Controller {
                 return;
             }
 
-            this.refreshCounts({ floor: CHANGED_FLOOR_MS });
+            // Counted in a hidden tab too when the tab icon carries the count
+            // (#662): that icon is looked at exactly while the tab is not. At
+            // the sync's slower floor there, because nobody is watching it
+            // change by the second, and an import nudges once per message.
+            this.refreshCounts({
+                floor: document.hidden ? MIN_COUNTS_MS : CHANGED_FLOOR_MS,
+                hidden: tabIconCountOn(),
+            });
         };
         document.addEventListener(CHANGED_EVENT, this._onChanged);
 
@@ -919,14 +926,17 @@ export default class extends Controller {
         sessionStorage.setItem(SCROLL_KEY, String(this.scrollerTarget.scrollTop));
     }
 
-    async refreshCounts({ immediate = false, floor = MIN_COUNTS_MS } = {}) {
+    async refreshCounts({ immediate = false, floor = MIN_COUNTS_MS, hidden = false } = {}) {
         if (!this.hasCountsUrlValue) {
             return;
         }
 
         // Nobody is looking at the badges. The next sync after the tab comes
         // back redraws them, and a full page load renders them server-side.
-        if (document.hidden && !immediate) {
+        // Unless the caller says somebody is: the tab icon's count (#662) is
+        // read off a hidden tab, so a mail-changed nudge is still counted for
+        // it. Sync events are not, one per mailbox and nearly always nothing.
+        if (document.hidden && !immediate && !hidden) {
             return;
         }
 
