@@ -131,7 +131,7 @@ test("a result scrolls the settings pane, never the page around it", async ({ pa
     await page.setViewportSize(DESKTOP);
     await page.goto("/settings/aliases");
     await account.getByPlaceholder(/Add another address/i).fill(address);
-    await account.getByRole("button", { name: "Add" }).click();
+    await account.getByRole("button", { name: "Add", exact: true }).click();
     await expect(page.getByText(address)).toBeVisible();
 
     try {
