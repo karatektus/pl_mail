@@ -42,6 +42,16 @@ async function split(page: Page, kind: Kind, direction: "row" | "col", add: Kind
     await group.getByRole("menuitem", { name: NAMES[add] }).click();
 }
 
+/**
+ * The next save's answer. A change is sent after a short pause, so it is
+ * waited for as this rather than as "networkidle", which can be reached
+ * before the save has even started: a reload then draws the workspace from
+ * before it. Start waiting before the change.
+ */
+function nextSave(page: Page) {
+    return page.waitForResponse((response) => response.url().endsWith("/layout/workspaces") && "POST" === response.request().method());
+}
+
 /** The two panes' boxes, for "side by side" and "above and below". */
 async function boxes(page: Page, a: Kind, b: Kind) {
     return [(await pane(page, a).boundingBox())!, (await pane(page, b).boundingBox())!] as const;
@@ -54,11 +64,16 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.afterEach(async ({ page }) => {
-    await useWorkspace(page, only("list"));
+    // A test that closes its tab puts the list back from the one it opened.
+    if (false === page.isClosed()) {
+        await useWorkspace(page, only("list"));
+    }
 });
 
 test.describe("the pane menu", () => {
     test("split right puts a pane beside, and a reload draws it there", async ({ page }) => {
+        const saved = nextSave(page);
+
         await split(page, "list", "row", "calendar");
 
         await expect(pane(page, "calendar").locator("turbo-frame#calendar-pane-frame")).toBeVisible();
@@ -68,10 +83,30 @@ test.describe("the pane menu", () => {
         expect(Math.abs(calendar.y - list.y)).toBeLessThan(2);
 
         // Saved: the server draws it on the next load, before any script.
-        await page.waitForLoadState("networkidle");
+        expect((await saved).ok()).toBe(true);
         await page.reload();
         await expect(pane(page, "calendar")).toBeVisible();
         await expect(page.locator("[data-layout-split] [data-layout-pane='calendar']")).toHaveCount(1);
+    });
+
+    test("a change still waiting to be sent goes when the tab is closed", async ({ page, context }) => {
+        // A change is sent after a short pause, and a tab closed inside it
+        // never ran the timer: the change was gone. It is sent as the page
+        // goes now (pagehide, keepalive). That request has no answer the test
+        // can wait for, so the server is asked: a new tab loads the mail until
+        // it draws the change. Dropped, no load ever does.
+        await split(page, "list", "row", "calendar");
+        await page.close({ runBeforeUnload: true });
+
+        const next = await context.newPage();
+
+        await next.setViewportSize(WIDE);
+        await expect(async () => {
+            await next.goto("/mail/inbox");
+            await expect(next.locator("[data-layout-split] [data-layout-pane='calendar']")).toHaveCount(1, { timeout: 500 });
+        }).toPass({ timeout: 5_000 });
+
+        await useWorkspace(next, only("list"));
     });
 
     test("split below puts a pane underneath, sharing the height", async ({ page }) => {
@@ -252,10 +287,14 @@ test.describe("edit mode", () => {
         await page.mouse.up();
 
         await expect(pane(page, "tasks")).toBeVisible();
+
+        // Save sends at once; waited for all the same (see nextSave).
+        const saved = nextSave(page);
+
         await page.getByRole("button", { name: "Save workspace" }).click();
         await expect(tray).toBeHidden();
+        expect((await saved).ok()).toBe(true);
 
-        await page.waitForLoadState("networkidle");
         await page.reload();
 
         const [calendar, tasks] = await boxes(page, "calendar", "tasks");
