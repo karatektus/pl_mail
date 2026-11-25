@@ -71,7 +71,7 @@ export default class extends Controller {
         // stored on the rule, so a saved rule reopened later starts with an
         // empty map and shows ids until something is picked again — see
         // _folderControls() for why the id is what is stored.
-        this._folderLabels = new Map()
+        this._folderNames = new Map()
 
         this.render()
         this.renderActions()
@@ -486,7 +486,7 @@ export default class extends Controller {
             // every render and renumbered when one is removed, while the id is
             // what the label describes.
             if ("" !== label) {
-                this._folderLabels.set(folder, label)
+                this._folderNames.set(folder, label)
             }
         }
 
@@ -523,7 +523,7 @@ export default class extends Controller {
         // paths, "Documents/Invoices", it also reads perfectly well on its own.
         name.textContent = "" === chosen
             ? this._t("folder.default")
-            : (this._folderLabels.get(chosen) ?? chosen)
+            : (this._folderNames.get(chosen) ?? chosen)
         name.title = name.textContent
         readout.append(name)
 
