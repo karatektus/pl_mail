@@ -238,6 +238,14 @@ final readonly class SignatureProvider
                 $map[$account->id . '|' . $address] = $this->blockFor($account, $address);
             }
 
+            // An extra name signs and copies like its address: the From
+            // menu's line for it has a token of its own (EmailAlias::identityId()).
+            foreach ($account->sendableAliases as $alias) {
+                foreach ($alias->extraNames as $entry) {
+                    $map[$alias->identityId($entry['key'])] = $this->blockFor($account, $alias->address);
+                }
+            }
+
             // An address at a catch-all domain is a From option no row above
             // names — there are as many of them as there are local parts. They
             // all sign the same way, with the account's signature, so one

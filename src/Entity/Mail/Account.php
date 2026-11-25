@@ -1913,4 +1913,47 @@ class Account extends AccountModel
 
         return $this->name;
     }
+
+    /**
+     * The name to send one address under when somebody picked one: the name
+     * asked for when it is still one of that address's names — its default
+     * (senderNameFor()) or one of its extra names (EmailAlias::$extraNames) —
+     * and the default otherwise.
+     *
+     * The draft carries the name picked in the From menu, and this is where it
+     * is checked again before it goes into a header: an extra name deleted
+     * since, or a name nobody offered (a hand-written POST, an old draft whose
+     * alias was renamed), sends under the address's own name rather than
+     * under whatever the row says.
+     */
+    public function nameToSendAs(?string $address, ?string $wanted): ?string
+    {
+        $default = $this->senderNameFor($address);
+
+        if (null === $wanted || $wanted === $default) {
+            return $default;
+        }
+
+        $alias = $this->aliasFor($address);
+
+        if (null !== $alias && true === in_array($wanted, array_column($alias->extraNames, 'name'), true)) {
+            return $wanted;
+        }
+
+        return $default;
+    }
+
+    /** This account's alias row for an address, or null. */
+    public function aliasFor(?string $address): ?EmailAlias
+    {
+        $address = strtolower(trim((string) $address));
+
+        foreach ($this->aliases as $alias) {
+            if ($alias->address === $address) {
+                return $alias;
+            }
+        }
+
+        return null;
+    }
 }

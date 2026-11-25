@@ -478,6 +478,9 @@ final readonly class ConfigBackupUserRestorer
                 $this->text($row, 'displayName'),
             );
 
+            // A backup from before extra names existed has no key: none.
+            $alias->restoreExtraNames($row['extraNames'] ?? [], is_int($row['extraNameSeq'] ?? null) ? $row['extraNameSeq'] : 0);
+
             $account->aliases->add($alias);
 
             $this->entityManager->persist($alias);

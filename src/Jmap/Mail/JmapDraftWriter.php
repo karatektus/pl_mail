@@ -66,7 +66,7 @@ final class JmapDraftWriter
             : null;
 
         $this->drafts->fileUnderAccount($message, $account);
-        $this->persistDraft($message, $account, $this->senderFor($account, $create));
+        $this->persistDraft($message, $account, $this->senderFor($account, $create), $this->extraNameFor($account, $create));
 
         // Written after the flush, not before: the storage path is bucketed by
         // message id, and a draft has none until it is persisted. This mirrors
@@ -126,7 +126,7 @@ final class JmapDraftWriter
 
         if (null !== $sender) {
             $message->fromAddress = $sender;
-            $message->fromName    = $account->senderNameFor($sender);
+            $message->fromName    = $account->nameToSendAs($sender, $this->extraNameFor($account, $patch));
         }
 
         $this->applyReplyContext($message, $patch);
@@ -162,9 +162,9 @@ final class JmapDraftWriter
      * resolving that changes what goes out in the text/plain part of mail sent
      * from an app, which is not a refactoring.
      */
-    private function persistDraft(Message $message, Account $account, ?string $sender = null): void
+    private function persistDraft(Message $message, Account $account, ?string $sender = null, ?string $senderName = null): void
     {
-        $this->drafts->markAsDraft($message, $account, $sender);
+        $this->drafts->markAsDraft($message, $account, $sender, $senderName);
 
         $message->bodyText = $this->plainText($message->bodyHtml);
 
@@ -209,6 +209,20 @@ final class JmapDraftWriter
         }
 
         return $this->identities->addressFor($account, $identityId);
+    }
+
+    /**
+     * The extra name the identityId sends under (EmailAlias::$extraNames), or
+     * null for an identity that uses its address's own name. Checked again by
+     * Account::nameToSendAs() wherever it is stored.
+     *
+     * @param array<string,mixed> $properties a create, or a patch
+     */
+    private function extraNameFor(Account $account, array $properties): ?string
+    {
+        $identityId = $properties['identityId'] ?? null;
+
+        return is_string($identityId) ? $this->identities->nameFor($account, $identityId) : null;
     }
 
     /**

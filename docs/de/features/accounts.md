@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:d6a2f521145aa4db12a0b81623495e9f0812c9b0 -->
+<!-- translated-from: features/accounts.md sha1:195af6ff6209e175afccdf74d6530f11fae72583 -->
 
 # Konten und Aliase
 
@@ -541,6 +541,14 @@ Adresse sieht. Bleibt es leer, sendet die Adresse unter dem Namen des Kontos, un
 das Feld ausgegraut. Eine Familienadresse in einem privaten Konto kann „Herr und Frau Schmidt“
 heißen, während das Konto „Jan Schmidt“ bleibt. Die From-Auswahl zeigt denselben Namen, mit dem die
 Mail hinausgeht.
+
+**Eine Adresse kann mehrere Namen haben.** Unter dem Absendernamen fügt **Weitere Namen** weitere
+hinzu: „A“, „a“ und „Arnaud“ schreiben alle von `a@mail.com`. Jeder ist eine eigene Zeile im
+Von-Menü, unter der Zeile der Adresse selbst, und die Mail geht unter der gewählten Zeile hinaus.
+Ein Entwurf merkt sie sich und öffnet wieder auf ihr. Die Namen teilen Signatur und Standard-Bcc der
+Adresse. Ein Name verschwindet mit seinem ×; ein Entwurf, der unter ihm gespeichert war, geht dann
+unter dem eigenen Namen der Adresse hinaus. Über JMAP ist jeder Name eine eigene Identität, also
+listet auch die Android-App sie.
 
 ### Catch-all-Domains
 

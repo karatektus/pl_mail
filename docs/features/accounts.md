@@ -483,6 +483,13 @@ Left empty, the address sends under the account's name, which is what the field 
 family address on a personal account can be "Mr and Mrs Smith" while the account stays "John
 Smith". The From selector shows the same name the mail goes out with.
 
+**One address can have several names.** Under the sender name, **Other names** adds more: "A",
+"a" and "Arnaud" all writing from `a@mail.com`. Each is a line of its own in the From menu, under
+the address's own line, and the mail goes out under the line you picked. A draft remembers it, and
+reopens on it. The names share the address's signature and default Bcc. Remove a name with its ×; a
+draft saved under it then goes out under the address's own name. Over JMAP each name is an identity
+of its own, so the Android app lists them too.
+
 ### Catch-all domains
 
 If your provider delivers **every** address at a domain to this mailbox, add the domain under

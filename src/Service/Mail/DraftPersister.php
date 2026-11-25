@@ -55,7 +55,11 @@ final readonly class DraftPersister
      * about it. Without that a draft written in the browser, and the mail it
      * turns into, never appeared in Email/changes at all.
      */
-    public function save(Message $message, Account $account, ?string $sender = null): void
+    /**
+     * @param string|null $senderName one of the address's extra names, picked
+     *                                in the From menu; null for its own name
+     */
+    public function save(Message $message, Account $account, ?string $sender = null, ?string $senderName = null): void
     {
         $this->fileUnderAccount($message, $account);
 
@@ -68,7 +72,7 @@ final readonly class DraftPersister
         // bodyHtmlSafe, which is what the thread renders.
         $message->bodyHtml = $this->inlineImages->toCid($message->bodyHtml);
 
-        $this->markAsDraft($message, $account, $sender);
+        $this->markAsDraft($message, $account, $sender, $senderName);
 
         // Derived from the HTML — unless there IS no HTML, which is what the
         // composer's plain-text mode posts. In that mode the window submits an
@@ -137,7 +141,7 @@ final readonly class DraftPersister
      * Leaves bodyText alone — see plainTextBody(), which the two callers of
      * this method do not agree on.
      */
-    public function markAsDraft(Message $message, Account $account, ?string $sender = null): void
+    public function markAsDraft(Message $message, Account $account, ?string $sender = null, ?string $senderName = null): void
     {
         // Null means "whoever the account is", which is what a caller with no
         // From picker wants. It is a parameter rather than a read of whatever
@@ -147,10 +151,12 @@ final readonly class DraftPersister
         // account's own address one line later. Every mail sent from an alias
         // went out as the primary address, and nothing reported it.
         $message->fromAddress = $sender ?? $account->email;
-        // The name that address sends under — an alias's own when it has one.
-        // Same lookup MessageSendService builds the From header with, so the
-        // local copy and the mail on the wire name the same sender.
-        $message->fromName    = $account->senderNameFor($message->fromAddress);
+        // The name that address sends under — an alias's own when it has one,
+        // or the extra name picked in the From menu while it still is one.
+        // MessageSendService builds the From header from what is stored here,
+        // through the same check, so the local copy and the mail on the wire
+        // name the same sender.
+        $message->fromName    = $account->nameToSendAs($message->fromAddress, $senderName);
         $message->addFlag(MessageFlag::DRAFT);
         $message->seenAt ??= new DateTimeImmutable();
 

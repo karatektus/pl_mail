@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Entity\Mail\Account;
+use App\Entity\Mail\EmailAlias;
 use App\Entity\Mail\Message;
 use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\EmailAlias\EmailAliasRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -16,6 +18,12 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * of its aliases — and carries the choice as a single "accountId|address"
  * token, because a Symfony choice value is one string and the answer is two
  * things. ComposeType writes those tokens; this reads them back.
+ *
+ * An address with extra names (EmailAlias::$extraNames) adds one option per
+ * name, whose token is the identity id instead ("n41-2": alias 41, name 2).
+ * It names an alias row rather than an account, and resolves to that alias's
+ * account, its address and the name. No "|" in it, so nothing that reads the
+ * first form mistakes it for one.
  *
  * Reading one is an authorisation decision as much as a parse: the token comes
  * back from the browser, so an id in it is a claim, not a fact. A token naming
@@ -27,6 +35,7 @@ final readonly class SenderResolver
 {
     public function __construct(
         private AccountRepository $accountRepository,
+        private EmailAliasRepository $aliasRepository,
     ) {
     }
 
@@ -64,6 +73,17 @@ final readonly class SenderResolver
         $address = strtolower(trim((string) $draft->fromAddress));
 
         if ($draft->account === $account && true === $account->maySendAs($address)) {
+            // Saved under one of the address's extra names: reopen on that
+            // line, or the next autosave would put the draft back on the
+            // address's default name.
+            $alias = $account->aliasFor($address);
+
+            foreach (null !== $alias && null !== $draft->fromName ? $alias->extraNames : [] as $entry) {
+                if ($entry['name'] === $draft->fromName && $draft->fromName !== $account->senderNameFor($address)) {
+                    return $alias->identityId($entry['key']);
+                }
+            }
+
             if ($address === strtolower((string) $account->displayAddress)) {
                 return $this->token($account);
             }
@@ -106,10 +126,31 @@ final readonly class SenderResolver
     }
 
     /**
-     * @return array{0: Account, 1: string}|null
+     * The name the user picked, when the token names one of an address's extra
+     * names and still resolves to this account; null for "the address's own
+     * name", which is what every other token means.
+     *
+     * The caller stores it on the draft, and Account::nameToSendAs() checks it
+     * once more when the mail is built.
+     */
+    public function nameFor(mixed $token, Account $account, ?UserInterface $user): ?string
+    {
+        $parsed = $this->parse($token, $user);
+
+        return null !== $parsed && $parsed[0] === $account ? $parsed[2] : null;
+    }
+
+    /**
+     * @return array{0: Account, 1: string, 2: ?string}|null
      */
     private function parse(mixed $token, ?UserInterface $user): ?array
     {
+        $identity = EmailAlias::parseIdentityId($token);
+
+        if (null !== $identity) {
+            return $this->parseIdentity($identity[0], $identity[1], $user);
+        }
+
         if (false === is_string($token) || false === str_contains($token, '|')) {
             return null;
         }
@@ -125,6 +166,32 @@ final readonly class SenderResolver
             return null;
         }
 
-        return [$account, $address];
+        return [$account, $address, null];
+    }
+
+    /**
+     * An extra name's token: the alias must be the user's, on an account that
+     * sends, still sendable, and still carry that name.
+     *
+     * @return array{0: Account, 1: string, 2: string}|null
+     */
+    private function parseIdentity(int $aliasId, int $key, ?UserInterface $user): ?array
+    {
+        $alias   = $this->aliasRepository->find($aliasId);
+        $account = $alias?->account;
+        $name    = $alias?->extraName($key);
+
+        if (
+            null === $alias
+            || null === $account
+            || null === $name
+            || $account->usr !== $user
+            || false === $account->sendEnabled
+            || false === in_array($alias, $account->sendableAliases, true)
+        ) {
+            return null;
+        }
+
+        return [$account, $alias->address, $name];
     }
 }

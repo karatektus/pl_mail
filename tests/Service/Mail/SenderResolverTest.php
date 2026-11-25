@@ -11,6 +11,7 @@ use App\Entity\Mail\EmailAlias;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\EmailAlias\EmailAliasRepository;
 use App\Service\Mail\SenderResolver;
 use PHPUnit\Framework\TestCase;
 
@@ -32,6 +33,9 @@ final class SenderResolverTest extends TestCase
     /** The one account the stubbed repository knows about, if any. */
     private ?Account $stored = null;
 
+    /** The one alias the stubbed alias repository knows about, if any. */
+    private ?EmailAlias $storedAlias = null;
+
     protected function setUp(): void
     {
         $accounts = $this->createStub(AccountRepository::class);
@@ -39,7 +43,12 @@ final class SenderResolverTest extends TestCase
             fn (mixed $id): ?Account => self::ACCOUNT_ID === $id ? $this->stored : null,
         );
 
-        $this->resolver = new SenderResolver($accounts);
+        $aliases = $this->createStub(EmailAliasRepository::class);
+        $aliases->method('find')->willReturnCallback(
+            fn (mixed $id): ?EmailAlias => null !== $this->storedAlias && $this->storedAlias->id === $id ? $this->storedAlias : null,
+        );
+
+        $this->resolver = new SenderResolver($accounts, $aliases);
         $this->user     = new User();
     }
 
@@ -115,7 +124,7 @@ final class SenderResolverTest extends TestCase
         $accounts = $this->createMock(AccountRepository::class);
         $accounts->expects(self::never())->method('find');
 
-        $resolver = new SenderResolver($accounts);
+        $resolver = new SenderResolver($accounts, $this->createStub(EmailAliasRepository::class));
 
         self::assertNull($resolver->accountFor('not-a-token', $this->user));
         self::assertNull($resolver->accountFor(null, $this->user));
@@ -203,6 +212,63 @@ final class SenderResolverTest extends TestCase
             $this->resolver->tokenFor($this->draft($account, 'jane.doe@example.test'), $account),
         );
         self::assertSame('0|Jane.Doe@Example.test', $this->resolver->token($account));
+    }
+
+    // ── extra names (one From line per name) ─────────────────────────────────
+
+    public function testAnExtraNamesTokenNamesItsAccountAddressAndName(): void
+    {
+        $account = $this->account();
+        $alias   = $this->aliasWithExtraName($account, 'Arnaud');
+
+        self::assertSame($account, $this->resolver->accountFor('n41-1', $this->user));
+        self::assertSame('a@mail.com', $this->resolver->addressFor('n41-1', $account, $this->user));
+        self::assertSame('Arnaud', $this->resolver->nameFor('n41-1', $account, $this->user));
+        self::assertNull($this->resolver->nameFor('7|a@mail.com', $account, $this->user), 'the address\'s own line names no extra name');
+        self::assertSame('n41-1', $alias->identityId(1));
+    }
+
+    public function testAnExtraNameIsRefusedWhenItIsGoneOrNotTheUsers(): void
+    {
+        $account = $this->account();
+        $alias   = $this->aliasWithExtraName($account, 'Arnaud');
+
+        self::assertNull($this->resolver->accountFor('n41-2', $this->user), 'a key the alias does not have');
+        self::assertNull($this->resolver->accountFor('n41-1', new User()), 'somebody else\'s alias');
+
+        $alias->status = EmailAliasStatus::Inactive;
+        self::assertNull($this->resolver->accountFor('n41-1', $this->user), 'a disabled address');
+
+        $alias->status = EmailAliasStatus::Active;
+        $account->sendEnabled = false;
+        self::assertNull($this->resolver->accountFor('n41-1', $this->user), 'an account that no longer sends');
+    }
+
+    public function testADraftSavedUnderAnExtraNameReopensOnThatLine(): void
+    {
+        $account = $this->account();
+        $this->aliasWithExtraName($account, 'Arnaud');
+
+        $draft           = $this->draft($account, 'a@mail.com');
+        $draft->fromName = 'Arnaud';
+        self::assertSame('n41-1', $this->resolver->tokenFor($draft, $account));
+
+        $draft->fromName = 'Somebody else';
+        self::assertSame('7|a@mail.com', $this->resolver->tokenFor($draft, $account));
+    }
+
+    private function aliasWithExtraName(Account $account, string $name): EmailAlias
+    {
+        new \ReflectionProperty(Account::class, 'id')->setValue($account, self::ACCOUNT_ID);
+
+        $alias = new EmailAlias($account, 'a@mail.com', EmailAliasSource::Manual, EmailAliasStatus::Active, 'A');
+        new \ReflectionProperty(EmailAlias::class, 'id')->setValue($alias, 41);
+        $alias->addExtraName($name, 'A');
+        $account->addAlias($alias);
+
+        $this->storedAlias = $alias;
+
+        return $alias;
     }
 
     private function draft(Account $account, ?string $from): Message

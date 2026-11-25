@@ -129,6 +129,30 @@ final class AccountSendingAddressesTest extends TestCase
         self::assertSame('John Smith', $account->senderNameFor(null));
     }
 
+    /**
+     * The name a draft asked for is kept only while it is still one of its
+     * address's names; anything else sends under the address's own.
+     */
+    public function testAnExtraNameIsSentUnderOnlyWhileTheAddressHasIt(): void
+    {
+        $account = $this->account();
+        $this->alias($account, 'a@mail.com', EmailAliasStatus::Primary, 'A');
+        $this->alias($account, 'b@mail.com', EmailAliasStatus::Active);
+
+        $alias = $account->aliasFor('A@Mail.com');
+        self::assertNotNull($alias);
+        $alias->addExtraName('Arnaud', 'A');
+
+        self::assertSame('Arnaud', $account->nameToSendAs('a@mail.com', 'Arnaud'));
+        self::assertSame('A', $account->nameToSendAs('a@mail.com', null));
+        self::assertSame('A', $account->nameToSendAs('a@mail.com', 'A'));
+        self::assertSame('A', $account->nameToSendAs('a@mail.com', 'Somebody else'), 'a name nobody offered');
+        self::assertSame('John Smith', $account->nameToSendAs('b@mail.com', 'Arnaud'), 'another address\'s extra name');
+
+        $alias->removeExtraName(1);
+        self::assertSame('A', $account->nameToSendAs('a@mail.com', 'Arnaud'), 'a name removed since the draft was saved');
+    }
+
     private function account(): Account
     {
         $account        = new Account();

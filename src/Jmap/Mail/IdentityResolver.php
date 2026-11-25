@@ -94,10 +94,45 @@ final class IdentityResolver
         $identities = [];
 
         foreach ($aliases as $alias) {
-            $identities[] = $this->fromAlias($account, $alias);
+            $identity     = $this->fromAlias($account, $alias);
+            $identities[] = $identity;
+
+            // One identity per extra name, right after its address's own, the
+            // way the web's From menu lists them. Same address, signature and
+            // Bcc — those belong to the address — and its own id and name
+            // (EmailAlias::identityId(), which cannot meet a decimal alias id
+            // or an "addr-" id).
+            foreach ($alias->extraNames as $entry) {
+                $identities[] = [
+                    ...$identity,
+                    'id'        => $alias->identityId($entry['key']),
+                    'name'      => $entry['name'],
+                    'mayDelete' => true,
+                ];
+            }
         }
 
         return $identities;
+    }
+
+    /**
+     * The extra name an identityId sends under, or null for an identity that
+     * sends under its address's own name (or for an id that is not this
+     * account's at all — addressFor() is what refuses those).
+     */
+    public function nameFor(Account $account, string $identityId): ?string
+    {
+        if (null === EmailAlias::parseIdentityId($identityId)) {
+            return null;
+        }
+
+        foreach ($this->identities($account) as $identity) {
+            if ($identity['id'] === $identityId) {
+                return (string) $identity['name'];
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -199,10 +234,23 @@ final class IdentityResolver
      * the id the client submitted it with; reporting the primary there would
      * tell a client its From had been swapped when it had not.
      */
-    public function identityIdFor(Account $account, ?string $address): string
+    public function identityIdFor(Account $account, ?string $address, ?string $name = null): string
     {
         $identities = $this->identities($account);
         $wanted = AddressHelper::email($address);
+
+        // Sent under one of the address's extra names: that identity, so a
+        // client reads back the line it picked rather than the address's
+        // first one.
+        if (null !== $name) {
+            foreach ($identities as $identity) {
+                if (null !== EmailAlias::parseIdentityId($identity['id'])
+                    && AddressHelper::email((string) $identity['email']) === $wanted
+                    && $identity['name'] === $name) {
+                    return (string) $identity['id'];
+                }
+            }
+        }
 
         foreach ($identities as $identity) {
             if (AddressHelper::email((string) $identity['email']) === $wanted) {

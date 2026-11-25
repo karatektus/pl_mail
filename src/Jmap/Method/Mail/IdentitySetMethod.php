@@ -32,6 +32,14 @@ use Doctrine\ORM\EntityManagerInterface;
  * `textSignature` is accepted as a convenience for clients that only offer a
  * plain-text field, and is escaped into HTML when it arrives without one.
  *
+ * MORE NAMES FOR ONE ADDRESS. Creating an identity for an address the account
+ * already has, with a name it does not have yet, adds that name to the
+ * address (EmailAlias::$extraNames) — "A", "a" and "Arnaud" at a@mail.com —
+ * and answers with the extra name's id ("n41-2"). Such an identity can be
+ * renamed and destroyed. Its signature and Bcc are its address's: a create or
+ * update carrying a signature other than the one it publishes is refused,
+ * since storing it would change every identity of that address at once.
+ *
  * replyTo and bcc are still rejected rather than accepted-and-dropped. bcc is
  * published since #692 (Identity/get reads the default Bcc set in Settings),
  * but writing it is not taken yet: the setting has three states per address —
@@ -125,8 +133,14 @@ final class IdentitySetMethod implements JmapMethod
                 $address = $this->requireAddress($properties['email'] ?? null);
                 $this->rejectUnsupported($properties, ['email', 'name', 'htmlSignature', 'textSignature']);
 
-                if (null !== $this->aliasRepository->findOneByAccountAndAddress($account, $address)) {
-                    throw new MethodException('invalidProperties', sprintf('"%s" is already an identity on this account.', $address));
+                $existing = $this->aliasRepository->findOneByAccountAndAddress($account, $address);
+
+                if (null !== $existing) {
+                    $id = $this->createExtraName($account, $existing, $properties);
+                    $context->recordCreatedId($creationId, $id);
+                    $created[$creationId] = ['id' => $id, 'mayDelete' => true];
+
+                    continue;
                 }
             } catch (MethodException $exception) {
                 $notCreated[$creationId] = $exception->toError();
@@ -186,6 +200,20 @@ final class IdentitySetMethod implements JmapMethod
                 continue;
             }
 
+            $extra = $this->findExtraName($account, $context->resolveId($id) ?? $id);
+
+            if (null !== $extra) {
+                try {
+                    $this->updateExtraName($account, $extra[0], $extra[1], $patch);
+                } catch (MethodException $exception) {
+                    $notUpdated[$id] = $exception->toError();
+                    continue;
+                }
+
+                $updated[$id] = null;
+                continue;
+            }
+
             $alias = $this->findAlias($account, $context->resolveId($id) ?? $id);
 
             if (null === $alias) {
@@ -234,6 +262,16 @@ final class IdentitySetMethod implements JmapMethod
 
         foreach ($destroy as $id) {
             $id = (string) $id;
+            $extra = $this->findExtraName($account, $context->resolveId($id) ?? $id);
+
+            if (null !== $extra) {
+                // Just the name: the address and its other identities stay.
+                $extra[0]->removeExtraName($extra[1]);
+                $this->stateManager->recordDestroyed($account->id, JmapObjectType::Identity, $extra[0]->identityId($extra[1]));
+                $destroyed[] = $id;
+                continue;
+            }
+
             $alias = $this->findAlias($account, $context->resolveId($id) ?? $id);
 
             if (null === $alias) {
@@ -372,6 +410,103 @@ final class IdentitySetMethod implements JmapMethod
         }
 
         return $name;
+    }
+
+    /**
+     * Another name for an address the account already has. Refused when the
+     * name is missing, or is already one of the address's names — that
+     * identity exists, and a second line reading the same in a From picker
+     * would be one too many.
+     *
+     * @param array<string,mixed> $properties
+     */
+    private function createExtraName(Account $account, EmailAlias $alias, array $properties): string
+    {
+        $name = $this->nameOrNull($properties['name'] ?? null);
+
+        if (null === $name || '' === EmailAlias::cleanName($name)) {
+            throw new MethodException('invalidProperties', sprintf('"%s" is already an identity on this account; give a name to add another identity for it.', $alias->address));
+        }
+
+        $this->requireAddressSignature($account, $alias, $properties);
+
+        $key = $alias->addExtraName($name, $account->senderNameFor($alias->address));
+
+        if (null === $key) {
+            throw new MethodException('invalidProperties', sprintf('"%s" already sends as "%s".', $alias->address, EmailAlias::cleanName($name)));
+        }
+
+        $this->entityManager->flush();
+
+        $id = $alias->identityId($key);
+        $this->stateManager->recordCreated($account->id, JmapObjectType::Identity, $id);
+
+        return $id;
+    }
+
+    /**
+     * @param array<string,mixed> $patch
+     */
+    private function updateExtraName(Account $account, EmailAlias $alias, int $key, array $patch): void
+    {
+        $this->rejectUnsupported($patch, ['name', 'htmlSignature', 'textSignature']);
+        $this->requireAddressSignature($account, $alias, $patch);
+
+        if (true === array_key_exists('name', $patch)) {
+            $name = $this->nameOrNull($patch['name']) ?? '';
+
+            if ($alias->extraName($key) !== EmailAlias::cleanName($name)
+                && false === $alias->renameExtraName($key, $name, $account->senderNameFor($alias->address))) {
+                throw new MethodException('invalidProperties', 'The name is empty, or the address already sends under it.');
+            }
+        }
+
+        $this->stateManager->recordUpdated($account->id, JmapObjectType::Identity, $alias->identityId($key));
+    }
+
+    /**
+     * An extra name's signature is its address's. A client sending back the
+     * one Identity/get published is fine; any other would rewrite the
+     * signature of every identity at that address, so it is refused with the
+     * id where it can be changed.
+     *
+     * @param array<string,mixed> $properties
+     */
+    private function requireAddressSignature(Account $account, EmailAlias $alias, array $properties): void
+    {
+        $html = $this->signatures->htmlFor($account, $alias->address);
+
+        $differs = (true === array_key_exists('htmlSignature', $properties) && ($properties['htmlSignature'] ?? '') !== ($html ?? ''))
+            || (true === array_key_exists('textSignature', $properties) && ($properties['textSignature'] ?? '') !== $this->signatures->toText($html));
+
+        if (true === $differs) {
+            throw new MethodException('invalidProperties', sprintf(
+                'A signature belongs to the address; change it on identity "%d".',
+                (int) $alias->id,
+            ));
+        }
+    }
+
+    /**
+     * The alias and key an extra name's id names on this account, or null.
+     *
+     * @return array{0: EmailAlias, 1: int}|null
+     */
+    private function findExtraName(Account $account, string $id): ?array
+    {
+        $parsed = EmailAlias::parseIdentityId($id);
+
+        if (null === $parsed) {
+            return null;
+        }
+
+        foreach ($account->aliases as $alias) {
+            if ($alias->id === $parsed[0] && null !== $alias->extraName($parsed[1])) {
+                return [$alias, $parsed[1]];
+            }
+        }
+
+        return null;
     }
 
     private function findAlias(Account $account, string $id): ?EmailAlias

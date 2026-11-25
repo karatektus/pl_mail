@@ -32,6 +32,45 @@
                     {{ 'settings.aliases.name_save'|trans }}
                 </button>
             </form>
+
+            {# Other names this address sends under: each one is a line of its
+               own in the composer's From menu (EmailAlias::$extraNames). #}
+            <div class="mt-1.5" data-extra-names="{{ alias.id }}">
+                {% if alias.extraNames is not empty %}
+                    <ul class="mb-1 flex flex-wrap gap-1.5" aria-label="{{ 'settings.aliases.extra_names'|trans }}">
+                        {% for entry in alias.extraNames %}
+                            <li class="inline-flex items-center gap-1.5 rounded-full bg-sunken pl-2.5 pr-1.5 py-0.5 text-xs text-ink">
+                                <span>{{ entry.name }}</span>
+                                <form method="post" action="{{ path('app_alias_extra_name_remove', { id: account.id, aliasId: alias.id, key: entry.key }) }}"
+                                      data-turbo-stream class="inline-flex">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('alias-extra-name' ~ alias.id) }}">
+                                    <button type="submit"
+                                            class="text-ink-faint hover:text-red-500 transition-colors cursor-pointer"
+                                            aria-label="{{ 'settings.aliases.extra_name_remove'|trans({'%name%': entry.name}) }}">
+                                        <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+                <form method="post" action="{{ path('app_alias_extra_name_add', { id: account.id, aliasId: alias.id }) }}"
+                      data-turbo-stream class="flex items-center gap-2">
+                    <input type="hidden" name="_token" value="{{ csrf_token('alias-extra-name' ~ alias.id) }}">
+                    <input type="text" name="name" required maxlength="100"
+                           autocomplete="off" data-1p-ignore data-lpignore="true"
+                           placeholder="{{ 'settings.aliases.extra_name_placeholder'|trans }}"
+                           aria-label="{{ 'settings.aliases.extra_name_for'|trans({'%alias%': alias.address}) }}"
+                           title="{{ 'settings.aliases.extra_names_hint'|trans }}"
+                           class="min-w-0 flex-1 max-w-xs h-7 rounded-md border border-line bg-surface px-2 text-xs text-ink
+                                  placeholder:text-ink-faint focus:border-accent focus:outline-none">
+                    <button type="submit" class="shrink-0 inline-flex items-center gap-1 text-[11px] text-ink-faint hover:text-accent transition-colors cursor-pointer">
+                        <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+                        {{ 'settings.aliases.extra_name_add'|trans }}
+                    </button>
+                </form>
+            </div>
         {% endif %}
     </div>
 

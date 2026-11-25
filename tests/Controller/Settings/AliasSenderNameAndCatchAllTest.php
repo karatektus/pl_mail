@@ -111,6 +111,48 @@ final class AliasSenderNameAndCatchAllTest extends WebTestCase
         self::assertSame('John Smith', $this->reload($account)->senderNameFor('family@joder.dev'));
     }
 
+    // ── other names ──────────────────────────────────────────────────────────
+
+    public function testAnAddressCanBeGivenOtherNamesAndLoseThemAgain(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->account($user, 'me@joder.dev');
+        $alias   = $this->alias($account, 'family@joder.dev', 'Mr and Mrs Smith');
+
+        $add = sprintf('/account/%d/alias/%d/names/add', $account->id, $alias->id);
+
+        $client->request('POST', $add, ['_token' => $this->token($client, $add), 'name' => " The\r\nSmiths "]);
+        $client->request('POST', $add, ['_token' => $this->token($client, $add), 'name' => 'Mr and Mrs Smith']);
+
+        $names = $this->reload($account)->aliasFor('family@joder.dev')?->extraNames;
+        self::assertSame([['key' => 1, 'name' => 'The Smiths']], $names, 'the address\'s own name was added as another');
+
+        $crawler = $client->request('GET', '/settings/aliases');
+        self::assertStringContainsString('The Smiths', $crawler->filter(sprintf('[data-extra-names="%d"]', $alias->id))->text());
+
+        $remove = sprintf('/account/%d/alias/%d/names/1/remove', $account->id, $alias->id);
+        $client->request('POST', $remove, ['_token' => $this->token($client, $remove)]);
+
+        self::assertSame([], $this->reload($account)->aliasFor('family@joder.dev')?->extraNames);
+    }
+
+    public function testAnotherNameCannotBeAddedWithoutTheRowsToken(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->account($user, 'me@joder.dev');
+        $alias   = $this->alias($account, 'family@joder.dev');
+
+        $client->request('POST', sprintf('/account/%d/alias/%d/names/add', $account->id, $alias->id), [
+            '_token' => 'not-the-token',
+            'name'   => 'Somebody Else',
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame([], $this->reload($account)->aliasFor('family@joder.dev')?->extraNames);
+    }
+
     // ── catch-all domains ────────────────────────────────────────────────────
 
     #[DataProvider('domainSpellings')]

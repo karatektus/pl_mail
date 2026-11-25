@@ -434,6 +434,17 @@ Get these wrong and things fail quietly rather than loudly.
   where `MessageSendService` reads the From header from. An id that resolves to
   nothing is refused with `forbiddenFrom` — never sent as the account's own
   address, which is what this did while it ignored the property.
+- **An address with extra names has one identity per name: `n<aliasId>-<key>`.**
+  `EmailAlias::$extraNames` ("A", "a", "Arnaud" at one address) are listed
+  right after their address's own identity, with the same email, signature
+  and Bcc and their own `name`. The key never changes and is never reused, so
+  a rename is an update and a removed name's id stays dead.
+  `Identity/set` creates one when a create names an address the account
+  already has with a new name, renames and destroys it, and refuses a
+  signature other than its address's. `EmailSubmission/set` and draft writes
+  store that name on `Message::$fromName`, which `MessageSendService` sends
+  under through `Account::nameToSendAs()` — kept only while the address still
+  has the name. `IdentitySetMethodTest` and `SenderResolverTest` are the pins.
 - **One kind of Identity id is in no list: `addr-<base64url of an address>`.**
   `Email/get`'s `replyFrom` hands it out for mail that came in for an address
   at a catch-all domain, where there is no alias row to have an id. It is a
