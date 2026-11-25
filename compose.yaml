@@ -103,6 +103,7 @@ services:
 
   database:
     image: postgres:${POSTGRES_VERSION:-18}-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
       POSTGRES_USER: ${POSTGRES_USER:-app}
