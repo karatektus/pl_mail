@@ -1,4 +1,4 @@
-<!-- translated-from: features/filters.md sha1:e0c61f36acf747367c92f3833295b54e66345d40 -->
+<!-- translated-from: features/filters.md sha1:cae9ed50a2612c10d8c6894a70b8808196be4320 -->
 
 # Filter
 
@@ -239,7 +239,9 @@ Was die Aktion ablegt und was nicht:
   hat Vorrang vor beiden.
 - **Nichts außer einem Tab.** Die Aktion fasst keine Labels an, archiviert nicht, verschiebt nichts
   in Spam und markiert nichts als gelesen. Die Android-App zeigt deine Tabs; andere Mail-Apps, die
-  sich per JMAP verbinden, sehen weiterhin die fünf eingebauten Kategorien.
+  sich per JMAP verbinden, sehen weiterhin die fünf eingebauten Kategorien, auch die, die ein Filter
+  gewählt hat. Der Tab wird nicht an den Anbieter übertragen: Gmail im Browser zeigt weiter seine
+  eigene Kategorie.
 
 Eine Konversation steckt in **einem** Tab. Sie steckt in deinem, wenn die neueste Nachricht, die du
 darin **bekommen** hast, dort abgelegt wurde; eine neuere Nachricht, die kein Filter beansprucht,
