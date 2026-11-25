@@ -398,6 +398,52 @@ arrived, rather than being copied.
 A thread of fewer than two messages is refused, at the endpoint and in the template. A "summary" of
 one message costs half a minute of GPU to say something reading the message says faster.
 
+## Translating a message
+
+`MessageTranslator` is `ThreadSummariser`'s ordinary path for one message (#713): on demand from the
+message's ⋮ menu, streamed as NDJSON by `MessageTranslationController`, drained and stored when the
+reader goes away, and kept in `message_translation` — one row per message and target language, raw
+DBAL like `thread_summary`, filtered on model and prompt hash, stale when the SHA-256 of the text
+sent no longer matches. The page draws a stored translation itself (`MessageTranslationExtension`),
+so opening a translated message costs no request.
+
+What differs is the length of the answer, and three constants follow from it:
+
+- **`CONTEXT_TOKENS` is always sent (8192).** The answer is as long as the question, so on the
+  default window a long mail's translation is what runs out, mid-sentence and silently. One number
+  for every translation rather than one sized per mail, because Ollama reloads a model whenever the
+  window asked for differs from the loaded one.
+- **`TEXT_BUDGET` is 6000 characters**, lower than the summary's transcript, so that the text and its
+  translation fit that window together. Longer mail is cut at a line break and the page says so.
+- **`TIME_LIMIT_SECONDS` is 900.** The translation is generated on the request, and on a host without
+  a GPU a whole mail is minutes of tokens; the summary's 300 would end it halfway.
+
+**What is sent is `ReadableBody::ownWordsOf()`**: the sender's own words, without the quoted history
+of a reply, which is earlier mail translated where it is shown. A message with no own words (a bare
+forward) falls back to the whole readable body. The page says when the history was left out.
+
+**No language rule.** `PromptLibrary::forTranslation()` sends `PromptRules::TRANSLATION` without it, like
+categorisation, because the rule says "never translate the message into another language". The
+target language is named in the user message, not in the system prompt, so the prompt hash — and
+every stored translation's validity — does not depend on who is reading.
+
+**The model names the mail's language.** `PromptRules::TRANSLATION_SOURCE_LINE` is appended to the
+slot, whatever an administrator wrote there, and asks for a first line `Language: <ISO 639-1 code>`
+before the translation. No language-detection library: n-gram guessing is unreliable on exactly the
+short mail with a quoted reply or an English disclaimer that gets translated, and the model is
+reading the mail anyway. `SourceLanguageLine` reads the line off the stream, holding back at most
+64 characters until it can tell the line from the translation, so the line never reaches the page or
+the store; only a two-letter code Intl knows is kept, in `message_translation.source_language`. An
+answer without the line is all translation and names no language; the switch then says only
+"Original", never a guess. When the code is the reader's language, the model is stopped there
+(`AiAssistant` records a cancelled call), a row with the language and no text is stored, a line
+under the sender says there is nothing to translate, and while that row is fresh the controller answers from it
+without asking the model again.
+
+**The output is text.** It is rendered by Twig's escaping or written with `textContent`, never as
+HTML, and it sits outside the sandboxed frame like the warnings, because a "this is not the
+original" tag the mail could draw for itself would be worth nothing.
+
 ## When new mail gets indexed
 
 Not when it arrives. Mail used to be embedded by a post-ingest step within seconds of landing,

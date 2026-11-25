@@ -7,8 +7,8 @@ namespace App\Domain\Helper;
 /**
  * Canonical form for RFC 5322 Message-IDs: trimmed, angle brackets stripped.
  *
- * The two sync paths disagree at the source — webklex strips the brackets,
- * the raw Gmail API header keeps them — so every write and every comparison
+ * The sync paths disagree at the source — some hand over the id bare, the
+ * raw Gmail API header keeps the brackets — so every write and every comparison
  * (Gmailify dedup, IMAP claim, threading) must go through this or
  * "<x@host>" and "x@host" silently count as different messages.
  */
@@ -19,7 +19,7 @@ final class MessageIdHelper
      *
      * An id is ASCII by the standard and not always in the wild: a mailer that
      * builds one out of a host or a user name it never encoded writes the raw
-     * 8-bit byte, and webklex hands it over as it came. Postgres refused the
+     * 8-bit byte, and a parser hands it over as it came. Postgres refused the
      * row on it ("invalid byte sequence for encoding UTF8: 0xfc", #81), and the
      * same byte in In-Reply-To or References lost the message the same way.
      *

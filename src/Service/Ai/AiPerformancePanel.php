@@ -115,7 +115,8 @@ final readonly class AiPerformancePanel
                 'categorise' => $settings->categorisationEnabled,
                 'writing'    => $settings->writingHelpEnabled,
                 'summary'    => $settings->summaryEnabled,
-                'contacts'   => $settings->contactHelpEnabled,
+                'contacts'    => $settings->contactHelpEnabled,
+                'translation' => $settings->translationEnabled,
             ],
             'host' => [
                 'baseUrl'       => $settings->baseUrl,

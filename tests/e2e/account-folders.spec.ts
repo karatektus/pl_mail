@@ -143,9 +143,19 @@ test.describe("account folders modal", () => {
 
             // As wide as the account row it hangs from, and on top of whatever
             // is under its middle — never the other account's ⋯.
-            const row = await first.locator("xpath=ancestor::div[contains(@class,'nav-item')][1]").boundingBox();
+            //
+            // Both widths in one frame. A sidebar with a truncated entry peeks
+            // wider while hovered or focused, over a 160 ms transition, and the
+            // click on ⋯ does both; measured in two calls, the row and the menu
+            // landed on two different widths of that transition. CI's fonts
+            // truncate where a Mac's do not, so it only ever failed there.
+            const widths = await firstMenu.evaluate((menu) => ({
+                menu: menu.getBoundingClientRect().width,
+                row: menu.parentElement?.closest("div[class*='nav-item']")?.getBoundingClientRect().width ?? 0,
+            }));
+            expect(Math.abs(widths.menu - widths.row)).toBeLessThan(2);
+
             const box = await firstMenu.boundingBox();
-            expect(Math.abs((box?.width ?? 0) - (row?.width ?? 0))).toBeLessThan(2);
 
             const otherBox = await other.boundingBox();
             if (otherBox && box && otherBox.y < box.y + box.height && otherBox.y + otherBox.height > box.y) {

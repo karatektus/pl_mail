@@ -308,6 +308,11 @@ final class AiSettingsType extends AbstractType
                 'label'    => 'admin.ai.field.contact_help',
                 'help'     => 'admin.ai.field.contact_help_help',
                 'required' => false,
+            ])
+            ->add('translationEnabled', CheckboxType::class, [
+                'label'    => 'admin.ai.field.translation',
+                'help'     => 'admin.ai.field.translation_help',
+                'required' => false,
             ]);
     }
 

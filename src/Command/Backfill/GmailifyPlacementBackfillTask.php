@@ -6,6 +6,7 @@ namespace App\Command\Backfill;
 
 use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Gmail\GmailifyLinks;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -37,7 +38,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * Idempotent: a row whose labels agree with its folder is left alone.
  */
-final readonly class GmailifyPlacementBackfillTask implements BackfillTaskInterface
+final readonly class GmailifyPlacementBackfillTask implements CountableBackfillTaskInterface
 {
     private const int BATCH_SIZE = 200;
 
@@ -55,6 +56,22 @@ final readonly class GmailifyPlacementBackfillTask implements BackfillTaskInterf
     public function getDescription(): string
     {
         return 'Put IMAP mail a Gmail account also collects back in the Inbox, Trash or folder its IMAP folder says, where Gmail\'s copy had moved it.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-10-23');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    /** A table repair walks everything, so it has no window to count within. */
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageImapRepository->countImapCopiesCarried(null);
     }
 
     public function run(SymfonyStyle $io): int

@@ -47,7 +47,7 @@ final class SidebarFoldersUnderAccountsTest extends WebTestCase
         $this->account = $this->seedAccount();
         $this->inbox   = $this->seedLabel('Inbox', LabelRole::Inbox);
 
-        $this->user->expandedAccountId = $this->account->id;
+        $this->user->setAccountExpanded((int) $this->account->id, true);
         $this->em->flush();
 
         $this->client->loginUser($this->user);
@@ -80,24 +80,253 @@ final class SidebarFoldersUnderAccountsTest extends WebTestCase
         $this->folder('Projects');
         $this->tag('Later');
 
-        $crawler = $this->client->request('GET', '/settings/labels');
-        $button  = $crawler->filter('turbo-frame#labels-folders-in-labels button[data-folders-in-labels]');
+        self::assertSame('0', $this->checkedIn('folders_in_labels'), 'off by default');
 
-        self::assertSame('false', $button->attr('aria-pressed'), 'off by default');
+        $this->switchView('folders_in_labels', true);
 
-        $token   = (string) $crawler->filter('turbo-frame#labels-folders-in-labels input[name=_token]')->attr('value');
-        $crawler = $this->client->request('POST', '/settings/labels/folders-in-labels', ['_token' => $token]);
-
-        self::assertResponseIsSuccessful();
-        self::assertSame('true', $crawler->filter('button[data-folders-in-labels]')->attr('aria-pressed'));
         self::assertTrue($this->em->find(User::class, $this->user->id)?->foldersInLabels);
+        self::assertSame('1', $this->checkedIn('folders_in_labels'));
 
         $crawler = $this->client->request('GET', '/mail/inbox');
 
         self::assertSame(['Later', 'Projects'], $this->names($crawler, '#label-list'));
     }
 
+    /**
+     * #607: the LABELS list a label change redraws is the one a page load
+     * draws. Until #697 the redraw left out the in_labels() filter, so every
+     * folder showed under LABELS after a label was edited, and an F5 took
+     * them away again. Both ways round, with "Folders in Labels" off and on.
+     */
+    public function testALabelChangeRedrawsLabelsAsAPageLoadDoes(): void
+    {
+        $this->folder('Projects');
+        $this->tag('Later');
+
+        $this->client->request('GET', '/labels/lists');
+        self::assertSame(['Later'], $this->names(new Crawler($this->streamed('label-list')), '#label-list'));
+
+        $this->switchView('folders_in_labels', true);
+
+        $this->client->request('GET', '/labels/lists');
+        self::assertSame(['Later', 'Projects'], $this->names(new Crawler($this->streamed('label-list')), '#label-list'));
+    }
+
+    /**
+     * By account (#690): every label on the account is under it, tags with
+     * folders, and LABELS keeps only the label on no account. Switched in its
+     * own card in Settings → Labels, like the other On/Off switches there.
+     */
+    public function testByAccountListsEveryLabelUnderItsAccount(): void
+    {
+        $this->folder('Projects');
+        $this->tag('Later');
+        $this->seedLabel('Someday');
+
+        self::assertSame('0', $this->checkedIn('by_account'), 'off by default');
+
+        $this->switchView('by_account', true);
+
+        self::assertTrue($this->em->find(User::class, $this->user->id)?->labelsByAccount);
+
+        $crawler  = $this->client->request('GET', '/mail/inbox');
+        $folders  = '#account-folders-' . $this->account->id;
+
+        self::assertSame(['Someday'], $this->names($crawler, '#label-list', ['Projects', 'Later', 'Someday']));
+        self::assertSame(['Later', 'Projects'], $this->names($crawler, $folders, ['Projects', 'Later', 'Someday']));
+        self::assertCount(1, $crawler->filter($folders . ' [data-label-tag-dot]'), 'the tag wears its colour dot, the folder none');
+        self::assertCount(1, $crawler->filter($folders . ' button[data-account-label-new]'));
+    }
+
+    /**
+     * By account, with every label on an account, LABELS has nothing to hold
+     * and is not drawn at all — no heading over nothing. Merged and empty it
+     * stays, because its "+" is where a first label is made.
+     */
+    public function testByAccountLabelsIsLeftOutWhenItWouldBeEmpty(): void
+    {
+        $this->tag('Later');
+
+        $labelsSection = 'details[data-collapse-key="' . User::SIDEBAR_SECTION_LABELS . '"]';
+
+        self::assertGreaterThan(0, $this->client->request('GET', '/mail/inbox')->filter($labelsSection)->count(), 'merged, it is there');
+
+        // Reloaded first: a request clears the entity manager, so the user
+        // set up before it is no longer the one a flush writes.
+        $this->reloadedUser()->labelsByAccount = true;
+        $this->em->flush();
+
+        self::assertCount(0, $this->client->request('GET', '/mail/inbox')->filter($labelsSection));
+
+        $this->reloadedUser();
+        $this->seedLabel('Someday');
+
+        self::assertGreaterThan(0, $this->client->request('GET', '/mail/inbox')->filter($labelsSection)->count(), 'back for a label on no account');
+    }
+
+    /**
+     * A label on another account too is marked under each, and the mark names
+     * the others — renaming or deleting it from the merged list reaches them.
+     * Dropping on it there labels this account's mail rather than moving it.
+     */
+    public function testByAccountMarksALabelThatIsOnAnotherAccountToo(): void
+    {
+        $this->user->labelsByAccount = true;
+        $shared                      = $this->tag('Later');
+        $this->tag('Projects');
+
+        $other   = $this->seedAccount();
+        $binding = new LabelBinding();
+        $binding->label   = $shared;
+        $binding->account = $other;
+        $this->em->persist($binding);
+        $this->em->flush();
+
+        $crawler = $this->client->request('GET', '/mail/inbox');
+        $marks   = $crawler->filter('#account-folders-' . $this->account->id . ' [data-label-shared]');
+
+        self::assertCount(1, $marks, 'Later only: Projects is on this account alone');
+        self::assertStringContainsString($other->displayAddress, (string) $marks->attr('title'));
+        self::assertCount(1, $crawler->filter('#account-folders-' . $this->account->id . ' [data-dnd-label="' . $shared->id . '"][data-dnd-account="' . $this->account->id . '"]'));
+    }
+
+    /**
+     * The collapsed LABELS heading counts the mail of the labels it holds.
+     * By account those are only labels on no account, which no mail carries,
+     * so it shows nothing — it used to show every labelled unread
+     * conversation of every account over a section with none of them in it.
+     */
+    public function testByAccountTheLabelsHeadingCountsNothing(): void
+    {
+        $later  = $this->tag('Later');
+        $thread = $this->thread('Unread and labelled', unread: 1);
+        $thread->addLabel($later);
+        $this->em->flush();
+
+        self::assertGreaterThan(0, $this->labelsUnread(), 'merged, the heading counts it');
+
+        $this->user->labelsByAccount = true;
+        $this->em->flush();
+
+        self::assertSame(0, $this->labelsUnread());
+    }
+
+    /**
+     * Several accounts open at once (#690): opening one leaves the others
+     * open, each is rendered into the first paint, and closing one closes it
+     * alone. `account: null` still closes them all, which the browser suite
+     * resets with, `all` opens or closes every one, and somebody else's
+     * account is not remembered.
+     */
+    public function testSeveralAccountsStayOpenAtOnce(): void
+    {
+        $this->tag('Later');
+        $club     = $this->seedAccount();
+        $stranger = $this->seedAccount();
+        $stranger->usr = $this->seedUser();
+        $this->em->flush();
+
+        $this->expand(['account' => $club->id, 'expanded' => true]);
+        $this->expand(['account' => $stranger->id, 'expanded' => true]);
+
+        $crawler = $this->client->request('GET', '/mail/inbox');
+
+        self::assertSame([(int) $this->account->id, (int) $club->id], $this->reloadedUser()->expandedAccountIds);
+        self::assertCount(1, $crawler->filter('#account-folders-' . $this->account->id . ':not(.hidden)'));
+        self::assertCount(1, $crawler->filter('#account-folders-' . $club->id . ':not(.hidden)'));
+
+        $this->expand(['account' => $this->account->id, 'expanded' => false]);
+
+        self::assertSame([(int) $club->id], $this->reloadedUser()->expandedAccountIds);
+
+        $this->expand(['account' => null]);
+
+        self::assertSame([], $this->reloadedUser()->expandedAccountIds);
+
+        // Open all, from the ACCOUNTS heading: every one of the user's
+        // accounts, nobody else's. Close all empties it again.
+        $this->expand(['all' => true]);
+
+        self::assertEqualsCanonicalizing([(int) $this->account->id, (int) $club->id], $this->reloadedUser()->expandedAccountIds);
+
+        $this->expand(['all' => false]);
+
+        self::assertSame([], $this->reloadedUser()->expandedAccountIds);
+    }
+
+    /** A bag written before #690 holds one id, and that account stays open. */
+    public function testASingleStoredAccountReadsAsThatOneOpen(): void
+    {
+        $user = new User();
+        $user->setSetting(User::SETTING_SIDEBAR_ACCOUNT, 42);
+
+        self::assertSame([42], $user->expandedAccountIds);
+        self::assertTrue($user->isAccountExpanded(42));
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /** Which segment of a switch in the "Labels in the sidebar" card is checked. */
+    private function checkedIn(string $key): string
+    {
+        $crawler = $this->client->request('GET', '/settings/labels');
+
+        return (string) $crawler->filter('#card-label-view input[name="labels-' . $key . '"][checked]')->attr('value');
+    }
+
+    /** What settings--toggle posts when a segment is picked, and what it gets back. */
+    private function switchView(string $key, bool $on): void
+    {
+        $crawler = $this->client->request('GET', '/settings/labels');
+        $token   = (string) $crawler->filter('#card-label-view [data-settings--toggle-token-value]')->attr('data-settings--toggle-token-value');
+
+        $this->client->request('POST', '/settings/labels/view', ['key' => $key, 'enabled' => $on ? '1' : '0', '_token' => $token]);
+
+        self::assertResponseIsSuccessful();
+
+        // Answered with the sidebar, both copies, so the switch shows at once.
+        $body = (string) $this->client->getResponse()->getContent();
+
+        self::assertStringContainsString('target="sidebar"', $body);
+        self::assertStringContainsString('target="sidebar-drawer-inner"', $body);
+    }
+
+    /** @param array<string, mixed> $body */
+    private function expand(array $body): void
+    {
+        $crawler = $this->client->request('GET', '/mail/inbox');
+        $token   = (string) $crawler->filter('meta[name="csrf-token"]')->attr('content');
+
+        $this->client->request(
+            'POST',
+            '/mail/sidebar/account-expanded',
+            server: ['CONTENT_TYPE' => 'application/json', 'HTTP_X_CSRF_TOKEN' => $token],
+            content: (string) json_encode($body),
+        );
+
+        self::assertResponseIsSuccessful();
+    }
+
+    private function reloadedUser(): User
+    {
+        $this->em->clear();
+        $user = $this->em->find(User::class, $this->user->id);
+
+        self::assertInstanceOf(User::class, $user);
+        $this->user = $user;
+
+        return $user;
+    }
+
+    /** The LABELS heading's number, as the counts endpoint patches it. */
+    private function labelsUnread(): int
+    {
+        $this->client->request('GET', '/mail/sidebar/counts');
+
+        $counts = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        return (int) $counts['labels:unread'];
+    }
 
     private function tag(string $name): Label
     {
@@ -130,14 +359,30 @@ final class SidebarFoldersUnderAccountsTest extends WebTestCase
         return $label;
     }
 
-    /** @return list<string> the custom labels named in that part of the sidebar */
-    private function names(Crawler $crawler, string $where): array
+    /**
+     * @param list<string> $known the names to look for
+     *
+     * @return list<string> the custom labels named in that part of the sidebar
+     */
+    /** The HTML a Turbo Stream reply puts in for one target. */
+    private function streamed(string $target): string
+    {
+        self::assertResponseIsSuccessful();
+
+        $body = (string) $this->client->getResponse()->getContent();
+
+        self::assertSame(1, preg_match('#<turbo-stream action="replace" target="' . preg_quote($target, '#') . '">\s*<template>(.*?)</template>#s', $body, $match), 'a stream for #' . $target);
+
+        return $match[1];
+    }
+
+    private function names(Crawler $crawler, string $where, array $known = ['Projects', 'Later']): array
     {
         $names = $crawler->filter($where . ' .nav-item')->each(static fn (Crawler $row): string => trim($row->text()));
 
         return array_values(array_filter(
             array_map(static fn (string $text): string => trim((string) preg_replace('/\s+\d+$/', '', $text)), $names),
-            static fn (string $name): bool => in_array($name, ['Projects', 'Later'], true),
+            static fn (string $name): bool => in_array($name, $known, true),
         ));
     }
 }

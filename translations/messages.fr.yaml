@@ -211,9 +211,11 @@ admin:
             chat_keep_alive: 'Garder le modèle de rédaction chargé pendant'
             chat_keep_alive_help: '5m, 30m, 4h, ou un nombre de secondes. -1 le garde chargé en permanence, 0 le décharge après chaque requête. Plus c’est long, plus la première réponse arrive vite ; l’hôte garde la mémoire réservée pendant toute la durée dans les deux cas. Laissez vide pour utiliser le réglage de l’hôte.'
             chat_model: 'Modèle de rédaction'
-            chat_model_help: 'Utilisé pour les réponses, les résumés et le tri. Un modèle entraîné aux instructions.'
+            chat_model_help: 'Utilisé pour les réponses, les résumés, les traductions et le tri. Un modèle entraîné aux instructions.'
             contact_help: 'Aide aux contacts'
             contact_help_help: 'Lit un contact dans un texte collé et propose des corrections d’après la signature de son dernier e-mail. Utilise le modèle de rédaction et lui envoie ce texte.'
+            translation: 'Traduction d’un message'
+            translation_help: 'Utilise le modèle de rédaction et lui envoie le message. La réponse est aussi longue que le mail : sur un hôte sans GPU, un long message prend des minutes.'
             embedding_keep_alive: 'Garder le modèle de recherche chargé pendant'
             embedding_keep_alive_help: 'Même format que ci-dessus. Ce modèle est petit et sollicité en permanence, donc -1 — chargé pour de bon — coûte généralement peu et évite une attente à chaque recherche ; à régler si l’hôte a la mémoire nécessaire. Laissez vide pour utiliser le réglage de l’hôte.'
             embedding_base_url: 'Hôte de recherche'
@@ -268,6 +270,7 @@ admin:
                 warm: 'Chargé'
             feature:
                 thread_summary: 'Résumés'
+                message_translation: 'Traductions'
                 categorise: 'Tri du courrier'
                 mail_index: 'Indexation du courrier'
                 search_query: 'Recherche'
@@ -335,7 +338,7 @@ admin:
                 hint: 'Utilisé quand on demande le même message sur un ton plus formel.'
                 label: 'Rendre plus formel'
             language:
-                hint: 'Ajouté à la fin de chaque instruction ci-dessus, sauf le tri. C’est ce qui fait qu’un mail en allemand reçoit une réponse en allemand — sans cela, le modèle suit l’anglais dans lequel ces instructions sont écrites, et la relecture d’un brouillon allemand le traduit. Vous pouvez le reformuler ; pas le supprimer. Videz le champ et le texte d’origine revient.'
+                hint: 'Ajouté à la fin de chaque instruction ci-dessus, sauf le tri et la traduction. C’est ce qui fait qu’un mail en allemand reçoit une réponse en allemand — sans cela, le modèle suit l’anglais dans lequel ces instructions sont écrites, et la relecture d’un brouillon allemand le traduit. Vous pouvez le reformuler ; pas le supprimer. Videz le champ et le texte d’origine revient.'
                 label: 'Toujours répondre dans la langue du mail'
             proofread:
                 hint: 'Utilisé quand on demande de corriger l’orthographe et la grammaire et rien d’autre. Gardez « ne change rien d’autre » — sans cela, le modèle réécrit des phrases qui étaient déjà correctes.'
@@ -349,13 +352,16 @@ admin:
             summary:
                 hint: 'Utilisé par le bouton de résumé du volet de lecture. Le modifier marque tous les résumés déjà écrits comme périmés — rien n’est supprimé, ils sont réécrits à la prochaine demande.'
                 label: 'Résumer une conversation'
+            translation:
+                hint: 'Utilisé par « Traduire » dans le menu d’un message. La langue est envoyée avec le message, pas ici. Le modifier marque toutes les traductions déjà écrites comme périmées — rien n’est supprimé, elles sont réécrites à la prochaine demande.'
+                label: 'Traduire un message'
         prompts:
             changed: '%count% modifiés'
             heading: 'Instructions système'
             intro: 'Ce sont les instructions que plMail donne au modèle. Laissez un champ vide pour utiliser le texte fourni par plMail — ainsi une mise à jour pourra encore l’améliorer. Ce que vous saisissez remplace entièrement le texte fourni.'
             reset: 'Revenir au texte d’origine'
             save: 'Enregistrer les instructions'
-            saved: 'Enregistré. Les nouveaux résumés les utilisent ; les résumés déjà écrits sont maintenant périmés.'
+            saved: 'Enregistré. Les nouveaux résumés et les nouvelles traductions les utilisent ; ceux déjà écrits sont maintenant périmés.'
             show_shipped: 'Afficher le texte d’origine'
             untouched: 'D’origine'
         save: 'Enregistrer'
@@ -380,6 +386,172 @@ admin:
             timeout: 'L’hôte chargeait encore après quatre minutes et plMail a cessé d’attendre. Il finira peut-être ; le modèle est très probablement trop gros pour la mémoire disponible.'
             unexpected: 'Un problème est survenu avant que l’hôte puisse répondre. (%error%)'
             unreachable: 'Rien n’a répondu à cette adresse. (%error%)'
+    backfills:
+        active:
+            queued: 'En file d’attente — attend le worker de maintenance.'
+            running: 'En cours. Sa sortie est sous Exécutions récentes.'
+        added: 'Ajouté le %date%'
+        console: 'La même chose en console'
+        count:
+            button: 'Compter d’abord'
+            none: 'Rien à examiner — cette réparation n’a rien à faire sur cette installation.'
+            some: 'Elle examinera %count% messages. Certaines tâches lisent chaque candidat et ne modifient que ceux qui ont le défaut.'
+            unavailable: 'Celle-ci ne peut pas compter à l’avance.'
+        heading: 'Rattrapages'
+        kind:
+            repairs: 'Répare les données stockées'
+            rereads: 'Relit le courrier'
+        last_run: 'Dernière exécution depuis cette page le %date%'
+        list_label: 'Rattrapages, du plus récent au plus ancien'
+        never_run: 'Jamais lancé depuis cette page'
+        new: 'Nouveau'
+        none: 'Aucun rattrapage n’est enregistré.'
+        order_hint: 'Les plus récents d’abord. Une mise à jour qui en demande un le dit dans ses notes de version, et c’est en général le plus récent.'
+        repeat:
+            careful: 'Réfléchir avant de le relancer'
+            safe: 'Peut être relancé sans risque'
+        run: 'Lancer %task%'
+        run_hint: 'Mis en file pour le worker de maintenance, pas exécuté dans cette page. Vous pouvez la quitter ; l’exécution continue.'
+        runs:
+            empty: 'Rien n’a encore été lancé depuis cette page.'
+            everything: 'Tout'
+            heading: 'Exécutions récentes'
+            removed_user: 'un utilisateur supprimé'
+            show_output: 'Afficher la sortie'
+            state:
+                done: 'Terminé'
+                failed: 'Échec'
+                queued: 'En file'
+                quiet: 'Silencieux depuis 30 minutes'
+                running: 'En cours'
+        task:
+            addresses:
+                explanation: >-
+                    Le courrier stocké avant que les adresses soient nettoyées à l’arrivée a gardé les noms tels que le serveur les envoyait : certains expéditeurs apparaissent comme "Doe, John" entre guillemets, et un nom avec une virgule pouvait devenir deux adresses.
+
+                    Ceci réécrit les noms et adresses stockés de chaque message dans la forme que reçoit le nouveau courrier. Les contacts dont l’adresse changerait sont comptés plutôt que fusionnés, pour que vous voyiez s’il faut en fusionner à la main.
+                summary: 'Nettoyer les noms entre guillemets des expéditeurs et destinataires'
+            attachment_content_type_names:
+                explanation: >-
+                    Certaines pièces jointes qui ne donnaient leur nom que dans leur type de contenu ont été stockées sous une somme de contrôle comme "57d5c7cb", sans extension pour les ouvrir.
+
+                    Ceci lit l’original stocké de chaque message concerné et rend à la pièce jointe son vrai nom, quand l’original le donne sans ambiguïté. S’exécute aussi tout seul après une mise à jour.
+                summary: 'Rendre leur nom aux pièces jointes stockées sous une somme de contrôle'
+            calendars:
+                explanation: >-
+                    Chaque nouvel utilisateur reçoit un agenda personnel et un par compte de messagerie. Ceci donne les mêmes agendas aux utilisateurs qui étaient là avant. Il ne fait que combler les manques ; le relancer après avoir ajouté des comptes ne pose pas de problème.
+                summary: 'Créer les agendas par défaut des utilisateurs existants'
+            category:
+                explanation: >-
+                    Détermine à nouveau l’onglet de chaque message — Principal, Notifications, Promotions, etc. — à partir de ce qui est stocké, sans interroger le serveur.
+
+                    Lancé depuis cette page, il recalcule chaque message, y compris ceux qui ont déjà un onglet, ce qu’on veut après une mise à jour qui a changé le tri du courrier.
+                summary: 'Trier à nouveau chaque message dans son onglet'
+            contacts:
+                explanation: >-
+                    Les contacts sont appris à l’arrivée du courrier. Ceci les apprend de chaque message déjà stocké, pour les comptes synchronisés avant, ou après un changement de ce qui compte comme adresse. Il lit tout le courrier de chaque compte, un compte après l’autre.
+                repeat_warning: 'Chaque exécution compte à nouveau chaque adresse stockée : dans les suggestions d’adresses, les personnes du courrier ancien passent devant celles à qui vous écrivez maintenant. Lancez-le une fois après le changement qui le demande.'
+                summary: 'Reconstruire les contacts à partir de tout le courrier stocké'
+            events:
+                explanation: >-
+                    Relit le courrier stocké à la recherche de réservations et d’invitations — vols, hôtels, billets, invitations d’agenda — et les place dans l’agenda. À utiliser après une mise à jour qui a amélioré leur lecture.
+
+                    Seul le courrier susceptible de contenir un événement est lu, et seulement aussi loin que la période l’indique. Les événements que vous avez modifiés ou supprimés restent tels quels.
+                summary: 'Relire le courrier stocké pour les événements'
+            gmailify_placement:
+                explanation: >-
+                    Pour un compte IMAP dont un compte Gmail relève aussi le courrier, plMail recopiait le classement de Gmail sur la copie IMAP : le courrier que Gmail avait archivé ou supprimé allait ici dans Archives ou Corbeille alors que le serveur IMAP l’avait encore dans la boîte de réception.
+
+                    Ceci remet chaque message de ce type là où son dossier IMAP l’indique. Lancez-le quand personne ne déplace de courrier, sinon un déplacement pas encore arrivé au serveur peut revenir un instant.
+                summary: 'Remettre le courrier IMAP relevé par Gmail dans son dossier'
+            headers:
+                explanation: >-
+                    Le courrier stocké avant l’uniformisation des noms d’en-têtes les a gardés tels que chaque fournisseur les écrivait ("List-Id", "list_id"). Les filtres qui testent un en-tête ne trouvaient pas ces messages. Ceci réécrit les noms d’en-têtes stockés sous une seule forme ; les valeurs ne changent pas.
+                summary: 'Uniformiser les noms d’en-têtes stockés'
+            html_body_text:
+                explanation: >-
+                    Après la mise à jour qui a reconstruit l’index de recherche, chaque message attend d’être indexé à nouveau, et le planificateur les traite petit à petit, les plus récents d’abord. Ceci fait le reste d’un coup, pour que le courrier plus ancien revienne dans la recherche maintenant plutôt qu’au fil d’une soirée.
+
+                    Il stocke aussi les mots du courrier envoyé uniquement en HTML, pour que la recherche, les embeddings et les résumés lisent son corps. Les deux en même temps ne posent pas de problème ; ils se partagent le travail.
+                summary: 'Remettre tout le courrier dans la recherche'
+            insights:
+                explanation: >-
+                    Relit le courrier stocké à la recherche de colis, vols, billets et revues de code — les cartes du radar. À utiliser après une mise à jour qui lui a appris un nouvel expéditeur ou une meilleure lecture.
+
+                    Seul le courrier stocké est lu ; aucun fournisseur n’est interrogé. Une carte écartée reste écartée.
+                summary: 'Relire le courrier stocké pour colis, vols et billets'
+            message_arrival:
+                explanation: >-
+                    Admin → Performances montre le retard du courrier, mesuré à partir du moment où le fournisseur l’a accepté. Le courrier stocké avant que ce moment soit enregistré n’en a pas. Ceci le lit dans les en-têtes pour le courrier de la dernière semaine, aussi loin que regarde le panneau. S’exécute aussi tout seul après une mise à jour.
+                summary: 'Retrouver les heures d’arrivée de la dernière semaine pour Performances'
+            misfiled_bodies_v2:
+                explanation: >-
+                    Certains messages ont été stockés avec leur corps en pièce jointe, sous un nom comme "09704cea" ; ils s’ouvrent vides avec une seule puce.
+
+                    Le corps a toujours été conservé ; ceci le remet à sa place et retire la puce. S’exécute aussi tout seul après une mise à jour.
+                summary: 'Restaurer les corps stockés en pièce jointe'
+            proposals:
+                explanation: >-
+                    Relit le courrier stocké dans Principal à la recherche de dates écrites en phrases — « voyons-nous jeudi à 15 h » — et les propose pour l’agenda. Un message qui a déjà une proposition, ou dont vous avez rejeté la proposition, n’est pas touché.
+                summary: 'Relire le courrier stocké pour proposer des dates'
+            recipients:
+                explanation: >-
+                    Le courrier synchronisé en IMAP avant une correction n’a stocké aucune liste À et Cc, bien que les en-têtes aient été conservés. Ceci remplit les listes vides à partir de ces en-têtes. Les destinataires déjà présents restent tels quels.
+                summary: 'Compléter les listes À et Cc manquantes'
+            repeated_headers:
+                explanation: >-
+                    Certains serveurs IMAP répétaient le bloc d’en-têtes en haut du corps du message : ces messages commencent par "Delivered-To: …" au-dessus du texte, et leur original contient les en-têtes deux fois.
+
+                    Ceci lit l’original stocké de chaque message IMAP et retire la répétition quand il en trouve une. Cela fait une lecture de fichier par message, c’est pourquoi il ne s’exécute pas automatiquement.
+                summary: 'Retirer les blocs d’en-têtes répétés en haut du courrier IMAP'
+            rethread:
+                explanation: >-
+                    Jette toutes les conversations et les reconstruit à partir des messages stockés, avec les règles actuelles.
+
+                    Les étoiles, rappels, onglets et libellés d’une conversation sont conservés. Les résumés IA stockés ne le sont pas et doivent être redemandés. Depuis cette page, appuyer sur Lancer est la confirmation que demande la console.
+                repeat_warning: 'Chaque exécution jette à nouveau les conversations, et les résumés IA faits depuis la dernière exécution disparaissent avec elles. Lancez-le une fois après le changement qui le demande.'
+                summary: 'Reconstruire toutes les conversations depuis zéro'
+            safe_html:
+                explanation: >-
+                    Chaque message HTML est affiché à partir d’une copie nettoyée. Ceci crée cette copie pour les messages qui n’en ont pas encore.
+                summary: 'Créer la copie sûre du courrier HTML qui n’en a pas'
+            safe_html_absolute_position:
+                explanation: >-
+                    Certains courriers HTML gardaient des éléments positionnés par-dessus la page, si bien qu’une bannière pouvait couvrir le texte en dessous. Ceci nettoie à nouveau la copie d’affichage de ces messages avec les règles corrigées.
+                summary: 'Empêcher les bannières de couvrir le texte du courrier HTML'
+            safe_html_charset:
+                explanation: >-
+                    Le courrier HTML qui déclarait son propre jeu de caractères pouvait afficher des caractères brouillés comme "Ã©" pour "é". Ceci nettoie à nouveau la copie d’affichage de ces messages avec les règles corrigées.
+                summary: 'Réparer les caractères brouillés du courrier HTML'
+            safe_html_conditional_comments:
+                explanation: >-
+                    Le courrier écrit pour Outlook pouvait afficher du texte parasite comme "<![endif]-->". Ceci nettoie à nouveau la copie d’affichage de ces messages avec les règles corrigées.
+                summary: 'Retirer le balisage Outlook affiché comme texte'
+            safe_html_hidden_cards:
+                explanation: >-
+                    Le courrier HTML avec un formulaire, ou certains styles, pouvait perdre ou cacher une partie de son contenu. Ceci nettoie à nouveau la copie d’affichage de ces messages avec les règles corrigées.
+                summary: 'Restaurer le contenu caché du courrier HTML'
+            safe_html_table_links:
+                explanation: >-
+                    Dans le courrier HTML où un tableau entier était un lien, le lien pouvait ressortir vide. Ceci nettoie à nouveau la copie d’affichage de ces messages avec les règles corrigées.
+                summary: 'Restaurer les liens autour des tableaux du courrier HTML'
+            safe_html_unknown_elements:
+                explanation: >-
+                    Le courrier HTML utilisant des éléments que le nettoyage ne connaissait pas — certaines confirmations de réservation, par exemple — pouvait s’afficher avec un corps vide. Ceci lit chaque message HTML et nettoie à nouveau la copie d’affichage de ceux qui contiennent un tel élément.
+                summary: 'Restaurer le courrier HTML affiché vide à cause d’éléments inconnus'
+            spam_in_archive:
+                explanation: >-
+                    Jusqu’à une correction, un filtre « Marquer comme spam » étiquetait le courrier Spam ici mais l’archivait sur le serveur ; la synchronisation suivante le retrouvait dans les archives, où il restait non lu.
+
+                    Ceci déplace chaque message de ce type dans Spam comme vous le feriez à la main : sur le serveur, il passe des Archives aux Indésirables. Les comptes IMAP sans dossier Indésirables sont ignorés et comptés.
+                summary: 'Déplacer dans Spam le spam qu’un filtre a archivé'
+        what_it_does: 'Ce que ça fait'
+        window:
+            24h: '24 dernières heures'
+            4w: '4 semaines'
+            7d: '7 jours'
+            all: 'Tout le courrier'
+            label: 'Courrier à relire'
     client_errors:
         browser: 'Navigateur'
         clear: 'Effacer'
@@ -884,6 +1056,7 @@ admin:
     nav:
         address: Adresse
         ai: IA
+        backfills: 'Rattrapages'
         backup: Sauvegarde
         database: Base de données
         demo_stats: 'Visiteurs de la démo'
@@ -2147,6 +2320,15 @@ compose:
         no_own_certificate: 'Vous n’avez pas de certificat S/MIME pour cette adresse d’expédition : ce message ne peut pas être signé ni chiffré avec S/MIME.'
         failed: Le message n’a pas pu être chiffré. Rien n’a été envoyé.
         sealed_attachment: 'Chiffré : jusqu’à l’envoi du message, vous seul pouvez l’ouvrir.'
+        policy:
+            auto: 'Auto'
+            failed: 'Ce choix n’a pas pu être enregistré.'
+            heading: 'Chiffrement pour ces adresses'
+            hint: 'Retenu aussi pour les prochains messages. Auto chiffre dès que plMail a une clé.'
+            label: 'Chiffrement pour %email%'
+            no_key: 'Pas de clé — non chiffré'
+            off: 'Désactivé'
+            on: 'Activé'
     seal:
         refused: Le message chiffré n’est pas arrivé intact. Rien n’a été envoyé ; réessayez.
         keys_changed: La clé d’un destinataire a changé pendant que vous écriviez. Rien n’a été envoyé ; renvoyez le message.
@@ -2158,6 +2340,8 @@ compose:
     formatting: Options de mise en forme
     forward: Transférer
     from: De
+    from_pick: Choisissez une adresse d’expédition
+    from_via: '%label% · via %account%'
     image: Insérer une image
     image_edit:
         crop: Recadrer
@@ -2307,6 +2491,8 @@ contact_keys:
     removed: Clé supprimée.
     preferences_saved: Enregistré.
     not_found: Cette clé n’existe plus.
+    policy:
+        no_key: 'plMail n’a pas de clé pour cette adresse : les messages y partent de toute façon non chiffrés.'
     signer_unknown: plMail n’a pas la clé qui a fait cette signature. Recherchez-la ou importez-la d’abord.
     certificates:
         heading: Certificats S/MIME de vos contacts
@@ -2941,6 +3127,9 @@ label:
     error:
         duplicate: Un libellé de ce nom existe déjà ici. Les majuscules n’en font pas un nom différent.
     form:
+        account_note:
+            new: 'Créé sur %account% uniquement.'
+            rename: 'Le renommer ici ne le renomme que sur %account%. %others% gardent « %name% ».'
         color: Couleur
         delete: Supprimer le libellé
         delete_hint: 'La suppression retire le libellé de tous les comptes, ainsi que les libellés imbriqués dessous. Le courrier qui le porte garde ses autres libellés et n’est pas supprimé.'
@@ -3023,6 +3212,7 @@ message:
         filter_from_message: 'Créer un filtre à partir de ce message'
         show_original: Afficher l’original
         star: Suivre
+        translate: 'Traduire'
         unstar: Ne plus suivre
     attachments: Pièces jointes
     back: Retour
@@ -3197,6 +3387,35 @@ message:
         spam:
             body: "Ce message a été classé comme spam. Ses liens et images sont risqués — traitez tout ce qu’il vous demande comme la requête d’un inconnu."
             title: Ce message est dans Spam
+    translation:
+        again: 'Traduire à nouveau'
+        already_in: 'Ce message est déjà dans la langue cible (%language%). Il n’y a rien à traduire.'
+        error:
+            connection_lost: 'La connexion à plMail a été perdue pendant l’écriture de la traduction. L’hôte du modèle n’y est pour rien ; quelque chose entre ce navigateur et le serveur a fermé la connexion.'
+            disabled: 'La traduction est désactivée.'
+            empty: 'Ce message ne contient aucun texte à traduire.'
+            encrypted: 'Ce message était chiffré, et son compte ne confie pas le texte déchiffré à l’assistant.'
+            generic: 'Le message n’a pas pu être traduit.'
+            model_missing: 'L’hôte du modèle n’a pas le modèle de rédaction. Un administrateur doit d’abord le télécharger.'
+            no_answer: 'Le modèle n’a donné aucune réponse.'
+            refused: 'L’hôte du modèle a refusé la requête.'
+            timeout: 'L’hôte du modèle a mis trop de temps à répondre.'
+            unreachable: 'L’hôte du modèle est injoignable.'
+        generated: 'Traduit en %language% par une IA (%model%). Ce n’est pas le texte original.'
+        generated_from: 'Traduit par une IA (%source% → %language%, %model%). Ce n’est pas le texte original.'
+        partial: 'Ce message est long : seul son début a été traduit.'
+        quote_left_out: 'Les messages précédents cités ont été laissés de côté ; vous pouvez les traduire séparément.'
+        stale: 'Le message a changé depuis cette traduction.'
+        state:
+            reading: 'Lecture du message en cours — %elapsed% jusqu’ici. Ensuite, la traduction apparaît mot à mot.'
+            waiting: 'La première requête après une pause attend le chargement du modèle.'
+            working: 'Traduction en %language%…'
+        switch:
+            label: 'Afficher'
+            original: 'Original'
+            original_from: 'Original · %source%'
+            translation: '%language% · IA'
+        tag: 'Traduction IA'
 
 mercure:
     status:
@@ -3529,6 +3748,8 @@ settings:
             search_hint: 'Trouve le courrier qui veut dire ce que vous cherchez, pas seulement celui qui l’écrit de la même façon. Désactivé, votre courrier cesse d’être indexé autant que d’être recherché.'
             summary: 'Résumés de conversation'
             summary_hint: 'Résume une longue conversation quand vous le demandez. Rien n’est résumé de lui-même.'
+            translation: 'Traduire un message'
+            translation_hint: 'Traduit un message dans votre langue quand vous le demandez, depuis le menu du message. Rien n’est traduit de lui-même.'
             writing_help: 'Aide-moi à écrire'
             writing_help_hint: 'Rédige une réponse, raccourcit, rend formel, relit — dans la fenêtre de rédaction, quand vous le demandez.'
         features:
@@ -3551,10 +3772,14 @@ settings:
             heading: 'Ce que reçoit l’assistant'
             search: 'Indexation : l’objet, l’expéditeur et le début de chaque message.'
             summary: 'Les messages d’une conversation dont vous demandez le résumé'
+            translation: 'Traduction : le texte du message que vous demandez de traduire, sans les messages précédents qu’il cite.'
             writing_help: 'Rédaction : votre objet, ce que vous avez tapé, et autant de conversation que le réglage ci-dessus le permet.'
         seg:
             off: 'Désactivé'
             on: 'Activé'
+        translate_into:
+            follow_language: 'La langue de plMail (%language%)'
+            label: 'Traduire en'
     accounts:
         categories:
             off_hint: 'Désactivé : une catégorie posée ou retirée dans Outlook ne change pas les libellés ici. L’activer relit une fois chaque dossier de ce compte.'
@@ -4112,6 +4337,29 @@ settings:
             scaleHint: S’applique à toute l’interface. La fenêtre de rédaction garde sa propre police et sa propre taille — celles-ci partent avec le message.
             subheading: La police et la taille dans lesquelles l’interface est dessinée.
     compose_defaults:
+        bcc:
+            chips:
+                create: 'Ajouter %s'
+                no_results: 'Aucun contact ne correspond. Tapez l’adresse complète.'
+            for_alias: 'Toujours en Cci pour %alias%'
+            hint: 'Chaque message part aussi, sans être vu, vers ces adresses : une copie de sauvegarde, ou la preuve qu’il est parti. Elles sont mises en Cci dès que vous commencez à écrire, et vous pouvez en retirer une pour un seul message.'
+            invalid: '« %address% » n’est pas une adresse e-mail valide.'
+            label: 'Toujours en Cci'
+            per_address:
+                account_list: 'Comme le compte : %addresses%'
+                account_none: 'Comme le compte : pas de Cci'
+                inherit: 'Comme le compte'
+                nobody: 'Personne, cette adresse n’envoie pas de copie'
+                override: 'Sa propre liste'
+            placeholder: 'Ajouter une adresse…'
+            save: 'Enregistrer'
+            too_many: '%max% adresses au maximum.'
+        exceptions:
+            add: 'Ajouter une exception pour…'
+            edit: 'Modifier'
+            heading: 'Adresses qui diffèrent'
+            remove: 'Supprimer l’exception'
+            remove_for: 'pour %alias%'
         heading: 'Valeurs par défaut de rédaction'
         invalid: 'Ce réglage n’a pas pu être enregistré.'
         read_receipt:
@@ -4124,7 +4372,14 @@ settings:
                 ask: 'Demander à chaque fois'
                 never: 'Ne jamais envoyer'
         saved: 'Enregistré.'
-        subheading: 'Ce que fait chacune de vos adresses par défaut quand elle envoie et reçoit.'
+        subheading: 'Ce que fait chaque compte par défaut quand il envoie et reçoit, et les adresses qui diffèrent.'
+        summary:
+            bcc: 'Cci %addresses%'
+            bcc_nobody: 'Cci à personne'
+            exceptions: 'Exceptions : %number%'
+            no_bcc: 'Pas de Cci'
+            receipts: 'Accusés : %mode%'
+            same_as_account: 'Comme le compte'
     filters:
         account: Compte
         action:
@@ -4891,19 +5146,27 @@ settings:
         sync_now_title: Synchroniser maintenant
         zone_follows: Suit plMail
     labels:
+        by_account:
+            hint: 'Liste les libellés de chaque compte sous ce compte dans la barre latérale, à côté de ses dossiers. La section Libellés ne garde alors que les libellés qui ne sont sur aucun compte, et un libellé renommé sous un compte n’est renommé que pour ce compte.'
+            title: 'Libellés par compte'
         count: '%count% libellés'
         delete: Supprimer le libellé « %name% »
         edit: Modifier le libellé « %name% »
         empty: Aucun libellé pour l’instant — créez-en un, ou ils apparaîtront après la première synchronisation.
         folders_in_labels:
-            off_hint: 'Désactivé : les dossiers sont listés sous leur compte, et la section Libellés contient les libellés posés sur les messages.'
-            on_hint: 'Activé : la section Libellés de la barre latérale liste aussi les dossiers, en plus de leur place sous chaque compte.'
+            hint: 'Liste aussi les dossiers dans la section Libellés commune, en plus de leur place sous chaque compte. Seulement pour la liste commune : par compte, tout est déjà sous son compte.'
             title: 'Dossiers dans Libellés'
         heading: Libellés
         hide: Masquer le libellé
+        seg:
+            off: 'Désactivé'
+            on: 'Activé'
         show: Afficher le libellé
         subheading: Créez, renommez et organisez vos libellés, et choisissez lesquels apparaissent dans la barre latérale.
         system: Système
+        view:
+            heading: 'Libellés dans la barre latérale'
+            subheading: 'Choisissez si la barre latérale liste vos libellés une seule fois pour tous les comptes, ou sous chaque compte.'
     pinning:
         duration:
             custom: 'Un nombre de jours'
@@ -5071,7 +5334,7 @@ settings:
         keywords:
             accent: "couleur accent surbrillance"
             accounts: "imap smtp pop3 jmap serveur ajouter boîte"
-            ai: "ia intelligence artificielle résumé aide rédaction modèle ai"
+            ai: "ia intelligence artificielle résumé aide rédaction modèle ai traduction traduire translation"
             aliases: "alias identité expéditeur adresse"
             app_passwords: "imap smtp client thunderbird jeton api jmap"
             calendars: "caldav ics abonner flux"
@@ -5087,6 +5350,7 @@ settings:
             inbox_tabs: "onglets promotions réseaux notifications forums"
             insights: "colis suivi facture vol"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            label_view: "par compte groupés commune dossiers barre latérale"
             labels: "dossiers étiquettes non lus tous"
             language: "langue anglais allemand français chinois"
             libravatar: 'libravatar avatar image photo partager public profil'
@@ -5097,11 +5361,12 @@ settings:
             password: "connexion identifiant"
             pinning: 'épingler épinglé punaise haut rappel pin'
             profile: "nom avatar photo image"
-            read_receipts: "mdn accusé réception confirmation"
+            read_receipts: "mdn accusé réception confirmation cci bcc copie sauvegarde"
             reading_pane: "aperçu partagé droite bas"
             sender_pictures: 'avatar image photo gravatar libravatar bimi logo icône expéditeur'
             sharing: "lien public réservation"
             shortcuts: "clavier touches raccourcis"
+            sidebar: 'largeur large étroit redimensionner glisser noms longs coupés survol plus dossiers'
             swipe_actions: "balayer geste téléphone archiver"
             templates: "réponses types extraits"
             theme: "sombre clair mode nuit couleurs dark"
@@ -5281,8 +5546,13 @@ settings:
         hide_note: Pour masquer complètement un dossier, désactivez-le dans Libellés.
         hint: Les dossiers cochés attendent derrière « Plus ». Les autres restent dans la barre latérale elle-même.
         label: Derrière « Plus »
+        peek:
+            hint: 'Quand un nom est coupé, la barre latérale s''élargit par-dessus le courrier tant que le pointeur la survole. Pour l''élargir durablement, faites glisser son bord.'
+            off: 'Désactivé'
+            on: 'Activé'
+            title: 'Afficher les noms longs au survol'
         pinned: La boîte de réception reste toujours à sa place.
-        subheading: Les dossiers qui attendent derrière « Plus ».
+        subheading: 'L''affichage des noms longs et les dossiers qui attendent derrière « Plus ».'
     signature:
         for_alias: 'Signature pour %alias%'
         heading: Signatures
@@ -5482,12 +5752,15 @@ shortcuts:
 sidebar:
     accounts:
         add: Ajouter un compte
+        collapse_all: 'Replier tous les comptes'
         colour: 'Marquage de couleur de %account%'
         colour_disabled: 'Marquage de couleur de %account%, dont le courrier est désactivé'
+        expand_all: 'Déplier tous les comptes'
         folders: 'Dossiers…'
         heading: Comptes
         menu: 'Dossiers de %account%'
         new_folder: 'Nouveau dossier…'
+        new_label: 'Nouveau libellé…'
         none: Aucun compte pour l’instant
         open: 'Ouvrir %account%'
         toggle: 'Afficher ou masquer les dossiers de %account%'
@@ -5501,6 +5774,7 @@ sidebar:
         folder_on: 'Dossier sur %accounts%'
         heading: Libellés
         none: Aucun libellé pour l’instant
+        shared_with: 'Aussi sur %accounts%'
     new_mail_here: 'Nouveau courrier dans %where%'
     new_mail_here_count: '%count% nouveaux dans %where%'
     nav:
@@ -5517,6 +5791,8 @@ sidebar:
         starred: Suivis
         trash: Corbeille
         unread: Non lus
+    resize: 'Redimensionner la barre latérale'
+    resize_hint: 'Faites glisser pour redimensionner, double-cliquez pour rétablir'
     toggle: Afficher ou masquer la barre latérale
 
 snooze:

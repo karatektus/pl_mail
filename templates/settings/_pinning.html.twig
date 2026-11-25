@@ -18,10 +18,7 @@ Accepts:
   days        int|null   null is forever
   keepOnMove  bool
 #}
-{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                  peer-checked:bg-accent peer-checked:text-accent-ink
-                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                  transition-colors cursor-pointer' %}
+{% import '_partials/_segmented.html.twig' as seg %}
 {% set presets = { '': 'settings.pinning.duration.forever', 1: 'settings.pinning.duration.one_day', 3: 'settings.pinning.duration.three_days', 7: 'settings.pinning.duration.one_week', 14: 'settings.pinning.duration.two_weeks', 30: 'settings.pinning.duration.thirty_days' } %}
 {% set custom = days is not null and days not in [1, 3, 7, 14, 30] %}
 {% import '_partials/_select.html.twig' as select %}
@@ -71,17 +68,12 @@ Accepts:
             <span class="block text-xs font-medium text-ink-muted">{{ 'settings.pinning.keep_on_move.label'|trans }}</span>
             <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.pinning.keep_on_move.hint'|trans }}</span>
         </span>
-        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
-             role="radiogroup" aria-label="{{ 'settings.pinning.keep_on_move.label'|trans }}">
-            {% for on in [true, false] %}
-                <label>
-                    <input type="radio" name="keepOnMove" class="peer sr-only"
-                           value="{{ on ? '1' : '0' }}"
-                           data-action="change->ui--auto-submit#submit"
-                           {{ keepOnMove == on ? 'checked' : '' }}>
-                    <span class="{{ segText }}">{{ (on ? 'settings.disposal.on' : 'settings.disposal.off')|trans }}</span>
-                </label>
-            {% endfor %}
-        </div>
+        {{ seg.control('keepOnMove', [
+            { value: '1', label: 'settings.disposal.on'|trans },
+            { value: '0', label: 'settings.disposal.off'|trans },
+        ], keepOnMove ? '1' : '0', {
+            label:  'settings.pinning.keep_on_move.label'|trans,
+            action: 'change->ui--auto-submit#submit',
+        }) }}
     </div>
 </form>

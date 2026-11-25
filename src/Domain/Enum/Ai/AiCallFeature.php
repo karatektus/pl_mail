@@ -42,16 +42,20 @@ enum AiCallFeature: string
     /** Contact details from text, or suggestions for a contact. ContactAssistant. */
     case ContactHelp = 'contact_help';
 
+    /** Translating one message, on request. MessageTranslator. */
+    case MessageTranslation = 'message_translation';
+
     /** Which capability gate this workload sits behind. */
     public function gate(): AiFeature
     {
         return match ($this) {
             self::SearchQuery,
-            self::MailIndex     => AiFeature::Search,
-            self::Categorise    => AiFeature::Categorise,
-            self::WritingHelp   => AiFeature::WritingHelp,
-            self::ThreadSummary => AiFeature::Summary,
-            self::ContactHelp   => AiFeature::ContactHelp,
+            self::MailIndex          => AiFeature::Search,
+            self::Categorise         => AiFeature::Categorise,
+            self::WritingHelp        => AiFeature::WritingHelp,
+            self::ThreadSummary      => AiFeature::Summary,
+            self::ContactHelp        => AiFeature::ContactHelp,
+            self::MessageTranslation => AiFeature::Translation,
         };
     }
 
@@ -70,6 +74,7 @@ enum AiCallFeature: string
             AiFeature::WritingHelp => self::WritingHelp,
             AiFeature::Summary     => self::ThreadSummary,
             AiFeature::ContactHelp => self::ContactHelp,
+            AiFeature::Translation => self::MessageTranslation,
             AiFeature::Search      => self::SearchQuery,
         };
     }

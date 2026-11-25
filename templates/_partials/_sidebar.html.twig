@@ -238,6 +238,7 @@ account inside ThreadStatusUpdater.
         <details class="group/tree"
                  data-collapse-key="{{ _treeKey }}"
                  data-action="toggle->ui--sidebar#rememberCollapse"
+                 data-collapse-saved="{{ sidebarCounts.isCollapsed(_treeKey) ? 'closed' : 'open' }}"
                  {{ sidebarCounts.isCollapsed(_treeKey) ? '' : 'open' }}>
             <summary class="nav-item group/label flex items-center gap-1 cursor-pointer list-none
                             transition-colors {{ sidebar_row_state(_href) }}"
@@ -621,8 +622,21 @@ controller instead — the scroll position and which trees are open.
            unread: 'sidebar.badge.unread'|trans({ '%count%': '%count%' }),
            total:  'sidebar.badge.total'|trans({ '%count%': '%count%' }),
        }|json_encode }}"
-       class="flex flex-col w-56 h-full flex-shrink-0 overflow-hidden pane
-              transition-[width] duration-200
+       {# The peek (#699), the user's half of it: whether a row too long for
+          the sidebar may lean out over the mail. On the aside rather than the
+          boundary around it, so the stream that redraws the sidebar when the
+          switch in Settings moves carries it too. Never on the drawer copy,
+          which is as wide as the drawer and has no mail beside it. The other
+          half — whether anything IS clipped — is measured; see
+          ui--sidebar#_measureTruncation. #}
+       {% if not (_drawerMode is defined and _drawerMode) and app.user and app.user.sidebarPeek %}
+       data-sidebar-peek
+       data-ui--sidebar-peek-max-value="{{ constant('App\\Entity\\User\\User::SIDEBAR_MAX_WIDTH') }}"
+       {% endif %}
+       {# The inline copy fills .sidebar-pane, which carries the width the user
+          dragged (#699) and the rail's transition; see _sidebar_pane.html.twig.
+          The drawer copy keeps the fixed width it always had. #}
+       class="flex flex-col {{ _drawerMode is defined and _drawerMode ? 'w-56' : 'w-full' }} h-full flex-shrink-0 overflow-hidden pane
               {{ _drawerMode is defined and _drawerMode ? '' : 'shell-chrome' }}">
 
     {# Compose. The strip is a pane header's height (pane-header), so the rule
@@ -813,22 +827,28 @@ controller instead — the scroll position and which trees are open.
            flat labels pushing the accounts off the bottom of the nav is the
            case this exists for, and per-label collapse does nothing for it. #}
         {% set _labelsCollapsed = sidebarCounts.isCollapsed(constant('App\\Entity\\User\\User::SIDEBAR_SECTION_LABELS')) %}
-        <details class="rail-hide group/labels"
+        {% set labelTree = sidebarCounts.userLabelTree()|filter(node => in_labels(node)) %}
+
+        {# Listed by account (#690), LABELS holds only labels that are on no
+           account yet, and none is the usual state: the section is left out
+           then rather than drawn as a heading over nothing. Merged, it stays
+           even when empty — its "+" is where a first label is made. A label
+           made in Settings, on no account, brings it back: by account, every
+           label change redraws the sidebar whole (LabelController). #}
+        {% if not (app.user.labelsByAccount and labelTree is empty) %}
+        <details class="rail-hide group/section nav-section-y"
                  data-action="toggle->ui--sidebar#rememberCollapse"
                  data-collapse-key="{{ constant('App\\Entity\\User\\User::SIDEBAR_SECTION_LABELS') }}"
+                 data-collapse-saved="{{ _labelsCollapsed ? 'closed' : 'open' }}"
                  {{ _labelsCollapsed ? '' : 'open' }}>
-            {# Named explicitly, because a summary takes its accessible name
-               from its contents and this one contains a roll-up badge and the
-               "Create label" button — unnamed, it read as "Labels 3 unread
-               Create label". The same string as the visible heading, so a
-               voice user asking for "Labels" still gets this. #}
-            <summary class="group/head nav-section-y pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
-                     aria-label="{{ 'sidebar.labels.heading'|trans }}"
-                     aria-expanded="{{ _labelsCollapsed ? 'false' : 'true' }}"
-                     data-ui--sidebar-target="collapseSummary">
-                <i class="fa-solid fa-chevron-right w-3 text-[9px] text-ink-faint transition-transform group-open/labels:rotate-90" aria-hidden="true"></i>
-                <span class="flex-1 text-xs font-semibold text-ink-faint uppercase tracking-wider">{{ 'sidebar.labels.heading'|trans }}</span>
-
+            {# The heading row is shared with ACCOUNTS below; see
+               _sidebar_section_head.html.twig. #}
+            {% embed '_partials/_sidebar_section_head.html.twig' with {
+                heading:   'sidebar.labels.heading'|trans,
+                collapsed: _labelsCollapsed,
+            } %}
+                {% block badge %}
+                {% import '_partials/_sidebar.html.twig' as macros %}
                 {# The section's own number, and ONLY while it is shut. Open,
                    the per-label badges under it say it better and this would
                    be the same mail counted twice on screen — so the disclosure
@@ -842,37 +862,24 @@ controller instead — the scroll position and which trees are open.
                    patches it by data-count-key like every other badge — a
                    collapsed section that stopped being patched would show a
                    number from three syncs ago the moment it was reopened. #}
-                <span class="group-open/labels:hidden">{{ macros.unread_badge(sidebarCounts.unreadInLabels(), 'labels:unread') }}</span>
+                <span class="group-open/section:hidden">{{ macros.unread_badge(sidebarCounts.unreadInLabels(), 'labels:unread') }}</span>
 
-                {# Quiet until its heading row is hovered. A "+" on every
-                   section heading is two controls permanently on screen for
-                   something done a few times a year. The row is the summary
-                   (`group/head`), not the section: a label further down must
-                   not light it up.
-
-                   Two exits from "hidden", and both are needed. Keyboard focus
-                   shows it, or a button reached with Tab would be invisible
-                   while it holds focus. And it is only ever hidden where there
-                   is a hover to reveal it with — `[@media(hover:hover)]` — or
-                   a phone could neither create a label nor add an account.
-
-                   `transition` rather than `transition-colors`, so the fade is
-                   one. The Accounts heading below has the same button. #}
+                {% endblock %}
+                {% block actions %}
                 <button
                     data-controller="ui--modal"
                     data-action="click->ui--modal#open {{ _drawerClose }}"
                     data-ui--modal-title-value="{{ 'sidebar.labels.add'|trans }}"
                     data-ui--modal-src-value="{{ path('app_label_new') }}"
-                    class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition cursor-pointer
-                           [@media(hover:hover)]:opacity-0 group-hover/head:opacity-100 focus-visible:opacity-100"
+                    class="{{ section_action_class }}"
                     aria-label="{{ 'sidebar.labels.add'|trans }}"
                 >
-                    <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>
+                    <i class="fa-solid fa-plus text-[11px]" aria-hidden="true"></i>
                 </button>
-            </summary>
+                {% endblock %}
+            {% endembed %}
 
             <div id="{{ _drawerMode is defined and _drawerMode ? 'label-list-drawer' : 'label-list' }}" class="nav-rows">
-                {% set labelTree = sidebarCounts.userLabelTree()|filter(node => in_labels(node)) %}
                 {% if labelTree|length == 0 %}
                     <p class="px-3 text-xs text-ink-faint" data-nav-tier="tree">{{ 'sidebar.labels.none'|trans }}</p>
                 {% else %}
@@ -882,46 +889,65 @@ controller instead — the scroll position and which trees are open.
                 {% endif %}
             </div>
         </details>
+        {% endif %}
 
         {# ── Accounts section ──────────────────────────────────────────────
 
            The same disclosure, for the same reason and out of the same stored
            set. It does NOT replace or duplicate SETTING_SIDEBAR_ACCOUNT, which
-           answers a different question: that one is *which* account is
+           answers a different question: that one is *which* accounts are
            expanded, this one is whether the accounts are on screen at all.
-           Collapsing takes the expanded account's folder list down with it and
-           expanding brings the same account back still open, because neither
+           Collapsing takes the expanded accounts' folder lists down with it and
+           expanding brings the same accounts back still open, because neither
            setting is written when the other changes.
 
            No roll-up badge here, unlike LABELS, and not for symmetry's sake:
            there is no honest single number. Account rows count within one
-           account, and only the expanded one's folders are ever loaded, so a
+           account, and only the expanded ones' folders are ever loaded, so a
            heading total would either be a sum over lists that are not on the
            page or a count that silently means "the one account you happened to
            have open". #}
         {% set _accountsCollapsed = sidebarCounts.isCollapsed(constant('App\\Entity\\User\\User::SIDEBAR_SECTION_ACCOUNTS')) %}
-        <details class="rail-hide group/accounts"
+        <details class="rail-hide group/section nav-section-y"
                  data-action="toggle->ui--sidebar#rememberCollapse"
                  data-collapse-key="{{ constant('App\\Entity\\User\\User::SIDEBAR_SECTION_ACCOUNTS') }}"
+                 data-collapse-saved="{{ _accountsCollapsed ? 'closed' : 'open' }}"
                  {{ _accountsCollapsed ? '' : 'open' }}>
-            <summary class="group/head nav-section-y pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
-                     aria-label="{{ 'sidebar.accounts.heading'|trans }}"
-                     aria-expanded="{{ _accountsCollapsed ? 'false' : 'true' }}"
-                     data-ui--sidebar-target="collapseSummary">
-                <i class="fa-solid fa-chevron-right w-3 text-[9px] text-ink-faint transition-transform group-open/accounts:rotate-90" aria-hidden="true"></i>
-                <span class="flex-1 text-xs font-semibold text-ink-faint uppercase tracking-wider">{{ 'sidebar.accounts.heading'|trans }}</span>
+            {% embed '_partials/_sidebar_section_head.html.twig' with {
+                heading:   'sidebar.accounts.heading'|trans,
+                collapsed: _accountsCollapsed,
+            } %}
+                {% block actions %}
+                {# Open all, or Close all once every account is open (#690):
+                   with several accounts open at once, the way to get there
+                   in one press, and back. Quiet until the heading is hovered,
+                   like Add account beside it, and for the same reasons. The
+                   name and icon are rendered for "open all" and corrected on
+                   connect, which knows the rows. #}
+                <button type="button"
+                        data-controller="settings--accounts-expand-all"
+                        data-action="click->settings--accounts-expand-all#toggle"
+                        data-settings--accounts-expand-all-persist-url-value="{{ path('app_mail_sidebar_account_expanded') }}"
+                        data-settings--accounts-expand-all-expand-label-value="{{ 'sidebar.accounts.expand_all'|trans }}"
+                        data-settings--accounts-expand-all-collapse-label-value="{{ 'sidebar.accounts.collapse_all'|trans }}"
+                        data-accounts-expand-all
+                        class="{{ section_action_class }}"
+                        aria-label="{{ 'sidebar.accounts.expand_all'|trans }}"
+                        title="{{ 'sidebar.accounts.expand_all'|trans }}">
+                    <i data-settings--accounts-expand-all-target="icon" class="fa-solid fa-angles-down text-[11px]" aria-hidden="true"></i>
+                </button>
                 <button
                     data-controller="ui--modal"
                     data-action="click->ui--modal#open {{ _drawerClose }}"
                     data-ui--modal-title-value="{{ 'sidebar.accounts.add'|trans }}"
                     data-ui--modal-src-value="{{ path('app_account_new') }}"
-                    class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition cursor-pointer
-                           [@media(hover:hover)]:opacity-0 group-hover/head:opacity-100 focus-visible:opacity-100"
+                    class="{{ section_action_class }}"
                     aria-label="{{ 'sidebar.accounts.add'|trans }}"
                 >
-                    <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>
+                    <i class="fa-solid fa-plus text-[11px]" aria-hidden="true"></i>
                 </button>
-            </summary>
+                {% endblock %}
+            {% endembed %}
 
             <div id="{{ _drawerMode is defined and _drawerMode ? 'account-list-drawer' : 'account-list' }}" class="nav-rows">
                 {# The same suffix the list containers either side of this use. Both
@@ -961,7 +987,12 @@ controller instead — the scroll position and which trees are open.
                 <div class="-mt-1 text-xs text-ink-muted">{{ clockui.longDate() }}</div>
 
                 {% if soonest %}
+                    {# data-sidebar-peek-own: a clipped title leans the
+                       sidebar out only while this button is hovered or
+                       focused, not whenever the pointer is over the sidebar
+                       (see "The peek" in app.css). #}
                     <button type="button"
+                            data-sidebar-peek-own
                             data-controller="ui--modal"
                             data-action="click->ui--modal#open {{ _drawerClose }}"
                             data-ui--modal-src-value="{{ path('app_calendar_soon') }}"
@@ -971,11 +1002,43 @@ controller instead — the scroll position and which trees are open.
                                    hover:bg-hover transition-colors cursor-pointer
                                    focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                         <i class="{{ soonest.icon }} mt-0.5 text-xs text-ink-faint" aria-hidden="true"></i>
+                        {# Both lines truncate, never wrap: the button is the
+                           peek's hover target, and its box must be the same
+                           shape out as in. A date line that wrapped narrow
+                           and not wide made the button 16px shorter once the
+                           peek was out, its top moved down from under a
+                           pointer resting there, the peek closed, the line
+                           wrapped again — and the sidebar flickered for as
+                           long as the pointer stayed. #}
                         <span class="flex min-w-0 flex-col">
-                            <span class="text-[11px] text-ink-faint">
-                                {{- 'calendar.soon.next'|trans }} ·
-                                {{ soonest.startsAt|intl_date('EEEdMMM', soonest.event.isAllDay ? false : null) }}
-                                {%- if not soonest.event.isAllDay %}, {{ soonest.startsAt|date(clock.time) }}{% endif -%}
+                            {# The day relative to today, the ladder the insights
+                               pane uses (insight/_pane.html.twig): Today,
+                               Tomorrow, a weekday within the week, then the
+                               date. "Next · Tue, Nov 24, 10:00 am" was 150px in
+                               a 136px line at the default width, and cutting
+                               "am" to "…" saves nothing; this fits, in every
+                               catalogue, down to a sidebar of about 205px.
+                               Below that the truncate takes over and the peek
+                               shows the rest. "Next" is still read out, just
+                               not drawn: the card says it already.
+
+                               An all-day event's start is a floating date, so
+                               its day is read without moving it into a zone
+                               (`false`), as the date itself always was. #}
+                            {% set _tz      = soonest.event.isAllDay ? false : null %}
+                            {% set _day     = soonest.startsAt|date('Y-m-d', _tz) %}
+                            {% set _today   = 'now'|date('Y-m-d') %}
+                            <span class="truncate text-[11px] text-ink-faint"><span class="sr-only">{{ 'calendar.soon.next'|trans }} · </span>
+                                {%- if _day == _today -%}
+                                    {{ 'insights.pane.when.today'|trans }}
+                                {%- elseif _day == 'now'|date_modify('+1 day')|date('Y-m-d') -%}
+                                    {{ 'insights.pane.when.tomorrow'|trans }}
+                                {%- elseif _day <= 'now'|date_modify('+6 days')|date('Y-m-d') -%}
+                                    {{ soonest.startsAt|intl_date('EEE', _tz) }}
+                                {%- else -%}
+                                    {{ soonest.startsAt|intl_date('dMMM', _tz) }}
+                                {%- endif -%}
+                                {%- if not soonest.event.isAllDay %} · {{ soonest.startsAt|date(clock.time) }}{% endif -%}
                             </span>
                             <span class="truncate text-xs font-medium text-ink">
                                 {{- soonest.event.title ?: 'calendar.soon.untitled'|trans -}}

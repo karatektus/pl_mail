@@ -8,10 +8,7 @@ where it is stored (MessageList::$tabUnreadCount).
 
 Accepts nothing: reads message_list().
 #}
-{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                  peer-checked:bg-accent peer-checked:text-accent-ink
-                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                  transition-colors cursor-pointer' %}
+{% import '_partials/_segmented.html.twig' as seg %}
 
 <div class="px-4 py-3"
      data-controller="settings--message-list"
@@ -22,20 +19,14 @@ Accepts nothing: reads message_list().
             <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.message_list.tab_counts.hint'|trans }}</span>
         </span>
 
-        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
-             role="radiogroup" aria-labelledby="tab-counts-label">
-            {% for shown in [true, false] %}
-                <label>
-                    <input type="radio" name="tabUnreadCount" class="peer sr-only"
-                           value="{{ shown ? '1' : '0' }}"
-                           data-action="change->settings--message-list#pick"
-                           aria-label="{{ 'settings.message_list.tab_counts.label'|trans }} — {{ (shown ? 'settings.message_list.shown' : 'settings.message_list.hidden')|trans }}"
-                           {{ message_list().tabUnreadCount == shown ? 'checked' : '' }}>
-                    <span class="{{ segText }}">
-                        {{ (shown ? 'settings.message_list.shown' : 'settings.message_list.hidden')|trans }}
-                    </span>
-                </label>
-            {% endfor %}
-        </div>
+        {{ seg.control('tabUnreadCount', [
+            { value: '1', label: 'settings.message_list.shown'|trans },
+            { value: '0', label: 'settings.message_list.hidden'|trans },
+        ], message_list().tabUnreadCount ? '1' : '0', {
+            labelledby: 'tab-counts-label',
+            label:      'settings.message_list.tab_counts.label'|trans,
+            prefix:     true,
+            action:     'change->settings--message-list#pick',
+        }) }}
     </div>
 </div>

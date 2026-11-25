@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Helper;
 
+use Symfony\Component\Mime\MimeTypes;
+
 readonly class AttachmentStorageHelper
 {
     public function __construct(
@@ -49,6 +51,27 @@ readonly class AttachmentStorageHelper
             $messageUid,
             $safeName,
         );
+    }
+
+    /**
+     * The name for a part its sender did not name: "attachment" with the
+     * extension its type is known by — "attachment.pdf", "attachment.eml".
+     *
+     * The extension is the point. A file without one cannot be opened by the
+     * operating system it is downloaded to, and a PDF is only offered a
+     * preview by its name (PdfAttachment). webklex named these parts by a
+     * checksum of their bytes ("57d5c7cb"), which carried neither (#718);
+     * a type nobody has an extension for keeps the bare word.
+     *
+     * Static because it needs nothing of the store: it is a fact about the
+     * type. Two such parts in one message are told apart by store(), which
+     * suffixes a name that is already taken.
+     */
+    public static function fallbackName(string $contentType): string
+    {
+        $extension = MimeTypes::getDefault()->getExtensions(strtolower(trim($contentType)))[0] ?? null;
+
+        return null === $extension ? 'attachment' : 'attachment.' . $extension;
     }
 
     public function getAbsolutePath(string $relativePath): string

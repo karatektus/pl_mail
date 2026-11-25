@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:ca34537eb96ebfe6547eae6f58eded01b96bbbf2 -->
+<!-- translated-from: features/accounts.md sha1:bdb93f5eda92074d5d732b41a23f2c0162de1921 -->
 
 # Konten und Aliase
 
@@ -638,10 +638,13 @@ IMAP-Synchronisierung holt nur Mail, die neuer ist als das, was sie schon hat.
 Zwei Einstellungen hängen an der Aliasliste statt am Konto, denn sie sind Eigenschaften der
 Adresse, die andere zu sehen bekommen, und nicht des Postfachs, in dem sie wohnt.
 
-**Standards fürs Schreiben**, unter der Aliasliste auf derselben Seite, trägt derzeit ein
-Bedienelement je Adresse: was diese Adresse tut, wenn ein Absender darüber informiert werden will,
-dass seine Mail gelesen wurde. Die Vorgabe ist **Nie senden**, und es lohnt sich, das zu
-verstehen, bevor man daran dreht — siehe den Abschnitt *Lesebestätigungen* unter [Mail](mail.md).
+**Standards fürs Verfassen**, unter **Einstellungen → Lesen & Schreiben → Verfassen**, trägt zwei
+Einstellungen je Konto und listet unter **Adressen, die abweichen** die Adressen, die sie anders
+setzen. Die erste ist, was diese Adresse tut, wenn ein Absender darüber informiert
+werden will, dass seine Mail gelesen wurde. Die Vorgabe ist **Nie senden**, und es lohnt sich, das
+zu verstehen, bevor man daran dreht — siehe den Abschnitt *Lesebestätigungen* unter [Mail](mail.md).
+Die zweite ist **Immer Bcc an**, die Adressen, an die jede Mail von diesem Konto in Kopie geht —
+siehe [Immer Bcc an](mail.md#immer-bcc-an).
 
 **Einstellungen → Signaturen** ist ein eigener Abschnitt. Das Konto hat eine Signatur, und jede
 seiner Adressen kann sie entweder erben, ersetzen oder bewusst ohne Signatur senden. Die drei

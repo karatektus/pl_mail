@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
  * Rejects a state-changing request that cannot prove it came from our own page.
@@ -43,13 +44,23 @@ trait ChecksCsrf
      *                        tokens — CalendarController's delete button posts
      *                        `_deleteToken` from inside a form that already has a
      *                        `_token` for editing
+     *
+     * A plain 403, NOT the security component's AccessDeniedException (#745).
+     * That one goes through the firewall, and for a user signed in by the
+     * remember-me cookie — exactly the user whose page carries a token from a
+     * session that has since expired — the firewall answers it by sending them
+     * to the login page. fetch() follows the redirect, the login page sends a
+     * signed-in user on to the inbox, and a refused one-line JSON POST became a
+     * whole mailbox render, hundreds a minute when something kept posting. A
+     * stale token is not a sign-in problem, and the user is signed in: the
+     * answer is "refused", whoever is asking.
      */
     private function assertCsrf(Request $request, string $tokenId, string $field = '_token'): void
     {
         $token = (string) ($request->request->get($field) ?? $request->headers->get('X-CSRF-Token') ?? '');
 
         if (false === $this->isCsrfTokenValid($tokenId, $token)) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
+            throw new AccessDeniedHttpException('Invalid CSRF token.');
         }
     }
 }

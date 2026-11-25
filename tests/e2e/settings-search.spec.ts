@@ -140,13 +140,22 @@ test("a result scrolls the settings pane, never the page around it", async ({ pa
 
         await expect(page).toHaveURL(/\/settings\/compose#card-compose-behaviour$/);
         await expect(page.locator("#card-compose-behaviour")).toHaveClass(/settings-card-flash/);
-        await expect(page.locator("label.sr-only", { hasText: address })).toHaveCount(1);
+        // The alias is on the page — since #692 as a folded row of the
+        // Compose defaults card rather than a sr-only label of its own — so
+        // the escape check below runs over a card that holds it.
+        await expect(page.locator("[data-compose-defaults-exception]", { hasText: address })).toHaveCount(1);
 
         const escaped = await page.evaluate(() => {
             const port = document.getElementById("card-compose-behaviour")!.closest(".overflow-y-auto")!;
 
             return [...port.querySelectorAll("*")]
-                .filter((e) => "absolute" === getComputedStyle(e).position && false === port.contains((e as HTMLElement).offsetParent))
+                // Rendered ones only: an element with no box (display: none,
+                // or inside something hidden) has no offsetParent and cannot
+                // scroll anything — the hidden exception editors and a closed
+                // suggestion panel are that.
+                .filter((e) => "absolute" === getComputedStyle(e).position
+                    && null !== (e as HTMLElement).offsetParent
+                    && false === port.contains((e as HTMLElement).offsetParent))
                 .map((e) => e.outerHTML.slice(0, 80));
         });
 

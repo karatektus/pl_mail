@@ -87,7 +87,7 @@ class GmailApiSender implements MailDeliveryInterface, SentCopyLookupInterface
         return true;
     }
 
-    public function deliver(Email $email, Account $account): void
+    public function deliver(Email $email, Account $account): ?string
     {
         // Byte for byte or not at all, and the API does not do byte for byte:
         // it parses what it is given and writes a new message (#651). Decided
@@ -97,7 +97,7 @@ class GmailApiSender implements MailDeliveryInterface, SentCopyLookupInterface
         if ($email->getBody() instanceof SealedEntityPart) {
             $this->smtp->deliver($email, $account);
 
-            return;
+            return null;
         }
 
         // Not $email->toString(): that drops Bcc, and Gmail reads the
@@ -109,7 +109,7 @@ class GmailApiSender implements MailDeliveryInterface, SentCopyLookupInterface
         $threadId = $this->threadIdFor($email, $account);
 
         try {
-            $this->sendInThread($account, $raw, $threadId);
+            $gmailId = $this->sendInThread($account, $raw, $threadId);
         } catch (GmailThrottledException $e) {
             $this->logger->warning('GmailApiSender: Gmail is limiting sends; trying again', $this->context($account, $e));
 
@@ -131,6 +131,8 @@ class GmailApiSender implements MailDeliveryInterface, SentCopyLookupInterface
 
             throw new SendOutcomeUnknownException($e->getMessage(), $e);
         }
+
+        return $this->messageIdGmailGave($account, $gmailId, $email);
     }
 
     public function isInSent(Account $account, string $messageId): bool
@@ -169,10 +171,10 @@ class GmailApiSender implements MailDeliveryInterface, SentCopyLookupInterface
      * again without the id, it goes out and starts a thread, as it always
      * did. Both answers mean nothing went out, so this cannot send twice.
      */
-    private function sendInThread(Account $account, string $raw, ?string $threadId): void
+    private function sendInThread(Account $account, string $raw, ?string $threadId): ?string
     {
         try {
-            $this->client->sendRaw($account, $raw, $threadId);
+            return $this->client->sendRaw($account, $raw, $threadId);
         } catch (GmailApiException $e) {
             if (null === $threadId || false === in_array($e->getStatus(), [400, 404], true)) {
                 throw $e;
@@ -180,8 +182,45 @@ class GmailApiSender implements MailDeliveryInterface, SentCopyLookupInterface
 
             $this->logger->warning('GmailApiSender: Gmail does not know the thread; sending without it', $this->context($account, $e));
 
-            $this->client->sendRaw($account, $raw);
+            return $this->client->sendRaw($account, $raw);
         }
+    }
+
+    /**
+     * The Message-ID Gmail put on the mail it just sent, when it is not the
+     * one plMail wrote (#702).
+     *
+     * messages.send does not keep the Message-ID it is given: the copy in
+     * Sent, and the one the recipients get, carry one Gmail made up
+     * (`<CA…@mail.gmail.com>`). plMail's row kept its own, so nothing matched
+     * it: the sync's merge of the Sent copy looks for the row by Message-ID
+     * and built a second one, listed twice in Sent and in a conversation of
+     * its own; the answers name Gmail's id in In-Reply-To, which no row of
+     * ours had; and a reply to one's own sent mail referenced an id the
+     * recipients never saw. With Gmail's id on the row, all three find it.
+     *
+     * Asked back with one messages.get, because the send's answer holds only
+     * Gmail's id and thread. The mail has left by now, so nothing here may
+     * fail the send: whatever goes wrong is logged and answered null, and the
+     * row keeps the id plMail wrote, as it did before.
+     */
+    private function messageIdGmailGave(Account $account, ?string $gmailId, Email $email): ?string
+    {
+        if (null === $gmailId) {
+            return null;
+        }
+
+        try {
+            $given = $this->client->getMessageIdHeader($account, $gmailId);
+        } catch (\Throwable $e) {
+            $this->logger->warning('GmailApiSender: sent, but the Message-ID Gmail gave it could not be read', $this->context($account, $e));
+
+            return null;
+        }
+
+        $written = MessageIdHelper::normalise((string) $email->getHeaders()->get('Message-ID')?->getBodyAsString());
+
+        return null === $given || $given === $written ? null : $given;
     }
 
     /**

@@ -43,6 +43,11 @@ final class LabelKindsTest extends TestCase
             $this->bindings,
             static fn (LabelBinding $binding): bool => $binding->label === $label && self::isFolder($binding),
         ));
+        $sidebar->method('isOnAnyAccount')->willReturnCallback(fn (Label $label): bool => [] !== array_filter(
+            $this->bindings,
+            static fn (LabelBinding $binding): bool => $binding->label === $label,
+        ));
+        $sidebar->method('visibleChildrenOf')->willReturnCallback(static fn (Label $label): array => $label->children->toArray());
         $sidebar->method('isTagInUseOn')->willReturnCallback(fn (Label $label, Account $account): bool => [] !== array_filter(
             $this->bindings,
             static fn (LabelBinding $binding): bool => $binding->label === $label && $binding->account === $account && false === self::isFolder($binding),
@@ -163,6 +168,59 @@ final class LabelKindsTest extends TestCase
         $folder                = $this->label('1_test', $this->account(user: $user), mailbox: true);
 
         self::assertTrue($this->kinds->inLabels($folder, $user));
+    }
+
+    /**
+     * #693: with folders listed under LABELS, "Label as" offers them too on a
+     * plain IMAP account, where putting one on copies the mail into it. Not
+     * without the setting, and not on Outlook, where a folder label is a move.
+     */
+    public function testFoldersInLabelsOffersAnImapFolderInLabelAs(): void
+    {
+        $user   = new User();
+        $imap   = $this->account(user: $user);
+        $folder = $this->label('Work', $imap, mailbox: true);
+        $tag    = $this->label('Later');
+
+        self::assertSame([$tag], $this->kinds->tags([$folder, $tag], $user, $imap), 'off: a folder is a place');
+        self::assertSame([$tag], $this->kinds->tags([$folder, $tag], $user), 'off, for a selection');
+
+        $user->foldersInLabels = true;
+
+        self::assertSame([$folder, $tag], $this->kinds->tags([$folder, $tag], $user, $imap));
+        self::assertSame([$folder, $tag], $this->kinds->tags([$folder, $tag], $user));
+        self::assertTrue($this->kinds->isPlaceOn($folder, $imap), 'still in Move to');
+
+        $outlook       = $this->account(MailProvider::Microsoft, $user);
+        $outlookFolder = $this->label('Projects', $outlook, graphFolder: true);
+
+        self::assertSame([], $this->kinds->tags([$outlookFolder], $user, $outlook));
+    }
+
+    /**
+     * Listed by account (#690), a label that is on an account is under that
+     * account, so LABELS keeps only what is on none — and the parent of one
+     * such, so it is not cut loose — or a label made in plMail and not used
+     * yet would be nowhere at all. Folders in Labels does not bring the rest
+     * back: it is a question about the merged list.
+     */
+    public function testListedByAccountLabelsHoldsOnlyWhatIsOnNoAccount(): void
+    {
+        $user                  = new User();
+        $user->email           = 'by-account@example.test';
+        $user->labelsByAccount = true;
+        $user->foldersInLabels = true;
+        $gmail                 = $this->account(MailProvider::Google, $user);
+
+        $onAccount = $this->label('Sports', $gmail);
+        $unused    = $this->label('Ideas');
+        $parent    = $this->label('Projects', $gmail);
+        $child     = $this->label('Someday');
+        $parent->addChild($child);
+
+        self::assertFalse($this->kinds->inLabels($onAccount, $user), 'listed under its account instead');
+        self::assertTrue($this->kinds->inLabels($unused, $user), 'on no account, so LABELS is the only place it can be');
+        self::assertTrue($this->kinds->inLabels($parent, $user), 'the parent of a label on no account');
     }
 
     private function account(?MailProvider $provider = null, ?User $user = null): Account

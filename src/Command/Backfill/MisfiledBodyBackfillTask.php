@@ -14,6 +14,7 @@ use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MisfiledBodyDetector;
 use App\Service\Mail\MisfiledBodyUnpacker;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -26,7 +27,8 @@ use Throwable;
  *
  * Those messages render blank with one chip named something like `09704cea`,
  * and the mail the chip contains is the mail the message is supposed to show.
- * MessageSyncer stops new ones arriving; this is for the ones already here.
+ * MessageParser reads such parts as bodies, so no new ones arrive; this is for
+ * the ones stored while webklex parsed.
  *
  * ── Repairable without a mail server, which is the whole reason it exists ────
  * The bytes were saved. persistAttachment() wrote the part's content to
@@ -51,7 +53,7 @@ use Throwable;
  * interrupted and re-run, and a backfill an administrator types twice must do
  * nothing the second time.
  */
-final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, UpgradeTaskInterface
+final readonly class MisfiledBodyBackfillTask implements CountableBackfillTaskInterface, UpgradeTaskInterface
 {
     private const int BATCH_SIZE = 100;
 
@@ -85,6 +87,22 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
     public function getDescription(): string
     {
         return 'Restore message bodies that were stored as nameless attachments, leaving the message blank.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-09-21');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    /** A table repair walks everything, so it has no window to count within. */
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageBackfillRepository->countWithMisfiledBodyPart();
     }
 
     public function run(SymfonyStyle $io): int
@@ -220,7 +238,7 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
             return false;
         }
 
-        if (false === $this->detector->isBody($part->contentType, null, null)) {
+        if (false === $this->detector->isBodyType($part->contentType)) {
             return false;
         }
 

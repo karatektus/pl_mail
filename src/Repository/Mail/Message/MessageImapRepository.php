@@ -621,8 +621,8 @@ class MessageImapRepository extends ServiceEntityRepository
      * anyway — see MessageSyncer::isUsableFetch(), which now refuses it. The
      * rows already written by that path are what this finds: no Message-ID, no
      * sender, no subject, no body, no attachments, and a receivedAt of the
-     * epoch, because webklex's empty Attribute parses through Carbon as
-     * `false` and lands on 1970-01-01.
+     * epoch, because webklex's empty Attribute parsed through Carbon as
+     * `false` and landed on 1970-01-01.
      *
      * Every condition is required, and that is the point. The predicate has to
      * be unable to match mail a user would miss, and the way to guarantee that

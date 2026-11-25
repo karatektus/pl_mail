@@ -9,6 +9,7 @@ use App\Entity\Mail\Message;
 use App\Repository\Mail\Contact\ContactRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\Message\MessageBackfillRepository;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
@@ -49,6 +50,16 @@ final readonly class AddressNormalizationBackfillTask implements BackfillTaskInt
     public function getDescription(): string
     {
         return 'Strip RFC 5322 quoting from stored sender/recipient names and canonicalise addresses';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-07-30');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
     }
 
     public function run(SymfonyStyle $io): int

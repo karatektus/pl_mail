@@ -4,21 +4,20 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Domain\Helper\MessageIdHelper;
+use App\Domain\Helper\MessageParser;
 use App\Service\Imap\MessageSyncer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Header;
 
 /**
  * Where the seven blank rows in Spam came from.
  *
  * A FETCH does not have to fail loudly. When the header block comes back empty
  * — a connection that hiccuped mid-response, a server answering NIL, MIME the
- * parser could make nothing of — webklex raises nothing at all. It hands back
- * an empty Attribute for every field, and an empty Attribute is quietly
- * agreeable: '' for a string, `false` for an address, and, through
- * Carbon::parse(false), 1 January 1970 for a date.
+ * parser could make nothing of — the parser raises nothing at all. It hands
+ * back a message with nothing in it: no sender, no subject, no date. webklex
+ * went further and dated it 1 January 1970.
  *
  * MessageSyncer::buildMessage() therefore assembled a complete Message out of
  * nothing and persisted it, because the only thing that made it skip a message
@@ -27,63 +26,25 @@ use Webklex\PHPIMAP\Header;
  * counted in the Spam badge — which is how seven of them became the entire
  * badge with no mail behind it.
  *
- * The first two tests below pin the vendor behaviour the bug rested on, so that
- * if a webklex upgrade ever makes an empty header throw instead, the guard's
- * reason is on record rather than mysterious.
+ * The first test below pins the parser behaviour the bug rests on, so that the
+ * guard's reason is on record rather than mysterious.
  */
 final class GhostFetchTest extends TestCase
 {
-    private static function header(string $raw): Header
-    {
-        return new Header($raw, Config::make());
-    }
-
-    // ── the vendor behaviour the ghosts rested on ─────────────────────────
+    // ── the parser behaviour the ghosts rested on ─────────────────────────
 
     /**
-     * The epoch, out of nowhere. This single line is the 1970-01-01 the report
-     * described, and it is why the reaper looks for an epoch date rather than a
-     * null one: the row really does hold a timestamp.
+     * Nothing complains: an empty fetch parses, into blanks throughout.
      */
-    public function testAnEmptyHeaderParsesToTheEpochRatherThanFailing(): void
+    public function testAnEmptyFetchParsesToAMessageWithNothingInIt(): void
     {
-        self::assertSame(
-            '1970-01-01T00:00:00+00:00',
-            self::header('')->get('date')->toDate()->toIso8601String(),
-            'an empty Date attribute goes through Carbon::parse(false) and lands on the epoch',
-        );
-    }
+        $parsed = MessageParser::parse('');
 
-    /**
-     * The secondary defect: buildMessage() guarded the sender with
-     * `null !== $from`, and an empty address Attribute answers `false`, not
-     * null. So the guard passed on a message with no sender at all and the code
-     * went on to read `->mail` off a boolean.
-     *
-     * Asserted as identity rather than as "is false and is not null", which is
-     * the same statement said twice and which a static analyser is right to
-     * call a tautology.
-     */
-    public function testAnEmptyFromIsFalseRatherThanNull(): void
-    {
-        self::assertSame(
-            false,
-            self::header('')->get('from')->first(),
-            'the empty-address sentinel is false, which is why a null check did not catch it',
-        );
-    }
-
-    /**
-     * Nothing else complains either — the whole profile arrives without a
-     * single error, which is what made this silent.
-     */
-    public function testAnEmptyHeaderYieldsBlanksThroughout(): void
-    {
-        $header = self::header('');
-
-        self::assertSame('', (string) $header->get('subject'));
-        self::assertSame('', (string) $header->get('message_id'));
-        self::assertSame([], $header->get('date')->toArray());
+        self::assertSame('', $parsed->subject);
+        self::assertSame('', $parsed->messageId);
+        self::assertNull($parsed->from);
+        self::assertNull($parsed->date);
+        self::assertFalse($parsed->hasDateHeader);
     }
 
     // ── the guard ─────────────────────────────────────────────────────────
@@ -131,18 +92,16 @@ final class GhostFetchTest extends TestCase
      */
     public function testAnOrdinarySubjectlessHeaderIsAccepted(): void
     {
-        $header = self::header(
+        $parsed = MessageParser::parse(
             "From: Kunde <kunde@example.test>\r\n"
             . "Message-ID: <c@d.test>\r\n"
             . "Date: Fri, 25 Jul 2025 13:58:46 +0000\r\n",
         );
 
-        $from = $header->get('from')->first();
-
         self::assertTrue(MessageSyncer::describesAMessage(
-            (string) $header->get('message_id'),
-            (string) ($from->mail ?? ''),
-            [] !== $header->get('date')->toArray(),
+            MessageIdHelper::normalise($parsed->messageId),
+            (string) $parsed->from?->address,
+            $parsed->hasDateHeader,
         ));
     }
 }

@@ -1,0 +1,39 @@
+{#
+settings/_compose_defaults_chips.html.twig
+─────────────────────────────────────────────────────────────────────────────
+One Always Bcc list as chips (#692): a <select multiple> of the stored
+addresses that settings--address-chips turns into a Tom Select with the
+composer's contact suggestions, and that saves on every chip. Without
+JavaScript it is a plain multi-select of what is stored, and its Save button
+posts it unchanged — the field needs the widget to add anything.
+
+Variables:
+  id           the <select>'s id; Tom Select names its input "<id>-ts-control"
+  action       the route it posts to
+  token        its CSRF token
+  addresses    list<string>, what is stored
+  placeholder  what the input says
+  empty        optional: what it says instead while the list is empty
+  label        the accessible name
+  i18n         JSON: {create, noResults, add}
+#}
+<form method="post" action="{{ action }}"
+      data-turbo-stream
+      data-controller="settings--address-chips"
+      data-settings--address-chips-url-value="{{ path('app_contacts_autocomplete_recipients') }}"
+      data-settings--address-chips-i18n-value="{{ i18n }}"
+      data-settings--address-chips-empty-value="{{ empty ?? '' }}"
+      class="mt-1.5">
+    <input type="hidden" name="_token" value="{{ token }}">
+    <select id="{{ id }}" name="addresses[]" multiple
+            aria-label="{{ label }}"
+            placeholder="{{ placeholder }}"
+            class="w-full">
+        {% for address in addresses %}
+            <option value="{{ address }}" selected>{{ address }}</option>
+        {% endfor %}
+    </select>
+    <noscript>
+        <button type="submit" class="mt-1 text-xs text-ink-muted">{{ 'settings.compose_defaults.bcc.save'|trans }}</button>
+    </noscript>
+</form>

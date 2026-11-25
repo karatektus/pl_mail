@@ -121,7 +121,7 @@ final class SettingsNavigation
                 ['card-logo', 'settings.appearance.logo.heading', null],
             ],
             'layout' => [
-                ['card-sidebar', 'settings.sidebar.heading', null],
+                ['card-sidebar', 'settings.sidebar.heading', 'settings.search.keywords.sidebar'],
                 ['card-swipe-actions', 'settings.swipe_actions.heading', 'settings.search.keywords.swipe_actions'],
                 ['card-shortcuts', 'settings.shortcuts.heading', 'settings.search.keywords.shortcuts'],
             ],
@@ -162,6 +162,7 @@ final class SettingsNavigation
                 ['card-tab-counts', 'settings.message_list.tab_counts.heading', null],
             ],
             'labels' => [
+                ['card-label-view', 'settings.labels.view.heading', 'settings.search.keywords.label_view'],
                 ['card-labels', 'settings.labels.heading', 'settings.search.keywords.labels'],
             ],
             'filters' => [

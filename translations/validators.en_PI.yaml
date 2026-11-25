@@ -26,6 +26,7 @@ carddav.username_required: Give the name yer CardDAV port knows ye by.
 contacts.invalid_email: '"%email%" be no parrot address.'
 contacts.name_or_email_required: Give the hand a name or at least one parrot address.
 calendar.name_required: Name the almanac, else ye'll not tell it from the rest.
+compose.from_required: Pick the colours ye sail under afore ye cast off.
 compose.recipient_invalid: "“{{ address }}” be no proper address, matey."
 compose.recipient_required: Name at least one soul afore ye cast off.
 integration.name_taken: Ye already have a line to this port named {{ value }}. Christen this one somethin' else — home an' work, say.

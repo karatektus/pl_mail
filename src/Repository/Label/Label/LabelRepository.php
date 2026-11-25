@@ -374,6 +374,46 @@ class LabelRepository extends ServiceEntityRepository
     }
 
     /**
+     * Move ONE account's messages and threads from one label to another,
+     * leaving the other accounts' mail where it is — for a label renamed on
+     * that account alone (LabelSplitter, #690).
+     *
+     * Raw SQL for the reason unlabelAccountMessagesAndThreads() gives. Insert
+     * then delete rather than an UPDATE of label_id: a row that already
+     * carries the target would collide with its own primary key, and
+     * `ON CONFLICT DO NOTHING` keeps the one it has.
+     */
+    public function moveAccountMessagesAndThreads(Account $account, Label $from, Label $to): void
+    {
+        $connection = $this->getEntityManager()->getConnection();
+        $parameters = ['from' => $from->id, 'to' => $to->id, 'accountId' => $account->id];
+
+        $connection->executeStatement(
+            'INSERT INTO message_label (message_id, label_id)
+             SELECT ml.message_id, :to
+               FROM message_label ml
+               JOIN message m ON m.id = ml.message_id
+              WHERE ml.label_id = :from
+                AND m.account_id = :accountId
+             ON CONFLICT DO NOTHING',
+            $parameters,
+        );
+
+        $connection->executeStatement(
+            'INSERT INTO thread_label (message_thread_id, label_id)
+             SELECT tl.message_thread_id, :to
+               FROM thread_label tl
+               JOIN message_thread t ON t.id = tl.message_thread_id
+              WHERE tl.label_id = :from
+                AND t.account_id = :accountId
+             ON CONFLICT DO NOTHING',
+            $parameters,
+        );
+
+        $this->unlabelAccountMessagesAndThreads($account, $from);
+    }
+
+    /**
      * System labels first by sortOrder, then the custom tree depth-first with
      * each level sorted case-insensitively.
      *

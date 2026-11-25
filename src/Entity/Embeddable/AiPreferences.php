@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity\Embeddable;
 
 use App\Domain\Enum\Ai\ReplyContext;
+use App\Domain\Enum\Ai\TranslationLanguage;
 use App\Entity\Ai\AiFeature;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -97,6 +98,24 @@ final class AiPreferences
     #[ORM\Column(name: 'contact_help_off', type: 'boolean', options: ['default' => false])]
     public bool $contactHelpOff = false;
 
+    /** The offer to translate a message. */
+    #[ORM\Column(name: 'translation_off', type: 'boolean', options: ['default' => false])]
+    public bool $translationOff = false;
+
+    /**
+     * The language a message is translated into, as a TranslationLanguage code;
+     * null follows the interface language.
+     *
+     * Its own setting rather than the interface language itself, because people
+     * read mail in languages plMail has no interface in (#713). An unknown code
+     * is stored as null, so a document written by a later build with a longer
+     * list cannot leave a language behind that no page can show or change.
+     */
+    #[ORM\Column(name: 'translate_into', type: 'string', length: 16, nullable: true)]
+    public ?string $translateInto = null {
+        set => null === $value ? null : TranslationLanguage::tryFrom($value)?->value;
+    }
+
     /**
      * The writer's own standing instruction, appended to the app's.
      *
@@ -149,6 +168,7 @@ final class AiPreferences
             AiFeature::WritingHelp => $this->writingHelpOff,
             AiFeature::Summary     => $this->summaryOff,
             AiFeature::ContactHelp => $this->contactHelpOff,
+            AiFeature::Translation => $this->translationOff,
         };
     }
 
@@ -171,9 +191,11 @@ final class AiPreferences
             'writingHelpOff' => $this->writingHelpOff,
             'summaryOff'     => $this->summaryOff,
             'contactHelpOff' => $this->contactHelpOff,
+            'translationOff' => $this->translationOff,
             'systemPrompt'   => $this->systemPrompt,
             'aboutMe'        => $this->aboutMe,
             'replyContext'   => $this->replyContext->value,
+            'translateInto'  => $this->translateInto,
         ];
     }
 
@@ -182,7 +204,7 @@ final class AiPreferences
      */
     public function applyArray(array $data): static
     {
-        foreach (['searchOff', 'categoriseOff', 'writingHelpOff', 'summaryOff', 'contactHelpOff'] as $flag) {
+        foreach (['searchOff', 'categoriseOff', 'writingHelpOff', 'summaryOff', 'contactHelpOff', 'translationOff'] as $flag) {
             if (true === isset($data[$flag])) {
                 $this->{$flag} = self::boolean($data[$flag]);
             }
@@ -204,6 +226,11 @@ final class AiPreferences
             // offered a fourth depth must restore the rest of the person's
             // setup rather than throwing, and the default is a working answer.
             $this->replyContext = ReplyContext::tryFrom((string) $data['replyContext']) ?? $this->replyContext;
+        }
+
+        // array_key_exists: null is a value here, "follow the interface language".
+        if (true === array_key_exists('translateInto', $data)) {
+            $this->translateInto = null === $data['translateInto'] ? null : (string) $data['translateInto'];
         }
 
         return $this;

@@ -280,7 +280,8 @@ final readonly class CalDavCollectionReader
             'body' => $this->multigetBody($hrefs),
         ]);
 
-        $changes = [];
+        $changes  = [];
+        $answered = 0;
 
         foreach ($this->parser->parse($response['body']) as $resource) {
             $data = $resource->prop('calendar-data');
@@ -289,12 +290,19 @@ final readonly class CalDavCollectionReader
                 continue;
             }
 
+            ++$answered;
+
             $changes[] = new DavChange(
                 $this->client->absolutise($resource->href, $collection),
                 $resource->prop('getetag'),
                 $data,
             );
         }
+
+        // A multiget that answers for none of what it was asked is a server
+        // refusing the hrefs, not an empty window (#637). Calendar, for task
+        // lists too: they are collections on the same CalDAV service.
+        $this->client->assertMultigetAnswered(DavService::Calendar, $collection, count($hrefs), $answered);
 
         return $changes;
     }
@@ -392,8 +400,10 @@ final readonly class CalDavCollectionReader
             . '<cal:calendar-multiget xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">'
             . '<d:prop><d:getetag/><cal:calendar-data/></d:prop>';
 
+        // Paths, not the absolute URLs the drivers key resources on: iCloud
+        // answers 404 for each absolute href (CalDavClient::pathOf(), #637).
         foreach ($hrefs as $href) {
-            $body .= sprintf('<d:href>%s</d:href>', htmlspecialchars($href, ENT_XML1));
+            $body .= sprintf('<d:href>%s</d:href>', htmlspecialchars($this->client->pathOf($href), ENT_XML1));
         }
 
         return $body . '</cal:calendar-multiget>';

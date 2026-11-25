@@ -5,17 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Service\Imap;
 
 use App\Domain\Enum\Mail\MessagePriority;
+use App\Domain\Helper\MessageParser;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Mail\HeaderNormalizer;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Header;
 
 /**
  * Priority was only ever written for outgoing mail; MessagePriority knew how
  * to read it back and nothing called it. The IMAP ingest now does, and this
- * pins the header names it reads against what webklex actually produces
- * (it reports X-Priority as "x_priority").
+ * pins the header names it reads against what the parser actually produces.
  */
 final class InboundPriorityTest extends KernelTestCase
 {
@@ -31,21 +29,9 @@ final class InboundPriorityTest extends KernelTestCase
         self::bootKernel();
 
         $container = self::getContainer();
-        $header    = new Header($rawHeader, Config::make());
 
-        // The same flattening MessageSyncer::buildMessage() does before it
-        // normalises the bag.
-        $raw = [];
-
-        foreach ($header->getAttributes() as $name => $attribute) {
-            $values = $attribute->toArray();
-
-            $raw[(string) $name] = count($values) === 1
-                ? (string) reset($values)
-                : array_map(static fn ($v): string => (string) $v, $values);
-        }
-
-        $headers = $container->get(HeaderNormalizer::class)->normalize($raw);
+        // The same bag MessageSyncer::buildFromParsed() normalises.
+        $headers = $container->get(HeaderNormalizer::class)->normalize(MessageParser::parse($rawHeader . "\r\n")->headers);
 
         return $container->get(MessageSyncer::class)->priorityOf($headers);
     }

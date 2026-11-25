@@ -404,6 +404,10 @@ test.describe("appointment booking", () => {
         const booking = await stranger.newPage();
 
         expect((await booking.goto(url))?.status()).toBe(200);
+        // The page reloads itself once to put the visitor's zone in the URL
+        // (calendar--visitor-zone), after `load`. Left running, that reload
+        // interrupted the next goto below.
+        await booking.waitForURL(/[?&]tz=/);
 
         await page.getByRole("button", { name: `Switch off the booking page "${PAGE_NAME}"` }).click();
         await expect(page.getByText("Off", { exact: true })).toBeVisible();

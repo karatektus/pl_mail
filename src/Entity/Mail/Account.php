@@ -873,6 +873,31 @@ class Account extends AccountModel
     }
 
     /**
+     * The addresses every message from this account is Bcc'd to (#692), for
+     * any sending address that has no list of its own.
+     *
+     * A list of bare, lowercased addresses. Absent and an empty list say the
+     * same thing here — no copy — because at the account level there is
+     * nothing further up to inherit from. DefaultBccProvider is the only
+     * reader and ComposeDefaultsController the only writer besides
+     * "Identity/set" and a restore.
+     */
+    public const string SETTING_DEFAULT_BCC = 'compose.bcc';
+
+    /**
+     * The per-alias Bcc override, keyed by alias id.
+     *
+     * Same shape as signatureAliasSetting(): the key's PRESENCE is the state.
+     * Absent means this address takes the account's list; an empty list means
+     * this address deliberately Bccs nobody, which is what a personal alias on
+     * a work mailbox that copies everything to an archive wants.
+     */
+    public static function defaultBccAliasSetting(int $aliasId): string
+    {
+        return 'compose.bcc.alias.' . $aliasId;
+    }
+
+    /**
      * The domains whose every address reaches this mailbox: a catch-all.
      *
      * A list of lowercased domain names. Any address at one of them counts as

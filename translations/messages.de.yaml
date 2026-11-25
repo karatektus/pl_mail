@@ -210,6 +210,8 @@ admin:
             base_url: 'Modell-Host'
             contact_help: 'Kontakthilfe'
             contact_help_help: 'Liest einen Kontakt aus eingefügtem Text und schlägt Korrekturen anhand der Signatur der letzten Mail vor. Nutzt das Schreibmodell und schickt ihm diesen Text.'
+            translation: 'Nachrichten übersetzen'
+            translation_help: 'Nutzt das Schreibmodell und schickt ihm die Nachricht. Die Antwort ist so lang wie die Mail, auf einem Host ohne GPU dauert eine lange Nachricht also Minuten.'
             embedding_base_url: 'Such-Host'
             embedding_own: 'Die Suche nutzt einen anderen Modell-Host'
             embedding_own_help: 'Wenn das Such-Modell woanders laufen soll als das Schreib-Modell: ein gehostetes Modell zum Schreiben und ein kleines zu Hause für die Suche, oder umgekehrt. Jede Nachricht geht einmal an den Such-Host, um indiziert zu werden. Heißt das Such-Modell dort gleich, bleibt der vorhandene Index erhalten.'
@@ -226,7 +228,7 @@ admin:
             chat_keep_alive: 'Schreib-Modell geladen lassen für'
             chat_keep_alive_help: '5m, 30m, 4h oder einfach eine Zahl in Sekunden. -1 lässt es dauerhaft geladen, 0 entlädt es nach jeder Anfrage. Je länger, desto schneller kommt die erste Antwort — der Host hält den Speicher aber die ganze Zeit belegt. Leer lassen, um das zu nehmen, was am Host selbst eingestellt ist.'
             chat_model: 'Schreib-Modell'
-            chat_model_help: 'Für Antworten, Zusammenfassungen und das Einsortieren. Nimm ein instruction-tuned Modell.'
+            chat_model_help: 'Für Antworten, Zusammenfassungen, Übersetzungen und das Einsortieren. Nimm ein instruction-tuned Modell.'
             embedding_keep_alive: 'Such-Modell geladen lassen für'
             embedding_keep_alive_help: 'Gleiches Format wie oben. Dieses Modell ist klein und wird ständig gebraucht, deshalb kostet -1 — dauerhaft geladen — meist kaum etwas und spart bei jeder Suche eine Wartezeit; wenn der Host den Speicher übrig hat, lohnt es sich. Leer lassen, um das zu nehmen, was am Host selbst eingestellt ist.'
             embedding_model: 'Such-Modell'
@@ -271,6 +273,7 @@ admin:
                 warm: 'Geladen'
             feature:
                 thread_summary: 'Zusammenfassungen'
+                message_translation: 'Übersetzungen'
                 categorise: 'Mail einsortieren'
                 mail_index: 'Mail indexieren'
                 search_query: 'Suche'
@@ -338,7 +341,7 @@ admin:
                 hint: 'Wird benutzt, wenn jemand dieselbe Nachricht in förmlicherem Ton will.'
                 label: 'Förmlicher machen'
             language:
-                hint: 'Wird an jeden Prompt oben angehängt, außer ans Einsortieren. Das ist der Grund, warum eine deutsche Mail eine deutsche Antwort bekommt — ohne das folgt das Modell dem Englisch, in dem diese Anweisungen geschrieben sind, und beim Korrekturlesen übersetzt es deinen deutschen Entwurf. Du kannst es umformulieren, aber nicht entfernen: Wenn du das Feld leerst, gilt wieder der mitgelieferte Text.'
+                hint: 'Wird an jeden Prompt oben angehängt, außer ans Einsortieren und ans Übersetzen. Das ist der Grund, warum eine deutsche Mail eine deutsche Antwort bekommt — ohne das folgt das Modell dem Englisch, in dem diese Anweisungen geschrieben sind, und beim Korrekturlesen übersetzt es deinen deutschen Entwurf. Du kannst es umformulieren, aber nicht entfernen: Wenn du das Feld leerst, gilt wieder der mitgelieferte Text.'
                 label: 'Immer in der Sprache der Mail antworten'
             proofread:
                 hint: 'Wird benutzt, wenn jemand nur Rechtschreibung und Grammatik korrigiert haben will. Lass "sonst nichts ändern" drin — ohne das schreibt das Modell Sätze um, die schon richtig waren.'
@@ -352,13 +355,16 @@ admin:
             summary:
                 hint: 'Wird vom Zusammenfassen-Knopf im Lesebereich benutzt. Wenn du das änderst, gelten alle schon geschriebenen Zusammenfassungen als veraltet — gelöscht wird nichts, sie werden beim nächsten Mal neu geschrieben.'
                 label: 'Gespräch zusammenfassen'
+            translation:
+                hint: 'Wird von „Übersetzen“ im Menü einer Nachricht benutzt. Die Sprache wird mit der Nachricht geschickt, nicht hier. Wenn du das änderst, gelten alle schon geschriebenen Übersetzungen als veraltet — gelöscht wird nichts, sie werden bei der nächsten Anfrage neu geschrieben.'
+                label: 'Eine Nachricht übersetzen'
         prompts:
             changed: '%count% geändert'
             heading: 'System-Prompts'
             intro: 'Das sind die Anweisungen, die plMail dem Modell gibt. Lass ein Feld leer, dann gilt der mitgelieferte Text — so kann ein späteres Update ihn noch verbessern. Was du einträgst, ersetzt den mitgelieferten Text vollständig.'
             reset: 'Auf den mitgelieferten Text zurücksetzen'
             save: 'Prompts speichern'
-            saved: 'Gespeichert. Neue Zusammenfassungen nutzen das hier; schon geschriebene sind jetzt veraltet.'
+            saved: 'Gespeichert. Neue Zusammenfassungen und Übersetzungen nutzen das hier; schon geschriebene sind jetzt veraltet.'
             show_shipped: 'Mitgelieferten Text anzeigen'
             untouched: 'Wie ausgeliefert'
         save: 'Speichern'
@@ -383,6 +389,172 @@ admin:
             timeout: 'Der Host hat nach vier Minuten immer noch geladen, plMail hat aufgehört zu warten. Gut möglich, dass er fertig wird — vermutlich ist das Modell aber zu groß für seinen Speicher.'
             unexpected: 'Etwas ist schiefgegangen, bevor der Host antworten konnte. (%error%)'
             unreachable: 'Unter der Adresse hat nichts geantwortet. (%error%)'
+    backfills:
+        active:
+            queued: 'In der Warteschlange — wartet auf den Wartungs-Worker.'
+            running: 'Läuft. Die Ausgabe steht unter Letzte Läufe.'
+        added: 'Hinzugefügt am %date%'
+        console: 'Dasselbe auf der Konsole'
+        count:
+            button: 'Erst zählen'
+            none: 'Nichts zu tun — auf dieser Installation gibt es für diese Reparatur keine Arbeit.'
+            some: 'Sie sieht sich %count% Nachrichten an. Manche Aufgaben lesen jeden Kandidaten und ändern nur die mit dem Fehler.'
+            unavailable: 'Diese Aufgabe kann vorher nicht zählen.'
+        heading: 'Nachträge'
+        kind:
+            repairs: 'Repariert gespeicherte Daten'
+            rereads: 'Liest Mail neu'
+        last_run: 'Zuletzt von dieser Seite gestartet am %date%'
+        list_label: 'Nachträge, neueste zuerst'
+        never_run: 'Noch nie von dieser Seite gestartet'
+        new: 'Neu'
+        none: 'Es sind keine Nachträge registriert.'
+        order_hint: 'Neueste zuerst. Braucht ein Update einen, steht das in den Versionshinweisen, und meist ist es der neueste.'
+        repeat:
+            careful: 'Vor einem zweiten Lauf nachdenken'
+            safe: 'Mehrfach ausführbar'
+        run: '%task% starten'
+        run_hint: 'Wird für den Wartungs-Worker eingereiht, nicht in dieser Seite ausgeführt. Du kannst sie verlassen; der Lauf geht weiter.'
+        runs:
+            empty: 'Von dieser Seite wurde noch nichts gestartet.'
+            everything: 'Alles'
+            heading: 'Letzte Läufe'
+            removed_user: 'eine entfernte Person'
+            show_output: 'Ausgabe zeigen'
+            state:
+                done: 'Fertig'
+                failed: 'Fehlgeschlagen'
+                queued: 'Eingereiht'
+                quiet: 'Seit 30 Minuten still'
+                running: 'Läuft'
+        task:
+            addresses:
+                explanation: >-
+                    Mail, die gespeichert wurde, bevor Adressen beim Eingang bereinigt wurden, behielt die Namen genau so, wie der Server sie schickte. Manche Absender erscheinen deshalb als "Doe, John" in Anführungszeichen, und ein Name mit Komma konnte zu zwei Adressen werden.
+
+                    Das schreibt die gespeicherten Namen und Adressen jeder Nachricht in die Form um, die neue Mail bekommt. Kontakte, deren Adresse sich ändern würde, werden gezählt statt zusammengeführt, damit du siehst, ob du welche von Hand zusammenführen musst.
+                summary: 'Namen in Anführungszeichen bei Absendern und Empfängern bereinigen'
+            attachment_content_type_names:
+                explanation: >-
+                    Manche Anhänge, die ihren Dateinamen nur im Content-Type nannten, wurden unter einer Prüfsumme wie "57d5c7cb" gespeichert, ohne Endung, mit der man sie öffnen könnte.
+
+                    Das liest das gespeicherte Original jeder betroffenen Nachricht und gibt dem Anhang seinen echten Namen zurück, wo das Original ihn eindeutig nennt. Läuft nach einem Update auch von selbst.
+                summary: 'Anhängen ihren Namen statt einer Prüfsumme zurückgeben'
+            calendars:
+                explanation: >-
+                    Jede neue Person bekommt einen persönlichen Kalender und einen für jedes Mailkonto. Das gibt dieselben Kalender allen, die schon vorher da waren. Es füllt nur Lücken, ein zweiter Lauf nach neuen Konten schadet also nicht.
+                summary: 'Standardkalender für bestehende Personen anlegen'
+            category:
+                explanation: >-
+                    Bestimmt den Posteingangs-Tab jeder Nachricht neu — Allgemein, Benachrichtigungen, Werbung und so weiter — aus dem, was gespeichert ist, ohne den Mailserver zu fragen.
+
+                    Von dieser Seite gestartet berechnet es jede Nachricht neu, auch die, die schon einen Tab haben. Das willst du, wenn ein Update geändert hat, wie Mail sortiert wird.
+                summary: 'Jede Nachricht neu in ihren Posteingangs-Tab sortieren'
+            contacts:
+                explanation: >-
+                    Kontakte werden gelernt, während Mail ankommt. Das lernt sie aus jeder bereits gespeicherten Nachricht, für Konten, die vorher synchronisiert wurden, oder nachdem sich geändert hat, was als Adresse zählt. Es liest alle Mail jedes Kontos, ein Konto nach dem anderen.
+                repeat_warning: 'Jeder Lauf zählt jede gespeicherte Adresse erneut, sodass Leute aus älterer Mail in den Adressvorschlägen vor die rücken, denen du jetzt schreibst. Starte es einmal nach der Änderung, die es verlangt.'
+                summary: 'Kontakte aus aller gespeicherten Mail neu aufbauen'
+            events:
+                explanation: >-
+                    Liest gespeicherte Mail erneut nach Buchungen und Einladungen — Flüge, Hotels, Tickets, Kalendereinladungen — und trägt sie in den Kalender ein. Nutze es, nachdem ein Update das Lesen verbessert hat.
+
+                    Gelesen wird nur Mail, die einen Termin enthalten kann, und nur so weit zurück, wie der Zeitraum sagt. Termine, die du bearbeitet oder entfernt hast, bleiben, wie du sie gelassen hast.
+                summary: 'Gespeicherte Mail erneut nach Terminen lesen'
+            gmailify_placement:
+                explanation: >-
+                    Bei einem IMAP-Konto, dessen Mail ein Gmail-Konto ebenfalls abholt, hat plMail früher Gmails Ablage auf die IMAP-Kopie übertragen: Mail, die Gmail archiviert oder gelöscht hatte, landete hier im Archiv oder Papierkorb, obwohl der IMAP-Server sie noch im Posteingang hatte.
+
+                    Das legt jede solche Nachricht dorthin zurück, wo ihr IMAP-Ordner sagt. Starte es, wenn gerade niemand Mail verschiebt, sonst springt eine Verschiebung, die den Server noch nicht erreicht hat, kurz zurück.
+                summary: 'Von Gmail abgeholte IMAP-Mail zurück in ihren Ordner legen'
+            headers:
+                explanation: >-
+                    Mail, die gespeichert wurde, bevor Header-Namen vereinheitlicht wurden, behielt die Schreibweise des jeweiligen Anbieters ("List-Id", "list_id"). Filter, die einen Header prüfen, trafen diese Nachrichten nicht. Das schreibt die gespeicherten Header-Namen in eine Form um; Werte bleiben unverändert.
+                summary: 'Gespeicherte Header-Namen vereinheitlichen'
+            html_body_text:
+                explanation: >-
+                    Nach dem Update, das den Suchindex neu aufgebaut hat, wartet jede Nachricht darauf, wieder indexiert zu werden, und der Zeitplan arbeitet sie nach und nach ab, neueste zuerst. Das erledigt den Rest in einem Zug, damit ältere Mail jetzt wieder in der Suche ist und nicht erst im Lauf eines Abends.
+
+                    Außerdem speichert es die Wörter von Mail, die nur als HTML verschickt wurde, damit Suche, Embeddings und Zusammenfassungen ihren Text lesen. Beides gleichzeitig ist in Ordnung; sie teilen sich die Arbeit.
+                summary: 'Alle Mail wieder vollständig in die Suche bringen'
+            insights:
+                explanation: >-
+                    Liest gespeicherte Mail erneut nach Paketen, Flügen, Tickets und Code-Reviews — den Karten auf dem Radar. Nutze es, nachdem ein Update einen neuen Absender oder ein besseres Lesen gelernt hat.
+
+                    Gelesen wird nur gespeicherte Mail; kein Anbieter wird gefragt. Eine weggeklickte Karte bleibt weg.
+                summary: 'Gespeicherte Mail erneut nach Paketen, Flügen und Tickets lesen'
+            message_arrival:
+                explanation: >-
+                    Admin → Leistung zeigt, wie spät Mail ankommt, gemessen ab dem Moment, in dem der Anbieter sie angenommen hat. Mail, die gespeichert wurde, bevor dieser Zeitpunkt erfasst wurde, hat keinen. Das liest ihn für die Mail der letzten Woche aus den Headern — so weit schaut die Anzeige zurück. Läuft nach einem Update auch von selbst.
+                summary: 'Ankunftszeiten der letzten Woche für Leistung ermitteln'
+            misfiled_bodies_v2:
+                explanation: >-
+                    Manche Nachrichten wurden mit ihrem Text als Anhang mit einem Namen wie "09704cea" gespeichert und öffnen sich deshalb leer mit einem einzigen Chip.
+
+                    Der Text war die ganze Zeit gespeichert; das legt ihn dorthin zurück, wo er hingehört, und entfernt den Chip. Läuft nach einem Update auch von selbst.
+                summary: 'Als Anhang gespeicherte Nachrichtentexte wiederherstellen'
+            proposals:
+                explanation: >-
+                    Liest gespeicherte Mail in Allgemein erneut nach Terminen, die in Sätzen stehen — "treffen wir uns Donnerstag um drei" — und schlägt sie für den Kalender vor. Eine Nachricht, die schon einen Vorschlag hat oder deren Vorschlag du verworfen hast, bleibt unberührt.
+                summary: 'Gespeicherte Mail erneut nach Terminvorschlägen lesen'
+            recipients:
+                explanation: >-
+                    Über IMAP synchronisierte Mail hat vor einer Korrektur keine An- und Cc-Listen gespeichert, obwohl die Header erhalten blieben. Das füllt die leeren Listen aus diesen Headern. Vorhandene Empfänger bleiben, wie sie sind.
+                summary: 'Fehlende An- und Cc-Listen ergänzen'
+            repeated_headers:
+                explanation: >-
+                    Manche IMAP-Server haben den Header-Block oben im Nachrichtentext wiederholt. Diese Nachrichten beginnen deshalb mit "Delivered-To: …" über dem Text, und ihr Original enthält die Header zweimal.
+
+                    Das liest das gespeicherte Original jeder IMAP-Nachricht und entfernt die Wiederholung, wo es eine findet. Das ist ein Dateizugriff pro Nachricht, deshalb läuft es nicht automatisch.
+                summary: 'Wiederholte Header-Blöcke oben in IMAP-Mail entfernen'
+            rethread:
+                explanation: >-
+                    Verwirft alle Unterhaltungen und baut sie aus den gespeicherten Nachrichten neu auf, mit den jetzt geltenden Regeln.
+
+                    Sterne, Zurückstellungen, Tabs und Labels einer Unterhaltung werden übernommen. Gespeicherte KI-Zusammenfassungen nicht; sie müssen neu angefordert werden. Von dieser Seite gestartet ist der Klick auf Starten die Bestätigung, nach der die Konsole fragt.
+                repeat_warning: 'Jeder Lauf verwirft die Unterhaltungen erneut, und KI-Zusammenfassungen seit dem letzten Lauf gehen mit. Starte es einmal nach der Änderung, die es verlangt.'
+                summary: 'Alle Unterhaltungen von Grund auf neu aufbauen'
+            safe_html:
+                explanation: >-
+                    Jede HTML-Nachricht wird aus einer bereinigten Kopie angezeigt. Das legt diese Kopie für Nachrichten an, die noch keine haben.
+                summary: 'Fehlende sichere Kopie von HTML-Mail anlegen'
+            safe_html_absolute_position:
+                explanation: >-
+                    Manche HTML-Mail behielt Elemente, die über der Seite liegen, sodass ein Banner den Text darunter verdecken konnte. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Banner, die Text in HTML-Mail verdecken, beheben'
+            safe_html_charset:
+                explanation: >-
+                    HTML-Mail, die ihren eigenen Zeichensatz angab, konnte verstümmelte Zeichen wie "Ã¤" statt "ä" zeigen. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Verstümmelte Zeichen in HTML-Mail reparieren'
+            safe_html_conditional_comments:
+                explanation: >-
+                    Für Outlook geschriebene Mail konnte verirrten Text wie "<![endif]-->" zeigen. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Als Text angezeigtes Outlook-Markup entfernen'
+            safe_html_hidden_cards:
+                explanation: >-
+                    HTML-Mail mit einem Formular oder bestimmten Stilen konnte einen Teil ihres Inhalts verlieren oder verstecken. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Versteckten Inhalt in HTML-Mail wiederherstellen'
+            safe_html_table_links:
+                explanation: >-
+                    In HTML-Mail, in der eine ganze Tabelle ein Link war, konnte der Link leer herauskommen. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Links um Tabellen in HTML-Mail wiederherstellen'
+            safe_html_unknown_elements:
+                explanation: >-
+                    HTML-Mail mit Elementen, die die Bereinigung nicht kannte — etwa manche Buchungsbestätigungen —, konnte mit leerem Text angezeigt werden. Das liest jede HTML-Nachricht und bereinigt die Anzeigekopie erneut für die, die ein solches Element enthalten.
+                summary: 'Wegen unbekannter Elemente leere HTML-Mail wiederherstellen'
+            spam_in_archive:
+                explanation: >-
+                    Bis zu einer Korrektur hat ein Filter "Als Spam markieren" Mail hier als Spam markiert, sie auf dem Server aber archiviert. Die nächste Synchronisation fand sie im Archiv, und dort lag sie ungelesen.
+
+                    Das verschiebt jede solche Nachricht in den Spam, so wie du es von Hand tun würdest: Auf dem Server wandert sie vom Archiv in den Junk-Ordner. IMAP-Konten ohne Junk-Ordner werden übersprungen und gezählt.
+                summary: 'Von einem Filter archivierten Spam in den Spam verschieben'
+        what_it_does: 'Was es tut'
+        window:
+            24h: 'Letzte 24 Stunden'
+            4w: '4 Wochen'
+            7d: '7 Tage'
+            all: 'Alle Mail'
+            label: 'Erneut zu lesende Mail'
     client_errors:
         browser: 'Browser'
         clear: 'Leeren'
@@ -888,6 +1060,7 @@ admin:
     nav:
         address: Adresse
         ai: KI
+        backfills: 'Nachträge'
         backup: Sicherung
         database: Datenbank
         demo_stats: 'Demo-Besucher'
@@ -2148,6 +2321,15 @@ compose:
         no_own_certificate: "Du hast kein S/MIME-Zertifikat für diese Absenderadresse, deshalb lässt sich diese Nachricht nicht mit S/MIME signieren oder verschlüsseln."
         failed: "Die Nachricht ließ sich nicht verschlüsseln. Es wurde nichts gesendet."
         sealed_attachment: "Verschlüsselt: Bis die Nachricht gesendet ist, kannst nur du sie öffnen."
+        policy:
+            auto: 'Auto'
+            failed: "Diese Auswahl konnte nicht gespeichert werden."
+            heading: "Verschlüsselung für diese Adressen"
+            hint: "Gilt auch für künftige Mails. Auto verschlüsselt, sobald plMail einen Schlüssel hat."
+            label: "Verschlüsselung für %email%"
+            no_key: "Kein Schlüssel – unverschlüsselt"
+            off: 'Aus'
+            on: 'An'
     seal:
         refused: "Die verschlüsselte Nachricht kam nicht vollständig an. Es wurde nichts gesendet; versuch es noch einmal."
         keys_changed: "Der Schlüssel eines Empfängers hat sich beim Schreiben geändert. Es wurde nichts gesendet; sende sie noch einmal."
@@ -2156,6 +2338,8 @@ compose:
     formatting: Formatierung
     forward: Weiterleiten
     from: Von
+    from_pick: Wähle eine Absenderadresse
+    from_via: '%label% · über %account%'
     image: Bild einfügen
     image_edit:
         crop: Zuschneiden
@@ -2300,6 +2484,8 @@ contact_keys:
     removed: "Schlüssel entfernt."
     preferences_saved: "Gespeichert."
     not_found: "Diesen Schlüssel gibt es nicht mehr."
+    policy:
+        no_key: "plMail hat keinen Schlüssel für diese Adresse, Mails dorthin gehen sowieso unverschlüsselt raus."
     signer_unknown: "plMail hat den Schlüssel nicht, mit dem signiert wurde. Suche oder importiere ihn zuerst."
     certificates:
         heading: "S/MIME-Zertifikate deiner Kontakte"
@@ -2928,6 +3114,9 @@ label:
     error:
         duplicate: Hier gibt es bereits ein Label mit diesem Namen. Groß- und Kleinschreibung macht daraus keinen anderen.
     form:
+        account_note:
+            new: 'Wird nur auf %account% angelegt.'
+            rename: 'Wenn du es hier umbenennst, gilt das nur für %account%. %others% behalten „%name%“.'
         color: Farbe
         delete: Label löschen
         delete_hint: 'Beim Löschen verschwindet das Label aus allen Konten, zusammen mit allen darunter eingeordneten Labels. Nachrichten damit behalten ihre übrigen Labels und werden nicht gelöscht.'
@@ -3010,6 +3199,7 @@ message:
         filter_from_message: 'Filter aus dieser Nachricht erstellen'
         show_original: Original anzeigen
         star: Markieren
+        translate: 'Übersetzen'
         unstar: Markierung entfernen
     attachments: Anhänge
     back: Zurück
@@ -3166,6 +3356,35 @@ message:
         spam:
             body: "Diese Nachricht wurde als Spam eingestuft. Ihre Links und Bilder sind riskant — behandle jede Aufforderung darin wie die eines Fremden."
             title: Diese Nachricht ist im Spam
+    translation:
+        again: 'Noch einmal übersetzen'
+        already_in: 'Diese Nachricht ist schon in der Zielsprache (%language%). Es gibt nichts zu übersetzen.'
+        error:
+            connection_lost: 'Die Verbindung zu plMail ist abgerissen, während die Übersetzung geschrieben wurde. Am Modell-Host liegt es nicht — irgendetwas zwischen diesem Browser und dem Server hat die Verbindung geschlossen.'
+            disabled: 'Übersetzen ist ausgeschaltet.'
+            empty: 'In dieser Nachricht gibt es keinen Text zum Übersetzen.'
+            encrypted: 'Diese Nachricht war verschlüsselt, und ihr Konto gibt den entschlüsselten Text nicht an den Assistenten.'
+            generic: 'Die Nachricht konnte nicht übersetzt werden.'
+            model_missing: 'Der Modell-Host hat das Schreib-Modell nicht. Jemand mit Admin-Rechten muss es erst ziehen.'
+            no_answer: 'Das Modell hat nichts geantwortet.'
+            refused: 'Der Modell-Host hat die Anfrage abgelehnt.'
+            timeout: 'Der Modell-Host hat zu lange gebraucht.'
+            unreachable: 'Der Modell-Host war nicht erreichbar.'
+        generated: 'Von einer KI übersetzt, Sprache: %language% (%model%). Das ist nicht der Originaltext.'
+        generated_from: 'Von einer KI übersetzt (%source% → %language%, %model%). Das ist nicht der Originaltext.'
+        partial: 'Die Nachricht ist lang, deshalb wurde nur ihr Anfang übersetzt.'
+        quote_left_out: 'Die zitierten früheren Nachrichten wurden weggelassen; die kannst du einzeln übersetzen.'
+        stale: 'Die Nachricht hat sich seit der Übersetzung geändert.'
+        state:
+            reading: 'Die Nachricht wird noch gelesen — bisher %elapsed%. Danach erscheint die Übersetzung Wort für Wort.'
+            waiting: 'Die erste Anfrage nach einer Pause wartet, bis das Modell geladen ist.'
+            working: 'Wird übersetzt (%language%) …'
+        switch:
+            label: 'Anzeigen'
+            original: 'Original'
+            original_from: 'Original · %source%'
+            translation: '%language% · KI'
+        tag: 'KI-Übersetzung'
 
 mercure:
     status:
@@ -3493,6 +3712,8 @@ settings:
             search_hint: 'Findet Mails, die meinen, wonach du gefragt hast — nicht nur solche, die es genauso schreiben. Aus bedeutet: Deine Mails werden weder durchsucht noch indiziert.'
             summary: 'Zusammenfassungen'
             summary_hint: 'Fasst ein langes Gespräch zusammen, wenn du darum bittest. Von allein passiert nichts.'
+            translation: 'Nachrichten übersetzen'
+            translation_hint: 'Übersetzt eine Nachricht in deine Sprache, wenn du im Menü der Nachricht darum bittest. Von allein wird nichts übersetzt.'
             writing_help: 'Schreibhilfe'
             writing_help_hint: 'Entwirft Antworten, kürzt, formuliert förmlicher, liest Korrektur — im Schreibfenster, wenn du danach fragst.'
         features:
@@ -3515,10 +3736,14 @@ settings:
             heading: 'Was der Assistent bekommt'
             search: 'Indizierung: Betreff, Absender und der Anfang jeder Mail.'
             summary: 'Die Nachrichten eines Gesprächs, das du zusammenfassen lässt'
+            translation: 'Übersetzen: der Text der Nachricht, die du übersetzen lässt, ohne die früheren Nachrichten, die sie zitiert.'
             writing_help: 'Schreiben: deine Betreffzeile, was du getippt hast, und so viel vom Gespräch, wie die Einstellung oben zulässt.'
         seg:
             off: 'Aus'
             on: 'An'
+        translate_into:
+            follow_language: 'Die Sprache von plMail (%language%)'
+            label: 'Übersetzen in'
     accounts:
         categories:
             off_hint: 'Aus: Eine Kategorie, die in Outlook gesetzt oder entfernt wird, ändert hier keine Labels. Beim Einschalten werden alle Ordner dieses Kontos noch einmal aufgelistet.'
@@ -4058,6 +4283,29 @@ settings:
             scaleHint: Gilt für die gesamte Oberfläche. Das Verfassen-Fenster behält seine eigene Schrift und Größe — die gehen mit der Nachricht hinaus.
             subheading: Schriftart und Größe, in der die Oberfläche gezeichnet wird.
     compose_defaults:
+        bcc:
+            chips:
+                create: '%s hinzufügen'
+                no_results: 'Kein Kontakt passt. Tipp die ganze Adresse.'
+            for_alias: 'Immer Bcc an für %alias%'
+            hint: 'Jede Nachricht geht unsichtbar auch an diese Adressen: als Sicherungskopie oder als Beleg, dass sie raus ist. Sie stehen beim Schreiben schon im Bcc, und du kannst eine für einzelne Nachrichten herausnehmen.'
+            invalid: '„%address%“ ist keine gültige E-Mail-Adresse.'
+            label: 'Immer Bcc an'
+            per_address:
+                account_list: 'Wie das Konto: %addresses%'
+                account_none: 'Wie das Konto: kein Bcc'
+                inherit: 'Wie das Konto'
+                nobody: 'Niemand, diese Adresse schickt keine Kopie'
+                override: 'Eigene Liste'
+            placeholder: 'Adresse hinzufügen…'
+            save: 'Speichern'
+            too_many: 'Höchstens %max% Adressen.'
+        exceptions:
+            add: 'Ausnahme hinzufügen für…'
+            edit: 'Bearbeiten'
+            heading: 'Adressen, die abweichen'
+            remove: 'Ausnahme entfernen'
+            remove_for: 'für %alias%'
         heading: 'Standards fürs Verfassen'
         invalid: 'Diese Einstellung konnte nicht gespeichert werden.'
         read_receipt:
@@ -4070,7 +4318,14 @@ settings:
                 ask: 'Jedes Mal fragen'
                 never: 'Nie senden'
         saved: 'Gespeichert.'
-        subheading: 'Was jede deiner Adressen beim Senden und Empfangen standardmäßig tut.'
+        subheading: 'Was jedes Konto beim Senden und Empfangen standardmäßig tut, und welche Adressen davon abweichen.'
+        summary:
+            bcc: 'Bcc an %addresses%'
+            bcc_nobody: 'Bcc an niemanden'
+            exceptions: 'Ausnahmen: %number%'
+            no_bcc: 'Kein Bcc'
+            receipts: 'Lesebestätigungen: %mode%'
+            same_as_account: 'Wie das Konto'
     filters:
         account: Account
         action:
@@ -4856,19 +5111,27 @@ settings:
         sync_now_title: Jetzt abgleichen
         zone_follows: Folgt plMail
     labels:
+        by_account:
+            hint: 'Zeigt die Labels jedes Kontos in der Seitenleiste unter diesem Konto, neben seinen Ordnern. Der Bereich Labels behält dann nur Labels, die noch auf keinem Konto sind, und ein Label, das du unter einem Konto umbenennst, wird nur für dieses Konto umbenannt.'
+            title: 'Labels nach Konto'
         count: '%count% Labels'
         delete: Label "%name%" löschen
         edit: Label "%name%" bearbeiten
         empty: Noch keine Labels — erstelle eines, oder sie erscheinen nach der ersten Synchronisierung.
         folders_in_labels:
-            off_hint: 'Aus: Ordner stehen unter ihrem Konto, und der Bereich Labels enthält die Labels, die du auf Mails setzt.'
-            on_hint: 'An: Der Bereich Labels in der Seitenleiste listet auch Ordner, zusätzlich zu ihrem Platz unter jedem Konto.'
+            hint: 'Zeigt Ordner auch im gemeinsamen Bereich Labels, zusätzlich zu ihrem Platz unter jedem Konto. Nur für die gemeinsame Liste: Nach Konto steht ohnehin alles unter seinem Konto.'
             title: 'Ordner unter Labels'
         heading: Labels
         hide: Label ausblenden
+        seg:
+            off: 'Aus'
+            on: 'An'
         show: Label anzeigen
         subheading: Labels erstellen, umbenennen und ordnen — und wählen, welche in der Seitenleiste erscheinen.
         system: System
+        view:
+            heading: 'Labels in der Seitenleiste'
+            subheading: 'Wähle, ob die Seitenleiste deine Labels einmal für alle Konten zeigt oder unter jedem Konto.'
     pinning:
         duration:
             custom: 'Eine Zahl von Tagen'
@@ -5035,7 +5298,7 @@ settings:
         keywords:
             accent: "farbe akzent hervorhebung color"
             accounts: "imap smtp pop3 jmap server hinzufügen postfach"
-            ai: "ki künstliche intelligenz zusammenfassung schreibhilfe modell ai"
+            ai: "ki künstliche intelligenz zusammenfassung schreibhilfe modell ai übersetzung übersetzen translation"
             aliases: "alias identität absender von adresse"
             app_passwords: "imap smtp programm thunderbird token api jmap"
             calendars: "caldav ics abonnieren feed"
@@ -5051,6 +5314,7 @@ settings:
             inbox_tabs: "tabs werbung sozial benachrichtigungen foren"
             insights: "paket sendungsverfolgung rechnung flug"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            label_view: "nach konto gruppiert gemeinsam ordner seitenleiste"
             labels: "ordner tags ungelesen alle e-mails"
             language: "sprache deutsch englisch französisch chinesisch"
             libravatar: 'libravatar avatar bild foto teilen öffentlich profil'
@@ -5061,11 +5325,12 @@ settings:
             password: "kennwort anmeldung login"
             pinning: 'anheften angeheftet reißzwecke oben erinnerung pin'
             profile: "name avatar foto bild"
-            read_receipts: "mdn empfangsbestätigung bestätigung"
+            read_receipts: "mdn empfangsbestätigung bestätigung bcc kopie sicherung blindkopie"
             reading_pane: "vorschau geteilt rechts unten"
             sender_pictures: 'avatar bild foto gravatar libravatar bimi logo symbol absender'
             sharing: "link öffentlich buchung"
             shortcuts: "tastatur tasten kürzel hotkeys"
+            sidebar: 'breite breit schmal größe ziehen lange namen abgeschnitten darüberfahren mehr ordner'
             swipe_actions: "wischen geste handy archivieren"
             templates: "textbausteine antworten vorlagen"
             theme: "dunkel hell modus nacht farben dark"
@@ -5248,8 +5513,13 @@ settings:
         hide_note: Einen Ordner ganz auszublenden geht weiterhin unter Labels.
         hint: Angehakte Ordner stehen hinter „Mehr“. Die übrigen bleiben direkt in der Seitenleiste.
         label: Hinter „Mehr“
+        peek:
+            hint: 'Ist ein Name abgeschnitten, wird die Seitenleiste über der Mail breiter, solange der Zeiger darauf liegt. Dauerhaft breiter machst du sie, indem du ihren Rand ziehst.'
+            off: 'Aus'
+            on: 'An'
+            title: 'Lange Namen beim Darüberfahren zeigen'
         pinned: Der Posteingang bleibt immer, wo er ist.
-        subheading: Welche Ordner sich hinter „Mehr“ verstecken.
+        subheading: 'Wie lange Namen angezeigt werden und welche Ordner sich hinter „Mehr“ verstecken.'
     signature:
         for_alias: 'Signatur für %alias%'
         heading: Signaturen
@@ -5477,12 +5747,15 @@ shortcuts:
 sidebar:
     accounts:
         add: Konto hinzufügen
+        collapse_all: 'Alle Konten zuklappen'
         colour: 'Farbmarkierung für %account%'
         colour_disabled: 'Farbmarkierung für %account%, bei dem E-Mail ausgeschaltet ist'
+        expand_all: 'Alle Konten aufklappen'
         folders: 'Ordner …'
         heading: Konten
         menu: 'Ordner von %account%'
         new_folder: 'Neuer Ordner …'
+        new_label: 'Neues Label…'
         none: Noch keine Konten
         open: '%account% öffnen'
         toggle: 'Ordner in %account% ein-/ausklappen'
@@ -5496,6 +5769,7 @@ sidebar:
         folder_on: 'Ordner auf %accounts%'
         heading: Labels
         none: Noch keine Labels
+        shared_with: 'Auch auf %accounts%'
     new_mail_here: 'Neue Nachrichten in %where%'
     new_mail_here_count: '%count% neu in %where%'
     nav:
@@ -5512,6 +5786,8 @@ sidebar:
         starred: Markiert
         trash: Papierkorb
         unread: Ungelesen
+    resize: 'Breite der Seitenleiste ändern'
+    resize_hint: 'Ziehen zum Ändern, Doppelklick setzt zurück'
     toggle: Seitenleiste ein-/ausblenden
 
 snooze:

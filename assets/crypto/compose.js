@@ -90,7 +90,12 @@ export async function sealDraft(ring, draft) {
     });
 }
 
-/** @returns {Promise<{html: string, text: string, plain: boolean}>} */
+/**
+ * The draft, and the Encrypt and Sign choices made for it (#703): "auto",
+ * "on" or "off", or null for a draft sealed before they were kept in it.
+ *
+ * @returns {Promise<{html: string, text: string, plain: boolean, encrypt: ?string, sign: ?string}>}
+ */
 export async function openDraft(ring, armored) {
     const openpgp = await import("openpgp");
     const { data } = await openpgp.decrypt({
@@ -98,8 +103,15 @@ export async function openDraft(ring, armored) {
         decryptionKeys: await ring.decryptionKeys(),
     });
     const draft = JSON.parse(data);
+    const choice = (value) => (["auto", "on", "off"].includes(value) ? value : null);
 
-    return { html: String(draft.html ?? ""), text: String(draft.text ?? ""), plain: true === draft.plain };
+    return {
+        html: String(draft.html ?? ""),
+        text: String(draft.text ?? ""),
+        plain: true === draft.plain,
+        encrypt: choice(draft.encrypt),
+        sign: choice(draft.sign),
+    };
 }
 
 /** @returns {Promise<Uint8Array>} a file, as an OpenPGP message to the person's own keys */

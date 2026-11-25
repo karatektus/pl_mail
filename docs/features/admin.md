@@ -163,6 +163,43 @@ the database role was not allowed to create the extension, the panel says so and
 now**. Statistics start from the moment the extension is created, so queries from before it will
 never appear. **Reset stats** clears the collected numbers.
 
+## Backfills
+
+Some fixes can only change mail that arrives after the update. A **backfill** repairs what was
+stored before: it rewrites a column that was computed wrongly, or re-reads stored mail with a reader
+that has improved. The release notes say when one is worth running. This section runs them without
+a terminal, the same tasks `app:backfill` runs.
+
+The list is **newest first**, grouped by the month each task was added, because the newest is
+nearly always the one an update asks for. A task added in the last month that has not been run from
+this page carries a **New** mark. Choosing one shows what it does in plain words, when it was added
+and when it last ran here, and whether it is **safe to run again**. Most are: they pick out only the
+rows that still have the fault, or rebuild from the original, so a second run arrives where the
+first did. Two are not, and say why beside the explanation: `contacts` counts every address again
+each time, which moves the people in older mail ahead in address suggestions, and `rethread` throws
+away the AI summaries made since its last run.
+
+- **Count first** asks a task how many messages it would look at, without changing any. Some read
+  every candidate and change only those with the fault, so the number is what it will read, not
+  what it will change. Tasks that walk every message cannot count beforehand and say so.
+- Tasks that **re-read mail** (events, insights) take a window: the last 24 hours, 7 days, 4 weeks,
+  or all mail. The table repairs take none; a fault that is in every row is repaired in every row.
+- **Run** queues the task for the maintenance worker. It does not run in the page, so you can leave
+  it. A second click while it is queued or running shows the same run rather than starting another.
+- **Same on the console** shows the `app:backfill` line for the task and window, for running it from
+  a shell instead.
+
+**Recent runs** lists what was started here: when, by whom, over which window, and how it ended.
+While a run is going its last lines of output show under it and the card refreshes itself; a
+finished run keeps its output behind **Show output**. A run that has printed nothing for half an
+hour is shown as *No word for 30 minutes*: its worker was most likely restarted. A task marked safe
+to run again can simply be started again.
+
+Two tasks ask a question on the console, `rethread` ("Rebuild all threads now?") and `category`
+("Re-run messages that already have a category?"). Started from this page the answer is yes,
+because pressing Run after reading the explanation is that answer; the output records it. Runs
+from the console are not listed here.
+
 ## Logs
 
 A filterable browser over what plMail has written to the database: a minimum level — info, notice,
@@ -634,7 +671,7 @@ on the host itself applies. plMail cannot read that variable, so an empty box is
 nothing. Useful after a restart, and useful for finding out what a cold load actually costs on your
 hardware before you decide how long to hold it.
 
-### The five features are separate switches
+### The six features are separate switches
 
 They have very different costs, and very different consequences when the model is wrong.
 
@@ -645,6 +682,7 @@ They have very different costs, and very different consequences when the model i
 | **Help me write** | Offers drafts and rewrites in the composer | Only when you ask |
 | **Thread summaries** | Writes a short account of a long conversation | Only when somebody asks for one |
 | **Contact help** | Reads a contact out of pasted text, and suggests updates to a contact from the signature of their latest mail | Only when somebody presses **Improve with AI** |
+| **Translating a message** | Translates one message into the reader's language | Only when somebody presses **Translate** |
 
 Sorting is the one to be careful with: it runs unattended. It can only ever act as a tie-breaker —
 if a header, a Gmail label or the fact that you have written to somebody already decided the
@@ -678,7 +716,7 @@ Three things keep sorting from getting in the way of mail arriving:
 
 Writing help never replaces what you wrote. It appends, so the original is always still there.
 
-Summaries are the most expensive of the five. They use the same writing model, but a whole
+Summaries are the largest prompt of the six. They use the same writing model, but a whole
 conversation is a much larger prompt than a draft: on a 30B model and one GPU, expect around a
 minute for the first summary after a quiet spell and around half that once the model is warm. The
 GPU is held for the whole of it, so on a shared machine a summary is felt by everybody. Nothing is
@@ -692,6 +730,15 @@ contact together with the signature block of the newest mail that contact sent �
 nothing from that mail. Nothing it suggests is saved until the person ticks it and saves the
 contact. Without it, pasting still works: plMail reads the text by rules, and only the button that
 asks the model goes away.
+
+Translation sends one message's own text, without the earlier mail it quotes and up to about 6,000
+characters, to the writing model, and the answer is as long as the message. That makes it the
+slowest of the six per call where the model has no GPU: the whole translation is generated on the
+CPU, a few words a second, so a long message takes minutes, and holds a PHP worker while it is being
+written. A translation is kept per message and language, so opening the message again costs nothing.
+The model matters more here than anywhere else, because the reader cannot check the result against a
+language they do not read: a small model writes fluent text with the wrong day of the week in it.
+Try yours on a message whose original you can read before you switch it on for others.
 
 ### Searching by meaning needs one pass first
 

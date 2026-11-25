@@ -571,10 +571,11 @@ back by this. The IMAP sync only fetches mail newer than what it already has.
 Two settings hang off the alias list rather than off the account, because they are properties of the
 address people see rather than of the mailbox it lives in.
 
-**Compose defaults**, under the alias list on the same page, currently holds one control per
-address: what that address does when a sender asks to be told their mail was read. The default is
-**Never send**, and it is worth understanding before changing it — see
-[Read receipts](mail.md#read-receipts).
+**Compose defaults**, under **Settings → Reading & writing → Compose**, holds two settings per
+account, and lists the addresses that set them differently under **Addresses that differ**. The first is what that address does when a sender asks to be told their mail was read. The
+default is **Never send**, and it is worth understanding before changing it — see
+[Read receipts](mail.md#read-receipts). The second is **Always Bcc**, the addresses every mail from
+that account is copied to — see [Always Bcc](mail.md#always-bcc).
 
 **Settings → Signatures** is its own section. The account has a signature, and any of its addresses
 can either inherit it, replace it, or deliberately sign with nothing. The three states and what the

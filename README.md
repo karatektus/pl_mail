@@ -60,10 +60,10 @@ provider doesn't.
 - **Files where you keep them** — attach from and save to Drive, Photos, OneDrive, Dropbox,
   Nextcloud, OpenCloud, Immich, Paperless-ngx and any WebDAV server.
 - **A language model, if you want one** — point plMail at an Ollama box on your own network, or at
-  any OpenAI-compatible endpoint, and it can search by meaning, draft replies, summarise a thread
-  and sort mail into tabs. A long thread is summarised from as much of it as fits, and says so; ask
+  any OpenAI-compatible endpoint, and it can search by meaning, draft replies, summarise a thread,
+  translate a message into your language and sort mail into tabs. A long thread is summarised from as much of it as fits, and says so; ask
   for the whole conversation and it runs as a job with a context window to match. What it has been told about how you write is editable in the
-  composer, for one attempt at a time. Off by default, each of the four switched on separately. Mail
+  composer, for one attempt at a time. Off by default, each switched on separately. Mail
   goes to the model host you name and nowhere else, so with a model on your own machine nothing
   leaves your network.
 - **You decide what sorts your mail** — header rules that answer the same way every time, or the

@@ -353,8 +353,8 @@ final class GmailMessageBuilder
      * not arrive looking wrong, it did not arrive. Nothing in the log named a
      * charset.
      *
-     * Gmail-only. The IMAP path has always honoured the declared part charset,
-     * inside webklex's MessageDecoder::getEncoding().
+     * Gmail-only. The IMAP path reads the declared part charset in
+     * MessageParser, by the same CharsetHelper rule.
      *
      * The mimeType field cannot be used for this — Gmail reports the bare type
      * there ("text/html") with the parameters left on the header.

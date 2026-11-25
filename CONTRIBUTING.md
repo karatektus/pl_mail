@@ -55,7 +55,7 @@ this is what keeps an unreviewed commit off running installs.
 |---|---|
 | Backend | Symfony 8, Doctrine ORM, PHP 8.4+ |
 | Database | PostgreSQL 18 |
-| IMAP | plMail's own client (`App\Infrastructure\ImapClient`); webklex/php-imap still parses MIME (#82) |
+| IMAP | plMail's own client (`App\Infrastructure\ImapClient`); MIME parsed by zbateson/mail-mime-parser (`MessageParser`) |
 | Gmail | Gmail REST + Batch API, OAuth2 (league/oauth2-client) |
 | Microsoft | Microsoft Graph API, OAuth2 |
 | Async | Symfony Messenger, Doctrine transport |
@@ -219,10 +219,12 @@ which the app itself refuses unless an administrator allowed the host under Admi
 
 CI runs the same suites the same way — it boots this very stack from `compose.test.yaml` and then
 runs the same commands against it, so "works locally, fails in CI" no longer has a serving path to
-hide in. See [.github/workflows/e2e.yml](.github/workflows/e2e.yml). It runs **only on a release
-tag, on a pull request, or when you start it by hand:** it is the expensive workflow in this
-repository, and running it on every commit to `main` spent most of the account's capacity proving
-the same thing over and over.
+hide in. See [.github/workflows/e2e.yml](.github/workflows/e2e.yml). It runs **only on a push to a
+milestone branch, on a pull request into `main`, on a release tag, or when you start it by hand.**
+A pull request into a milestone branch is not run on its own: those are merged one after another,
+and the push that lands them runs the suite on the branch where they meet. It is the expensive
+workflow in this repository, and running it on every commit spent most of the account's capacity
+proving the same thing over and over.
 
 **It is six jobs, not one, and each has a stack of its own.** One builds the image so that the rest
 start from a warm layer cache; one runs PHPStan and PHPUnit; four run the browser suite in quarters
@@ -990,7 +992,7 @@ php bin/mirror-wiki.php --check
 | `app:search:index-pending [--seconds=N]` | Index the messages still waiting for search, newest first, for at most N seconds (20 by default). Runs every minute; after an update that rebuilds the index it works through the backlog, and otherwise finds nothing waiting. `app:backfill html-body-text` does the whole backlog at once |
 | `app:mail:release-held` | Show mail that has been held for the assistant longer than **Wait at most** allows. Runs every minute and finds nothing on an ordinary day — the live worker releases held mail itself. It is the backstop for that worker being down, and it warns when it has to act |
 | `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |
-| `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty, `safe-html-conditional-comments` removes Outlook's `<![endif]-->` from messages that show it as text, `safe-html-absolute-position` takes `position: absolute` out of messages stored before plMail dropped it, so a banner no longer covers the text below it, `repeated-headers` takes out the header block some IMAP servers repeated at the top of a message body, `gmailify-placement` puts IMAP mail a Gmail account also collects back where its IMAP folder has it, `spam-in-archive` moves mail a "Mark as spam" filter archived on the server into Spam and Junk |
+| `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks, newest first, and asks. Admin → Backfills runs the same tasks on the maintenance worker. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty, `safe-html-conditional-comments` removes Outlook's `<![endif]-->` from messages that show it as text, `safe-html-absolute-position` takes `position: absolute` out of messages stored before plMail dropped it, so a banner no longer covers the text below it, `safe-html-unknown-elements` gives back the content of messages whose letter sat inside an element the allow-list does not name, such as a `<message>` wrapper, and which were stored blank or with text missing, `repeated-headers` takes out the header block some IMAP servers repeated at the top of a message body, `gmailify-placement` puts IMAP mail a Gmail account also collects back where its IMAP folder has it, `spam-in-archive` moves mail a "Mark as spam" filter archived on the server into Spam and Junk |
 | `app:imap:listen` | Hold IMAP IDLE on every IDLE-enabled folder, in one process, and queue the syncs each change asks for. Started and restarted by `app:work` as `imap-listener` |
 | `app:imap:test [--account=ID] [--append]` | Test an IMAP connection and folder listing; `--append` also puts a test message in the Sent folder |
 | `app:jmap:listen` | Hold a JMAP push stream open for every JMAP account and queue the syncs each change asks for. Started and restarted by `app:work` as `jmap-listener` |

@@ -6,6 +6,7 @@ namespace App\Command\Backfill;
 
 use App\Repository\Mail\Account\AccountRepository;
 use App\Service\HarvestContactsService;
+use DateTimeImmutable;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
@@ -40,6 +41,22 @@ final readonly class ContactsBackfillTask implements BackfillTaskInterface
     public function getDescription(): string
     {
         return 'Rebuild contacts from every stored message (one sweep per account)';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-08-03');
+    }
+
+    /**
+     * Not safe to repeat: HarvestContactsService upserts with frequency + 1,
+     * so every run counts every stored address again. Frequency orders the
+     * address suggestions, and after a second run the people in older mail
+     * sit ahead of the people somebody writes to now.
+     */
+    public function isSafeToRunAgain(): bool
+    {
+        return false;
     }
 
     public function run(SymfonyStyle $io): int

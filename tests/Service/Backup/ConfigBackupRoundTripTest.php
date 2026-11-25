@@ -254,6 +254,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('setting compose.forward_quote_collapsed', false, $user->getSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED));
         $this->check('setting compose.send_feedback', User::SEND_FEEDBACK_HOLD, $user->getSetting(User::SETTING_COMPOSE_SEND_FEEDBACK));
         $this->check('setting crypto.key_servers', false, $user->lookUpKeyServers);
+        $this->check('setting crypto.own_encrypt', ['me@gmail.test' => 'never'], $user->ownAddressEncrypt);
 
         // ── The account ───────────────────────────────────────────────────
         $this->check('account.password (IMAP)', self::MAILBOX_PASSWORD, $account->password);
@@ -268,6 +269,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('account setting sync.backfill_target', null, $account->getSetting(Account::SETTING_BACKFILL_TARGET));
         $this->check('account setting compose.signature', '<p>Viele Grüße, Anna</p>', $account->getSetting(Account::SETTING_SIGNATURE));
         $this->check('account setting compose.read_receipt.default', 'ask', $account->getSetting(Account::SETTING_READ_RECEIPT_DEFAULT));
+        $this->check('account setting compose.bcc', ['backup@audit.test'], $account->getSetting(Account::SETTING_DEFAULT_BCC));
         $this->check('account setting mail.catch_all_domains', ['shop.test'], $account->catchAllDomains);
         $this->check(
             'account setting compose.signature.alias.N',
@@ -278,6 +280,11 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
             'account setting compose.read_receipt.alias.N',
             'always',
             $account->getSetting(Account::readReceiptAliasSetting((int) $restoredAlias->id)),
+        );
+        $this->check(
+            'account setting compose.bcc.alias.N (empty is "nobody", and must survive as such)',
+            [],
+            $account->getSetting(Account::defaultBccAliasSetting((int) $restoredAlias->id)),
         );
 
         // ── The app password ──────────────────────────────────────────────
@@ -321,6 +328,8 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('aiSettings.isEnabled', true, $ai?->isEnabled);
         $this->check('aiSettings.summaryEnabled', true, $ai?->summaryEnabled);
         $this->check('aiSettings.contactHelpEnabled', true, $ai?->contactHelpEnabled);
+        $this->check('aiSettings.translationEnabled', true, $ai?->translationEnabled);
+        $this->check('aiSettings.prompts.translation', 'Übersetze wörtlich.', $ai?->prompts->of(PromptSlot::Translation));
         $this->check('aiSettings.categoriseBacklogDays', 7, $ai?->categoriseBacklogDays);
         $this->check('aiSettings.prompts.summary', 'Fasse dich kurz.', $ai?->prompts->of(PromptSlot::Summary));
 
@@ -494,6 +503,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $user->setSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED, false);
         $user->setSetting(User::SETTING_COMPOSE_SEND_FEEDBACK, User::SEND_FEEDBACK_HOLD);
         $user->lookUpKeyServers = false;
+        $user->ownAddressEncrypt = ['Me@Gmail.test' => 'never'];
 
         $this->entityManager->persist($user);
 
@@ -519,6 +529,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $account->setSetting(Account::SETTING_BACKFILL_TARGET, 0);
         $account->setSetting(Account::SETTING_SIGNATURE, '<p>Viele Grüße, Anna</p>');
         $account->setSetting(Account::SETTING_READ_RECEIPT_DEFAULT, 'ask');
+        $account->setSetting(Account::SETTING_DEFAULT_BCC, ['backup@audit.test']);
         $account->catchAllDomains = ['shop.test'];
 
         $this->entityManager->persist($account);
@@ -598,6 +609,8 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $ai->searchEnabled       = true;
         $ai->summaryEnabled      = true;
         $ai->contactHelpEnabled  = true;
+        $ai->translationEnabled  = true;
+        $ai->prompts->put(PromptSlot::Translation, 'Übersetze wörtlich.');
         // Not the default, so a restore that dropped it would show.
         $ai->categoriseBacklogDays = 7;
         $ai->prompts->put(PromptSlot::Summary, 'Fasse dich kurz.');
@@ -620,6 +633,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         // The per-alias keys can only be written once the alias has an id.
         $account->setSetting(Account::signatureAliasSetting($aliasId), '<p>Anna, privat</p>');
         $account->setSetting(Account::readReceiptAliasSetting($aliasId), 'always');
+        $account->setSetting(Account::defaultBccAliasSetting($aliasId), []);
 
         $this->entityManager->flush();
         $this->entityManager->clear();

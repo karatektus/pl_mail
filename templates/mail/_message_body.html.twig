@@ -52,6 +52,12 @@ Variables:
    (phase 6c of #28). Without one, S/MIME is only said to be unreadable. #}
 {% set encryptedHere = not sendingSealed and not sealedDraft and not decryptedKept and message.crypto is not null and message.crypto.encrypted %}
 {% set encryptedInBrowser = encryptedHere and (message.crypto.pgp or has_smime_certificate()) %}
+{# Translating (#713): null where it is not offered. Not for a body the server
+   does not hold — the browser draws those, and there is nothing to send. #}
+{% set translation = (encryptedHere or sealedDraft or sendingSealed) ? null : message_translation(message) %}
+{# A message the model said is already in the reader's language has a stored
+   row and no translation: it opens as it is. #}
+{% set translated = translation is not null and translation.stored is not null and not translation.stored.isAlreadyInTarget %}
 
 <div id="message_body_{{ message.id }}" class="mail-message-body">
 
@@ -237,6 +243,121 @@ Variables:
         {% endif %}
     {% endif %}
 
+    {# ── The translation ────────────────────────────────────────────────── #}
+    {# Above the frame and outside it, like the warnings: a "this is not the
+       original" the mail could draw for itself would be worth nothing.
+
+       A switch, not a bar (#713, after the mockups): "Original · German" and
+       "English · AI" side by side under the sender, where the eye already is,
+       and the one that is pressed is the one shown. The switch says enough on
+       its own, so there is no caption beside it; the model's name is on the
+       sheet's title for whoever wants it.
+
+       The translation sits on a sheet of its own with an "AI translation" tag
+       on its corner, in the assistant's colours, so it never passes for the
+       mail. A stored translation opens AS the translation — the reader asked
+       for one because they cannot read the original. The translation is text:
+       Twig escapes it here and the controller writes it with textContent, so
+       nothing a model writes is ever markup. #}
+    {% if translation is not null %}
+        {# Names the mail's language when the model named it (SourceLanguageLine),
+           and only then: never a guess. #}
+        {% set generatedLabel = translation.fromLabel is not null
+            ? 'message.translation.generated_from'|trans({ '%source%': translation.fromLabel, '%language%': translation.intoLabel, '%model%': translation.model })
+            : 'message.translation.generated'|trans({ '%language%': translation.intoLabel, '%model%': translation.model }) %}
+        <div data-controller="mail--message-translation"
+             data-action="mail--message-actions:translate@document->mail--message-translation#request"
+             data-mail--message-translation-message-value="{{ message.id }}"
+             data-mail--message-translation-url-value="{{ path('app_mail_message_translation', { id: message.id }) }}"
+             data-mail--message-translation-token-value="{{ csrf_token('message_translation') }}"
+             data-mail--message-translation-shown-value="{{ translated ? 'translation' : 'original' }}"
+             data-mail--message-translation-generated-label-value="{{ 'message.translation.generated'|trans({ '%language%': translation.intoLabel, '%model%': translation.model }) }}"
+             data-mail--message-translation-generated-from-label-value="{{ 'message.translation.generated_from'|trans({ '%language%': translation.intoLabel, '%model%': translation.model }) }}"
+             data-mail--message-translation-from-label-value="{{ translation.fromLabel }}"
+             data-mail--message-translation-original-label-value="{{ 'message.translation.switch.original'|trans }}"
+             data-mail--message-translation-original-from-label-value="{{ 'message.translation.switch.original_from'|trans }}"
+             data-mail--message-translation-working-label-value="{{ 'message.translation.state.working'|trans({ '%language%': translation.intoLabel }) }}"
+             data-mail--message-translation-waiting-label-value="{{ 'message.translation.state.waiting'|trans }}"
+             data-mail--message-translation-reading-label-value="{{ 'message.translation.state.reading'|trans }}"
+             data-mail--message-translation-already-label-value="{{ 'message.translation.already_in'|trans({ '%language%': translation.intoLabel }) }}"
+             data-mail--message-translation-error-labels-value="{{ {
+                 connection_lost: 'message.translation.error.connection_lost'|trans,
+                 disabled:        'message.translation.error.disabled'|trans,
+                 empty:           'message.translation.error.empty'|trans,
+                 encrypted:       'message.translation.error.encrypted'|trans,
+                 generic:         'message.translation.error.generic'|trans,
+                 model_missing:   'message.translation.error.model_missing'|trans,
+                 no_answer:       'message.translation.error.no_answer'|trans,
+                 refused:         'message.translation.error.refused'|trans,
+                 timeout:         'message.translation.error.timeout'|trans,
+                 unreachable:     'message.translation.error.unreachable'|trans,
+             }|json_encode }}"
+        >
+            {# The row under the sender: the switch once there is a translation,
+               the dots while one is being asked for, and a line for what went
+               wrong or why there is nothing to translate. #}
+            <div data-mail--message-translation-target="bar"
+                 {{ translated ? '' : 'hidden' }}
+                 class="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3"
+                 data-testid="translation-bar">
+                <div data-mail--message-translation-target="toggle"
+                     role="group"
+                     aria-label="{{ 'message.translation.switch.label'|trans }}"
+                     {{ translated ? '' : 'hidden' }}
+                     class="translation-switch"
+                     data-testid="translation-switch">
+                    <button type="button"
+                            data-mail--message-translation-target="originalButton"
+                            data-action="mail--message-translation#showOriginal"
+                            data-testid="translation-show-original"
+                            aria-pressed="false"
+                    >{{ translation.fromLabel is not null
+                        ? 'message.translation.switch.original_from'|trans({ '%source%': translation.fromLabel })
+                        : 'message.translation.switch.original'|trans }}</button>
+                    <button type="button"
+                            data-mail--message-translation-target="translationButton"
+                            data-action="mail--message-translation#showTranslation"
+                            data-testid="translation-show-translation"
+                            aria-pressed="{{ translated ? 'true' : 'false' }}"
+                            class="is-ai"
+                    ><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>{{ 'message.translation.switch.translation'|trans({ '%language%': translation.intoLabel }) }}</button>
+                </div>
+                <span data-mail--message-translation-target="pending" hidden aria-hidden="true"
+                      class="ai-pending shrink-0 text-ink-muted"><i></i><i></i><i></i></span>
+                <p data-mail--message-translation-target="status" role="status" aria-live="polite" hidden
+                   class="text-xs leading-snug text-ink-muted"></p>
+                <button type="button"
+                        data-mail--message-translation-target="again"
+                        data-action="mail--message-translation#again"
+                        {{ translated and not translation.stored.isFresh ? '' : 'hidden' }}
+                        class="text-xs font-medium text-link hover:underline cursor-pointer"
+                >{{ 'message.translation.again'|trans }}</button>
+            </div>
+
+            <div data-mail--message-translation-target="translation"
+                 {{ translated ? '' : 'hidden' }}
+                 title="{{ generatedLabel }}"
+                 data-tag="{{ 'message.translation.tag'|trans }}"
+                 class="mail-sheet translation-sheet"
+                 data-testid="translation-sheet">
+                <pre data-mail--message-translation-target="text"
+                     dir="auto"
+                     lang="{{ translation.into }}"
+                     data-testid="translation-text"
+                     class="whitespace-pre-wrap break-words font-sans text-sm"
+                >{{ translated ? translation.stored.text : '' }}</pre>
+                {# What the reader cannot see for themselves about the text above. #}
+                <p data-mail--message-translation-target="partial" {{ translated and translation.partial ? '' : 'hidden' }}
+                   class="translation-note">{{ 'message.translation.partial'|trans }}</p>
+                <p data-mail--message-translation-target="quote" {{ translated and translation.leavesOutQuote ? '' : 'hidden' }}
+                   class="translation-note">{{ 'message.translation.quote_left_out'|trans }}</p>
+                <p data-mail--message-translation-target="stale" {{ translated and not translation.stored.isFresh ? '' : 'hidden' }}
+                   class="translation-note">{{ 'message.translation.stale'|trans }}</p>
+            </div>
+
+            <div data-mail--message-translation-target="original" {{ translated ? 'hidden' : '' }}>
+    {% endif %}
+
     {# ── The reading frame ──────────────────────────────────────────────── #}
     {% if encryptedHere or sealedDraft or sendingSealed %}
         {# Drawn above, by the browser — or, for a sealed draft and a message
@@ -278,6 +399,11 @@ Variables:
         {# No HTML body: plain text needs no sandbox, because there is no markup
            to sandbox. Twig escapes it, so it is text all the way down. #}
         <pre class="mail-sheet whitespace-pre-wrap break-words font-sans text-sm">{{ render.text }}</pre>
+    {% endif %}
+
+    {% if translation is not null %}
+            </div>
+        </div>
     {% endif %}
 
     {% if render.senderTrusted and render.content.allowed > 0 %}

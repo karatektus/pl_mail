@@ -4,23 +4,20 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
-use App\Domain\Helper\CharsetHelper;
-use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
+use App\Domain\Helper\MessageParser;
 use App\Service\Mail\MisfiledBodyDetector;
 use App\Service\Mail\MisfiledBodyUnpacker;
 use PHPUnit\Framework\TestCase;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * The Workday mail that arrived with no body and one attachment called
  * `09704cea`.
  *
- * Parsed by the real library rather than described to a mock, because the
- * thing under test is a disagreement WITH the library: Part::isAttachment()
- * files a text part carrying `Content-Disposition: inline` and a Content-ID
- * under getAttachments(), and a hand-built fixture asserting that would only
- * be asserting what this test already believes.
+ * Two halves. New mail: MessageParser reads each shape webklex misfiled as the
+ * body it is, through the real parser, so a parser upgrade that changes its
+ * mind fails here. Stored mail: what webklex already filed as an attachment is
+ * recognised by the shape of its name and opened from the bytes on disk,
+ * which is MisfiledBodyBackfillTask's half.
  */
 final class MisfiledBodyPartTest extends TestCase
 {
@@ -31,31 +28,42 @@ final class MisfiledBodyPartTest extends TestCase
         . "Message-ID: <workday-1@myworkday.com>\r\n"
         . "MIME-Version: 1.0\r\n";
 
-    /**
-     * The reported shape, end to end: the library calls it an attachment, and
-     * the detector calls it the body.
-     */
-    public function testAnInlineBodyPartWithAContentIdIsRecognisedAsTheBody(): void
+    /** The reported shape: `inline` and a Content-ID on the only HTML part. */
+    public function testAnInlineBodyPartWithAContentIdIsTheBody(): void
     {
-        $attachment = $this->onlyAttachment(
-            "Content-Type: text/html; charset=UTF-8\r\n"
+        $parsed = MessageParser::parse(
+            self::HEADERS
+            . "Content-Type: text/html; charset=UTF-8\r\n"
             . "Content-Disposition: inline\r\n"
             . "Content-ID: <body@myworkday.com>\r\n\r\n"
-            . '<p>Liebe(r) Paul,</p>'
+            . '<p>Liebe(r) Paul,</p>',
         );
 
-        // The symptom as the user sees it: a name that is not a name. Webklex
-        // fills an absent filename with a crc32c of the part.
-        self::assertSame($attachment->getHash(), $attachment->getFilename());
+        self::assertSame('<p>Liebe(r) Paul,</p>', $parsed->htmlBody);
+        self::assertSame([], $parsed->attachments);
+    }
 
-        $detector = new MisfiledBodyDetector();
+    /**
+     * The other shape: marked `attachment`, with no name, and no other body.
+     * By the letter of RFC 2183 an attachment; by what the sender meant, the
+     * letter. Converted out of the charset it declared on the way, since a
+     * body column refuses Latin-1 bytes outright.
+     */
+    public function testANamelessTextPartMarkedAsAnAttachmentIsTheBody(): void
+    {
+        $parsed = MessageParser::parse(
+            self::HEADERS
+            . "Content-Type: multipart/mixed; boundary=\"B\"\r\n\r\n"
+            . "--B\r\n"
+            . "Content-Type: text/html; charset=ISO-8859-1\r\n"
+            . "Content-Disposition: attachment\r\n"
+            . "Content-Transfer-Encoding: 8bit\r\n\r\n"
+            . "<p>Geb\xFChren f\xFCr die Pr\xFCfung</p>\r\n"
+            . "--B--\r\n",
+        );
 
-        self::assertTrue($detector->isBody(
-            (string) $attachment->getContentType(),
-            $attachment->getFilename(),
-            $attachment->getHash(),
-        ));
-        self::assertSame('html', $detector->slotFor((string) $attachment->getContentType()));
+        self::assertSame("<p>Gebühren für die Prüfung</p>", $parsed->htmlBody);
+        self::assertSame([], $parsed->attachments);
     }
 
     /**
@@ -65,51 +73,46 @@ final class MisfiledBodyPartTest extends TestCase
      */
     public function testAnAttachmentWithARealFilenameIsLeftAlone(): void
     {
-        $attachment = $this->onlyAttachment(
-            "Content-Type: text/html; charset=UTF-8\r\n"
+        $parsed = MessageParser::parse(
+            self::HEADERS
+            . "Content-Type: multipart/mixed; boundary=\"B\"\r\n\r\n"
+            . "--B\r\n"
+            . "Content-Type: text/html; charset=UTF-8\r\n"
             . "Content-Disposition: attachment; filename=\"Rechnung.html\"\r\n\r\n"
-            . '<p>Rechnung</p>'
+            . "<p>Rechnung</p>\r\n"
+            . "--B--\r\n",
         );
 
-        self::assertFalse(new MisfiledBodyDetector()->isBody(
-            (string) $attachment->getContentType(),
-            $attachment->getFilename(),
-            $attachment->getHash(),
-        ));
+        self::assertSame('', $parsed->htmlBody);
+        self::assertCount(1, $parsed->attachments);
+        self::assertSame('Rechnung.html', $parsed->attachments[0]->filename);
     }
 
     /**
-     * The half that is not about classification at all.
+     * THE SHAPE THAT WAS ACTUALLY REPORTED, and the one the first fix missed.
      *
-     * A reclaimed part has been through the transfer decoding and NOT through
-     * the charset conversion — Message::fetchPart() only converts on its body
-     * branch. So these bytes are still ISO-8859-1, and a body column that took
-     * them unconverted would not render badly, it would fail the INSERT.
+     * A `multipart/related` holding one HTML part and nothing else, inside
+     * another multipart: webklex handed over the whole block as a single
+     * attachment named after its own checksum, and the message had no body.
      */
-    public function testAReclaimedBodyIsConvertedOutOfItsDeclaredCharset(): void
+    public function testASingleChildRelatedIsReadAsTheBody(): void
     {
-        $attachment = $this->onlyAttachment(
-            "Content-Type: text/html; charset=ISO-8859-1\r\n"
-            . "Content-Disposition: inline\r\n"
-            . "Content-ID: <body@myworkday.com>\r\n"
-            . "Content-Transfer-Encoding: 8bit\r\n\r\n"
-            . "<p>Geb\xFChren f\xFCr die Pr\xFCfung</p>"
+        $parsed = MessageParser::parse(
+            self::HEADERS
+            . "Content-Type: multipart/alternative; boundary=\"outer\"\r\n\r\n"
+            . "--outer\r\nContent-Type: multipart/related; boundary=\"inner\"\r\n\r\n"
+            . "--inner\r\nContent-Type: text/html; charset=ISO-8859-1\r\n"
+            . "Content-Transfer-Encoding: 8bit\r\n\r\n<p>Geb\xFChren f\xFCr die Pr\xFCfung</p>\r\n"
+            . "--inner--\r\n--outer--\r\n",
         );
 
-        $raw = (string) $attachment->getContent();
-
-        self::assertFalse(mb_check_encoding($raw, 'UTF-8'), 'the library handed over converted bytes after all');
-
-        $converted = CharsetHelper::toUtf8($raw, (string) ($attachment->charset ?? ''));
-
-        self::assertTrue(mb_check_encoding($converted, 'UTF-8'));
-        self::assertStringContainsString('Gebühren für die Prüfung', $converted);
+        self::assertStringContainsString('Gebühren für die Prüfung', $parsed->htmlBody);
+        self::assertSame([], $parsed->attachments);
     }
 
     /**
-     * The after-the-fact version of the same judgement, used by the repair:
-     * a stored part keeps no hash to compare against, so the shape of the
-     * name is all there is to go on.
+     * Stored mail, after the fact: a part row keeps no hash to compare
+     * against, so the shape of the name is all there is to go on.
      */
     public function testAStoredPartIsRecognisedByTheShapeOfItsName(): void
     {
@@ -123,44 +126,20 @@ final class MisfiledBodyPartTest extends TestCase
     }
 
     /**
-     * THE SHAPE THAT WAS ACTUALLY REPORTED, and the one the first fix missed.
-     *
-     * A `multipart/related` holding one HTML part and nothing else is not
-     * descended into when it sits inside another multipart: the whole block
-     * arrives as a single attachment named after its own checksum, and the
-     * message has no body. Add one inline image beside the HTML and the same
-     * message parses correctly, which is why this went unnoticed — almost every
-     * HTML mail has an image in it.
+     * A stored container, as webklex wrote it to disk: the block without the
+     * boundary, which content_type does not keep. The unpacker takes the
+     * boundary from the block's own first delimiter and converts the HTML out
+     * of its declared charset.
      */
-    public function testASingleChildRelatedIsHandedOverWholeAndCanBeOpened(): void
+    public function testAStoredContainerCanBeOpened(): void
     {
-        $message = ImapMessage::fromString(
-            self::HEADERS
-            . "Content-Type: multipart/alternative; boundary=\"outer\"\r\n\r\n"
-            . "--outer\r\nContent-Type: multipart/related; boundary=\"inner\"\r\n\r\n"
-            . "--inner\r\nContent-Type: text/html; charset=ISO-8859-1\r\n"
+        $stored = "--inner\r\nContent-Type: text/html; charset=ISO-8859-1\r\n"
             . "Content-Transfer-Encoding: 8bit\r\n\r\n<p>Geb\xFChren f\xFCr die Pr\xFCfung</p>\r\n"
-            . "--inner--\r\n--outer--\r\n",
-            Config::make(['decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]]]),
-        );
+            . "--inner--\r\n";
 
-        self::assertSame('', (string) $message->getHTMLBody(), 'the library no longer loses this body');
+        self::assertTrue(new MisfiledBodyDetector()->isContainer('multipart/related'));
 
-        $attachments = array_values($message->getAttachments()->all());
-
-        self::assertCount(1, $attachments);
-
-        $part = $attachments[0];
-
-        self::assertSame('multipart/related', $part->getContentType());
-        self::assertTrue(new MisfiledBodyDetector()->isContainer($part->getContentType()));
-
-        // The boundary is gone from content_type once stored, so the unpacker
-        // has to take it from the block's own first delimiter.
-        $opened = new MisfiledBodyUnpacker()->unpack(
-            (string) $part->getContentType(),
-            (string) $part->getContent(),
-        );
+        $opened = new MisfiledBodyUnpacker()->unpack('multipart/related', $stored);
 
         self::assertNotNull($opened, 'the container could not be opened');
         self::assertStringContainsString('Gebühren für die Prüfung', $opened['html']);
@@ -180,18 +159,5 @@ final class MisfiledBodyPartTest extends TestCase
             . "--inner--\r\n";
 
         self::assertNull(new MisfiledBodyUnpacker()->unpack('multipart/related', $raw));
-    }
-
-    private function onlyAttachment(string $part): mixed
-    {
-        $message = ImapMessage::fromString(self::HEADERS . $part, Config::make([
-            'decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]],
-        ]));
-
-        $attachments = $message->getAttachments()->all();
-
-        self::assertCount(1, $attachments, 'the library no longer files this part as an attachment');
-
-        return array_values($attachments)[0];
     }
 }

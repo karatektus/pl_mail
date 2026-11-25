@@ -32,6 +32,9 @@ Variables:
   aiReplyContext  ReplyContext — how much the composer reads
   aiAboutMe       string
   aiSystemPrompt  string
+  aiTranslateInto         string|null          the reader's translation language, null = interface language
+  aiTranslateIntoDefault  TranslationLanguage  what null resolves to
+  aiTranslationLanguages  list<TranslationLanguage>  in the order of their names on this page
 #}
 
 {# _card.html.twig pads a body only when asked, because most bodies are lists
@@ -47,15 +50,11 @@ Variables:
         subheading: 'settings.ai.features.subheading'|trans,
     } %}
         {% block body %}
-            {# Set inside the block rather than at the top of the file: an
-               {% embed %} block is compiled against the embedded template's
-               context, so a `{% set %}` in the outer scope is not visible here
-               and `strict_variables` would turn that into a 500. #}
-            {% set segGroup = 'grid grid-flow-col auto-cols-fr w-28 shrink-0 rounded-pane border border-line overflow-hidden' %}
-            {% set segText  = 'flex h-full items-center justify-center px-2 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                               peer-checked:bg-accent peer-checked:text-accent-ink
-                               peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                               transition-colors' %}
+            {# Imported inside the block rather than at the top of the file:
+               an {% embed %} block is compiled against the embedded
+               template's context, so an import in the outer scope is not
+               visible here and `strict_variables` would turn that into a 500. #}
+            {% import '_partials/_segmented.html.twig' as seg %}
 
             <div class="px-4 py-3 space-y-3"
                  data-controller="settings--toggle"
@@ -77,21 +76,15 @@ Variables:
                         </span>
 
                         {% if feature.adminOn %}
-                            <div class="{{ segGroup }}" role="radiogroup" aria-label="{{ name }}">
-                                {% for on in [true, false] %}
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="ai-{{ feature.key }}" class="peer sr-only"
-                                               value="{{ on ? '1' : '0' }}"
-                                               data-key="{{ feature.key }}"
-                                               data-action="change->settings--toggle#toggle"
-                                               aria-label="{{ (on ? 'settings.ai.seg.on' : 'settings.ai.seg.off')|trans }}"
-                                            {{ feature.enabled == on ? 'checked' : '' }}>
-                                        <span class="{{ segText }}">
-                                            {{ (on ? 'settings.ai.seg.on' : 'settings.ai.seg.off')|trans }}
-                                        </span>
-                                    </label>
-                                {% endfor %}
-                            </div>
+                            {{ seg.control('ai-' ~ feature.key, [
+                                { value: '1', label: 'settings.ai.seg.on'|trans },
+                                { value: '0', label: 'settings.ai.seg.off'|trans },
+                            ], feature.enabled ? '1' : '0', {
+                                label:  name,
+                                width:  'w-28 shrink-0',
+                                action: 'change->settings--toggle#toggle',
+                                data:   { key: feature.key },
+                            }) }}
                         {% else %}
                             {# No control at all rather than a disabled one. A
                                greyed switch invites a click that cannot do
@@ -102,6 +95,38 @@ Variables:
                             </span>
                         {% endif %}
                     </div>
+
+                    {# Into which language, under the switch it belongs to and
+                       only while that switch is on (#713). A free choice from
+                       the list rather than the interface language, because
+                       people read mail in languages plMail has no interface
+                       in. Submits on change, like the context picker below. #}
+                    {% if feature.key == 'translation' and feature.adminOn and feature.enabled %}
+                        {% import '_partials/_select.html.twig' as select %}
+                        <form method="post" action="{{ path('app_settings_ai_translate_into') }}"
+                              data-controller="ui--auto-submit"
+                              class="pl-7"
+                              data-ai-translate-into>
+                            <input type="hidden" name="_token" value="{{ csrf_token('settings-ai-translate-into') }}">
+                            <label for="settings-ai-translate-into" class="block mb-1.5 text-[11px] text-ink-faint">
+                                {{ 'settings.ai.translate_into.label'|trans }}
+                            </label>
+                            <select id="settings-ai-translate-into"
+                                    name="language"
+                                    data-action="change->ui--auto-submit#submit"
+                                    {{ select.enhance() }}
+                                    class="select-field w-full h-9 text-sm">
+                                <option value="" {{ aiTranslateInto is null ? 'selected' : '' }}>
+                                    {{ 'settings.ai.translate_into.follow_language'|trans({ '%language%': aiTranslateIntoDefault.label(app.request.locale) }) }}
+                                </option>
+                                {% for language in aiTranslationLanguages %}
+                                    <option value="{{ language.value }}" {{ language.value == aiTranslateInto ? 'selected' : '' }}>
+                                        {{ language.label(app.request.locale) }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    {% endif %}
                 {% endfor %}
             </div>
         {% endblock %}
@@ -179,10 +204,7 @@ Variables:
         subheading: 'settings.ai.context.subheading'|trans,
     } %}
         {% block body %}
-            {% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                              peer-checked:bg-accent peer-checked:text-accent-ink
-                              peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                              transition-colors' %}
+            {% import '_partials/_segmented.html.twig' as seg %}
 
             <div class="px-4 py-3 space-y-3">
                 {# Submits on change and redirects, like the clock picker: the
@@ -192,21 +214,14 @@ Variables:
                       data-controller="ui--auto-submit">
                     <input type="hidden" name="_token" value="{{ csrf_token('settings-ai-context') }}">
 
-                    <div class="grid grid-flow-col auto-cols-fr rounded-pane border border-line overflow-hidden"
-                         role="radiogroup" aria-label="{{ 'settings.ai.context.heading'|trans }}">
-                        {% for depth in ['none', 'message', 'thread'] %}
-                            <label class="cursor-pointer">
-                                <input type="radio" name="depth" class="peer sr-only"
-                                       value="{{ depth }}"
-                                       data-action="change->ui--auto-submit#submit"
-                                       data-ai-context-depth="{{ depth }}"
-                                    {{ aiReplyContext.value == depth ? 'checked' : '' }}>
-                                <span class="{{ segText }}">
-                                    {{ ('settings.ai.context.' ~ depth)|trans }}
-                                </span>
-                            </label>
-                        {% endfor %}
-                    </div>
+                    {{ seg.control('depth', ['none', 'message', 'thread']|map(depth => {
+                        value: depth,
+                        label: ('settings.ai.context.' ~ depth)|trans,
+                        attrs: { 'ai-context-depth': depth },
+                    }), aiReplyContext.value, {
+                        label:  'settings.ai.context.heading'|trans,
+                        action: 'change->ui--auto-submit#submit',
+                    }) }}
                 </form>
 
                 {# The hint belongs to the CHOSEN value rather than listing all

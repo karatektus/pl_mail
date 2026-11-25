@@ -6,6 +6,7 @@ import {
     encryptEntity, openDraft, openFile, ownCertificateFor, ownKeyEntryFor, sealDraft, sealFile, signEntity, smimeEncryptEntity, smimeSignEntity,
 } from "../../crypto/compose.js";
 import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
+import { liftAbove, visible } from "../../place_above.js";
 
 /**
  * Encryption in the compose window: whether this message will go out
@@ -37,7 +38,17 @@ import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
  * anything installed, where a signature.asc is an attachment nobody asked for.
  *
  * "Encrypt" and "Sign" in the More options menu override that for one
- * message. A reply to an encrypted message is encrypted from the start, and
+ * message.
+ *
+ * The lock also opens a small panel over itself (#703): each recipient with a
+ * key, and a three-way On / Off / Auto for whether mail to that address is
+ * encrypted from now on. It asks without demanding: it starts on what is
+ * stored, leaving it alone changes nothing, and it goes away when the person
+ * clicks, tabs or presses Escape anywhere else. A choice is saved at once
+ * (RecipientPolicies) and the message goes back to deciding by itself, so it
+ * follows what was just chosen. Not a toast: a toast times out on its own
+ * clock, while somebody reading the panel is the one who decides when they
+ * are done with it. A reply to an encrypted message is encrypted from the start, and
  * its quote is decrypted here, where the key is.
  *
  * Once a draft is encrypted it is sealed: every save encrypts what was typed
@@ -45,7 +56,9 @@ import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
  * (App\Service\Crypto\SealedDrafts), attachments are encrypted before they are
  * uploaded, and pictures stay inside the draft. It stays sealed even if the
  * message later goes out unencrypted, because nothing but this browser can
- * open it again; the message is then built here as plain mail.
+ * open it again; the message is then built here as plain mail. The Encrypt
+ * and Sign choices are sealed in with it, so a window that opens the draft
+ * again keeps them instead of turning encryption back on (#703).
  *
  * compose--compose asks this controller three things at the moments that
  * matter — prepareDraft() before an autosave, mustBuild()/build() before a
@@ -61,11 +74,15 @@ import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
  * this window — a send does, since that is the person asking for it.
  */
 export default class extends Controller {
-    static targets = ["indicator", "hint", "fields", "encryptToggle", "encryptButton", "signToggle", "aiAssist"];
+    static targets = [
+        "indicator", "hint", "fields", "encryptToggle", "encryptButton", "signToggle", "aiAssist",
+        "policyPanel", "policyList", "policyRow", "policyNoKey", "moreButton",
+    ];
 
     static values = {
         keyring: Object,
         recipientsUrl: String,
+        policyUrl: String,
         sealedDraftUrl: String,
         rawUrl: String,
         attachmentUrl: String,
@@ -100,6 +117,11 @@ export default class extends Controller {
     #onKeyring = null;
     /** The person cancelled the dialog an autosave raised; autosaves stop asking. */
     #declined = false;
+    /** Takes the recipients' panel out of the top layer again; null while it is shut. */
+    #dropPolicies = null;
+    #onPolicyOutside = null;
+    /** Where the panel was opened from, for Escape to hand focus back to. */
+    #policyAnchor = null;
 
     connect() {
         this.#ring = keyring(this.keyringValue);
@@ -131,6 +153,7 @@ export default class extends Controller {
         this.element.removeEventListener("change", this.#onChange);
         window.removeEventListener("crypto:keyring", this.#onKeyring);
         clearTimeout(this.#timer);
+        this.closePolicies();
     }
 
     // ── Asked by compose--compose ───────────────────────────────────────────
@@ -169,7 +192,7 @@ export default class extends Controller {
 
         formData.set(this.#htmlInput().name, "");
         formData.set(this.#textInput().name, "");
-        formData.set("sealed[draft]", await sealDraft(this.#ring, { html, text, plain }));
+        formData.set("sealed[draft]", await sealDraft(this.#ring, { html, text, plain, ...this.#choices() }));
         this.#sealed = true;
         this.#paint();
 
@@ -265,7 +288,7 @@ export default class extends Controller {
         }
 
         if (true === this.isSealing()) {
-            fields["sealed[draft]"] = await sealDraft(this.#ring, { html: html ?? "", text, plain });
+            fields["sealed[draft]"] = await sealDraft(this.#ring, { html: html ?? "", text, plain, ...this.#choices() });
         }
 
         // Encrypted mail leaves no readable body behind. Signed and plain mail
@@ -366,19 +389,176 @@ export default class extends Controller {
 
     // ── Actions ─────────────────────────────────────────────────────────────
 
-    /** More options → Encrypt: on, then off, then back to deciding by itself. */
+    /**
+     * The lock, or More options → Encrypt: on, then off, then back to deciding
+     * by itself — and the recipients' panel, to make that stick (#703).
+     */
     toggleEncrypt() {
         this.#mode = "auto" === this.#mode ? (this.#plan().encrypt ? "off" : "on") : ("on" === this.#mode ? "off" : "on");
         this.#paint();
+        this.#keepChoices();
+        this.#openPolicies();
+    }
+
+    /**
+     * One recipient's On / Off / Auto, saved now. The message goes back to
+     * deciding by itself, which with the new answer in #info means it does
+     * what was just chosen; a send that would have gone the other way was
+     * the person's switch, and they have just told us what they want.
+     */
+    async setPolicy(event) {
+        const radio = event.target;
+        const email = radio.closest("[data-policy-row]")?.dataset.policyRow ?? "";
+        const info = this.#info.get(email);
+        const before = info?.encrypt ?? "auto";
+
+        try {
+            const response = await fetch(this.policyUrlValue, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken(), "X-Requested-With": "XMLHttpRequest" },
+                body: JSON.stringify({ email, encrypt: radio.value }),
+            });
+
+            if (false === response.ok) {
+                throw new Error("refused");
+            }
+
+            const answer = await response.json();
+
+            if (undefined !== info) {
+                info.encrypt = answer.encrypt;
+            }
+            this.#mode = "auto";
+            this.#paint();
+            this.#keepChoices();
+        } catch {
+            // Back to what is stored, so the panel never shows a choice that
+            // was not kept.
+            const kept = radio.closest("[data-segmented]")?.querySelector(`input[value="${before}"]`);
+
+            if (kept instanceof HTMLInputElement) {
+                kept.checked = true;
+            }
+            this.#note(this.messagesValue.policyFailed, true);
+        }
+    }
+
+    /** Shut the recipients' panel: a click, a focus or an Escape elsewhere. */
+    closePolicies() {
+        if (null === this.#dropPolicies) {
+            return;
+        }
+
+        this.#dropPolicies();
+        this.#dropPolicies = null;
+        this.policyPanelTarget.hidden = true;
+
+        for (const type of ["click", "focusin", "keydown"]) {
+            document.removeEventListener(type, this.#onPolicyOutside, { capture: true });
+        }
     }
 
     /** More options → Sign. */
     toggleSign() {
         this.#signMode = this.#plan().sign ? "off" : "on";
         this.#paint();
+        this.#keepChoices();
     }
 
     // ── Private ─────────────────────────────────────────────────────────────
+
+    /**
+     * The recipients' panel, filled from what #info knows and lifted over the
+     * lock — over ⋮ when the lock has been folded into that menu. Nothing to
+     * show without recipients, so nothing opens.
+     *
+     * After a refresh: an address typed a moment ago may not have been asked
+     * about yet (#scheduleRefresh waits 300 ms), and without its answer it
+     * would show as having no key.
+     */
+    async #openPolicies() {
+        if (false === this.hasPolicyPanelTarget) {
+            return;
+        }
+
+        this.closePolicies();
+        clearTimeout(this.#timer);
+        await this.#refresh(false);
+
+        const emails = this.#recipients();
+
+        if (0 === emails.length) {
+            return;
+        }
+
+        const anchor = () => visible(this.hasEncryptButtonTarget ? this.encryptButtonTarget : null)
+            ?? visible(this.hasMoreButtonTarget ? this.moreButtonTarget : null);
+
+        this.policyListTarget.replaceChildren(...emails.map((email, index) => this.#policyRow(email, index)));
+        this.policyPanelTarget.hidden = false;
+        this.#dropPolicies = liftAbove(this.policyPanelTarget, anchor);
+
+        // Into the panel: it sits at the end of the window, and with focus
+        // left on the lock the next Tab would close it before a keyboard
+        // could ever reach a switch. Escape hands focus back.
+        this.policyPanelTarget.querySelector("input:checked")?.focus({ preventScroll: true });
+        this.#policyAnchor = anchor;
+
+        // Capture, like ui--dropdown, so a click the target stops on its way
+        // up still closes it. focusin as well: somebody who tabs on to the
+        // subject has looked away just as surely as somebody who clicks it.
+        this.#onPolicyOutside ??= (event) => {
+            if ("keydown" === event.type) {
+                if ("Escape" === event.key) {
+                    // The panel's Escape, not the window's: it would close
+                    // the whole compose window behind it otherwise.
+                    event.stopPropagation();
+
+                    const back = this.#policyAnchor?.();
+
+                    this.closePolicies();
+                    back?.focus({ preventScroll: true });
+                }
+
+                return;
+            }
+
+            if (false === this.policyPanelTarget.contains(event.target)) {
+                this.closePolicies();
+            }
+        };
+
+        for (const type of ["click", "focusin", "keydown"]) {
+            document.addEventListener(type, this.#onPolicyOutside, { capture: true });
+        }
+    }
+
+    /**
+     * One recipient in the panel. An address plMail has no key for gets no
+     * switch: mail to it is unencrypted whatever would be set, and
+     * RecipientPolicies refuses to keep a choice for it.
+     */
+    #policyRow(email, index) {
+        const info = this.#info.get(email) ?? null;
+        const settable = true === info?.own || null !== (info?.key ?? null);
+        const row = (settable ? this.policyRowTarget : this.policyNoKeyTarget).content.firstElementChild.cloneNode(true);
+
+        row.dataset.policyRow = email;
+        row.querySelector("[data-policy-email]").textContent = email;
+
+        if (true === settable) {
+            const group = row.querySelector("[data-segmented]");
+
+            group.setAttribute("aria-label", this.messagesValue.policyLabel.replace("%email%", email));
+
+            for (const radio of group.querySelectorAll("input[type=radio]")) {
+                radio.name = `encrypt-policy-${index}`;
+                radio.checked = radio.value === (info?.encrypt ?? "auto");
+            }
+        }
+
+        return row;
+    }
 
     async #start() {
         try {
@@ -434,6 +614,12 @@ export default class extends Controller {
 
             const draft = await openDraft(this.#ring, await response.text());
 
+            // What the person chose for this message when they last wrote it,
+            // over the "on" every sealed draft opens with: a draft is sealed
+            // because it was going to be encrypted when it was saved, which
+            // says nothing about Encrypt switched off since (#703).
+            this.#mode = draft.encrypt ?? this.#mode;
+            this.#signMode = draft.sign ?? this.#signMode;
             this.#textInput().value = draft.text;
             this.#htmlInput().value = draft.html;
             this.#editor().innerHTML = await this.#clean(draft.html);
@@ -492,6 +678,28 @@ export default class extends Controller {
 
         input.value = `${match[1]}${subject}`;
         input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    /**
+     * The Encrypt and Sign choices, kept inside the sealed draft so the
+     * window that opens it again starts from them (#703). Only there: a
+     * draft that is not sealed has nowhere private to keep them, and opens
+     * deciding by itself again.
+     */
+    #choices() {
+        return { encrypt: this.#mode, sign: this.#signMode };
+    }
+
+    /**
+     * A switch flipped in a sealed draft is a change to that draft: without a
+     * save, closing the window right after left the old choice inside it,
+     * and the draft came back encrypted. The form's input event is what
+     * compose--compose autosaves on.
+     */
+    #keepChoices() {
+        if (true === this.#sealed) {
+            this.element.querySelector("form")?.dispatchEvent(new Event("input", { bubbles: true }));
+        }
     }
 
     #scheduleRefresh() {

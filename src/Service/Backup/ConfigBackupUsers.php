@@ -114,8 +114,8 @@ final readonly class ConfigBackupUsers
      *
      * Curated rather than copied wholesale, and the two that are missing are
      * the point of curating: `admin.logs_seen_at` is a read marker against log
-     * rows that do not travel, and `sidebar.expanded_account` holds an account
-     * **id** from the source database, which on the target is either nothing or
+     * rows that do not travel, and `sidebar.expanded_account` holds account
+     * **ids** from the source database, which on the target is either nothing or
      * somebody else's mailbox. The onboarding keys very much do travel — a
      * restored user who is walked back through the setup wizard has been told
      * their restore did not work.
@@ -169,6 +169,11 @@ final readonly class ConfigBackupUsers
         // quietly switched it back on would be telling key servers whom
         // somebody writes to after they had decided not to.
         User::SETTING_CRYPTO_KEY_SERVERS,
+        // Whether mail to one's own addresses is encrypted (#703). By
+        // address, so it means the same on the target; a restore that
+        // dropped it would have mail to a Gmail account read in Gmail's own
+        // app going out encrypted again, unreadable there.
+        User::SETTING_CRYPTO_OWN_ENCRYPT,
         // Whether any of the person's accounts keeps decrypted mail: carried
         // with the accounts' own switches above, which it summarises.
         User::SETTING_KEEPS_DECRYPTED_ANY,
@@ -181,6 +186,9 @@ final readonly class ConfigBackupUsers
         // Whether LABELS lists folders too (#221 step 3): how the person
         // wants the sidebar, and nothing in it is particular to one host.
         User::SETTING_FOLDERS_IN_LABELS,
+        // Merged or by account (#690): the same kind of preference, and as
+        // portable.
+        User::SETTING_LABELS_BY_ACCOUNT,
         // Row names, no ids, and the same on any install — and an empty list
         // is a choice that has to survive ("nothing behind More"), which is
         // why this is carried even though most bags never hold it.
@@ -204,6 +212,14 @@ final readonly class ConfigBackupUsers
         // Neither holds an id, and a percentage means the same on any install.
         User::SETTING_READING_PANE_MODE,
         User::SETTING_READING_PANE_WIDTH,
+        // How wide the sidebar is, and whether a clipped row may lean out over
+        // the mail (#699). In the backup for the reasons the two above are: a
+        // choice about one's own screen, no id, and a number of pixels and a
+        // boolean mean the same on any install. A restore handing back a
+        // default-width sidebar to somebody who widened theirs to read a nested
+        // label tree would undo the very thing they set it for.
+        User::SETTING_SIDEBAR_WIDTH,
+        User::SETTING_SIDEBAR_PEEK,
         // What a dragged row does, one key per direction. In the backup for the
         // reason the reading pane's keys are: a choice about one's own screen,
         // a short string with no id, and the same meaning on any install. A
@@ -294,6 +310,9 @@ final readonly class ConfigBackupUsers
         // allowlist silently stops carrying anything that ships after it.
         Account::SETTING_SIGNATURE,
         Account::SETTING_READ_RECEIPT_DEFAULT,
+        // The addresses every mail is Bcc'd to (#692): a choice the person
+        // made, naming mailboxes that are theirs wherever plMail runs.
+        Account::SETTING_DEFAULT_BCC,
         // Whether this account keeps decrypted mail, and lets the models read
         // it. The person's choice, carried like any other; the decrypted text
         // itself is not in the backup, and a browser decrypts it anew on the
@@ -357,7 +376,7 @@ final readonly class ConfigBackupUsers
     public const array EXCLUDED_USER_SETTINGS = [
         User::SETTING_LOGS_SEEN_AT => 'a read marker against log rows, which do not travel',
         User::SETTING_WHATS_NEW_SEEN => 'a read marker like admin.logs_seen_at, against the release the source install ran: restored onto another version it would either hide notes this person has not read or repeat ones they have',
-        User::SETTING_SIDEBAR_ACCOUNT => 'an account id from the source database — on the target that is nothing, or somebody else',
+        User::SETTING_SIDEBAR_ACCOUNT => 'account ids from the source database — on the target they are nothing, or somebody else',
         User::SETTING_TASKS_ADD_TO => 'a task list id from the source database, like sidebar.expanded_account; task lists do not travel, and without it new tasks land in the default list',
         User::SETTING_INSIGHT_PANE_DISMISSED_AT => 'a read marker like admin.logs_seen_at: it says when this person last waved the strip away, not what they chose',
     ];
@@ -878,6 +897,7 @@ final readonly class ConfigBackupUsers
                 // is the same post-flush remap `calendar.target_id` gets.
                 'signature'          => $account->getSetting(Account::signatureAliasSetting($alias->id ?? 0)),
                 'readReceiptDefault' => $account->getSetting(Account::readReceiptAliasSetting($alias->id ?? 0)),
+                'defaultBcc'         => $account->getSetting(Account::defaultBccAliasSetting($alias->id ?? 0)),
             ];
         }
 

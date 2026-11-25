@@ -46,6 +46,7 @@ use App\Entity\User\ApiToken;
 use App\Entity\User\User;
 use App\Repository\User\User\UserRepository;
 use App\Service\Mail\AccountCreator;
+use App\Service\Mail\DefaultBccProvider;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Throwable;
@@ -1178,7 +1179,7 @@ final readonly class ConfigBackupUserRestorer
     }
 
     /**
-     * Put the per-alias signature and read-receipt overrides back, under the
+     * Put the per-alias signature, read-receipt and Bcc overrides back, under the
      * ids the aliases have on THIS install.
      *
      * The account settings bag keys them by alias row id, so they cannot be
@@ -1236,6 +1237,14 @@ final readonly class ConfigBackupUserRestorer
 
                 if (array_key_exists('readReceiptDefault', $aliasRow) && null !== $aliasRow['readReceiptDefault']) {
                     $account->setSetting(Account::readReceiptAliasSetting($id), $aliasRow['readReceiptDefault']);
+                }
+
+                // An empty list is "this address Bccs nobody", as an empty
+                // signature is "signs with nothing" — presence again. Read
+                // through normalize() because a file is not trusted to hold
+                // addresses.
+                if (array_key_exists('defaultBcc', $aliasRow) && null !== $aliasRow['defaultBcc']) {
+                    $account->setSetting(Account::defaultBccAliasSetting($id), DefaultBccProvider::normalize($aliasRow['defaultBcc']));
                 }
             }
         }

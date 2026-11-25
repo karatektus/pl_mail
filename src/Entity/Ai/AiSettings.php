@@ -402,6 +402,15 @@ class AiSettings
     public bool $contactHelpEnabled = false;
 
     /**
+     * Translating a message into the reader's language, when somebody asks for
+     * it. The writing model again; its own flag because the translation is read
+     * INSTEAD of the mail, which is the summary's reason with nothing to check
+     * it against for a reader who cannot read the original.
+     */
+    #[ORM\Column(name: 'translation_enabled', options: ['default' => false])]
+    public bool $translationEnabled = false;
+
+    /**
      * What an administrator has typed in place of the prompts we ship.
      *
      * An embeddable rather than seven properties here, for the reason
@@ -541,7 +550,8 @@ class AiSettings
             AiFeature::Categorise,
             AiFeature::WritingHelp,
             AiFeature::Summary,
-            AiFeature::ContactHelp  => $this->chatModel,
+            AiFeature::ContactHelp,
+            AiFeature::Translation  => $this->chatModel,
         };
 
         if (null === $model || '' === trim($model)) {
@@ -554,6 +564,7 @@ class AiSettings
             AiFeature::WritingHelp => $this->writingHelpEnabled,
             AiFeature::Summary     => $this->summaryEnabled,
             AiFeature::ContactHelp => $this->contactHelpEnabled,
+            AiFeature::Translation => $this->translationEnabled,
         };
     }
 
@@ -623,7 +634,8 @@ class AiSettings
             AiFeature::Categorise,
             AiFeature::WritingHelp,
             AiFeature::Summary,
-            AiFeature::ContactHelp => $this->chatKeepAlive,
+            AiFeature::ContactHelp,
+            AiFeature::Translation => $this->chatKeepAlive,
         };
     }
 }

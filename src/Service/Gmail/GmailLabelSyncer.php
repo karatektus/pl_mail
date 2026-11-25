@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
 use App\Repository\Label\Label\LabelRepository;
 use App\Service\Label\LabelResolver;
+use App\Service\Label\RemoteLabelLinker;
 use App\Service\Mail\GmailApiClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -28,6 +29,12 @@ use Psr\Log\LoggerInterface;
  *     skipped: starred and read state are message columns, the rest are
  *     not modelled.
  *
+ * A user label is found by its Gmail id before its name (RemoteLabelLinker,
+ * #691), so a label renamed in Gmail is renamed here rather than coming back
+ * as a second label. Parents are read before their children: Gmail renames
+ * "Work/Invoices" with "Work", and the child then finds its label already
+ * under the new parent.
+ *
  * Remote labelListVisibility is adopted ONCE, when the remote label is
  * first linked. After that, visibility belongs to the user (label settings)
  * and is never overwritten by sync.
@@ -46,6 +53,7 @@ final readonly class GmailLabelSyncer
         private GmailApiClient         $apiClient,
         private LabelResolver          $labelResolver,
         private LabelRepository        $labelRepository,
+        private RemoteLabelLinker      $linker,
         private GmailLabelColorMapper  $colorMapper,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
@@ -54,6 +62,8 @@ final readonly class GmailLabelSyncer
     public function sync(Account $account): void
     {
         $remoteLabels = $this->apiClient->listLabels($account);
+
+        usort($remoteLabels, static fn (array $a, array $b): int => substr_count((string) ($a['name'] ?? ''), '/') <=> substr_count((string) ($b['name'] ?? ''), '/'));
 
         $synced = 0;
 
@@ -88,8 +98,7 @@ final readonly class GmailLabelSyncer
             // owns it via the label settings.
             $firstLink = null === $this->labelRepository->findOneByGmailLabelId($gmailLabelId, $account);
 
-            $segments = explode('/', $name);
-            $label    = $this->labelResolver->customChain($segments, $account);
+            $label = $this->linker->link('gmailLabelId', $gmailLabelId, explode('/', $name), $account);
 
             if (null === $label) {
                 continue;

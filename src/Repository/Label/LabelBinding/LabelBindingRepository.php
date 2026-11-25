@@ -67,6 +67,33 @@ class LabelBindingRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every binding on the account that carries this remote id, oldest first.
+     *
+     * More than one is the duplicate #691 left behind: a label renamed on the
+     * server came back as a second label, whose binding got the same id. The
+     * caller merges them (RemoteLabelLinker). Ordered so the label plMail had
+     * first is the one kept when neither has the server's name.
+     *
+     * @param 'gmailLabelId'|'graphCategoryId'|'jmapMailboxId' $field
+     *
+     * @return list<LabelBinding>
+     */
+    public function findAllByRemoteId(string $field, string $remoteId, Account $account): array
+    {
+        /** @var list<LabelBinding> */
+        return $this->createQueryBuilder('binding')
+            ->addSelect('label')
+            ->innerJoin('binding.label', 'label')
+            ->where('binding.account = :account')
+            ->andWhere(sprintf('binding.%s = :remoteId', $field))
+            ->setParameter('account', $account)
+            ->setParameter('remoteId', $remoteId)
+            ->orderBy('binding.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * An account's bindings to remote JMAP mailboxes, keyed by mailbox id.
      *
      * Keyed so a sync can resolve every mailbox id an Email names from one

@@ -744,12 +744,20 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
-     * The account whose folder list is expanded in the sidebar, or null.
+     * The accounts whose folder lists are expanded in the sidebar.
      *
      * Server-side for the same reason the calendar pane's width is: the
      * sidebar re-renders on every visit, and a list restored by JavaScript
      * afterwards is a list the user watches blink. Rendered into the first
      * paint, it never moves.
+     *
+     * Several at once since #690. It used to be one account, and opening a
+     * second closed the first; with labels listed by account an account's row
+     * is its whole label tree, and comparing two accounts' trees — the case
+     * the issue was about — meant opening and closing them in turn. The key
+     * is the one the single id was stored under, and a bag still holding an
+     * int reads as that one account (see $expandedAccountIds), so nobody's
+     * open account closes on upgrade.
      */
     public const string SETTING_SIDEBAR_ACCOUNT = 'sidebar.expanded_account';
 
@@ -792,6 +800,27 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         get => true === $this->getSetting(self::SETTING_FOLDERS_IN_LABELS, false);
         set(bool $on) {
             $this->setSetting(self::SETTING_FOLDERS_IN_LABELS, $on ? true : null);
+        }
+    }
+
+    /**
+     * Whether the sidebar lists labels by account rather than merged (#690).
+     *
+     * Merged, the default, is the LABELS section: one plMail label, however
+     * many accounts it is on. By account, each account's own labels — its
+     * LabelBindings — are listed under the account in ACCOUNTS, beside its
+     * folders, and LABELS keeps only the labels that are on no account yet,
+     * which would otherwise be nowhere. Nothing about the labels changes; this
+     * is which half of the model the sidebar shows. Takes precedence over
+     * SETTING_FOLDERS_IN_LABELS, which is a question about the merged list.
+     */
+    public const string SETTING_LABELS_BY_ACCOUNT = 'sidebar.labels_by_account';
+
+    /** Virtual, out of the settings bag — see SETTING_LABELS_BY_ACCOUNT. */
+    public bool $labelsByAccount {
+        get => true === $this->getSetting(self::SETTING_LABELS_BY_ACCOUNT, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_LABELS_BY_ACCOUNT, $on ? true : null);
         }
     }
 
@@ -981,6 +1010,45 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     /** A little over half: the message is the thing being read, the list is how it was found. */
     public const int READING_PANE_DEFAULT_PCT = 55;
+
+    /**
+     * How wide the sidebar is, and whether a row too long for it may lean out
+     * over the mail to show itself (#699).
+     *
+     * The bag, for the reasons the reading pane's keys are in it: rendered into
+     * the first paint, so a sidebar never appears at 224px and jumps to the
+     * user's 300px once JavaScript runs, and the same at every desk. No
+     * migration.
+     *
+     * Pixels rather than a share, unlike the reading pane: the sidebar holds
+     * rows of text whose length does not change with the window, so the width
+     * that fits them is a number of pixels on any screen.
+     *
+     * PEEK is ON by default, the maintainer's call on #699, and an exception to
+     * "a setting that changes how plMail behaves starts off" (CONTRIBUTING).
+     * It costs nothing where nothing is clipped — the sidebar only leans out
+     * over a name that is cut off — and a cut-off name is exactly the problem
+     * the issue reports, so the default is the one that answers it without a
+     * trip to Settings. Switched off it is stored as false, which is how it
+     * stays off.
+     */
+    public const string SETTING_SIDEBAR_WIDTH = 'sidebar.width';
+    public const string SETTING_SIDEBAR_PEEK = 'sidebar.peek';
+
+    /**
+     * Matches the clamp in ui--sidebar-split; the server is what enforces it.
+     *
+     * 224 is what `w-56` was before the boundary existed, so nobody's sidebar
+     * moves until they move it. 180 is what a row needs to still be a row (an
+     * icon, a word of label and a badge); below that the icon rail is the
+     * better answer and the burger already reaches it. 480 is generous because
+     * the complaint is a nested tree that will not fit, but it is a number and
+     * not "half the window", so a wide screen cannot store a sidebar that a
+     * laptop then has to clamp away.
+     */
+    public const int SIDEBAR_MIN_WIDTH = 180;
+    public const int SIDEBAR_MAX_WIDTH = 480;
+    public const int SIDEBAR_DEFAULT_WIDTH = 224;
 
     /**
      * Insight extractors this user has switched OFF, as a list of extractor
@@ -1208,6 +1276,36 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::READING_PANE_MIN_PCT, min(self::READING_PANE_MAX_PCT, $share));
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_SIDEBAR_WIDTH.
+     *
+     * Clamped on the way out as well as on the way in, for the reason the
+     * reading pane's share is: a stored width outside the range is a sidebar
+     * nobody can drag back.
+     */
+    public int $sidebarWidth {
+        get {
+            $width = $this->getSetting(self::SETTING_SIDEBAR_WIDTH, self::SIDEBAR_DEFAULT_WIDTH);
+
+            if (false === is_int($width)) {
+                return self::SIDEBAR_DEFAULT_WIDTH;
+            }
+
+            return max(self::SIDEBAR_MIN_WIDTH, min(self::SIDEBAR_MAX_WIDTH, $width));
+        }
+        set (int $width) {
+            $this->setSetting(self::SETTING_SIDEBAR_WIDTH, max(self::SIDEBAR_MIN_WIDTH, min(self::SIDEBAR_MAX_WIDTH, $width)));
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_SIDEBAR_PEEK. */
+    public bool $sidebarPeek {
+        get => false !== $this->getSetting(self::SETTING_SIDEBAR_PEEK, true);
+        set (bool $peek) {
+            $this->setSetting(self::SETTING_SIDEBAR_PEEK, $peek);
         }
     }
 
@@ -1703,6 +1801,55 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Whether mail to one of the person's OWN addresses is encrypted (#703):
+     * the RecipientPolicy a contact's key carries in ContactKey::$encrypt,
+     * for the addresses that have no contact key because the key is the
+     * person's own. Set from the lock's popover in the composer
+     * (RecipientPolicies).
+     *
+     * Here and not on AddressKeyBinding, where it would sit beside the key
+     * like a contact's does: bindings are rewritten whenever the keyring is
+     * — a key added, made primary, retired — and the choice is about the
+     * address and the provider's app that reads it, not about which key
+     * happens to serve it this month. By address, lower-cased, like
+     * SETTING_CRYPTO_WKD_UNPUBLISHED; only `always` and `never` are kept, so
+     * an address set back to Auto leaves nothing behind.
+     */
+    public const string SETTING_CRYPTO_OWN_ENCRYPT = 'crypto.own_encrypt';
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CRYPTO_OWN_ENCRYPT.
+     *
+     * @var array<string, string> address => RecipientPolicy value
+     */
+    public array $ownAddressEncrypt {
+        get {
+            $stored   = $this->getSetting(self::SETTING_CRYPTO_OWN_ENCRYPT, []);
+            $policies = [];
+
+            foreach (true === is_array($stored) ? $stored : [] as $address => $policy) {
+                if (true === is_string($address) && true === is_string($policy)) {
+                    $policies[$address] = $policy;
+                }
+            }
+
+            return $policies;
+        }
+        set(array $policies) {
+            $kept = [];
+
+            foreach ($policies as $address => $policy) {
+                if ('always' === $policy || 'never' === $policy) {
+                    $kept[strtolower(trim((string) $address))] = $policy;
+                }
+            }
+
+            ksort($kept);
+            $this->setSetting(self::SETTING_CRYPTO_OWN_ENCRYPT, [] === $kept ? null : $kept);
+        }
+    }
+
+    /**
      * Whether remote images load in every message without the "Show images"
      * bar, as if every sender were on the allowlist (#124).
      *
@@ -1930,16 +2077,42 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
     }
 
-    /** Virtual, out of the settings bag — see SETTING_SIDEBAR_ACCOUNT. */
-    public ?int $expandedAccountId {
+    /**
+     * Virtual, out of the settings bag — see SETTING_SIDEBAR_ACCOUNT.
+     *
+     * @var list<int>
+     */
+    public array $expandedAccountIds {
         get {
-            $accountId = $this->getSetting(self::SETTING_SIDEBAR_ACCOUNT);
+            $stored = $this->getSetting(self::SETTING_SIDEBAR_ACCOUNT);
 
-            return is_int($accountId) ? $accountId : null;
+            if (true === is_int($stored)) {
+                return [$stored];
+            }
+
+            if (false === is_array($stored)) {
+                return [];
+            }
+
+            return array_values(array_filter($stored, 'is_int'));
         }
-        set (?int $accountId) {
-            $this->setSetting(self::SETTING_SIDEBAR_ACCOUNT, $accountId);
+        set (array $accountIds) {
+            $kept = array_values(array_unique(array_filter($accountIds, 'is_int')));
+
+            $this->setSetting(self::SETTING_SIDEBAR_ACCOUNT, [] === $kept ? null : $kept);
         }
+    }
+
+    public function isAccountExpanded(int $accountId): bool
+    {
+        return true === in_array($accountId, $this->expandedAccountIds, true);
+    }
+
+    public function setAccountExpanded(int $accountId, bool $expanded): void
+    {
+        $others = array_values(array_filter($this->expandedAccountIds, static fn (int $id): bool => $id !== $accountId));
+
+        $this->expandedAccountIds = true === $expanded ? [...$others, $accountId] : $others;
     }
 
     /**

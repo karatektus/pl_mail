@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:48c908f6e9f810a9a2698e44f881a20a03ef9f5f -->
+<!-- translated-from: features/mail.md sha1:3f1282e342d7dd4d01f28f7d28f195097b38d602 -->
 
 # Mail
 
@@ -43,6 +43,19 @@ etwas zurückgestellt ist, egal wohin du sie legst. „Mehr“ ist aufgeklappt, 
 Seite darin befindest. Die Wahl wird an dein Konto gebunden, steckt in einer Konfigurationssicherung
 und zeigt sich nur in der vollen Seitenleiste: Die schmale Symbolleiste hat kein „Mehr“, ein
 dahinter versteckter Ordner fehlt dort also.
+
+**Die Breite der Seitenleiste** bestimmst du: Zieh den Rand zwischen Seitenleiste und Mail, oder geh
+mit Tab auf diesen Rand und nimm die Pfeiltasten; ein Doppelklick setzt die Standardbreite zurück. Sie
+reicht von 180 bis 480 Pixel und drückt die Mail nie schmaler als ein Handy. Die Breite wird an dein
+Konto gebunden und steckt in einer Konfigurationssicherung, sie ist also in der Mail, im Kalender, in
+den Einstellungen und im Adminbereich dieselbe, und auf deinen anderen Geräten auch. Für ein langes
+Label, das du nur ab und zu lesen willst, musst du sie nicht verbreitern: Ist ein Name abgeschnitten,
+lehnt sich die Seitenleiste über die Mail hinaus, solange der Zeiger oder der Tastaturfokus darauf
+liegt, gerade so weit wie der längste Name, und die Mail daneben bewegt sich nicht. Solange nichts
+abgeschnitten ist, passiert nichts, und **Lange Namen beim Darüberfahren zeigen** unter Einstellungen →
+Allgemein → Layout & Bedienung → Seitenleiste schaltet es aus. Die schmale Symbolleiste hat beides
+nicht. Hervorgehoben ist nur die Zeile, auf der du bist; ein übergeordnetes Label bleibt schlicht,
+während eines seiner Unterlabels offen ist.
 
 **Ungelesen** sammelt ungelesene Mails von überall — archivierte und gelabelte Konversationen
 eingeschlossen, ohne Kategorie-Tabs — und lässt nur weg, was du weggeräumt hast: Papierkorb, Spam
@@ -652,6 +665,47 @@ löst das nicht aus — nur die Nachrichten selbst.
 Es ist die Darstellung eines Modells, nicht die Mail. Die Zeile darunter sagt das, und die
 Nachrichten stehen direkt darunter.
 
+### Eine Nachricht übersetzen
+
+Wo die Administration das Übersetzen eingeschaltet hat, steht im **⋮**-Menü einer Nachricht
+**Übersetzen**. Damit wird diese eine Nachricht in deine Sprache übersetzt: in die Sprache, in der
+plMail läuft, oder in die, die du unter **Einstellungen → Assistent → Übersetzen in** gewählt hast —
+dort gibt es viel mehr Sprachen als Oberflächen von plMail. Übersetzt wird erst, wenn du darum bittest.
+
+Die Übersetzung tritt an die Stelle der Nachricht, auf einem Blatt mit gestricheltem violettem Rand
+und einem Etikett **KI-Übersetzung** an der Ecke, damit sie nie für das gehalten wird, was der
+Absender geschrieben hat. Zeigst du auf das Blatt, nennt es das Modell, das übersetzt hat. Darüber,
+unter dem Absender, steht ein Schalter **Original · Deutsch** und **Englisch · KI**: Die gedrückte
+Hälfte ist die, die du liest, und ein Klick auf die andere schaltet um, so oft du willst. Die Sprache
+der Nachricht ist die, die das Modell beim Übersetzen nennt; nennt es keine, steht im Schalter nur
+**Original**. Die Übersetzung kommt Stück für Stück an; wie
+lange das dauert, hängt von der Maschine ab, auf der das Modell läuft, und auf einer ohne
+Grafikkarte braucht eine lange Nachricht Minuten. Du musst nicht warten: Verlässt du die Nachricht,
+wird sie trotzdem fertig übersetzt und öffnet sich beim nächsten Mal übersetzt.
+
+Einmal geschrieben, wird die Übersetzung aufbewahrt, und die Nachricht öffnet sich ohne Wartezeit als
+Übersetzung. Ändert sich die Nachricht selbst danach, sagt das Blatt das, und neben dem Schalter
+erscheint **Noch einmal übersetzen**.
+
+Eine Nachricht, die schon in deiner Sprache ist, wird nicht übersetzt: Das Modell hört auf, sobald
+es die Sprache genannt hat, eine Zeile unter dem Absender sagt, dass es nichts zu übersetzen gibt,
+und die Nachricht bleibt, wie sie ist. Auch das wird aufbewahrt, eine neue Anfrage kostet also nichts.
+
+Geschickt wird der eigene Text der Nachricht, als reiner Text:
+
+- **Ohne die früheren Nachrichten, die sie zitiert.** Die hast du schon, jede lässt sich für sich
+  übersetzen, und sie jedes Mal mitzuschicken, würde jede Antwort in einem langen Gespräch langsamer
+  machen. Das Blatt sagt, wenn etwas weggelassen wurde. Eine Weiterleitung ohne eigenen Text wird
+  ganz geschickt.
+- **Bis etwa 6.000 Zeichen.** Eine längere Nachricht wird von ihrem Anfang her übersetzt, und das
+  Blatt sagt das.
+
+Die Übersetzung ist reiner Text: Layout, Bilder und Links bleiben im Original. Antworten und
+Weiterleiten zitieren immer das Original, nie die Übersetzung.
+
+Es ist die Übersetzung eines Modells, und kleine Modelle machen Fehler, die sich gut lesen — ein
+Wochentag, eine Zahl, ein Name. Wo es darauf ankommt, sieh ins Original oder frag beim Absender nach.
+
 ## Labels
 
 Labels legst du selbst an, über **Label erstellen** in der Seitenleiste oder unter
@@ -678,6 +732,39 @@ nie. Der Bereich LABELS enthält diese Markierungen; schalte **Ordner unter Labe
 Ordner tragen. Ordner legst du in der eigenen Ordnerliste des Kontos an, benennst sie dort um und
 löschst sie dort, nie dadurch, dass du ein Label anlegst oder umbenennst; siehe
 [Ordner](accounts.md#ordner).
+
+### Labels nach Konto
+
+Ein Label mit demselben Namen auf mehreren Konten ist in plMail ein einziges Label: „Sport“ auf zwei
+Gmail-Konten steht einmal in der Liste, und wenn du es öffnest, siehst du die Mail beider Konten.
+Schalte **Labels nach Konto** unter **Einstellungen → Labels** ein, um Labels stattdessen unter ihrem Konto
+aufzulisten. Jedes Konto in der Seitenleiste zeigt dann alle seine Labels neben seinen Ordnern,
+verschachtelt wie auf dem Konto selbst; ein Label trägt seinen Farbpunkt, ein Ordner keinen. Der
+Bereich LABELS behält nur Labels, die noch auf keinem Konto sind, und fehlt, solange es keine gibt.
+
+- Ein Label unter einem Konto zeigt die Mail dieses Kontos mit dem Label, und seine Zahl ungelesener
+  Mails ist die dieses Kontos.
+- Ein Label, das auch auf anderen Konten ist, trägt ein Verknüpfungszeichen; fährst du mit der Maus
+  darüber, nennt es die anderen. Umbenennen oder Löschen unter **Einstellungen → Labels** betrifft
+  alle davon.
+- Der Stift neben einem Label benennt es **nur für dieses Konto** um. Das Label dieses Kontos und seine
+  Mail wandern zu einem Label mit dem neuen Namen, und das Label wird auf dem Mailserver umbenannt;
+  die anderen Konten behalten den alten Namen. Darunter verschachtelte Labels dieses Kontos gehen mit.
+  Ein Filter, der nur auf diesem Konto läuft und das Label vergibt, vergibt jetzt das neue, und wenn
+  du für das Label Benachrichtigungen bekommst, bekommst du sie auch für das neue. Eine Farbe, die du
+  dort ohne neuen Namen änderst, gilt für das Label auf allen Konten.
+- Benennst du ein Label so wie ein anderes Label, schließt es sich diesem an, sofern das andere noch
+  nicht auf diesem Konto ist. Ein Label, das du für ein Konto umbenannt hast, ist nach dem
+  Zurückbenennen wieder ein einziges Label; das geht auch unter **Einstellungen → Labels**.
+- **Neues Label…** am Ende der Liste eines Kontos legt ein Label nur auf diesem Konto an. Gmail und
+  Outlook bekommen es sofort, nicht erst, wenn es zum ersten Mal auf Mail gesetzt wird.
+
+Eine Konversation auf ein Label unter einem Konto zu ziehen vergibt das Label, wie unter LABELS; auf
+einen Ordner verschiebt sie. Beides nimmt nur Konversationen dieses Kontos an.
+
+In der Seitenleiste können mehrere Konten gleichzeitig aufgeklappt sein, und jedes bleibt offen, bis
+du es zuklappst. Die Schaltfläche neben **Konto hinzufügen** in der Überschrift KONTEN klappt alle auf,
+oder alle zu, sobald jedes offen ist.
 
 In einer geöffneten Konversation zeigt jede Nachricht ihre Labels. Ein Ordner, in dem sie liegt,
 trägt einen Ordner und hat kein ×, denn Mail aus einem Ordner zu nehmen ist ein Verschieben; ein Label
@@ -883,8 +970,10 @@ Spam stehen daneben unter **Mehr**. Neben der Auswahl aller Konversationen steht
 Eine Auswahl gehört zur Liste, nicht zur Seite: Was du anhakst, bleibt angehakt, wenn du
 weiterblätterst, und die Zahl neben den Aktionen zählt alles mit. In einer Liste, die länger als
 eine Seite ist, bietet das Menü außerdem **Alle … in dieser Ansicht** an — das wählt jede
-Unterhaltung darin aus. **Keine** leert jede Seite, und in einer anderen Liste beginnst du wieder
-ohne Auswahl.
+Unterhaltung darin aus. In Suchergebnissen ist das jede Unterhaltung, die die Wörter der Suche
+gefunden haben; eine, die nur wegen ähnlicher Bedeutung dabei ist, bleibt außen vor. Der eigene
+Posteingang eines einzelnen Kontos bietet es nicht an. **Keine** leert jede Seite, und in einer
+anderen Liste beginnst du wieder ohne Auswahl.
 
 Um mehrere Konversationen am Stück auszuwählen, klickst du einen Avatar an, hältst dann Umschalt
 gedrückt und klickst einen anderen: Beide und jede Konversation dazwischen auf der Seite sind
@@ -1554,6 +1643,30 @@ es lieber gleich ausgeklappt siehst: Der Schalter steht unter **Einstellungen �
 Verfassen** — eingeklappt bleibt die Vorgabe. So oder so zählt das Zitat als Inhalt der Nachricht:
 Eine Weiterleitung ohne ein eigenes Wort darüber wird nicht als leere Mail hinterfragt.
 
+### Immer Bcc an
+
+Wenn jede Mail zusätzlich in einem anderen Postfach von dir landen soll (als Sicherung oder als
+Beleg, dass sie raus ist), stell **Immer Bcc an** unter **Einstellungen → Lesen & Schreiben →
+Verfassen → Standards fürs Verfassen** ein. Jedes Konto ist dort eine Zeile mit einer kurzen
+Zusammenfassung; klapp sie auf, um seine Liste einzustellen. Adressen kommen als Chips hinzu, mit
+denselben Kontaktvorschlägen wie im Schreibfenster, bis zu zehn je Liste, und jede Änderung ist
+sofort gespeichert.
+
+Darunter listet **Adressen, die abweichen** nur die Absendeadressen, die ihrem Konto nicht folgen.
+**Ausnahme hinzufügen für…** wählt eine aus. Ihr „Immer Bcc an“ ist dann **Wie das Konto** oder
+**Eigene Liste**, die auch leer sein kann, dann wird Mail von dieser Adresse gar nicht kopiert.
+**Ausnahme entfernen** lässt die Adresse wieder in allem ihrem Konto folgen.
+
+Die Adressen stehen im **Bcc**, sobald das Schreibfenster aufgeht: bei einer neuen Nachricht, einer
+Antwort, „Allen antworten“ und beim Weiterleiten. Du siehst sie dort und kannst eine für eine
+einzelne Nachricht herausnehmen. Eine Adresse, an die die Nachricht schon über An oder Cc geht, kommt
+nicht noch einmal dazu, und keine Adresse bekommt eine Kopie an sich selbst. Wechselst du **Von**,
+werden die Kopien der alten Adresse gegen die der neuen getauscht. Was du selbst ins Bcc getippt
+hast, bleibt. Ein Entwurf, den du wieder öffnest, behält das Bcc, mit dem er gespeichert wurde.
+
+Die JMAP-Identitäten tragen dieselbe Liste als `bcc`, damit die Apps Mail an dieselben Stellen
+kopieren können.
+
 ### Später senden
 
 Der Pfeil neben **Senden** öffnet **Später senden**: *Morgen früh* (08:00), *Morgen Nachmittag*
@@ -1624,7 +1737,7 @@ da, wenn du sie willst, und nicht im Weg, wenn nicht.
 
 ### Um eine gebeten werden
 
-**Einstellungen → Aliase → Standards fürs Schreiben**, je Adresse. Drei Betriebsarten:
+**Einstellungen → Lesen & Schreiben → Verfassen → Standards fürs Verfassen**, je Konto und für jede Adresse unter **Adressen, die abweichen**. Drei Betriebsarten:
 
 | Betriebsart | Was dein Postfach tut |
 |---|---|
@@ -1761,6 +1874,11 @@ nicht raus.
 - [JMAP](../internals/jmap.md) — dieselben Operationen, wie ein Client sie sieht.
 
 ## Fallstricke
+
+**Eine Adresse unter „Immer Bcc an“ kann verhindern, dass eine Mail verschlüsselt wird.** Das
+Schreibfenster verschlüsselt von selbst nur, wenn jeder Empfänger einen Schlüssel hat, und S/MIME
+nur, wenn es gar kein Bcc gibt. Eine Sicherungsadresse im Bcc ist ein Empfänger wie jeder andere.
+Gib ihr einen Schlüssel oder nimm sie bei Mails, die du verschlüsselst, aus dem Bcc.
 
 **„plMail verwenden“ für E-Mail-Links braucht HTTPS und einen Browser, der es erlaubt.** Browser
 lassen eine Web-App `mailto:`-Links nur über HTTPS (oder auf `localhost`) übernehmen, also ist der

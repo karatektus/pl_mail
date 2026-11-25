@@ -11,19 +11,17 @@ use App\Service\Imap\ImapDeadline;
  * A POP3 conversation, written out rather than borrowed.
  *
  * ── Why not a library ────────────────────────────────────────────────────────
- * The IMAP side uses webklex/php-imap, which is a large and well-tested MIME
- * parser behind a thin protocol client. There is no equivalent for POP3:
- * the runtimes on Packagist are thin clients of their own, and the PHP
- * `imap` extension — which can do POP3 — is not in the image (the Dockerfile
- * installs neither `imap` nor `imap-ssl`, and webklex reads IMAP over a raw
- * socket precisely so it does not have to be). Adding an extension means
- * rebuilding the image on two architectures for a protocol whose command set
- * is fifteen verbs.
+ * The IMAP side is plMail's own client, reading over a raw socket. There is
+ * no library worth taking for POP3: the runtimes on Packagist are thin clients
+ * of their own, and the PHP `imap` extension — which can do POP3 — is not in
+ * the image (the Dockerfile installs neither `imap` nor `imap-ssl`). Adding an
+ * extension means rebuilding the image on two architectures for a protocol
+ * whose command set is fifteen verbs.
  *
  * But the part that actually matters is not the verbs. It is what comes back
  * after RETR: a full RFC 822 message that has to be parsed exactly as an IMAP
- * fetch is. That already exists — webklex's Message::fromString() — and
- * reusing it is the whole reason this class stops at "here are the bytes".
+ * fetch is. That already exists — MessageParser — and reusing it is the whole
+ * reason this class stops at "here are the bytes".
  * See Pop3AccountSyncer for the handover.
  *
  * ── What is guaranteed, and what is not ──────────────────────────────────────

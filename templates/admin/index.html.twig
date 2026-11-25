@@ -26,13 +26,11 @@
 
             <div class="flex flex-1 gap-gutter overflow-hidden">
 
-                {# Sidebar — desktop #}
-                <div class="hidden md:flex">
-                    {% include '_partials/_sidebar.html.twig' %}
-                </div>
+                {# Sidebar — desktop, with its drag handle (#699) #}
+                {% include '_partials/_sidebar_pane.html.twig' %}
 
                 {# Main content pane — admin dashboard #}
-                <div class="flex flex-1 overflow-hidden main-pane">
+                <div class="flex flex-1 overflow-hidden main-pane" data-sidebar-room>
                     <div class="flex flex-col flex-1 overflow-hidden">
 
                         {# Pane header #}
@@ -98,7 +96,7 @@
                                 </a>
                             {% endif %}
 
-                            {% if section not in ['performance', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'sso', 'ai', 'sender-pictures', 'backup', 'updates', 'reset', 'demo'] %}
+                            {% if section not in ['performance', 'backfills', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'sso', 'ai', 'sender-pictures', 'backup', 'updates', 'reset', 'demo'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}
                         </div>
@@ -130,6 +128,14 @@
                                        class="{{ section == 'database' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-database w-4 {{ section == 'database' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.database'|trans }}
+                                    </a>
+                                    {# After the database, because it works on it:
+                                       the repairs an update leaves for stored data
+                                       to be run once. #}
+                                    <a href="{{ path('app_admin_dashboard', { section: 'backfills' }) }}"
+                                       class="{{ section == 'backfills' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-screwdriver-wrench w-4 {{ section == 'backfills' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.backfills'|trans }}
                                     </a>
                                     <a href="{{ path('app_admin_dashboard', { section: 'logs' }) }}"
                                        class="{{ section == 'logs' ? navActive : navInactive }}">
@@ -282,6 +288,21 @@
                                                         would swap their pre-write markup back in. #}
                                                      data-action="admin--admin-panel:persisting->mail--auto-refresh#hold admin--admin-panel:persisted->mail--auto-refresh#release"
                                                      data-mail--auto-refresh-interval-value="20000">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'backfills' %}
+
+                                        {# No auto-refresh on this frame: it holds
+                                           the window somebody is choosing. The runs
+                                           card inside it reloads itself while a run
+                                           is going (admin--backfill-runs). #}
+                                        <turbo-frame id="admin-backfills"
+                                                     class="block"
+                                                     src="{{ path('app_admin_backfills_panel') }}"
+                                                     loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
                                             </div>

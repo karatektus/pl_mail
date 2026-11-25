@@ -34,6 +34,11 @@ final class ApiSenderBccTest extends TestCase
         $captured = null;
 
         $http = new MockHttpClient(function (string $method, string $url, array $options) use (&$captured): MockResponse {
+            // The send; the GET after it reads back Gmail's Message-ID (#702).
+            if ('POST' !== $method) {
+                return new MockResponse('{"id":"x","payload":{"headers":[]}}', ['http_code' => 200]);
+            }
+
             $captured = json_decode($options['body'], true)['raw'];
 
             return new MockResponse('{"id":"x"}', ['http_code' => 200]);

@@ -311,7 +311,7 @@ class ThreadStatusController extends AbstractController
 
         $undoToken = $this->undo->remember($messages);
 
-        $this->status->applyLabel($messages, $label, $attach);
+        $this->status->applyLabel($messages, $label, $attach, asCopy: true);
 
         return $this->renderTurboStream('thread/status/_label.stream.html.twig', [
             $type       => 'message' === $type ? $messages[0] : $messages[0]->thread,

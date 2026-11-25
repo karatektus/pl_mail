@@ -6,6 +6,7 @@ namespace App\Tests\Jmap\Method\Mail;
 
 use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Account\EmailAliasStatus;
+use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Jmap\Method\Mail\IdentityGetMethod;
 use App\Jmap\Method\Mail\IdentitySetMethod;
@@ -394,6 +395,27 @@ final class IdentitySetMethodTest extends JmapTestCase
         self::assertTrue($byId[(string) $manual->id]);
         self::assertFalse($byId[(string) $primary->id]);
         self::assertFalse($byId[(string) $provider->id]);
+    }
+
+    /**
+     * RFC 8621 §6's `bcc` is the composer's Always Bcc (#692): the account's
+     * list for an address with none of its own, null for one that says
+     * nobody — so an app copies a mail to the same places the browser does.
+     */
+    public function testIdentityGetPublishesTheDefaultBcc(): void
+    {
+        $work     = $this->alias('work@example.test', status: EmailAliasStatus::Primary);
+        $personal = $this->alias('personal@example.test');
+
+        $this->account->setSetting(Account::SETTING_DEFAULT_BCC, ['backup@example.test']);
+        $this->account->setSetting(Account::defaultBccAliasSetting((int) $personal->id), []);
+        $this->em->flush();
+
+        self::assertSame(
+            [['name' => null, 'email' => 'backup@example.test']],
+            $this->identityById((string) $work->id)['bcc'],
+        );
+        self::assertNull($this->identityById((string) $personal->id)['bcc']);
     }
 
     public function testIdentityGetRefusesANonArrayIdsArgument(): void

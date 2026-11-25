@@ -5,6 +5,11 @@ import { jsonCsrfHeaders } from "../../csrf.js";
 /**
  * Expands an account's folder list in the sidebar.
  *
+ * Each account on its own: opening one leaves the others as they are (#690).
+ * Opening one used to close every other, through a window event each row
+ * listened for, which made comparing two accounts' label trees a matter of
+ * opening and closing them in turn.
+ *
  * Which row is highlighted is not decided here. It used to be, in a
  * highlightActive() that compared pathnames and ignored the `?account=` these
  * links carry — so the same label lit up under every account at once. The
@@ -15,28 +20,24 @@ export default class extends Controller {
     static values = { foldersUrl: String, persistUrl: String, account: Number, active: Boolean };
 
     connect() {
-        this._onOtherExpanded = this._handleOtherExpanded.bind(this);
-        window.addEventListener("settings--account-expand:opened", this._onOtherExpanded);
+        this._onAll = (event) => (event.detail.expanded ? this._open() : this._close());
+        window.addEventListener("settings--account-expand:all", this._onAll);
     }
 
     disconnect() {
-        window.removeEventListener("settings--account-expand:opened", this._onOtherExpanded);
+        window.removeEventListener("settings--account-expand:all", this._onAll);
     }
 
     toggle() {
         if (this.frameTarget.classList.contains("hidden")) {
-            window.dispatchEvent(new CustomEvent("settings--account-expand:opened", {
-                detail: { element: this.element },
-            }));
-
             this._open();
-            this._remember(this.accountValue);
+            this._remember(true);
 
             return;
         }
 
         this._close();
-        this._remember(null);
+        this._remember(false);
     }
 
     stop(event) {
@@ -73,17 +74,15 @@ export default class extends Controller {
         if (this.hasToggleTarget) {
             this.toggleTarget.setAttribute("aria-expanded", expanded ? "true" : "false");
         }
-    }
 
-    _handleOtherExpanded(event) {
-        if (event.detail.element !== this.element) {
-            this._close();
-        }
+        // The Open all / Close all button reads the rows to know which way it
+        // goes next (settings--accounts-expand-all).
+        window.dispatchEvent(new CustomEvent("settings--account-expand:changed"));
     }
 
     /**
-     * Tell the server which account is open, so the next render already has
-     * the folder list in it.
+     * Tell the server this account is open or closed, so the next render
+     * already has the folder list in it, or does not.
      *
      * Fire and forget, with keepalive: the click that expands an account is
      * often the click that navigates, and the request has to outlive the page
@@ -91,7 +90,7 @@ export default class extends Controller {
      * interrupting anyone over — the list is open either way, it just will not
      * be next time.
      */
-    _remember(accountId) {
+    _remember(expanded) {
         if (false === this.hasPersistUrlValue) {
             return;
         }
@@ -99,7 +98,7 @@ export default class extends Controller {
         fetch(this.persistUrlValue, {
             method: "POST",
             headers: jsonCsrfHeaders(),
-            body: JSON.stringify({ account: accountId }),
+            body: JSON.stringify({ account: this.accountValue, expanded }),
             keepalive: true,
         }).catch(() => {});
     }
