@@ -254,7 +254,10 @@ final class GmailApiClient
      *   - payloads:  id → decoded message resource (200 parts)
      *   - retryable: ids whose part failed transiently (429/403/5xx) or was
      *                missing from the response — the caller must re-queue them
-     *   - gone:      ids that are permanently unfetchable (404/410/other 4xx)
+     *   - gone:      ids that are permanently unfetchable (404/410/other 4xx),
+     *                each with the status Gmail answered it with, so the caller
+     *                can tell a message deleted before it was fetched (404) from
+     *                a request Gmail would not take (400, 401)
      *
      * A whole-batch failure THROWS instead of returning empty — returning
      * empty would let the Messenger message ack and silently drop every id
@@ -266,7 +269,7 @@ final class GmailApiClient
      * caller can ask it how long to wait before trying them again.
      *
      * @param list<string> $messageIds  Maximum 50 per call (enforced by caller via BATCH_SIZE)
-     * @return array{payloads: array<string,array<string,mixed>>, retryable: list<string>, gone: list<string>}
+     * @return array{payloads: array<string,array<string,mixed>>, retryable: list<string>, gone: array<string,int>}
      */
     public function getMessages(Account $account, array $messageIds): array
     {
@@ -293,7 +296,7 @@ final class GmailApiClient
 
             $fetched['payloads'] += $part['payloads'];
             $fetched['retryable'] = [...$fetched['retryable'], ...$part['retryable']];
-            $fetched['gone']      = [...$fetched['gone'], ...$part['gone']];
+            $fetched['gone']     += $part['gone'];
 
             if (true === $part['refused']) {
                 // Not asked for at all: what is left would only be refused
@@ -312,7 +315,7 @@ final class GmailApiClient
     /**
      * @param list<string> $messageIds at most MESSAGES_PER_REQUEST
      *
-     * @return array{payloads: array<string,array<string,mixed>>, retryable: list<string>, gone: list<string>, refused: bool}
+     * @return array{payloads: array<string,array<string,mixed>>, retryable: list<string>, gone: array<string,int>, refused: bool}
      */
     private function getMessagesInOneRequest(Account $account, array $messageIds): array
     {
@@ -379,7 +382,7 @@ final class GmailApiClient
                 continue;
             }
 
-            $gone[] = $id;
+            $gone[$id] = $status;
         }
 
         return [
