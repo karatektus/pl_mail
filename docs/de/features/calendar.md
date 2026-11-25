@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:992dac57b4cb4bddca6d309e42eac0f6a7119253 -->
+<!-- translated-from: features/calendar.md sha1:a96043fc738852e6083c4e853613d3b38e21ccdd -->
 
 # Kalender
 
@@ -17,41 +17,19 @@ der Termin-Editor kann. Einladungen und Termine, die aus Nachrichten gelesen wur
 Der Kalender ist eine Funktion, die auf zwei Arten gezeichnet wird, und welche davon du bekommst,
 hängt davon ab, von wo aus du ihn geöffnet hast, und nicht an einer Einstellung.
 
-**Angedockt neben der Mail.** Die Kalenderschaltfläche in der Kopfleiste schiebt eine Fläche neben
-die Nachrichtenliste. Sie ist ein Geschwister der Mail-Fläche und keine Überlagerung, also teilen
-sich die beiden die Zeile — der Griff dazwischen verschiebt die Grenze, und die eine wächst genau so
-viel, wie die andere schrumpft. Zieh ihn, oder setz den Fokus darauf und nimm die Pfeiltasten; ein
-Doppelklick stellt die alte Breite wieder her. Die Breite wird pro Benutzer gemerkt, zwischen 320 und
-900 Pixeln, voreingestellt 380, und sie wird serverseitig in die Seite geschrieben, damit die Fläche
-schon beim ersten Zeichnen die richtige Breite hat und nicht springt, sobald der Browser nachzieht.
+**Ein Bereich in deinem Arbeitsbereich.** Der Kalender ist einer der Bereiche, die du neben der
+Mail anordnest — neben der Liste, darüber oder darunter, oder allein in voller Breite (siehe
+[Arbeitsbereiche](workspaces.md)). Füg ihn über das **⋯**-Menü eines beliebigen Bereichs hinzu
+(**Rechts teilen** oder **Darunter teilen**, dann **Kalender**) oder im Bearbeitungsmodus. Zieh die
+Lücke neben ihm, um seine Größe zu ändern; jedes Gerät merkt sich seine eigenen Größen. Ein neues
+Konto startet mit dem Kalender neben der Mail.
 
-Auf dem Desktop ist die Fläche von Anfang an offen. Bis du den Schalter bewegst, steht der Kalender
-neben deiner Mail, die beiden sind also schon beim ersten Besuch Seite an Seite. Schließt du ihn,
-merkt sich plMail das.
+Wählst du im Bereich **7 Tage** oder **Monat**, wird er so breit, dass sieben Spalten hineinpassen,
+und nimmt sich den Platz von den Bereichen daneben; einen Kalender, den du breiter gezogen hast,
+lässt er so breit, und zurück auf **Tag** wird er nicht wieder schmaler.
 
-### Die Kalenderschaltfläche
-
-Standardmäßig ist die Schaltfläche ein Dreifachschalter: Mail, dann der Kalender neben der Mail,
-dann der Kalender in voller Breite, und wieder von vorn. **Einstellungen → Kalender & Kontakte → Kalenderverhalten**
-hat eine Auswahl, **Kalenderschaltfläche**, die daraus einen Zweifachschalter machen kann:
-
-- **Alle drei**: der Dreifachschalter, das ist die Voreinstellung.
-- **Nur volle Breite**: Ein Druck aus der Mail öffnet den Kalender in voller Breite, der nächste
-  geht zurück zur Mail. Ein Klick auf einen Mail-Link bei vollbreitem Kalender führt zur Mail
-  zurück statt in die geteilte Ansicht.
-- **Nur geteilt**: Ein Druck aus der Mail öffnet den Kalender neben ihr, der nächste geht zurück
-  zur Mail.
-
-Die Position, die die Schaltfläche auslässt, wird nicht entfernt. Eine
-geteilte Ansicht oder ein vollbreiter Kalender, den du schon hast, bleibt bis zum ersten Druck, der
-ihn zur Mail schließt, und der Ziehgriff erreicht weiterhin beide Enden.
-
-Unter 1024 Pixeln Breite trägt die Zeile keine Seitenleiste, keine lesbare Nachrichtenliste und
-keinen lesbaren Kalender mehr auf einmal, also nimmt die Fläche die ganze Zeile und die Mail tritt
-zur Seite. Es ist dieselbe Fläche und derselbe Schalter — schließt du sie, steht die Mail wieder
-genau so da wie zuvor, ohne dass dazwischen navigiert worden wäre. Ein Telefon öffnet immer mit der
-Mail, egal was die Fläche auf deinem Desktop gerade tut; die Schaltfläche holt den Kalender, wenn du
-ihn willst. Unter 768 Pixeln gibt es gar keine Fläche mehr, und der Kalender ist eine eigene Seite.
+Unter 1024 Pixeln Breite wechseln sich die Bereiche eines Arbeitsbereichs ab: Die Reiter darüber
+schalten zwischen Mailliste, Kalender und den übrigen um.
 
 **Als eigene Seite.** `/calendar` ersetzt die Mail-Ansicht vollständig. Das ist es, was ein Telefon
 bekommt, und was jeder bekommt, der direkt dorthin navigiert oder einem Link folgt.
@@ -81,9 +59,9 @@ keine Seite.
 ohne Jahr, solange es dieses Jahr ist (**Oktober**), eine Woche als **20.–26. Okt.**, ein Tag als
 **20. Okt.** Auf den schmalsten Telefonen wird **Heute** zum heutigen Datum in einem kleinen Kästchen.
 
-Die volle Seite öffnet mit der Ansicht **7 Tage**. Die angedockte Fläche öffnet mit **Agenda** — sie
-ist 380 Pixel einer geteilten Zeile, und ein Monatsraster in dieser Breite besteht überwiegend aus
-leeren Zellen. Die Fläche bietet trotzdem alle vier Ansichten an, als Symbole statt als Wörter, denn
+Die volle Seite öffnet mit der Ansicht **7 Tage**. Der Kalenderbereich öffnet mit **Agenda** — er
+ist meist nur ein Teil einer Zeile, und ein Monatsraster in einem schmalen Bereich besteht
+überwiegend aus leeren Zellen. Die Fläche bietet trotzdem alle vier Ansichten an, als Symbole statt als Wörter, denn
 die Fassung, die den Umschalter ganz weggelassen hatte, ließ die Fläche nichts als ihre Agenda
 zeigen.
 
@@ -130,11 +108,11 @@ sich überschneiden, werden in Spuren gelegt, sodass drei gleichzeitige Dinge dr
 nebeneinander sind — und die Zahl der Spuren bleibt über eine ununterbrochene Kette von
 Überschneidungen hinweg gleich, statt sich von Block zu Block zu ändern.
 
-**Die angedockte Fläche zeichnet dasselbe Raster wie die Seite.** Früher behielt sie stattdessen
+**Der Kalenderbereich zeichnet dasselbe Raster wie die Seite.** Früher behielt er stattdessen
 eine ältere Spaltenliste, mit der Begründung, sieben platzierte Spalten bräuchten ungefähr eine
-Bildschirmbreite — für 380 Pixel richtig, und trotzdem nicht mehr der richtige Schluss, denn die
-Breite der Fläche gehört jetzt dir: Zieh ihren Griff, so weit du magst, und jenseits ihres Bereichs
-wird sie der Kalender in voller Breite. Eine Fläche, die lautlos einen *anderen* Kalender zeichnete,
+Bildschirmbreite — für einen schmalen Bereich richtig, und trotzdem nicht mehr der richtige Schluss,
+denn seine Breite gehört dir: Zieh die Lücke daneben, so weit du magst, oder stell ihn über sein
+**⋯**-Menü auf volle Breite. Eine Fläche, die lautlos einen *anderen* Kalender zeichnete,
 war die schlechtere Antwort, denn wer sie eigens verbreiterte, um die Zeitachse zu sehen, bekam
 trotzdem die Liste.
 
@@ -199,7 +177,7 @@ Agenda, und die Tagesansicht ist in der Werkzeugleiste einen Tipper entfernt und
 
 **Neuer Termin** in der Werkzeugleiste, das **+** an einer Tagesüberschrift und ein Klick auf einen
 vorhandenen Termin öffnen alle denselben Editor. Er ist ein Dialog über der Seite, auf der du gerade
-warst — der Kalenderseite oder einer Mail-Ansicht mit dem angedockten Kalender daneben — und
+warst — der Kalenderseite oder einer Mail-Ansicht mit dem Kalenderbereich daneben — und
 Speichern bringt dich dorthin zurück, statt dich in den Kalender zu ziehen. Auf einem Telefon füllt er
 den ganzen Bildschirm, wie das Fenster zum Verfassen.
 
@@ -360,9 +338,8 @@ Keiner von beiden lässt sich löschen — ein Löschen hieße nur, dass er wied
 Termine wären inzwischen weg. Kalender, die du selbst angelegt hast, und Spiegelungen entfernter
 Kalender lassen sich löschen; das Löschen nimmt jeden Termin darin mit.
 
-Einen Kalender auszublenden, blendet ihn überall aus, und zwar einheitlich: die Ansichten, die
-Anzeige des Nächsten in der Kopfleiste und die Liste *Demnächst* lesen ausschließlich sichtbare
-Kalender. Die Ausnahme ist der **Editor**, und zwar mit Absicht: Er listet jeden Kalender auf, der
+Einen Kalender auszublenden, blendet ihn überall aus, und zwar einheitlich: die Ansichten und
+die Liste *Demnächst* lesen ausschließlich sichtbare Kalender. Die Ausnahme ist der **Editor**, und zwar mit Absicht: Er listet jeden Kalender auf, der
 dir gehört, ausgeblendete mit einem durchgestrichenen Auge neben dem Schloss für Nur-Lesen — denn
 eine Kopie einer Besprechung auf einem ausgeblendeten Kalender ist immer noch eine Tatsache über
 diese Besprechung. Auf einen solchen zu speichern ist damit eine informierte Wahl und keine Falle

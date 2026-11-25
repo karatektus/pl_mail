@@ -13,22 +13,16 @@ exist only here. Others come from an address book on a server, and changes go bo
 An account connected before plMail synced contacts needs one more sign-in to allow them: **Settings
 → Contacts** and **Settings → Account health** both offer it.
 
-Open it with the address-book icon beside the calendar button. Like the calendar button it is a
-three-way switch: the address book beside the mail, then full width with your mail behind it, then
-closed again. **Settings → Contacts → Behaviour** can turn it into a two-way one (**Full width
-only** or **Beside mail only**), as for the calendar. On a phone, **Contacts** in the menu opens the
-full page.
+The address book is one of the panes of your workspace (see [Workspaces](workspaces.md)): put it
+beside the mail, above or below another pane, or give it the whole area, from any pane's **⋯** menu
+or in edit mode. **Contacts** in the menu on a phone, or the page `/contacts`, opens it at full
+width.
 
-The docked address book is the whole of it: search, open, edit, add and merge contacts there while
-your mail stays where it was. Drag its edge to make it wider or narrower (or use the arrow keys on
-the edge; a double-click puts it back). Drag it past its widest and let go, and it goes full width;
-past its narrowest, and it closes. plMail remembers the width and the position. The arrows in its
-header make it full width, and the × closes it. Opening a message from a contact at full width
-brings the mail back beside it.
-
-On a wide monitor (1920 pixels across or more) the address book and the calendar can be docked side
-by side. On a smaller screen, such as a laptop's, there is room for one of them beside the mail, so
-opening one puts the other away. Below 1024 pixels the icon opens the full page.
+The address book pane is the whole of it: search, open, edit, add and merge contacts there while your
+mail stays where it was. "Add to contacts" on a sender opens the contact in the pane, and adds the
+pane to the workspace beside the others if it was not there. A message opened from a contact's
+reference emails opens in the mail, beside the contact; on the full page it opens the conversation's
+own page.
 
 ## The list
 

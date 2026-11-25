@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Backup;
 
+use App\Domain\DTO\Layout\Workspaces;
 use App\Domain\Enum\Crypto\KeyringRoot;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Ai\AiProvider;
@@ -45,6 +46,18 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 final class ConfigBackupRoundTripTest extends KernelTestCase
 {
+    /** Two workspaces, the second active — nothing a fresh install would derive. */
+    private const array WORKSPACES = [
+        'workspaces' => [
+            ['id' => 'w1', 'name' => 'Triage', 'layout' => ['t' => 'split', 'id' => 's1', 'dir' => 'row', 'sizes' => [0.4, 0.6], 'children' => [
+                ['t' => 'pane', 'kind' => 'list'],
+                ['t' => 'pane', 'kind' => 'message'],
+            ]]],
+            ['id' => 'w2', 'name' => 'Planning', 'layout' => ['t' => 'pane', 'kind' => 'calendar']],
+        ],
+        'active' => 1,
+    ];
+
     private const string EMAIL = 'audit@round-trip.test';
 
     /** Shapes the keyring checks for; nothing ever opens them. */
@@ -237,13 +250,12 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         // ── The user settings bag ─────────────────────────────────────────
         $this->check('setting display.clock', '24h', $user->getSetting(User::SETTING_CLOCK));
         $this->check('setting search.sort', 'oldest', $user->getSetting(User::SETTING_SEARCH_SORT));
-        $this->check('setting calendar.pane_width', 420, $user->getSetting(User::SETTING_CALENDAR_PANE_WIDTH));
-        $this->check('setting contacts.pane_open', true, $user->getSetting(User::SETTING_CONTACTS_PANE_OPEN));
-        $this->check('setting contacts.pane_width', 560, $user->getSetting(User::SETTING_CONTACTS_PANE_WIDTH));
-        // Neither value is the default (off, 55), so a restore that dropped the
-        // keys and read the defaults back would fail here rather than pass.
-        $this->check('setting reading.pane_mode', 'right', $user->getSetting(User::SETTING_READING_PANE_MODE));
-        $this->check('setting reading.pane_width_pct', 40, $user->getSetting(User::SETTING_READING_PANE_WIDTH));
+        // Not the default workspace (the list and the calendar), so a restore
+        // that dropped the key and derived the default would fail here. Read
+        // back through the parser: the column is JSONB, which stores an
+        // object's keys in an order of its own, and the order is not the
+        // setting.
+        $this->check('setting layout.workspaces', self::WORKSPACES, Workspaces::fromArray($user->getSetting(User::SETTING_WORKSPACES))?->toArray());
         $this->check('setting sidebar.collapsed_sections', ['section:labels'], $user->getSetting(User::SETTING_SIDEBAR_COLLAPSED));
         $this->check('setting sidebar.more_rows', [], $user->getSetting(User::SETTING_SIDEBAR_MORE));
         $this->check('setting onboarding.completed_at', '2026-02-01T00:00:00+00:00', $user->getSetting(User::SETTING_ONBOARDING_COMPLETED_AT));
@@ -485,11 +497,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
 
         $user->setSetting(User::SETTING_CLOCK, '24h');
         $user->setSetting(User::SETTING_SEARCH_SORT, 'oldest');
-        $user->setSetting(User::SETTING_CALENDAR_PANE_WIDTH, 420);
-        $user->setSetting(User::SETTING_CONTACTS_PANE_OPEN, true);
-        $user->setSetting(User::SETTING_CONTACTS_PANE_WIDTH, 560);
-        $user->setSetting(User::SETTING_READING_PANE_MODE, 'right');
-        $user->setSetting(User::SETTING_READING_PANE_WIDTH, 40);
+        $user->setSetting(User::SETTING_WORKSPACES, self::WORKSPACES);
         $user->setSetting(User::SETTING_SIDEBAR_COLLAPSED, ['section:labels']);
         // The EMPTY list, the awkward one: "nothing behind More" is a choice
         // and the default is the key being absent, so a backup that dropped an

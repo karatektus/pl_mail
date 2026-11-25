@@ -60,8 +60,8 @@ calendar's colour, and striped for Maybe. Answer, and the meeting is in that slo
 place, without reloading the page, and the meeting is ringed for a moment so your eye finds it. With
 motion set to **Full** the answer itself travels there, turning into the meeting on the way; at
 **Minimal** or **None**, or when your system asks for reduced motion, nothing moves and the outline
-is the whole of it. With the calendar closed, the answer lands on the calendar button in the top
-bar, which keeps a dot until you open it.
+is the whole of it. With no calendar on screen nothing travels: the answer is saved, and the meeting
+is in the calendar when you open it.
 
 This applies to invitations addressed to you. A flight confirmation, a parcel, a date you accepted
 out of a sentence, a calendar you mirror from Google, a meeting *you* organised — none of those are
@@ -260,11 +260,6 @@ One thing is **not** in this list, deliberately:
   proposal is answered where its evidence is: on the message.
 
 Only visible calendars are read, so hiding a calendar hides its bookings here too.
-
-Separately, the calendar button in the topbar carries a coloured dot for what is still ahead
-**today** — inside the hour, within a few hours, or later today. It is three bands rather than a
-countdown, because a colour you have to read a number off is not a dot, and it considers only today:
-a meeting that finished an hour ago is not news and tomorrow's is not urgent.
 
 ## Re-reading mail you already have
 

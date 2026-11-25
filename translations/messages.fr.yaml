@@ -1958,13 +1958,6 @@ calendar:
         next: Suivant
         previous: Précédent
     open_day: 'Tout le %date%'
-    pane:
-        close: 'Fermer le calendrier'
-        mode:
-            calendar: Afficher l’agenda en pleine largeur
-            mail: Afficher le courrier
-            split: Afficher l’agenda à côté du courrier
-        resize: Redimensionner l’agenda
     proposal:
         action:
             add: Ajouter à l’agenda
@@ -2096,10 +2089,6 @@ calendar:
         range_day: '%day%'
         range_short: '%start%–%end%'
         range_short_month: '%start%–%end% %month%'
-    upcoming:
-        imminent: Commence dans l’heure
-        later: Plus tard aujourd’hui
-        soon: Dans quelques heures
     view:
         agenda: Liste
         day: Jour
@@ -3170,6 +3159,94 @@ label:
         hidden: Le libellé est maintenant masqué.
         shown: Le libellé est maintenant visible.
 
+layout:
+    divider: "Redimensionner les volets"
+    divider_hint: "Faites glisser pour redimensionner, double-cliquez pour égaliser"
+    drop:
+        bottom: "Sous %pane%"
+        left: "À gauche de %pane%"
+        replace: "Remplacer %pane%"
+        right: "À droite de %pane%"
+        swap: "Échanger avec %pane%"
+        top: "Au-dessus de %pane%"
+    edit:
+        add_below: "Dessous"
+        add_right: "À droite"
+        cancel: "Annuler"
+        delete: "Supprimer l'espace de travail"
+        delete_confirm: "Supprimer l'espace de travail « %name% » ? Vos autres espaces de travail restent tels quels."
+        grip: "Faites glisser pour déplacer ce volet"
+        hint: "Cliquez sur un volet pour le sélectionner. Faites glisser sa poignée pour le déplacer, ou déposez un volet du plateau sur un bord."
+        kind: "Ce que montre ce volet"
+        name: "Nom de l'espace de travail"
+        percent_high: "%n% % de haut"
+        percent_wide: "%n% % de large"
+        remove: "Retirer le volet"
+        save: "Enregistrer l'espace de travail"
+        title: "Modification"
+        tray: "Ajouter un volet"
+        tray_empty: "Tous les volets sont affichés."
+        tray_hint: "Déposez sur un bord pour scinder, au milieu pour remplacer. Ou cliquez pour l'ajouter à côté du volet sélectionné."
+    menu:
+        all_shown: "Tous les volets sont déjà affichés."
+        close: "Fermer le volet"
+        full_width: "Pleine largeur"
+        label: "Menu du volet"
+        layout: "Disposition"
+        layout_title: "Espaces de travail et dispositions (⌥L)"
+        move: "Déplacer"
+        move_down: "Vers le bas"
+        move_left: "Vers la gauche"
+        move_right: "Vers la droite"
+        move_up: "Vers le haut"
+        restore: "Revenir à la disposition"
+        show_instead: "Afficher à la place"
+        show_instead_heading: "Afficher dans ce volet"
+        split_col: "Scinder en dessous"
+        split_col_heading: "Nouveau volet en dessous"
+        split_row: "Scinder à droite"
+        split_row_heading: "Nouveau volet à droite"
+    pane:
+        calendar: "Agenda"
+        contacts: "Contacts"
+        list: "Liste des messages"
+        message: "Message"
+        tasks: "Tâches"
+    presets:
+        apply: "Utiliser pour cet espace de travail"
+        back: "Retour"
+        edit: "Modifier cet espace de travail"
+        new: "Nouvel espace de travail"
+        save_new: "Enregistrer comme nouvel espace de travail"
+        shape:
+            four: "Quatre"
+            list_stack: "Liste + pile"
+            list_stack_side: "Liste, pile, côté"
+            one: "Un volet"
+            rows: "Dessus et dessous"
+            side: "Côte à côte"
+            three: "Trois colonnes"
+            top_two: "Haut + deux"
+        shapes: "Partir d'une forme"
+        slots: "Quoi va où"
+        workspaces: "Espaces de travail"
+    tabs:
+        label: "Volets"
+    toast:
+        all_shown: "Tous les volets sont déjà affichés."
+        applied: "Disposition modifiée."
+        at_edge: "Ce volet est déjà sur ce bord."
+        deleted: "« %name% » supprimé."
+        edit_first: "Enregistrez ou annulez d'abord l'espace de travail en cours de modification."
+        no_list: "Cet espace de travail n'a pas de liste des messages, elle est donc affichée en pleine largeur."
+        no_room: "Pas assez de place à côté de %pane%. Agrandissez-le d'abord ou fermez un volet."
+        only_pane: "C'est le seul volet. Choisissez autre chose pour lui avec Afficher à la place."
+        save_failed: "La disposition n'a pas pu être enregistrée. Elle reste ainsi sur cette page ; rechargez pour voir celle enregistrée."
+        saved: "« %name% » enregistré."
+    workspace:
+        first_name: "Courrier"
+        new_name: "Espace de travail %n%"
+        tabs_label: "Espaces de travail"
 list:
     conversation_view: 'Vue par conversation'
     sort:
@@ -3591,7 +3668,6 @@ profile:
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
-    handle: Redimensionner le volet du message
     placeholder: Sélectionnez une conversation pour la lire ici
 
 # Said in a toast when a request fails and there is no better place to say it;
@@ -4963,22 +5039,6 @@ settings:
         test_failed: 'Échec du test de connexion'
         test_ok: 'La connexion fonctionne'
         unavailable_heading: 'Non disponible ici'
-    calendar_behaviour:
-        button: Bouton d’agenda
-        button_hint: 'Les vues que parcourt le bouton de la barre du haut. Une vue qu’il omet n’est pas supprimée : la poignée de redimensionnement y mène toujours.'
-        heading: Comportement
-        option_calendar: Partagé uniquement
-        option_none: Les trois
-        option_split: Pleine largeur uniquement
-        subheading: 'Comment le bouton d’agenda de la barre du haut passe d’une vue à l’autre.'
-    contacts_behaviour:
-        button: 'Bouton Contacts'
-        button_hint: 'Les vues que parcourt le bouton de la barre du haut. Une vue omise n''est pas supprimée : la poignée l''atteint toujours.'
-        heading: 'Comportement'
-        option_contacts: 'À côté du courrier seulement'
-        option_none: 'Les trois'
-        option_split: 'Pleine largeur seulement'
-        subheading: 'Comment le bouton Contacts de la barre du haut passe d’une vue à l’autre.'
     contacts:
         allow_contacts: 'Autoriser les contacts'
         allow_contacts_hint: 'Connecté avant que plMail ne demande les contacts. Reconnectez-vous une fois et autorisez-les : le carnet d’adresses de ce compte apparaîtra ici.'
@@ -5362,7 +5422,6 @@ settings:
             pinning: 'épingler épinglé punaise haut rappel pin'
             profile: "nom avatar photo image"
             read_receipts: "mdn accusé réception confirmation cci bcc copie sauvegarde"
-            reading_pane: "aperçu partagé droite bas"
             sender_pictures: 'avatar image photo gravatar libravatar bimi logo icône expéditeur'
             sharing: "lien public réservation"
             shortcuts: "clavier touches raccourcis"
@@ -5456,13 +5515,6 @@ settings:
         subheading: 'Ce avec quoi vous vous connectez. Vous seul pouvez le changer — même un administrateur ne peut pas le définir à votre place.'
         submit: Changer le mot de passe
         submitting: Enregistrement…
-    reading_pane:
-        heading: Volet de lecture
-        hint: 'Désactivé affiche la liste et le message l’un après l’autre. À droite place le message à côté de la liste quand la fenêtre a la place pour les deux — faites glisser le séparateur pour choisir la part de chacun.'
-        label: 'Afficher le message ouvert'
-        off: Désactivé
-        right: À droite
-        subheading: 'Où s’ouvre une conversation : à la place de la liste, ou à côté.'
     security:
         codes:
             copy: Copier les codes
@@ -5708,6 +5760,8 @@ shortcuts:
         anywhere: "Partout"
         conversation: "Dans une conversation"
         list: "Dans une liste"
+        panes: "Volets et espaces de travail"
+        panes_hint: "Alt est ⌥ sur un Mac. Ils fonctionnent aussi avec les raccourcis à une touche désactivés."
     keys:
         archive: "Archiver"
         back: "Revenir à la liste"
@@ -5722,12 +5776,19 @@ shortcuts:
         go_starred: "Aller aux Suivis"
         help: "Afficher cette liste"
         label: "Appliquer le libellé"
+        layout_menu: "Menu Disposition"
         mark_read: "Marquer comme lu"
         mark_unread: "Marquer comme non lu"
         move: "Déplacer vers"
         next: "Descendre d’une conversation"
         next_conversation: "Ouvrir la conversation suivante"
         open: "Ouvrir la conversation en surbrillance"
+        pane_close: "Fermer le volet"
+        pane_focus: "Activer le volet suivant dans ce sens"
+        pane_full_width: "Pleine largeur, et retour"
+        pane_move: "Déplacer le volet dans ce sens"
+        pane_split_below: "Scinder le volet en dessous"
+        pane_split_right: "Scinder le volet à droite"
         pin: 'Épingler ou désépingler'
         previous: "Monter d’une conversation"
         previous_conversation: "Ouvrir la conversation précédente"
@@ -5744,6 +5805,8 @@ shortcuts:
         spam: "Marquer comme spam"
         star: "Suivre ou ne plus suivre"
         undo: "Annuler la dernière action"
+        workspace_edit: "Modifier l'espace de travail"
+        workspace_switch: "Changer d'espace de travail"
     or: "ou"
     switched_off: "Les raccourcis sont désactivés pour vous. Activez-les dans Réglages → Général → Disposition et commandes."
     then: "puis"
@@ -6239,13 +6302,6 @@ contacts:
     no_subject: '(sans objet)'
     notes: Notes
     page: 'Page %page%'
-    pane:
-        close: 'Fermer les contacts'
-        mode:
-            contacts: 'Afficher les contacts en pleine largeur'
-            mail: 'Masquer les contacts'
-            split: 'Afficher les contacts à côté du courrier'
-        resize: 'Redimensionner les contacts'
     pending: 'En attente d’envoi au serveur'
     phone_placeholder: '+33 6 12 34 56 78'
     phonetic: 'Orthographe phonétique'
@@ -6420,10 +6476,6 @@ tasks:
     read_only: 'Cette liste est en lecture seule : ses tâches ne peuvent pas être modifiées ici.'
     saved: 'Tâche enregistrée.'
     deleted: 'Tâche supprimée.'
-    pane:
-        close: 'Fermer les tâches'
-        resize: 'Redimensionner les tâches'
-        toggle: 'Tâches'
     section:
         loading: 'Chargement…'
         more: 'Afficher plus'

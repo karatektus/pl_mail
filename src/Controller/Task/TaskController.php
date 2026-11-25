@@ -117,33 +117,6 @@ final class TaskController extends AbstractController
         ]);
     }
 
-    /**
-     * Remembers whether the pane is docked, and how wide.
-     * CalendarController::paneState()'s reasons all apply: written on release,
-     * never re-rendering, either field optional, clamped here.
-     */
-    #[Route('/pane-state', name: 'pane_state', methods: ['POST'])]
-    public function paneState(Request $request): JsonResponse
-    {
-        $this->assertCsrf($request, 'tasks_pane_state');
-
-        $user = $this->currentUser();
-
-        if (true === $request->request->has('open')) {
-            $user->setSetting(User::SETTING_TASKS_PANE_OPEN, $request->request->getBoolean('open'));
-        }
-
-        if (true === $request->request->has('width')) {
-            $user->setSetting(User::SETTING_TASKS_PANE_WIDTH, max(
-                User::TASKS_PANE_MIN_WIDTH,
-                min(User::TASKS_PANE_MAX_WIDTH, $request->request->getInt('width')),
-            ));
-        }
-
-        $this->em->flush();
-
-        return $this->json(['open' => $user->tasksPaneOpen, 'width' => $user->tasksPaneWidth]);
-    }
 
     /** Enter in the pane's field: a title, and whichever options were opened under it. */
     #[Route('/quick-add', name: 'quick_add', methods: ['POST'])]

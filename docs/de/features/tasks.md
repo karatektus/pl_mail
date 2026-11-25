@@ -1,4 +1,4 @@
-<!-- translated-from: features/tasks.md sha1:3addaa899c986e6fa8e9504172b89e1199f70c20 -->
+<!-- translated-from: features/tasks.md sha1:395abef810a51a8ebffd0d5f86fb88b75344f23b -->
 
 # Aufgaben
 
@@ -6,14 +6,10 @@ plMail führt deine Aufgaben direkt neben deiner Mail. Jede Person bekommt zu Be
 und eine Liste kann sich außerdem in beide Richtungen mit jedem CalDAV-Server abgleichen, der Aufgaben
 führt, zum Beispiel Nextcloud Tasks.
 
-Du öffnest sie mit dem Checklisten-Symbol neben dem Adressbuch in der oberen Leiste. Die Aufgaben docken
-neben der Mail an, und der Kalender muss dafür nicht offen sein. Zieh am Rand des Bereichs, um ihn breiter
-oder schmaler zu machen (oder nutze die Pfeiltasten am Rand; ein Doppelklick stellt ihn zurück). Auf dem
-Telefon öffnet **Aufgaben** im Menü sie in voller Breite.
-
-Die Aufgaben wechseln sich mit dem Adressbuch ab. Auf einem breiten Monitor (ab 1920 Pixel Breite) können
-sie neben dem Kalender stehen; auf einem kleineren Bildschirm passt ein Bereich neben die Mail, also
-schließt das Öffnen der Aufgaben den Kalender und umgekehrt.
+Die Aufgaben sind einer der Bereiche deines Arbeitsbereichs (siehe [Arbeitsbereiche](workspaces.md)):
+Füg sie neben der Mail hinzu, oder über oder unter dem Kalender, über das **⋯**-Menü eines beliebigen
+Bereichs oder im Bearbeitungsmodus. Zieh die Lücke neben dem Bereich, um seine Größe zu ändern. Auf
+dem Telefon öffnet **Aufgaben** im Menü sie in voller Breite, ebenso die Seite `/tasks`.
 
 ## Hinzufügen und erledigen
 

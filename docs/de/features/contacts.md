@@ -1,4 +1,4 @@
-<!-- translated-from: features/contacts.md sha1:204524f92bfe1e6eca458f9d7bb7b1eb6fa5fbe7 -->
+<!-- translated-from: features/contacts.md sha1:73089b361523031b372d86c297735fbc13798c4b -->
 
 # Kontakte
 
@@ -17,24 +17,16 @@ Ein Konto, das verbunden wurde, bevor plMail Kontakte synchronisiert hat, brauch
 Anmeldung, um sie zu erlauben: **Einstellungen → Kontakte** und **Einstellungen → Zustand der Konten** bieten sie
 beide an.
 
-Du öffnest es mit dem Adressbuch-Symbol neben dem Kalender-Knopf. Wie der Kalender-Knopf schaltet
-es durch drei Stellungen: das Adressbuch neben der Mail, dann in voller Breite mit deiner Mail
-dahinter, dann wieder zu. **Einstellungen → Kontakte → Verhalten** macht daraus zwei Stellungen
-(**Nur volle Breite** oder **Nur neben der Mail**), wie beim Kalender. Auf dem Handy öffnet
-**Kontakte** im Menü die ganze Seite.
+Das Adressbuch ist einer der Bereiche deines Arbeitsbereichs (siehe [Arbeitsbereiche](workspaces.md)):
+Stell es neben die Mail, über oder unter einen anderen Bereich, oder gib ihm die ganze Fläche — über
+das **⋯**-Menü eines beliebigen Bereichs oder im Bearbeitungsmodus. **Kontakte** im Menü auf dem
+Handy oder die Seite `/contacts` öffnet es in voller Breite.
 
-Das angedockte Adressbuch ist das ganze Adressbuch: Du suchst, öffnest, bearbeitest, legst an und
-führst Kontakte dort zusammen, während deine Mail bleibt, wo sie war. Zieh an seinem Rand, um es
-breiter oder schmaler zu machen (oder nimm die Pfeiltasten am Rand; ein Doppelklick stellt es
-zurück). Ziehst du es über seine größte Breite hinaus und lässt los, geht es auf volle Breite; über
-seine kleinste hinaus, schließt es sich. plMail merkt sich Breite und Stellung. Die Pfeile in seiner
-Kopfzeile schalten auf volle Breite, und das × schließt es. Öffnest du bei voller Breite eine
-Nachricht aus einem Kontakt, kommt die Mail daneben zurück.
-
-Auf einem breiten Monitor (ab 1920 Pixeln Breite) können Adressbuch und Kalender nebeneinander
-angedockt sein. Auf einem kleineren Bildschirm, etwa dem eines Laptops, ist neben der Mail Platz für
-eines von beiden, also räumt das eine das andere weg. Unter 1024 Pixeln öffnet das Symbol die ganze
-Seite.
+Der Adressbuch-Bereich ist das ganze Adressbuch: Du suchst, öffnest, bearbeitest, legst an und
+führst Kontakte dort zusammen, während deine Mail bleibt, wo sie war. „Zu Kontakten hinzufügen" bei
+einem Absender öffnet den Kontakt im Bereich und fügt den Bereich neben den anderen hinzu, wenn er
+nicht da war. Eine Nachricht, die du aus den Referenz-Mails eines Kontakts öffnest, öffnet sich in
+der Mail neben dem Kontakt; auf der ganzen Seite öffnet sie die eigene Seite der Unterhaltung.
 
 ## Die Liste
 

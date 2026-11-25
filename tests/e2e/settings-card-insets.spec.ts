@@ -122,7 +122,6 @@ const SECTIONS = [
     "signature",
     "templates",
     "calendars",
-    "calendar-behaviour",
     "sharing",
     "contacts",
     "ai",

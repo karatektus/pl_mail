@@ -93,7 +93,7 @@ test.describe("the boundary", () => {
         // The handle lies over the gutter, and no further: the mail column
         // starts where the handle ends.
         const grip = await handle(page).boundingBox();
-        const column = await page.locator("[data-mail-column]").boundingBox();
+        const column = await page.locator("[data-layout-root]").boundingBox();
 
         expect(Math.round(grip!.x)).toBe(224 + Math.round((await pane(page).boundingBox())!.x));
         expect(Math.round(grip!.x + grip!.width)).toBeLessThanOrEqual(Math.round(column!.x));
@@ -101,7 +101,7 @@ test.describe("the boundary", () => {
 
     test("is dragged wider, remembers it, and the other pages follow", async ({ page }) => {
         const grip = (await handle(page).boundingBox())!;
-        const before = (await page.locator("[data-mail-column]").boundingBox())!.x;
+        const before = (await page.locator("[data-layout-root]").boundingBox())!.x;
 
         await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
         await page.mouse.down();
@@ -114,7 +114,7 @@ test.describe("the boundary", () => {
         expect(await width(page, ".sidebar-pane")).toBe(304);
 
         // The list gave up what the sidebar took.
-        const after = (await page.locator("[data-mail-column]").boundingBox())!.x;
+        const after = (await page.locator("[data-layout-root]").boundingBox())!.x;
         expect(Math.round(after - before)).toBe(80);
 
         // Drawn from the server on the next paint, on every page that has a sidebar.
@@ -200,7 +200,7 @@ test.describe("the peek", () => {
 
         await expect(aside(page)).toHaveAttribute("data-sidebar-truncated", "");
 
-        const column = page.locator("[data-mail-column]");
+        const column = page.locator("[data-layout-root]");
         const before = (await column.boundingBox())!;
 
         await longRow(page).hover();
@@ -237,7 +237,7 @@ test.describe("the peek", () => {
         await page.goto("/mail/inbox");
         await expect(aside(page)).toHaveAttribute("data-sidebar-truncated", "");
 
-        const column = (await page.locator("[data-mail-column]").boundingBox())!;
+        const column = (await page.locator("[data-layout-root]").boundingBox())!;
 
         await aside(page).getByRole("button", { name: "Create label" }).click();
         await page.locator("#modal-backdrop").getByRole("button", { name: "Cancel" }).click();
@@ -303,7 +303,7 @@ test.describe("the peek", () => {
 
             // Off the sidebar: while the peek is out it measures nothing (see
             // _measureTruncation), and the click left the pointer on it.
-            const column = (await page.locator("[data-mail-column]").boundingBox())!;
+            const column = (await page.locator("[data-layout-root]").boundingBox())!;
             await page.mouse.move(column.x + column.width / 2, column.y + 200);
             await expect.poll(async () => aside(page).getAttribute("data-sidebar-truncated")).toBeNull();
 

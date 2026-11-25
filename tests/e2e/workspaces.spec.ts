@@ -1,0 +1,358 @@
+import { test, expect, type Page } from "./support/test";
+import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { INBOX_LINK } from "./support/sidebar";
+import { col, only, pane, row, useWorkspace, type Kind } from "./support/workspace";
+
+/**
+ * Workspaces (#755): panes arranged by the user, side by side and above and
+ * below, from each pane's menu, the keyboard, the Layout menu and edit mode.
+ *
+ * What is measured is where the panes end up on screen — a pane that is in the
+ * DOM but drawn nowhere, or two panes stacked where they should sit side by
+ * side, is the failure that matters — and that a reload draws the same thing,
+ * because the server draws the first paint and the controller only moves panes
+ * afterwards. WorkspaceShellTest has the first paint's markup.
+ *
+ * Every test starts from, and returns to, the list alone: the workspace is
+ * stored on the worker's user, which the rest of the suite shares.
+ */
+
+const WIDE = { width: 1600, height: 900 };
+
+const NAMES: Record<Kind, string> = { list: "Mail list", message: "Message", calendar: "Calendar", contacts: "Contacts", tasks: "Tasks" };
+
+/** ContactAssistController::parse(), which quick add asks after a pause in typing. */
+const PARSE_PATH = "/contacts/parse";
+
+const menu = (page: Page) => page.locator(".layout-menu[role='menu']");
+
+/** Open a pane's ⋯ menu. */
+async function openMenu(page: Page, kind: Kind): Promise<void> {
+    await pane(page, kind).locator("[data-pane-menu-button]").first().click();
+    await expect(menu(page)).toBeVisible();
+}
+
+/** ⋯ → Split right / below → a pane. */
+async function split(page: Page, kind: Kind, direction: "row" | "col", add: Kind): Promise<void> {
+    await openMenu(page, kind);
+
+    const group = menu(page).locator(`[data-split-direction="${direction}"]`);
+
+    await group.locator(":scope > button").hover();
+    await group.getByRole("menuitem", { name: NAMES[add] }).click();
+}
+
+/** The two panes' boxes, for "side by side" and "above and below". */
+async function boxes(page: Page, a: Kind, b: Kind) {
+    return [(await pane(page, a).boundingBox())!, (await pane(page, b).boundingBox())!] as const;
+}
+
+test.beforeEach(async ({ page }) => {
+    seed("seed-mail");
+    await page.setViewportSize(WIDE);
+    await useWorkspace(page, only("list"));
+});
+
+test.afterEach(async ({ page }) => {
+    await useWorkspace(page, only("list"));
+});
+
+test.describe("the pane menu", () => {
+    test("split right puts a pane beside, and a reload draws it there", async ({ page }) => {
+        await split(page, "list", "row", "calendar");
+
+        await expect(pane(page, "calendar").locator("turbo-frame#calendar-pane-frame")).toBeVisible();
+
+        const [list, calendar] = await boxes(page, "list", "calendar");
+        expect(calendar.x).toBeGreaterThan(list.x + list.width - 1);
+        expect(Math.abs(calendar.y - list.y)).toBeLessThan(2);
+
+        // Saved: the server draws it on the next load, before any script.
+        await page.waitForLoadState("networkidle");
+        await page.reload();
+        await expect(pane(page, "calendar")).toBeVisible();
+        await expect(page.locator("[data-layout-split] [data-layout-pane='calendar']")).toHaveCount(1);
+    });
+
+    test("split below puts a pane underneath, sharing the height", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar"));
+
+        await split(page, "calendar", "col", "contacts");
+
+        const [calendar, contacts] = await boxes(page, "calendar", "contacts");
+        expect(contacts.y).toBeGreaterThan(calendar.y + calendar.height - 1);
+        expect(Math.abs(contacts.x - calendar.x)).toBeLessThan(2);
+        expect(Math.abs(contacts.width - calendar.width)).toBeLessThan(2);
+    });
+
+    test("a split offers only the panes the workspace does not show", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar"));
+        await openMenu(page, "list");
+
+        const group = menu(page).locator('[data-split-direction="row"]');
+        await group.locator(":scope > button").hover();
+
+        await expect(group.getByRole("menuitem", { name: "Calendar" })).toBeHidden();
+        await expect(group.getByRole("menuitem", { name: "Tasks" })).toBeVisible();
+    });
+
+    test("show instead swaps two panes that are both on screen", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar"));
+        await openMenu(page, "calendar");
+
+        const sub = menu(page).locator(".layout-menu-sub").filter({ hasText: "Show instead" });
+        await sub.locator(":scope > button").hover();
+        await sub.getByRole("menuitemradio", { name: "Mail list" }).click();
+
+        const [list, calendar] = await boxes(page, "list", "calendar");
+        expect(list.x).toBeGreaterThan(calendar.x);
+    });
+
+    test("close takes a pane away, and the last one cannot be closed", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar"));
+        await openMenu(page, "calendar");
+        await menu(page).getByRole("menuitem", { name: "Close pane" }).click();
+
+        await expect(pane(page, "calendar")).toBeHidden();
+
+        await openMenu(page, "list");
+        await expect(menu(page).getByRole("menuitem", { name: "Close pane" })).toBeDisabled();
+    });
+
+    test("a split with no room says so instead of squeezing", async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 800 });
+        await useWorkspace(page, row("list", "calendar", "contacts"));
+
+        await split(page, "list", "row", "message");
+
+        await expect(page.locator("#toast-region")).toContainText("Not enough room beside Mail list");
+        await expect(pane(page, "message")).toBeHidden();
+    });
+
+    test("full width gives one pane the area, and going to the mail brings the layout back", async ({ page }) => {
+        await useWorkspace(page, row("list", "contacts"));
+        await openMenu(page, "contacts");
+        await menu(page).getByRole("menuitem", { name: "Full width" }).click();
+
+        await expect(pane(page, "list")).toBeHidden();
+        await expect(pane(page, "contacts").getByRole("button", { name: "Back to the layout" })).toBeVisible();
+
+        await page.locator(INBOX_LINK).click();
+
+        await expect(pane(page, "list")).toBeVisible();
+        await expect(pane(page, "contacts")).toBeVisible();
+    });
+
+    test("without a list, a folder brings the list at full width, and the next folder leaves it where it is", async ({ page }) => {
+        await useWorkspace(page, row("calendar", "contacts"));
+        await page.locator(INBOX_LINK).click();
+
+        await expect(pane(page, "list").getByRole("button", { name: "Back to the layout" })).toBeVisible();
+        await expect(pane(page, "calendar")).toBeHidden();
+
+        // The cell the list was put in. A render builds new cells and moves
+        // every pane into them, which starts each pane's controllers over: the
+        // second folder asks for what is already so, and must not cause one.
+        // Waited for as the frame's load event, which layout--workspace hears
+        // first (its listener is older): by then whatever it does has happened.
+        await pane(page, "list").evaluate((el) => {
+            const probe = window as unknown as { cell: Element | null; loaded: Promise<void> };
+
+            probe.cell = el.parentElement;
+            probe.loaded = new Promise((resolve) => document.addEventListener("turbo:frame-load", (event) => {
+                if ("inbox-list-frame" === (event.target as Element).id) resolve();
+            }));
+        });
+        await page.locator("aside").getByRole("link", { name: "Starred" }).click();
+        await page.evaluate(() => (window as unknown as { loaded: Promise<void> }).loaded);
+
+        await expect(page).toHaveURL(/\/mail\/starred/);
+        expect(await pane(page, "list").evaluate((el) => el.parentElement === (window as unknown as { cell: Element | null }).cell)).toBe(true);
+    });
+});
+
+test.describe("the keyboard", () => {
+    test("⌥\\ splits the focused pane and ⌥⇧← moves a pane", async ({ page }) => {
+        await pane(page, "list").click({ position: { x: 200, y: 20 } });
+        await page.keyboard.press("Alt+Backslash");
+
+        await expect(pane(page, "message")).toBeVisible();
+
+        let [list, message] = await boxes(page, "list", "message");
+        expect(message.x).toBeGreaterThan(list.x);
+
+        await page.keyboard.press("Alt+Shift+ArrowLeft");
+
+        [list, message] = await boxes(page, "list", "message");
+        expect(message.x).toBeLessThan(list.x);
+    });
+});
+
+test.describe("dividers", () => {
+    test("a drag moves the divider, and this device remembers where", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar"));
+
+        const divider = page.locator(".layout-divider").first();
+        const box = (await divider.boundingBox())!;
+        const before = (await pane(page, "list").boundingBox())!.width;
+
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(box.x - 150, box.y + box.height / 2, { steps: 8 });
+        await page.mouse.up();
+
+        const dragged = (await pane(page, "list").boundingBox())!.width;
+        expect(dragged).toBeLessThan(before - 100);
+
+        await page.reload();
+        expect(Math.abs((await pane(page, "list").boundingBox())!.width - dragged)).toBeLessThan(3);
+    });
+});
+
+test.describe("workspaces and the Layout menu", () => {
+    test("a shape saved as a new workspace becomes a tab, and the tabs switch", async ({ page }) => {
+        await page.getByRole("button", { name: "Layout" }).click();
+        await page.locator(".layout-presets").getByRole("button", { name: "Top + two" }).click();
+
+        const slots = page.locator(".layout-presets [data-preset-preview] select");
+        await expect(slots).toHaveCount(3);
+        await slots.nth(0).selectOption("calendar");
+        await page.locator(".layout-presets").getByRole("button", { name: "Save as new workspace" }).click();
+
+        const tabs = page.locator("[data-layout--workspace-target='workspaceTabs'] button");
+        await expect(tabs).toHaveCount(2);
+        await expect(tabs.nth(1)).toHaveAttribute("aria-pressed", "true");
+
+        const [calendar, list] = await boxes(page, "calendar", "list");
+        expect(list.y).toBeGreaterThan(calendar.y + calendar.height - 1);
+
+        await tabs.nth(0).click();
+        await expect(tabs.nth(0)).toHaveAttribute("aria-pressed", "true");
+        await expect(pane(page, "calendar")).toBeHidden();
+    });
+});
+
+test.describe("edit mode", () => {
+    test("a pane dragged from the tray onto an edge is added there, and kept on save", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar"));
+
+        await page.getByRole("button", { name: "Layout" }).click();
+        await page.locator(".layout-presets").getByRole("button", { name: /Edit this workspace/ }).click();
+
+        const tray = page.locator("[data-layout--workspace-target='tray']");
+        await expect(tray).toBeVisible();
+
+        const chip = tray.locator("[data-tray-kind='tasks']");
+        const target = (await pane(page, "calendar").boundingBox())!;
+        const from = (await chip.boundingBox())!;
+
+        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(target.x + target.width / 2, target.y + target.height - 20, { steps: 12 });
+        await page.mouse.up();
+
+        await expect(pane(page, "tasks")).toBeVisible();
+        await page.getByRole("button", { name: "Save workspace" }).click();
+        await expect(tray).toBeHidden();
+
+        await page.waitForLoadState("networkidle");
+        await page.reload();
+
+        const [calendar, tasks] = await boxes(page, "calendar", "tasks");
+        expect(tasks.y).toBeGreaterThan(calendar.y + calendar.height - 1);
+    });
+
+    test("cancel puts back what was there", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar"));
+
+        await page.getByRole("button", { name: "Layout" }).click();
+        await page.locator(".layout-presets").getByRole("button", { name: /Edit this workspace/ }).click();
+
+        await pane(page, "calendar").getByRole("button", { name: "Remove pane" }).click();
+        await expect(pane(page, "calendar")).toBeHidden();
+
+        await page.getByRole("button", { name: "Cancel" }).click();
+        await expect(pane(page, "calendar")).toBeVisible();
+    });
+});
+
+test.describe("the panes in a workspace", () => {
+    test("the address book runs inside its pane, and a reference email opens beside it", async ({ page }) => {
+        await useWorkspace(page, row(col("list", "message"), "contacts"));
+
+        const frame = page.locator("turbo-frame#contacts-pane-frame");
+
+        await frame.getByRole("link", { name: "New contact" }).first().click();
+        // Read on the server after a pause in typing: waited for as that
+        // answer, which under load took longer than an assertion's five seconds.
+        const parsed = page.waitForResponse((response) => response.url().endsWith(PARSE_PATH) && "POST" === response.request().method());
+
+        await frame.getByLabel("Type or paste anything about them").fill("E2E Sender <sender@e2e.test>");
+        await parsed;
+        await expect(frame.locator("[name='displayName']")).toHaveValue("E2E Sender");
+        await frame.getByRole("button", { name: "Create contact" }).click();
+
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+
+        const reference = frame.locator("a[data-reference-email]", { hasText: INBOX_SUBJECTS.read });
+        await reference.click();
+
+        await expect(pane(page, "message").locator("[data-mail--mail-pane-target='reading']")).toContainText(INBOX_SUBJECTS.read);
+        await expect(reference).toBeVisible();
+    });
+
+    test("choosing seven days widens the calendar pane to fit them", async ({ page }) => {
+        await useWorkspace(page, { t: "split", id: "s1", dir: "row", sizes: [4, 1], children: [{ t: "pane", kind: "list" }, { t: "pane", kind: "calendar" }] });
+
+        const frame = page.locator("turbo-frame#calendar-pane-frame");
+        await frame.getByRole("link", { name: "7 days" }).click();
+
+        await expect.poll(async () => (await pane(page, "calendar").boundingBox())!.width, { timeout: 3_000 }).toBeGreaterThanOrEqual(700);
+    });
+
+    // #678: one rule across the window, from under Compose through every
+    // pane's header, whichever panes are side by side.
+    test("every pane header's rule continues the one under Compose", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar", "contacts"));
+        await expect(page.locator("[data-contacts-page]")).toBeVisible();
+
+        const bottom = (selector: string) =>
+            page.locator(selector).first().evaluate((el) => Math.round(el.getBoundingClientRect().bottom));
+        const line = await bottom(".compose-wrap:visible");
+
+        expect(await bottom("[data-toolbar-row]:visible >> xpath=..")).toBe(line);
+        expect(await bottom("[data-layout-pane='contacts'] [data-contacts-page] > div")).toBe(line);
+        expect(await bottom("[data-layout-pane='calendar'] .border-b:has([data-calendar-position])")).toBe(line);
+    });
+
+    test("the contacts page is the pane at full width, and leaving it is the mail", async ({ page }) => {
+        await page.goto("/contacts");
+
+        await expect(page.locator("[data-layout-root]")).toHaveAttribute("data-layout-max", "contacts");
+        await pane(page, "contacts").getByRole("button", { name: "Back to the layout" }).click();
+
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+        await expect(pane(page, "list")).toBeVisible();
+    });
+});
+
+test.describe("on a phone", () => {
+    test("the panes are tabs, the message is not one, and a conversation takes the list's place", async ({ page }) => {
+        await useWorkspace(page, row("list", "message", "calendar"));
+        await page.setViewportSize({ width: 390, height: 800 });
+        await page.goto("/mail/inbox");
+
+        const tabs = page.locator("[data-layout--workspace-target='paneTabs'] button");
+        await expect(tabs).toHaveText(["Mail list", "Calendar"]);
+
+        await tabs.nth(1).click();
+        await expect(pane(page, "calendar")).toBeVisible();
+        await expect(pane(page, "list")).toBeHidden();
+
+        await tabs.nth(0).click();
+        await mailRow(page, INBOX_SUBJECTS.read).click();
+
+        await expect(pane(page, "list").locator("[data-mail--mail-pane-target='reading']")).toBeVisible();
+        await expect(page.locator("#message-list")).toBeHidden();
+    });
+});

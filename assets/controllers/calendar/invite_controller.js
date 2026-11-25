@@ -62,7 +62,7 @@ import { Idiomorph } from "idiomorph";
 
 const PANE_FRAME_ID = "calendar-pane-frame";
 
-/** What the pane loads when nothing has navigated it — see ui--split. */
+/** What the pane loads when nothing has navigated it — the pane's data-layout-src. */
 const PANE_URL = "/calendar/pane";
 
 /** The slot's id, which also keeps the pane's redraw from reusing it. */
@@ -191,9 +191,12 @@ export default class extends Controller {
         const answerHtml = button.innerHTML;
         const frame = visiblePane();
 
+        // No calendar on screen: nothing to fly to. It used to land on the
+        // top bar's calendar button, which #755 removed; the answer is saved
+        // and the meeting is there whenever the calendar pane is opened.
         if (null === frame) {
             preview?.remove();
-            this.#toTheCalendarButton(record, from, answerHtml, travels);
+            record.land();
 
             return;
         }
@@ -235,28 +238,6 @@ export default class extends Controller {
                 fly(record, from, answerHtml, this.faceTarget, rectOf(slot.firstElementChild.getBoundingClientRect()), false);
             }
         });
-    }
-
-    /** With the calendar closed, the answer goes to the button that opens it. */
-    #toTheCalendarButton(record, from, answerHtml, travels) {
-        const toggle = visibleToggle();
-
-        if (null === toggle) {
-            record.land();
-
-            return;
-        }
-
-        record.onLand = () => markToggle(record, toggle);
-
-        if (travels) {
-            fly(record, from, answerHtml, this.faceTarget, dotOn(toggle), true);
-
-            return;
-        }
-
-        record.onLand();
-        record.land();
     }
 
     /**
@@ -436,8 +417,6 @@ async function confirm(record) {
 
     if (shown) {
         arrive(chip);
-    } else if (null === visiblePane()) {
-        lightOnOpen(record.eventId);
     }
 
     announce(record.placed);
@@ -636,62 +615,6 @@ function reveal(element, then = null) {
     };
 
     requestAnimationFrame(step);
-}
-
-// ── The calendar button ───────────────────────────────────────────────────
-
-function visibleToggle() {
-    return [...document.querySelectorAll("[data-calendar-toggle]")].find(isShown) ?? null;
-}
-
-/** Where a flight to the calendar button lands: its corner dot. */
-function dotOn(toggle) {
-    const box = toggle.getBoundingClientRect();
-
-    return { x: box.right - 14, y: box.top + 6, w: 8, h: 8 };
-}
-
-/**
- * Mark the calendar button: the ring, and a dot for as long as the calendar
- * stays closed — unless it already carries its own, the dot saying a meeting is
- * close, which matters more than this does.
- */
-function markToggle(record, toggle) {
-    ring(toggle);
-
-    if (null !== toggle.querySelector(":scope > span.absolute.rounded-full")) {
-        return;
-    }
-
-    const dot = document.createElement("span");
-
-    dot.dataset.inviteDot = "";
-    dot.className = "absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-surface bg-accent";
-    dot.setAttribute("aria-hidden", "true");
-    toggle.append(dot);
-    toggle.addEventListener("click", () => dot.remove(), { once: true });
-    record.dot = dot;
-}
-
-/** Light the meeting the next time the calendar is opened. */
-function lightOnOpen(eventId) {
-    visibleToggle()?.addEventListener("click", () => {
-        let tries = 0;
-
-        // The pane may still have to load (it is lazy until first shown), so
-        // look for a while rather than once.
-        const look = () => {
-            const chip = visiblePane()?.querySelector(`[data-event-chip="${eventId}"]`) ?? null;
-
-            if (null !== chip && isShown(chip)) {
-                arrive(chip);
-            } else if (tries++ < 40) {
-                setTimeout(look, 75);
-            }
-        };
-
-        requestAnimationFrame(look);
-    }, { once: true });
 }
 
 // ── The flight itself ─────────────────────────────────────────────────────

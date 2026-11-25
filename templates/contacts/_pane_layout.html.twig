@@ -22,8 +22,8 @@ only have said "Contacts" over a header that already says it.
         {% endfor %}
     {% endfor %}
 
-    {# data-contacts-page: content, so contacts--pane knows this frame needs
-       no src to fill it. #}
+    {# data-contacts-page: the page's own content, which the full contacts
+       page draws into the pane's frame itself (contacts/_page_shell). #}
     <div data-contacts-page class="@container relative flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden">
         {% block contacts_content %}{% endblock %}
     </div>

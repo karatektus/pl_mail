@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Demo;
 
-use App\Domain\Enum\Calendar\CalendarPaneMode;
+use App\Domain\Enum\Layout\PaneKind;
 use App\Domain\Helper\SignatureStorage;
 use App\Entity\Task\Task;
 use App\Entity\Task\TaskAttachment;
@@ -21,6 +21,7 @@ use App\Service\Demo\DemoProvisioner;
 use App\Service\Demo\DemoScenario;
 use App\Service\Demo\DemoScenarios;
 use App\Service\Demo\DemoUserEraser;
+use App\Service\Layout\WorkspaceStore;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -195,9 +196,9 @@ final class DemoFlowTest extends WebTestCase
         self::assertNotNull($visitor->getSetting(DemoProvisioner::SETTING_EXPIRES_AT));
 
         // The calendar beside the mail, which is half of what the demo is
-        // there to show. It is the default for anyone who has not chosen, and a
-        // demo visitor never has.
-        self::assertSame(CalendarPaneMode::Split, $visitor->calendarPaneMode);
+        // there to show. It is in the first workspace of anyone who has not
+        // arranged one (#755), and a demo visitor never has.
+        self::assertTrue($container->get(WorkspaceStore::class)->load($visitor)->active()->has(PaneKind::Calendar));
 
         $account = $container->get(AccountRepository::class)->findOneBy(['usr' => $visitor]);
 

@@ -62,7 +62,7 @@ final class SettingsNavigation
         . '|accounts|aliases|health'
         . '|inboxes|message-list|categories|labels|filters|disposal'
         . '|reading|compose|signature|templates'
-        . '|calendars|calendar-behaviour|sharing|contacts'
+        . '|calendars|sharing|contacts'
         . '|ai|insights'
         . '|integrations';
 
@@ -174,7 +174,6 @@ final class SettingsNavigation
         ]],
         'reading_writing' => ['fa-solid fa-pen', [
             'reading' => [
-                ['card-reading-pane', 'settings.reading_pane.heading', 'settings.search.keywords.reading_pane'],
                 ['card-images', 'settings.images.heading', 'settings.search.keywords.images'],
                 ['card-sender-pictures', 'settings.sender_pictures.heading', 'settings.search.keywords.sender_pictures'],
             ],
@@ -193,15 +192,11 @@ final class SettingsNavigation
             'calendars' => [
                 ['card-calendars', 'settings.calendars.heading', 'settings.search.keywords.calendars'],
             ],
-            'calendar-behaviour' => [
-                ['card-calendar-behaviour', 'settings.calendar_behaviour.heading', null],
-            ],
             'sharing' => [
                 ['card-sharing', 'settings.sharing.heading', 'settings.search.keywords.sharing'],
             ],
             'contacts' => [
                 ['card-contacts', 'settings.contacts.heading', 'settings.search.keywords.contacts'],
-                ['card-contacts-behaviour', 'settings.contacts_behaviour.heading', null],
             ],
         ]],
         'assistant' => ['fa-solid fa-wand-magic-sparkles', [

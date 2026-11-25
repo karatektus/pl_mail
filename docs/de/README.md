@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:040c0cb03e9172f1877f3849181b172f0b8aebe4 -->
+<!-- translated-from: README.md sha1:3dbe2fe611da268c37545aa6a65aaa5666c8e829 -->
 
 # plMail-Dokumentation
 
@@ -32,7 +32,8 @@ wo der Mechanismus dahinter steht.
 | [Zustand der Konten](features/health.md) | Was kaputt ist und was es behebt, ein Konto neu verbinden, ohne seine Post zu verlieren, die zwei Arten, wie Push kaputtgeht |
 | [Vorlagen](features/templates.md) | Wiederverwendbare Nachrichten, der Ordnerbaum, der deine Konten spiegelt, Variablen für Empfänger, Absender, Signatur und Datum, Einfügen beim Verfassen |
 | [Filter](features/filters.md) | Bedingungsbäume, Aktionen, die Rückübersetzung in einen Satz, eine Regel auf bereits eingetroffene Mail anwenden |
-| [Kalender](features/calendar.md) | Die vier Ansichten und das Zeitraster, Termine anlegen und bearbeiten, Wiederholungen, eine einzelne Termininstanz bearbeiten, der angedockte Bereich |
+| [Arbeitsbereiche](features/workspaces.md) | Die Bereiche anordnen: nebeneinander und übereinander teilen, das Bereichsmenü, die Tastatur, gespeicherte Arbeitsbereiche, das Layout-Menü und der Bearbeitungsmodus |
+| [Kalender](features/calendar.md) | Die vier Ansichten und das Zeitraster, Termine anlegen und bearbeiten, Wiederholungen, eine einzelne Termininstanz bearbeiten, der Kalenderbereich |
 | [Einladungen und Termine aus E-Mails](features/calendar-invitations.md) | Zu- und Absagen, Termine aus Einladungen und aus gewöhnlichem Fließtext, Vorschläge, „Demnächst“ |
 | [Erinnerungen](features/calendar-alerts.md) | Erinnerungen setzen, wie sie zugestellt werden, was eine frische Installation braucht, damit sie ankommen |
 | [Verbundene Kalender](features/calendar-sync.md) | Google-, Microsoft- und CalDAV-Kalender abonnieren, Abgleich in beide Richtungen, ICS-Import, -Export und Feed-Abonnements, doppelte Termine |
