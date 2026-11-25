@@ -1,0 +1,273 @@
+{#
+_workspace_edit.html.twig — everything layout--workspace shows on demand
+(#755): the pane menu, the Layout menu, edit mode's bar, tray and per-pane
+cards, and the drop target a drag shows.
+
+All of it rendered here, translated, and only shown or copied by the
+controller, so the script carries no English and no markup of its own beyond
+what it has to build from the user's data (workspace names, the slot pickers).
+Included by the mailbox shell, inside the controller's element: a Stimulus
+action only reaches a controller on an ancestor, and the menus are `popover`
+elements — drawn in the top layer, above the panes' stacking contexts, while
+their DOM stays in here.
+
+The keyboard hints are written with ⌥ and turned into "Alt" off a Mac by the
+controller ([data-alt-key]), because that is the key the user is looking for
+on their own keyboard.
+#}
+{% import '_partials/_field_classes.html.twig' as fields %}
+{% import '_partials/_select.html.twig' as select %}
+{% set paneKinds = enum('App\\Domain\\Enum\\Layout\\PaneKind').cases() %}
+{% set btnPrimary   = 'inline-flex items-center gap-2 px-3 h-8 rounded-lg text-sm font-medium bg-accent text-accent-ink hover:bg-accent-strong cursor-pointer transition-colors' %}
+{% set btnSecondary = 'inline-flex items-center gap-2 px-3 h-8 rounded-lg text-sm font-medium border border-line text-ink hover:bg-hover cursor-pointer transition-colors' %}
+{% set btnGhost     = 'inline-flex items-center gap-2 px-3 h-8 rounded-lg text-sm text-ink-muted hover:bg-hover hover:text-ink cursor-pointer transition-colors' %}
+{% set shapes = ['one', 'side', 'three', 'rows', 'list_stack', 'top_two', 'list_stack_side', 'four'] %}
+
+{# ── Edit mode's bar ─────────────────────────────────────────────────────
+   In place of the topbar while a workspace is edited (see "Edit mode" in
+   app.css, keyed on the shell's data-layout-editing). Changes show live; Save
+   keeps them, Cancel puts back what was there when editing started. #}
+<div class="workspace-editbar" data-layout--workspace-target="editBar" hidden>
+    <i class="fa-solid fa-table-columns text-ink-muted" aria-hidden="true"></i>
+    <strong class="whitespace-nowrap">{{ 'layout.edit.title'|trans }}</strong>
+    <label class="sr-only" for="workspace-name">{{ 'layout.edit.name'|trans }}</label>
+    <input id="workspace-name"
+           type="text"
+           class="{{ fields.input() }} workspace-name"
+           maxlength="{{ constant('App\\Domain\\DTO\\Layout\\Workspace::NAME_MAX_LENGTH') }}"
+           autocomplete="off"
+           data-1p-ignore
+           data-layout--workspace-target="nameInput"
+           data-action="input->layout--workspace#rename">
+    <span class="workspace-editbar-hint">{{ 'layout.edit.hint'|trans }}</span>
+    <span class="flex-1"></span>
+    <button type="button" class="{{ btnGhost }} hover:text-danger" data-layout--workspace-target="deleteButton"
+            data-action="layout--workspace#deleteWorkspace">{{ 'layout.edit.delete'|trans }}</button>
+    <button type="button" class="{{ btnSecondary }}" data-action="layout--workspace#cancelEdit">{{ 'layout.edit.cancel'|trans }}</button>
+    <button type="button" class="{{ btnPrimary }}" data-action="layout--workspace#saveEdit">{{ 'layout.edit.save'|trans }}</button>
+</div>
+
+{# ── Edit mode's tray ────────────────────────────────────────────────────
+   The panes the workspace does not show yet. Drag one onto a pane — an edge
+   splits, the middle replaces — or click it to add it beside the selected
+   pane, which is the keyboard's way. Last in the shell's column by `order`,
+   so it sits at the bottom of the window. #}
+<div class="workspace-tray" data-layout--workspace-target="tray" hidden>
+    <span class="workspace-tray-label">{{ 'layout.edit.tray'|trans }}</span>
+    {% for kind in paneKinds %}
+        <button type="button"
+                class="workspace-chip"
+                data-tray-kind="{{ kind.value }}"
+                data-action="pointerdown->layout--workspace#dragNew click->layout--workspace#addFromTray"
+                data-layout--workspace-kind-param="{{ kind.value }}">
+            <i class="fa-solid fa-grip-vertical text-ink-faint" aria-hidden="true"></i>
+            <i class="{{ kind.icon }}" aria-hidden="true"></i>{{ kind.transKey|trans }}
+        </button>
+    {% endfor %}
+    <span class="workspace-tray-empty" data-tray-empty hidden>{{ 'layout.edit.tray_empty'|trans }}</span>
+    <span class="flex-1"></span>
+    <span class="workspace-tray-hint">{{ 'layout.edit.tray_hint'|trans }}</span>
+</div>
+
+{# The drop target a drag in edit mode draws over the pane under the pointer:
+   half the pane for an edge, the whole pane for the middle. Fixed, so the
+   controller places it in viewport coordinates from the pane's rect. #}
+<div class="layout-drop" data-layout--workspace-target="drop" hidden><span data-drop-label></span></div>
+
+{# ── The pane menu ───────────────────────────────────────────────────────
+   One for every pane, copied fresh each time one opens. The controller hides
+   the kinds a split cannot add (each pane is in a workspace once), marks what
+   the pane shows now, and swaps Full width for Back. Submenus open beside
+   their row on hover or focus, and on a click for touch. #}
+<template data-layout--workspace-target="menuTemplate">
+    <div class="layout-menu popover" popover="manual" role="menu" aria-label="{{ 'layout.menu.label'|trans }}">
+        {% for direction in ['row', 'col'] %}
+            <div class="layout-menu-sub" data-split-direction="{{ direction }}">
+                <button type="button" role="menuitem" aria-haspopup="menu" class="layout-menu-item" data-action="layout--workspace#toggleSubmenu">
+                    <i class="fa-solid {{ direction == 'row' ? 'fa-table-columns' : 'fa-table-list' }} w-4 text-center text-ink-faint" aria-hidden="true"></i>
+                    <span class="flex-1">{{ ('layout.menu.split_' ~ direction)|trans }}</span>
+                    <kbd class="kbd" data-alt-key>⌥{{ direction == 'row' ? '\\' : '-' }}</kbd>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-ink-faint" aria-hidden="true"></i>
+                </button>
+                <div class="layout-submenu popover" role="menu">
+                    <p class="layout-menu-heading">{{ ('layout.menu.split_' ~ direction ~ '_heading')|trans }}</p>
+                    {% for kind in paneKinds %}
+                        <button type="button" role="menuitem" class="layout-menu-item" data-menu-kind="{{ kind.value }}"
+                                data-action="layout--workspace#splitFromMenu"
+                                data-layout--workspace-direction-param="{{ direction }}"
+                                data-layout--workspace-kind-param="{{ kind.value }}">
+                            <i class="{{ kind.icon }} w-4 text-center text-ink-faint" aria-hidden="true"></i>{{ kind.transKey|trans }}
+                        </button>
+                    {% endfor %}
+                    <p class="layout-menu-note" data-menu-all-shown hidden>{{ 'layout.menu.all_shown'|trans }}</p>
+                </div>
+            </div>
+        {% endfor %}
+
+        <hr class="layout-menu-rule">
+
+        <div class="layout-menu-sub">
+            <button type="button" role="menuitem" aria-haspopup="menu" class="layout-menu-item" data-action="layout--workspace#toggleSubmenu">
+                <i class="fa-solid fa-right-left w-4 text-center text-ink-faint" aria-hidden="true"></i>
+                <span class="flex-1">{{ 'layout.menu.show_instead'|trans }}</span>
+                <i class="fa-solid fa-chevron-right text-[10px] text-ink-faint" aria-hidden="true"></i>
+            </button>
+            <div class="layout-submenu popover" role="menu">
+                <p class="layout-menu-heading">{{ 'layout.menu.show_instead_heading'|trans }}</p>
+                {% for kind in paneKinds %}
+                    <button type="button" role="menuitemradio" aria-checked="false" class="layout-menu-item" data-menu-show="{{ kind.value }}"
+                            data-action="layout--workspace#showFromMenu"
+                            data-layout--workspace-kind-param="{{ kind.value }}">
+                        <i class="{{ kind.icon }} w-4 text-center text-ink-faint" aria-hidden="true"></i>
+                        <span class="flex-1">{{ kind.transKey|trans }}</span>
+                        <i class="fa-solid fa-check text-xs layout-menu-check" aria-hidden="true"></i>
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="layout-menu-sub" data-menu-move>
+            <button type="button" role="menuitem" aria-haspopup="menu" class="layout-menu-item" data-action="layout--workspace#toggleSubmenu">
+                <i class="fa-solid fa-up-down-left-right w-4 text-center text-ink-faint" aria-hidden="true"></i>
+                <span class="flex-1">{{ 'layout.menu.move'|trans }}</span>
+                <kbd class="kbd" data-alt-key>⌥⇧ ←↑→↓</kbd>
+                <i class="fa-solid fa-chevron-right text-[10px] text-ink-faint" aria-hidden="true"></i>
+            </button>
+            <div class="layout-submenu popover" role="menu">
+                {% for direction, arrow in { left: '←', up: '↑', right: '→', down: '↓' } %}
+                    <button type="button" role="menuitem" class="layout-menu-item"
+                            data-action="layout--workspace#moveFromMenu"
+                            data-layout--workspace-direction-param="{{ direction }}">
+                        <span class="flex-1">{{ ('layout.menu.move_' ~ direction)|trans }}</span>
+                        <kbd class="kbd" data-alt-key>⌥⇧{{ arrow }}</kbd>
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <hr class="layout-menu-rule">
+
+        <button type="button" role="menuitem" class="layout-menu-item" data-menu-max data-action="layout--workspace#toggleMaxFromMenu">
+            <i class="fa-solid fa-up-right-and-down-left-from-center w-4 text-center text-ink-faint" aria-hidden="true"></i>
+            <span class="flex-1" data-label-max>{{ 'layout.menu.full_width'|trans }}</span>
+            <span class="flex-1" data-label-restore hidden>{{ 'layout.menu.restore'|trans }}</span>
+            <kbd class="kbd" data-alt-key>⌥↩</kbd>
+        </button>
+        <button type="button" role="menuitem" class="layout-menu-item" data-menu-close data-action="layout--workspace#closeFromMenu">
+            <i class="fa-solid fa-xmark w-4 text-center text-ink-faint" aria-hidden="true"></i>
+            <span class="flex-1">{{ 'layout.menu.close'|trans }}</span>
+            <kbd class="kbd" data-alt-key>⌥W</kbd>
+        </button>
+    </div>
+</template>
+
+{# ── The Layout menu ─────────────────────────────────────────────────────
+   The saved workspaces, the shapes to start from, and the way into edit mode.
+   The workspace list and the slot pickers are filled by the controller from
+   the document it holds; the shapes are fixed, and their outlines are drawn
+   from the same builders that make them. #}
+<template data-layout--workspace-target="layoutTemplate">
+    <div class="layout-menu layout-presets popover" popover="manual" role="dialog" aria-label="{{ 'layout.menu.layout'|trans }}">
+        <p class="layout-menu-heading">{{ 'layout.presets.workspaces'|trans }}</p>
+        <div class="layout-preset-workspaces" data-preset-workspaces></div>
+
+        <hr class="layout-menu-rule">
+        <p class="layout-menu-heading">{{ 'layout.presets.shapes'|trans }}</p>
+        <div class="layout-preset-shapes">
+            {% for shape in shapes %}
+                <button type="button" class="layout-preset-shape" data-shape="{{ shape }}"
+                        data-action="layout--workspace#pickShape"
+                        data-layout--workspace-shape-param="{{ shape }}"
+                        aria-pressed="false">
+                    <span class="layout-thumb" data-shape-thumb aria-hidden="true"></span>
+                    <span>{{ ('layout.presets.shape.' ~ shape)|trans }}</span>
+                </button>
+            {% endfor %}
+        </div>
+
+        <div data-preset-slots hidden>
+            <hr class="layout-menu-rule">
+            <p class="layout-menu-heading">{{ 'layout.presets.slots'|trans }}</p>
+            <div class="layout-slot-preview" data-preset-preview></div>
+            <div class="flex flex-wrap items-center gap-2 pt-3">
+                <button type="button" class="{{ btnGhost }}" data-action="layout--workspace#unpickShape">{{ 'layout.presets.back'|trans }}</button>
+                <span class="flex-1"></span>
+                <button type="button" class="{{ btnSecondary }}" data-preset-new data-action="layout--workspace#shapeAsNew">{{ 'layout.presets.save_new'|trans }}</button>
+                <button type="button" class="{{ btnPrimary }}" data-action="layout--workspace#shapeApply">{{ 'layout.presets.apply'|trans }}</button>
+            </div>
+        </div>
+
+        <hr class="layout-menu-rule">
+        <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="{{ btnSecondary }}" data-action="layout--workspace#edit">
+                <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>{{ 'layout.presets.edit'|trans }}
+                <kbd class="kbd" data-alt-key>⌥E</kbd>
+            </button>
+            <button type="button" class="{{ btnGhost }}" data-preset-new data-action="layout--workspace#newWorkspace">
+                <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ 'layout.presets.new'|trans }}
+            </button>
+        </div>
+    </div>
+</template>
+
+{# The slot picker's options, copied into each slot of a chosen shape.
+
+   A native select, the one place here that is not a Tom Select: it is drawn
+   inside the Layout menu, a top-layer popover, and Tom Select hangs its panel
+   off <body> — underneath the popover, where a click on it also counts as a
+   click outside the menu and closes it. `data-native-select` says so to
+   PageRendersTest. #}
+<template data-layout--workspace-target="slotTemplate">
+    <label class="layout-slot">
+        <span class="sr-only" data-slot-label></span>
+        <select class="{{ fields.input() }} layout-slot-select" data-native-select data-action="change->layout--workspace#pickSlot">
+            {% for kind in paneKinds %}
+                <option value="{{ kind.value }}">{{ kind.transKey|trans }}</option>
+            {% endfor %}
+        </select>
+    </label>
+</template>
+
+{# ── Edit mode's card over each pane ─────────────────────────────────────
+   The pane's content stays live underneath; the card says what the pane is
+   and holds what can be done to it. + Right and + Below show on the selected
+   pane only, so the workspace does not turn into a field of plus signs. #}
+<template data-layout--workspace-target="overlayTemplate">
+    <div class="layout-edit-card" data-action="click->layout--workspace#selectPane">
+        <div class="layout-edit-head">
+            <button type="button" class="layout-grip" data-action="pointerdown->layout--workspace#dragPane"
+                    aria-label="{{ 'layout.edit.grip'|trans }}" title="{{ 'layout.edit.grip'|trans }}">
+                <i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>
+            </button>
+            <select class="select-field h-8 text-sm layout-edit-kind" aria-label="{{ 'layout.edit.kind'|trans }}"
+                    {{ select.enhance() }}
+                    data-action="change->layout--workspace#changeKind">
+                {% for kind in paneKinds %}
+                    <option value="{{ kind.value }}">{{ kind.transKey|trans }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" class="icon-btn" data-action="layout--workspace#removePane"
+                    aria-label="{{ 'layout.edit.remove'|trans }}" title="{{ 'layout.edit.remove'|trans }}">
+                <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="layout-edit-body">
+            <span class="layout-edit-icon"><i data-edit-icon aria-hidden="true"></i></span>
+            <span class="layout-edit-name" data-edit-name></span>
+            <span class="layout-edit-size" data-edit-size></span>
+        </div>
+        <button type="button" class="layout-edge layout-edge-right" data-edge
+                data-action="layout--workspace#edgeSplit" data-layout--workspace-direction-param="row">
+            <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>{{ 'layout.edit.add_right'|trans }}
+        </button>
+        <button type="button" class="layout-edge layout-edge-below" data-edge
+                data-action="layout--workspace#edgeSplit" data-layout--workspace-direction-param="col">
+            <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>{{ 'layout.edit.add_below'|trans }}
+        </button>
+    </div>
+</template>
+
+{# Kind icons for the script, by kind: the overlay and the tabs need them. #}
+<template data-layout--workspace-target="iconTemplate">
+    {% for kind in paneKinds %}<i data-icon-kind="{{ kind.value }}" class="{{ kind.icon }}" aria-hidden="true"></i>{% endfor %}
+</template>

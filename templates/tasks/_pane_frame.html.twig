@@ -75,14 +75,8 @@ Accepts: pane  TaskPane
                     {% endif %}
                 </div>
             </div>
-            <button type="button"
-                    data-tasks-pane-close
-                    data-action="tasks--pane#close"
-                    class="{{ iconBtn }}"
-                    aria-label="{{ 'tasks.pane.close'|trans }}"
-                    title="{{ 'tasks.pane.close'|trans }}">
-                <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
-            </button>
+            {# The pane's menu (#755), as every pane in a workspace has it. #}
+            {% include '_partials/_pane_controls.html.twig' only %}
         </header>
 
         {# My Day, all lists, then each list. Links rather than a dropdown, so the
@@ -195,7 +189,7 @@ Accepts: pane  TaskPane
             </div>
         </form>
 
-        {# The address, so tasks--pane can tell a tick's reload from going elsewhere. #}
+        {# The address, so a tick's reload can be told from going elsewhere. #}
         <div class="flex-1 min-h-0 overflow-y-auto px-4 pb-4" data-tasks-pane-scroll="{{ path('app_tasks_index', params) }}">
             {% if pane.isEmpty %}
                 <p class="px-3 py-8 text-center text-sm text-ink-faint">

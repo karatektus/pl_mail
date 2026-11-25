@@ -7,7 +7,6 @@ namespace App\Controller\Calendar;
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Calendar\EventCopy;
 use App\Domain\Enum\Calendar\AlertAction;
-use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Helper\DefaultEventStart;
@@ -34,7 +33,6 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -895,50 +893,6 @@ final class CalendarController extends AbstractController
         $this->em->flush();
 
         return $this->redirectAfterWrite($request, $date);
-    }
-
-    /**
-     * Remembers which position the calendar switch is in and how wide the
-     * docked pane is.
-     *
-     * Its own endpoint rather than a query parameter on the grid, because the
-     * drag handle writes on release and must not re-render anything: a pane
-     * that reloads while you are dragging it is unusable.
-     */
-    #[Route('/pane-state', name: 'pane_state', methods: ['POST'])]
-    public function paneState(Request $request): JsonResponse
-    {
-        $this->assertCsrf($request, 'calendar_pane_state');
-
-        $user = $this->currentUser();
-
-        if (true === $request->request->has('mode')) {
-            // Anything unrecognised keeps the mode the user is already in
-            // rather than resetting it: this is posted by a controller, so a
-            // value that is not one of the three is a bug or a forgery, and
-            // neither is a reason to shut somebody's calendar.
-            $user->calendarPaneMode = CalendarPaneMode::fromSetting(
-                $request->request->getString('mode'),
-                $user->calendarPaneMode,
-            );
-        }
-
-        if (true === $request->request->has('width')) {
-            // Clamped server-side too: the client's bounds are a convenience,
-            // not a guarantee, and a stored 40000 would wedge the layout with
-            // no way back short of the database.
-            $user->setSetting(User::SETTING_CALENDAR_PANE_WIDTH, max(
-                User::CALENDAR_PANE_MIN_WIDTH,
-                min(User::CALENDAR_PANE_MAX_WIDTH, $request->request->getInt('width')),
-            ));
-        }
-
-        $this->em->flush();
-
-        return $this->json([
-            'mode'  => $user->calendarPaneMode->value,
-            'width' => $user->calendarPaneWidth,
-        ]);
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

@@ -10,7 +10,7 @@ in the pane would navigate the whole page to a calendar and take the mail away.
 {% set frame = 'calendar-pane-frame' %}
 
 <turbo-frame id="{{ frame }}" class="flex flex-col min-h-0 flex-1">
-    {# `data-pane-min-width` is read by ui--split on turbo:frame-load: choosing a
+    {# `data-pane-min-width` is read by layout--workspace on turbo:frame-load: choosing a
        view that needs seven columns widens the pane to fit it rather than
        drawing seven slivers. Rendered per view, because the view is what has
        the requirement — see CalendarView::minimumPaneWidth().

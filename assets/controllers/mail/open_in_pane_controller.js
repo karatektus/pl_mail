@@ -13,15 +13,10 @@ import * as Turbo from "@hotwired/turbo";
  *
  * So the click is offered to the mail pane as a `mail-pane:open` event; the
  * pane cancels it to say it opened the message, beside the contacts as they
- * were — on the full contacts page too, which is the mailbox with its mail
- * column put away (contacts/_page_shell.html.twig). A page with no mail pane
- * at all gets a visit to the message instead.
- *
- * Not `data-turbo-frame="_top"` on the links for that last case: ui--split
- * reads a `_top` mail link as a full visit to come, and leaves a calendar
- * position behind for it (its handoff). The visit then never came, and the
- * next page opened on the calendar. A middle- or modified click is left to the
- * browser.
+ * were. On the full contacts page, which has no list behind it, the mail pane
+ * visits the conversation instead (mail--mail-pane#_openUrl), and a page with
+ * no mail pane at all gets a visit too. A middle- or modified click is left
+ * to the browser.
  */
 export default class extends Controller {
     open(event) {

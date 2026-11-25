@@ -1,12 +1,12 @@
 /**
- * The side panes beside the mail, by name: one place to open one, close one,
- * or show something in one, for whoever needs to.
+ * The panes of the workspace, by name: one place to open one, close one, or
+ * show something in one, for whoever needs to.
  *
- * Each pane already knows how to open itself — whether there is room, what
- * it has to ask the calendar for, what to remember (see contacts--pane). What
- * was missing is a way for anything else to ask. Without one, every feature
- * that wanted "and show it in the address book" would reach into that
- * controller, or dispatch an event of its own that only it and the pane knew
+ * The workspace knows how to put a pane on screen — where it goes, whether
+ * there is room, what to remember (see layout--workspace). What was missing
+ * is a way for anything else to ask. Without one, every feature
+ * that wanted "and show it in the address book" would reach into the
+ * workspace's controller, or dispatch an event of its own that only it and the pane knew
  * about, and the next such feature would do it again a little differently.
  *
  * So a pane registers itself here by name, and callers use the name:
@@ -24,8 +24,8 @@
  *
  * ── What a pane registers ────────────────────────────────────────────────
  *
- *   available()       whether it can be shown at all here — no dock below
- *                     lg, for instance. A pane that is not available is
+ *   available()       whether it can be shown at all here — not below lg,
+ *                     where the panes are tabs, for instance. A pane that is not available is
  *                     neither opened nor pointed anywhere, and openPane()
  *                     says so by returning false.
  *   isOpen()          whether it is on screen.
@@ -33,9 +33,10 @@
  *                     is fine: then it only navigates.
  *   close()
  *
- * contacts--pane and tasks--pane register today. The calendar's pane is ui--split's and
- * has positions rather than open/closed; it can register here the day
- * something needs to ask for it.
+ * layout--workspace registers the calendar, the address book and the tasks
+ * (#755). Opening one the workspace does not show adds it at the right-hand
+ * edge, as opening a docked pane used to; the list and the message are opened
+ * by the mail's own controller.
  */
 import * as Turbo from "@hotwired/turbo";
 

@@ -192,6 +192,12 @@ self-contained: no {% extends %}, no block dependencies.
         carried:  threadOwnLabelIds,
         placement: mail_placement(subject),
     } only %}
+
+    {# The pane's menu (#755), at the far end. Whichever pane this
+       conversation is open in — the message pane, or the list's when the
+       workspace has no message pane — the menu finds it by the nearest
+       [data-layout-pane]. #}
+    <span class="ml-auto flex">{% include '_partials/_pane_controls.html.twig' only %}</span>
 </div>
 </div>{# /toolbar #}
 

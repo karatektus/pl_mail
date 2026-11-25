@@ -1865,13 +1865,6 @@ calendar:
         next: Onward
         previous: Back
     open_day: 'All that be on %date%'
-    pane:
-        close: 'Stow the almanac'
-        mode:
-            calendar: Give the almanac the whole deck
-            mail: Show the letters
-            split: Set the almanac alongside the letters
-        resize: Shift the almanac's width
     proposal:
         action:
             add: Write it in the almanac
@@ -2002,10 +1995,6 @@ calendar:
         range_day: '%day%'
         range_short: '%start%–%end%'
         range_short_month: '%month% %start%–%end%'
-    upcoming:
-        imminent: Within the hour
-        later: Later this day
-        soon: In a few hours
     view:
         agenda: The list
         day: Day
@@ -3035,6 +3024,94 @@ label:
         hidden: That flag be lowered.
         shown: That flag flies again.
 
+layout:
+    divider: "Haul the bulkhead"
+    divider_hint: "Drag to shift the bulkhead, double-click to square her up"
+    drop:
+        bottom: "Below %pane%"
+        left: "Port o' %pane%"
+        replace: "Make %pane% walk the plank"
+        right: "Starboard o' %pane%"
+        swap: "Swap berths with %pane%"
+        top: "Above %pane%"
+    edit:
+        add_below: "Below"
+        add_right: "Starboard"
+        cancel: "Belay that"
+        delete: "Scuttle this deck"
+        delete_confirm: "Scuttle the deck “%name%”? Yer other decks stay shipshape."
+        grip: "Drag to shift this cabin"
+        hint: "Click a cabin to pick it. Haul its grip to shift it, or drop a cabin from the hold onto an edge."
+        kind: "What this cabin shows"
+        name: "Name o' the deck"
+        percent_high: "%n%% tall"
+        percent_wide: "%n%% broad"
+        remove: "Clear the cabin"
+        save: "Stow the deck"
+        title: "Refittin'"
+        tray: "Add a cabin"
+        tray_empty: "Every cabin be on deck already."
+        tray_hint: "Drop on an edge to split, amidships to replace. Or click to berth it beside the picked cabin."
+    menu:
+        all_shown: "Every cabin be on deck already."
+        close: "Batten the cabin"
+        full_width: "Full beam"
+        label: "Cabin orders"
+        layout: "Deck plan"
+        layout_title: "Decks an' deck plans (⌥L)"
+        move: "Shift"
+        move_down: "Below decks"
+        move_left: "To port"
+        move_right: "To starboard"
+        move_up: "Aloft"
+        restore: "Back to the deck plan"
+        show_instead: "Show instead"
+        show_instead_heading: "Show in this cabin"
+        split_col: "Split below decks"
+        split_col_heading: "New cabin below"
+        split_row: "Split to starboard"
+        split_row_heading: "New cabin to starboard"
+    pane:
+        calendar: "Cap'n's log"
+        contacts: "Crew roster"
+        list: "Bottle rack"
+        message: "Message in a bottle"
+        tasks: "Chores"
+    presets:
+        apply: "Use fer this deck"
+        back: "Back"
+        edit: "Refit this deck"
+        new: "New deck"
+        save_new: "Stow as a new deck"
+        shape:
+            four: "Four"
+            list_stack: "Rack + stack"
+            list_stack_side: "Rack, stack, side"
+            one: "One cabin"
+            rows: "Aloft an' below"
+            side: "Side by side"
+            three: "Three masts"
+            top_two: "Crow's nest + two"
+        shapes: "Start from a deck plan"
+        slots: "What goes where"
+        workspaces: "Decks"
+    tabs:
+        label: "Cabins"
+    toast:
+        all_shown: "Every cabin be on deck already."
+        applied: "Deck plan changed."
+        at_edge: "That cabin be at the rail already."
+        deleted: "Scuttled “%name%”."
+        edit_first: "Stow or belay the deck ye be refittin' first."
+        no_list: "This deck has no bottle rack, so it be shown full beam."
+        no_room: "No room beside %pane%. Make her bigger first, or batten a cabin."
+        only_pane: "This be the only cabin. Pick somethin' else fer it with Show instead."
+        save_failed: "The deck plan could not be stowed. She stays as she be on this page; reload to see the stowed one."
+        saved: "Stowed “%name%”."
+    workspace:
+        first_name: "Bottles"
+        new_name: "Deck %n%"
+        tabs_label: "Decks"
 list:
     conversation_view: 'Yarn view'
     sort:
@@ -3435,7 +3512,6 @@ profile:
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
-    handle: Shift the rail 'tween list an' letter
     placeholder: Pick a conversation, matey, an' it'll be laid out here
 
 # Said in a toast when a request fails and there is no better place to say it;
@@ -4724,22 +4800,6 @@ settings:
         test_failed: 'Soundin'' came back foul'
         test_ok: 'Passage be clear'
         unavailable_heading: 'No passage from here'
-    calendar_behaviour:
-        button: Calendar button
-        button_hint: 'Which views the button up top steps through. A view it leaves out be not scuttled: the drag handle still reaches it.'
-        heading: Behaviour
-        option_calendar: Split only
-        option_none: All three
-        option_split: Full breadth only
-        subheading: 'How the calendar button up top moves between views.'
-    contacts_behaviour:
-        button: 'Crew log button'
-        button_hint: 'Which views the button up top steps through. A view it skips be not thrown overboard: the drag handle still reaches it.'
-        heading: 'Behaviour'
-        option_contacts: 'Beside the post only'
-        option_none: 'All three'
-        option_split: 'Full deck only'
-        subheading: 'How the crew log button up top moves between views.'
     contacts:
         allow_contacts: 'Allow the shipmates'
         allow_contacts_hint: 'Came aboard before plMail asked for shipmates. Sign aboard once more and allow them, and this vessel''s crew roll appears here.'
@@ -5110,7 +5170,6 @@ settings:
             pinning: 'pin pinned nail mast top nag'
             profile: "name avatar photo picture"
             read_receipts: "mdn receipt confirmation bcc copy backup always"
-            reading_pane: "preview split right bottom"
             sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender likeness flag'
             sharing: "link public booking"
             shortcuts: "keyboard hotkeys keys"
@@ -5195,13 +5254,6 @@ settings:
         subheading: 'What ye board with. Only ye can change it — not even a quartermaster may set it for ye.'
         submit: Change th' secret word
         submitting: Stowin'…
-    reading_pane:
-        heading: Spyglass deck
-        hint: 'Stowed shows the list an'' the letter one at a time; Starboard lays the letter beside the list when the ship has room for both — drag the rail between ''em to say how much deck each gets.'
-        label: 'Lay out the open letter'
-        off: Stowed
-        right: Starboard
-        subheading: 'Where a parley opens: in place o'' the list, or beside it.'
     security:
         codes:
             copy: Copy the tokens
@@ -5470,6 +5522,8 @@ shortcuts:
         anywhere: "Anywhere"
         conversation: "In a yarn"
         list: "In a list"
+        panes: "Cabins an' decks"
+        panes_hint: "Alt be ⌥ on a Mac. These work even with single-key orders off."
     keys:
         archive: "Stow in the hold"
         back: "Back to the list"
@@ -5484,12 +5538,19 @@ shortcuts:
         go_starred: "Sail to Marked"
         help: "Show this list"
         label: "Label as"
+        layout_menu: "Deck plan menu"
         mark_read: "Mark as read"
         mark_unread: "Mark as unread"
         move: "Move to"
         next: "Down one yarn"
         next_conversation: "Open the next yarn"
         open: "Open the marked yarn"
+        pane_close: "Batten the cabin"
+        pane_focus: "Look to the next cabin that way"
+        pane_full_width: "Full beam, an' back"
+        pane_move: "Shift the cabin that way"
+        pane_split_below: "Split the cabin below"
+        pane_split_right: "Split the cabin to starboard"
         pin: 'Nail to the mast or pry it off'
         previous: "Up one yarn"
         previous_conversation: "Open the yarn afore"
@@ -5506,6 +5567,8 @@ shortcuts:
         spam: "Mark as bilge"
         star: "Mark or unmark"
         undo: "Undo the last deed"
+        workspace_edit: "Refit the deck"
+        workspace_switch: "Change decks"
     or: "or"
     switched_off: "Shortcuts be struck fer ye. Raise 'em under Settings → General → Riggin' an' helm."
     then: "then"
@@ -5974,13 +6037,6 @@ contacts:
     no_subject: '(no subject)'
     notes: Scribblings
     page: 'Page %page%'
-    pane:
-        close: 'Stow the shipmates'
-        mode:
-            contacts: 'Spread the crew log across the deck'
-            mail: 'Stow the shipmates'
-            split: 'Muster the shipmates beside the post'
-        resize: 'Haul the shipmates wider or narrower'
     pending: 'Waiting on a fair wind to the server'
     phone_placeholder: '+1 555 010 2030'
     phonetic: 'As it be spoken'
@@ -6155,10 +6211,6 @@ tasks:
     read_only: 'This list be read-only, so its tasks can''t be changed here.'
     saved: 'Task stowed.'
     deleted: 'Task sent overboard.'
-    pane:
-        close: 'Close tasks'
-        resize: 'Resize the tasks'
-        toggle: 'Tasks to do'
     section:
         loading: 'Haulin'' it aboard…'
         more: 'Show more'

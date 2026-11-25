@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Mail;
 
-use App\Domain\Enum\Calendar\CalendarPaneMode;
+use App\Domain\DTO\Layout\LayoutNode;
+use App\Domain\DTO\Layout\Workspace;
+use App\Domain\DTO\Layout\Workspaces;
+use App\Domain\Enum\Layout\PaneKind;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
+use App\Entity\User\User;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\DataCollector\DoctrineDataCollector;
@@ -209,11 +213,14 @@ final class ThreadListQueryBudgetTest extends WebTestCase
         $this->account = $this->seedAccount();
         $this->inbox   = $this->seedLabel('Inbox', LabelRole::Inbox);
 
-        // The calendar pane shut. It is open by default now, and an open pane
-        // arrives with its body embedded: a fixed handful of queries of its
-        // own, the same on an empty list as on a full one. What this measures
-        // is what the LIST costs, so the pane stays out of the count.
-        $this->user->calendarPaneMode = CalendarPaneMode::Mail;
+        // A workspace of the list alone. The calendar is in a new user's first
+        // workspace, and a pane on screen arrives with its body embedded: a
+        // fixed handful of queries of its own, the same on an empty list as on
+        // a full one. What this measures is what the LIST costs, so the other
+        // panes stay out of the count.
+        $this->user->setSetting(User::SETTING_WORKSPACES, (new Workspaces([
+            new Workspace('w1', 'Mail', LayoutNode::pane(PaneKind::List)),
+        ], 0))->toArray());
         $this->em->flush();
 
         $this->client->loginUser($this->user);

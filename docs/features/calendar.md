@@ -15,39 +15,18 @@ do. Invitations and events read out of messages are in
 The calendar is one feature rendered two ways, and which one you get depends on where you opened
 it from rather than on any setting.
 
-**Docked beside the mail.** The calendar button in the topbar slides a pane in next to the message
-list. It is a sibling of the mail pane, not an overlay, so the two split the row between them — the
-handle in the middle moves the boundary and one grows exactly as much as the other shrinks. Drag
-it, or focus it and use the arrow keys; double-click puts it back. The width is remembered per
-user between 320 and 900 pixels, defaulting to 380, and it is written into the page server-side so
-the pane is already the right size on the first paint instead of jumping once the browser catches
-up.
+**A pane in your workspace.** The calendar is one of the panes you arrange beside the mail — next
+to the list, above or below it, or on its own at full width (see [Workspaces](workspaces.md)). Add
+it from any pane's **⋯** menu (**Split right** or **Split below**, then **Calendar**), or in edit
+mode. Drag the gap beside it to resize it; each device remembers its own sizes. A new account
+starts with the calendar beside the mail.
 
-On a desktop the pane starts open. Until you move the switch, the calendar sits beside your mail,
-so the two are side by side from the first visit. Close it and plMail remembers that.
+Choosing **7 days** or **Month** in the pane widens it to fit seven columns, taking the room from
+the panes beside it; a calendar you dragged wider than that keeps its width, and going back to
+**Day** does not narrow it again.
 
-### The calendar button
-
-By default the button is a three-way switch: mail, then the calendar beside the mail, then the
-calendar full width, and round again. **Settings → Calendar & contacts → Calendar behaviour** has one choice,
-**Calendar button**, that can turn it into a two-way one:
-
-- **All three**: the three-way switch, which is the default.
-- **Full width only**: one press from the mail opens the calendar full width, the next goes back
-  to the mail. Clicking a mail link while the calendar is full width returns to the mail rather
-  than to a split.
-- **Split only**: one press from the mail opens the calendar beside it, the next goes back to the
-  mail.
-
-The position the button leaves out is not removed. A split or a full-width calendar you
-already have stays until the first press, which closes it to the mail, and the drag handle still
-reaches both ends.
-
-Below 1024px wide the row cannot hold a sidebar, a readable message list and a readable calendar at
-once, so the pane takes the whole row and the mail steps aside. It is the same pane and the same
-toggle — closing it puts the mail back exactly as it was, with no navigation in between. A phone
-always opens on the mail, whatever the pane was doing on your desktop; the button brings the
-calendar up when you want it. Below 768px there is no pane at all and the calendar is its own page.
+Below 1024px wide the panes of a workspace take turns: the tabs above them switch between the mail
+list, the calendar and the rest.
 
 **Its own page.** `/calendar` replaces the mail view entirely. This is what a phone gets, and what
 anyone gets who navigates there directly or follows a link.
@@ -75,8 +54,8 @@ switcher shows icons, and the date takes a short form: the month without its yea
 year's (**October**), a week as **Oct 20–26**, a day as **Oct 20**. On the narrowest phones **Today**
 becomes today's date in a small box.
 
-The full page opens on **7 days**. The docked pane opens on **Agenda** — it is 380 pixels of a shared
-row, and a month grid in that width is a lot of empty cells. The pane still offers all four views,
+The full page opens on **7 days**. The calendar pane opens on **Agenda** — it is usually a share of
+a row, and a month grid in a narrow pane is a lot of empty cells. The pane still offers all four views,
 as icons rather than words, because the version that dropped the switcher entirely left the pane
 able to show nothing but its agenda.
 
@@ -118,10 +97,10 @@ starts and as long as it actually lasts. Overlapping events are placed in lanes,
 happening at once are three narrower blocks side by side, and the lane count holds steady across an
 unbroken run of overlaps rather than changing block by block.
 
-**The docked pane draws the same grid the page does.** It used to keep an older column list instead,
-on the reasoning that seven positioned columns need roughly a screen's width — true of 380 pixels,
-and no longer the right conclusion, because the pane's width is now yours: drag its handle as wide
-as you like, and past the end of its range it becomes the calendar full-width. A pane that quietly
+**The calendar pane draws the same grid the page does.** It used to keep an older column list instead,
+on the reasoning that seven positioned columns need roughly a screen's width — true of a narrow pane,
+and no longer the right conclusion, because the pane's width is yours: drag the gap beside it as wide
+as you like, or put it at full width from its **⋯** menu. A pane that quietly
 drew a *different* calendar was the worse answer, since widening it to see the timeline gave you the
 list anyway.
 
@@ -180,7 +159,7 @@ toolbar and is a single full-width column.
 
 **New event** in the toolbar, the **+** on a day heading, or clicking an existing event, all open the
 same editor. It is a modal over whatever page you were on — the calendar page, or a mail view with
-the calendar docked beside it — and saving puts you back there rather than dragging you to the
+the calendar pane beside it — and saving puts you back there rather than dragging you to the
 calendar. On a phone it is the whole screen, as the compose window is.
 
 A **+** on a day opens the editor on that day at the next full hour. A day that has already gone keeps
@@ -326,8 +305,7 @@ deleting one only means it is created again, and the events would go in the mean
 made yourself, and mirrors of remote ones, can be deleted; deleting takes every event on the
 calendar with it.
 
-Hiding a calendar hides it everywhere, consistently: the views, the topbar's next-thing indicator,
-and the *Happening soon* list all read visible calendars only. The **editor** is the exception, and
+Hiding a calendar hides it everywhere, consistently: the views and the *Happening soon* list all read visible calendars only. The **editor** is the exception, and
 deliberately: it lists every calendar you own, hidden ones marked with a struck-through eye beside
 the read-only lock, because a copy of a meeting on a hidden calendar is still a fact about the
 meeting. Saving onto one is then an informed choice rather than a trap — and a save that lands

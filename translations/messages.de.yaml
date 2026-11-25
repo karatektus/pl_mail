@@ -1975,13 +1975,6 @@ calendar:
         next: Weiter
         previous: Zurück
     open_day: 'Alles am %date%'
-    pane:
-        close: 'Kalender schließen'
-        mode:
-            calendar: Kalender in voller Breite zeigen
-            mail: Mail zeigen
-            split: Kalender neben der Mail zeigen
-        resize: Kalender in der Breite ändern
     proposal:
         action:
             add: In den Kalender
@@ -2115,10 +2108,6 @@ calendar:
         range_day: '%day%.'
         range_short: '%start%–%end%'
         range_short_month: '%start%.–%end%. %month%'
-    upcoming:
-        imminent: Beginnt innerhalb einer Stunde
-        later: Heute noch
-        soon: In wenigen Stunden
     view:
         agenda: Agenda
         day: Tag
@@ -3157,6 +3146,94 @@ label:
         hidden: Label ist jetzt ausgeblendet.
         shown: Label ist jetzt sichtbar.
 
+layout:
+    divider: "Größe der Bereiche ändern"
+    divider_hint: "Ziehen zum Ändern, Doppelklick zum Angleichen"
+    drop:
+        bottom: "Unter %pane%"
+        left: "Links von %pane%"
+        replace: "%pane% ersetzen"
+        right: "Rechts von %pane%"
+        swap: "Mit %pane% tauschen"
+        top: "Über %pane%"
+    edit:
+        add_below: "Darunter"
+        add_right: "Rechts"
+        cancel: "Abbrechen"
+        delete: "Arbeitsbereich löschen"
+        delete_confirm: "Arbeitsbereich „%name%“ löschen? Deine anderen Arbeitsbereiche bleiben, wie sie sind."
+        grip: "Ziehen, um diesen Bereich zu verschieben"
+        hint: "Klick auf einen Bereich, um ihn auszuwählen. Zieh am Griff, um ihn zu verschieben, oder leg einen Bereich aus der Leiste auf einen Rand."
+        kind: "Was dieser Bereich zeigt"
+        name: "Name des Arbeitsbereichs"
+        percent_high: "%n%% hoch"
+        percent_wide: "%n%% breit"
+        remove: "Bereich entfernen"
+        save: "Arbeitsbereich speichern"
+        title: "Bearbeiten"
+        tray: "Bereich hinzufügen"
+        tray_empty: "Alle Bereiche sind schon zu sehen."
+        tray_hint: "Auf einen Rand ziehen zum Teilen, in die Mitte zum Ersetzen. Oder klicken, um ihn neben dem gewählten Bereich einzufügen."
+    menu:
+        all_shown: "Alle Bereiche sind schon zu sehen."
+        close: "Bereich schließen"
+        full_width: "Volle Breite"
+        label: "Bereichsmenü"
+        layout: "Layout"
+        layout_title: "Arbeitsbereiche und Layouts (⌥L)"
+        move: "Verschieben"
+        move_down: "Nach unten"
+        move_left: "Nach links"
+        move_right: "Nach rechts"
+        move_up: "Nach oben"
+        restore: "Zurück zum Layout"
+        show_instead: "Stattdessen zeigen"
+        show_instead_heading: "In diesem Bereich zeigen"
+        split_col: "Darunter teilen"
+        split_col_heading: "Neuer Bereich darunter"
+        split_row: "Rechts teilen"
+        split_row_heading: "Neuer Bereich rechts"
+    pane:
+        calendar: "Kalender"
+        contacts: "Kontakte"
+        list: "Mailliste"
+        message: "Nachricht"
+        tasks: "Aufgaben"
+    presets:
+        apply: "Für diesen Arbeitsbereich nutzen"
+        back: "Zurück"
+        edit: "Diesen Arbeitsbereich bearbeiten"
+        new: "Neuer Arbeitsbereich"
+        save_new: "Als neuen Arbeitsbereich speichern"
+        shape:
+            four: "Vier"
+            list_stack: "Liste + Stapel"
+            list_stack_side: "Liste, Stapel, Seite"
+            one: "Ein Bereich"
+            rows: "Über- und untereinander"
+            side: "Nebeneinander"
+            three: "Drei Spalten"
+            top_two: "Oben + zwei"
+        shapes: "Mit einer Form beginnen"
+        slots: "Was wohin kommt"
+        workspaces: "Arbeitsbereiche"
+    tabs:
+        label: "Bereiche"
+    toast:
+        all_shown: "Alle Bereiche sind schon zu sehen."
+        applied: "Layout geändert."
+        at_edge: "Dieser Bereich ist schon an diesem Rand."
+        deleted: "„%name%“ gelöscht."
+        edit_first: "Speichere oder verwirf zuerst den Arbeitsbereich, den du bearbeitest."
+        no_list: "Dieser Arbeitsbereich hat keine Mailliste, deshalb wird sie in voller Breite gezeigt."
+        no_room: "Neben %pane% ist nicht genug Platz. Mach den Bereich zuerst größer oder schließ einen anderen."
+        only_pane: "Das ist der einzige Bereich. Wähl mit „Stattdessen zeigen“ etwas anderes dafür."
+        save_failed: "Das Layout konnte nicht gespeichert werden. Es bleibt auf dieser Seite so; lade neu, um das gespeicherte zu sehen."
+        saved: "„%name%“ gespeichert."
+    workspace:
+        first_name: "Mail"
+        new_name: "Arbeitsbereich %n%"
+        tabs_label: "Arbeitsbereiche"
 list:
     conversation_view: 'Konversationsansicht'
     sort:
@@ -3561,7 +3638,6 @@ profile:
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
-    handle: Größe des Nachrichtenbereichs ändern
     placeholder: Wähle eine Unterhaltung aus, um sie hier zu lesen
 
 # Said in a toast when a request fails and there is no better place to say it;
@@ -4927,22 +5003,6 @@ settings:
         test_failed: 'Verbindungstest fehlgeschlagen'
         test_ok: 'Verbindung funktioniert'
         unavailable_heading: 'Hier nicht verfügbar'
-    calendar_behaviour:
-        button: Kalenderschaltfläche
-        button_hint: 'Welche Ansichten die Schaltfläche in der Kopfleiste durchläuft. Eine ausgelassene Ansicht wird nicht entfernt: Mit dem Ziehgriff erreichst du sie weiterhin.'
-        heading: Verhalten
-        option_calendar: Nur geteilt
-        option_none: Alle drei
-        option_split: Nur volle Breite
-        subheading: 'Wie die Kalenderschaltfläche in der Kopfleiste zwischen den Ansichten wechselt.'
-    contacts_behaviour:
-        button: 'Kontakte-Knopf'
-        button_hint: 'Durch welche Ansichten der Knopf in der oberen Leiste schaltet. Eine ausgelassene Ansicht ist nicht weg: Der Ziehgriff erreicht sie weiterhin.'
-        heading: 'Verhalten'
-        option_contacts: 'Nur neben der Mail'
-        option_none: 'Alle drei'
-        option_split: 'Nur volle Breite'
-        subheading: 'Wie der Kontakte-Knopf in der oberen Leiste zwischen den Ansichten wechselt.'
     contacts:
         allow_contacts: 'Kontakte erlauben'
         allow_contacts_hint: 'Verbunden, bevor plMail nach Kontakten gefragt hat. Melde dich einmal neu an und erlaube sie, dann erscheint das Adressbuch dieses Kontos hier.'
@@ -5326,7 +5386,6 @@ settings:
             pinning: 'anheften angeheftet reißzwecke oben erinnerung pin'
             profile: "name avatar foto bild"
             read_receipts: "mdn empfangsbestätigung bestätigung bcc kopie sicherung blindkopie"
-            reading_pane: "vorschau geteilt rechts unten"
             sender_pictures: 'avatar bild foto gravatar libravatar bimi logo symbol absender'
             sharing: "link öffentlich buchung"
             shortcuts: "tastatur tasten kürzel hotkeys"
@@ -5422,13 +5481,6 @@ settings:
         subheading: 'Womit du dich anmeldest. Nur du kannst es ändern — nicht einmal die Administration kann es für dich setzen.'
         submit: Passwort ändern
         submitting: Wird gespeichert…
-    reading_pane:
-        heading: Lesebereich
-        hint: '„Aus“ zeigt Liste und Nachricht nacheinander; „Rechts“ stellt die Nachricht neben die Liste, sobald das Fenster genug Platz für beide hat – am Trenner dazwischen stellst du ein, wie viel jede bekommt.'
-        label: 'Geöffnete Nachricht anzeigen'
-        off: Aus
-        right: Rechts
-        subheading: 'Wo eine Unterhaltung aufgeht: anstelle der Liste oder daneben.'
     security:
         codes:
             copy: Codes kopieren
@@ -5703,6 +5755,8 @@ shortcuts:
         anywhere: "Überall"
         conversation: "In einer Unterhaltung"
         list: "In einer Liste"
+        panes: "Bereiche und Arbeitsbereiche"
+        panes_hint: "Alt ist ⌥ auf dem Mac. Diese gehen auch bei ausgeschalteten Einzeltasten-Kürzeln."
     keys:
         archive: "Archivieren"
         back: "Zurück zur Liste"
@@ -5717,12 +5771,19 @@ shortcuts:
         go_starred: "Zu Markiert"
         help: "Diese Liste anzeigen"
         label: "Label vergeben"
+        layout_menu: "Layout-Menü"
         mark_read: "Als gelesen markieren"
         mark_unread: "Als ungelesen markieren"
         move: "Verschieben nach"
         next: "Eine Unterhaltung nach unten"
         next_conversation: "Nächste Unterhaltung öffnen"
         open: "Hervorgehobene Unterhaltung öffnen"
+        pane_close: "Bereich schließen"
+        pane_focus: "Nächsten Bereich in diese Richtung fokussieren"
+        pane_full_width: "Volle Breite, und zurück"
+        pane_move: "Bereich in diese Richtung verschieben"
+        pane_split_below: "Bereich darunter teilen"
+        pane_split_right: "Bereich rechts teilen"
         pin: 'Anheften oder lösen'
         previous: "Eine Unterhaltung nach oben"
         previous_conversation: "Vorherige Unterhaltung öffnen"
@@ -5739,6 +5800,8 @@ shortcuts:
         spam: "Als Spam markieren"
         star: "Markieren oder Markierung entfernen"
         undo: "Letzte Aktion rückgängig machen"
+        workspace_edit: "Arbeitsbereich bearbeiten"
+        workspace_switch: "Arbeitsbereich wechseln"
     or: "oder"
     switched_off: "Die Kürzel sind für dich ausgeschaltet. Schalte sie unter Einstellungen → Allgemein → Layout & Bedienung ein."
     then: "dann"
@@ -6210,13 +6273,6 @@ contacts:
     no_subject: '(kein Betreff)'
     notes: Notizen
     page: 'Seite %page%'
-    pane:
-        close: 'Kontakte schließen'
-        mode:
-            contacts: 'Kontakte in voller Breite zeigen'
-            mail: 'Kontakte ausblenden'
-            split: 'Kontakte neben der Mail zeigen'
-        resize: 'Kontakte in der Breite ändern'
     pending: 'Wartet darauf, an den Server zu gehen'
     phone_placeholder: '+49 30 1234567'
     phonetic: 'Phonetische Schreibweise'
@@ -6391,10 +6447,6 @@ tasks:
     read_only: 'Diese Liste ist schreibgeschützt, ihre Aufgaben lassen sich hier nicht ändern.'
     saved: 'Aufgabe gespeichert.'
     deleted: 'Aufgabe gelöscht.'
-    pane:
-        close: 'Aufgaben schließen'
-        resize: 'Breite der Aufgaben ändern'
-        toggle: 'Aufgaben'
     section:
         loading: 'Wird geladen …'
         more: 'Mehr anzeigen'

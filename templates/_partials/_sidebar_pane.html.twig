@@ -26,8 +26,7 @@ boundary" in app.css, and ui--sidebar#_measureTruncation for the number.
 Accepts:
   room     CSS selector for the pane the sidebar takes its room from, so the
            clamp stops before squeezing it below a phone's width. The mailbox
-           passes its mail column — the docked calendar keeps its own width,
-           so what the sidebar takes comes out of the list. The other pages
+           passes its workspace (#755). The other pages
            mark their content pane `data-sidebar-room`, the default.
   surface  Whether to re-point the density tokens at the sidebar's surface
            (`data-surface` in app.css). Only the mailbox did, and this partial
@@ -44,10 +43,7 @@ Accepts:
         than one that does not remember at all. #}
      style="--sidebar-width: {{ app.user.sidebarWidth }}px"
      data-controller="ui--sidebar-split"
-     {# A boundary and nothing else: no positions to drag into, no rubber
-        band. The rail is the burger's, not the handle's. #}
-     data-ui--sidebar-split-modes-value="false"
-     data-ui--sidebar-split-side-value="start"
+     {# The rail is the burger's, not the handle's: inert while it is on. #}
      data-ui--sidebar-split-variable-value="--sidebar-width"
      data-ui--sidebar-split-main-selector-value="{{ _room }}"
      data-ui--sidebar-split-inert-when-value=".sidebar-rail"
@@ -58,7 +54,7 @@ Accepts:
      data-ui--sidebar-split-default-value="{{ constant('App\\Entity\\User\\User::SIDEBAR_DEFAULT_WIDTH') }}"
      {# The pane beside it is the app and the sidebar is furniture, so where
         both minimums cannot be met the content wins. A phone's width, like
-        the calendar boundary's floor: the list has a stacked layout for
+        the workspace's dividers: the list has a stacked layout for
         exactly that size and dragging should be able to reach it. #}
      data-ui--sidebar-split-main-min-value="340"
      data-ui--sidebar-split-step-value="16"
@@ -88,8 +84,8 @@ Accepts:
              title="{{ 'sidebar.resize_hint'|trans }}"
              tabindex="0"
              class="group cursor-col-resize flex items-center justify-center focus:outline-none">
-            {# `.split-grip`, the calendar handle's hook, so the boundaries look
-               and behave like one control. #}
+            {# `.split-grip`: the grip's colour transition (see "Workspaces"
+               in app.css). #}
             <span class="split-grip w-0.5 h-8 rounded-full bg-line
                          group-hover:bg-accent group-focus-visible:bg-accent" aria-hidden="true"></span>
         </div>

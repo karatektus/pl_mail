@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:3f1282e342d7dd4d01f28f7d28f195097b38d602 -->
+<!-- translated-from: features/mail.md sha1:80e6c610ffe52faebc2a94cf3c95f24d6c9802e6 -->
 
 # Mail
 
@@ -1147,19 +1147,19 @@ Papierkorb nicht, und `#` tut dort nichts; die Flamme mit ihrer Frage ist der ei
 eine Auswahl zu löschen. Ist sie aus, funktioniert `#` im Spam wie überall sonst und tut im
 Papierkorb nichts, der kein **Löschen** hat.
 
-## Der Lesebereich
+## Die Nachricht neben der Liste
 
-**Einstellungen → Lesen & Schreiben → Lesen** legt fest, wohin die Nachricht kommt, die du öffnest: **Aus** oder
-**Rechts**. Aus
-ist, wie plMail immer funktioniert hat — Liste und geöffnete Nachricht wechseln sich auf derselben
-Fläche ab, und der Zurück-Pfeil bringt dich zur Liste. Rechts stellt die Nachricht neben die Liste,
-sodass du eine Unterhaltung lesen und den Rest des Postfachs gleichzeitig sehen kannst. Aus ist die
-Voreinstellung, und an deinem Postfach ändert sich nichts, bis du Rechts wählst.
+Wohin eine geöffnete Unterhaltung kommt, hängt von deinem Arbeitsbereich ab (siehe
+[Arbeitsbereiche](workspaces.md)). Ist ein Bereich **Nachricht** darin, öffnet sie sich dort, neben
+oder unter der Liste, sodass du eine Unterhaltung lesen und gleichzeitig den Rest des Postfachs sehen
+kannst. Ohne ihn wechseln sich die Liste und die geöffnete Nachricht auf demselben Platz ab, und der
+Zurück-Pfeil bringt dich zur Liste zurück — so, wie plMail immer funktioniert hat, und so, wie es ein
+Telefon oder ein Fenster unter 1024 Pixeln Breite unabhängig vom Arbeitsbereich macht.
 
-Steht der Lesebereich rechts, bleibt die Liste beim Öffnen stehen, wo sie ist. Die geöffnete Zeile
-ist mit einem Farbton und einem Balken an der vorderen Kante markiert, und der Bereich neben der
-Liste sagt *Wähle eine Unterhaltung aus, um sie hier zu lesen*, bis du eine öffnest. Der
-Zurück-Pfeil schließt die Nachricht und lässt die Liste, wie sie war.
+Mit einem Bereich Nachricht bleibt die Liste beim Öffnen stehen, wo sie ist. Die geöffnete Zeile ist
+mit einem Farbton und einem Balken an der vorderen Kante markiert, und der Bereich Nachricht sagt
+*Wähle eine Unterhaltung aus, um sie hier zu lesen*, bis du eine öffnest. Der Zurück-Pfeil schließt
+die Nachricht und lässt die Liste, wie sie war.
 
 Die geöffnete Nachricht bleibt auch stehen, während du dich in der Liste bewegst. Wählst du einen
 anderen Ordner, wechselst du den Kategorie-Tab, blätterst um, sortierst oder suchst, ändert sich,
@@ -1167,33 +1167,12 @@ was die Liste zeigt, und die Konversation, die du gerade liest, bleibt, wo sie i
 der nächsten suchen kannst, ohne diese zu verlieren. Solange die Liste einen Ordner zeigt, in dem die
 Nachricht nicht liegt, ist keine Zeile markiert, und die Markierung kommt zurück, wenn du in ihren
 Ordner zurückkehrst. Der Zurück-Pfeil schließt die Nachricht dann und lässt dich in dem Ordner, zu dem
-du gewechselt hast. Bei einem Bereich nach dem anderen (siehe unten) hat die Nachricht die Liste
-verdeckt, deshalb schließt die Wahl eines Ordners sie und zeigt die neue Liste, wie es immer war.
+du gewechselt hast. Bei einem Bereich nach dem anderen hat die Nachricht die Liste verdeckt, deshalb
+schließt die Wahl eines Ordners sie und zeigt die neue Liste, wie es immer war.
 
-**Der Trenner** dazwischen wird mit der Maus gezogen, oder mit den Pfeiltasten bewegt, sobald er den
-Fokus hat (zwei Prozent pro Schritt; Pos1 und Ende springen an die Enden). Ein Doppelklick setzt ihn
-auf die Voreinstellung zurück. Gespeichert wird der Anteil der Nachricht an der **Postfachkarte** —
-Liste und Nachricht zusammen, ohne Seitenleiste und ohne angedockten Kalender — als Prozentwert
-zwischen 25 und 75, anfangs 55. Es ist ein Prozentwert und keine Breite in Pixeln, weil sich die
-Karte jedes Mal ändert, wenn der Kalenderbereich geöffnet, geschlossen oder gezogen wird, und ein
-Anteil in all diesen Fällen seine Bedeutung behält. Er wird für dein Konto gespeichert, nicht für den
-Browser. Du stellst ihn im Postfach selbst ein, an echter Post, und in den Einstellungen gibt es
-dafür keinen Regler.
-
-**Er weicht aus, wenn der Platz fehlt.** Rechts ist eine Vorliebe, kein Versprechen: gezeichnet wird
-es nur, solange die Postfachkarte mindestens 52rem breit ist (832 Pixel bei der Standardschrift-
-größe). Ein schmales Fenster, ein Telefon oder ein breites Fenster mit angedocktem Kalender neben
-der Post fallen auf ein Fenster nach dem anderen zurück, ohne dass du etwas umstellen musst. Jeder
-Bereich behält außerdem eine Mindestbreite, sodass 75 % auf einer gerade eben breiten Karte nachgeben,
-bevor die Liste zum Streifen wird.
-
-Der Lesebereich gehört nicht zu einem exportierten Farbschema, obwohl er verändert, wie das Postfach
-aussieht: Wo eine Nachricht gezeichnet wird, ist eine Entscheidung über das Postfach und nicht Teil
-eines Erscheinungsbilds, das jemand teilen könnte, und ein importiertes Farbschema ordnet die Post,
-in der es landet, nicht um. **Auf Standard zurücksetzen** auf der Seite Darstellung lässt ihn aus
-demselben Grund in Ruhe.
-Eine Konfigurationssicherung enthält ihn dagegen, sodass eine Wiederherstellung das Postfach so
-zurückbringt, wie du es eingerichtet hattest.
+Öffnest du eine Unterhaltung über ihre eigene Adresse — ein Lesezeichen, einen Link —, während ein
+Bereich Nachricht im Arbeitsbereich ist, steht der Posteingang daneben, mit der Unterhaltung
+markiert, wenn sie auf dieser Seite ist.
 
 **Tasten und angehakte Zeilen.** Neben der Liste können eine Auswahl und eine geöffnete
 Unterhaltung gleichzeitig zu sehen sein. Eine Taste gilt trotzdem zuerst der Auswahl: `e` mit zwei

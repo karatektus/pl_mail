@@ -1053,47 +1053,28 @@ bin, so `#` does nothing in those places; the flame, with its question, is the o
 selection there. With it off, `#` works in Spam as it does elsewhere, and does nothing in the bin,
 which has no **Delete**.
 
-## The reading pane
+## The message beside the list
 
-**Settings → Reading & writing → Reading** decides where the message you open goes: **Off** or **Right**. Off is how plMail
-has always worked — the list and the open message take turns on the same space, and the back arrow
-returns you to the list. Right puts the message beside the list, so you can read one conversation
-and see the rest of the mailbox at the same time. Off is the default, and nothing about your
-mailbox changes until you pick Right.
+Where an opened conversation goes depends on your workspace (see [Workspaces](workspaces.md)). With
+a **Message** pane in it, the conversation opens there, beside or below the list, so you can read one
+conversation and see the rest of the mailbox at the same time. Without one, the list and the open
+message take turns on the same space, and the back arrow returns you to the list — how plMail always
+worked, and what a phone or a window narrower than 1024 pixels does whatever the workspace.
 
-With the pane on the right, the list stays where it is when you open something. The open row is
-marked with a tint and a bar on its leading edge, and the area beside the list says
-*Select a conversation to read it here* until you open one. The back arrow closes the message and
-leaves the list as it was.
+With a Message pane, the list stays where it is when you open something. The open row is marked with
+a tint and a bar on its leading edge, and the Message pane says *Select a conversation to read it
+here* until you open one. The back arrow closes the message and leaves the list as it was.
 
 The open message also stays put while you move around the list. Choosing another folder, switching
 a category tab, turning the page, sorting or searching changes what the list shows and leaves the
 conversation you were reading where it is, so you can look for the next one without losing this one.
 No row is marked while the list shows a folder the message is not in, and the mark comes back when
 you return to its folder. The back arrow then closes the message and leaves you on the folder you
-switched to. With one pane at a time (see below) the message has covered the list, so choosing a
-folder closes it and shows the new list, as it always did.
+switched to. With one pane at a time the message has covered the list, so choosing a folder closes
+it and shows the new list, as it always did.
 
-**The divider** between the two is dragged with the mouse, or moved with the arrow keys once it has
-focus (two percent a step; Home and End go to the ends). A double-click puts it back to the
-default. What is stored is the message's share of the **mail card** — the list and the message
-together, without the sidebar or a docked calendar — as a percentage between 25 and 75, 55 to
-begin with. It is a percentage rather than a width in pixels because the card changes size whenever
-the calendar pane opens, closes or is dragged, and a share keeps its meaning across all of those.
-It is remembered for your account, not for the browser. It is set on the mailbox itself, against
-real mail, and there is no slider for it in Settings.
-
-**It steps aside when there is no room.** Right is a preference, not a promise: it is drawn only
-while the mail card is at least 52rem (832 pixels at the default text size) wide. A narrow window,
-a phone, or a wide window with the calendar docked beside the mail all fall back to one pane at a
-time, with no setting to change. Each pane also keeps a minimum width, so a share of 75% on a card
-only just wide enough gives way before the list becomes a sliver.
-
-The reading pane is not part of an exported theme, although it changes how the mailbox looks: where
-a message is drawn is a decision about the mailbox, not part of a look somebody might share, and
-importing a colour scheme does not rearrange the mail it lands in. **Reset to defaults** on the Appearance page
-leaves it alone for the same reason. A config backup does carry it, so a restore puts the mailbox back the way
-you had it.
+Opening a conversation by its own address — a bookmark, a link — with a Message pane in the
+workspace shows the Inbox beside it, with the conversation marked if it is on that page.
 
 **Keys and ticked rows.** Beside the list a selection and an open conversation can be on screen
 together. A key still goes to the selection first: `e` with two rows ticked archives those two and

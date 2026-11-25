@@ -1071,21 +1071,6 @@ final class TaskControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testThePaneStateIsClampedAndRemembered(): void
-    {
-        $this->client->request('POST', '/tasks/pane-state', [
-            '_token' => $this->token('tasks_pane_state'),
-            'open'   => '1',
-            'width'  => '99999',
-        ]);
-
-        self::assertResponseIsSuccessful();
-        self::assertSame(
-            ['open' => true, 'width' => User::TASKS_PANE_MAX_WIDTH],
-            json_decode((string) $this->client->getResponse()->getContent(), true),
-        );
-    }
-
     /** The session the token lives in, carried by hand, as AccountColourTest does. */
     // ── Transfer to a local list ─────────────────────────────────────────
 

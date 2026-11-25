@@ -1948,13 +1948,6 @@ calendar:
         next: Next
         previous: Previous
     open_day: 'Everything on %date%'
-    pane:
-        close: 'Close the calendar'
-        mode:
-            calendar: Show the calendar full width
-            mail: Show the mail
-            split: Show the calendar beside the mail
-        resize: Resize the calendar
     proposal:
         action:
             add: Add to calendar
@@ -2086,10 +2079,6 @@ calendar:
         range_day: '%day%'
         range_short: '%start%–%end%'
         range_short_month: '%month% %start%–%end%'
-    upcoming:
-        imminent: Starting within the hour
-        later: Coming up today
-        soon: Coming up in a few hours
     view:
         agenda: Agenda
         day: Day
@@ -3153,6 +3142,94 @@ label:
         hidden: Label is now hidden.
         shown: Label is now visible.
 
+layout:
+    divider: "Resize panes"
+    divider_hint: "Drag to resize, double-click to even out"
+    drop:
+        bottom: "Below %pane%"
+        left: "Left of %pane%"
+        replace: "Replace %pane%"
+        right: "Right of %pane%"
+        swap: "Swap with %pane%"
+        top: "Above %pane%"
+    edit:
+        add_below: "Below"
+        add_right: "Right"
+        cancel: "Cancel"
+        delete: "Delete workspace"
+        delete_confirm: "Delete the workspace “%name%”? Your other workspaces stay as they are."
+        grip: "Drag to move this pane"
+        hint: "Click a pane to select it. Drag its grip to move it, or drop a pane from the tray onto an edge."
+        kind: "What this pane shows"
+        name: "Workspace name"
+        percent_high: "%n%% high"
+        percent_wide: "%n%% wide"
+        remove: "Remove pane"
+        save: "Save workspace"
+        title: "Editing"
+        tray: "Add a pane"
+        tray_empty: "Every pane is on screen."
+        tray_hint: "Drop on an edge to split, in the middle to replace. Or click to add beside the selected pane."
+    menu:
+        all_shown: "Every pane is on screen already."
+        close: "Close pane"
+        full_width: "Full width"
+        label: "Pane menu"
+        layout: "Layout"
+        layout_title: "Workspaces and layouts (⌥L)"
+        move: "Move"
+        move_down: "Down"
+        move_left: "Left"
+        move_right: "Right"
+        move_up: "Up"
+        restore: "Back to the layout"
+        show_instead: "Show instead"
+        show_instead_heading: "Show in this pane"
+        split_col: "Split below"
+        split_col_heading: "New pane below"
+        split_row: "Split right"
+        split_row_heading: "New pane to the right"
+    pane:
+        calendar: "Calendar"
+        contacts: "Contacts"
+        list: "Mail list"
+        message: "Message"
+        tasks: "Tasks"
+    presets:
+        apply: "Use for this workspace"
+        back: "Back"
+        edit: "Edit this workspace"
+        new: "New workspace"
+        save_new: "Save as new workspace"
+        shape:
+            four: "Four"
+            list_stack: "List + stack"
+            list_stack_side: "List, stack, side"
+            one: "One pane"
+            rows: "Above and below"
+            side: "Side by side"
+            three: "Three columns"
+            top_two: "Top + two"
+        shapes: "Start from a shape"
+        slots: "What goes where"
+        workspaces: "Workspaces"
+    tabs:
+        label: "Panes"
+    toast:
+        all_shown: "Every pane is on screen already."
+        applied: "Layout changed."
+        at_edge: "That pane is already at that edge."
+        deleted: "Deleted “%name%”."
+        edit_first: "Save or cancel the workspace you are editing first."
+        no_list: "This workspace has no mail list, so the list is shown at full width."
+        no_room: "Not enough room beside %pane%. Make it bigger first, or close a pane."
+        only_pane: "This is the only pane. Pick something else for it with Show instead."
+        save_failed: "The layout could not be saved. It stays as it is on this page; reload to see the saved one."
+        saved: "Saved “%name%”."
+    workspace:
+        first_name: "Mail"
+        new_name: "Workspace %n%"
+        tabs_label: "Workspaces"
 list:
     conversation_view: 'Conversation view'
     sort:
@@ -3572,7 +3649,6 @@ profile:
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
-    handle: Resize the message pane
     placeholder: Select a conversation to read it here
 
 # Said in a toast when a request fails and there is no better place to say it;
@@ -4908,22 +4984,6 @@ settings:
         test_failed: 'Connection test failed'
         test_ok: 'Connection is working'
         unavailable_heading: 'Not available here'
-    calendar_behaviour:
-        button: Calendar button
-        button_hint: 'Which views the button in the top bar steps through. A view it leaves out is not removed: the drag handle still reaches it.'
-        heading: Behaviour
-        option_calendar: Split only
-        option_none: All three
-        option_split: Full width only
-        subheading: 'How the calendar button in the top bar moves between views.'
-    contacts_behaviour:
-        button: 'Contacts button'
-        button_hint: 'Which views the button in the top bar steps through. A view it leaves out is not removed: the drag handle still reaches it.'
-        heading: 'Behaviour'
-        option_contacts: 'Beside mail only'
-        option_none: 'All three'
-        option_split: 'Full width only'
-        subheading: 'How the contacts button in the top bar moves between views.'
     contacts:
         allow_contacts: 'Allow contacts'
         allow_contacts_hint: 'Connected before plMail asked for contacts. Sign in once more and allow them, and this account''s address book appears here.'
@@ -5300,7 +5360,6 @@ settings:
             pinning: 'pin pinned thumbtack sticky top reminder'
             profile: "name avatar photo picture"
             read_receipts: "mdn receipt confirmation bcc copy backup always"
-            reading_pane: "preview split right bottom"
             sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender'
             sharing: "link public booking"
             shortcuts: "keyboard hotkeys keys"
@@ -5392,13 +5451,6 @@ settings:
         subheading: 'What you sign in with. Only you can change it — not even an administrator can set it for you.'
         submit: Change password
         submitting: Saving…
-    reading_pane:
-        heading: Reading pane
-        hint: 'Off shows the list and the message one at a time. Right puts the message beside the list when the window has room for both — drag the divider between them to choose how much each gets.'
-        label: 'Show the open message'
-        off: Off
-        right: Right
-        subheading: 'Where a conversation opens: in place of the list, or beside it.'
     security:
         codes:
             copy: Copy codes
@@ -5671,6 +5723,8 @@ shortcuts:
         anywhere: "Anywhere"
         conversation: "In a conversation"
         list: "In a list"
+        panes: "Panes and workspaces"
+        panes_hint: "Alt is ⌥ on a Mac. These work with single-key shortcuts off too."
     keys:
         archive: "Archive"
         back: "Back to the list"
@@ -5685,12 +5739,19 @@ shortcuts:
         go_starred: "Go to Starred"
         help: "Show this list"
         label: "Label as"
+        layout_menu: "Layout menu"
         mark_read: "Mark as read"
         mark_unread: "Mark as unread"
         move: "Move to"
         next: "Down one conversation"
         next_conversation: "Open the next conversation"
         open: "Open the highlighted conversation"
+        pane_close: "Close the pane"
+        pane_focus: "Focus the next pane that way"
+        pane_full_width: "Full width, and back"
+        pane_move: "Move the pane that way"
+        pane_split_below: "Split the pane below"
+        pane_split_right: "Split the pane right"
         pin: 'Pin or unpin'
         previous: "Up one conversation"
         previous_conversation: "Open the previous conversation"
@@ -5707,6 +5768,8 @@ shortcuts:
         spam: "Mark as spam"
         star: "Star or unstar"
         undo: "Undo the last action"
+        workspace_edit: "Edit the workspace"
+        workspace_switch: "Switch workspace"
     or: "or"
     switched_off: "Shortcuts are switched off for you. Switch them on under Settings → General → Layout & controls."
     then: "then"
@@ -6203,13 +6266,6 @@ contacts:
     no_subject: '(no subject)'
     notes: Notes
     page: 'Page %page%'
-    pane:
-        close: 'Close contacts'
-        mode:
-            contacts: 'Show contacts full width'
-            mail: 'Hide contacts'
-            split: 'Show contacts beside the mail'
-        resize: 'Resize contacts'
     pending: 'Waiting to be sent to the server'
     phone_placeholder: '+1 555 010 2030'
     phonetic: 'Phonetic spelling'
@@ -6384,10 +6440,6 @@ tasks:
     read_only: 'This list is read-only, so its tasks can''t be changed here.'
     saved: 'Task saved.'
     deleted: 'Task deleted.'
-    pane:
-        close: 'Close tasks'
-        resize: 'Resize the tasks'
-        toggle: 'Tasks'
     section:
         loading: 'Loading…'
         more: 'Show more'

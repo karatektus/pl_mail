@@ -1744,13 +1744,6 @@ calendar:
         next: 下一个
         previous: 上一个
     open_day: '%date% 的所有日程'
-    pane:
-        close: '关闭日历'
-        mode:
-            calendar: 全宽显示日历
-            mail: 显示邮件
-            split: 并排显示日历与邮件
-        resize: 调整日历大小
     proposal:
         action:
             add: 添加到日历
@@ -1859,10 +1852,6 @@ calendar:
         range_day: '%day%'
         range_short: "%start%–%end%"
         range_short_month: "%month% %start%–%end%"
-    upcoming:
-        imminent: 一小时内开始
-        later: 今天稍后
-        soon: 几小时后
     view:
         agenda: 日程列表
         day: 日
@@ -2838,6 +2827,94 @@ label:
     visibility:
         hidden: '标签已隐藏。'
         shown: '标签已显示。'
+layout:
+    divider: "调整窗格大小"
+    divider_hint: "拖动调整大小，双击平分"
+    drop:
+        bottom: "%pane% 下方"
+        left: "%pane% 左侧"
+        replace: "替换 %pane%"
+        right: "%pane% 右侧"
+        swap: "与 %pane% 交换"
+        top: "%pane% 上方"
+    edit:
+        add_below: "下方"
+        add_right: "右侧"
+        cancel: "取消"
+        delete: "删除工作区"
+        delete_confirm: "删除工作区“%name%”？其他工作区保持不变。"
+        grip: "拖动以移动此窗格"
+        hint: "点击窗格以选中它。拖动手柄移动它，或从托盘把窗格拖到边缘。"
+        kind: "此窗格显示的内容"
+        name: "工作区名称"
+        percent_high: "高 %n%%"
+        percent_wide: "宽 %n%%"
+        remove: "移除窗格"
+        save: "保存工作区"
+        title: "编辑中"
+        tray: "添加窗格"
+        tray_empty: "所有窗格都已显示。"
+        tray_hint: "拖到边缘以拆分，拖到中间以替换。或点击添加到所选窗格旁。"
+    menu:
+        all_shown: "所有窗格都已显示。"
+        close: "关闭窗格"
+        full_width: "全宽"
+        label: "窗格菜单"
+        layout: "布局"
+        layout_title: "工作区和布局（⌥L）"
+        move: "移动"
+        move_down: "向下"
+        move_left: "向左"
+        move_right: "向右"
+        move_up: "向上"
+        restore: "返回布局"
+        show_instead: "改为显示"
+        show_instead_heading: "在此窗格中显示"
+        split_col: "向下拆分"
+        split_col_heading: "在下方新建窗格"
+        split_row: "向右拆分"
+        split_row_heading: "在右侧新建窗格"
+    pane:
+        calendar: "日历"
+        contacts: "联系人"
+        list: "邮件列表"
+        message: "邮件"
+        tasks: "任务"
+    presets:
+        apply: "用于此工作区"
+        back: "返回"
+        edit: "编辑此工作区"
+        new: "新建工作区"
+        save_new: "另存为新工作区"
+        shape:
+            four: "四格"
+            list_stack: "列表 + 堆叠"
+            list_stack_side: "列表、堆叠、侧栏"
+            one: "单窗格"
+            rows: "上下"
+            side: "并排"
+            three: "三栏"
+            top_two: "上一下二"
+        shapes: "从形状开始"
+        slots: "各位置显示的内容"
+        workspaces: "工作区"
+    tabs:
+        label: "窗格"
+    toast:
+        all_shown: "所有窗格都已显示。"
+        applied: "布局已更改。"
+        at_edge: "该窗格已在那一侧边缘。"
+        deleted: "已删除“%name%”。"
+        edit_first: "请先保存或取消正在编辑的工作区。"
+        no_list: "此工作区没有邮件列表，因此以全宽显示。"
+        no_room: "%pane% 旁空间不足。请先把它调大，或关闭一个窗格。"
+        only_pane: "这是唯一的窗格。可用“改为显示”换成其他内容。"
+        save_failed: "布局未能保存。此页面保持现状；重新加载可查看已保存的布局。"
+        saved: "已保存“%name%”。"
+    workspace:
+        first_name: "邮件"
+        new_name: "工作区 %n%"
+        tabs_label: "工作区"
 list:
     conversation_view: '会话视图'
     sort:
@@ -3202,7 +3279,6 @@ profile:
         name_first: '名'
         name_last: '姓'
 reading_pane:
-    handle: '调整邮件窗格大小'
     placeholder: '选择会话，在此阅读'
 request_error:
     copy_reference: '复制参考编号'
@@ -4288,22 +4364,6 @@ settings:
         test_failed: '连接测试失败'
         test_ok: '连接正常'
         unavailable_heading: '此处不可用'
-    calendar_behaviour:
-        button: '日历按钮'
-        button_hint: '顶栏按钮循环切换的视图。未包含的视图不会被移除，仍可通过拖动手柄访问。'
-        heading: '行为'
-        option_calendar: '仅分栏'
-        option_none: '全部三种'
-        option_split: '仅全宽'
-        subheading: '顶栏日历按钮在各视图之间切换的方式。'
-    contacts_behaviour:
-        button: "联系人按钮"
-        button_hint: "顶栏按钮依次切换哪些视图。未包含的视图不会被移除，仍可通过拖动手柄切换到该视图。"
-        heading: "行为"
-        option_contacts: "仅在邮件旁显示"
-        option_none: "全部三种"
-        option_split: "仅全宽显示"
-        subheading: "顶栏联系人按钮如何切换视图。"
     contacts:
         allow_contacts: "允许访问联系人"
         allow_contacts_hint: "连接时 plMail 尚未请求联系人权限。请重新登录一次并允许访问，其通讯录就会出现在这里。"
@@ -4621,7 +4681,6 @@ settings:
             pinning: '置顶 固定 图钉 提醒 pin'
             profile: "姓名 头像 照片"
             read_receipts: "mdn 已读回执 确认 密送 bcc 副本 备份"
-            reading_pane: "预览 分栏 右侧 下方"
             sender_pictures: '头像 图片 照片 gravatar libravatar bimi 标志 图标 发件人'
             sharing: "链接 公开 预约"
             shortcuts: "键盘 按键 快捷键"
@@ -4695,13 +4754,6 @@ settings:
         subheading: '用于登录的密码。只有你能更改，管理员也无法代为设置。'
         submit: '更改密码'
         submitting: "正在保存…"
-    reading_pane:
-        heading: '阅读面板'
-        hint: '关闭时，列表与邮件分别显示。选择“右侧”后，窗口空间足够时，邮件会显示在列表旁；拖动中间的分隔线可调整两侧宽度。'
-        label: '已打开邮件的显示位置'
-        off: '关闭'
-        right: '右侧'
-        subheading: '会话打开的位置：替代列表，或显示在列表旁。'
     security:
         codes:
             copy: '复制恢复码'
@@ -4948,6 +5000,8 @@ shortcuts:
         anywhere: '任何位置'
         conversation: '会话中'
         list: '列表中'
+        panes: "窗格和工作区"
+        panes_hint: "在 Mac 上 Alt 即 ⌥。关闭单键快捷键时这些仍然有效。"
     keys:
         archive: '归档'
         back: '返回列表'
@@ -4962,12 +5016,19 @@ shortcuts:
         go_starred: '前往星标邮件'
         help: '显示此列表'
         label: '添加标签'
+        layout_menu: "布局菜单"
         mark_read: '标为已读'
         mark_unread: '标为未读'
         move: '移至'
         next: '向下移动一个会话'
         next_conversation: '打开下一个会话'
         open: '打开高亮的会话'
+        pane_close: "关闭窗格"
+        pane_focus: "聚焦该方向的下一个窗格"
+        pane_full_width: "全宽，再切回"
+        pane_move: "向该方向移动窗格"
+        pane_split_below: "向下拆分窗格"
+        pane_split_right: "向右拆分窗格"
         pin: '置顶或取消置顶'
         previous: '向上移动一个会话'
         previous_conversation: '打开上一个会话'
@@ -4984,6 +5045,8 @@ shortcuts:
         spam: '标为垃圾邮件'
         star: '添加或移除星标'
         undo: '撤销上一步操作'
+        workspace_edit: "编辑工作区"
+        workspace_switch: "切换工作区"
     or: '或'
     switched_off: "你已关闭快捷键。可在设置 → 常规 → 布局与操作中开启。"
     then: '然后'
@@ -5431,13 +5494,6 @@ contacts:
     no_subject: "（无主题）"
     notes: "备注"
     page: "第 %page% 页"
-    pane:
-        close: "关闭联系人"
-        mode:
-            contacts: "全宽显示联系人"
-            mail: "隐藏联系人"
-            split: "在邮件旁显示联系人"
-        resize: "调整联系人区域大小"
     pending: "等待发送到服务器"
     phone_placeholder: "+1 555 010 2030"
     phonetic: "注音"
@@ -5612,10 +5668,6 @@ tasks:
     read_only: '此列表为只读,无法在此更改其任务。'
     saved: '任务已保存。'
     deleted: '任务已删除。'
-    pane:
-        close: '关闭任务'
-        resize: '调整任务宽度'
-        toggle: '任务'
     section:
         loading: '正在加载…'
         more: '显示更多'

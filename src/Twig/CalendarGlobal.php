@@ -7,14 +7,12 @@ namespace App\Twig;
 use App\Domain\DTO\Calendar\HappeningSoonRow;
 use App\Entity\User\User;
 use App\Service\Calendar\HappeningSoonReader;
-use App\Service\Calendar\UpcomingEventIndicator;
-use DateTimeImmutable;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
- * What the topbar's calendar button needs to know, for a partial that cannot be
- * handed it.
+ * What the topbar's "Happening soon" button needs to know, for a partial that
+ * cannot be handed it.
  *
  * The topbar renders on every authenticated page from a layout, so there is no
  * controller in the middle to thread a variable through — the same reason
@@ -26,19 +24,13 @@ use Symfony\Contracts\Service\ResetInterface;
  */
 class CalendarGlobal implements ResetInterface
 {
-    private bool $resolved = false;
-
-    /** @var array{state: string, startsAt: DateTimeImmutable, title: string}|null */
-    private ?array $upcoming = null;
-
     private bool $soonestResolved = false;
 
     private ?HappeningSoonRow $soonest = null;
 
     public function __construct(
-        private readonly UpcomingEventIndicator $indicator,
-        private readonly HappeningSoonReader    $happeningSoon,
-        private readonly Security               $security,
+        private readonly HappeningSoonReader $happeningSoon,
+        private readonly Security            $security,
     ) {
     }
 
@@ -48,31 +40,8 @@ class CalendarGlobal implements ResetInterface
      */
     public function reset(): void
     {
-        $this->resolved        = false;
-        $this->upcoming        = null;
         $this->soonestResolved = false;
         $this->soonest         = null;
-    }
-
-    /**
-     * The next thing still to come today, or null.
-     *
-     * @return array{state: string, startsAt: DateTimeImmutable, title: string}|null
-     */
-    public function getUpcoming(): ?array
-    {
-        if (true === $this->resolved) {
-            return $this->upcoming;
-        }
-
-        $this->resolved = true;
-        $user           = $this->security->getUser();
-
-        if (true === $user instanceof User) {
-            $this->upcoming = $this->indicator->forUser($user);
-        }
-
-        return $this->upcoming;
     }
 
     /**
