@@ -21,8 +21,10 @@ use App\Service\Mail\SyncNotifier;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Mercure\HubInterface;
@@ -52,9 +54,14 @@ final class GmailSkippedMessageTest extends KernelTestCase
     /** How many requests the handler made of Gmail. */
     private int $requests = 0;
 
+    /** What the handler logged. */
+    private BufferingLogger $log;
+
     protected function setUp(): void
     {
         self::bootKernel();
+
+        $this->log = new BufferingLogger();
 
         $container        = self::getContainer();
         $this->em         = $container->get(EntityManagerInterface::class);
@@ -127,6 +134,38 @@ final class GmailSkippedMessageTest extends KernelTestCase
         self::assertCount(1, $rows);
         self::assertSame(GmailSkipReason::Unfetchable, $rows[0]->reason);
         self::assertSame([], $rows[0]->headers);
+    }
+
+    /**
+     * Deleted in Gmail before it was fetched — a draft's earlier autosave, mail
+     * a filter removed — is the everyday case and says nothing is wrong, so it
+     * is noted, not warned about. Anything else Gmail will not hand over is a
+     * request it would not take, and warns with the status it answered.
+     * Either way the message is recorded and not asked for again.
+     */
+    #[DataProvider('unfetchableStatuses')]
+    public function testAnUnfetchableMessageIsLoggedByWhatGmailAnswered(int $status, string $level, string $line): void
+    {
+        $this->handle([], to: '', status: $status);
+
+        $logged = array_values(array_filter(
+            $this->log->cleanLogs(),
+            static fn (array $entry): bool => str_starts_with((string) $entry[1], 'SyncGmailMessageBatch: messages'),
+        ));
+
+        self::assertCount(1, $logged);
+        self::assertSame($level, $logged[0][0]);
+        self::assertSame($line, $logged[0][1]);
+        self::assertStringContainsString(self::GMAIL_ID, json_encode($logged[0][2], JSON_THROW_ON_ERROR));
+        self::assertSame(GmailSkipReason::Unfetchable, $this->skipped->findForAccount($this->account)[0]->reason);
+    }
+
+    /** @return iterable<string, array{int, string, string}> */
+    public static function unfetchableStatuses(): iterable
+    {
+        yield 'not found'   => [404, 'info', 'SyncGmailMessageBatch: messages deleted in Gmail before they were fetched, skipping'];
+        yield 'gone'        => [410, 'info', 'SyncGmailMessageBatch: messages deleted in Gmail before they were fetched, skipping'];
+        yield 'bad request' => [400, 'warning', 'SyncGmailMessageBatch: messages permanently unfetchable, skipping'];
     }
 
     /**
@@ -583,7 +622,7 @@ final class GmailSkippedMessageTest extends KernelTestCase
             $container->get('App\Service\Mail\PostIngestPipeline'),
             $this->em,
             $container->get('App\Jmap\State\StateManager'),
-            new NullLogger(),
+            $this->log,
             $container->get('App\Service\Label\ThreadLabelSynchronizer'),
             $container->get('App\Service\Mail\ThreadStatusUpdater'),
             $container->get('App\Service\Mail\MessageCategorizer'),
