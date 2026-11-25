@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:23ed96492efacd6f213489e63de7c8aaca465619 -->
+<!-- translated-from: features/clients.md sha1:9ae3d6de34acfd55748c3340b95d40748119c442 -->
 
 # Andere Clients
 
@@ -163,6 +163,13 @@ dieser Option wartet nach dem Push zwanzig Sekunden und fragt, ob Post aus den l
 Minuten, die unter ein angehaktes Kästchen fällt, noch ungelesen ist. Wenn nicht, zeigt er nichts an
 und nimmt eine Benachrichtigung zurück, die er für frühere Post gezeigt hatte. Alte ungelesene Post
 zählt nicht, ebenso wenig ungelesene Post in einem Tab oder Label, das du nicht angehakt hast.
+
+**Ungelesene am Symbol des Browser-Tabs** (standardmäßig aus) setzt die Zahl der ungelesenen
+Unterhaltungen in deinem Posteingang, alle Konten zusammen, in die rechte untere Ecke des Symbols von
+plMail im Browser-Tab, schwarz mit dünnem weißem Rand, damit auch ein angehefteter Tab sie zeigt.
+Über 99 steht dort 99+. Gezählt wird der Posteingang, egal welcher Ordner offen ist; die Zahl bleibt
+aktuell, während der Tab im Hintergrund liegt, und braucht keinen Push: Sie funktioniert auch mit
+ausgeschalteten Benachrichtigungen. Wie die Kästchen oben gilt sie für alle deine Browser.
 
 Zwei andere Arten von Push gehen an dieselben Geräte und sind nicht betroffen: eine Erinnerung aus
 den [Kalender-Erinnerungen](calendar-alerts.md) und der Hinweis, den ein Administrator bekommt, wenn

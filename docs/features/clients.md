@@ -149,6 +149,12 @@ asks whether mail from the last fifteen minutes that falls under a ticked box is
 not, it shows nothing, and it takes down a notification it had shown for earlier mail. Old unread
 mail does not count, and neither does unread mail in a tab or label you did not tick.
 
+**Unread count on the browser tab icon** (off by default) puts the number of unread conversations
+in your Inbox, all accounts together, in the bottom right corner of plMail's icon in the browser
+tab, black with a thin white outline, so a pinned tab shows it too. Past 99 it says 99+. It counts
+the Inbox whichever folder is open, keeps up while the tab is in the background, and needs no push:
+it works with notifications off. Like the boxes above, it applies to every browser of yours.
+
 Two other kinds of push go to the same devices and are not affected: a reminder from
 [Calendar alerts](calendar-alerts.md), and the notice an administrator gets when a newer plMail is
 available. Apps that register through JMAP (`PushSubscription/set`), and an Android phone through
