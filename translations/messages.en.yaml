@@ -58,6 +58,7 @@ account:
         services:
             help: 'The next screen only asks for what you tick. You can change it later in Settings → Accounts.'
             legend: 'Use this account for'
+            tasks_microsoft: '(Microsoft To Do)'
     primary_set: Primary account changed
     removal_started: 'Removing the account. Its mail goes in the background; the server keeps its copy.'
     removed: Account removed
@@ -68,6 +69,9 @@ account:
         contacts:
             off: 'Contacts switched off'
             on: 'Contacts switched on'
+        tasks:
+            off: 'Tasks switched off'
+            on: 'Tasks switched on'
         mail:
             off: 'Receiving switched off. What is already here stays.'
             on: 'Receiving switched on'
@@ -838,7 +842,7 @@ admin:
                 Without it, mail keeps working and calendars simply do not
                 appear.
             consent_heading: 'If your organisation approves apps for its users'
-            consent_microsoft: 'Some Microsoft 365 organisations do not let users approve apps themselves: an administrator approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval does not cover, so Microsoft refuses every sign-in to plMail, mail included, until it is approved again. Before anyone signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and organisations where users approve apps themselves, are not affected.'
+            consent_microsoft: 'Some Microsoft 365 organisations do not let users approve apps themselves: an administrator approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval does not cover, so Microsoft refuses every sign-in to plMail, mail included, until it is approved again. Before anyone signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Tasks.ReadWrite is asked for only when an account''s Tasks switch is turned on, and is refused the same way until it is approved. Personal Microsoft accounts, and organisations where users approve apps themselves, are not affected.'
             contacts_google: >-
                 Enable the Google People API for this project and add the
                 .../auth/contacts scope to the consent screen — users then get
@@ -846,6 +850,8 @@ admin:
                 are asked once, in their settings, to sign in again. Without it,
                 mail and calendars keep working and contacts simply do not
                 appear.
+            tasks_heading: 'Microsoft To Do uses this same app'
+            tasks_microsoft: 'Add the Tasks.ReadWrite delegated permission to this app registration — users then get their To Do lists with the same sign-in. Accounts connected before are asked once, in their settings, to sign in again. Without it, mail, calendars and contacts keep working and To Do lists simply cannot be subscribed to.'
             contacts_heading: 'Contact sync uses this same app'
             contacts_microsoft: >-
                 Add the Contacts.ReadWrite delegated permission to this app
@@ -3913,6 +3919,8 @@ settings:
             close: 'Done'
             contacts: 'Contacts'
             contacts_help: 'Its address books, kept in step both ways'
+            tasks: 'Tasks'
+            tasks_help: 'Its Microsoft To Do lists, kept in step both ways'
             intro: 'Switch off what you do not use this account for. plMail then stops talking to the server about it and keeps what is already here.'
             mail: 'Receive mail'
             mail_help: 'Syncing its mail and every change you make to it'
@@ -4559,6 +4567,9 @@ settings:
                     are not affected. Sign in once more and allow contacts, and
                     its address book appears under Contacts.
                 title: 'Connect %account% again to sync its contacts'
+            account_tasks_scope_missing:
+                body: 'plMail can now sync this account''s Microsoft To Do lists, but %account% was connected before it asked for them. Mail, calendars and contacts are not affected. Sign in once more and allow tasks, and its lists can be subscribed to under Tasks.'
+                title: 'Connect %account% again to sync its Microsoft To Do lists'
             account_scope_missing:
                 body: >-
                     Some of the permissions plMail asked for when this account
@@ -4724,6 +4735,9 @@ settings:
                 promise: >-
                     Tries the abandoned jobs once more. Safe to press — any
                     that fail again simply end up back here.
+            grant_tasks:
+                label: 'Allow tasks'
+                promise: 'Takes you back to the provider to sign in as %account% and allow tasks. Nothing about your mail changes, and no mail is re-downloaded.'
             grant_contacts:
                 label: 'Allow contacts'
                 promise: >-
@@ -6352,3 +6366,136 @@ contacts:
         unsure_one: 'Where does this line go?'
         use_as: 'Use as…'
         you_placed: 'You placed this line'
+tasks:
+    occurrence_undone: 'Tick undone.'
+    added: 'Task added.'
+    completed: 'Task completed.'
+    reopened: 'Task reopened.'
+    moved: 'Task moved.'
+    step_completed: 'Step completed.'
+    step_reopened: 'Step reopened.'
+    advanced: 'Done. The task moved to its next date.'
+    advanced_remote: 'Done. Microsoft To Do moves it to its next date once the change arrives.'
+    title: 'Tasks'
+    default_list: 'Tasks'
+    new: 'New task'
+    my_day: 'My Day'
+    quick_add: 'Add a task'
+    read_only: 'This list is read-only, so its tasks can''t be changed here.'
+    saved: 'Task saved.'
+    deleted: 'Task deleted.'
+    pane:
+        close: 'Close tasks'
+        resize: 'Resize the tasks'
+        toggle: 'Tasks'
+    section:
+        loading: 'Loading…'
+        more: 'Show more'
+        overdue: 'Overdue'
+        today: 'Today'
+        upcoming: 'Upcoming'
+        no_date: 'No date'
+        completed: 'Completed'
+        pending: 'Pending'
+    empty:
+        my_day: 'Nothing for today. Tasks due, starting or reminding today show up here.'
+        list: 'No tasks here.'
+    row:
+        steps: '%done% of %total%'
+        steps_toggle: 'Steps of “%title%”'
+        repeats: 'Repeats'
+        complete: 'Mark “%title%” as completed'
+        reopen: 'Mark “%title%” as not completed'
+        edit: 'Edit “%title%”'
+    editor:
+        reminder: 'Remind me'
+        reminder_hint: 'Sent as a browser or phone notification, once notifications are on.'
+        repeat: 'Repeat'
+        repeat_none: 'Does not repeat'
+        repeat_daily: 'Every day'
+        repeat_weekly: 'Every week'
+        repeat_monthly: 'Every month'
+        repeat_yearly: 'Every year'
+        repeat_keep: 'Keep the current schedule'
+        repeat_hint: 'Ticking it off moves it to its next date in the future.'
+        steps: 'Steps'
+        step_add: 'Add a step'
+        step_done: 'Step done'
+        step_title: 'Step'
+        step_remove: 'Remove this step'
+        step_delete: 'Delete step “%title%”'
+        new: 'New task'
+        edit: 'Edit task'
+        title: 'Title'
+        title_required: 'Enter a title — a task without one can''t be told from the others.'
+        notes: 'Notes'
+        list: 'List'
+        due_date: 'Due date'
+        due_time: 'Time (optional)'
+        due_day_only: 'Microsoft To Do keeps the day only, so a due date here has no time. Use a reminder for the time.'
+        save: 'Save'
+        delete: 'Delete'
+    lists:
+        move_down: 'Move “%name%” down'
+        move_up: 'Move “%name%” up'
+        reorder: 'Drag to change the order'
+        landing: 'New tasks land here'
+        landing_set: 'New tasks now land in %name%.'
+        make_landing: 'Put new tasks in “%name%”'
+        manage: 'Lists'
+        settings: 'Task settings'
+        back: 'Back to lists'
+        synced: 'Synced'
+        done: 'Done'
+        edit_named: 'Edit “%name%”'
+        delete_named: 'Delete “%name%”'
+        sync_failed: 'This list could not be synced:'
+        label: 'Task lists'
+        all: 'All'
+        new: 'New list'
+        edit: 'Edit list'
+        name: 'Name'
+        name_required: 'Enter a name for the list.'
+        color: 'Colour'
+        read_only: 'Read-only'
+        saved: 'List saved.'
+        deleted: 'List deleted.'
+        delete_confirm: 'Delete “%name%” and every task on it?'
+        default_hint: 'New tasks land here when nothing else was picked, so this list can''t be deleted.'
+        synced_hint: 'This list is synced, so its name comes from the server. The colour is yours.'
+        transferred: '%count% task moved to “%name%”.|%count% tasks moved to “%name%”.'
+    transfer:
+        title: 'Transfer to a local list'
+        open_named: 'Transfer “%name%” to a local list'
+        what: '“%name%” has %open% open and %finished% finished tasks.'
+        target: 'Move them to'
+        new_list: 'A new list “%name%”'
+        moves: 'Every task moves, open and finished, with its steps, notes, dates, repeat, reminder and files.'
+        remote_kept: 'Nothing is deleted on the server. The tasks stay there as they are.'
+        unsubscribes: 'plMail stops syncing “%name%” afterwards, so nothing shows up twice.'
+        foreign: 'Details only other apps understand, such as links to other items, are not kept.'
+        submit: 'Transfer'
+        submit_stale: 'Transfer anyway'
+        pull_failed: 'The latest changes could not be read from the server:'
+        stale_since: 'You can transfer what plMail has, as of its last sync on %date%. Changes made elsewhere since then are not included.'
+        stale: 'You can transfer what plMail has. Changes made elsewhere are not included.'
+    subscribe:
+        color: 'Colour of %name%'
+        title: 'Sync lists from a server'
+        intro: 'Tick the task lists on %name% to keep in sync with plMail.'
+        empty: '%name% has no task lists.'
+        saved: 'Task lists updated. Their tasks are on their way.'
+        pick_source: 'Pick the connection to look for task lists on.'
+        no_sources: 'There is no connection to sync tasks from yet. Connect a CalDAV server under Settings → Calendars first.'
+        open_settings: 'Open the calendar settings'
+        untick_hint: 'Unticking a list removes it and its tasks from plMail. They stay on the server.'
+    alert:
+        untitled: 'Task'
+        due: 'Due %when%'
+        reminder: 'Reminder'
+    attachments:
+        heading: 'Files'
+        add: 'Choose a file'
+        delete: 'Delete “%name%”'
+        limit: 'Up to 25 MB. On a synced list, other apps get a link that needs a plMail sign-in.'
+        too_large: 'That file could not be taken. Files can be up to 25 MB.'

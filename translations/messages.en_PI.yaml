@@ -58,6 +58,7 @@ account:
         services:
             help: 'The next screen only asks for what ye tick. Ye can change it later under Settings → Accounts.'
             legend: 'Sail this ship for'
+            tasks_microsoft: '(Microsoft To Do)'
     primary_set: A new flagship be named
     removal_started: 'Scuttlin’ this ship. Her letters go overboard below decks; the far port keeps its copy.'
     removed: Crew member put ashore
@@ -68,6 +69,9 @@ account:
         contacts:
             off: 'Crew roster be lashed shut'
             on: 'Crew roster be open again'
+        tasks:
+            off: 'Tasks struck'
+            on: 'Tasks hoisted'
         mail:
             off: 'Receivin’ becalmed. What’s aboard stays aboard.'
             on: 'Receivin’ under way'
@@ -781,7 +785,7 @@ admin:
                 come aboard with the same boardin' they already use for mail.
                 Without it, mail sails on an' the almanacs simply never appear.
             consent_heading: 'If yer fleet approves apps for its crew'
-            consent_microsoft: 'Some Microsoft 365 fleets don''t let the crew approve apps themselves: an admiral approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval don''t cover, so Microsoft turns away every sign-in to plMail, mail and all, till it be approved again. Before any hand signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and fleets where the crew approve apps themselves, be not affected.'
+            consent_microsoft: 'Some Microsoft 365 fleets don''t let the crew approve apps themselves: an admiral approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval don''t cover, so Microsoft turns away every sign-in to plMail, mail and all, till it be approved again. Before any hand signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Tasks.ReadWrite be asked for only when an account''s Tasks switch be thrown, and it be turned away the same till it be approved. Personal Microsoft accounts, and fleets where the crew approve apps themselves, be not affected.'
             contacts_google: >-
                 Hoist the Google People API for this project and add the
                 .../auth/contacts scope to the consent screen — the crew then
@@ -789,6 +793,8 @@ admin:
                 came aboard earlier are asked once, in their settings, to sign
                 in again. Without it, post and almanacs sail on and the
                 shipmates simply stay ashore.
+            tasks_heading: 'Microsoft To Do sails under this same charter'
+            tasks_microsoft: 'Add the Tasks.ReadWrite delegated permission to this app registration — the crew then get their To Do lists with the same sign-in. Accounts that came aboard before are asked once, in their settings, to sign in again. Without it, mail, charts and shipmates sail on and To Do lists simply cannot be mustered.'
             contacts_heading: 'The crew rolls sail under this same charter'
             contacts_microsoft: >-
                 Add the Contacts.ReadWrite delegated permission to this app
@@ -3761,6 +3767,8 @@ settings:
             close: 'Aye'
             contacts: 'Crew roster'
             contacts_help: 'Its crew rosters, kept true both ways'
+            tasks: 'Tasks'
+            tasks_help: 'Its Microsoft To Do lists, kept true both ways'
             intro: 'Furl what ye don’t sail this ship for. plMail then stops hailin’ the far port about it an’ keeps what’s already aboard.'
             mail: 'Receive letters'
             mail_help: 'Fetchin’ its letters an’ every change ye make to ’em'
@@ -4387,6 +4395,9 @@ settings:
                     on unharmed. Sign aboard once more and allow the shipmates,
                     and the crew roll appears under Shipmates.
                 title: 'Bring %account% aboard again to muster its shipmates'
+            account_tasks_scope_missing:
+                body: 'plMail can now keep this vessel''s Microsoft To Do lists, but %account% came aboard before it asked. Post, charts and shipmates sail on unharmed. Sign aboard once more and allow the tasks, and its lists can be mustered under Tasks.'
+                title: 'Bring %account% aboard again to muster its Microsoft To Do lists'
             account_scope_missing:
                 body: >-
                     Some leave plMail asked for when ye signed this account on
@@ -4543,6 +4554,9 @@ settings:
                 promise: >-
                     Tries th'' abandoned tasks once more. Safe t'' press — any
                     that fail again just wash back up here.
+            grant_tasks:
+                label: 'Allow the tasks'
+                promise: 'Sends ye back to the harbourmaster to sign aboard as %account% and allow the tasks. Yer post stays as it is, and nothing is hauled aboard twice.'
             grant_contacts:
                 label: 'Allow the shipmates'
                 promise: >-
@@ -6123,3 +6137,136 @@ contacts:
         unsure_one: 'Where does this line belong?'
         use_as: 'Use as…'
         you_placed: 'Ye berthed this line'
+tasks:
+    occurrence_undone: 'Tick undone.'
+    added: 'Task added.'
+    completed: 'Task done.'
+    reopened: 'Task reopened.'
+    moved: 'Task moved to another hold.'
+    step_completed: 'Step done.'
+    step_reopened: 'Step reopened.'
+    advanced: 'Done. The task moved to its next date.'
+    advanced_remote: 'Done. Microsoft To Do moves it to its next date once the word reaches it.'
+    title: 'Tasks to do'
+    default_list: 'Tasks to do'
+    new: 'New task'
+    my_day: 'Me Day'
+    quick_add: 'Add a task'
+    read_only: 'This list be read-only, so its tasks can''t be changed here.'
+    saved: 'Task stowed.'
+    deleted: 'Task sent overboard.'
+    pane:
+        close: 'Close tasks'
+        resize: 'Resize the tasks'
+        toggle: 'Tasks to do'
+    section:
+        loading: 'Haulin'' it aboard…'
+        more: 'Show more'
+        overdue: 'Overdue'
+        today: 'Today'
+        upcoming: 'On the horizon'
+        no_date: 'No date'
+        completed: 'Done'
+        pending: 'Pending'
+    empty:
+        my_day: 'Nothin'' for today. Tasks due, startin'' or remindin'' today show up here.'
+        list: 'No tasks here.'
+    row:
+        steps: '%done% of %total%'
+        steps_toggle: 'Steps of “%title%”'
+        repeats: 'Repeats'
+        complete: 'Mark “%title%” as done'
+        reopen: 'Mark “%title%” as not done'
+        edit: 'Edit “%title%”'
+    editor:
+        reminder: 'Remind me'
+        reminder_hint: 'Sent as a browser or phone notification, once notifications be on.'
+        repeat: 'Repeat'
+        repeat_none: 'Does not repeat'
+        repeat_daily: 'Every day'
+        repeat_weekly: 'Every week'
+        repeat_monthly: 'Every month'
+        repeat_yearly: 'Every year'
+        repeat_keep: 'Keep the current schedule'
+        repeat_hint: 'Tickin'' it off moves it to its next date in the future.'
+        steps: 'Steps'
+        step_add: 'Add a step'
+        step_done: 'Step done'
+        step_title: 'Step'
+        step_remove: 'Toss this step overboard'
+        step_delete: 'Scuttle step “%title%”'
+        new: 'New task'
+        edit: 'Edit task'
+        title: 'Title'
+        title_required: 'Enter a title — a task without one can''t be told from the others.'
+        notes: 'Notes'
+        list: 'Hold'
+        due_date: 'Due date'
+        due_time: 'Time (optional)'
+        due_day_only: 'Microsoft To Do keeps the day only, so a due date here has no hour. Use a reminder for the hour.'
+        save: 'Stow'
+        delete: 'Scuttle'
+    lists:
+        move_down: 'Lower “%name%” down'
+        move_up: 'Hoist “%name%” up'
+        reorder: 'Drag to change the order'
+        landing: 'New tasks come aboard here'
+        landing_set: 'New tasks now come aboard in %name%.'
+        make_landing: 'Stow new tasks in “%name%”'
+        manage: 'Lists'
+        settings: 'Task settings'
+        back: 'Back to the lists'
+        synced: 'Synced'
+        done: 'Done'
+        edit_named: 'Edit “%name%”'
+        delete_named: 'Scuttle “%name%”'
+        sync_failed: 'This list could not be synced:'
+        label: 'Task lists'
+        all: 'All'
+        new: 'New list'
+        edit: 'Edit list'
+        name: 'Name'
+        name_required: 'Enter a name for the list.'
+        color: 'Colour'
+        read_only: 'Read-only'
+        saved: 'List stowed.'
+        deleted: 'List sent overboard.'
+        delete_confirm: 'Scuttle “%name%” and every task aboard?'
+        default_hint: 'New tasks land here when nothin'' else was picked, so this list can''t be scuttled.'
+        synced_hint: 'This list be synced, so its name comes from the server. The colour be yers.'
+        transferred: 'Hauled %count% task over to “%name%”.|Hauled %count% tasks over to “%name%”.'
+    transfer:
+        title: 'Haul to a local list'
+        open_named: 'Haul “%name%” to a local list'
+        what: '“%name%” holds %open% open an’ %finished% finished tasks.'
+        target: 'Haul ’em to'
+        new_list: 'A fresh list “%name%”'
+        moves: 'Every task goes, open an’ finished, with its steps, notes, dates, repeat, reminder an’ files.'
+        remote_kept: 'Naught be deleted on the server. The tasks stay there as they be.'
+        unsubscribes: 'plMail stops syncin’ “%name%” after, so naught shows up twice.'
+        foreign: 'Details only other apps understand, like links to other items, be not kept.'
+        submit: 'Haul'
+        submit_stale: 'Haul anyway'
+        pull_failed: 'The latest changes could not be read from the server:'
+        stale_since: 'Ye can haul what plMail has, as of its last sync on %date%. Changes made elsewhere since then be not included.'
+        stale: 'Ye can haul what plMail has. Changes made elsewhere be not included.'
+    subscribe:
+        color: 'Colours of %name%'
+        title: 'Sync lists from a server'
+        intro: 'Tick the task lists on %name% to keep in sync with plMail.'
+        empty: '%name% has no task lists.'
+        saved: 'Task lists updated. Their tasks be on their way.'
+        pick_source: 'Pick the connection to look for task lists on.'
+        no_sources: 'There be no connection to sync tasks from yet. Connect a CalDAV server under Settings → Calendars first.'
+        open_settings: 'Open the calendar settings'
+        untick_hint: 'Unticking a list removes it and its tasks from plMail. They stay on the server.'
+    alert:
+        untitled: 'Task'
+        due: 'Due %when%'
+        reminder: 'Reminder'
+    attachments:
+        heading: 'Files'
+        add: 'Choose a file'
+        delete: 'Scuttle “%name%”'
+        limit: 'Up to 25 MB. On a synced list, other apps get a link that needs a plMail sign-in.'
+        too_large: 'That file could not be taken. Files can be up to 25 MB.'

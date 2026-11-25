@@ -136,6 +136,9 @@ final readonly class ConfigBackupUsers
         User::SETTING_CONTACTS_PANE_MODE,
         User::SETTING_CONTACTS_PANE_WIDTH,
         User::SETTING_CONTACTS_SWITCH_SKIP,
+        // The same kind of thing for the tasks: a bool and a number.
+        User::SETTING_TASKS_PANE_OPEN,
+        User::SETTING_TASKS_PANE_WIDTH,
         // Which view each shape opens on. In the backup for the same reason the
         // pane's width and mode are: it is a preference somebody set, it costs
         // one short string, and a restore that put the calendar back on Week
@@ -374,6 +377,7 @@ final readonly class ConfigBackupUsers
         User::SETTING_LOGS_SEEN_AT => 'a read marker against log rows, which do not travel',
         User::SETTING_WHATS_NEW_SEEN => 'a read marker like admin.logs_seen_at, against the release the source install ran: restored onto another version it would either hide notes this person has not read or repeat ones they have',
         User::SETTING_SIDEBAR_ACCOUNT => 'account ids from the source database — on the target they are nothing, or somebody else',
+        User::SETTING_TASKS_ADD_TO => 'a task list id from the source database, like sidebar.expanded_account; task lists do not travel, and without it new tasks land in the default list',
         User::SETTING_INSIGHT_PANE_DISMISSED_AT => 'a read marker like admin.logs_seen_at: it says when this person last waved the strip away, not what they chose',
     ];
 
@@ -851,6 +855,7 @@ final readonly class ConfigBackupUsers
                 'sendEnabled'       => $account->sendEnabled,
                 'calendarEnabled'   => $account->calendarEnabled,
                 'contactsEnabled'   => $account->contactsEnabled,
+                'tasksEnabled'      => $account->tasksEnabled,
                 'pushEnabled'       => $account->pushEnabled,
                 'settings'          => $this->settingsOfAccount($account),
                 'aliases'           => $this->exportAliases($account),

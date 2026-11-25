@@ -58,6 +58,7 @@ account:
         services:
             help: 'L’écran suivant ne demande que ce que vous cochez. Vous pourrez le changer plus tard dans Paramètres → Comptes.'
             legend: 'Utiliser ce compte pour'
+            tasks_microsoft: '(Microsoft To Do)'
     primary_set: Compte principal modifié
     removal_started: 'Suppression du compte. Son courrier est supprimé en arrière-plan ; le serveur garde sa copie.'
     removed: Compte supprimé
@@ -68,6 +69,9 @@ account:
         contacts:
             off: 'Contacts désactivés'
             on: 'Contacts activés'
+        tasks:
+            off: 'Tâches désactivées'
+            on: 'Tâches activées'
         mail:
             off: 'Réception désactivée. Ce qui est déjà là reste.'
             on: 'Réception activée'
@@ -843,7 +847,7 @@ admin:
                 utilisent déjà pour le courrier. Sans cela, le courrier continue de
                 fonctionner et les agendas n’apparaissent simplement pas.
             consent_heading: 'Si votre organisation approuve les applications pour ses utilisateurs'
-            consent_microsoft: 'Certaines organisations Microsoft 365 ne laissent pas les utilisateurs approuver eux-mêmes les applications : un administrateur a approuvé plMail une fois, pour les autorisations qu''il demandait alors. plMail demande désormais aussi Contacts.ReadWrite, que cette approbation ne couvre pas ; Microsoft refuse donc toute connexion à plMail, messagerie comprise, jusqu''à une nouvelle approbation. Avant que quiconque se reconnecte, ouvrez le centre d''administration Microsoft Entra → Applications d''entreprise → plMail → Autorisations et choisissez « Accorder le consentement administrateur ». Les comptes Microsoft personnels et les organisations où les utilisateurs approuvent eux-mêmes les applications ne sont pas concernés.'
+            consent_microsoft: 'Certaines organisations Microsoft 365 ne laissent pas les utilisateurs approuver eux-mêmes les applications : un administrateur a approuvé plMail une fois, pour les autorisations qu''il demandait alors. plMail demande désormais aussi Contacts.ReadWrite, que cette approbation ne couvre pas ; Microsoft refuse donc toute connexion à plMail, messagerie comprise, jusqu''à une nouvelle approbation. Avant que quiconque se reconnecte, ouvrez le centre d''administration Microsoft Entra → Applications d''entreprise → plMail → Autorisations et choisissez « Accorder le consentement administrateur ». Tasks.ReadWrite n''est demandé que lorsque l''interrupteur Tâches d''un compte est activé, et il est refusé de la même façon tant qu''il n''est pas approuvé. Les comptes Microsoft personnels et les organisations où les utilisateurs approuvent eux-mêmes les applications ne sont pas concernés.'
             contacts_google: >-
                 Activez l’API Google People pour ce projet et ajoutez le scope
                 .../auth/contacts à l’écran de consentement : les utilisateurs
@@ -852,6 +856,8 @@ admin:
                 réglages, à se reconnecter. Sans cela, le courrier et les
                 agendas continuent de fonctionner et les contacts n’apparaissent
                 simplement pas.
+            tasks_heading: 'Microsoft To Do utilise cette même application'
+            tasks_microsoft: 'Ajoutez l’autorisation déléguée Tasks.ReadWrite à cet enregistrement d’application — les utilisateurs obtiennent alors leurs listes To Do avec la même connexion. Les comptes connectés auparavant sont invités une fois, dans leurs réglages, à se reconnecter. Sans elle, le courrier, les agendas et les contacts continuent de fonctionner, et les listes To Do ne peuvent simplement pas être suivies.'
             contacts_heading: 'La synchronisation des contacts utilise cette même application'
             contacts_microsoft: >-
                 Ajoutez l’autorisation déléguée Contacts.ReadWrite à cet
@@ -3935,6 +3941,8 @@ settings:
             close: 'Terminé'
             contacts: 'Contacts'
             contacts_help: 'Ses carnets d’adresses, tenus à jour dans les deux sens'
+            tasks: 'Tâches'
+            tasks_help: 'Ses listes Microsoft To Do, tenues à jour dans les deux sens'
             intro: 'Désactivez ce pour quoi vous n’utilisez pas ce compte. plMail cesse alors d’en parler au serveur et garde ce qui est déjà là.'
             mail: 'Recevoir le courrier'
             mail_help: 'Synchronisation de son courrier et chaque modification que vous y faites'
@@ -4615,6 +4623,9 @@ settings:
                     Reconnectez-vous une fois et autorisez les contacts : son
                     carnet d’adresses apparaîtra dans Contacts.
                 title: 'Reconnectez %account% pour synchroniser ses contacts'
+            account_tasks_scope_missing:
+                body: 'plMail peut désormais synchroniser les listes Microsoft To Do de ce compte, mais %account% a été connecté avant qu’il ne les demande. Le courrier, les agendas et les contacts ne sont pas concernés. Reconnectez-vous une fois et autorisez les tâches : ses listes pourront être suivies dans Tâches.'
+                title: 'Reconnectez %account% pour synchroniser ses listes Microsoft To Do'
             account_scope_missing:
                 body: >-
                     Certaines des autorisations demandées par plMail à la connexion de ce
@@ -4778,6 +4789,9 @@ settings:
                 promise: >-
                     Réessaie une fois les tâches abandonnées. Sans risque — celles qui
                     échouent encore reviennent simplement ici.
+            grant_tasks:
+                label: 'Autoriser les tâches'
+                promise: 'Vous ramène chez le fournisseur pour vous connecter en tant que %account% et autoriser les tâches. Rien ne change pour votre courrier, et aucun message n’est retéléchargé.'
             grant_contacts:
                 label: 'Autoriser les contacts'
                 promise: >-
@@ -6388,3 +6402,136 @@ contacts:
         unsure_one: 'Où va cette ligne ?'
         use_as: 'Utiliser comme…'
         you_placed: 'Placée par vous'
+tasks:
+    occurrence_undone: 'Coche annulée.'
+    added: 'Tâche ajoutée.'
+    completed: 'Tâche terminée.'
+    reopened: 'Tâche rouverte.'
+    moved: 'Tâche déplacée.'
+    step_completed: 'Étape terminée.'
+    step_reopened: 'Étape rouverte.'
+    advanced: 'Terminé. La tâche passe à sa prochaine date.'
+    advanced_remote: 'Terminé. Microsoft To Do la passe à sa prochaine date dès que la modification lui parvient.'
+    title: 'Tâches'
+    default_list: 'Tâches'
+    new: 'Nouvelle tâche'
+    my_day: 'Ma journée'
+    quick_add: 'Ajouter une tâche'
+    read_only: 'Cette liste est en lecture seule : ses tâches ne peuvent pas être modifiées ici.'
+    saved: 'Tâche enregistrée.'
+    deleted: 'Tâche supprimée.'
+    pane:
+        close: 'Fermer les tâches'
+        resize: 'Redimensionner les tâches'
+        toggle: 'Tâches'
+    section:
+        loading: 'Chargement…'
+        more: 'Afficher plus'
+        overdue: 'En retard'
+        today: 'Aujourd’hui'
+        upcoming: 'À venir'
+        no_date: 'Sans date'
+        completed: 'Terminées'
+        pending: 'En cours'
+    empty:
+        my_day: 'Rien pour aujourd’hui. Les tâches à échéance, qui commencent ou avec un rappel aujourd’hui apparaissent ici.'
+        list: 'Aucune tâche ici.'
+    row:
+        steps: '%done% sur %total%'
+        steps_toggle: 'Étapes de « %title% »'
+        repeats: 'Se répète'
+        complete: 'Marquer « %title% » comme terminée'
+        reopen: 'Marquer « %title% » comme non terminée'
+        edit: 'Modifier « %title% »'
+    editor:
+        reminder: 'Me rappeler'
+        reminder_hint: 'Envoyé sous forme de notification du navigateur ou du téléphone, une fois les notifications activées.'
+        repeat: 'Répéter'
+        repeat_none: 'Ne se répète pas'
+        repeat_daily: 'Tous les jours'
+        repeat_weekly: 'Toutes les semaines'
+        repeat_monthly: 'Tous les mois'
+        repeat_yearly: 'Tous les ans'
+        repeat_keep: 'Conserver le rythme actuel'
+        repeat_hint: 'La cocher la déplace à sa prochaine date à venir.'
+        steps: 'Étapes'
+        step_add: 'Ajouter une étape'
+        step_done: 'Étape terminée'
+        step_title: 'Étape'
+        step_remove: 'Retirer cette étape'
+        step_delete: 'Supprimer l’étape « %title% »'
+        new: 'Nouvelle tâche'
+        edit: 'Modifier la tâche'
+        title: 'Titre'
+        title_required: 'Saisissez un titre : sans titre, une tâche ne se distingue pas des autres.'
+        notes: 'Notes'
+        list: 'Liste'
+        due_date: 'Échéance'
+        due_time: 'Heure (facultatif)'
+        due_day_only: 'Microsoft To Do ne garde que le jour : une échéance n’a donc pas d’heure ici. Utilisez un rappel pour l’heure.'
+        save: 'Enregistrer'
+        delete: 'Supprimer'
+    lists:
+        move_down: 'Descendre « %name% »'
+        move_up: 'Monter « %name% »'
+        reorder: 'Faire glisser pour changer l’ordre'
+        landing: 'Les nouvelles tâches arrivent ici'
+        landing_set: 'Les nouvelles tâches arrivent désormais dans %name%.'
+        make_landing: 'Mettre les nouvelles tâches dans « %name% »'
+        manage: 'Listes'
+        settings: 'Paramètres des tâches'
+        back: 'Retour aux listes'
+        synced: 'Synchronisée'
+        done: 'Terminé'
+        edit_named: 'Modifier « %name% »'
+        delete_named: 'Supprimer « %name% »'
+        sync_failed: 'Cette liste n’a pas pu être synchronisée :'
+        label: 'Listes de tâches'
+        all: 'Toutes'
+        new: 'Nouvelle liste'
+        edit: 'Modifier la liste'
+        name: 'Nom'
+        name_required: 'Saisissez un nom pour la liste.'
+        color: 'Couleur'
+        read_only: 'Lecture seule'
+        saved: 'Liste enregistrée.'
+        deleted: 'Liste supprimée.'
+        delete_confirm: 'Supprimer « %name% » et toutes ses tâches ?'
+        default_hint: 'Les nouvelles tâches arrivent ici si rien d’autre n’a été choisi : cette liste ne peut donc pas être supprimée.'
+        synced_hint: 'Cette liste est synchronisée : son nom vient du serveur. La couleur vous appartient.'
+        transferred: '%count% tâche déplacée vers « %name% ».|%count% tâches déplacées vers « %name% ».'
+    transfer:
+        title: 'Transférer vers une liste locale'
+        open_named: 'Transférer « %name% » vers une liste locale'
+        what: '« %name% » contient %open% tâches ouvertes et %finished% terminées.'
+        target: 'Les déplacer vers'
+        new_list: 'Une nouvelle liste « %name% »'
+        moves: 'Toutes les tâches sont déplacées, ouvertes et terminées, avec leurs étapes, notes, dates, répétition, rappel et fichiers.'
+        remote_kept: 'Rien n’est supprimé sur le serveur. Les tâches y restent telles quelles.'
+        unsubscribes: 'plMail cesse ensuite de synchroniser « %name% », pour que rien n’apparaisse en double.'
+        foreign: 'Les détails que seules d’autres applications comprennent, comme les liens vers d’autres éléments, ne sont pas conservés.'
+        submit: 'Transférer'
+        submit_stale: 'Transférer quand même'
+        pull_failed: 'Les dernières modifications n’ont pas pu être lues sur le serveur :'
+        stale_since: 'Vous pouvez transférer ce que plMail possède, tel qu’à la dernière synchronisation du %date%. Les modifications faites ailleurs depuis ne sont pas incluses.'
+        stale: 'Vous pouvez transférer ce que plMail possède. Les modifications faites ailleurs ne sont pas incluses.'
+    subscribe:
+        color: 'Couleur de %name%'
+        title: 'Synchroniser des listes depuis un serveur'
+        intro: 'Cochez les listes de tâches de %name% à garder synchronisées avec plMail.'
+        empty: '%name% n’a aucune liste de tâches.'
+        saved: 'Listes de tâches mises à jour. Leurs tâches arrivent.'
+        pick_source: 'Choisissez la connexion sur laquelle chercher des listes de tâches.'
+        no_sources: 'Aucune connexion ne permet encore de synchroniser des tâches. Connectez d’abord un serveur CalDAV dans Paramètres → Calendriers.'
+        open_settings: 'Ouvrir les paramètres des calendriers'
+        untick_hint: 'Décocher une liste la retire de plMail avec ses tâches. Elles restent sur le serveur.'
+    alert:
+        untitled: 'Tâche'
+        due: 'Échéance : %when%'
+        reminder: 'Rappel'
+    attachments:
+        heading: 'Fichiers'
+        add: 'Choisir un fichier'
+        delete: 'Supprimer « %name% »'
+        limit: 'Jusqu’à 25 Mo. Sur une liste synchronisée, les autres applications reçoivent un lien qui demande une connexion à plMail.'
+        too_large: 'Ce fichier n’a pas pu être pris en charge. Les fichiers peuvent faire jusqu’à 25 Mo.'

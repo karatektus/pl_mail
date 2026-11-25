@@ -482,6 +482,9 @@ framework:
             # every failure worth retrying is a third-party rate limit that
             # takes minutes to clear.
             App\Infrastructure\Messaging\Message\SyncCalendarMessage: ingest
+            # A read of the server like the one above, and on its queue for the
+            # same reason.
+            App\Infrastructure\Messaging\Message\SyncTaskListMessage: ingest
             # Same queue and the same reasoning as SyncCalendarMessage: the sweep
             # and a book's first sync are reads of the server, minutes long on a
             # big book, and nobody waits on them.

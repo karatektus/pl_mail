@@ -9,6 +9,7 @@ use App\Repository\Mail\MessagePart\MessagePartRepository;
 use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Repository\Mail\UploadedBlob\UploadedBlobRepository;
 use App\Service\Mail\AttachmentThumbnailer;
+use App\Service\Task\TaskAttachmentStorage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -120,6 +121,7 @@ final class PruneBlobsCommand extends Command
         private readonly MessageBackfillRepository $messageBackfillRepository,
         private readonly UploadStorage $storage,
         private readonly EntityManagerInterface $em,
+        private readonly TaskAttachmentStorage $taskFiles,
         private readonly string $projectDir,
         private readonly string $storageDir
     ) {
@@ -171,6 +173,12 @@ final class PruneBlobsCommand extends Command
             }
 
             [$count, $size] = $this->sweepThumbnails($io, $cutoff, $dryRun);
+            $files += $count;
+            $bytes += $size;
+
+            // Task files, in a folder the mail layout above does not match. See
+            // TaskAttachmentStorage on how one comes to outlive its row.
+            [$count, $size] = $this->taskFiles->pruneOrphans(new \DateTimeImmutable(), $dryRun);
             $files += $count;
             $bytes += $size;
         }

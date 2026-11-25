@@ -530,7 +530,13 @@ export default class extends Controller {
         // integration picker's search box re-renders the frame and must stay
         // open. Closing on every successful submit made searching look like a
         // cancel.
-        if (event.target?.closest?.("[data-ui--modal-keep-open]")) {
+        //
+        // On the button as well as the form: one form can have a button that
+        // finishes the dialog and buttons that do not (tasks/_editor.html.twig).
+        if (
+            event.target?.closest?.("[data-ui--modal-keep-open]")
+            || event.detail.formSubmission?.submitter?.closest?.("[data-ui--modal-keep-open]")
+        ) {
             return;
         }
 

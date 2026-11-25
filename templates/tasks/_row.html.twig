@@ -1,0 +1,126 @@
+{#
+tasks/_row.html.twig — one task in the pane.
+
+The row opens the editor through a button stretched over it rather than wrapping
+it, because the title and the notes can hold links of their own, and a link inside
+a button is invalid HTML. The checkbox and those links sit above it on `z-10`.
+
+A tick is a form with one button, so it works before any script has connected.
+With one, tasks--tick shows it before the save is through, which is why the
+button and the title are drawn from aria-checked.
+
+Steps fold out under the row, outside what the stretched button covers. Folded
+until tasks--row says otherwise, so a page with no script is a row as it always
+was. A step's tick needs the script, since it shows before it saves: see
+tasks--step-tick.
+
+Accepts: task Task · pane TaskPane · params array, the pane's current address
+#}
+{% set open = task.status.isOpen %}
+{% set overdue = task.isOverdue(pane.now, pane.zone) %}
+{% set readOnly = task.taskList.isReadOnly %}
+{% set steps = task.liveSteps %}
+{# An entry keeps the rule to put back if unticked; it does not repeat itself. #}
+{% set repeats = task.recurrenceRule and not task.isOccurrence %}
+{# Where several lists show at once. #}
+{% set showList = pane.query.view.value == 'my-day' or pane.list is null %}
+
+<li data-task-row="{{ task.id }}"
+    {% if steps is not empty %}data-controller="tasks--row" data-tasks--row-id-value="{{ task.id }}"{% endif %}>
+    <div class="group relative flex items-start gap-2 rounded-lg px-3 py-1.5 hover:bg-hover">
+        {# tasks--row first: it reads which way the tick goes before tasks--tick turns it. #}
+        <form action="{{ path('app_tasks_toggle', { id: task.id }) }}" method="post"
+              data-controller="tasks--tick"
+              data-action="{% if steps is not empty %}submit->tasks--row#taskTicked {% endif %}submit->tasks--tick#show turbo:submit-end->tasks--tick#settled"
+              class="relative z-10 shrink-0 leading-none">
+            <input type="hidden" name="_token" value="{{ csrf_token('tasks_toggle') }}">
+            {% for name, value in params %}
+                <input type="hidden" name="{{ name }}" value="{{ value }}">
+            {% endfor %}
+            <button type="submit"
+                    role="checkbox"
+                    aria-checked="{{ open ? 'false' : 'true' }}"
+                    aria-label="{{ (open ? 'tasks.row.complete' : 'tasks.row.reopen')|trans({ '%title%': task.title }) }}"
+                    data-tasks--tick-target="box"
+                    {% if readOnly %}disabled{% endif %}
+                    class="group/tick flex items-center justify-center size-[1.125rem] mt-0.5 rounded-full border border-ink-faint transition-colors
+                           aria-checked:border-accent aria-checked:bg-accent aria-checked:text-accent-ink
+                           {{ readOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-accent' }}">
+                <i class="fa-solid fa-check text-[0.625rem] invisible group-aria-checked/tick:visible" aria-hidden="true"></i>
+            </button>
+        </form>
+
+        <div class="flex-1 min-w-0">
+            <p data-task-title class="text-sm break-words [&_a]:relative [&_a]:z-10 {{ open ? 'text-ink' : 'text-ink-faint line-through' }}">{{ task.title|linkify }}</p>
+
+            {% if task.dueDate or task.dueAt or steps is not empty or repeats or showList %}
+                <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-ink-muted">
+                    {% if task.dueDate %}
+                        <span class="{{ overdue ? 'text-danger' : '' }}">
+                            <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+                            {# `false` leaves a date in the zone it already carries:
+                               it has none to convert from. See Task's docblock. #}
+                            {{ task.dueDate|intl_date('EEEdMMM', false) }}
+                        </span>
+                    {% elseif task.dueAt %}
+                        <span class="{{ overdue ? 'text-danger' : '' }}">
+                            <i class="fa-regular fa-clock" aria-hidden="true"></i>
+                            {{ task.dueAt|intl_date('EEEdMMM', pane.zone) }}, {{ task.dueAt|date(clock.time, pane.zone) }}
+                        </span>
+                    {% endif %}
+                    {% if steps is not empty %}
+                        <span>
+                            <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
+                            <span id="task-steps-count-{{ task.id }}">{{ 'tasks.row.steps'|trans({ '%done%': steps|filter(step => not step.status.isOpen)|length, '%total%': steps|length }) }}</span>
+                        </span>
+                    {% endif %}
+                    {% if repeats %}
+                        <span title="{{ 'tasks.row.repeats'|trans }}">
+                            <i class="fa-solid fa-repeat" aria-hidden="true"></i>
+                            <span class="sr-only">{{ 'tasks.row.repeats'|trans }}</span>
+                        </span>
+                    {% endif %}
+                    {% if showList %}
+                        {# The list's dot, as on its pill above. #}
+                        <span class="inline-flex items-center gap-1 text-ink-faint" data-task-row-list>
+                            <span class="size-1.5 rounded-full shrink-0" style="background-color: {{ task.taskList.color }}" aria-hidden="true"></span>
+                            {{ task.taskList.name }}
+                        </span>
+                    {% endif %}
+                </p>
+            {% endif %}
+        </div>
+
+        {% if steps is not empty %}
+            <button type="button"
+                    data-tasks--row-target="toggle"
+                    data-action="tasks--row#toggle"
+                    aria-expanded="false"
+                    aria-controls="task-steps-{{ task.id }}"
+                    aria-label="{{ 'tasks.row.steps_toggle'|trans({ '%title%': task.title }) }}"
+                    title="{{ 'tasks.row.steps_toggle'|trans({ '%title%': task.title }) }}"
+                    class="relative z-10 flex items-center justify-center w-6 h-6 shrink-0 rounded text-ink-faint hover:text-ink cursor-pointer transition-transform aria-expanded:rotate-90">
+                <i class="fa-solid fa-chevron-right text-[0.625rem]" aria-hidden="true"></i>
+            </button>
+        {% endif %}
+
+        <button type="button"
+                data-controller="ui--modal"
+                data-action="click->ui--modal#open"
+                data-ui--modal-src-value="{{ path('app_tasks_edit', { id: task.id }|merge(params)) }}"
+                data-ui--modal-title-value="{{ 'tasks.editor.edit'|trans }}"
+                class="absolute inset-0 rounded-lg cursor-pointer focus-visible:outline-2 focus-visible:outline-accent"
+                aria-label="{{ 'tasks.row.edit'|trans({ '%title%': task.title }) }}"></button>
+    </div>
+
+    {% if steps is not empty %}
+        <ul hidden id="task-steps-{{ task.id }}" data-tasks--row-target="steps" class="ml-8 mr-3 pb-1 space-y-1">
+            {% for step in steps %}
+                <li class="flex items-start gap-2" data-task-row-step="{{ step.id }}">
+                    {% include 'tasks/_step_tick.html.twig' with { step: step, readOnly: readOnly } only %}
+                    <span class="flex-1 min-w-0 text-sm break-words text-ink peer-aria-checked:text-ink-faint peer-aria-checked:line-through">{{ step.title|linkify }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</li>

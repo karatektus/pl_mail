@@ -424,6 +424,8 @@ final readonly class ConfigBackupUserRestorer
             $account->mailEnabled       = true === ($row['mailEnabled'] ?? $legacyActive);
             $account->calendarEnabled   = true === ($row['calendarEnabled'] ?? true);
             $account->contactsEnabled   = true === ($row['contactsEnabled'] ?? $legacyActive);
+            // Off when the backup predates it, as the migration leaves every account.
+            $account->tasksEnabled      = true === ($row['tasksEnabled'] ?? false);
             // A file made before #628 has no send switch: read as the
             // migration filled it — on where mail was, unless the account
             // had no server to send through.

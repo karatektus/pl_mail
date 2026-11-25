@@ -145,6 +145,11 @@ final readonly class DataResetter
             'event_source_link',
             'event_proposal',
             'calendar_event',
+            // Tasks reset beside events, and their lists beside the calendars
+            // below, for the same reason each way.
+            'task_alert_delivery',
+            'task_attachment',
+            'task',
         ];
 
         if (true === $scope->mailboxes) {
@@ -158,6 +163,7 @@ final readonly class DataResetter
             $tables[] = 'calendar_share_link';
             $tables[] = 'booking_page';
             $tables[] = 'calendar';
+            $tables[] = 'task_list';
         }
 
         if (true === $scope->contacts) {

@@ -56,6 +56,7 @@ final readonly class DemoGuardSubscriber implements EventSubscriberInterface
         'app_integration_oauth_connect',
         'app_settings_calendar_caldav_connect',
         'app_settings_calendar_subscribe',
+        'app_tasks_subscribe',
     ];
 
     public function __construct(

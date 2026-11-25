@@ -947,6 +947,24 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const int CONTACTS_PANE_DEFAULT_WIDTH = 420;
 
     /**
+     * The tasks docked beside the mail: open or closed, and how wide. A bool
+     * rather than the other panes' position, because a list of tasks has no use
+     * for a screen's width — see _tasks_pane.html.twig.
+     */
+    public const string SETTING_TASKS_PANE_OPEN = 'tasks.pane_open';
+    public const string SETTING_TASKS_PANE_WIDTH = 'tasks.pane_width';
+    public const int TASKS_PANE_MIN_WIDTH = 320;
+    public const int TASKS_PANE_MAX_WIDTH = 900;
+    public const int TASKS_PANE_DEFAULT_WIDTH = 380;
+
+    /**
+     * The list a new task lands on when nothing else was picked (My Day, All, quick
+     * add from either). An id, read through TaskListProvisioner::landingFor(), which
+     * falls back to the default list when this one is gone, foreign or read-only.
+     */
+    public const string SETTING_TASKS_ADD_TO = 'tasks.add_to';
+
+    /**
      * Whether the open message sits beside the message list, and how much of the
      * mail card it takes — see ReadingPaneMode.
      *
@@ -1129,6 +1147,33 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::CALENDAR_PANE_MIN_WIDTH, min(self::CALENDAR_PANE_MAX_WIDTH, $width));
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_TASKS_ADD_TO. */
+    public ?int $tasksAddToListId {
+        get {
+            $id = $this->getSetting(self::SETTING_TASKS_ADD_TO);
+
+            return is_int($id) && 0 < $id ? $id : null;
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_TASKS_PANE_OPEN. */
+    public bool $tasksPaneOpen {
+        get => true === $this->getSetting(self::SETTING_TASKS_PANE_OPEN, false);
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_TASKS_PANE_OPEN. */
+    public int $tasksPaneWidth {
+        get {
+            $width = $this->getSetting(self::SETTING_TASKS_PANE_WIDTH, self::TASKS_PANE_DEFAULT_WIDTH);
+
+            if (false === is_int($width)) {
+                return self::TASKS_PANE_DEFAULT_WIDTH;
+            }
+
+            return max(self::TASKS_PANE_MIN_WIDTH, min(self::TASKS_PANE_MAX_WIDTH, $width));
         }
     }
 

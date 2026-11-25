@@ -106,7 +106,11 @@ final class ContactsPaneTest extends WebTestCase
         self::assertStringContainsString('lg:text-accent', (string) $crawler->filter('[data-contacts--pane-target="toggle"]')->attr('class'));
 
         // The same kind of pane as the calendar: one container, one handle each.
-        self::assertCount(2, $crawler->filter('[data-side-pane] > [role="separator"]'));
+        // A relation rather than a number, which the tasks pane already moved once.
+        self::assertCount(
+            $crawler->filter('[data-side-pane]')->count(),
+            $crawler->filter('[data-side-pane] > [role="separator"]'),
+        );
     }
 
     public function testThePaneGetsTheFrameAloneAndThePageGetsThePage(): void

@@ -6,6 +6,8 @@ namespace App\Tests\Controller\Demo;
 
 use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Helper\SignatureStorage;
+use App\Entity\Task\Task;
+use App\Entity\Task\TaskAttachment;
 use App\Infrastructure\Messaging\Handler\DemoAutoReplyHandler;
 use App\Infrastructure\Messaging\Message\DemoAutoReplyMessage;
 use App\Repository\Mail\Account\AccountRepository;
@@ -22,6 +24,7 @@ use App\Service\Demo\DemoUserEraser;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
 /**
@@ -356,6 +359,40 @@ final class DemoFlowTest extends WebTestCase
      * Somebody reloading must keep the mailbox they were reading. Handing them
      * a fresh one reads as the app losing their mail.
      */
+    /**
+     * A file kept on a public demo's disk, from anybody, has nothing to reap it. The
+     * dialog offers no field for one, and a save that carries one anyway keeps the
+     * task and not the file.
+     */
+    public function testATaskOnTheDemoIsOfferedNoFileAndKeepsNoneThatIsPosted(): void
+    {
+        $client = $this->demoClient();
+
+        $client->request('GET', '/demo');
+
+        $crawler = $client->request('GET', '/tasks/new');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('input[type="file"]'));
+
+        $path = tempnam(sys_get_temp_dir(), 'demo');
+        file_put_contents($path, 'from anybody');
+
+        $client->request('POST', '/tasks/save', [
+            '_token' => $crawler->filter('#task-editor input[name="_token"]')->attr('value'),
+            'title'  => 'Demo task',
+        ], ['file' => new UploadedFile($path, 'anybody.txt', 'text/plain', null, true)]);
+
+        self::assertResponseIsSuccessful();
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        self::assertNotNull($em->getRepository(Task::class)->findOneBy(['title' => 'Demo task']));
+        self::assertNull($em->getRepository(TaskAttachment::class)->findOneBy(['filename' => 'anybody.txt']));
+
+        $this->eraseDemoUsers();
+    }
+
     public function testASecondVisitInTheSameSessionDoesNotProvisionAgain(): void
     {
         $client    = $this->demoClient();

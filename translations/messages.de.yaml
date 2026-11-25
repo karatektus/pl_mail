@@ -58,6 +58,7 @@ account:
         services:
             help: 'Auf der nächsten Seite wird nur das angefragt, was du ankreuzt. Ändern kannst du es später unter Einstellungen → Konten.'
             legend: 'Konto verwenden für'
+            tasks_microsoft: '(Microsoft To Do)'
     primary_set: Primäres Konto geändert
     removal_started: 'Das Konto wird entfernt. Seine E-Mails werden im Hintergrund gelöscht; auf dem Server bleiben sie.'
     removed: Konto entfernt
@@ -68,6 +69,9 @@ account:
         contacts:
             off: 'Kontakte ausgeschaltet'
             on: 'Kontakte eingeschaltet'
+        tasks:
+            off: 'Aufgaben ausgeschaltet'
+            on: 'Aufgaben eingeschaltet'
         mail:
             off: 'Empfangen ausgeschaltet. Was schon da ist, bleibt.'
             on: 'Empfangen eingeschaltet'
@@ -848,7 +852,7 @@ admin:
                 kommen dann mit derselben Anmeldung wie die E-Mails. Ohne das
                 funktioniert E-Mail weiter, die Kalender erscheinen einfach nicht.
             consent_heading: 'Wenn deine Organisation Apps für ihre Benutzer freigibt'
-            consent_microsoft: 'Manche Microsoft-365-Organisationen lassen Benutzer Apps nicht selbst freigeben: Ein Administrator hat plMail einmal freigegeben, für die Berechtigungen, die es damals verlangt hat. plMail fragt jetzt zusätzlich nach Contacts.ReadWrite, und das deckt diese Freigabe nicht ab. Microsoft lehnt deshalb jede Anmeldung bei plMail ab, auch für Mail, bis die Freigabe erneuert ist. Bevor sich jemand neu anmeldet: Öffne das Microsoft Entra Admin Center → Unternehmensanwendungen → plMail → Berechtigungen und wähle „Administratorzustimmung erteilen“. Private Microsoft-Konten und Organisationen, in denen Benutzer Apps selbst freigeben, sind nicht betroffen.'
+            consent_microsoft: 'Manche Microsoft-365-Organisationen lassen Benutzer Apps nicht selbst freigeben: Ein Administrator hat plMail einmal freigegeben, für die Berechtigungen, die es damals verlangt hat. plMail fragt jetzt zusätzlich nach Contacts.ReadWrite, und das deckt diese Freigabe nicht ab. Microsoft lehnt deshalb jede Anmeldung bei plMail ab, auch für Mail, bis die Freigabe erneuert ist. Bevor sich jemand neu anmeldet: Öffne das Microsoft Entra Admin Center → Unternehmensanwendungen → plMail → Berechtigungen und wähle „Administratorzustimmung erteilen“. Nach Tasks.ReadWrite fragt plMail erst, wenn der Schalter Aufgaben eines Kontos eingeschaltet wird, und auch das wird bis zur Freigabe abgelehnt. Private Microsoft-Konten und Organisationen, in denen Benutzer Apps selbst freigeben, sind nicht betroffen.'
             contacts_google: >-
                 Aktiviere die Google People API für dieses Projekt und füge den
                 Scope .../auth/contacts zum Zustimmungsbildschirm hinzu — dann
@@ -856,6 +860,8 @@ admin:
                 die schon vorher verbunden waren, werden in ihren Einstellungen
                 einmal gebeten, sich neu anzumelden. Ohne das funktionieren Mail
                 und Kalender weiter, und Kontakte erscheinen einfach nicht.
+            tasks_heading: 'Microsoft To Do nutzt dieselbe App'
+            tasks_microsoft: 'Füge dieser App-Registrierung die delegierte Berechtigung Tasks.ReadWrite hinzu — Benutzer bekommen dann ihre To-Do-Listen mit derselben Anmeldung. Vorher verbundene Konten werden in ihren Einstellungen einmal gebeten, sich neu anzumelden. Ohne sie laufen Mail, Kalender und Kontakte weiter, und To-Do-Listen lassen sich einfach nicht abonnieren.'
             contacts_heading: 'Die Kontakt-Synchronisation nutzt dieselbe App'
             contacts_microsoft: >-
                 Füge dieser App-Registrierung die delegierte Berechtigung
@@ -3905,6 +3911,8 @@ settings:
             close: 'Fertig'
             contacts: 'Kontakte'
             contacts_help: 'Seine Adressbücher, in beide Richtungen abgeglichen'
+            tasks: 'Aufgaben'
+            tasks_help: 'Seine Microsoft-To-Do-Listen, in beide Richtungen abgeglichen'
             intro: 'Schalte aus, wofür du dieses Konto nicht verwendest. plMail spricht dann mit dem Server nicht mehr darüber und behält, was schon da ist.'
             mail: 'E-Mail empfangen'
             mail_help: 'Seine E-Mails synchronisieren und jede Änderung, die du daran machst'
@@ -4557,6 +4565,9 @@ settings:
                     betroffen. Melde dich einmal neu an und erlaube den Zugriff
                     auf Kontakte, dann erscheint sein Adressbuch unter Kontakte.
                 title: '%account% erneut verbinden, um seine Kontakte zu synchronisieren'
+            account_tasks_scope_missing:
+                body: 'plMail kann jetzt die Microsoft-To-Do-Listen dieses Kontos synchronisieren, aber %account% wurde verbunden, bevor plMail danach gefragt hat. Mail, Kalender und Kontakte sind nicht betroffen. Melde dich einmal neu an und erlaube den Zugriff auf Aufgaben, dann lassen sich seine Listen unter Aufgaben abonnieren.'
+                title: '%account% erneut verbinden, um seine Microsoft-To-Do-Listen zu synchronisieren'
             account_scope_missing:
                 body: >-
                     Einige Rechte, die plMail beim Verbinden dieses Kontos
@@ -4737,6 +4748,9 @@ settings:
                     Versucht die liegen gebliebenen Aufgaben noch einmal.
                     Unbedenklich — was erneut scheitert, landet einfach wieder
                     hier.
+            grant_tasks:
+                label: 'Aufgaben erlauben'
+                promise: 'Bringt dich zurück zum Anbieter, um dich als %account% anzumelden und den Zugriff auf Aufgaben zu erlauben. An deiner Mail ändert sich nichts, und keine Mail wird neu heruntergeladen.'
             grant_contacts:
                 label: 'Kontakte erlauben'
                 promise: >-
@@ -6359,3 +6373,136 @@ contacts:
         unsure_one: 'Wohin gehört diese Zeile?'
         use_as: 'Verwenden als …'
         you_placed: 'Von dir zugeordnet'
+tasks:
+    occurrence_undone: 'Abhaken rückgängig gemacht.'
+    added: 'Aufgabe hinzugefügt.'
+    completed: 'Aufgabe erledigt.'
+    reopened: 'Aufgabe wieder geöffnet.'
+    moved: 'Aufgabe verschoben.'
+    step_completed: 'Schritt erledigt.'
+    step_reopened: 'Schritt wieder geöffnet.'
+    advanced: 'Erledigt. Die Aufgabe ist auf ihren nächsten Termin gesprungen.'
+    advanced_remote: 'Erledigt. Microsoft To Do schiebt sie auf ihren nächsten Termin, sobald die Änderung dort ist.'
+    title: 'Aufgaben'
+    default_list: 'Aufgaben'
+    new: 'Neue Aufgabe'
+    my_day: 'Mein Tag'
+    quick_add: 'Aufgabe hinzufügen'
+    read_only: 'Diese Liste ist schreibgeschützt, ihre Aufgaben lassen sich hier nicht ändern.'
+    saved: 'Aufgabe gespeichert.'
+    deleted: 'Aufgabe gelöscht.'
+    pane:
+        close: 'Aufgaben schließen'
+        resize: 'Breite der Aufgaben ändern'
+        toggle: 'Aufgaben'
+    section:
+        loading: 'Wird geladen …'
+        more: 'Mehr anzeigen'
+        overdue: 'Überfällig'
+        today: 'Heute'
+        upcoming: 'Demnächst'
+        no_date: 'Ohne Datum'
+        completed: 'Erledigt'
+        pending: 'Offen'
+    empty:
+        my_day: 'Für heute steht nichts an. Hier erscheinen Aufgaben, die heute fällig sind, beginnen oder erinnern.'
+        list: 'Hier gibt es keine Aufgaben.'
+    row:
+        steps: '%done% von %total%'
+        steps_toggle: 'Schritte von „%title%“'
+        repeats: 'Wiederholt sich'
+        complete: '„%title%“ als erledigt markieren'
+        reopen: '„%title%“ als nicht erledigt markieren'
+        edit: '„%title%“ bearbeiten'
+    editor:
+        reminder: 'Erinnern'
+        reminder_hint: 'Kommt als Browser- oder Telefon-Benachrichtigung, sobald Benachrichtigungen eingeschaltet sind.'
+        repeat: 'Wiederholen'
+        repeat_none: 'Keine Wiederholung'
+        repeat_daily: 'Täglich'
+        repeat_weekly: 'Wöchentlich'
+        repeat_monthly: 'Monatlich'
+        repeat_yearly: 'Jährlich'
+        repeat_keep: 'Bisherigen Rhythmus beibehalten'
+        repeat_hint: 'Beim Abhaken springt die Aufgabe auf ihren nächsten Termin in der Zukunft.'
+        steps: 'Schritte'
+        step_add: 'Schritt hinzufügen'
+        step_done: 'Schritt erledigt'
+        step_title: 'Schritt'
+        step_remove: 'Diesen Schritt entfernen'
+        step_delete: 'Schritt „%title%“ löschen'
+        new: 'Neue Aufgabe'
+        edit: 'Aufgabe bearbeiten'
+        title: 'Titel'
+        title_required: 'Gib einen Titel ein – ohne Titel lässt sich eine Aufgabe nicht von den anderen unterscheiden.'
+        notes: 'Notizen'
+        list: 'Liste'
+        due_date: 'Fällig am'
+        due_time: 'Uhrzeit (optional)'
+        due_day_only: 'Microsoft To Do speichert nur den Tag, eine Fälligkeit hat hier also keine Uhrzeit. Für die Uhrzeit gibt es die Erinnerung.'
+        save: 'Speichern'
+        delete: 'Löschen'
+    lists:
+        move_down: '„%name%“ nach unten'
+        move_up: '„%name%“ nach oben'
+        reorder: 'Ziehen, um die Reihenfolge zu ändern'
+        landing: 'Neue Aufgaben landen hier'
+        landing_set: 'Neue Aufgaben landen jetzt in %name%.'
+        make_landing: 'Neue Aufgaben in „%name%“ ablegen'
+        manage: 'Listen'
+        settings: 'Aufgaben-Einstellungen'
+        back: 'Zurück zu den Listen'
+        synced: 'Synchronisiert'
+        done: 'Fertig'
+        edit_named: '„%name%“ bearbeiten'
+        delete_named: '„%name%“ löschen'
+        sync_failed: 'Diese Liste konnte nicht synchronisiert werden:'
+        label: 'Aufgabenlisten'
+        all: 'Alle'
+        new: 'Neue Liste'
+        edit: 'Liste bearbeiten'
+        name: 'Name'
+        name_required: 'Gib einen Namen für die Liste ein.'
+        color: 'Farbe'
+        read_only: 'Schreibgeschützt'
+        saved: 'Liste gespeichert.'
+        deleted: 'Liste gelöscht.'
+        delete_confirm: '„%name%“ und alle Aufgaben darin löschen?'
+        default_hint: 'Neue Aufgaben landen hier, wenn nichts anderes gewählt wurde. Deshalb lässt sich diese Liste nicht löschen.'
+        synced_hint: 'Diese Liste wird synchronisiert, ihr Name kommt vom Server. Die Farbe bestimmst du.'
+        transferred: '%count% Aufgabe nach „%name%“ verschoben.|%count% Aufgaben nach „%name%“ verschoben.'
+    transfer:
+        title: 'In eine lokale Liste übertragen'
+        open_named: '„%name%“ in eine lokale Liste übertragen'
+        what: '„%name%“ hat %open% offene und %finished% erledigte Aufgaben.'
+        target: 'Verschieben nach'
+        new_list: 'Neue Liste „%name%“'
+        moves: 'Alle Aufgaben werden verschoben, offene und erledigte, mit Schritten, Notizen, Terminen, Wiederholung, Erinnerung und Dateien.'
+        remote_kept: 'Auf dem Server wird nichts gelöscht. Die Aufgaben bleiben dort, wie sie sind.'
+        unsubscribes: 'plMail synchronisiert „%name%“ danach nicht mehr, damit nichts doppelt erscheint.'
+        foreign: 'Angaben, die nur andere Apps verstehen, etwa Verknüpfungen zu anderen Elementen, gehen verloren.'
+        submit: 'Übertragen'
+        submit_stale: 'Trotzdem übertragen'
+        pull_failed: 'Die neuesten Änderungen konnten nicht vom Server gelesen werden:'
+        stale_since: 'Du kannst übertragen, was plMail hat, Stand der letzten Synchronisierung am %date%. Spätere Änderungen von anderswo fehlen dann.'
+        stale: 'Du kannst übertragen, was plMail hat. Änderungen von anderswo fehlen dann.'
+    subscribe:
+        color: 'Farbe von %name%'
+        title: 'Listen von einem Server synchronisieren'
+        intro: 'Wähle die Aufgabenlisten auf %name% aus, die mit plMail synchron bleiben sollen.'
+        empty: '%name% hat keine Aufgabenlisten.'
+        saved: 'Aufgabenlisten aktualisiert. Ihre Aufgaben werden gerade geladen.'
+        pick_source: 'Wähle die Verbindung, auf der nach Aufgabenlisten gesucht werden soll.'
+        no_sources: 'Es gibt noch keine Verbindung, von der sich Aufgaben synchronisieren lassen. Verbinde zuerst unter Einstellungen → Kalender einen CalDAV-Server.'
+        open_settings: 'Kalender-Einstellungen öffnen'
+        untick_hint: 'Wenn du das Häkchen entfernst, verschwinden die Liste und ihre Aufgaben aus plMail. Auf dem Server bleiben sie erhalten.'
+    alert:
+        untitled: 'Aufgabe'
+        due: 'Fällig: %when%'
+        reminder: 'Erinnerung'
+    attachments:
+        heading: 'Dateien'
+        add: 'Datei auswählen'
+        delete: '„%name%“ löschen'
+        limit: 'Bis zu 25 MB. Bei synchronisierten Listen erhalten andere Apps einen Link, für den eine plMail-Anmeldung nötig ist.'
+        too_large: 'Diese Datei konnte nicht übernommen werden. Dateien dürfen bis zu 25 MB groß sein.'

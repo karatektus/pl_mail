@@ -324,6 +324,13 @@ class Account extends AccountModel
     public bool $contactsEnabled = true;
 
     /**
+     * The same, for its Microsoft To Do lists. Off by default, unlike the others:
+     * an account connected before To Do was asked for has no grant for it.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $tasksEnabled = false;
+
+    /**
      * The services that are switched on, in AccountService order.
      *
      * Virtual: it is the columns above read together, for the places
@@ -335,8 +342,19 @@ class Account extends AccountModel
     public array $services {
         get => array_values(array_filter(
             AccountService::cases(),
-            fn (AccountService $service): bool => $this->isEnabled($service),
+            fn (AccountService $service): bool => $this->offers($service) && $this->isEnabled($service),
         ));
+    }
+
+    /**
+     * Whether this account can be used for the service at all. Tasks are
+     * Microsoft To Do, so only a Microsoft OAuth account has them; everything else
+     * every account has. A switch not offered is not drawn and not counted.
+     */
+    public function offers(AccountService $service): bool
+    {
+        return AccountService::Tasks !== $service
+            || (AuthType::OAuth2->value === $this->authType && MailProvider::Microsoft->value === $this->oauthProvider);
     }
 
     /**
@@ -350,6 +368,7 @@ class Account extends AccountModel
             AccountService::Send     => $this->sendEnabled,
             AccountService::Calendar => $this->calendarEnabled,
             AccountService::Contacts => $this->contactsEnabled,
+            AccountService::Tasks    => $this->tasksEnabled,
         };
     }
 
@@ -377,6 +396,7 @@ class Account extends AccountModel
             AccountService::Send     => false === $this->isJmap() && (null === $this->smtpHost || '' === trim($this->smtpHost)),
             AccountService::Calendar => false,
             AccountService::Contacts => false,
+            AccountService::Tasks    => false,
         };
     }
 
@@ -388,6 +408,7 @@ class Account extends AccountModel
             AccountService::Send     => $this->sendEnabled     = $enabled,
             AccountService::Calendar => $this->calendarEnabled = $enabled,
             AccountService::Contacts => $this->contactsEnabled = $enabled,
+            AccountService::Tasks    => $this->tasksEnabled    = $enabled,
         };
 
         return $this;

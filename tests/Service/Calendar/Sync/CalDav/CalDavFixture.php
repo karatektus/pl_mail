@@ -17,6 +17,7 @@ use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use App\Service\Calendar\Sync\CalDav\CalDavCalendarDriver;
 use App\Service\Calendar\Sync\CalDav\CalDavClient;
+use App\Service\Calendar\Sync\CalDav\CalDavCollectionReader;
 use App\Service\Calendar\Sync\CalDav\CalDavDiscovery;
 use App\Service\Calendar\Sync\CalDav\CalDavEventConverter;
 use App\Service\Calendar\Sync\CalDav\MultiStatusParser;
@@ -69,7 +70,7 @@ final class CalDavFixture
         $this->driver    = new CalDavCalendarDriver(
             $client,
             $this->discovery,
-            $parser,
+            new CalDavCollectionReader($client, $parser, new NullLogger()),
             new CalDavEventConverter(new RecurrenceRuleConverter(), new AlertReader(new NullLogger())),
             new NullLogger(),
         );

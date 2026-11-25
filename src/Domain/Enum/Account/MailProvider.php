@@ -120,6 +120,7 @@ enum MailProvider: string
             AccountService::Send     => $this->mailScopes(),
             AccountService::Calendar => $this->calendarScopes(),
             AccountService::Contacts => $this->contactScopes(),
+            AccountService::Tasks    => $this->taskScopes(),
         };
     }
 
@@ -191,6 +192,40 @@ enum MailProvider: string
             MailProvider::Google    => ['https://www.googleapis.com/auth/contacts'],
             MailProvider::Microsoft => ['https://graph.microsoft.com/Contacts.ReadWrite'],
         };
+    }
+
+    /**
+     * The scopes that buy task access: Microsoft To Do, asked for when the
+     * account's Tasks switch is (serviceScopes()). Google has none here, as
+     * plMail speaks no Google task API.
+     *
+     * Added after accounts existed, as contactScopes() were, and for the same
+     * reason named apart: a grant that predates them has refused nothing, and
+     * the health check tells the two apart with this list.
+     *
+     * @return list<string>
+     */
+    public function taskScopes(): array
+    {
+        return match ($this) {
+            MailProvider::Google    => [],
+            MailProvider::Microsoft => ['https://graph.microsoft.com/Tasks.ReadWrite'],
+        };
+    }
+
+    /**
+     * Whether a grant we were given includes task access, as
+     * grantsCalendarAccess() asks of calendars. Null when no scope came back.
+     */
+    public function grantsTaskAccess(?string $granted): ?bool
+    {
+        $missing = $this->missingScopes($granted);
+
+        if (null === $missing) {
+            return null;
+        }
+
+        return [] !== $this->taskScopes() && [] === array_intersect($missing, $this->taskScopes());
     }
 
     /**

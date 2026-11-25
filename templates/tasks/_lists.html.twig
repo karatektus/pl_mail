@@ -1,0 +1,155 @@
+{#
+tasks/_lists.html.twig — every list, to make, change and delete them, in the app's
+modal frame. Opened from the gear in the pane's header.
+
+All of it stays in this dialog: the editor opens in its place and comes back here
+when saved, and a delete answers with this list again. The pane behind is a
+different frame, and its pills name the lists, so a change also tells it with
+`open_pane`, as the task editor does.
+
+The first list and a synced one have no delete, for the reasons
+TaskController::listDelete() gives. A synced one has a transfer in that place
+instead, which takes its tasks to a local list: see TaskListTransfer. The star says where a new task lands when
+nothing else was picked, and moves it: see TaskListProvisioner::landingFor(). The
+order is the pane's, and is changed by dragging or with the arrows: see
+tasks--list-order.
+
+Accepts:
+  lists    list<TaskList>
+  landing  TaskList, where new tasks land
+  query    TaskPaneQuery, where the pane goes back to
+  message  string|null, the toast after a change
+  paneUrl  string|null, set after a change
+#}
+{% set params = query.toParameters() %}
+{% set iconBtn = 'inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-ink-faint transition-colors cursor-pointer' %}
+
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'tasks.lists.manage'|trans }}</template>
+
+    {% if message|default(null) %}
+        {% include '_partials/_toast.stream.html.twig' with { message: message, type: 'success' } only %}
+    {% endif %}
+    {% if paneUrl|default(null) %}
+        <turbo-stream action="open_pane" pane="tasks" src="{{ paneUrl }}"></turbo-stream>
+    {% endif %}
+
+    <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4 max-md:px-4">
+        <ul class="divide-y divide-line"
+            data-controller="tasks--list-order"
+            data-tasks--list-order-url-value="{{ path('app_tasks_list_order') }}"
+            data-tasks--list-order-csrf-value="{{ csrf_token('tasks_list_order') }}"
+            data-tasks--list-order-pane-url-value="{{ path('app_tasks_index', params) }}"
+            data-tasks--list-order-target="list">
+            {% for list in lists %}
+                {% set managed = list.isManagedLocally %}
+                <li class="flex items-center gap-3 py-1.5 bg-surface" data-task-list="{{ list.id }}">
+                    {# Arrows as well as a handle: a drag is out of reach of a keyboard. #}
+                    <div class="flex flex-col items-center shrink-0">
+                        <button type="button" data-action="tasks--list-order#move" data-direction="up"
+                                {{ loop.first ? 'disabled' : '' }}
+                                aria-label="{{ 'tasks.lists.move_up'|trans({ '%name%': list.name }) }}"
+                                class="w-5 h-4 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-chevron-up text-[9px]" aria-hidden="true"></i>
+                        </button>
+                        <span data-task-list-handle
+                              class="w-5 h-4 flex items-center justify-center text-ink-faint hover:text-ink-muted cursor-grab active:cursor-grabbing touch-none"
+                              title="{{ 'tasks.lists.reorder'|trans }}" aria-hidden="true">
+                            <i class="fa-solid fa-grip-vertical text-[10px]"></i>
+                        </span>
+                        <button type="button" data-action="tasks--list-order#move" data-direction="down"
+                                {{ loop.last ? 'disabled' : '' }}
+                                aria-label="{{ 'tasks.lists.move_down'|trans({ '%name%': list.name }) }}"
+                                class="w-5 h-4 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-chevron-down text-[9px]" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <span class="size-2.5 rounded-full shrink-0" style="background-color: {{ list.color }}" aria-hidden="true"></span>
+                    <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ list.name }}</span>
+
+                    {% if not managed %}
+                        <span class="inline-flex items-center gap-1 text-xs text-ink-faint">
+                            <i class="fa-solid fa-rotate" aria-hidden="true"></i>{{ 'tasks.lists.synced'|trans }}
+                        </span>
+                    {% endif %}
+                    {% if list.isReadOnly %}
+                        <i class="fa-solid fa-lock text-xs text-ink-faint" title="{{ 'tasks.lists.read_only'|trans }}" aria-label="{{ 'tasks.lists.read_only'|trans }}"></i>
+                    {% endif %}
+
+                    {% if list.id == landing.id %}
+                        <span class="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-accent" data-task-list-landing
+                              title="{{ 'tasks.lists.landing'|trans }}" aria-label="{{ 'tasks.lists.landing'|trans }}">
+                            <i class="fa-solid fa-star text-xs" aria-hidden="true"></i>
+                        </span>
+                    {% elseif not list.isReadOnly %}
+                        <form action="{{ path('app_tasks_list_landing', { id: list.id }) }}" method="post"
+                              data-turbo-frame="modal" data-ui--modal-keep-open>
+                            <input type="hidden" name="_token" value="{{ csrf_token('tasks_list_editor') }}">
+                            {% for name, value in params %}
+                                <input type="hidden" name="{{ name }}" value="{{ value }}">
+                            {% endfor %}
+                            <button type="submit"
+                                    aria-label="{{ 'tasks.lists.make_landing'|trans({ '%name%': list.name }) }}"
+                                    title="{{ 'tasks.lists.make_landing'|trans({ '%name%': list.name }) }}"
+                                    class="{{ iconBtn }} hover:text-accent hover:bg-hover">
+                                <i class="fa-regular fa-star text-xs" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    {% else %}
+                        <span class="w-8 h-8 shrink-0" aria-hidden="true"></span>
+                    {% endif %}
+
+                    <a href="{{ path('app_tasks_list_edit', { id: list.id }|merge(params)) }}"
+                       data-turbo-frame="modal"
+                       aria-label="{{ 'tasks.lists.edit_named'|trans({ '%name%': list.name }) }}"
+                       title="{{ 'tasks.lists.edit_named'|trans({ '%name%': list.name }) }}"
+                       class="{{ iconBtn }} hover:text-ink hover:bg-hover">
+                        <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
+                    </a>
+
+                    {% if managed and not list.isDefault %}
+                        <form action="{{ path('app_tasks_list_delete', { id: list.id }) }}" method="post"
+                              data-turbo-frame="modal"
+                              data-ui--modal-keep-open
+                              data-turbo-confirm="{{ 'tasks.lists.delete_confirm'|trans({ '%name%': list.name }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('tasks_list_editor') }}">
+                            {% for name, value in params %}
+                                <input type="hidden" name="{{ name }}" value="{{ value }}">
+                            {% endfor %}
+                            <button type="submit"
+                                    aria-label="{{ 'tasks.lists.delete_named'|trans({ '%name%': list.name }) }}"
+                                    title="{{ 'tasks.lists.delete_named'|trans({ '%name%': list.name }) }}"
+                                    class="{{ iconBtn }} hover:text-danger hover:bg-hover">
+                                <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    {% elseif not managed %}
+                        <a href="{{ path('app_tasks_list_transfer', { id: list.id }|merge(params)) }}"
+                           data-turbo-frame="modal"
+                           aria-label="{{ 'tasks.transfer.open_named'|trans({ '%name%': list.name }) }}"
+                           title="{{ 'tasks.transfer.open_named'|trans({ '%name%': list.name }) }}"
+                           class="{{ iconBtn }} hover:text-ink hover:bg-hover">
+                            <i class="fa-solid fa-file-export text-xs" aria-hidden="true"></i>
+                        </a>
+                    {% else %}
+                        {# Its place kept, so the column of buttons stays straight. #}
+                        <span class="w-8 h-8 shrink-0" aria-hidden="true"></span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <footer class="shrink-0 flex items-center gap-2 border-t border-line px-6 py-3 max-md:px-4">
+        <a href="{{ path('app_tasks_list_new', params) }}"
+           data-turbo-frame="modal"
+           class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>{{ 'tasks.lists.new'|trans }}
+        </a>
+        <button type="button"
+                data-action="ui--modal#close"
+                class="ml-auto px-4 py-2 rounded-lg text-sm bg-accent text-accent-ink hover:opacity-90 transition-opacity">
+            {{ 'tasks.lists.done'|trans }}
+        </button>
+    </footer>
+</turbo-frame>

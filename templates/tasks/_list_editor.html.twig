@@ -1,0 +1,88 @@
+{#
+tasks/_list_editor.html.twig — making or changing a task list, inside the Lists
+dialog (tasks/_lists.html.twig), which a save and Back both return to. Deleting is
+done there, beside the list.
+
+A synced list keeps its name, which is the remote's (the field is disabled and the
+controller ignores it). Its colour is plMail's own.
+
+Accepts:
+  list    TaskList, or null for a new one
+  query   TaskPaneQuery, where the pane goes back to
+  error   string|null
+  colors  list<string>, Calendar::COLORS
+#}
+{% set params = query.toParameters() %}
+{% set managed = list is null or list.isManagedLocally %}
+{% set current = list ? list.color : colors|first %}
+
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ (list ? 'tasks.lists.edit' : 'tasks.lists.new')|trans }}</template>
+
+    <form action="{{ path('app_tasks_list_save') }}" method="post" data-turbo-frame="modal" data-ui--modal-keep-open class="flex-1 min-h-0 flex flex-col">
+        <input type="hidden" name="_token" value="{{ csrf_token('tasks_list_editor') }}">
+        <input type="hidden" name="listId" value="{{ list ? list.id : 0 }}">
+        {% for name, value in params %}
+            <input type="hidden" name="{{ name }}" value="{{ value }}">
+        {% endfor %}
+
+        <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4 max-md:px-4">
+            {% if error %}
+                <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p>{{ error }}</p>
+                </div>
+            {% endif %}
+
+            <div>
+                <label class="block mb-1 text-sm font-medium text-ink" for="task-list-name">{{ 'tasks.lists.name'|trans }}</label>
+                {# Posted even when disabled would drop it, so a synced list sends
+                   its name as a hidden field and the controller ignores it. #}
+                {% if not managed %}<input type="hidden" name="name" value="{{ list.name }}">{% endif %}
+                <input id="task-list-name" type="text" name="name" required maxlength="120" autofocus
+                       value="{{ app.request.request.get('name', list ? list.name : '') }}"
+                       {% if not managed %}disabled{% endif %}
+                       class="w-full rounded-lg border border-line bg-field px-3 py-2 text-sm text-ink">
+            </div>
+
+            <fieldset>
+                <legend class="block mb-1 text-sm font-medium text-ink">{{ 'tasks.lists.color'|trans }}</legend>
+                <div class="flex flex-wrap gap-2">
+                    {% for color in colors %}
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="color" value="{{ color }}" class="peer sr-only" {% if color == current %}checked{% endif %}>
+                            <span class="block size-6 rounded-full ring-offset-2 ring-offset-surface peer-checked:ring-2 peer-checked:ring-ink peer-focus-visible:ring-2 peer-focus-visible:ring-accent"
+                                  style="background-color: {{ color }}"></span>
+                            <span class="sr-only">{{ color }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+
+            {% if list and list.lastSyncError %}
+                <div role="status" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ 'tasks.lists.sync_failed'|trans }} {{ list.lastSyncError }}</p>
+                </div>
+            {% endif %}
+
+            {% if list and list.isDefault %}
+                <p class="text-xs text-ink-muted">{{ 'tasks.lists.default_hint'|trans }}</p>
+            {% elseif not managed %}
+                <p class="text-xs text-ink-muted">{{ 'tasks.lists.synced_hint'|trans }}</p>
+            {% endif %}
+        </div>
+
+        <footer class="shrink-0 flex items-center gap-2 border-t border-line px-6 py-3 max-md:px-4">
+            <a href="{{ path('app_tasks_lists', params) }}"
+               data-turbo-frame="modal"
+               class="ml-auto px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors">
+                {{ 'tasks.lists.back'|trans }}
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 rounded-lg text-sm bg-accent text-accent-ink hover:opacity-90 transition-opacity">
+                {{ 'tasks.editor.save'|trans }}
+            </button>
+        </footer>
+    </form>
+</turbo-frame>

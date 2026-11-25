@@ -1,0 +1,34 @@
+{#
+tasks/_completed_page.html.twig — one page of a list's finished tasks, in the
+Completed group of the pane. See TaskPane on why they come later.
+
+The first page answers the group's own frame, `tasks-completed`. Each page ends
+with a frame of its own for the next, holding the link that fetches it: a link
+inside a frame loads into that frame, so "Show more" swaps only itself for the next
+page and the rows above stay where they are.
+
+Every page frame sends what happens in its rows to the pane (`target`), because a
+tick answers with the whole pane; the link names its own frame to stay put.
+
+Accepts: pane TaskPane · tasks list<Task> · next int|null, the next page's offset ·
+offset int, this page's
+#}
+{% set params = pane.query.toParameters() %}
+
+<turbo-frame id="{{ 0 == offset ? 'tasks-completed' : 'tasks-completed-' ~ offset }}" target="tasks-pane-frame" class="block">
+    <ul class="mt-1 space-y-0.5">
+        {% for task in tasks %}
+            {% include 'tasks/_row.html.twig' with { task: task, pane: pane, params: params } only %}
+        {% endfor %}
+    </ul>
+
+    {% if next is not null %}
+        <turbo-frame id="tasks-completed-{{ next }}" target="tasks-pane-frame" class="block">
+            <a href="{{ path('app_tasks_completed', params|merge({ offset: next })) }}"
+               data-turbo-frame="tasks-completed-{{ next }}"
+               class="mt-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-ink-muted hover:bg-hover transition-colors">
+                <i class="fa-solid fa-chevron-down text-[0.625rem]" aria-hidden="true"></i>{{ 'tasks.section.more'|trans }}
+            </a>
+        </turbo-frame>
+    {% endif %}
+</turbo-frame>
