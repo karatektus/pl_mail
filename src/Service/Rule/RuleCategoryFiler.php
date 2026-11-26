@@ -5,16 +5,28 @@ declare(strict_types=1);
 namespace App\Service\Rule;
 
 use App\Domain\Enum\Mail\CategoryFiling;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Rule\MailRule;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use App\Service\Imap\MessageThreader;
+use App\Service\Mail\MessageCategorizer;
 use Psr\Log\LoggerInterface;
 
 /**
- * Files a message under one of the reader's own categories, when a filter's
- * "File in category" action says to.
+ * Files a message under a tab when a filter's "File in category" action says
+ * to: one of the reader's own categories ({categoryId}), or one of the five
+ * built-in ones ({builtIn: "updates"}) — "Amazon goes to Notifications".
+ *
+ * The two are stored apart, as the tabs are (see InboxTab):
+ * Message::$ruleCategory for the reader's own, Message::$ruleBuiltinCategory
+ * for a built-in, which MessageCategorizer reads first so that no re-sort
+ * undoes it. Filing under a built-in clears the reader's own category off the
+ * message, or that tab would go on winning; filing under the reader's own
+ * leaves a built-in a filter chose as the category underneath it. The filter
+ * is recorded beside its built-in tab, so that deleting or changing it lets go
+ * of that mail again (RuleBuiltinTabReleaser).
  *
  * A FILTER IS THE LAST WORD
  * ─────────────────────────
@@ -51,11 +63,12 @@ final readonly class RuleCategoryFiler
     public function __construct(
         private InboxCategoryRepository $categories,
         private MessageThreader         $threader,
+        private MessageCategorizer      $categorizer,
         private LoggerInterface         $logger,
     ) {}
 
     /**
-     * @param array<string,mixed> $action the stored {type, categoryId} entry
+     * @param array<string,mixed> $action the stored {type, categoryId|builtIn} entry
      */
     public function file(MailRule $rule, Message $message, array $action): CategoryFiling
     {
@@ -65,7 +78,18 @@ final readonly class RuleCategoryFiler
             return $outcome;
         }
 
-        $message->ruleCategory = $category;
+        if ($category instanceof MessageCategory) {
+            $message->ruleBuiltinCategory = $category;
+            $message->ruleBuiltinRule     = $rule;
+            $message->ruleCategory        = null;
+            // Recomputed rather than set: the reader may have switched this
+            // tab off, and the categorizer is what knows that. No
+            // correspondents: the filter is the cascade's first step, and
+            // they are only read below it.
+            $message->category = $this->categorizer->categorize($message, [], $rule->usr?->categorySorting);
+        } else {
+            $message->ruleCategory = $category;
+        }
 
         $thread = $message->thread;
 
@@ -93,10 +117,18 @@ final readonly class RuleCategoryFiler
     /**
      * @param array<string,mixed> $action
      *
-     * @return array{0: CategoryFiling, 1: ?InboxCategory}
+     * @return array{0: CategoryFiling, 1: InboxCategory|MessageCategory|null}
      */
     private function decide(MailRule $rule, Message $message, array $action, bool $log): array
     {
+        if (true === array_key_exists('builtIn', $action)) {
+            $builtIn = is_string($action['builtIn']) ? MessageCategory::tryFrom($action['builtIn']) : null;
+
+            return null === $builtIn || null === $rule->usr
+                ? [CategoryFiling::NoCategory, null]
+                : [CategoryFiling::Filed, $builtIn];
+        }
+
         $categoryId = $action['categoryId'] ?? null;
 
         if (false === is_int($categoryId)) {

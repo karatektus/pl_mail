@@ -13,6 +13,7 @@ use App\Entity\User\User;
 use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Rule\MailRule\MailRuleRepository;
+use App\Service\Rule\RuleBuiltinTabReleaser;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -80,6 +81,7 @@ final readonly class StatusUndoService
         private LabelRepository        $labels,
         private ThreadStatusUpdater    $status,
         private MailRuleRepository     $rules,
+        private RuleBuiltinTabReleaser $builtinTabs,
     ) {
     }
 
@@ -228,6 +230,10 @@ final readonly class StatusUndoService
         if (null === $rule || $rule->usr?->id !== $user->id) {
             return;
         }
+
+        // Whatever kind of filter it is, the mail it held in a built-in tab
+        // goes with it, as when it is deleted by hand (#762).
+        $this->builtinTabs->releaseDeleted($rule);
 
         $this->em->remove($rule);
         $this->em->flush();

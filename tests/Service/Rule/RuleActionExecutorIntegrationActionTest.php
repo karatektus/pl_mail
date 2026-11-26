@@ -24,6 +24,7 @@ use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Rule\RuleActionExecutor;
+use App\Service\Mail\MessageCategorizer;
 use App\Service\Rule\RuleCategoryFiler;
 use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
 use Doctrine\ORM\EntityManagerInterface;
@@ -210,6 +211,7 @@ final class RuleActionExecutorIntegrationActionTest extends TestCase
             new RuleCategoryFiler(
                 $this->createStub(InboxCategoryRepository::class),
                 $this->threaderWithoutDatabase(),
+                new MessageCategorizer(),
                 new NullLogger(),
             ),
             new GraphLabelPolicy(),

@@ -229,7 +229,7 @@ you had dragged into a tab you switch off goes back to being sorted like any oth
 
 The five are what plMail knows how to recognise. If you want a tab for something it cannot — parcels,
 receipts, one client's mail — add it at the bottom of the **Tabs** card under **Settings →
-Categories**: a name, and nothing else. It goes to the end of the strip until you move it. A tab of your own holds nothing until a [filter](filters.md#filing-into-your-own-tabs)
+Categories**: a name, and nothing else. It goes to the end of the strip until you move it. A tab of your own holds nothing until a [filter](filters.md#filing-into-a-tab)
 whose action is **File in category** puts mail into it, and like the others it only shows in the
 inbox while it holds mail. A filter files Gmail mail too: Google's categories outrank plMail's own
 sorting unless you say otherwise, but a filter is something you wrote, and it outranks both.

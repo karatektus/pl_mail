@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:137761179ce45630f08771d453e52a0472e6f3e9 -->
+<!-- translated-from: features/mail.md sha1:0525586ed3332ac62f0a44fb5311e7d3adad6d04 -->
 
 # Mail
 
@@ -255,7 +255,7 @@ Die fünf sind das, was plMail zu erkennen weiß. Willst du einen Tab für etwas
 erkennen kann — Pakete, Belege, die Mail eines Kunden —, leg ihn unten auf der Karte **Tabs** unter
 **Einstellungen → Kategorien** an: ein Name, sonst nichts. Er steht am Ende der Leiste, bis du ihn
 verschiebst. Ein eigener Tab enthält nichts, bis ein
-[Filter](filters.md#in-eigene-tabs-ablegen), dessen Aktion **In Kategorie ablegen** ist, Mail
+[Filter](filters.md#in-einen-tab-ablegen), dessen Aktion **In Kategorie ablegen** ist, Mail
 hineinlegt, und wie die anderen erscheint er im Posteingang nur, solange er Mail enthält. Ein Filter
 legt auch Gmail-Mail ab: Googles Kategorien haben Vorrang vor plMails eigener Sortierung, solange du
 nichts anderes sagst, aber einen Filter hast du selbst geschrieben, und er hat Vorrang vor beiden.

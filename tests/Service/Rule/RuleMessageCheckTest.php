@@ -20,12 +20,14 @@ use App\Repository\Label\Label\LabelRepository;
 use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use App\Repository\Mail\Message\MessageFilterRepository;
 use App\Repository\Rule\MailRule\MailRuleRepository;
+use App\Service\Mail\MessageCategorizer;
 use App\Service\Rule\RuleCategoryFiler;
 use App\Service\Rule\RuleConditions;
 use App\Service\Rule\RuleMessageCheck;
 use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Translation\IdentityTranslator;
 
 /**
  * "Test my filters on this message" reports what the engine would do, in the
@@ -169,8 +171,9 @@ final class RuleMessageCheckTest extends TestCase
             $ruleRepository,
             $messages,
             new RuleConditions(new EmailFilterCompiler(), $labels),
-            new RuleCategoryFiler($categories, $this->threaderWithoutDatabase(), new NullLogger()),
+            new RuleCategoryFiler($categories, $this->threaderWithoutDatabase(), new MessageCategorizer(), new NullLogger()),
             $categories,
+            new IdentityTranslator(),
             new NullLogger(),
         )->check($message);
     }

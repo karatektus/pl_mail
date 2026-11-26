@@ -16,16 +16,18 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 /**
  * The "File in category" action, from the browser's end.
  *
- * Three promises, and the last is the one that makes the feature safe to ship
+ * Four promises, and the last is the one that makes the feature safe to ship
  * to people who never asked for it:
  *
  *  - A saved filter keeps the category it files into, and the editor publishes
  *    it back — an action that is stored but not published resets itself the next
  *    time the filter is opened.
  *  - Another person's category cannot be stored, whatever the posted id says.
- *  - Somebody with no categories of their own sees the editor EXACTLY as it was
- *    before this action existed: the action is not offered, because there is
- *    nothing for it to file into.
+ *  - A built-in tab can be filed into too — "Amazon goes to Notifications" —
+ *    and only one of the five is storable.
+ *  - Somebody with the inbox tabs off and no categories of their own sees the
+ *    editor EXACTLY as it was before this action existed: the action is not
+ *    offered, because there is no tab for it to file into.
  */
 final class RuleFileInCategoryTest extends WebTestCase
 {
@@ -103,19 +105,72 @@ final class RuleFileInCategoryTest extends WebTestCase
         self::assertSame([], $this->rules->findForUserOrdered($this->user), 'a filter filing into another person\'s category was stored');
     }
 
-    public function testTheActionIsOfferedOnlyToSomebodyWhoHasACategory(): void
+    public function testABuiltInTabIsStoredAndOfferedBesideTheReadersOwn(): void
     {
         $client = $this->signIn();
 
+        $client->request('POST', '/settings/filters/save', [
+            '_token'     => $this->saveToken($client),
+            'name'       => 'Amazon',
+            'conditions' => json_encode(['fromDomain' => 'amazon.fr'], JSON_THROW_ON_ERROR),
+            'actions'    => json_encode([['type' => 'fileInCategory', 'builtIn' => 'updates']], JSON_THROW_ON_ERROR),
+        ]);
+
+        self::assertResponseIsSuccessful();
+
+        $rules = $this->rules->findForUserOrdered($this->user);
+
+        self::assertCount(1, $rules);
+        self::assertSame([['type' => 'fileInCategory', 'builtIn' => 'updates']], $rules[0]->actions);
+
+        $crawler = $client->request('GET', '/settings/filters/' . $rules[0]->id . '/edit');
+
+        $builtIn = json_decode(
+            (string) $crawler->filter('[data-rules--rule-builder-built-in-categories-value]')->first()->attr('data-rules--rule-builder-built-in-categories-value'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        self::assertSame(['primary', 'social', 'promotions', 'updates', 'forums'], array_column($builtIn, 'key'));
+        self::assertNotContains(true, array_column($builtIn, 'off'), 'a fresh account has every tab on');
+    }
+
+    public function testATabThatIsNotOneOfTheFiveCannotBeStored(): void
+    {
+        $client = $this->signIn();
+
+        $client->request('POST', '/settings/filters/save', [
+            '_token'     => $this->saveToken($client),
+            'name'       => 'Made up',
+            'conditions' => '{}',
+            'actions'    => json_encode([['type' => 'fileInCategory', 'builtIn' => 'invoices']], JSON_THROW_ON_ERROR),
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([], $this->rules->findForUserOrdered($this->user));
+    }
+
+    public function testTheActionIsLeftOutOnlyWhenThereIsNoTabToFileInto(): void
+    {
+        $client = $this->signIn();
+
+        self::assertContains('fileInCategory', $this->offeredActionTypes($client), 'the built-in tabs are not offered');
+
+        // Reloaded: a request leaves the signed-in user detached.
+        $this->user = $this->em->find(User::class, $this->user->id) ?? self::fail('the reader is gone');
+        $this->user->categorySorting->tabs = false;
+        $this->em->flush();
+
         $without = $this->offeredActionTypes($client);
 
-        self::assertNotContains('fileInCategory', $without, 'the action is offered with no category to file into');
+        self::assertNotContains('fileInCategory', $without, 'the action is offered with no tab to file into');
         self::assertSame(
             array_values(array_diff(RuleActionExecutor::TYPES, ['fileInCategory'])),
             $without,
-            'the editor changed for somebody who has no categories',
+            'the editor changed for somebody who has no tabs',
         );
 
+        $this->user = $this->em->find(User::class, $this->user->id) ?? self::fail('the reader is gone');
         $this->category($this->user, 'Shipping');
 
         self::assertContains('fileInCategory', $this->offeredActionTypes($client));

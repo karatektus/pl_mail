@@ -3104,6 +3104,8 @@ message:
             ai: '由语言模型判断，因为没有规则识别出它： '
             ai_differs: '与规则的判断不一致'
             awaiting_resort: '正在重新分类——你更改了邮件分类方式，此邮件尚未移动。'
+            # A filter's "File in category" chose this built-in tab.
+            filter: '由你的某个过滤器归入此处'
             own_filter: '由你的某个过滤器归入此处'
             gmail_overruled: '未采用——你已让 plMail 自行分类'
             in_force: '以此项为准'

@@ -3452,6 +3452,8 @@ message:
             default: 'rien ne l’a désigné comme courrier de masse'
             forum: 'un en-tête de liste de diffusion : '
             gmail: 'Gmail l’a dit : '
+            # A filter's "File in category" chose this built-in tab.
+            filter: "classé ici par l’un de vos filtres"
             own_filter: "classé ici par l’un de vos filtres"
             # A category somebody chose by dragging the conversation onto a tab.
             # Nothing below the first row can move it while this holds.

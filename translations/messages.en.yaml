@@ -3424,6 +3424,8 @@ message:
             # difference between them is the finding.
             ai_differs: 'the rules disagree'
             awaiting_resort: 'Being re-filed — you changed how mail is sorted, and this one has not moved yet.'
+            # A filter's "File in category" chose this built-in tab.
+            filter: 'filed there by one of your filters'
             own_filter: 'filed there by one of your filters'
             gmail_overruled: 'not used — you asked plMail to sort this itself'
             in_force: 'this one decides'
