@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
+use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Service\Mail\SenderIdentityChecker;
 use App\Service\Mail\SenderMismatchKind;
@@ -146,6 +147,35 @@ final class SenderIdentityCheckerTest extends TestCase
         self::assertNotNull($this->checker->check($message));
     }
 
+    /**
+     * The sender can write an Authentication-Results field too. One that no
+     * server of the account's provider wrote suppresses nothing, however
+     * well it passes — or a phish only had to add one line to silence this.
+     */
+    public function testAResultTheSenderWroteDoesNotSuppress(): void
+    {
+        $message = $this->message('Hetzner Online GmbH', 'support@ownkhalsick.com');
+        $message->headers['authentication-results'] =
+            'relay.ownkhalsick.com; dkim=pass header.d=ownkhalsick.com; dmarc=pass';
+
+        self::assertNotNull($this->checker->check($message));
+    }
+
+    /**
+     * Two believed lines that disagree on DMARC: one is not the receiving
+     * server's, and the signature claimed beside it is not believed either.
+     */
+    public function testAForgedPassBesideTheServersFailDoesNotSuppress(): void
+    {
+        $message = $this->message('Hetzner Online GmbH', 'support@ownkhalsick.com');
+        $message->headers['authentication-results'] = [
+            'mx.example.test; dkim=fail header.d=ownkhalsick.com; dmarc=fail',
+            'mx.example.test; dkim=pass header.d=ownkhalsick.com; dmarc=pass',
+        ];
+
+        self::assertNotNull($this->checker->check($message));
+    }
+
     public function testFailingDkimDoesNotSuppress(): void
     {
         $message = $this->message('Hetzner Online GmbH', 'support@ownkhalsick.com');
@@ -170,7 +200,14 @@ final class SenderIdentityCheckerTest extends TestCase
 
     private function message(string $fromName, string $fromAddress): Message
     {
+        // An IMAP account on example.test, so `mx.example.test` is its
+        // receiving server and its Authentication-Results are believed.
+        $account           = new Account();
+        $account->authType = 'password';
+        $account->imapHost = 'imap.example.test';
+
         $message = new Message();
+        $message->account     = $account;
         $message->fromName    = $fromName;
         $message->fromAddress = $fromAddress;
         $message->headers     = [];

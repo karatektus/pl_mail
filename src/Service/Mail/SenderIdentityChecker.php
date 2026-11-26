@@ -66,6 +66,11 @@ use App\Entity\Mail\Message;
  */
 final readonly class SenderIdentityChecker
 {
+    public function __construct(
+        private SenderAuthentication $authentication = new SenderAuthentication(),
+    ) {
+    }
+
     /**
      * Legal forms, matched as whole words, case-insensitively. Presence of one
      * is the ONLY thing that makes Rule 2 run.
@@ -225,33 +230,13 @@ final readonly class SenderIdentityChecker
      *
      * Read out of Authentication-Results, which is written by the receiving
      * side — our own provider — and is the reason it can be believed at all.
-     * A header the sender could have written would be worth nothing here.
+     * A header the sender could have written would be worth nothing here, so
+     * only the lines SenderAuthentication believes count: this used to read
+     * every Authentication-Results field, and a sender who added one saying
+     * `dkim=pass header.d=<their From domain>` silenced the warning.
      */
     private function isDkimAligned(Message $message, string $actual): bool
     {
-        $headers = $message->headers ?? [];
-        $raw     = '';
-
-        foreach ($headers as $name => $value) {
-            if (0 === strcasecmp((string) $name, 'Authentication-Results')) {
-                $raw = true === is_array($value) ? implode(' ', array_map(strval(...), $value)) : (string) $value;
-
-                break;
-            }
-        }
-
-        if ('' === $raw) {
-            return false;
-        }
-
-        if (1 !== preg_match('/\bdkim\s*=\s*pass\b/i', $raw)) {
-            return false;
-        }
-
-        if (1 !== preg_match('/header\.d\s*=\s*([a-z0-9.\-]+)/i', $raw, $match)) {
-            return false;
-        }
-
-        return DomainHelper::registrable($match[1]) === $actual;
+        return $this->authentication->dkimPassFor($message, $actual);
     }
 }

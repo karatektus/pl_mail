@@ -130,7 +130,8 @@ final class OidcAuthenticator extends AbstractAuthenticator
 
         $target = $this->getTargetPath($request->getSession(), $firewallName);
 
-        return new RedirectResponse($target ?? $this->urlGenerator->generate('app_default_index'));
+        // A path, never the saved URL with its host — see LocalRedirect (#669).
+        return new RedirectResponse(LocalRedirect::path($target, $this->urlGenerator->generate('app_default_index')));
     }
 
     /**

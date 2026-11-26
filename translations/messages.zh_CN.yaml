@@ -104,6 +104,7 @@ account:
             jmap_submission: '通过 JMAP 服务器发送。'
             missing_fields: '请先输入电子邮件地址和至少一个服务器。'
             missing_password: 没有可用于测试的密码。请在上方输入密码；编辑表单中留空会保留已保存的密码，但需先保存账户，测试才能使用该密码。
+            password_for_new_server: '请重新输入密码：服务器已更改，已保存的密码只会发送到保存时对应的服务器。'
             pop3_ok: '已连接，邮箱中有 %count% 封邮件。'
             private_network: '该服务器位于私有网络中。必须先由管理员在“管理 → 集成 → 私有网络中的服务器”中允许它，plMail 才能连接。'
             smtp_none: '未配置 SMTP 主机，此账户无法发送邮件。'
@@ -580,6 +581,7 @@ admin:
         export:
             error:
                 mismatch: 两次密码不一致，未导出任何内容。
+                remembered_session: '记住的登录无法执行此操作。请退出并重新登录后再试；未导出或更改任何内容。'
                 too_short: 密码过短，未导出任何内容。
             heading: 导出配置
             intro: '将此部署运行所需的所有设置和凭据保存到一个密码加密文件中：包括环境变量、secrets 卷中的文件、数据库中的服务商和 Firebase 凭据，以及所有用户及其密码、第二重验证信息、邮箱和其他配置。不包含邮件、日历事件或联系人；这些请使用 `app:backup` 备份。'
@@ -1173,6 +1175,7 @@ admin:
             issuer_help: '服务商的签发方 URL，须与其发现文档中完全一致。在 Authentik 中，即服务商页面上的“OpenID Configuration Issuer”。'
             password_login_disabled: 仅允许单点登录
             password_login_disabled_help: '隐藏密码表单并拒绝密码登录，所有人都需通过服务商登录。仅在此处已配置服务商时生效。只有先亲自通过服务商登录后才能勾选；若服务商不可用，可运行 bin/console app:sso:allow-password-login 恢复表单。邮件客户端的密码（应用密码）不受影响。'
+            password_login_disabled_locked_help: '已启用。只能通过控制台关闭：运行 bin/console app:sso:allow-password-login。在此之前，也无法在此处清除身份提供方。'
             require_verified_email: 仅关联服务商已验证的地址
             require_verified_email_help: 首次登录时按电子邮件地址查找账户。只有用户无法在服务商处修改自己的地址时，才应关闭此项；关闭后，能修改地址的人可以冒领任何尚未通过此服务商登录的账户。
             scopes: 权限范围

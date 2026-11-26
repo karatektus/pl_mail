@@ -203,6 +203,31 @@ test.describe("keyboard shortcuts", () => {
         await expect(row(ids[at + 2]!)).toBeFocused();
     });
 
+    /**
+     * #767: after the keys put the cursor on a row, a click on another row
+     * takes it there. It stayed behind, outlined, because the click landed on
+     * a control inside the row and the cursor only followed the row itself.
+     */
+    test("a click on another row takes the cursor with it", async ({ page }) => {
+        await inbox(page);
+
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("ArrowDown");
+
+        const ids = await page.locator(ROWS).evaluateAll((rows) =>
+            rows.map((row) => row.getAttribute("data-mail--message-row-id-value")));
+
+        await expect(page.locator(CURSOR)).toHaveAttribute("data-mail--message-row-id-value", ids[1]!);
+
+        const third = page.locator(`${ROWS}[data-mail--message-row-id-value="${ids[3]!}"]`);
+
+        await third.hover();
+        await third.locator("label:has([data-thread-select])").click();
+
+        await expect(page.locator(CURSOR)).toHaveCount(1);
+        await expect(page.locator(CURSOR)).toHaveAttribute("data-mail--message-row-id-value", ids[3]!);
+    });
+
     test("e archives the row under the cursor, and z takes it back", async ({ page }) => {
         await inbox(page);
 

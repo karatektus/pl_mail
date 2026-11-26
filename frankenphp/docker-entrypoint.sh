@@ -28,6 +28,20 @@ all_in_one() {
 }
 
 if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
+	# ── The hub's and web server's state, private to whoever runs them ─────
+	# The image leaves /data and /config writable by anyone, because it cannot
+	# know the uid it will run as (see the Dockerfile), and a new volume copies
+	# that mode — onto a bind-mounted host directory too, where every user on
+	# the host could then read the hub's database and the TLS keys. Once the
+	# container knows who it is, whatever that user owns is closed to everybody
+	# else. A directory owned by someone else (a platform that provisioned the
+	# volume for another uid) is left as it was: it is not ours to change.
+	for state_dir in /data /config; do
+		if [ -d "$state_dir" ] && [ -O "$state_dir" ]; then
+			chmod -R go-rwx "$state_dir" 2>/dev/null || true
+		fi
+	done
+
 	# ── All in one ─────────────────────────────────────────────────────────
 	# Web server, workers and hub in this one container (Unraid; see
 	# docs/install/unraid.md). The hub is a sibling process here rather than a

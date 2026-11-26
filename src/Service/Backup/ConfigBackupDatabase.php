@@ -575,6 +575,17 @@ final readonly class ConfigBackupDatabase
     {
         $config = $this->oidcConfigs->current() ?? new OidcConfig();
 
+        // While "Single sign-on only" is in force here, the provider is left
+        // exactly as it is. Restoring over it switched the flag off (below)
+        // and could swap or clear the provider, so an administrator's session
+        // alone, through a backup file, reopened the password form that only
+        // `app:sso:allow-password-login` is meant to reopen
+        // (docs/internals/security-model.md). Run that command first to
+        // restore a different provider.
+        if (true === $config->passwordLoginDisabled) {
+            return;
+        }
+
         $config->issuer       = $this->string($values, 'issuer');
         $config->clientId     = $this->string($values, 'clientId');
         $config->clientSecret = $this->string($values, 'clientSecret');

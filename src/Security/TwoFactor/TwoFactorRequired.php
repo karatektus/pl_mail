@@ -33,6 +33,9 @@ use Symfony\Component\Security\Http\Util\TargetPathTrait;
  * keep refreshing that cookie.
  *
  * See DocumentNavigation for the test, which LoginFormAuthenticator shares.
+ *
+ * Saved as a path, not the full URL: the host in it is whatever the proxy
+ * forwarded, the internal IP behind some (#669). See LocalRedirect.
  */
 final readonly class TwoFactorRequired implements AuthenticationRequiredHandlerInterface
 {
@@ -53,7 +56,7 @@ final readonly class TwoFactorRequired implements AuthenticationRequiredHandlerI
             && true === $request->hasSession()
             && true === $request->isMethodSafe()
             && true === DocumentNavigation::is($request)) {
-            $this->saveTargetPath($request->getSession(), $this->config->getFirewallName(), $request->getUri());
+            $this->saveTargetPath($request->getSession(), $this->config->getFirewallName(), $request->getRequestUri());
         }
 
         return $this->httpUtils->createRedirectResponse($request, $this->config->getAuthFormPath());
