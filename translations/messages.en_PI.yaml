@@ -3103,6 +3103,7 @@ layout:
         at_edge: "That cabin be at the rail already."
         deleted: "Scuttled “%name%”."
         edit_first: "Stow or belay the deck ye be refittin' first."
+        followed: "Hauled over to “%name%”, where the bottle rack be."
         no_list: "This deck has no bottle rack, so it be shown full beam."
         no_room: "No room beside %pane%. Make her bigger first, or batten a cabin."
         only_pane: "This be the only cabin. Pick somethin' else fer it with Show instead."

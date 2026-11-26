@@ -107,8 +107,10 @@ and their pages (`/contacts`, `/tasks`) show the pane at full width.
 
 ## Things that bite
 
-- **A workspace without the mail list still has mail.** Choosing a folder in the sidebar shows the
-  list at full width; **Back to the layout** returns to the workspace as you arranged it.
+- **Choosing a folder from a workspace without the mail list switches workspace.** plMail goes to
+  the first workspace (in the order of the tabs) that has the list, and says so. If none of your
+  workspaces has one, the list is shown at full width instead; **Back to the layout** returns to
+  the workspace as you arranged it.
 - **On `/contacts` and `/tasks`, leaving full width goes to the Inbox.** Those pages draw one pane
   and no list behind it, so there is no layout to go back to in place.
 - **Sizes are kept in a cookie of this browser.** Clearing the site's cookies, or a private

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 import { INBOX_LINK } from "./support/sidebar";
-import { col, only, pane, row, useWorkspace, type Kind } from "./support/workspace";
+import { col, only, pane, row, useWorkspace, useWorkspaces, type Kind } from "./support/workspace";
 
 /**
  * Workspaces (#755): panes arranged by the user, side by side and above and
@@ -190,7 +190,28 @@ test.describe("the pane menu", () => {
         await expect(pane(page, "contacts")).toBeVisible();
     });
 
-    test("without a list, a folder brings the list at full width, and the next folder leaves it where it is", async ({ page }) => {
+    test("without a list, a folder goes to the first workspace that has one", async ({ page }) => {
+        await useWorkspaces(page, [
+            { name: "Planning", layout: row("calendar", "tasks") },
+            { name: "Triage", layout: row("list", "contacts") },
+            { name: "People", layout: row("contacts", "calendar") },
+        ], 2);
+
+        await page.locator(INBOX_LINK).click();
+
+        const tabs = page.locator("[data-layout--workspace-target='workspaceTabs'] button");
+
+        await expect(tabs.filter({ hasText: "Triage" })).toHaveAttribute("aria-pressed", "true");
+        await expect(pane(page, "list")).toBeVisible();
+        await expect(pane(page, "list").getByRole("button", { name: "Back to the layout" })).toBeHidden();
+        await expect(page.locator("#toast-region").getByText("Switched to “Triage”, which has the mail list.")).toBeAttached();
+
+        // And stays: the switch is saved, as a click on the tab would be.
+        await page.reload();
+        await expect(tabs.filter({ hasText: "Triage" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    test("with no workspace that has a list, a folder brings the list at full width, and the next folder leaves it where it is", async ({ page }) => {
         await useWorkspace(page, row("calendar", "contacts"));
         await page.locator(INBOX_LINK).click();
 
@@ -364,6 +385,44 @@ test.describe("edit mode", () => {
         await page.reload();
         await page.reload();
         await expect(pane(page, "calendar")).toBeVisible();
+    });
+
+    test("nothing a pane draws shows above its card", async ({ page }) => {
+        await useWorkspace(page, row("list", "tasks"));
+
+        // As on a theme with no glass: a card with a backdrop-filter is a
+        // stacking context of its own and holds its rows below the edit card
+        // by accident. Without one, the rows' z-10 buttons (and the task's
+        // tick) were drawn over it.
+        await page.addStyleTag({ content: ".layout-card { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }" });
+        await editWorkspace(page);
+
+        const above = await page.evaluate(() => {
+            let count = 0;
+
+            document.querySelectorAll("[data-layout-pane]").forEach((slot) => {
+                const card = slot.querySelector(":scope > .layout-edit-card");
+
+                slot.querySelectorAll(":scope > :not(.layout-edit-card) *").forEach((el) => {
+                    const box = el.getBoundingClientRect();
+
+                    if (null === card || box.width < 4 || box.height < 4) {
+                        return;
+                    }
+
+                    const top = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+
+                    if (top && slot.contains(top) && false === card.contains(top)) {
+                        count++;
+                    }
+                });
+            });
+
+            return count;
+        });
+
+        expect(above).toBe(0);
+        await page.getByRole("button", { name: "Cancel" }).click();
     });
 
     test("every card's picker names its own pane, after a swap too", async ({ page }) => {
