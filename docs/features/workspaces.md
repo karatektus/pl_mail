@@ -91,6 +91,12 @@ Where you dragged the dividers, and which pane is at full width, belong to the d
 a large monitor can keep their own sizes of the same workspace. A new device starts from the
 proportions the workspace was saved with.
 
+Each workspace's panes are its own. A calendar remembers its view for your account, so a month in
+one workspace and an agenda in another each stay put. **Contacts** and **Tasks** remember where you
+left them — which task list, which contact or group — for each workspace on this device: switch
+away and back, or reload, and they are where that workspace left them. A new device starts them at
+the top.
+
 ## On a phone and a small window
 
 Below 1024 pixels wide the panes take turns: a row of tabs above them names the panes of the

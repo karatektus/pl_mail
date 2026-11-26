@@ -77,6 +77,17 @@ export default class extends Controller {
     /** How many calendars a workspace may show (Workspace::MAX_CALENDARS). */
     static MAX_CALENDARS = 4;
 
+    /**
+     * The panes whose place in their own pages each workspace keeps for
+     * itself (#paneState): which task list, which contact or group. Each is
+     * one pane in the page, shared by every workspace that shows it, so what
+     * one workspace left it on is put back when that workspace is.
+     */
+    static STATE_KINDS = ["contacts", "tasks"];
+
+    /** Where #paneState is kept on this device. */
+    static STATE_STORE = "plmail.paneState";
+
     static values = {
         document: Object,
         saveUrl: String,
@@ -832,6 +843,14 @@ export default class extends Controller {
             return;
         }
 
+        const kind = frame?.closest("[data-layout-pane]")?.dataset.layoutPane;
+
+        if (this.constructor.STATE_KINDS.includes(kind) && frame === this.slots.get(kind)?.querySelector("turbo-frame")) {
+            this.#keepPaneState(kind, frame.getAttribute("src"));
+
+            return;
+        }
+
         // Any calendar: the first's frame is `calendar-pane-frame`, a further
         // one's adds its id.
         if (false === (frame?.id ?? "").startsWith("calendar-pane-frame")) {
@@ -1393,6 +1412,61 @@ export default class extends Controller {
     }
 
     /**
+     * Where the pane of `kind` was in the active workspace when it was last
+     * shown there — a path, `/tasks?view=lists&list=7` — or null for its
+     * start (`data-layout-src`). Kept per workspace and per device, beside the
+     * divider positions, in localStorage; not on a pane page, which shows
+     * whatever its own address says.
+     */
+    #paneState(kind) {
+        if (false === this.constructor.STATE_KINDS.includes(kind) || "" !== this.pageValue) {
+            return null;
+        }
+
+        return this.#paneStates()[this.#workspace().id]?.[kind] ?? null;
+    }
+
+    /** Note where the pane of `kind` now is, for the active workspace. */
+    #keepPaneState(kind, src) {
+        const start = this.slots.get(kind)?.dataset.layoutSrc;
+
+        if ("" !== this.pageValue || !src || !start) {
+            return;
+        }
+
+        const place = new URL(src, location.href);
+
+        // Only the pane's own pages: a frame that ended up elsewhere is not a
+        // place to come back to.
+        if (place.origin !== location.origin || false === place.pathname.startsWith(new URL(start, location.href).pathname)) {
+            return;
+        }
+
+        const states = this.#paneStates();
+        const ids = new Set(this.doc.workspaces.map((workspace) => workspace.id));
+        const id = this.#workspace().id;
+
+        states[id] = { ...(states[id] ?? {}), [kind]: place.pathname + place.search };
+        Object.keys(states).forEach((key) => ids.has(key) || delete states[key]);
+
+        try {
+            localStorage.setItem(this.constructor.STATE_STORE, JSON.stringify(states));
+        } catch {
+            // Private mode, or full: the pane just starts at its start.
+        }
+    }
+
+    #paneStates() {
+        try {
+            const states = JSON.parse(localStorage.getItem(this.constructor.STATE_STORE) ?? "{}");
+
+            return null !== states && "object" === typeof states ? states : {};
+        } catch {
+            return {};
+        }
+    }
+
+    /**
      * Give the pane of `kind` at least `width` pixels, out of its row
      * neighbours' room above their own minimums. Only ever wider.
      */
@@ -1658,14 +1732,22 @@ export default class extends Controller {
         this.#placeReading(present.includes("message") && false === narrow && "list" !== this.maxKind);
 
         // A pane that has just come on screen fetches what it shows: the
-        // server parks an empty lazy frame for every pane it did not draw.
+        // server parks an empty lazy frame for every pane it did not draw. A
+        // pane this workspace left somewhere (#paneState) goes back there.
         for (const kind of [...present, this.maxKind]) {
             const slot = this.slots.get(kind);
-            const frame = slot?.querySelector("turbo-frame[data-layout-lazy]");
+            const frame = slot?.querySelector("turbo-frame");
+            const wanted = this.#paneState(kind) ?? slot?.dataset.layoutSrc;
 
-            if (frame && slot.dataset.layoutSrc) {
+            if (!frame || !wanted) {
+                continue;
+            }
+
+            if (frame.hasAttribute("data-layout-lazy")) {
                 frame.removeAttribute("data-layout-lazy");
-                frame.setAttribute("src", slot.dataset.layoutSrc);
+                frame.setAttribute("src", wanted);
+            } else if (this.constructor.STATE_KINDS.includes(kind) && samePlace(frame.getAttribute("src") ?? slot.dataset.layoutSrc, wanted) === false) {
+                frame.setAttribute("src", wanted);
             }
         }
 
@@ -2317,6 +2399,17 @@ function split(dir, children, sizes = null) {
  */
 function keyOf(node) {
     return node.id ? `${node.kind}~${node.id}` : node.kind;
+}
+
+/** Whether two addresses are the same page of a pane (path and query). */
+function samePlace(a, b) {
+    if (!a || !b) {
+        return a === b;
+    }
+
+    const [x, y] = [new URL(a, location.href), new URL(b, location.href)];
+
+    return x.pathname === y.pathname && x.search === y.search;
 }
 
 /** What the pane of a key shows. */
