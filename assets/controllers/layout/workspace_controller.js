@@ -161,7 +161,7 @@ export default class extends Controller {
         // name — "Add to contacts" does, with an open_pane stream (panes.js).
         this._unregister = ["calendar", "contacts", "tasks"].map((kind) => registerPane(kind, {
             available: () => false === this.narrow.matches,
-            isOpen: () => this.#kinds().includes(kind) && (null === this.maxKind || kind === this.maxKind),
+            isOpen: () => this.#kinds().some((key) => kindOf(key) === kind) && (null === this.maxKind || kind === kindOf(this.maxKind)),
             open: ({ src } = {}) => this.#openByName(kind, src),
             close: () => this.#close(kind),
         }));
@@ -901,11 +901,46 @@ export default class extends Controller {
      * in a workspace once.
      */
     #newKey(kind) {
-        if (false === this.#kinds().includes(kind)) {
+        // A calendar's key is its own across workspaces (see #ownCalendars),
+        // so the plain one is taken while ANY workspace shows it.
+        const taken = "calendar" === kind ? this.doc.workspaces.flatMap((workspace) => leaves(workspace.layout)) : this.#kinds();
+
+        if (false === taken.includes(kind) && false === this.#kinds().includes(kind)) {
             return kind;
         }
 
         return this.#canAdd(kind) ? `${kind}~${newId("c")}` : null;
+    }
+
+    /**
+     * Give each calendar in `workspace` whose key another workspace uses an
+     * id of its own. A calendar is one pane wherever its key appears — one
+     * frame, one remembered view — so a calendar copied into a new workspace,
+     * or put there by a shape, would otherwise BE the other workspace's, and
+     * picking Agenda in one switched both. The server does the same for
+     * documents made before this (Workspaces::ownCalendars()).
+     */
+    #ownCalendars(workspace) {
+        const elsewhere = new Set(this.doc.workspaces.filter((other) => other !== workspace).flatMap((other) => leaves(other.layout)));
+        const visit = (node) => {
+            if ("pane" === node.t) {
+                if ("calendar" === node.kind && elsewhere.has(keyOf(node))) {
+                    const before = keyOf(node);
+
+                    node.id = newId("c");
+
+                    if (this.maxKind === before) {
+                        this.maxKind = keyOf(node);
+                    }
+                }
+
+                return;
+            }
+
+            node.children.forEach(visit);
+        };
+
+        visit(workspace.layout);
     }
 
     /**
@@ -1329,19 +1364,24 @@ export default class extends Controller {
 
     /** openPane() from anywhere: on screen, beside what is there, showing `src`. */
     #openByName(kind, src) {
-        if (false === this.#kinds().includes(kind) && kind !== this.maxKind) {
+        // The first pane of that kind this workspace shows — for a calendar,
+        // whichever calendar that is — or a new one with a key of its own.
+        const shown = this.#kinds().find((key) => kindOf(key) === kind) ?? null;
+        const key = shown ?? (kindOf(this.maxKind) === kind ? this.maxKind : (this.#newKey(kind) ?? kind));
+
+        if (null === shown && key !== this.maxKind) {
             const root = this.#workspace().layout;
-            const pane = { t: "pane", kind };
+            const pane = paneNode(key);
 
             this.#workspace().layout = normalise("split" === root.t && "row" === root.dir
                 ? { ...root, children: [...root.children, pane], sizes: [...root.sizes.map((size) => size * 0.7), 0.3] }
                 : split("row", [root, pane], [0.7, 0.3]));
             this.#commit();
-        } else if (null !== this.maxKind && kind !== this.maxKind) {
+        } else if (null !== this.maxKind && key !== this.maxKind) {
             this.#setMax(null);
         }
 
-        const frame = this.slots.get(kind)?.querySelector("turbo-frame");
+        const frame = this.#slot(key)?.querySelector("turbo-frame");
 
         if (frame && src) {
             if (new URL(src, location.href).href === frame.src) {
@@ -1487,6 +1527,7 @@ export default class extends Controller {
 
     /** Save, then draw. Every change ends here. */
     #commit() {
+        this.#ownCalendars(this.#workspace());
         this.#render();
         this.#drawWorkspaceTabs();
         this.#save();

@@ -77,6 +77,14 @@ abstract readonly class LayoutNode
         return array_map(static fn (LayoutPane $pane): string => $pane->key(), $this->panes());
     }
 
+    /**
+     * This subtree with each pane passed through `$map` (which returns it, or
+     * a pane to put in its place), every split kept as it is.
+     *
+     * @param callable(LayoutPane): LayoutPane $map
+     */
+    abstract public function mapPanes(callable $map): self;
+
     /** Whether this subtree is the split of that id or contains it. */
     abstract public function hasSplit(string $id): bool;
 

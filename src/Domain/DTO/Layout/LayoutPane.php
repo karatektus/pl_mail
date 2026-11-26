@@ -78,6 +78,11 @@ final readonly class LayoutPane extends LayoutNode
         return [$this];
     }
 
+    public function mapPanes(callable $map): LayoutNode
+    {
+        return $map($this);
+    }
+
     public function hasSplit(string $id): bool
     {
         return false;

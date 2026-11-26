@@ -546,6 +546,38 @@ test.describe("the panes in a workspace", () => {
         await expect(current(page.locator("turbo-frame#calendar-pane-frame-c2"))).toHaveAttribute("aria-label", "Agenda");
     });
 
+    test("a calendar in each of two workspaces keeps its own view", async ({ page }) => {
+        await useWorkspaces(page, [
+            { name: "Mail", layout: row("list", "calendar") },
+            { name: "Planning", layout: row("calendar", "list") },
+        ], 0);
+
+        const tabs = page.locator("[data-layout--workspace-target='workspaceTabs'] button");
+        const shown = () => page.locator("[data-layout--workspace-target='body'] [data-pane-kind='calendar']");
+        const current = () => shown().locator("[data-calendar-views] a[aria-current='page']");
+
+        await shown().locator("[data-calendar-views] a[aria-label='Day']").click();
+        await expect(current()).toHaveAttribute("aria-label", "Day");
+
+        // Two workspaces, two calendars: picking Agenda in Planning's leaves
+        // Mail's on Day. They were one pane, so it switched both.
+        await tabs.filter({ hasText: "Planning" }).click();
+        await shown().locator("[data-calendar-views] a[aria-label='Agenda']").click();
+        await expect(current()).toHaveAttribute("aria-label", "Agenda");
+
+        const saved = nextSave(page);
+
+        await tabs.filter({ hasText: "Mail" }).click();
+        await expect(current()).toHaveAttribute("aria-label", "Day");
+
+        // And after a reload, each still has its own.
+        expect((await saved).ok()).toBe(true);
+        await page.reload();
+        await expect(current()).toHaveAttribute("aria-label", "Day");
+        await tabs.filter({ hasText: "Planning" }).click();
+        await expect(current()).toHaveAttribute("aria-label", "Agenda");
+    });
+
     test("a split can add another calendar beside one, up to four", async ({ page }) => {
         await page.setViewportSize({ width: 1900, height: 900 });
         await useWorkspace(page, row("list", "calendar"));

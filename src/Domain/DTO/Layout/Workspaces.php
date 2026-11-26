@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\DTO\Layout;
 
+use App\Domain\Enum\Layout\PaneKind;
+
 /**
  * Everything a user has arranged (#755): their workspaces, in the order the
  * top bar shows them, and which one is on screen.
@@ -60,7 +62,66 @@ final readonly class Workspaces
 
         $active = is_int($data['active'] ?? null) ? $data['active'] : 0;
 
-        return new self($all, $active >= 0 && $active < $count ? $active : 0);
+        return new self(self::ownCalendars($all), $active >= 0 && $active < $count ? $active : 0);
+    }
+
+    /**
+     * Every calendar its own pane, across workspaces.
+     *
+     * A calendar is one pane wherever its key appears — one frame, one view
+     * remembered (User::SETTING_CALENDAR_PANE_VIEWS) — so a calendar in
+     * "Mail" and one in "Planning" with the same key were the same calendar:
+     * picking Agenda in one switched the other. Each workspace was made with
+     * a plain `{"kind": "calendar"}` before calendars could come twice, so
+     * every document from then has exactly that. The first workspace's keeps
+     * its key; each later repeat gets an id of its own, derived from its
+     * workspace so the same document gives the same ids on every read and
+     * the view picked in it is still there tomorrow without anything being
+     * written. The page gives new workspaces' calendars ids of their own as
+     * it makes them (layout--workspace), so this only ever meets the old ones.
+     *
+     * @param list<Workspace> $all
+     *
+     * @return list<Workspace>
+     */
+    private static function ownCalendars(array $all): array
+    {
+        $taken = [];
+
+        foreach ($all as $workspace) {
+            foreach ($workspace->root->keys() as $key) {
+                $taken[$key] = 0;
+            }
+        }
+
+        $seen = [];
+
+        return array_map(static function (Workspace $workspace) use (&$seen, &$taken): Workspace {
+            $root = $workspace->root->mapPanes(static function (LayoutPane $pane) use (&$seen, &$taken, $workspace): LayoutPane {
+                if (PaneKind::Calendar !== $pane->kind) {
+                    return $pane;
+                }
+
+                if (false === isset($seen[$pane->key()])) {
+                    $seen[$pane->key()] = true;
+
+                    return $pane;
+                }
+
+                $salt = 0;
+
+                do {
+                    $id = 'c' . substr(hash('crc32b', $workspace->id . '~' . $pane->key() . '~' . $salt++), 0, 8);
+                } while (isset($taken[PaneKind::Calendar->value . '~' . $id]));
+
+                $taken[PaneKind::Calendar->value . '~' . $id] = 0;
+                $seen[PaneKind::Calendar->value . '~' . $id]  = true;
+
+                return new LayoutPane(PaneKind::Calendar, $id);
+            });
+
+            return $root === $workspace->root ? $workspace : new Workspace($workspace->id, $workspace->name, $root);
+        }, $all);
     }
 
     /** @return array{workspaces: list<array<string, mixed>>, active: int} */
