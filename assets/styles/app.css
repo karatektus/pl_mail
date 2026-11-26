@@ -3957,12 +3957,19 @@ html {
    tint is a `background-image` composited onto it, which is the one way to
    stack two paints on a box without a pseudo-element — and a pseudo-element is
    the wrong tool here because the box is already `overflow-hidden` around a
-   chip and would need a z-index to stay behind it. The custom property is what
-   the caller sets inline, and a property is free to be overridden by a class in
-   a way a `background-color` never was. */
+   chip and would need a z-index to stay behind it. The caller sets the calendar
+   colour inline as `--block-color` and the tint is derived from it here, and a
+   property is free to be overridden by a class in a way a `background-color`
+   never was. */
 @utility block-tint {
+    --block-tint: color-mix(in srgb, var(--block-color, transparent) 28%, transparent);
     background-color: rgb(var(--rgb-surface));
-    background-image: linear-gradient(var(--block-tint, transparent), var(--block-tint, transparent));
+    background-image: linear-gradient(var(--block-tint), var(--block-tint));
+
+    & .text-ink,
+    & .text-ink-faint {
+        color: color-mix(in oklab, var(--block-color, rgb(var(--rgb-ink))) 40%, rgb(var(--rgb-ink)));
+    }
 }
 
 /* The hours an entry of a day or more takes, shaded under a day's own blocks

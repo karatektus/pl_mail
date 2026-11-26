@@ -685,8 +685,8 @@ The recipes below are the app's own. Reuse the named utilities (`pane`, `popover
 - **Neutral tag:** `text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted`, for a
   count or a word beside a heading. Muted, not faint: faint ink was 4.41:1 on the raised step. **Inline code** (a search operator in help text) is
   `bg-sunken px-1 rounded` in a `<code>`.
-- **Event chip:** a meeting drawn in the calendar carries its calendar's colour as a bar, over a 10%
-  wash of it where it is a block. A meeting you answered **Maybe** is striped in that colour with a
+- **Event chip:** a meeting drawn in the calendar carries its calendar's colour as a bar, over a 28%
+  wash of it where it is a block, with its time and title in a tint of that colour. A meeting you answered **Maybe** is striped in that colour with a
   dashed edge (`data-tentative`), in every view: it keeps its slot, and the stripes say it is not
   settled. An event's own tentative status, set by its organiser, does not stripe it.
 
