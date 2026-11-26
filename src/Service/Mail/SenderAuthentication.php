@@ -137,6 +137,43 @@ final readonly class SenderAuthentication
         return true === $this->passes($results, $fromDomain) ? SenderVerdict::Pass : SenderVerdict::Fail;
     }
 
+    /**
+     * Every DMARC, DKIM and SPF result in the lines the account's receiving
+     * server wrote, lower-cased — and nothing from a line it did not.
+     *
+     * For callers that ask a narrower question than verdict(), such as
+     * SenderIdentityChecker's "did the From domain sign this?". They used to
+     * read every Authentication-Results field on the message, which a sender
+     * can write into their own mail; whose word counts is decided here, once.
+     *
+     * @return list<string>
+     */
+    public function believedResults(Message $message): array
+    {
+        return $this->senderResults($this->believedLines($message));
+    }
+
+    /** Whether a DKIM pass among the believed results was signed for $domain. */
+    public function dkimPassFor(Message $message, string $domain): bool
+    {
+        $results = $this->believedResults($message);
+
+        // Believed lines that disagree hold a forgery, and there is no
+        // telling which line is it — the same rule verdict() follows.
+        if (true === $this->disagree($results)) {
+            return false;
+        }
+
+        foreach ($results as $result) {
+            if (1 === preg_match('/^dkim\s*=\s*pass\b/', $result)
+                && true === $this->aligned($result, ['header.d'], $domain)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
@@ -147,8 +184,25 @@ final readonly class SenderAuthentication
      */
     private function believedLines(Message $message): array
     {
+        // No account, no receiving server to believe. isset() because the
+        // property is typed and may not have been given one yet.
+        if (false === isset($message->account)) {
+            return [];
+        }
+
         $account = $message->account;
-        $raw     = $message->headers['authentication-results'] ?? null;
+
+        $raw = null;
+
+        // Looked up without case: HeaderNormalizer lower-cases what sync
+        // stores, but a header bag built anywhere else need not be.
+        foreach ($message->headers ?? [] as $name => $value) {
+            if (0 === strcasecmp((string) $name, 'authentication-results')) {
+                $raw = $value;
+
+                break;
+            }
+        }
         $lines   = array_values(array_filter(
             array_map(
                 static fn (mixed $line): string => trim((string) preg_replace('/\s+/', ' ', (string) $line)),
