@@ -3963,12 +3963,34 @@ html {
    never was. */
 @utility block-tint {
     --block-tint: color-mix(in srgb, var(--block-color, transparent) 28%, transparent);
+    --block-text: color-mix(in oklab, var(--block-color, rgb(var(--rgb-ink))) 40%, rgb(var(--rgb-ink)));
     background-color: rgb(var(--rgb-surface));
     background-image: linear-gradient(var(--block-tint), var(--block-tint));
 
     & .text-ink,
     & .text-ink-faint {
-        color: color-mix(in oklab, var(--block-color, rgb(var(--rgb-ink))) 40%, rgb(var(--rgb-ink)));
+        color: var(--block-text);
+    }
+}
+
+@supports (color: light-dark(red, red)) and (color: oklab(from red l a b)) {
+    .block-tint {
+        --block-text-ceiling: 0.43;
+        --block-text-floor:   0.70;
+        --block-text-mix: color-mix(in oklab, var(--block-color, rgb(var(--rgb-ink))) 40%, rgb(var(--rgb-ink)));
+        --block-text-light: oklab(from var(--block-text-mix)
+            min(l, var(--block-text-ceiling))
+            calc(a * min(1, var(--block-text-ceiling) / l))
+            calc(b * min(1, var(--block-text-ceiling) / l)));
+        --block-text-dark: oklab(from var(--block-text-mix)
+            max(l, var(--block-text-floor))
+            calc(a * (1 - max(0, (var(--block-text-floor) - l) / (1 - l))))
+            calc(b * (1 - max(0, (var(--block-text-floor) - l) / (1 - l)))));
+        --block-text: light-dark(var(--block-text-light), var(--block-text-dark));
+    }
+
+    .mail-sheet .block-tint {
+        --block-text: var(--block-text-light);
     }
 }
 
@@ -4021,6 +4043,11 @@ html {
     background-image: repeating-linear-gradient(135deg, var(--block-stripe) 0 5px, transparent 5px 10px);
     outline: 1px dashed var(--block-edge);
     outline-offset: -1px;
+}
+
+[data-tentative].block-tint,
+.block-tint:has([data-tentative]) {
+    --block-tint: color-mix(in srgb, var(--block-color, transparent) 10%, transparent);
 }
 
 [data-tentative].block-tint {

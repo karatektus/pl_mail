@@ -686,9 +686,10 @@ The recipes below are the app's own. Reuse the named utilities (`pane`, `popover
   count or a word beside a heading. Muted, not faint: faint ink was 4.41:1 on the raised step. **Inline code** (a search operator in help text) is
   `bg-sunken px-1 rounded` in a `<code>`.
 - **Event chip:** a meeting drawn in the calendar carries its calendar's colour as a bar, over a 28%
-  wash of it where it is a block, with its time and title in a tint of that colour. A meeting you answered **Maybe** is striped in that colour with a
+  wash of it where it is a block, with its time and title in a tint of that colour, kept to 4.5:1
+  whatever the colour (`BlockTextContrastTest`). A meeting you answered **Maybe** is striped in that colour with a
   dashed edge (`data-tentative`), in every view: it keeps its slot, and the stripes say it is not
-  settled. An event's own tentative status, set by its organiser, does not stripe it.
+  settled. Under the stripes its block's wash is 10%, so a light colour's stripes do not wash out its text. An event's own tentative status, set by its organiser, does not stripe it.
 
 ### Navigation
 
