@@ -26,6 +26,7 @@ mechanism behind it.
 | Page | What it covers |
 |---|---|
 | [Mail](features/mail.md) | Reading, threads, labels, search and its operators, snooze, attachments, composing, signatures, emoji and inline images, scheduled send, read receipts, drafts, undo send |
+| [Forward to an agent](features/forward-to-agent.md) | Sending the email you are reading to an agent with a note, in one move, and managing your list of agents |
 | [Accounts and aliases](features/accounts.md) | Adding Gmail, Outlook and IMAP accounts, sending aliases, per-account settings |
 | [Account health](features/health.md) | What is broken and what fixes it, reconnecting an account without losing its mail, the two ways push breaks |
 | [Templates](features/templates.md) | Reusable messages, the folder tree that mirrors your accounts, variables for recipient, sender, signature and dates, inserting one while composing |

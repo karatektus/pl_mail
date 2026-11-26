@@ -65,7 +65,7 @@ class ComposeController extends AbstractController
     use RendersTurboStreams;
 
     /** Matches the DelayStamp on the send job. */
-    private const int SEND_DELAY_MS = 10_000;
+    public const int SEND_DELAY_MS = 10_000;
 
     /**
      * How long the cancel affordance is actually offered for — deliberately
@@ -85,7 +85,7 @@ class ComposeController extends AbstractController
      * anyway — a slow request, a busy worker — is now TOLD it lost. This is
      * what keeps that path rare enough to be an edge case.
      */
-    private const int CANCEL_WINDOW_MS = 8_000;
+    public const int CANCEL_WINDOW_MS = 8_000;
 
     public function __construct(
         private readonly EntityManagerInterface  $em,

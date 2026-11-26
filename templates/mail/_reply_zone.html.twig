@@ -84,6 +84,21 @@ The action buttons hide themselves while a compose card is open; see the
                 <i class="fa-solid fa-share text-xs" aria-hidden="true"></i>
                 {{ 'compose.forward'|trans }}
             </a>
+
+            <button
+                type="button"
+                data-shortcut="forward-agent"
+                data-controller="ui--modal"
+                data-action="click->ui--modal#open"
+                data-ui--modal-src-value="{{ path('app_mail_agent_forward_dialog', { id: last.id }) }}"
+                data-ui--modal-title-value="{{ 'agent_forward.heading'|trans }}"
+                title="{{ 'agent_forward.button_title'|trans }}"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium cursor-pointer
+                       text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
+            >
+                <i class="fa-solid fa-robot text-xs" aria-hidden="true"></i>
+                {{ 'agent_forward.button'|trans }}
+            </button>
         </div>
     {% endif %}
 

@@ -1412,6 +1412,24 @@ admin:
     version:
         hint: The build this ship be sailin' — the release, an' the commit she were built from.
         copy: Copy the build %version% to yer clipboard
+agent_forward:
+    add_agent: "Sign on a hand"
+    agent_label: "Send to"
+    agent_sealed: "Letters to this hand would be sealed or signed. Use Pass it on."
+    button: "Pass to a hand"
+    button_title: "Pass this letter to one o' yer hands with a note (Shift+F)"
+    cancel: "Belay that"
+    empty: "Ye've no hands aboard yet. Sign one on under Settings → Scribblin': a name and the address it reads."
+    encrypted: "This letter be under lock, so it can't be passed to a hand. Use Pass it on to send it yerself."
+    heading: "Pass to a hand"
+    incomplete: "Not sent: a bit o' cargo couldn't be copied. The pass-on be in yer Drafts."
+    note_label: "Yer note"
+    note_placeholder: "What d'ye make o' this?"
+    pick_hint: "Alt+%n% picks this hand"
+    sealed: "Yer settings would seal or sign this here pass-on, and only the scribblin' window can do that. Use Pass it on to send it yerself."
+    send_hint: "Ctrl/⌘+Enter casts off"
+    sending: "Passin' to %name%"
+    submit: "Send to %name%"
 # The All Mail lists — every conversation outside Spam and the bin
 # (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
 all_mail:
@@ -3802,6 +3820,18 @@ settings:
         with_keys: "Yer keys sail along: ciphered letters open in the app straight away."
         expires: "Fades at %time%."
         open_in_app: "Open it in th' app"
+    forward_agents:
+        add: "Sign on"
+        address: "Address"
+        address_placeholder: "agent@example.com"
+        empty: "No hands aboard yet. Sign one on below and it shows in Pass to a hand on every letter."
+        heading: "Pass to a hand"
+        name: "Name"
+        name_placeholder: "Scoutin' bot"
+        refused: "That hand weren't signed on. Check the address; the crew holds %max% at most."
+        remove: "Put ashore"
+        remove_confirm: "Put %name% ashore?"
+        subheading: "Anythin' that reads letters. Pass to a hand (Shift+F) sends an open letter to one o' these with yer note."
     libravatar:
         heading: 'Libravatar'
         no_picture: 'Ye have no portrait yet; add one above fer this to show anything.'
@@ -5037,6 +5067,7 @@ settings:
             disposal: "delete trash bin forever empty"
             encryption: "pgp openpgp gpg key"
             filters: "rules sieve automatic move forward"
+            forward_agents: "agent bot assistant ai forward relay hand off"
             handwriting: "sign pdf draw"
             images: "tracking pixel remote load block"
             inbox_tabs: "tabs promotions social updates forums"
@@ -5430,6 +5461,7 @@ shortcuts:
         conversation_view: 'Switch ''twixt whole yarns an'' single letters'
         delete: "Feed to the fishes"
         forward: "Pass it on"
+        forward_agent: "Pass to a hand"
         go_archive: "Sail to the hold"
         go_drafts: "Sail to Drafts"
         go_inbox: "Sail to the Inbox"

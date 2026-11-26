@@ -1500,6 +1500,24 @@ admin:
     version:
         hint: La version que cette installation exécute — la publication, et le commit à partir duquel elle a été construite.
         copy: Copier la version %version%
+agent_forward:
+    add_agent: "Ajouter un agent"
+    agent_label: "Envoyer à"
+    agent_sealed: "Le courrier à cet agent serait chiffré ou signé. Utilisez Transférer."
+    button: "Transférer à un agent"
+    button_title: "Transférer cet e-mail à l’un de vos agents avec une note (Maj+F)"
+    cancel: "Annuler"
+    empty: "Vous n’avez pas encore d’agent. Ajoutez-en un dans Paramètres → Rédaction : un nom et l’adresse qu’il lit."
+    encrypted: "Cet e-mail est chiffré : il ne peut pas être transféré à un agent. Utilisez Transférer pour l’envoyer vous-même."
+    heading: "Transférer à un agent"
+    incomplete: "Non envoyé : une pièce jointe n’a pas pu être copiée. Le transfert est dans vos brouillons."
+    note_label: "Votre note"
+    note_placeholder: "Qu’en pensez-vous ?"
+    pick_hint: "Alt+%n% choisit cet agent"
+    sealed: "Vos paramètres signeraient ou chiffreraient ce transfert, ce que seule la fenêtre de rédaction sait faire. Utilisez Transférer pour l’envoyer vous-même."
+    send_hint: "Ctrl/⌘+Entrée pour envoyer"
+    sending: "Transfert à %name%"
+    submit: "Envoyer à %name%"
 # The All Mail lists — every conversation outside Spam and the bin
 # (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
 all_mail:
@@ -4004,6 +4022,18 @@ settings:
         with_keys: 'Vos clés vous accompagnent : le courrier chiffré s’ouvre tout de suite dans l’application.'
         expires: "Expire à %time%."
         open_in_app: "Ouvrir dans l’application"
+    forward_agents:
+        add: "Ajouter l’agent"
+        address: "Adresse"
+        address_placeholder: "agent@example.com"
+        empty: "Aucun agent pour l’instant. Ajoutez-en un ci-dessous : il apparaîtra dans Transférer à un agent sur chaque e-mail."
+        heading: "Transférer à un agent"
+        name: "Nom"
+        name_placeholder: "Bot de recherche"
+        refused: "Cet agent n’a pas été ajouté. Vérifiez l’adresse ; la liste en contient au plus %max%."
+        remove: "Retirer"
+        remove_confirm: "Retirer %name% de vos agents ?"
+        subheading: "Tout ce qui lit les e-mails. Transférer à un agent (Maj+F) envoie l’e-mail ouvert à l’un d’eux avec votre note."
     libravatar:
         heading: 'Libravatar'
         no_picture: 'Vous n''avez pas encore de photo de profil ; ajoutez-en une ci-dessus pour que ceci affiche quelque chose.'
@@ -5289,6 +5319,7 @@ settings:
             disposal: "supprimer corbeille définitivement vider"
             encryption: "pgp openpgp gpg clé"
             filters: "règles sieve automatique déplacer transférer"
+            forward_agents: "agent bot assistant ia transférer relais confier"
             handwriting: "signer pdf dessiner"
             images: "pistage pixel distant charger bloquer"
             inbox_tabs: "onglets promotions réseaux notifications forums"
@@ -5668,6 +5699,7 @@ shortcuts:
         conversation_view: 'Basculer entre conversations et e-mails individuels'
         delete: "Supprimer"
         forward: "Transférer"
+        forward_agent: "Transférer à un agent"
         go_archive: "Aller aux Archives"
         go_drafts: "Aller aux Brouillons"
         go_inbox: "Aller à la boîte de réception"

@@ -1356,6 +1356,24 @@ admin:
     version:
         hint: 此部署当前运行的构建，包括发布版本及其来源提交。
         copy: "复制构建版本 %version%"
+agent_forward:
+    add_agent: "添加代理"
+    agent_label: "发送给"
+    agent_sealed: "发给此代理的邮件会被加密或签名。请使用“转发”。"
+    button: "转发给代理"
+    button_title: "附上备注，将这封邮件转发给你的某个代理（Shift+F）"
+    cancel: "取消"
+    empty: "你还没有代理。请在 设置 → 撰写 中添加：填写名称和它读取的地址。"
+    encrypted: "这封邮件已加密，无法转发给代理。请使用“转发”自行发送。"
+    heading: "转发给代理"
+    incomplete: "未发送：有附件无法复制。这封转发在你的草稿中。"
+    note_label: "你的备注"
+    note_placeholder: "你怎么看？"
+    pick_hint: "Alt+%n% 选择此代理"
+    sealed: "你的设置会对这封转发签名或加密，而这只能在撰写窗口中完成。请使用“转发”自行发送。"
+    send_hint: "Ctrl/⌘+Enter 发送"
+    sending: "正在转发给 %name%"
+    submit: "发送给 %name%"
 all_mail:
     empty: 除垃圾邮件和废纸篓外，没有邮件。
 alias:
@@ -3532,6 +3550,18 @@ settings:
         with_keys: "密钥会一同传输，加密邮件可立即在应用中打开。"
         expires: '于 %time% 过期。'
         open_in_app: '在应用中打开'
+    forward_agents:
+        add: "添加代理"
+        address: "地址"
+        address_placeholder: "agent@example.com"
+        empty: "还没有代理。在下方添加后，每封邮件的“转发给代理”中都会出现它。"
+        heading: "转发给代理"
+        name: "名称"
+        name_placeholder: "研究机器人"
+        refused: "未能添加该代理。请检查地址；列表最多 %max% 个。"
+        remove: "移除"
+        remove_confirm: "要从代理中移除 %name% 吗？"
+        subheading: "任何能读取邮件的对象。“转发给代理”（Shift+F）会把打开的邮件连同你的备注发给其中一个。"
     libravatar:
         heading: 'Libravatar'
         no_picture: '你还没有头像；请先在上方添加，此处才会显示内容。'
@@ -4548,6 +4578,7 @@ settings:
             disposal: "删除 回收站 彻底 清空"
             encryption: "pgp openpgp gpg 密钥"
             filters: "规则 sieve 自动 移动 转发"
+            forward_agents: "代理 机器人 助手 ai 转发 中继 交给"
             handwriting: "签名 pdf 手写"
             images: "跟踪 像素 远程 加载 阻止"
             inbox_tabs: "标签页 推广 社交 动态 论坛"
@@ -4908,6 +4939,7 @@ shortcuts:
         conversation_view: '在会话和单封邮件之间切换'
         delete: '删除'
         forward: '转发'
+        forward_agent: "转发给代理"
         go_archive: '前往归档'
         go_drafts: '前往草稿'
         go_inbox: '前往收件箱'

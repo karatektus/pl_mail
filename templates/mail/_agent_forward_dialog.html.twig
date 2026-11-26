@@ -1,0 +1,147 @@
+{#
+mail/_agent_forward_dialog.html.twig
+─────────────────────────────────────────────────────────────────────────────
+"Forward to agent": which agent, and what you want from them. Sending forwards
+the mail to that agent with the note above the quote, from the account the mail
+is in. Nothing else to fill in, so the whole hand-off is the shortcut, a
+sentence and Ctrl/⌘+Enter.
+
+The note is focused on open and the first agent is already picked; Alt+1–9
+picks another without leaving the note. The agents are the person's own list,
+managed under Settings → Compose.
+
+Hand-written into the modal frame for the reason insight/_report_dialog gives:
+one field posted as JSON has no FormView behind it.
+
+Variables:
+  message  Message being handed off
+  agents   list<ForwardAgent>
+  sealed   list<string> — addresses of agents the composer would encrypt or
+           sign to, shown but not offered (AgentForwarder::sealsFor)
+  refusal  null | AgentForwarder::REFUSED_* — why nothing can be sent from here
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'agent_forward.heading'|trans }}</template>
+
+    {% set settingsUrl = path('app_settings_page', { page: 'compose' }) ~ '#card-forward-agents' %}
+
+    {% set offered = agents|filter(agent => agent.address not in sealed) %}
+
+    {% if agents is empty or refusal is not null %}
+        <div class="px-6 pb-6 space-y-4">
+            <p class="text-sm text-ink-soft leading-relaxed">
+                {{ ({ encrypted: 'agent_forward.encrypted', sealed: 'agent_forward.sealed' }[refusal] ?? 'agent_forward.empty')|trans }}
+            </p>
+
+            <div class="flex items-center justify-end gap-2">
+                <button type="button"
+                        data-action="click->ui--modal#close"
+                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                               text-ink-soft bg-field border border-field-border hover:bg-hover
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
+                               transition-colors duration-100">{{ 'agent_forward.cancel'|trans }}</button>
+
+                {% if refusal is null %}
+                    <a href="{{ settingsUrl }}"
+                       data-turbo-frame="_top"
+                       class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink
+                              bg-accent hover:bg-accent-strong
+                              focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                              transition-colors duration-100">{{ 'agent_forward.add_agent'|trans }}</a>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div data-controller="mail--agent-forward"
+             data-mail--agent-forward-url-value="{{ path('app_mail_agent_forward_send', { id: message.id }) }}"
+             data-mail--agent-forward-token-value="{{ csrf_token('agent-forward') }}"
+             data-action="keydown->mail--agent-forward#keydown"
+             class="flex-1 min-h-0 flex flex-col">
+
+            <div class="flex-1 min-h-0 px-6 pb-4 space-y-4 overflow-y-auto">
+                <p class="text-xs text-ink-muted truncate">
+                    <i class="fa-solid fa-share mr-1 text-ink-faint" aria-hidden="true"></i>
+                    {{ message.subject ?: ('thread_row.no_subject'|trans) }}
+                </p>
+
+                <fieldset class="space-y-1.5">
+                    <legend class="mb-1.5 text-xs font-medium text-ink-soft">{{ 'agent_forward.agent_label'|trans }}</legend>
+
+                    {% for agent in agents %}
+                        {% set isSealed = agent.address in sealed %}
+                        <label class="flex items-center gap-3 px-3 py-2 rounded-lg border border-line
+                                      {{ isSealed ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-hover' }}
+                                      has-[:checked]:border-accent has-[:checked]:bg-accent-soft
+                                      transition-colors duration-100">
+                            <input type="radio"
+                                   name="agent"
+                                   value="{{ agent.address }}"
+                                   data-mail--agent-forward-target="agent"
+                                   data-name="{{ agent.name }}"
+                                   data-action="change->mail--agent-forward#pick"
+                                   {{ isSealed ? 'disabled' }}
+                                   {{ offered is not empty and agent.address == (offered|first).address ? 'checked' }}
+                                   class="size-4 shrink-0 accent-accent focus:ring-2 focus:ring-accent">
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-sm font-medium text-ink truncate">{{ agent.name }}</span>
+                                <span class="block text-xs text-ink-faint truncate">{{ agent.address }}</span>
+                                {% if isSealed %}
+                                    <span class="block text-xs text-ink-muted">{{ 'agent_forward.agent_sealed'|trans }}</span>
+                                {% endif %}
+                            </span>
+                            {% if agents|length > 1 %}
+                                <kbd class="shrink-0 rounded border border-line bg-raised px-1.5 py-0.5 font-mono text-[11px] text-ink-muted"
+                                     title="{{ 'agent_forward.pick_hint'|trans({ '%n%': loop.index }) }}">{{ loop.index }}</kbd>
+                            {% endif %}
+                        </label>
+                    {% endfor %}
+                </fieldset>
+
+                <div class="space-y-1.5">
+                    <label for="agent-forward-note" class="block text-xs font-medium text-ink-soft">
+                        {{ 'agent_forward.note_label'|trans }}
+                    </label>
+                    <textarea id="agent-forward-note"
+                              data-mail--agent-forward-target="note"
+                              rows="3"
+                              maxlength="{{ constant('App\\Controller\\Mail\\AgentForwardController::MAX_NOTE_CHARS') }}"
+                              autofocus
+                              placeholder="{{ 'agent_forward.note_placeholder'|trans }}"
+                              class="w-full px-3 py-2 rounded-lg text-sm bg-field border border-field-border text-ink
+                                     placeholder:text-ink-faint
+                                     focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"></textarea>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 px-6 pb-6 pt-2 shrink-0">
+                <p class="mr-auto text-[11px] text-ink-faint">
+                    {{ 'agent_forward.send_hint'|trans }}
+                </p>
+
+                <button type="button"
+                        data-action="click->ui--modal#close"
+                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                               text-ink-soft bg-field border border-field-border hover:bg-hover
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
+                               transition-colors duration-100">{{ 'agent_forward.cancel'|trans }}</button>
+
+                <button type="button"
+                        {{ offered is empty ? 'disabled' }}
+                        data-mail--agent-forward-target="submit"
+                        data-label="{{ 'agent_forward.submit'|trans({ '%name%': '__name__' }) }}"
+                        data-action="click->mail--agent-forward#submit"
+                        class="inline-flex items-center justify-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink
+                               bg-accent hover:bg-accent-strong disabled:opacity-60
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                               transition-colors duration-100">
+                    <i class="fa-solid fa-paper-plane text-xs" aria-hidden="true"></i>
+                    <span data-mail--agent-forward-target="submitLabel">{{ 'agent_forward.submit'|trans({ '%name%': offered is empty ? '…' : (offered|first).name }) }}</span>
+                </button>
+            </div>
+        </div>
+    {% endif %}
+</turbo-frame>
+{% endblock %}

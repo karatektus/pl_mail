@@ -100,6 +100,7 @@ const OPEN = {
     reply:    "[data-shortcut='reply']",
     replyAll: "[data-shortcut='reply-all']",
     forward:  "[data-shortcut='forward']",
+    forwardAgent: "[data-shortcut='forward-agent']",
 };
 
 /** A row's own buttons. Read and unread are one button that says which. */
@@ -336,6 +337,7 @@ export default class extends Controller {
                 this.#reading()?.querySelector(OPEN.replyAll) ?? this.#reading()?.querySelector(OPEN.reply),
             );
             case "f": return this.#press(this.#reading()?.querySelector(OPEN.forward));
+            case "F": return this.#press(this.#reading()?.querySelector(OPEN.forwardAgent));
 
             default: return false;
         }

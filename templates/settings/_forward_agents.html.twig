@@ -1,0 +1,70 @@
+{#
+settings/_forward_agents.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The agents "Forward to agent" picks from: a name and an address each, in the
+order the dialog shows them. Anything that reads email can be one.
+
+Reads the list off the user here rather than through SettingsController, so
+the page needs nothing new passed to it. Plain posts that redirect back to
+this card, like the compose behaviour card above. The form stays when the
+list is full: adding an address already on it renames that agent.
+#}
+{% set agents = forward_agents(app.user) %}
+
+{% if agents is empty %}
+    <p class="px-4 py-6 text-center text-sm text-ink-faint italic">
+        {{ 'settings.forward_agents.empty'|trans }}
+    </p>
+{% else %}
+    <ul class="divide-y divide-line">
+        {% for agent in agents %}
+            <li class="flex items-center gap-3 px-4 py-3">
+                <span class="shrink-0 inline-flex items-center justify-center size-6 rounded-full bg-raised text-[11px] font-medium text-ink-muted">{{ loop.index }}</span>
+                <div class="flex-1 min-w-0">
+                    <span class="block truncate text-sm text-ink">{{ agent.name }}</span>
+                    <span class="block truncate text-[11px] text-ink-faint">{{ agent.address }}</span>
+                </div>
+                <form method="post" action="{{ path('app_settings_forward_agents_remove') }}" class="shrink-0"
+                      data-turbo-confirm="{{ 'settings.forward_agents.remove_confirm'|trans({ '%name%': agent.name }) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('settings-forward-agents') }}">
+                    <input type="hidden" name="address" value="{{ agent.address }}">
+                    <button type="submit"
+                            class="text-[11px] text-ink-faint hover:text-danger transition-colors cursor-pointer">
+                        {{ 'settings.forward_agents.remove'|trans }}
+                    </button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+<form method="post" action="{{ path('app_settings_forward_agents_add') }}"
+      class="px-4 py-3.5 border-t border-line flex flex-col sm:flex-row sm:items-end gap-3">
+    <input type="hidden" name="_token" value="{{ csrf_token('settings-forward-agents') }}">
+
+    <label class="flex flex-col gap-1.5 sm:w-40">
+        <span class="text-[12px] font-medium text-ink-soft">{{ 'settings.forward_agents.name'|trans }}</span>
+        <input type="text" name="name" required
+               maxlength="{{ constant('App\\Service\\Mail\\ForwardAgents::MAX_NAME_CHARS') }}"
+               placeholder="{{ 'settings.forward_agents.name_placeholder'|trans }}"
+               class="block w-full h-9 rounded-lg border border-field bg-field px-3 text-sm text-ink
+                      placeholder:text-ink-faint shadow-sm shadow-zinc-950/5
+                      focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+    </label>
+
+    <label class="flex flex-col gap-1.5 flex-1 min-w-0">
+        <span class="text-[12px] font-medium text-ink-soft">{{ 'settings.forward_agents.address'|trans }}</span>
+        <input type="email" name="address" required
+               placeholder="{{ 'settings.forward_agents.address_placeholder'|trans }}"
+               class="block w-full h-9 rounded-lg border border-field bg-field px-3 text-sm text-ink
+                      placeholder:text-ink-faint shadow-sm shadow-zinc-950/5
+                      focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+    </label>
+
+    <button type="submit"
+            class="shrink-0 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+                   text-ink-soft bg-field border border-field hover:bg-hover transition-colors cursor-pointer">
+        <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
+        {{ 'settings.forward_agents.add'|trans }}
+    </button>
+</form>

@@ -1491,6 +1491,24 @@ admin:
     version:
         hint: The build this installation is running — the release, and the commit it was built from.
         copy: Copy the build %version%
+agent_forward:
+    add_agent: "Add an agent"
+    agent_label: "Send to"
+    agent_sealed: "Mail to this agent would be encrypted or signed. Use Forward."
+    button: "Forward to agent"
+    button_title: "Forward this email to one of your agents with a note (Shift+F)"
+    cancel: "Cancel"
+    empty: "You have no agents yet. Add one under Settings → Compose: a name and the address it reads."
+    encrypted: "This email is encrypted, so it can't be forwarded to an agent. Use Forward to send it yourself."
+    heading: "Forward to agent"
+    incomplete: "Not sent: an attachment couldn't be copied. The forward is in your Drafts."
+    note_label: "Your note"
+    note_placeholder: "What do you think of this?"
+    pick_hint: "Alt+%n% picks this agent"
+    sealed: "Your settings would sign or encrypt this forward, and only the compose window can do that. Use Forward to send it yourself."
+    send_hint: "Ctrl/⌘+Enter sends"
+    sending: "Forwarding to %name%"
+    submit: "Send to %name%"
 # The All Mail lists — every conversation outside Spam and the bin
 # (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
 all_mail:
@@ -3954,6 +3972,18 @@ settings:
         with_keys: "Your keys come along: encrypted mail opens in the app straight away."
         expires: "Expires at %time%."
         open_in_app: "Open in the app"
+    forward_agents:
+        add: "Add agent"
+        address: "Address"
+        address_placeholder: "agent@example.com"
+        empty: "No agents yet. Add one below and it appears in Forward to agent on every email."
+        heading: "Forward to agent"
+        name: "Name"
+        name_placeholder: "Research bot"
+        refused: "That agent was not added. Check the address; the list holds at most %max%."
+        remove: "Remove"
+        remove_confirm: "Remove %name% from your agents?"
+        subheading: "Anything that reads email. Forward to agent (Shift+F) sends an open email to one of these with your note."
     libravatar:
         heading: 'Libravatar'
         no_picture: 'You have no profile picture yet; add one above for this to show anything.'
@@ -5227,6 +5257,7 @@ settings:
             disposal: "delete trash bin forever empty"
             encryption: "pgp openpgp gpg key"
             filters: "rules sieve automatic move forward"
+            forward_agents: "agent bot assistant ai forward relay hand off"
             handwriting: "sign pdf draw"
             images: "tracking pixel remote load block"
             inbox_tabs: "tabs promotions social updates forums"
@@ -5631,6 +5662,7 @@ shortcuts:
         conversation_view: 'Switch between conversations and single emails'
         delete: "Delete"
         forward: "Forward"
+        forward_agent: "Forward to an agent"
         go_archive: "Go to Archive"
         go_drafts: "Go to Drafts"
         go_inbox: "Go to the Inbox"

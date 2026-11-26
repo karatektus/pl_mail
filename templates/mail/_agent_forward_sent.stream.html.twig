@@ -1,0 +1,31 @@
+{#
+mail/_agent_forward_sent.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+A hand-off to an agent, on its way: the toast a send from the composer gets,
+naming who it went to, with the same Undo for the same cancel window. Undo
+reopens the forward in the compose dock.
+
+When an attachment could not be copied nothing was sent, and the toast says
+the forward is waiting in Drafts instead.
+
+Variables: agent (ForwardAgent), sent (bool), undoUrl, cancelWindow
+#}
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% if sent %}
+            {% include '_partials/_toast.html.twig' with {
+                type:    'success',
+                message: 'agent_forward.sending'|trans({ '%name%': agent.name }),
+                extra:   {
+                    undo_url:   undoUrl,
+                    hide_after: cancelWindow,
+                },
+            } only %}
+        {% else %}
+            {% include '_partials/_toast.html.twig' with {
+                type:    'error',
+                message: 'agent_forward.incomplete'|trans,
+            } only %}
+        {% endif %}
+    </template>
+</turbo-stream>

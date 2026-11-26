@@ -1506,6 +1506,24 @@ admin:
     version:
         hint: Der Build, den diese Installation ausführt — die Version und der Commit, aus dem sie gebaut wurde.
         copy: Build %version% kopieren
+agent_forward:
+    add_agent: "Agent hinzufügen"
+    agent_label: "Senden an"
+    agent_sealed: "Mail an diesen Agenten würde verschlüsselt oder signiert. Nutze Weiterleiten."
+    button: "An Agent weiterleiten"
+    button_title: "Diese E-Mail mit einer Notiz an einen deiner Agenten weiterleiten (Shift+F)"
+    cancel: "Abbrechen"
+    empty: "Du hast noch keine Agenten. Füge unter Einstellungen → Verfassen einen hinzu: einen Namen und die Adresse, die er liest."
+    encrypted: "Diese E-Mail ist verschlüsselt und kann nicht an einen Agenten weitergeleitet werden. Nutze Weiterleiten, um sie selbst zu senden."
+    heading: "An Agent weiterleiten"
+    incomplete: "Nicht gesendet: Ein Anhang ließ sich nicht kopieren. Die Weiterleitung liegt in deinen Entwürfen."
+    note_label: "Deine Notiz"
+    note_placeholder: "Was hältst du davon?"
+    pick_hint: "Alt+%n% wählt diesen Agenten"
+    sealed: "Deine Einstellungen würden diese Weiterleitung signieren oder verschlüsseln, und das kann nur das Verfassen-Fenster. Nutze Weiterleiten, um sie selbst zu senden."
+    send_hint: "Strg/⌘+Enter sendet"
+    sending: "Wird an %name% weitergeleitet"
+    submit: "An %name% senden"
 # The All Mail lists — every conversation outside Spam and the bin
 # (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
 all_mail:
@@ -3946,6 +3964,18 @@ settings:
         with_keys: "Deine Schlüssel kommen mit: Verschlüsselte Mails öffnen sich in der App sofort."
         expires: "Läuft um %time% ab."
         open_in_app: "In der App öffnen"
+    forward_agents:
+        add: "Agent hinzufügen"
+        address: "Adresse"
+        address_placeholder: "agent@example.com"
+        empty: "Noch keine Agenten. Füge unten einen hinzu, dann erscheint er bei jeder E-Mail unter An Agent weiterleiten."
+        heading: "An Agent weiterleiten"
+        name: "Name"
+        name_placeholder: "Recherche-Bot"
+        refused: "Der Agent wurde nicht hinzugefügt. Prüfe die Adresse; die Liste fasst höchstens %max%."
+        remove: "Entfernen"
+        remove_confirm: "%name% aus deinen Agenten entfernen?"
+        subheading: "Alles, was E-Mails liest. An Agent weiterleiten (Shift+F) schickt eine geöffnete E-Mail mit deiner Notiz an einen davon."
     libravatar:
         heading: 'Libravatar'
         no_picture: 'Du hast noch kein Profilbild; füge oben eins hinzu, damit hier etwas erscheint.'
@@ -5253,6 +5283,7 @@ settings:
             disposal: "löschen papierkorb endgültig leeren"
             encryption: "pgp openpgp gpg schlüssel"
             filters: "regeln sieve automatisch verschieben weiterleiten"
+            forward_agents: "agent bot assistent ki weiterleiten relay übergeben"
             handwriting: "unterschreiben pdf zeichnen"
             images: "tracking pixel extern laden blockieren"
             inbox_tabs: "tabs werbung sozial benachrichtigungen foren"
@@ -5663,6 +5694,7 @@ shortcuts:
         conversation_view: 'Zwischen Konversationen und einzelnen E-Mails wechseln'
         delete: "Löschen"
         forward: "Weiterleiten"
+        forward_agent: "An einen Agenten weiterleiten"
         go_archive: "Zum Archiv"
         go_drafts: "Zu den Entwürfen"
         go_inbox: "Zum Posteingang"

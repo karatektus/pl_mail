@@ -378,6 +378,16 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                     </div>
                                                 {% endblock %}
                                             {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-forward-agents',
+                                                heading:    'settings.forward_agents.heading'|trans,
+                                                subheading: 'settings.forward_agents.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_forward_agents.html.twig' %}
+                                                {% endblock %}
+                                            {% endembed %}
                                         </div>
                                     {% elseif section == 'message-list' %}
                                         {# What a row in the list shows (#608). Five of these

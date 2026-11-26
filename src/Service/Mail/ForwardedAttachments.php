@@ -51,6 +51,12 @@ final readonly class ForwardedAttachments
         return [] !== $this->attachable($original);
     }
 
+    /** How many files copy() would attach if every one of them could be. */
+    public function count(Message $original): int
+    {
+        return count($this->attachable($original));
+    }
+
     /**
      * Copy the original's attachments onto a draft that is already saved.
      *

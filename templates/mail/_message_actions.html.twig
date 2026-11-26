@@ -79,6 +79,16 @@ Variables:
             {{ 'compose.forward'|trans }}
         </a>
 
+        <button type="button"
+                data-controller="ui--modal"
+                data-action="click->ui--modal#open click->mail--message-actions#dismiss"
+                data-ui--modal-src-value="{{ path('app_mail_agent_forward_dialog', { id: message.id }) }}"
+                data-ui--modal-title-value="{{ 'agent_forward.heading'|trans }}"
+                class="w-full flex items-center gap-2 px-4 py-2 text-left text-ink-soft hover:bg-hover transition-colors cursor-pointer">
+            <i class="fa-solid fa-robot w-4 text-ink-faint" aria-hidden="true"></i>
+            {{ 'agent_forward.heading'|trans }}
+        </button>
+
         <div class="border-t border-line my-1"></div>
 
         <button type="button"

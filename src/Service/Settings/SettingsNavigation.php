@@ -182,6 +182,7 @@ final class SettingsNavigation
             'compose' => [
                 ['card-compose-behaviour', 'settings.compose_behavior.heading', 'settings.search.keywords.compose_behaviour'],
                 ['card-read-receipts', 'settings.compose_defaults.heading', 'settings.search.keywords.read_receipts'],
+                ['card-forward-agents', 'settings.forward_agents.heading', 'settings.search.keywords.forward_agents'],
             ],
             'signature' => [
                 ['card-signature', 'settings.signature.heading', null],
