@@ -1,4 +1,4 @@
-<!-- translated-from: features/workspaces.md sha1:c29cdb8ee126100f48f62570b3dd2ccb64719503 -->
+<!-- translated-from: features/workspaces.md sha1:f260b3e9bc75035c5e8c41f331d17d3d4da14e6a -->
 
 # Arbeitsbereiche
 
@@ -52,7 +52,10 @@ die Pfeiltasten. Ein Doppelklick darauf macht beide Seiten gleich groß.
 | ⌥ E | Den Arbeitsbereich bearbeiten, und speichern |
 | ⌥ L | Das Layout-Menü öffnen |
 
-Keine davon wirkt, während du in einem Feld tippst.
+Der fokussierte Bereich ist der unter der Maus, oder der, den du zuletzt angeklickt oder mit ⌥ und
+einem Pfeil erreicht hast. Ein Bereich, den ein Kürzel unter der Maus wegschiebt, bleibt fokussiert —
+⌥ ⇧ ← zweimal verschiebt denselben Bereich zweimal —, bis du die Maus wieder bewegst. Keine davon
+wirkt, während du in einem Feld tippst.
 
 ## Ohne Bereich Nachricht
 

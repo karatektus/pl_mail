@@ -44,7 +44,9 @@ on it makes the two sides equal.
 | ⌥ E | Edit the workspace, and save it |
 | ⌥ L | Open the Layout menu |
 
-None of them act while you are typing in a field.
+The focused pane is the one under the mouse, or the one you last clicked or moved to with ⌥ and an
+arrow. A pane that a shortcut moves out from under the mouse stays focused, so ⌥ ⇧ ← twice moves the
+same pane twice, until you move the mouse again. None of them act while you are typing in a field.
 
 ## Without a Message pane
 

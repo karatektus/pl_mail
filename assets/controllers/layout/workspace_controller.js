@@ -157,6 +157,30 @@ export default class extends Controller {
         this.rootTarget.addEventListener("pointerdown", this._onFocus, true);
         this.rootTarget.addEventListener("focusin", this._onFocus);
 
+        // And the pane under the mouse, so ⌥↩ and the rest act on what you
+        // are pointing at without a click first. Only when the mouse MOVES: a
+        // pane the keyboard just moved or split out from under a still mouse
+        // stays the one the keys act on — ⌥⇧→ twice moves the same pane twice
+        // — until the hand moves again. A browser reports a pointer event when
+        // the page changes under a still pointer too, so moving is judged by
+        // the coordinates, not by the event.
+        this._onHover = (event) => {
+            if ("mouse" !== event.pointerType || (event.clientX === this._pointerX && event.clientY === this._pointerY)) {
+                return;
+            }
+
+            this._pointerX = event.clientX;
+            this._pointerY = event.clientY;
+
+            const slot = event.target.closest?.("[data-layout-pane]");
+
+            if (slot && this.rootTarget.contains(slot) && slot.dataset.layoutPane !== this.focusKind) {
+                this.focusKind = slot.dataset.layoutPane;
+                this.rootTarget.querySelectorAll("[data-layout-focus]").forEach((el) => el.removeAttribute("data-layout-focus"));
+            }
+        };
+        this.rootTarget.addEventListener("pointermove", this._onHover, { passive: true });
+
         this._onOutside = (event) => {
             if (this.popover && false === this.popover.contains(event.target) && false === this.popoverAnchor?.contains(event.target)) {
                 this.#closePopover();
@@ -209,6 +233,7 @@ export default class extends Controller {
         this.narrow.removeEventListener("change", this._onNarrow);
         this.rootTarget.removeEventListener("pointerdown", this._onFocus, true);
         this.rootTarget.removeEventListener("focusin", this._onFocus);
+        this.rootTarget.removeEventListener("pointermove", this._onHover);
         document.removeEventListener("pointerdown", this._onOutside, true);
         this._unregister.forEach((unregister) => unregister());
         this.#closePopover();
