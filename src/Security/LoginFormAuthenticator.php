@@ -118,11 +118,11 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
             $this->documentManager->flush();
         }
 
-        if ($targetPath = $this->getTargetPath($request->getSession(), $firewallName)) {
-            return new RedirectResponse($targetPath);
-        }
-
-        return new RedirectResponse($this->urlGenerator->generate('app_default_index'));
+        // A path, never the saved URL with its host — see LocalRedirect (#669).
+        return new RedirectResponse(LocalRedirect::path(
+            $this->getTargetPath($request->getSession(), $firewallName),
+            $this->urlGenerator->generate('app_default_index'),
+        ));
     }
 
     public function supports(Request $request): bool

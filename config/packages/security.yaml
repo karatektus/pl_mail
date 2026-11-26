@@ -146,6 +146,9 @@ security:
                 # "where you were going", including the ones the code form's own
                 # layout makes. See the class for what that did.
                 authentication_required_handler: App\Security\TwoFactor\TwoFactorRequired
+                # Answers with a path, not an address built from the request's
+                # host — behind some proxies that host is the internal IP (#669).
+                success_handler: App\Security\TwoFactor\TwoFactorSucceeded
                 # Both are scheb's defaults, spelled out because
                 # templates/security/2fa_login.html.twig hard-codes the matching
                 # field ids for its label/autofocus wiring. Changing one here
