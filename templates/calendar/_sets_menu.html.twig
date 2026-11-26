@@ -1,0 +1,127 @@
+{#
+The calendar's sets bar, along the bottom edge of the calendar page and the
+docked pane: which calendars are showing, the sets that switch between groups
+of them, and saving what is showing as a set. It is not in the toolbar because
+the pane and a phone have no room left in that row.
+
+Every form posts to CalendarSetController and comes back to `returnUrl`. Inside
+the docked pane the forms are inside its Turbo Frame, so only the pane redraws.
+Ticking a calendar comes back with `sets=1`, which reopens the menu so several
+can be ticked in a row, and `focus`, which puts focus back on the row ticked.
+
+The menu opens in the top layer (`place: above`), above the bar, because the
+docked pane clips anything that overflows it.
+
+Variables:
+  returnUrl  string  the page to come back to
+#}
+{% set menu = calendar_sets_menu() %}
+{% set label = menu.active ? menu.active.name : (menu.sets is empty ? 'calendar.sets.button'|trans : 'calendar.sets.custom'|trans) %}
+{% set reopenUrl = returnUrl ~ ('?' in returnUrl ? '&' : '?') ~ 'sets=1' %}
+{% set focusId = app.request.query.getInt('focus') %}
+{% set token = csrf_token(constant('App\\Controller\\Calendar\\CalendarSetController::CSRF')) %}
+
+<div class="shrink-0 flex items-center px-2 py-1 border-t border-line">
+<div class="relative" data-controller="ui--dropdown" data-ui--dropdown-place-value="above" data-calendar-sets
+     {% if app.request.query.getBoolean('sets') %}data-ui--dropdown-open-value="true"{% endif %}>
+    <button type="button"
+            data-action="click->ui--dropdown#toggle"
+            title="{{ 'calendar.sets.title'|trans({'%count%': menu.visible|length, '%total%': menu.total}) }}"
+            class="flex items-center gap-1.5 h-7 px-1.5 rounded-lg text-xs text-ink-muted hover:bg-hover hover:text-ink transition-colors cursor-pointer">
+        <span class="flex items-center" aria-hidden="true">
+            {% for calendar in menu.visible|slice(0, 4) %}
+                <span class="w-2 h-2 rounded-full {{ loop.first ? '' : '-ml-0.5' }}"
+                      style="background-color: {{ calendar.color }}"></span>
+            {% endfor %}
+        </span>
+        <span class="max-w-40 truncate" data-calendar-set-label>{{ label }}</span>
+        <i class="fa-solid fa-chevron-down text-[9px]" aria-hidden="true"></i>
+    </button>
+
+    <div data-ui--dropdown-target="menu" hidden
+         aria-label="{{ 'calendar.sets.title'|trans({'%count%': menu.visible|length, '%total%': menu.total}) }}"
+         class="absolute top-full mt-1 right-0 z-30 w-72 max-h-[70vh] overflow-y-auto popover text-sm">
+
+        {% if menu.sets is not empty %}
+            <div class="py-1 border-b border-line">
+                <p class="px-3 pt-1 pb-0.5 text-[10px] uppercase tracking-wider text-ink-faint">{{ 'calendar.sets.heading'|trans }}</p>
+                {% for set in menu.sets %}
+                    {% set isActive = menu.active and menu.active.id == set.id %}
+                    <form method="post" action="{{ path('app_calendar_set_apply', {id: set.id}) }}">
+                        <input type="hidden" name="_token" value="{{ token }}">
+                        <input type="hidden" name="return" value="{{ returnUrl }}">
+                        <button type="submit"
+                                data-calendar-set="{{ set.name }}"
+                                aria-current="{{ isActive ? 'true' : 'false' }}"
+                                class="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-hover transition-colors cursor-pointer {{ isActive ? 'text-accent' : 'text-ink' }}">
+                            <i class="fa-solid fa-check w-3 text-center text-[11px] {{ isActive ? '' : 'invisible' }}" aria-hidden="true"></i>
+                            <span class="flex-1 truncate">{{ set.name }}</span>
+                        </button>
+                    </form>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="py-1 border-b border-line">
+            <p class="px-3 pt-1 pb-0.5 flex justify-between text-[10px] uppercase tracking-wider text-ink-faint">
+                <span>{{ 'calendar.sets.calendars'|trans }}</span>
+                <span>{{ 'calendar.sets.count'|trans({'%count%': menu.visible|length, '%total%': menu.total}) }}</span>
+            </p>
+            {% for source, calendars in menu.groups %}
+                <p class="px-3 pt-1.5 text-[10px] text-ink-faint truncate">{{ source ?: 'calendar.sets.local'|trans }}</p>
+                {% for calendar in calendars %}
+                    {% set locked = calendar.isDefault and calendar.isVisible %}
+                    <form method="post" action="{{ path('app_calendar_set_toggle_calendar', {id: calendar.id}) }}">
+                        <input type="hidden" name="_token" value="{{ token }}">
+                        <input type="hidden" name="return" value="{{ reopenUrl }}&focus={{ calendar.id }}">
+                        <button type="submit"
+                                aria-pressed="{{ calendar.isVisible ? 'true' : 'false' }}"
+                                data-calendar-visibility="{{ calendar.name }}"
+                                {% if focusId == calendar.id %}autofocus{% endif %}
+                                {% if locked %}aria-disabled="true" aria-describedby="calendar-sets-default-{{ calendar.id }}"{% endif %}
+                                class="w-full flex items-center gap-2.5 px-3 py-1 text-left transition-colors
+                                       {{ locked ? 'cursor-default' : 'hover:bg-hover cursor-pointer' }}">
+                            <span class="w-3.5 h-3.5 shrink-0 rounded flex items-center justify-center border-[1.5px]"
+                                  style="border-color: {{ calendar.color }};{% if calendar.isVisible %} background-color: {{ calendar.color }};{% endif %}"
+                                  aria-hidden="true">
+                                {% if calendar.isVisible %}<i class="fa-solid fa-check text-[8px]" style="color: {{ calendar.color|calendar_on_color }}"></i>{% endif %}
+                            </span>
+                            <span class="flex-1 truncate {{ calendar.isVisible ? 'text-ink' : 'text-ink-faint' }}">{{ calendar.name }}</span>
+                            {% if locked %}
+                                <span id="calendar-sets-default-{{ calendar.id }}" class="text-[10px] text-ink-faint whitespace-nowrap">{{ 'calendar.sets.default_always'|trans }}</span>
+                            {% endif %}
+                        </button>
+                    </form>
+                {% endfor %}
+            {% endfor %}
+        </div>
+
+        <div class="p-2 flex flex-col gap-1.5">
+            {% if not menu.active and menu.last %}
+                <form method="post" action="{{ path('app_calendar_set_update', {id: menu.last.id}) }}">
+                    <input type="hidden" name="_token" value="{{ token }}">
+                    <input type="hidden" name="return" value="{{ returnUrl }}">
+                    <button type="submit" class="w-full h-7 px-2 rounded-lg text-xs bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer truncate">
+                        {{ 'calendar.sets.update'|trans({'%name%': menu.last.name}) }}
+                    </button>
+                </form>
+            {% endif %}
+            {% if not menu.active %}
+                <form method="post" action="{{ path('app_calendar_set_create') }}" class="flex gap-1.5">
+                    <input type="hidden" name="_token" value="{{ token }}">
+                    <input type="hidden" name="return" value="{{ returnUrl }}">
+                    <input type="text" name="name" required maxlength="{{ constant('App\\Service\\Calendar\\CalendarSets::MAX_NAME_LENGTH') }}"
+                           placeholder="{{ 'calendar.sets.name_placeholder'|trans }}"
+                           aria-label="{{ 'calendar.sets.name_placeholder'|trans }}"
+                           class="flex-1 min-w-0 h-7 px-2 rounded-lg text-xs bg-transparent border border-line text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent">
+                    <button type="submit" class="h-7 px-2 rounded-lg text-xs border border-line text-ink hover:bg-hover transition-colors cursor-pointer whitespace-nowrap">
+                        {{ 'calendar.sets.save'|trans }}
+                    </button>
+                </form>
+            {% endif %}
+            <a href="{{ path('app_settings_page', {page: 'calendars'}) }}" data-turbo-frame="_top"
+               class="px-1 text-[11px] text-ink-faint hover:text-ink">{{ 'calendar.sets.manage'|trans }}</a>
+        </div>
+    </div>
+</div>
+</div>

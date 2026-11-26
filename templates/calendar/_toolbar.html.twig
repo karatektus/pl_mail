@@ -15,7 +15,7 @@ calendar has no ends, so it never does.
 {% set paneQuery = compact ? '?pane=1' : '' %}
 
 {# Agenda steps a day at a time like day view: it is a rolling list, not a page. #}
-{% set step = view.value == 'month' ? '1 month' : (view.value == 'week' ? '7 days' : '1 day') %}
+{% set step = {month: '1 month', week: '7 days', '3days': '3 days'}[view.value] ?? '1 day' %}
 
 {% set viewUrls = {} %}
 {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarView').cases() %}

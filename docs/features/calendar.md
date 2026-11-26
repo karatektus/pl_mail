@@ -2,7 +2,7 @@
 
 plMail keeps a calendar beside the mail rather than in a separate application, because most of
 what ends up on a calendar arrives as mail in the first place. This page covers the calendar
-itself: the four views, the two shapes it takes on screen, and everything the event editor can
+itself: the five views, the two shapes it takes on screen, and everything the event editor can
 do. Invitations and events read out of messages are in
 [Invitations and events from mail](calendar-invitations.md); reminders are in
 [Reminders](calendar-alerts.md); mirroring somebody else's calendar is in
@@ -52,22 +52,23 @@ calendar up when you want it. Below 768px there is no pane at all and the calend
 **Its own page.** `/calendar` replaces the mail view entirely. This is what a phone gets, and what
 anyone gets who navigates there directly or follows a link.
 
-## The four views
+## The five views
 
-Day, 7 days, Month and Agenda. A view is part of the URL — `/calendar/week/2026-08-05` — rather than
+Day, 3 days, 7 days, Month and Agenda. A view is part of the URL — `/calendar/week/2026-08-05` — rather than
 something the browser remembers, which means every view of every date is bookmarkable, the browser's
 back button does the obvious thing, and the range behind it stays one indexed query.
 
 | View | What it covers |
 |---|---|
 | **Day** | The one day. |
+| **3 days** | Today and the two days after it, or the three from the day you moved to. |
 | **7 days** | The seven days from today — or from the day you moved to. Today comes first, because the days of this week that are already over are the least useful thing to spend columns on. The address still says `week`. |
 | **Month** | Six weeks, starting on the Monday of the week the 1st falls in — so the days spilling in from the neighbouring months are shown, as a month grid always does. |
 | **Agenda** | A rolling list of the next 30 days, skipping the empty time between entries. |
 
 The toolbar above the grid holds **Previous**, **Today** and **Next**, the date or range you are
 looking at, the view switcher, and a **New event** button. Previous and Next step by a month in
-month view, by seven days in the 7-day view, and by a day everywhere else — agenda included, because it
+month view, by seven days in the 7-day view, by three in the 3-day view, and by a day everywhere else — agenda included, because it
 is a rolling list rather than a page.
 
 **On a narrow screen the toolbar tightens rather than scrolling.** Below about 590 pixels the view
@@ -76,8 +77,8 @@ year's (**October**), a week as **Oct 20–26**, a day as **Oct 20**. On the nar
 becomes today's date in a small box.
 
 The full page opens on **7 days**. The docked pane opens on **Agenda** — it is 380 pixels of a shared
-row, and a month grid in that width is a lot of empty cells. The pane still offers all four views,
-as icons rather than words, because the version that dropped the switcher entirely left the pane
+row, and a month grid in that width is a lot of empty cells. The pane still offers all five views,
+as icons rather than words, with 3 and 7 days shown as **3** and **7** side by side, because the version that dropped the switcher entirely left the pane
 able to show nothing but its agenda.
 
 **In month view an entry is its title first**, on up to two lines, and under it the time it runs
@@ -332,6 +333,19 @@ deliberately: it lists every calendar you own, hidden ones marked with a struck-
 the read-only lock, because a copy of a meeting on a hidden calendar is still a fact about the
 meeting. Saving onto one is then an informed choice rather than a trap — and a save that lands
 somewhere you cannot see says so and names the calendar.
+
+### Calendar sets
+
+**A button shows which calendars are on**, as their colour dots and the name of the set showing. It
+sits along the bottom edge of the calendar, on the calendar page and in the docked pane. Its menu lists every calendar, grouped by the account it comes from, with a tick
+for each one showing; ticking one shows or hides it straight away, the same as the eye in
+**Settings → Calendars**.
+
+A set is a named group of calendars, such as *Work* or *Family*. Tick the calendars you want, type a
+name under **Name a new set** and save. Picking a set from the menu shows its calendars and hides
+the rest. Tick something different afterwards and the button says **Custom**, with **Update** to
+write the change back into the set you last picked. The default calendar is always shown, in every
+set. Sets are renamed and deleted in **Settings → Calendars → Calendar sets**.
 
 ## Things that bite
 

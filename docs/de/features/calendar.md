@@ -1,10 +1,10 @@
-<!-- translated-from: features/calendar.md sha1:992dac57b4cb4bddca6d309e42eac0f6a7119253 -->
+<!-- translated-from: features/calendar.md sha1:e352de7b3d2b80b8155e2e1fd6553287a71ab613 -->
 
 # Kalender
 
 plMail führt den Kalender neben der Mail statt in einer eigenen Anwendung, weil das meiste, was
 auf einem Kalender landet, ohnehin zuerst als E-Mail ankommt. Diese Seite beschreibt den Kalender
-selbst: die vier Ansichten, die zwei Gestalten, die er auf dem Bildschirm annimmt, und alles, was
+selbst: die fünf Ansichten, die zwei Gestalten, die er auf dem Bildschirm annimmt, und alles, was
 der Termin-Editor kann. Einladungen und Termine, die aus Nachrichten gelesen wurden, stehen in
 [Einladungen und Termine aus E-Mails](calendar-invitations.md), Erinnerungen in
 [Erinnerungen](calendar-alerts.md), das Spiegeln fremder Kalender in
@@ -56,9 +56,9 @@ ihn willst. Unter 768 Pixeln gibt es gar keine Fläche mehr, und der Kalender is
 **Als eigene Seite.** `/calendar` ersetzt die Mail-Ansicht vollständig. Das ist es, was ein Telefon
 bekommt, und was jeder bekommt, der direkt dorthin navigiert oder einem Link folgt.
 
-## Die vier Ansichten
+## Die fünf Ansichten
 
-Tag, 7 Tage, Monat und Agenda. Eine Ansicht ist Teil der URL — `/calendar/week/2026-08-05` — und
+Tag, 3 Tage, 7 Tage, Monat und Agenda. Eine Ansicht ist Teil der URL — `/calendar/week/2026-08-05` — und
 nicht etwas, das sich der Browser merkt. Damit ist jede Ansicht jedes Datums als Lesezeichen
 brauchbar, die Zurück-Schaltfläche des Browsers tut das Naheliegende, und der Zeitraum dahinter
 bleibt eine einzige indizierte Abfrage.
@@ -66,14 +66,15 @@ bleibt eine einzige indizierte Abfrage.
 | Ansicht | Was sie abdeckt |
 |---|---|
 | **Tag** | Den einen Tag. |
+| **3 Tage** | Heute und die zwei Tage danach, oder die drei ab dem Tag, zu dem du gesprungen bist. |
 | **7 Tage** | Die sieben Tage ab heute — oder ab dem Tag, zu dem du gesprungen bist. Heute steht vorn, denn die Tage dieser Woche, die schon vorbei sind, sind das Unnützeste, wofür man Spalten ausgeben kann. In der Adresse steht weiterhin `week`. |
 | **Monat** | Sechs Wochen, beginnend am Montag der Woche, in die der Erste fällt — die Tage, die aus den Nachbarmonaten hereinragen, werden also gezeigt, wie ein Monatsraster das immer tut. |
 | **Agenda** | Eine fortlaufende Liste der nächsten 30 Tage, die die leere Zeit zwischen den Einträgen überspringt. |
 
 Die Werkzeugleiste über dem Raster trägt **Zurück**, **Heute** und **Weiter**, das Datum oder den
 Zeitraum, den du gerade ansiehst, den Ansichtsumschalter und eine Schaltfläche **Neuer Termin**.
-Zurück und Weiter springen in der Monatsansicht um einen Monat, in der 7-Tage-Ansicht um sieben Tage
-und überall sonst um einen Tag — die Agenda eingeschlossen, denn sie ist eine fortlaufende Liste und
+Zurück und Weiter springen in der Monatsansicht um einen Monat, in der 7-Tage-Ansicht um sieben Tage,
+in der 3-Tage-Ansicht um drei und überall sonst um einen Tag — die Agenda eingeschlossen, denn sie ist eine fortlaufende Liste und
 keine Seite.
 
 **Auf einem schmalen Bildschirm rückt die Werkzeugleiste zusammen, statt zu scrollen.** Unter etwa
@@ -83,7 +84,7 @@ ohne Jahr, solange es dieses Jahr ist (**Oktober**), eine Woche als **20.–26. 
 
 Die volle Seite öffnet mit der Ansicht **7 Tage**. Die angedockte Fläche öffnet mit **Agenda** — sie
 ist 380 Pixel einer geteilten Zeile, und ein Monatsraster in dieser Breite besteht überwiegend aus
-leeren Zellen. Die Fläche bietet trotzdem alle vier Ansichten an, als Symbole statt als Wörter, denn
+leeren Zellen. Die Fläche bietet trotzdem alle fünf Ansichten an, als Symbole statt als Wörter (3 und 7 Tage als **3** und **7** nebeneinander), denn
 die Fassung, die den Umschalter ganz weggelassen hatte, ließ die Fläche nichts als ihre Agenda
 zeigen.
 
@@ -368,6 +369,21 @@ eine Kopie einer Besprechung auf einem ausgeblendeten Kalender ist immer noch ei
 diese Besprechung. Auf einen solchen zu speichern ist damit eine informierte Wahl und keine Falle
 — und ein Speichern, das irgendwo landet, wo du es nicht sehen kannst, sagt das und nennt den
 Kalender.
+
+### Kalender-Sets
+
+**Eine Schaltfläche zeigt, welche Kalender an sind**, als ihre Farbpunkte und mit dem Namen des
+angezeigten Sets. Sie sitzt am
+unteren Rand des Kalenders, auf der Kalenderseite wie in der angedockten Fläche. Ihr Menü listet jeden Kalender, nach dem Konto gruppiert, aus dem
+er kommt, mit einem Häkchen bei jedem angezeigten; ein Klick blendet ihn sofort ein oder aus, genau
+wie das Auge unter **Einstellungen → Kalender**.
+
+Ein Set ist eine benannte Auswahl von Kalendern, etwa *Arbeit* oder *Familie*. Hake die Kalender
+an, die du willst, gib unter **Neues Set benennen** einen Namen ein und speichere. Wählst du ein Set
+im Menü, werden seine Kalender angezeigt und alle anderen ausgeblendet. Hakst du danach etwas
+anderes an, zeigt die Schaltfläche **Eigene Auswahl**, mit **Aktualisieren**, um die Änderung in das
+zuletzt gewählte Set zu schreiben. Der Standardkalender wird immer angezeigt, in jedem Set.
+Umbenannt und gelöscht werden Sets unter **Einstellungen → Kalender → Kalender-Sets**.
 
 ## Fallstricke
 

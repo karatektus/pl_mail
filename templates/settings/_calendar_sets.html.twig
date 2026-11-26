@@ -1,0 +1,44 @@
+{#
+Calendar sets on Settings → Calendars: rename and delete. Sets are made and
+picked from the calendar toolbar's sets menu (calendar/_sets_menu.html.twig).
+#}
+{% set menu = calendar_sets_menu() %}
+{% set token = csrf_token(constant('App\\Controller\\Calendar\\CalendarSetController::CSRF')) %}
+{% set returnUrl = path('app_settings_page', {page: 'calendars'}) %}
+
+{% if menu.sets is empty %}
+    <p class="px-4 py-6 text-center text-sm text-ink-faint italic">{{ 'settings.calendar_sets.empty'|trans }}</p>
+{% else %}
+    <ul class="py-2 divide-y divide-line" data-settings-calendar-sets>
+        {% for set in menu.sets %}
+            <li class="flex items-center gap-3 px-4 py-1.5">
+                <form method="post" action="{{ path('app_calendar_set_rename', {id: set.id}) }}" class="flex-1 min-w-0 flex items-center gap-2">
+                    <input type="hidden" name="_token" value="{{ token }}">
+                    <input type="hidden" name="return" value="{{ returnUrl }}">
+                    <input type="text" name="name" value="{{ set.name }}" required
+                           maxlength="{{ constant('App\\Service\\Calendar\\CalendarSets::MAX_NAME_LENGTH') }}"
+                           aria-label="{{ 'settings.calendar_sets.rename'|trans({'%name%': set.name}) }}"
+                           class="flex-1 min-w-0 h-8 px-2 rounded-lg text-sm bg-transparent border border-transparent hover:border-line focus:border-accent text-ink focus:outline-none">
+                    <span class="text-[10px] text-ink-faint whitespace-nowrap">{{ 'settings.calendar_sets.count'|trans({'%count%': menu.sizes[set.id]}) }}</span>
+                    <button type="submit"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                            title="{{ 'settings.calendar_sets.save_name'|trans }}"
+                            aria-label="{{ 'settings.calendar_sets.rename'|trans({'%name%': set.name}) }}">
+                        <i class="fa-solid fa-check text-xs" aria-hidden="true"></i>
+                    </button>
+                </form>
+                <form method="post" action="{{ path('app_calendar_set_delete', {id: set.id}) }}"
+                      data-turbo-confirm="{{ 'settings.calendar_sets.delete_confirm'|trans({'%name%': set.name}) }}">
+                    <input type="hidden" name="_token" value="{{ token }}">
+                    <input type="hidden" name="return" value="{{ returnUrl }}">
+                    <button type="submit"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                            title="{{ 'settings.calendar_sets.delete'|trans({'%name%': set.name}) }}"
+                            aria-label="{{ 'settings.calendar_sets.delete'|trans({'%name%': set.name}) }}">
+                        <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                    </button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}

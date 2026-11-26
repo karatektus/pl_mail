@@ -160,7 +160,7 @@ final class CalendarController extends AbstractController
      * frame that comes back should already be describing the state the next
      * visit will find.
      */
-    #[Route('/{view}/{date}', name: 'view', requirements: ['view' => 'day|week|month|agenda'], methods: ['GET'])]
+    #[Route('/{view}/{date}', name: 'view', requirements: ['view' => 'day|3days|week|month|agenda'], methods: ['GET'])]
     public function view(Request $request, string $view, ?string $date = null): Response
     {
         $isPane = $request->query->getBoolean('pane');

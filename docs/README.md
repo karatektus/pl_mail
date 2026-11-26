@@ -31,7 +31,7 @@ mechanism behind it.
 | [Account health](features/health.md) | What is broken and what fixes it, reconnecting an account without losing its mail, the two ways push breaks |
 | [Templates](features/templates.md) | Reusable messages, the folder tree that mirrors your accounts, variables for recipient, sender, signature and dates, inserting one while composing |
 | [Filters](features/filters.md) | Condition trees, actions, the plain-English restatement, applying a rule to mail that already arrived |
-| [Calendar](features/calendar.md) | The four views and the time grid, creating and editing events, recurrence, editing one occurrence, the docked pane |
+| [Calendar](features/calendar.md) | The five views and the time grid, calendar sets, creating and editing events, recurrence, editing one occurrence, the docked pane |
 | [Invitations and events from mail](features/calendar-invitations.md) | RSVP, events extracted from invitations and from ordinary prose, proposals, Happening Soon |
 | [Reminders](features/calendar-alerts.md) | Setting alerts, how they are delivered, what a fresh install needs before they arrive |
 | [Connected calendars](features/calendar-sync.md) | Subscribing to Google, Microsoft and CalDAV calendars, two-way sync, ICS import, export and feed subscriptions, duplicate meetings |

@@ -690,7 +690,7 @@ final class PublicCalendarStyleTest extends WebTestCase
         // has no window to run out of.
         self::assertCount(1, $crawler->filter('a[aria-label="Previous"]'), $view . ' lost its previous step');
         self::assertCount(1, $crawler->filter('a[aria-label="Next"]'));
-        self::assertCount(4, $crawler->filter('[data-calendar-views] a'));
+        self::assertCount(5, $crawler->filter('[data-calendar-views] a'));
 
         // And nothing in it is ever "outside the window" — that state belongs to
         // the shared page alone, and leaking it here would dim a third of a week.

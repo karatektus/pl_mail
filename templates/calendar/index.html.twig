@@ -37,6 +37,9 @@ gives you.
                 <div class="flex flex-1 flex-col overflow-hidden main-pane" data-sidebar-room>
                     {% include 'calendar/_toolbar.html.twig' %}
                     {% include 'calendar/_grid.html.twig' %}
+                    {% include 'calendar/_sets_menu.html.twig' with {
+                        returnUrl: path('app_calendar_view', { view: view.value, date: anchor|date('Y-m-d') }),
+                    } only %}
                 </div>
             </div>
         </div>

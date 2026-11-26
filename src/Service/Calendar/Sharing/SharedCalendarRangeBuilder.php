@@ -177,6 +177,7 @@ final readonly class SharedCalendarRangeBuilder
             CalendarView::Month        => $focus->modify('first day of this month'),
             CalendarView::Week         => $focus->modify('monday this week'),
             CalendarView::Day,
+            CalendarView::ThreeDays,
             CalendarView::Agenda       => $focus,
         };
     }
@@ -384,16 +385,17 @@ final readonly class SharedCalendarRangeBuilder
         // is thirty of something: `sprintf('%+d %s', -1, '30 days')` builds
         // "-1 30 days", which PHP accepts and does not mean.
         [$count, $unit] = match ($which) {
-            CalendarView::Month  => [1, 'month'],
-            CalendarView::Week   => [1, 'week'],
-            CalendarView::Day    => [1, 'day'],
+            CalendarView::Month     => [1, 'month'],
+            CalendarView::Week      => [1, 'week'],
+            CalendarView::Day       => [1, 'day'],
+            CalendarView::ThreeDays => [3, 'days'],
             // A page rather than a day, unlike the authenticated agenda's
             // rolling list. That one steps a day at a time because it has
             // nowhere to arrive; this one is a bounded window, and a day at a
             // time would be fourteen near-identical pages of a fortnight link.
             // Thirty days is CalendarView::Agenda's own range, so the pages
             // abut rather than overlap.
-            CalendarView::Agenda => [30, 'days'],
+            CalendarView::Agenda    => [30, 'days'],
         };
 
         $stepped = $anchor->modify(sprintf('%+d %s', $direction * $count, $unit));

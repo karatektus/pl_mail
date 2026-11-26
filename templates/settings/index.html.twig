@@ -836,6 +836,16 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                             {% endblock %}
                                         {% endembed %}
 
+                                        {% embed 'settings/_card.html.twig' with {
+                                            id:         'card-calendar-sets',
+                                            heading:    'settings.calendar_sets.heading'|trans,
+                                            subheading: 'settings.calendar_sets.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_calendar_sets.html.twig' only %}
+                                            {% endblock %}
+                                        {% endembed %}
+
                                     {% else %}
                                         {# The Add button rides in the header band via the
                                            card's `actions` block — the reason this is an

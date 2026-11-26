@@ -1982,6 +1982,19 @@ calendar:
         none: Does not repeat
         weekly: Every week
         yearly: Every year
+    sets:
+        button: 'Calendars'
+        calendars: 'Calendars'
+        count: '%count% of %total%'
+        custom: 'Custom'
+        default_always: 'Always shown'
+        heading: 'Sets'
+        local: 'plMail'
+        manage: 'Rename or delete sets'
+        name_placeholder: 'Name a new set'
+        save: 'Save'
+        title: 'Calendar sets: %count% of %total% calendars showing'
+        update: 'Update "%name%"'
     share:
         action:
             delete: 'Delete the link "%name%"'
@@ -2097,6 +2110,7 @@ calendar:
         later: Coming up today
         soon: Coming up in a few hours
     view:
+        3days: '3 days'
         agenda: Agenda
         day: Day
         monday_week: Week
@@ -3944,6 +3958,15 @@ settings:
         refresh: 'Refresh from provider'
         subheading: 'Addresses this account sends and receives as.'
         system: 'system'
+    calendar_sets:
+        count: '{1}1 calendar|]1,Inf[ %count% calendars'
+        delete: 'Delete "%name%"'
+        delete_confirm: 'Delete the set "%name%"? Its calendars stay as they are.'
+        empty: 'No sets yet. Tick calendars in the menu on the calendar''s toolbar, then save them as a set.'
+        heading: 'Calendar sets'
+        rename: 'Rename "%name%"'
+        save_name: 'Save the name'
+        subheading: 'Groups of calendars you switch between from the calendar''s toolbar.'
     clock:
         heading: Clock
         subheading: Whether times are written on a twelve- or twenty-four-hour clock, and where the current time is shown. Nothing is stored differently — only the digits change.

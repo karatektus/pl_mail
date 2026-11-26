@@ -36,7 +36,8 @@ below 22rem a week that crosses a month names only its months. The
 short and the long label are both in the markup and a container query picks
 one, so nothing has to measure anything; `@container/toolbar` is on the row
 itself, because the same phone width is a page on a phone and the pane on a
-desktop.
+desktop. Below 20rem, a 320px phone, the 3-day segment is left out unless it
+is the view showing: a fifth segment there cuts the date.
 
 compact is set by the docked pane. It gets the same four views, as icons rather
 than words: the pane is ~380px and "Day Week Month Agenda" spelled out leaves no
@@ -85,11 +86,13 @@ Blocks:
 {% set compact = compact|default(false) %}
 {% set frame = frame|default(null) %}
 {% set labelKeys = labelKeys|default({}) %}
-{% set spanLabel = spanLabel|default(view.value == 'week') %}
+{% set spanLabel = spanLabel|default(view.value in ['3days', 'week']) %}
 
+{# The two spans of days read as their count, so 3 and 7 sit side by side as
+   the toggle they are. #}
+{% set viewDigits = {'3days': '3', week: '7'} %}
 {% set viewIcons = {
     day:    'fa-calendar-day',
-    week:   'fa-calendar-week',
     month:  'fa-calendar-days',
     agenda: 'fa-list-ul',
 } %}
@@ -289,17 +292,26 @@ Blocks:
                               focus:outline-none focus-visible:ring-2 focus-visible:ring-inset
                               {{ shown|first == candidate.value ? 'rounded-l-lg' : '' }}
                               {{ shown|last == candidate.value ? 'rounded-r-lg' : '' }}
-                              {{ compact ? 'w-8 h-[1.875rem] @max-[37rem]/toolbar:w-7 @max-[37rem]/toolbar:h-[1.625rem] @max-[22rem]/toolbar:w-6 @max-[22rem]/toolbar:h-[1.375rem]' : 'px-2.5 h-[1.875rem] @max-[37rem]/toolbar:px-0 @max-[37rem]/toolbar:w-7 @max-[37rem]/toolbar:h-[1.625rem] @max-[22rem]/toolbar:w-6 @max-[22rem]/toolbar:h-[1.375rem]' }}
+                              {{ candidate.value == '3days' and candidate != view ? '@max-[20rem]/toolbar:hidden' : '' }}
+                              {{ compact ? 'w-8 h-[1.875rem] @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-[1.625rem] @max-[22rem]/toolbar:w-6 @max-[22rem]/toolbar:h-[1.375rem]' : 'px-2.5 h-[1.875rem] @max-[37rem]/toolbar:px-0 @max-[37rem]/toolbar:w-7 @max-[37rem]/toolbar:h-[1.625rem] @max-[22rem]/toolbar:w-6 @max-[22rem]/toolbar:h-[1.375rem]' }}
                               {{ candidate == view
                                   ? 'bg-accent text-accent-ink focus-visible:ring-accent-ink'
                                   : 'text-ink-muted hover:bg-hover hover:text-ink focus-visible:ring-accent' }}"
                     >
                         {%- if compact -%}
-                            <i class="fa-solid {{ viewIcons[candidate.value] }}" aria-hidden="true"></i>
+                            {%- if viewDigits[candidate.value] is defined -%}
+                                <span class="font-semibold tabular-nums" aria-hidden="true">{{ viewDigits[candidate.value] }}</span>
+                            {%- else -%}
+                                <i class="fa-solid {{ viewIcons[candidate.value] }}" aria-hidden="true"></i>
+                            {%- endif -%}
                         {%- else -%}
                             {#- Words, or on a narrow row the pane's icon with
                                 the word kept for screen readers. -#}
-                            <i class="fa-solid {{ viewIcons[candidate.value] }} hidden @max-[37rem]/toolbar:inline" aria-hidden="true"></i>
+                            {%- if viewDigits[candidate.value] is defined -%}
+                                <span class="font-semibold tabular-nums hidden @max-[37rem]/toolbar:inline" aria-hidden="true">{{ viewDigits[candidate.value] }}</span>
+                            {%- else -%}
+                                <i class="fa-solid {{ viewIcons[candidate.value] }} hidden @max-[37rem]/toolbar:inline" aria-hidden="true"></i>
+                            {%- endif -%}
                             <span class="@max-[37rem]/toolbar:sr-only">{{ label }}</span>
                         {%- endif -%}
                     </a>

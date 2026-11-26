@@ -1992,6 +1992,19 @@ calendar:
         none: Ne se répète pas
         weekly: Toutes les semaines
         yearly: Tous les ans
+    sets:
+        button: 'Calendriers'
+        calendars: 'Calendriers'
+        count: '%count% sur %total%'
+        custom: 'Personnalisé'
+        default_always: 'Toujours affiché'
+        heading: 'Ensembles'
+        local: 'plMail'
+        manage: 'Renommer ou supprimer des ensembles'
+        name_placeholder: 'Nommer un nouvel ensemble'
+        save: 'Enregistrer'
+        title: 'Ensembles de calendriers : %count% sur %total% affichés'
+        update: 'Mettre à jour « %name% »'
     share:
         action:
             delete: 'Supprimer le lien « %name% »'
@@ -2107,6 +2120,7 @@ calendar:
         later: Plus tard aujourd’hui
         soon: Dans quelques heures
     view:
+        3days: '3 jours'
         agenda: Liste
         day: Jour
         monday_week: Semaine
@@ -3966,6 +3980,15 @@ settings:
         refresh: 'Actualiser depuis le fournisseur'
         subheading: 'Les adresses sous lesquelles ce compte envoie et reçoit.'
         system: 'système'
+    calendar_sets:
+        count: '{1}1 calendrier|]1,Inf[ %count% calendriers'
+        delete: 'Supprimer « %name% »'
+        delete_confirm: 'Supprimer l’ensemble « %name% » ? Ses calendriers restent tels quels.'
+        empty: 'Aucun ensemble. Cochez des calendriers dans le menu de la barre du calendrier, puis enregistrez-les comme ensemble.'
+        heading: 'Ensembles de calendriers'
+        rename: 'Renommer « %name% »'
+        save_name: 'Enregistrer le nom'
+        subheading: 'Des groupes de calendriers entre lesquels vous basculez depuis la barre du calendrier.'
     categories:
         add: "Ajouter"
         built_in: "Intégré"

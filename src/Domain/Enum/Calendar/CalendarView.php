@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Enum\Calendar;
 
 /**
- * The four ways of looking at a calendar.
+ * The five ways of looking at a calendar.
  *
  * A view is a route segment rather than client-side state, which keeps the
  * range a single indexed query and makes every view linkable. The docked pane
@@ -16,10 +16,11 @@ namespace App\Domain\Enum\Calendar;
  */
 enum CalendarView: string
 {
-    case Day    = 'day';
-    case Week   = 'week';
-    case Month  = 'month';
-    case Agenda = 'agenda';
+    case Day       = 'day';
+    case ThreeDays = '3days';
+    case Week      = 'week';
+    case Month     = 'month';
+    case Agenda    = 'agenda';
 
     /** Route requirement, so the controller and the enum cannot disagree. */
     public static function routePattern(): string
@@ -45,8 +46,8 @@ enum CalendarView: string
     public function isTimeGrid(): bool
     {
         return match ($this) {
-            self::Day, self::Week     => true,
-            self::Month, self::Agenda => false,
+            self::Day, self::ThreeDays, self::Week => true,
+            self::Month, self::Agenda              => false,
         };
     }
 
@@ -71,8 +72,9 @@ enum CalendarView: string
     public function minimumPaneWidth(): int
     {
         return match ($this) {
-            self::Day, self::Agenda   => 320,
-            self::Week, self::Month   => 720,
+            self::Day, self::Agenda => 320,
+            self::ThreeDays         => 440,
+            self::Week, self::Month => 720,
         };
     }
 
@@ -96,6 +98,10 @@ enum CalendarView: string
             self::Day => [
                 $anchor->setTime(0, 0),
                 $anchor->modify('+1 day')->setTime(0, 0),
+            ],
+            self::ThreeDays => [
+                $anchor->setTime(0, 0),
+                $anchor->modify('+3 days')->setTime(0, 0),
             ],
             self::Week => [
                 $anchor->setTime(0, 0),

@@ -2009,6 +2009,19 @@ calendar:
         none: Wiederholt sich nicht
         weekly: Wöchentlich
         yearly: Jährlich
+    sets:
+        button: 'Kalender'
+        calendars: 'Kalender'
+        count: '%count% von %total%'
+        custom: 'Eigene Auswahl'
+        default_always: 'Immer sichtbar'
+        heading: 'Sets'
+        local: 'plMail'
+        manage: 'Sets umbenennen oder löschen'
+        name_placeholder: 'Neues Set benennen'
+        save: 'Speichern'
+        title: 'Kalender-Sets: %count% von %total% Kalendern sichtbar'
+        update: '„%name%“ aktualisieren'
     share:
         action:
             delete: 'Link "%name%" löschen'
@@ -2126,6 +2139,7 @@ calendar:
         later: Heute noch
         soon: In wenigen Stunden
     view:
+        3days: '3 Tage'
         agenda: Agenda
         day: Tag
         monday_week: Woche
@@ -3936,6 +3950,15 @@ settings:
         refresh: 'Vom Anbieter aktualisieren'
         subheading: 'Adressen, unter denen dieses Konto sendet und empfängt.'
         system: 'System'
+    calendar_sets:
+        count: '{1}1 Kalender|]1,Inf[ %count% Kalender'
+        delete: '„%name%“ löschen'
+        delete_confirm: 'Das Set „%name%“ löschen? Seine Kalender bleiben, wie sie sind.'
+        empty: 'Noch keine Sets. Kalender im Menü der Kalenderleiste anhaken und als Set speichern.'
+        heading: 'Kalender-Sets'
+        rename: '„%name%“ umbenennen'
+        save_name: 'Namen speichern'
+        subheading: 'Gruppen von Kalendern, zwischen denen du in der Kalenderleiste wechselst.'
     clock:
         heading: Uhrzeitformat
         subheading: Ob Zeiten im 12- oder 24-Stunden-Format geschrieben werden und wo die aktuelle Uhrzeit steht. Gespeichert wird nichts anders — es ändern sich nur die Ziffern.

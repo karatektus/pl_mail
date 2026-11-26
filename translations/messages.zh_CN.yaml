@@ -1774,6 +1774,19 @@ calendar:
         none: 不重复
         weekly: 每周
         yearly: 每年
+    sets:
+        button: '日历'
+        calendars: '日历'
+        count: '%count% / %total%'
+        custom: '自定义'
+        default_always: '始终显示'
+        heading: '日历组'
+        local: 'plMail'
+        manage: '重命名或删除日历组'
+        name_placeholder: '新日历组名称'
+        save: '保存'
+        title: '日历组：显示 %count% / %total% 个日历'
+        update: '更新“%name%”'
     share:
         action:
             delete: 删除链接“%name%”
@@ -1870,6 +1883,7 @@ calendar:
         later: 今天稍后
         soon: 几小时后
     view:
+        3days: '3 天'
         agenda: 日程列表
         day: 日
         monday_week: 周
@@ -3522,6 +3536,15 @@ settings:
         refresh: '从服务商刷新'
         subheading: '此账户用于收发邮件的地址。'
         system: '系统'
+    calendar_sets:
+        count: '{1}1 个日历|]1,Inf[ %count% 个日历'
+        delete: '删除“%name%”'
+        delete_confirm: '删除日历组“%name%”？其中的日历保持不变。'
+        empty: '还没有日历组。在日历工具栏的菜单中勾选日历，然后保存为日历组。'
+        heading: '日历组'
+        rename: '重命名“%name%”'
+        save_name: '保存名称'
+        subheading: '在日历工具栏中切换的日历分组。'
     clock:
         heading: '时钟'
         subheading: '选择使用十二小时制或二十四小时制，以及当前时间的显示位置。存储方式不变，只改变显示的数字。'

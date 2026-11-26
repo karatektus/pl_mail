@@ -29,5 +29,11 @@ in the pane would navigate the whole page to a calendar and take the mail away.
            down, and an `include ... with` would have to be repeated at every
            level to get it there. #}
         {% include 'calendar/_grid.html.twig' %}
+
+        {# The view's own URL, not the request's: the pane's first draw is a
+           sub-request whose URI is an internal fragment. #}
+        {% include 'calendar/_sets_menu.html.twig' with {
+            returnUrl: path('app_calendar_view', { view: view.value, date: anchor|date('Y-m-d') }) ~ '?pane=1',
+        } only %}
     </div>
 </turbo-frame>

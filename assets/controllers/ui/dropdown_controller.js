@@ -40,12 +40,16 @@ import { liftAbove, visible } from "../../place_above.js";
  * `auto`: closing stays this controller's (outside click, Escape), and auto's
  * light dismiss would eat the first click inside the menu.
  *
+ * `data-ui--dropdown-open-value="true"` opens the menu as soon as it connects,
+ * with focus on its `[autofocus]` element: the calendar sets menu redraws after
+ * each tick and comes back open on the row ticked.
+ *
  * openAt(anchor) opens it over another element: the compose window's ⋮ menu
  * when the button itself has been folded into it (compose--action-overflow).
  */
 export default class extends Controller {
     static targets = ["menu"];
-    static values = { place: String };
+    static values = { place: String, open: Boolean };
 
     connect() {
         this._boundOutside = this._handleOutside.bind(this);
@@ -63,6 +67,11 @@ export default class extends Controller {
         // is pinned.
         if (this.hasMenuTarget && false === this.menuTarget.hasAttribute("data-enter")) {
             this.menuTarget.setAttribute("data-enter", "slide-down");
+        }
+
+        if (this.openValue) {
+            this.open();
+            this.menuTarget.querySelector("[autofocus]")?.focus();
         }
     }
 

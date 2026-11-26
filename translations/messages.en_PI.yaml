@@ -1899,6 +1899,19 @@ calendar:
         none: Comes but once
         weekly: Every week
         yearly: Every year
+    sets:
+        button: 'Charts'
+        calendars: 'Charts'
+        count: '%count% of %total%'
+        custom: 'Yer own pick'
+        default_always: 'Always on deck'
+        heading: 'Fleets'
+        local: 'plMail'
+        manage: 'Rename or scuttle fleets'
+        name_placeholder: 'Name a new fleet'
+        save: 'Stow it'
+        title: 'Chart fleets: %count% of %total% charts showin'''
+        update: 'Update "%name%"'
     share:
         action:
             delete: 'Scuttle the berth "%name%"'
@@ -2013,6 +2026,7 @@ calendar:
         later: Later this day
         soon: In a few hours
     view:
+        3days: 'Three suns'
         agenda: The list
         day: Day
         monday_week: Week
@@ -3792,6 +3806,15 @@ settings:
         refresh: 'Fetch from the harbourmaster'
         subheading: 'Addresses this crew member sends and receives under.'
         system: 'ship''s own'
+    calendar_sets:
+        count: '{1}1 chart|]1,Inf[ %count% charts'
+        delete: 'Scuttle "%name%"'
+        delete_confirm: 'Scuttle the fleet "%name%"? Its charts stay as they be.'
+        empty: 'No fleets yet. Tick charts in the menu on the calendar''s bar, then stow ''em as a fleet.'
+        heading: 'Chart fleets'
+        rename: 'Rename "%name%"'
+        save_name: 'Stow the name'
+        subheading: 'Groups o'' charts ye switch between from the calendar''s bar.'
     clock:
         heading: Th' glass
         subheading: Whether th' hours be writ in twelves or in four-and-twenty, an' where th' hour o' now be hung. Naught be stored different — only th' figures change.
