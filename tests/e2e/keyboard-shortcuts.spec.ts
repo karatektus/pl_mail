@@ -1,5 +1,5 @@
 import { test, expect } from "./support/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 import { saveSetting } from "./support/settings";
 
@@ -366,6 +366,34 @@ test.describe("keyboard shortcuts", () => {
         await expect(mailRow(page, subject)).toHaveCount(1);
     });
 
+    test("a button's tooltip names the key that presses it", async ({ page }) => {
+        await inbox(page);
+
+        // `title` until the first hover, `data-tooltip` after (ui--tooltip).
+        const tooltip = (button: Locator) =>
+            button.evaluate((element) => element.getAttribute("title") ?? element.getAttribute("data-tooltip"));
+        const rowArchive = page.locator(ROWS).first().locator("[data-action='click->mail--message-row#archive']").first();
+
+        await expect.poll(() => tooltip(rowArchive)).toBe("Archive (e)");
+
+        await page.keyboard.press("j");
+        await page.keyboard.press("o");
+
+        const reading = page.locator('[data-surface="reading"]');
+        const archive = reading.locator("[data-action='click->mail--message-actions#archive']").first();
+
+        await expect.poll(() => tooltip(archive)).toBe("Archive (e)");
+        await expect.poll(() => tooltip(reading.locator("[data-action='click->mail--message-actions#markUnread']").first())).toBe("Mark as unread (Shift+U)");
+        await expect.poll(() => tooltip(reading.locator("[data-action='click->mail--mail-pane#close']").first())).toBe("Back (u)");
+
+        // Hovered, it is the app's bubble that says so, and the browser's own
+        // tooltip stays away: the title ui--tooltip took off is not put back.
+        await archive.hover();
+        await expect(page.locator(".app-tooltip[data-state='visible']")).toHaveText("Archive (e)");
+        await page.waitForTimeout(100);
+        await expect(archive).not.toHaveAttribute("title");
+    });
+
     test("switched off, a key is only a key", async ({ page }) => {
         await setShortcuts(page, "Off");
 
@@ -383,6 +411,11 @@ test.describe("keyboard shortcuts", () => {
             await expect(page.locator(CURSOR)).toHaveCount(0);
             await expect(page.locator(ROWS)).toHaveCount(before);
             await expect(page.locator("[data-shortcuts-help]")).toHaveCount(0);
+
+            // Nor does a tooltip offer one.
+            await expect(
+                page.locator(ROWS).first().locator("[data-action='click->mail--message-row#archive']").first(),
+            ).toHaveAttribute("title", "Archive");
         } finally {
             // This worker's user keeps the setting for every spec after this one.
             await setShortcuts(page, "On");

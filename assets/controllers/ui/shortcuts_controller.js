@@ -117,6 +117,62 @@ const ON_ROW = {
 /** Actions after which the conversation is no longer in the list. */
 const LEAVES = new Set(["archive", "trash"]);
 
+/** The keys that act on mail, by the action they take: see #act(). */
+const ACTS = {
+    e: "archive",
+    "#": "trash",
+    "!": "spam",
+    s: "star",
+    p: "pin",
+    I: "read",
+    U: "unread",
+    l: "label",
+    v: "move",
+    b: "snooze",
+};
+
+/** The keys that press one button wherever it is. */
+const PRESSES = {
+    c: "[data-shortcut='compose']",
+    "?": "[data-shortcut='help']",
+    z: "#toast-region button[data-action$='#abort']",
+    // Conversations or single emails (#615): the switch in the list's sort
+    // menu, which posts and comes back to this list regrouped.
+    t: "[data-shortcut='conversation-view']",
+};
+
+/** The keys that press a button of the open conversation, by its OPEN name. */
+const READS = { u: "back", r: "reply", f: "forward", F: "forwardAgent" };
+
+/**
+ * Every button a key presses, where it looks for it, and the key: what the
+ * tooltips name (FLT-156). Read from the tables the keys themselves are, so a
+ * tooltip cannot name a key that presses something else, and searched where
+ * the key searches — the first match in the list toolbar, in the open
+ * conversation or on the page, and each row's own — so a look-alike the key
+ * never reaches (a message's own menu row for Archive) is not named either.
+ * `a` is the one key outside the tables — it falls back to Reply — and only
+ * Reply all says it, Reply having `r`.
+ */
+const HINTS = [
+    ...Object.entries(ACTS).flatMap(([key, name]) => [
+        ["toolbar", BULK[name], key],
+        ["reading", OPEN[name], key],
+        ["rows", ON_ROW[name], key],
+    ]).filter(([, selector]) => undefined !== selector),
+    ...Object.entries(PRESSES).map(([key, selector]) => ["page", selector, key]),
+    ...Object.entries(READS).map(([key, name]) => ["reading", OPEN[name], key]),
+    ["reading", OPEN.replyAll, "a"],
+];
+
+/**
+ * A key as a tooltip names it: `e`, and Shift for a capital — `Shift+F`, the
+ * way the Forward to an agent title already spells its own.
+ */
+function keyName(key) {
+    return /^[A-Z]$/.test(key) ? `Shift+${key}` : key;
+}
+
 /**
  * Which row the cursor is on, by conversation id.
  *
@@ -190,11 +246,13 @@ export default class extends Controller {
         this.#observer = new MutationObserver(() => this.#queueRepaint());
         // `hidden` as well, which is how a row leaves the list before the server
         // has answered (#335) — still in the document, but no longer a row.
+        // `title` for the key in a tooltip, which a button that rewrites its
+        // own (Pin ↔ Unpin) would otherwise lose: see #hintKeys().
         this.#observer.observe(document.body, {
             childList: true,
             subtree: true,
             attributes: true,
-            attributeFilter: ["hidden"],
+            attributeFilter: ["hidden", "title"],
         });
 
         this.#paint();
@@ -300,34 +358,27 @@ export default class extends Controller {
 
     /** A single key. Answers whether it did anything. */
     #first(key) {
+        if (true === Object.hasOwn(ACTS, key)) {
+            return this.#act(ACTS[key]);
+        }
+
+        if (true === Object.hasOwn(PRESSES, key)) {
+            return this.#press(document.querySelector(PRESSES[key]));
+        }
+
+        if (true === Object.hasOwn(READS, key)) {
+            return this.#press(this.#reading()?.querySelector(OPEN[READS[key]]));
+        }
+
         switch (key) {
-            case "c": return this.#press(document.querySelector("[data-shortcut='compose']"));
             case "/": return this.#focusSearch();
-            case "?": return this.#press(document.querySelector("[data-shortcut='help']"));
-            case "z": return this.#press(document.querySelector("#toast-region button[data-action$='#abort']"));
-            // Conversations or single emails (#615): the switch in the list's
-            // sort menu, which posts and comes back to this list regrouped.
-            case "t": return this.#press(document.querySelector("[data-shortcut='conversation-view']"));
 
             case "j": return this.#step(1);
             case "k": return this.#step(-1);
             case "o":
             case "Enter": return this.#openCursor();
             case "x": return this.#tickCursor();
-            case "u": return this.#press(this.#reading()?.querySelector(OPEN.back));
 
-            case "e": return this.#act("archive");
-            case "#": return this.#act("trash");
-            case "!": return this.#act("spam");
-            case "s": return this.#act("star");
-            case "p": return this.#act("pin");
-            case "I": return this.#act("read");
-            case "U": return this.#act("unread");
-            case "l": return this.#act("label");
-            case "v": return this.#act("move");
-            case "b": return this.#act("snooze");
-
-            case "r": return this.#press(this.#reading()?.querySelector(OPEN.reply));
             // Reply to all, and a plain reply where there is nobody else to
             // include. The Reply-all link is only drawn for a message with more
             // than one recipient, so on every other message `a` found no button
@@ -336,8 +387,6 @@ export default class extends Controller {
             case "a": return this.#press(
                 this.#reading()?.querySelector(OPEN.replyAll) ?? this.#reading()?.querySelector(OPEN.reply),
             );
-            case "f": return this.#press(this.#reading()?.querySelector(OPEN.forward));
-            case "F": return this.#press(this.#reading()?.querySelector(OPEN.forwardAgent));
 
             default: return false;
         }
@@ -589,6 +638,42 @@ export default class extends Controller {
         this.#paint();
     }
 
+    /**
+     * "Archive (e)": each button a key presses names it in its tooltip, which
+     * is how the keys are learnt without opening the list behind `?`. Only
+     * while the shortcuts are on, as this controller is only mounted then.
+     * Painted with the cursor because the buttons come and go with the same
+     * rows, toolbars and panes.
+     *
+     * Only a tooltip the button already has. Its text is wherever ui--tooltip
+     * keeps it: `title` until the button is first hovered, `data-tooltip`
+     * after, when `title` is gone for good so the browser's own tooltip stays
+     * away — and must not be written back.
+     */
+    #hintKeys() {
+        const within = {
+            page: document,
+            toolbar: document.querySelector(TOOLBAR),
+            reading: this.#reading(),
+        };
+
+        for (const [where, selector, key] of HINTS) {
+            const buttons = "rows" === where
+                ? this.#rows().map((row) => row.querySelector(selector))
+                : [within[where]?.querySelector(selector)];
+            const hint = ` (${keyName(key)})`;
+
+            for (const button of buttons) {
+                const attribute = true === button?.hasAttribute("title") ? "title" : "data-tooltip";
+                const text = button?.getAttribute(attribute) ?? "";
+
+                if ("" !== text && false === text.endsWith(hint)) {
+                    button.setAttribute(attribute, text + hint);
+                }
+            }
+        }
+    }
+
     #queueRepaint() {
         if (true === this.#repaintQueued) {
             return;
@@ -604,6 +689,7 @@ export default class extends Controller {
 
     #paint() {
         this.#followLeftRow();
+        this.#hintKeys();
 
         for (const row of document.querySelectorAll(`[${CURSOR}]`)) {
             if (row.getAttribute(ROW_ID) !== cursorId) {

@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:180f9a6be4923c4d60c17d66b7eeeefa300a8eea -->
+<!-- translated-from: features/mail.md sha1:f5943fe269e1a619cd2ebe9d1998ce03318c4ed9 -->
 
 # Mail
 
@@ -1001,8 +1001,8 @@ die Leiste dieselbe Arbeit.
 ### Tastenkürzel
 
 Die einzelnen Tasten, die Gmail benutzt, funktionieren auch hier. Mit **?** bekommst du überall die
-ganze Liste, ebenso über den Tastatur-Knopf über einer Mail-Liste; diese lohnt es sich zuerst zu
-kennen:
+ganze Liste, ebenso über den Tastatur-Knopf über einer Mail-Liste. Ein Knopf, den eine Taste drückt,
+nennt sie auch in seinem Tooltip, etwa **Archivieren (e)**. Diese lohnt es sich zuerst zu kennen:
 
 | Taste | Wirkung |
 |---|---|
