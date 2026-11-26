@@ -189,5 +189,9 @@ export default class extends Controller {
         }
 
         this._setOpen(false);
+
+        // Spent: ui--shortcuts would otherwise take the same Escape as Back
+        // from the conversation under the panel.
+        event.preventDefault();
     }
 }

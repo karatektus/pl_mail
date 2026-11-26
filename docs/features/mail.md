@@ -923,8 +923,10 @@ keyboard button above a mail list. A button a key presses also names it in its t
 |---|---|
 | `j` / `k` | Move down and up a list. With a conversation open, open the next or previous one. |
 | `↓` / `↑` | Move down and up a list too, but only while the list has the keyboard: a row is highlighted by a click or by `Tab`, or nothing else is open. In an open conversation they scroll it, as they would anywhere. |
-| `o` or `Enter` | Open the highlighted conversation. `u` goes back to the list. |
+| `o` or `Enter` | Open the highlighted conversation. `u` or `Esc` goes back to the list, `Esc` only while no menu is open. |
 | `x` | Select the highlighted conversation. `*` then `a` selects the page, `*` then `n` clears. |
+| `Shift`+`j` / `Shift`+`k` | Select the highlighted conversation and the one below or above, and move the highlight there, to select a run. |
+| `Tab` / `Shift`+`Tab` | Next or previous inbox tab, once `j` or `k` has put the cursor in the list. Before that, with a conversation open, or while a row, button or link has the focus, `Tab` moves the focus as usual. |
 | `e` · `#` · `!` | Archive · delete · mark as spam. |
 | `s` · `Shift`+`i` · `Shift`+`u` | Star · mark as read · mark as unread. |
 | `p` | Pin or unpin. |
@@ -932,7 +934,7 @@ keyboard button above a mail list. A button a key presses also names it in its t
 | `l` · `v` · `b` | Label as · move to · snooze. |
 | `r` · `a` · `f` | Reply · reply to all · forward, in an open conversation. |
 | `c` · `/` | Write a new message · search. |
-| `g` then `i` `s` `t` `d` `a` | Go to the Inbox, Starred, Sent, Drafts, Archive. |
+| `g` then `i` `s` `t` `d` `a` `b` | Go to the Inbox, Starred, Sent, Drafts, Archive, Snoozed. |
 | `z` | Undo the last action, while its notice is still showing. |
 
 **What a key acts on:** whatever is selected; if nothing is, the conversation that is open; if none
