@@ -20,6 +20,7 @@ use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Repository\Calendar\EventSourceLink\EventSourceLinkRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\CalendarEventWriter;
@@ -114,6 +115,7 @@ final class CalendarController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly EventSourceLinkRepository $sourceLinks,
         private readonly CalendarEventRepository $calendarEventRepository,
+        private readonly MessageRepository $messages,
     ) {
     }
 
@@ -1312,7 +1314,7 @@ final class CalendarController extends AbstractController
             return null;
         }
 
-        $message = $this->em->find(Message::class, $id);
+        $message = $this->messages->find($id);
 
         if (null === $message || false === $this->isGranted(OwnershipVoter::OWN, $message)) {
             return null;
