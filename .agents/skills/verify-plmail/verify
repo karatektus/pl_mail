@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+QA_HOST=${QA_HOST:-omarchybox}
+QA_EXEC=${DEVOPS_REPO:-$HOME/devops}/bin/qa-exec
+skill_dir=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
+top=$(git -C "$skill_dir" rev-parse --show-toplevel)
+skill=${skill_dir#"$top"/}
+cd "$top"
+
+usage() {
+  cat <<EOF
+usage: verify [--sha REV] [--base REV] [--spec FILE]... [--e2e ARGS]... [PATH...]
+       verify --doctor
+
+  PATH...       sign in as the demo user and land on each path at 1280 and 390:
+                a viewport shot, a full-page shot and the ARIA snapshot
+  --spec FILE   run a scratch spec from $skill/scratch/ (repeatable)
+  --e2e ARGS    run the repository's own Playwright suite with these arguments,
+                such as 'tests/e2e/snooze-menu.spec.ts' or '-g "snooze"' (repeatable)
+  --sha REV     the commit to verify (default HEAD)
+  --base REV    also serve REV and drive it the same way, for before shots
+  --doctor      check this checkout and $QA_HOST; change nothing
+
+Runs on \$QA_HOST ($QA_HOST), the core agent host with Docker.
+EOF
+}
+
+die() {
+  echo "verify: $*" >&2
+  exit 2
+}
+
+on_host() { ssh -o BatchMode=yes -o ConnectTimeout=10 "$QA_HOST" "$@"; }
+
+main_checkout() { git -C "$top" worktree list --porcelain | sed -n "1s/^worktree //p"; }
+
+doctor() {
+  local bad=0 rel
+  rel=$(main_checkout)
+  rel=${rel#"$HOME"/}
+  check() {
+    if eval "$2" >/dev/null 2>&1; then echo "ok    $1"; else
+      echo "FAIL  $1"
+      bad=1
+    fi
+  }
+  check "qa-exec at $QA_EXEC" '[ -x "$QA_EXEC" ]'
+  check "this checkout is committed (qa-exec refuses otherwise)" \
+    '[ -z "$(git -C "$top" status --porcelain --untracked-files=all)" ]'
+  check "ssh $QA_HOST answers" 'on_host true'
+  check "$QA_HOST has the checkout qa-exec sends commits to (~/$rel)" "on_host 'test -d ~/$rel/.git'"
+  check "$QA_HOST has ~/devops/bin/qa-slots, which queues each run" 'on_host "test -x ~/devops/bin/qa-slots"'
+  check "$QA_HOST reaches Docker, directly or through sudo -n" \
+    'on_host "docker info || sudo -n docker info"'
+  check "$QA_HOST has docker compose, node, npx and ss on its ssh PATH" \
+    'on_host "command -v node npx ss && { docker compose version || sudo -n docker compose version; }"'
+  echo "info  $QA_HOST load average $(on_host 'cut -d" " -f1-3 /proc/loadavg' || echo unknown)"
+  return "$bad"
+}
+
+sha=HEAD base= paths=() specs=() e2e=()
+while [ $# -gt 0 ]; do
+  case $1 in
+    --doctor) doctor; exit ;;
+    --sha) sha=${2:?--sha needs a revision}; shift 2 ;;
+    --base) base=${2:?--base needs a revision}; shift 2 ;;
+    --e2e) e2e+=("${2:?--e2e needs Playwright arguments}"); shift 2 ;;
+    --spec)
+      file=$(readlink -f "${2:?--spec needs a file}")
+      case $file in "$skill_dir"/scratch/*.spec.ts) ;; *) die "a scratch spec lives in $skill/scratch/ and ends in .spec.ts" ;; esac
+      specs+=("${file#"$top"/}")
+      shift 2
+      ;;
+    -h | --help) usage; exit ;;
+    -*) usage >&2; die "unknown option $1" ;;
+    *) paths+=("$1"); shift ;;
+  esac
+done
+[ $((${#paths[@]} + ${#specs[@]} + ${#e2e[@]})) -gt 0 ] || { usage >&2; die "nothing to drive"; }
+[ "$QA_HOST" != "$(hostname)" ] || die "qa-exec refuses the host it runs on; run verify from another core agent host, or set QA_HOST"
+
+sha=$(git -C "$top" rev-parse --verify --quiet "$sha^{commit}") || die "no commit $sha"
+git -C "$top" cat-file -e "$sha:$skill/drive.sh" 2>/dev/null ||
+  die "${sha:0:12} predates this skill; verify a commit that has $skill/drive.sh"
+
+specs_tar=
+[ ${#specs[@]} -eq 0 ] || specs_tar=$(tar -C "$top" -czf - "${specs[@]}" | base64 -w0)
+[ ${#specs_tar} -lt 100000 ] ||
+  die "the scratch specs come to ${#specs_tar} bytes encoded, over the 100000 that fit in qa-exec's one command argument; send fewer at once"
+printf -v command 'VERIFY_PATHS=%q VERIFY_SPECS=%q VERIFY_SPECS_TAR=%q VERIFY_E2E=%q bash %q' \
+  "$(printf '%s\n' "${paths[@]}")" "$(printf '%s\n' "${specs[@]}")" "$specs_tar" \
+  "$(printf '%s\n' "${e2e[@]}")" "$skill/drive.sh"
+
+evidence=$skill_dir/evidence/${sha:0:10}-$(date +%Y%m%d-%H%M%S)-$$
+mkdir -p "$(dirname "$evidence")"
+echo "verify: ${sha:0:12}${base:+ against $base} on $QA_HOST; evidence in ${evidence#"$top"/}"
+code=0
+"$QA_EXEC" --host "$QA_HOST" --sha "$sha" ${base:+--base "$base"} \
+  --slot-queue '$HOME/devops/bin/qa-slots' --evidence "$evidence" --command "$command" || code=$?
+if [ -f "$evidence/summary.txt" ]; then
+  echo "verify: exit code and check per line, under ${evidence#"$top"/}/"
+  cat "$evidence/summary.txt"
+fi
+exit "$code"
