@@ -173,6 +173,7 @@ export default class extends Controller {
         });
         this._onFocusIn = (event) => this.#focusIn(event.target);
         this._onFocusOut = (event) => this.#focusOut(event.target);
+        this._onPointerDown = (event) => this.#pointerDown(event.target);
 
         document.addEventListener("keydown", this._onKeydown);
         // Keys pressed inside a message. The body is a sandboxed frame with a
@@ -181,6 +182,7 @@ export default class extends Controller {
         document.addEventListener("mail:frame-key", this._onFrameKey);
         document.addEventListener("focusin", this._onFocusIn);
         document.addEventListener("focusout", this._onFocusOut);
+        document.addEventListener("pointerdown", this._onPointerDown, true);
 
         // The cursor is an attribute on a row, and rows are replaced by four
         // different mechanisms (frame navigation, Turbo streams, the pane's
@@ -204,6 +206,7 @@ export default class extends Controller {
         document.removeEventListener("mail:frame-key", this._onFrameKey);
         document.removeEventListener("focusin", this._onFocusIn);
         document.removeEventListener("focusout", this._onFocusOut);
+        document.removeEventListener("pointerdown", this._onPointerDown, true);
         this.#observer?.disconnect();
         clearTimeout(this.#prefixTimer);
     }
@@ -504,6 +507,26 @@ export default class extends Controller {
             cursorId = row.getAttribute(ROW_ID);
             this.#paint();
         }
+    }
+
+    /**
+     * A click anywhere in a row is where the cursor goes (#767).
+     *
+     * #focusIn() follows the focus only onto the row itself, and a click
+     * lands on the link or a control inside it, which takes the focus
+     * instead. So after `#` moved the cursor to the next row, clicking a
+     * third one opened it while the cursor's outline stayed on the second,
+     * for good. Captured, so a control that stops the click still moves it.
+     */
+    #pointerDown(target) {
+        const row = target?.closest?.(ROW) ?? null;
+
+        if (null === row || row.getAttribute(ROW_ID) === cursorId) {
+            return;
+        }
+
+        cursorId = row.getAttribute(ROW_ID);
+        this.#paint();
     }
 
     /**
