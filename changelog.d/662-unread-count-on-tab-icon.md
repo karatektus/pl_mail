@@ -1,5 +1,5 @@
-**A count on plMail's icon in the browser tab.** Switch on **Settings → Notifications → Count on
-the browser tab icon** and a number is drawn in the bottom right corner of the tab icon, black
+**A count on plMail's icon in the browser tab.** Switch on **Settings → Notifications → Browser tab
+icon → Show a count** and a number is drawn in the bottom right corner of the tab icon, black
 with a thin white outline, so a pinned tab shows it too, as in Gmail. By default it counts new
 mail in every account group and every workspace; it can count unread mail instead, one account
 group's Inbox, or only the workspace on screen. It keeps up while the tab is in the background,

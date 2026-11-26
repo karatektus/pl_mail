@@ -5269,7 +5269,8 @@ settings:
             list_content: 'cargo attachments chips paperclip files flags labels sender date hour tally answered'
             list_layout: 'rows one line compact dense peek preview stacked width'
             list_markers: 'mark star hover medallion avatar crew corner unread bold'
-            notifications: "push browser phone sound alert sender heading tab flag favicon unread tally pinned"
+            notification_rules: "notify push sender heading unread tab label"
+            notifications: "push browser phone sound alert device"
             password: "login sign-in"
             pinning: 'pin pinned nail mast top nag'
             profile: "name avatar photo picture"
@@ -5281,6 +5282,7 @@ settings:
             shortcuts: "keyboard hotkeys keys"
             sidebar: 'width wide narrow resize haul long names cut short hover more folders'
             swipe_actions: "swipe gesture phone archive"
+            tab_icon: "tab flag favicon new unread tally pinned workspace"
             templates: "canned responses snippets text blocks"
             theme: "dark light mode night colours colors"
             two_factor: "2fa totp otp authenticator mfa"
@@ -5322,6 +5324,8 @@ settings:
         notify_for_hint: 'Which bottles ring the bell: a box for each Inbox tab an'' each flag. Holds for all yer browsers an'' the Android app. Tick nothin'' an'' no bottle rings it.'
         'off': Off
         'on': On
+        rules_heading: 'Which post rings the bell'
+        rules_subheading: 'Fer every browser o'' yers, an'' which post fer the Android app too: what rings the bell an'' what it shows.'
         show_content: 'Show who wrote an'' what about'
         show_content_hint: 'A browser notice names th'' sender an'' th'' heading, not just "New mail". They show on a locked screen too, mind. Holds fer every browser o'' yers.'
         skip_read: 'Only for bottles still unread'
@@ -5342,8 +5346,9 @@ settings:
         subheading: >-
             Get word o' new mail on this here device, even when plMail be
             battened down.
-        tab_icon_count: 'Tally on the browser tab''s flag'
-        tab_icon_count_hint: 'A number painted on plMail''s flag in yer browser tab, so a pinned tab shows whether post be waitin''. Holds fer every browser o'' yers.'
+        tab_icon_count: 'Show a tally'
+        tab_icon_count_hint: 'Holds fer every browser o'' yers.'
+        tab_icon_heading: 'Browser tab''s flag'
         tab_icon_inbox: 'Which inbox'
         tab_icon_inbox_all: 'All together'
         tab_icon_inbox_hint: 'One fleet''s Inbox, or every fleet''s together.'
@@ -5351,6 +5356,7 @@ settings:
         tab_icon_kind_hint: 'New: yarns from the last day no list has shown ye yet, as the sidebar''s dots count ''em. Unread: every yarn ye''ve not read.'
         tab_icon_kind_new: 'New'
         tab_icon_kind_unread: 'Unread'
+        tab_icon_subheading: 'A number painted on plMail''s flag in yer browser tab, so a pinned or hidden tab shows whether post be waitin''. Needs no bells.'
         tab_icon_workspace: 'Which workspaces'
         tab_icon_workspace_all: 'All'
         tab_icon_workspace_hint: 'All tallies every account. This one tallies only the accounts o'' the workspace on screen, as the tab''s title does.'

@@ -8,29 +8,22 @@ browser drops a notification for mail read in the meantime. The boxes are
 applied where the push is sent and by the phone apps; the second choice by the
 service worker, which reads it back when a push arrives. And whether a
 browser's notification names the sender and the subject (#760), which the
-service worker reads back with the words themselves (NewMailNotice). Last,
-whether the tab icon carries a count of the Inbox (#662), which the page itself
-draws (see assets/tab_icon_count.js), and what it counts (see TabIconCount).
+service worker reads back with the words themselves (NewMailNotice). The card
+"Which mail notifies"; the tab icon's count has a card of its own
+(_tab_icon_count.html.twig), posting to the same endpoint.
 
 A plain form that submits on change and redirects, like the Disposal card.
 
 Accepts:
-  showContent           bool
-  skipRead              bool
-  tabIconCount          bool
-  tabIconKind           TabIconCountKind
-  tabIconInbox          ?int                the account group counted; null for all
-  tabIconThisWorkspace  bool
-  tabIconGroups         list<UnifiedInbox>  the groups to pick from
-  tabIconWorkspaces     int                 how many workspaces the user has
-  chosen                list<string>        the scopes that are on (NotifyScope keys)
-  switches              {inbox: list<{scope, tab: ?InboxTab}>, labels: list<Label>}
+  showContent  bool
+  skipRead     bool
+  chosen       list<string>   the scopes that are on (NotifyScope keys)
+  switches     {inbox: list<{scope, tab: ?InboxTab}>, labels: list<Label>}
 #}
 {% import '_partials/_segmented.html.twig' as seg %}
-{% import '_partials/_select.html.twig' as select %}
 
 <form method="post" action="{{ path('app_settings_notifications_update') }}"
-      class="border-t border-line" data-controller="ui--auto-submit">
+      data-controller="ui--auto-submit">
     <input type="hidden" name="_token" value="{{ csrf_token('settings-notifications') }}">
 
     <fieldset class="px-4 py-3">
@@ -104,75 +97,4 @@ Accepts:
             action: 'change->ui--auto-submit#submit',
         }) }}
     </div>
-
-    <div class="px-4 py-3 border-t border-line flex items-start justify-between gap-3">
-        <span class="min-w-0">
-            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.notifications.tab_icon_count'|trans }}</span>
-            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.tab_icon_count_hint'|trans }}</span>
-        </span>
-
-        {{ seg.control('tabIconCount', [
-            { value: '1', label: 'settings.notifications.on'|trans },
-            { value: '0', label: 'settings.notifications.off'|trans },
-        ], tabIconCount ? '1' : '0', {
-            label:  'settings.notifications.tab_icon_count'|trans,
-            action: 'change->ui--auto-submit#submit',
-        }) }}
-    </div>
-
-    {# What the icon counts, only while it counts at all; each row only when it
-       offers a choice. See TabIconCount. #}
-    {% if tabIconCount %}
-        <div class="px-4 py-3 border-t border-line flex items-start justify-between gap-3">
-            <span class="min-w-0">
-                <span class="block text-xs font-medium text-ink-muted">{{ 'settings.notifications.tab_icon_kind'|trans }}</span>
-                <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.tab_icon_kind_hint'|trans }}</span>
-            </span>
-
-            {{ seg.control('tabIconCountKind', [
-                { value: 'new',    label: 'settings.notifications.tab_icon_kind_new'|trans },
-                { value: 'unread', label: 'settings.notifications.tab_icon_kind_unread'|trans },
-            ], tabIconKind.value, {
-                label:  'settings.notifications.tab_icon_kind'|trans,
-                action: 'change->ui--auto-submit#submit',
-            }) }}
-        </div>
-
-        {% if tabIconGroups|length > 1 %}
-            <div class="px-4 py-3 border-t border-line flex items-start justify-between gap-3">
-                <span class="min-w-0">
-                    <label for="settings-tab-icon-inbox" class="block text-xs font-medium text-ink-muted">{{ 'settings.notifications.tab_icon_inbox'|trans }}</label>
-                    <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.tab_icon_inbox_hint'|trans }}</span>
-                </span>
-
-                <select id="settings-tab-icon-inbox"
-                        name="tabIconCountInbox"
-                        data-action="change->ui--auto-submit#submit"
-                        {{ select.enhance() }}
-                        class="select-field w-44 shrink-0 h-9 text-sm">
-                    <option value="" {{ tabIconInbox is null ? 'selected' : '' }}>{{ 'settings.notifications.tab_icon_inbox_all'|trans }}</option>
-                    {% for group in tabIconGroups %}
-                        <option value="{{ group.id }}" {{ group.id == tabIconInbox ? 'selected' : '' }}>{{ unified_inbox_name(group) }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        {% endif %}
-
-        {% if tabIconWorkspaces > 1 %}
-            <div class="px-4 py-3 border-t border-line flex items-start justify-between gap-3">
-                <span class="min-w-0">
-                    <span class="block text-xs font-medium text-ink-muted">{{ 'settings.notifications.tab_icon_workspace'|trans }}</span>
-                    <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.tab_icon_workspace_hint'|trans }}</span>
-                </span>
-
-                {{ seg.control('tabIconCountWorkspace', [
-                    { value: '0', label: 'settings.notifications.tab_icon_workspace_all'|trans },
-                    { value: '1', label: 'settings.notifications.tab_icon_workspace_this'|trans },
-                ], tabIconThisWorkspace ? '1' : '0', {
-                    label:  'settings.notifications.tab_icon_workspace'|trans,
-                    action: 'change->ui--auto-submit#submit',
-                }) }}
-            </div>
-        {% endif %}
-    {% endif %}
 </form>

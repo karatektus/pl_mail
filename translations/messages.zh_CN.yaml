@@ -4780,7 +4780,8 @@ settings:
             list_content: '附件 文件标签 回形针 文件 标签 发件人 日期 时间 数量 已回复'
             list_layout: '行 单行 紧凑 预览 摘要 分行 宽度'
             list_markers: '星标 悬停 头像 圆圈 账户 角标 未读 粗体'
-            notifications: "推送 浏览器 手机 声音 提醒 发件人 主题 标签页 图标 未读 数字 固定"
+            notification_rules: "通知 推送 发件人 主题 未读 标签页 标签 锁屏"
+            notifications: "推送 浏览器 手机 声音 提醒 设备"
             password: "密码 登录"
             pinning: '置顶 固定 图钉 提醒 pin'
             profile: "姓名 头像 照片"
@@ -4792,6 +4793,7 @@ settings:
             shortcuts: "键盘 按键 快捷键"
             sidebar: '宽度 宽 窄 调整 拖动 长名称 截断 悬停 更多 文件夹'
             swipe_actions: "滑动 手势 手机 归档"
+            tab_icon: "标签页 图标 favicon 新邮件 未读 数字 固定 工作区"
             templates: "模板 快速回复 片段"
             theme: "深色 浅色 模式 夜间 颜色 dark"
             two_factor: "2fa totp otp 验证器 双重验证"
@@ -4830,6 +4832,8 @@ settings:
         notify_for_hint: '哪些邮件会触发通知：每个收件箱标签页和每个标签各一个勾选框。对你的所有浏览器和 Android 应用生效。全部不勾选时，任何邮件都不会通知。'
         'off': '关'
         'on': '开'
+        rules_heading: '哪些邮件发通知'
+        rules_subheading: '适用于你的所有浏览器，哪些邮件也适用于 Android 应用：什么会触发通知，以及通知显示什么。'
         show_content: '显示发件人和主题'
         show_content_hint: '浏览器通知会显示发件人和主题，而不只是“New mail”。锁屏时也会显示。适用于你的所有浏览器。'
         skip_read: '仅通知未读邮件'
@@ -4844,8 +4848,9 @@ settings:
         state_unsupported: '此浏览器无法接收通知。在 iPhone 和 iPad 上，请先将 plMail 添加到主屏幕。'
         state_working: '正在处理…'
         subheading: '在此设备上接收新邮件通知，即使 plMail 已关闭也能收到。'
-        tab_icon_count: '浏览器标签页图标上的数字'
-        tab_icon_count_hint: '在浏览器标签页的 plMail 图标上显示一个数字，固定的标签页也能看出是否有邮件在等。适用于你的所有浏览器。'
+        tab_icon_count: '显示数字'
+        tab_icon_count_hint: '适用于你的所有浏览器。'
+        tab_icon_heading: '浏览器标签页图标'
         tab_icon_inbox: '哪个收件箱'
         tab_icon_inbox_all: '全部合计'
         tab_icon_inbox_hint: '某个账户组的收件箱，或所有组合计。'
@@ -4853,6 +4858,7 @@ settings:
         tab_icon_kind_hint: '新邮件：过去一天内还没有在任何列表中显示给你的会话，与侧边栏的圆点相同。未读：所有你还没读的会话。'
         tab_icon_kind_new: '新邮件'
         tab_icon_kind_unread: '未读'
+        tab_icon_subheading: '在浏览器标签页的 plMail 图标上显示一个数字，固定或在后台的标签页也能看出是否有邮件在等。不需要开启通知。'
         tab_icon_workspace: '哪些工作区'
         tab_icon_workspace_all: '全部'
         tab_icon_workspace_hint: '全部：统计所有账户。当前：只统计屏幕上工作区的账户，与标签页标题相同。'

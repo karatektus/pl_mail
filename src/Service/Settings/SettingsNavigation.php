@@ -128,6 +128,8 @@ final class SettingsNavigation
             ],
             'notifications' => [
                 ['card-notifications', 'settings.notifications.heading', 'settings.search.keywords.notifications'],
+                ['card-notification-rules', 'settings.notifications.rules_heading', 'settings.search.keywords.notification_rules'],
+                ['card-tab-icon', 'settings.notifications.tab_icon_heading', 'settings.search.keywords.tab_icon'],
             ],
             'whats-new' => [
                 ['card-whats-new', 'settings.whats_new.heading', 'settings.search.keywords.whats_new'],
