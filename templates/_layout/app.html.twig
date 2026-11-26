@@ -105,6 +105,17 @@
     #}
     <meta name="title-count-key" content="{% block title_count_key %}role:inbox{% endblock %}">
     {% include '_partials/_favicon.html.twig' %}
+    {# The number for the tab icon, for somebody who switched it on in
+       Settings → Notifications (#662); absent means off. Its own number,
+       whatever the title counts on this page: new or unread, one account
+       group or all, this workspace or every one, as the user chose — see
+       TabIconCount. Rendered with the page so the icon carries it before the
+       first counts request, and again after a Turbo visit puts back the plain
+       icon. See tab_icon_count.js. #}
+    {% set _tabIconCount = app.user ? tabIconCount.for(app.user) : null %}
+    {% if _tabIconCount is not null %}
+        <meta name="tab-icon-count" content="{{ _tabIconCount }}">
+    {% endif %}
     {# PWA: iOS only offers Web Push to apps added to the Home Screen, and it
        needs the apple-touch-icon specifically — it ignores the manifest icons.
 

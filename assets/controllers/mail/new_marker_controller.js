@@ -1,5 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { announceWrite } from "../../mail_writes.js";
+import { tabIconCountOn } from "../../tab_icon_count.js";
 
 /**
  * Tells the server which "New" rows actually reached the screen.
@@ -86,6 +88,16 @@ export default class extends Controller {
                 headers: jsonCsrfHeaders(),
                 body: JSON.stringify({ ids }),
             });
+
+            // These rows have stopped being new, here or by the render that
+            // drew them, which marked them only once the page was written.
+            // The tab icon (#662) counts new mail by default, and the number
+            // this page came with still counted them: have it counted again.
+            // Only for somebody with the count on, and only when there were
+            // new rows to report, which a plain visit seldom has.
+            if (tabIconCountOn()) {
+                announceWrite();
+            }
         } catch {
             // A failed report costs a badge one extra appearance, which is the
             // harmless direction. Un-remember the ids so the next mutation or

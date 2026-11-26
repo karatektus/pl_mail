@@ -5485,7 +5485,8 @@ settings:
             list_content: 'anhänge chips büroklammer dateien labels absender datum uhrzeit anzahl beantwortet'
             list_layout: 'zeilen einzeilig kompakt dicht vorschau gestapelt breite'
             list_markers: 'stern überfahren avatar kreis konto ecke ungelesen fett'
-            notifications: "push browser handy ton hinweis absender betreff"
+            notification_rules: "benachrichtigen push absender betreff ungelesen tab label sperrbildschirm"
+            notifications: "push browser handy ton hinweis gerät"
             password: "kennwort anmeldung login"
             pinning: 'anheften angeheftet reißzwecke oben erinnerung pin'
             profile: "name avatar foto bild"
@@ -5497,6 +5498,7 @@ settings:
             shortcuts: "tastatur tasten kürzel hotkeys"
             sidebar: 'breite breit schmal größe ziehen lange namen abgeschnitten darüberfahren mehr ordner'
             swipe_actions: "wischen geste handy archivieren"
+            tab_icon: "tab symbol favicon neu ungelesen zahl angeheftet arbeitsbereich"
             templates: "textbausteine antworten vorlagen"
             theme: "dunkel hell modus nacht farben dark"
             two_factor: "2fa totp otp authenticator zwei faktor"
@@ -5548,6 +5550,8 @@ settings:
         notify_for_hint: 'Welche Mail eine Benachrichtigung auslöst: ein Kästchen pro Posteingang-Tab und pro Label. Gilt für alle deine Browser und für die Android-App. Ist nichts angehakt, benachrichtigt keine Mail.'
         'off': 'Aus'
         'on': 'An'
+        rules_heading: 'Welche Mail benachrichtigt'
+        rules_subheading: 'Für alle deine Browser, und welche Mail auch für die Android-App: was eine Benachrichtigung auslöst und was sie zeigt.'
         show_content: 'Absender und Betreff anzeigen'
         show_content_hint: 'Eine Browser-Benachrichtigung nennt, wer geschrieben hat, und den Betreff, statt nur „New mail“. Beides ist dann auch auf dem gesperrten Bildschirm zu sehen. Gilt für alle deine Browser.'
         skip_read: 'Nur bei ungelesener Mail benachrichtigen'
@@ -5568,6 +5572,21 @@ settings:
         subheading: >-
             Lass dich auf diesem Gerät über neue E-Mails benachrichtigen, auch
             wenn plMail geschlossen ist.
+        tab_icon_count: 'Zahl anzeigen'
+        tab_icon_count_hint: 'Gilt für alle deine Browser.'
+        tab_icon_heading: 'Symbol im Browser-Tab'
+        tab_icon_inbox: 'Welcher Posteingang'
+        tab_icon_inbox_all: 'Alle zusammen'
+        tab_icon_inbox_hint: 'Der Posteingang einer Kontogruppe oder aller Gruppen zusammen.'
+        tab_icon_kind: 'Was gezählt wird'
+        tab_icon_kind_hint: 'Neu: Unterhaltungen vom letzten Tag, die dir noch keine Liste gezeigt hat, wie die Punkte in der Seitenleiste. Ungelesen: jede Unterhaltung, die du nicht gelesen hast.'
+        tab_icon_kind_new: 'Neu'
+        tab_icon_kind_unread: 'Ungelesen'
+        tab_icon_subheading: 'Eine Zahl auf dem Symbol von plMail im Browser-Tab, damit auch ein angehefteter oder verdeckter Tab zeigt, ob Post wartet. Braucht keine Benachrichtigungen.'
+        tab_icon_workspace: 'Welche Arbeitsbereiche'
+        tab_icon_workspace_all: 'Alle'
+        tab_icon_workspace_hint: 'Alle zählt jedes Konto. Dieser zählt nur die Konten des Arbeitsbereichs auf dem Bildschirm, wie der Tab-Titel.'
+        tab_icon_workspace_this: 'Dieser'
         this_device: Dieses Gerät
         toggle: Benachrichtigungen aktivieren
         toggle_off: Benachrichtigungen deaktivieren

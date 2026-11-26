@@ -185,6 +185,29 @@ class NewMailMarkers implements ResetInterface
         return $count;
     }
 
+    /**
+     * New conversations in the Inbox of the given accounts, null for every
+     * account — NOT narrowed to the workspace on screen. For the tab icon
+     * (#662, TabIconCount), which decides its own scope; the per-account read
+     * forInbox() makes, so a page asking both reads once.
+     *
+     * @param list<int>|null $accountIds
+     */
+    public function newInInboxOf(?array $accountIds): int
+    {
+        $user = $this->security->getUser();
+
+        if (false === $user instanceof User) {
+            return 0;
+        }
+
+        $this->byAccount ??= $this->messageThreadBadgeRepository->countNewInboxPerAccount($user, $this->now());
+
+        return null === $accountIds
+            ? array_sum($this->byAccount)
+            : array_sum(array_intersect_key($this->byAccount, array_flip($accountIds)));
+    }
+
     public static function inboxKey(UnifiedInbox $inbox): string
     {
         return 'new:inbox:' . $inbox->id;

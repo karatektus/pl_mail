@@ -5521,7 +5521,8 @@ settings:
             list_content: 'pièces jointes puces trombone fichiers libellés expéditeur date heure nombre répondu'
             list_layout: 'lignes une ligne compact dense aperçu empilé largeur'
             list_markers: 'étoile survol avatar pastille compte coin non lu gras'
-            notifications: "push navigateur téléphone son alerte expéditeur objet"
+            notification_rules: "notifier push expéditeur objet non lus onglet libellé écran verrouillé"
+            notifications: "push navigateur téléphone son alerte appareil"
             password: "connexion identifiant"
             pinning: 'épingler épinglé punaise haut rappel pin'
             profile: "nom avatar photo image"
@@ -5533,6 +5534,7 @@ settings:
             shortcuts: "clavier touches raccourcis"
             sidebar: 'largeur large étroit redimensionner glisser noms longs coupés survol plus dossiers'
             swipe_actions: "balayer geste téléphone archiver"
+            tab_icon: "onglet icône favicon nouveaux non lus nombre épinglé espace de travail"
             templates: "réponses types extraits"
             theme: "sombre clair mode nuit couleurs dark"
             two_factor: "2fa totp otp authentificateur double facteur"
@@ -5583,6 +5585,8 @@ settings:
         notify_for_hint: 'Quel courrier déclenche une notification : une case par onglet de la boîte de réception et par libellé. S’applique à tous vos navigateurs et à l’application Android. Si rien n’est coché, aucun courrier ne notifie.'
         'off': 'Désactivé'
         'on': 'Activé'
+        rules_heading: 'Quels courriers notifient'
+        rules_subheading: 'Pour tous vos navigateurs, et quels courriers pour l’application Android aussi : ce qui déclenche une notification et ce qu’elle montre.'
         show_content: 'Afficher l’expéditeur et l’objet'
         show_content_hint: 'Une notification du navigateur indique qui a écrit et l’objet, au lieu de seulement « New mail ». Ils s’affichent alors aussi sur l’écran verrouillé. S’applique à tous vos navigateurs.'
         skip_read: 'Notifier seulement le courrier non lu'
@@ -5603,6 +5607,21 @@ settings:
         subheading: >-
             Soyez prévenu du nouveau courrier sur cet appareil, même quand plMail est
             fermé.
+        tab_icon_count: 'Afficher un nombre'
+        tab_icon_count_hint: 'S’applique à tous vos navigateurs.'
+        tab_icon_heading: 'Icône de l’onglet'
+        tab_icon_inbox: 'Quelle boîte de réception'
+        tab_icon_inbox_all: 'Toutes ensemble'
+        tab_icon_inbox_hint: 'La boîte de réception d’un groupe de comptes, ou celles de tous les groupes ensemble.'
+        tab_icon_kind: 'Ce qui est compté'
+        tab_icon_kind_hint: 'Nouveaux : les conversations du dernier jour qu’aucune liste ne vous a encore montrées, comme les points de la barre latérale. Non lus : toutes les conversations que vous n’avez pas lues.'
+        tab_icon_kind_new: 'Nouveaux'
+        tab_icon_kind_unread: 'Non lus'
+        tab_icon_subheading: 'Un nombre sur l’icône de plMail dans l’onglet du navigateur, pour qu’un onglet épinglé ou en arrière-plan montre si du courrier attend. Aucune notification nécessaire.'
+        tab_icon_workspace: 'Quels espaces de travail'
+        tab_icon_workspace_all: 'Tous'
+        tab_icon_workspace_hint: 'Tous compte chaque compte. Celui-ci ne compte que les comptes de l’espace de travail affiché, comme le titre de l’onglet.'
+        tab_icon_workspace_this: 'Celui-ci'
         this_device: Cet appareil
         toggle: Activer les notifications
         toggle_off: Désactiver les notifications

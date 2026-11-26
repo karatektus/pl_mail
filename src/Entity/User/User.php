@@ -14,6 +14,7 @@ use App\Domain\Enum\Mail\SidebarRow;
 use App\Domain\Enum\Mail\SwipeAction;
 use App\Domain\Enum\Mail\SwipeDirection;
 use App\Domain\Enum\User\ClockPlacement;
+use App\Domain\Enum\User\TabIconCountKind;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
 use App\Domain\Trait\TimestampableTrait;
@@ -1606,6 +1607,71 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         get => true === $this->getSetting(self::SETTING_NOTIFY_SKIP_READ, false);
         set(bool $on) {
             $this->setSetting(self::SETTING_NOTIFY_SKIP_READ, $on ? true : null);
+        }
+    }
+
+    /**
+     * Whether a count of the Inbox is drawn on plMail's icon in the browser
+     * tab, as Gmail does (#662); what it counts is the three settings below: a pinned tab shows its icon and nothing else,
+     * so the "(3)" in the title cannot be seen there. Per user, like the
+     * switches above, because it follows the reader from browser to browser.
+     *
+     * OFF unless somebody switches it on, like SETTING_NOTIFY_SKIP_READ: only a
+     * stored true is on, and no migration writes it.
+     */
+    public const string SETTING_TAB_ICON_COUNT = 'notifications.tab_icon_count';
+
+    /** Virtual, out of the settings bag — see SETTING_TAB_ICON_COUNT. */
+    public bool $tabIconCount {
+        get => true === $this->getSetting(self::SETTING_TAB_ICON_COUNT, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_TAB_ICON_COUNT, $on ? true : null);
+        }
+    }
+
+    /**
+     * What the tab icon counts (#662): new conversations, the default, or
+     * unread ones. See TabIconCountKind for why new comes first.
+     */
+    public const string SETTING_TAB_ICON_COUNT_KIND = 'notifications.tab_icon_count_kind';
+
+    /**
+     * Whether the tab icon counts only the accounts of the workspace on
+     * screen (#783) rather than every workspace's. Off by default: a pinned
+     * tab is looked at to learn whether mail is waiting anywhere, and the
+     * workspace on screen is the one somebody happens to have left it on.
+     */
+    public const string SETTING_TAB_ICON_COUNT_WORKSPACE = 'notifications.tab_icon_count_workspace';
+
+    /**
+     * Which account group's Inbox the tab icon counts (#265, #783), by the
+     * group's id; absent for every group together, the default. A group that
+     * is gone counts as absent: the icon falls back to every group rather
+     * than going quiet.
+     */
+    public const string SETTING_TAB_ICON_COUNT_INBOX = 'notifications.tab_icon_count_inbox';
+
+    /** Virtual, out of the settings bag — see SETTING_TAB_ICON_COUNT_KIND. */
+    public TabIconCountKind $tabIconCountKind {
+        get => TabIconCountKind::tryFrom((string) $this->getSetting(self::SETTING_TAB_ICON_COUNT_KIND, '')) ?? TabIconCountKind::New;
+        set(TabIconCountKind $kind) {
+            $this->setSetting(self::SETTING_TAB_ICON_COUNT_KIND, TabIconCountKind::New === $kind ? null : $kind->value);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_TAB_ICON_COUNT_WORKSPACE. */
+    public bool $tabIconCountThisWorkspace {
+        get => true === $this->getSetting(self::SETTING_TAB_ICON_COUNT_WORKSPACE, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_TAB_ICON_COUNT_WORKSPACE, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_TAB_ICON_COUNT_INBOX. */
+    public ?int $tabIconCountInbox {
+        get => is_int($id = $this->getSetting(self::SETTING_TAB_ICON_COUNT_INBOX)) ? $id : null;
+        set(?int $id) {
+            $this->setSetting(self::SETTING_TAB_ICON_COUNT_INBOX, $id);
         }
     }
 

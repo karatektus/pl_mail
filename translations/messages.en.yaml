@@ -5459,7 +5459,8 @@ settings:
             list_content: 'attachments chips paperclip files labels sender date time count replied answered'
             list_layout: 'rows one line compact dense preview snippet stacked lines width'
             list_markers: 'star hover avatar disc account corner unread bold'
-            notifications: "push browser phone sound alert sender subject"
+            notification_rules: "notify push sender subject unread tab label lock screen"
+            notifications: "push browser phone sound alert device"
             password: "login sign-in"
             pinning: 'pin pinned thumbtack sticky top reminder'
             profile: "name avatar photo picture"
@@ -5471,6 +5472,7 @@ settings:
             shortcuts: "keyboard hotkeys keys"
             sidebar: 'width wide narrow resize drag long names truncated cut off hover peek more folders'
             swipe_actions: "swipe gesture phone archive"
+            tab_icon: "tab icon favicon new unread count number badge pinned workspace"
             templates: "canned responses snippets text blocks"
             theme: "dark light mode night colours colors"
             two_factor: "2fa totp otp authenticator mfa"
@@ -5520,6 +5522,8 @@ settings:
         notify_for_hint: 'Which mail makes a notification: a box for each inbox tab and each label. Applies to every browser of yours and to the Android app. With nothing ticked, no mail notifies.'
         'off': 'Off'
         'on': 'On'
+        rules_heading: 'Which mail notifies'
+        rules_subheading: 'For every browser of yours, and which mail for the Android app too: what makes a notification and what it shows.'
         show_content: 'Show sender and subject'
         show_content_hint: 'A browser notification names who wrote and the subject, instead of only "New mail". They then also show on a locked screen. Applies to every browser of yours.'
         skip_read: 'Only notify for unread mail'
@@ -5539,6 +5543,21 @@ settings:
         state_working: Working…
         subheading: >-
             Get notified of new mail on this device, even when plMail is closed.
+        tab_icon_count: 'Show a count'
+        tab_icon_count_hint: 'Applies to every browser of yours.'
+        tab_icon_heading: 'Browser tab icon'
+        tab_icon_inbox: 'Which inbox'
+        tab_icon_inbox_all: 'All combined'
+        tab_icon_inbox_hint: 'One account group''s Inbox, or every group''s together.'
+        tab_icon_kind: 'What it counts'
+        tab_icon_kind_hint: 'New: conversations from the last day that no list has shown you yet, as the sidebar''s dots count them. Unread: every conversation you have not read.'
+        tab_icon_kind_new: 'New'
+        tab_icon_kind_unread: 'Unread'
+        tab_icon_subheading: 'A number on plMail''s icon in the browser tab, so a pinned or background tab shows whether mail is waiting. It needs no notifications.'
+        tab_icon_workspace: 'Which workspaces'
+        tab_icon_workspace_all: 'All'
+        tab_icon_workspace_hint: 'All counts every account. This one counts only the accounts of the workspace on screen, as the tab title does.'
+        tab_icon_workspace_this: 'This one'
         this_device: This device
         toggle: Enable notifications
         toggle_off: Disable notifications

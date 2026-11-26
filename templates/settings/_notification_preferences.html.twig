@@ -8,20 +8,22 @@ browser drops a notification for mail read in the meantime. The boxes are
 applied where the push is sent and by the phone apps; the second choice by the
 service worker, which reads it back when a push arrives. And whether a
 browser's notification names the sender and the subject (#760), which the
-service worker reads back with the words themselves (NewMailNotice).
+service worker reads back with the words themselves (NewMailNotice). The card
+"Which mail notifies"; the tab icon's count has a card of its own
+(_tab_icon_count.html.twig), posting to the same endpoint.
 
 A plain form that submits on change and redirects, like the Disposal card.
 
 Accepts:
   showContent  bool
-  skipRead   bool
-  chosen     list<string>   the scopes that are on (NotifyScope keys)
-  switches   {inbox: list<{scope, tab: ?InboxTab}>, labels: list<Label>}
+  skipRead     bool
+  chosen       list<string>   the scopes that are on (NotifyScope keys)
+  switches     {inbox: list<{scope, tab: ?InboxTab}>, labels: list<Label>}
 #}
 {% import '_partials/_segmented.html.twig' as seg %}
 
 <form method="post" action="{{ path('app_settings_notifications_update') }}"
-      class="border-t border-line" data-controller="ui--auto-submit">
+      data-controller="ui--auto-submit">
     <input type="hidden" name="_token" value="{{ csrf_token('settings-notifications') }}">
 
     <fieldset class="px-4 py-3">

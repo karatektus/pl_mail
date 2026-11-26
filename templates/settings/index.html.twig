@@ -530,39 +530,67 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                         </div>
 
                                     {% elseif section == 'notifications' %}
-                                        {# ONE card: the device list does not partition a
-                                           different subject, it is what registering this
-                                           browser has produced across every device. The
-                                           toggle registers, the list below reports. #}
-                                        {% embed 'settings/_card.html.twig' with {
-                                            id:         'card-notifications',
-                                            heading:    'settings.notifications.heading'|trans,
-                                            subheading: 'settings.notifications.subheading'|trans,
-                                        } %}
-                                            {% block body %}
-                                                {% include 'settings/_notifications.html.twig' with {
-                                                    vapidPublicKey: vapidPublicKey,
-                                                } %}
-
-                                                {% include 'settings/_notification_preferences.html.twig' with {
-                                                    showContent: app.user.notifyShowsContent,
-                                                    skipRead: app.user.notifySkipsRead,
-                                                    chosen:   app.user.notifyScopes,
-                                                    switches: notifySwitches,
-                                                } %}
-
-                                                {# Wrapped in an id because removing
-                                                   a device replaces the whole list
-                                                   over Turbo — see
-                                                   push_device/_mutation.stream.html.twig. #}
-                                                <div id="settings-push-device-list">
-                                                    {% include 'settings/_push_devices.html.twig' with {
-                                                        devices: pushDevices,
-                                                        lastDeliveries: lastDeliveries,
+                                        {# Three cards, one subject each. This device: the
+                                           toggle registers, the list below reports what
+                                           registering has produced across every device.
+                                           Which mail notifies: for every device at once.
+                                           And the tab icon's count, which is no push at all. #}
+                                        <div class="space-y-4">
+                                            {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-notifications',
+                                                heading:    'settings.notifications.heading'|trans,
+                                                subheading: 'settings.notifications.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_notifications.html.twig' with {
+                                                        vapidPublicKey: vapidPublicKey,
                                                     } %}
-                                                </div>
-                                            {% endblock %}
-                                        {% endembed %}
+
+                                                    {# Wrapped in an id because removing
+                                                       a device replaces the whole list
+                                                       over Turbo — see
+                                                       push_device/_mutation.stream.html.twig. #}
+                                                    <div id="settings-push-device-list">
+                                                        {% include 'settings/_push_devices.html.twig' with {
+                                                            devices: pushDevices,
+                                                            lastDeliveries: lastDeliveries,
+                                                        } %}
+                                                    </div>
+                                                {% endblock %}
+                                            {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-notification-rules',
+                                                heading:    'settings.notifications.rules_heading'|trans,
+                                                subheading: 'settings.notifications.rules_subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_notification_preferences.html.twig' with {
+                                                        showContent: app.user.notifyShowsContent,
+                                                        skipRead:    app.user.notifySkipsRead,
+                                                        chosen:      app.user.notifyScopes,
+                                                        switches:    notifySwitches,
+                                                    } %}
+                                                {% endblock %}
+                                            {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-tab-icon',
+                                                heading:    'settings.notifications.tab_icon_heading'|trans,
+                                                subheading: 'settings.notifications.tab_icon_subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_tab_icon_count.html.twig' with {
+                                                        tabIconCount:         app.user.tabIconCount,
+                                                        tabIconKind:          app.user.tabIconCountKind,
+                                                        tabIconInbox:         app.user.tabIconCountInbox,
+                                                        tabIconThisWorkspace: app.user.tabIconCountThisWorkspace,
+                                                        tabIconGroups:        tabIconGroups,
+                                                        tabIconWorkspaces:    tabIconWorkspaces,
+                                                    } %}
+                                                {% endblock %}
+                                            {% endembed %}
+                                        </div>
 
                                     {% elseif section == 'app-passwords' %}
                                         <div class="space-y-4">

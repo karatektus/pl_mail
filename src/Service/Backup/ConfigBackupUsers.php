@@ -272,6 +272,14 @@ final readonly class ConfigBackupUsers
         // that names nothing there is harmless and simply never matches.
         User::SETTING_NOTIFY_SCOPES,
         User::SETTING_NOTIFY_SKIP_READ,
+        // Whether the tab icon carries a count of the Inbox, and which (#662).
+        // Choices about one's own screen, like the sidebar's. The account
+        // group is an id, remapped on the way in like a workspace's groups
+        // (ConfigBackupUserRestorer::retargetTabIconInbox).
+        User::SETTING_TAB_ICON_COUNT,
+        User::SETTING_TAB_ICON_COUNT_KIND,
+        User::SETTING_TAB_ICON_COUNT_WORKSPACE,
+        User::SETTING_TAB_ICON_COUNT_INBOX,
         // Whether an account's own inbox has the category tabs. How the
         // mailbox is drawn, like the workspaces above; a boolean, no id.
         User::SETTING_ACCOUNT_INBOX_TABS,

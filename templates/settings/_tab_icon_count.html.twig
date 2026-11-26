@@ -1,0 +1,98 @@
+{#
+settings/_tab_icon_count.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The count on plMail's icon in the browser tab (#662): whether there is one,
+and while there is, what it counts — new or unread, one account group or all,
+every workspace or the one on screen (see TabIconCount). The page itself
+draws it (assets/tab_icon_count.js).
+
+A card of its own beside "Which mail notifies", because it is not a push: it
+needs no device registered and works with notifications off. The form posts
+to the same endpoint, which reads only the fields it is sent.
+
+Accepts:
+  tabIconCount          bool
+  tabIconKind           TabIconCountKind
+  tabIconInbox          ?int                the account group counted; null for all
+  tabIconThisWorkspace  bool
+  tabIconGroups         list<UnifiedInbox>  the groups to pick from
+  tabIconWorkspaces     int                 how many workspaces the user has
+#}
+{% import '_partials/_segmented.html.twig' as seg %}
+{% import '_partials/_select.html.twig' as select %}
+
+<form method="post" action="{{ path('app_settings_notifications_update') }}"
+      data-controller="ui--auto-submit">
+    <input type="hidden" name="_token" value="{{ csrf_token('settings-notifications') }}">
+
+    <div class="px-4 py-3 flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.notifications.tab_icon_count'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.tab_icon_count_hint'|trans }}</span>
+        </span>
+
+        {{ seg.control('tabIconCount', [
+            { value: '1', label: 'settings.notifications.on'|trans },
+            { value: '0', label: 'settings.notifications.off'|trans },
+        ], tabIconCount ? '1' : '0', {
+            label:  'settings.notifications.tab_icon_count'|trans,
+            action: 'change->ui--auto-submit#submit',
+        }) }}
+    </div>
+
+    {# What the icon counts, only while it counts at all; each row only when it
+       offers a choice. See TabIconCount. #}
+    {% if tabIconCount %}
+        <div class="px-4 py-3 border-t border-line flex items-start justify-between gap-3">
+            <span class="min-w-0">
+                <span class="block text-xs font-medium text-ink-muted">{{ 'settings.notifications.tab_icon_kind'|trans }}</span>
+                <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.tab_icon_kind_hint'|trans }}</span>
+            </span>
+
+            {{ seg.control('tabIconCountKind', [
+                { value: 'new',    label: 'settings.notifications.tab_icon_kind_new'|trans },
+                { value: 'unread', label: 'settings.notifications.tab_icon_kind_unread'|trans },
+            ], tabIconKind.value, {
+                label:  'settings.notifications.tab_icon_kind'|trans,
+                action: 'change->ui--auto-submit#submit',
+            }) }}
+        </div>
+
+        {% if tabIconGroups|length > 1 %}
+            <div class="px-4 py-3 border-t border-line flex items-start justify-between gap-3">
+                <span class="min-w-0">
+                    <label for="settings-tab-icon-inbox" class="block text-xs font-medium text-ink-muted">{{ 'settings.notifications.tab_icon_inbox'|trans }}</label>
+                    <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.tab_icon_inbox_hint'|trans }}</span>
+                </span>
+
+                <select id="settings-tab-icon-inbox"
+                        name="tabIconCountInbox"
+                        data-action="change->ui--auto-submit#submit"
+                        {{ select.enhance() }}
+                        class="select-field w-44 shrink-0 h-9 text-sm">
+                    <option value="" {{ tabIconInbox is null ? 'selected' : '' }}>{{ 'settings.notifications.tab_icon_inbox_all'|trans }}</option>
+                    {% for group in tabIconGroups %}
+                        <option value="{{ group.id }}" {{ group.id == tabIconInbox ? 'selected' : '' }}>{{ unified_inbox_name(group) }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        {% endif %}
+
+        {% if tabIconWorkspaces > 1 %}
+            <div class="px-4 py-3 border-t border-line flex items-start justify-between gap-3">
+                <span class="min-w-0">
+                    <span class="block text-xs font-medium text-ink-muted">{{ 'settings.notifications.tab_icon_workspace'|trans }}</span>
+                    <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.tab_icon_workspace_hint'|trans }}</span>
+                </span>
+
+                {{ seg.control('tabIconCountWorkspace', [
+                    { value: '0', label: 'settings.notifications.tab_icon_workspace_all'|trans },
+                    { value: '1', label: 'settings.notifications.tab_icon_workspace_this'|trans },
+                ], tabIconThisWorkspace ? '1' : '0', {
+                    label:  'settings.notifications.tab_icon_workspace'|trans,
+                    action: 'change->ui--auto-submit#submit',
+                }) }}
+            </div>
+        {% endif %}
+    {% endif %}
+</form>

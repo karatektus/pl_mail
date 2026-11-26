@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:6de3414ce9ab1302e4f0dc4c67dacc39a55fac9f -->
+<!-- translated-from: features/clients.md sha1:6b0840b279d62c2cd91adc1ed7c75fd140c172ae -->
 
 # Andere Clients
 
@@ -142,13 +142,14 @@ Filter als gelesen markiert oder in den Papierkorb oder Spam verschiebt, wird ni
 eine, die er archiviert, nur für ein angehaktes Label (siehe unten). Ebenso wenig Post, die beim
 Abruf durch plMail schon gelesen war — etwa kurz vorher auf dem Handy geöffnet.
 
-**Was benachrichtigt.** **Einstellungen → Benachrichtigungen → Benachrichtigen bei** hat ein
-Kästchen für jeden Tab des Posteingangs und eines für jedes deiner Labels. Bis du wählst, ist nur
-**Allgemein** angehakt, wie in Gmail und in der Android-App. Post benachrichtigt, wenn sie in einem
-angehakten Tab landet oder ein angehaktes Label trägt — auch wenn ein Filter sie aus dem Posteingang
-genommen hat; „unter Arbeit ablegen und archivieren“ erreicht dich also, wenn Arbeit angehakt ist.
-Führst du deinen Posteingang als eine Liste (ohne Tabs), gibt es statt der Tabs ein einziges
-Kästchen **Posteingang**. Ist nichts angehakt, benachrichtigt keine Post.
+**Was benachrichtigt.** **Einstellungen → Benachrichtigungen → Welche Mail benachrichtigt →
+Benachrichtigen bei** hat ein Kästchen für jeden Tab des Posteingangs und eines für jedes deiner
+Labels. Bis du wählst, ist nur **Allgemein** angehakt, wie in Gmail und in der Android-App. Post
+benachrichtigt, wenn sie in einem angehakten Tab landet oder ein angehaktes Label trägt — auch wenn
+ein Filter sie aus dem Posteingang genommen hat; „unter Arbeit ablegen und archivieren“ erreicht
+dich also, wenn Arbeit angehakt ist. Führst du deinen Posteingang als eine Liste (ohne Tabs), gibt
+es statt der Tabs ein einziges Kästchen **Posteingang**. Ist nichts angehakt, benachrichtigt keine
+Post.
 
 Die Wahl gehört dir, nicht einem Gerät: Sie gilt für jeden Browser, den du registriert hast, und für
 die Android-App, die sie bei plMail abruft. Ein Browser erfährt nur von angehakter Post, weil plMail
@@ -174,6 +175,24 @@ dieser Option wartet nach dem Push zwanzig Sekunden und fragt, ob die Post, um d
 etwas, das danach kam, noch ungelesen ist. Wenn nicht, zeigt er nichts an und nimmt eine
 Benachrichtigung zurück, die er für frühere Post gezeigt hatte. Ungelesene Post von vor dem Push
 zählt nicht, ebenso wenig ungelesene Post in einem Tab oder Label, das du nicht angehakt hast.
+
+**Das Symbol im Browser-Tab.** Eine eigene Karte auf derselben Seite, weil es kein Push ist: **Zahl
+anzeigen** (standardmäßig aus) setzt eine Zahl in die rechte untere Ecke des Symbols von plMail im
+Browser-Tab, schwarz mit dünnem weißem Rand, damit auch ein angehefteter Tab zeigt, ob Post wartet.
+Über 99 steht dort 99+, bei null verschwindet sie. Sie bleibt aktuell, während der Tab im
+Hintergrund liegt, und braucht keinen Push: Sie funktioniert auch mit ausgeschalteten
+Benachrichtigungen. Wie die Kästchen oben gilt sie für alle deine Browser. Ist sie an, bestimmen
+drei Einstellungen, was sie zählt:
+
+- **Was gezählt wird:** *Neu* (Standard) zählt die Unterhaltungen vom letzten Tag, die dir noch
+  keine Liste gezeigt hat, also die, die die Seitenleiste mit einem Punkt markiert; ein Blick in den
+  Posteingang nimmt sie weg. *Ungelesen* zählt jede Unterhaltung im Posteingang, die du nicht gelesen
+  hast.
+- **Welcher Posteingang** (bei mehr als einer Kontogruppe): alle Gruppen zusammen (Standard) oder der
+  Posteingang einer Gruppe. Ein Konto in zwei Gruppen zählt einmal.
+- **Welche Arbeitsbereiche** (bei mehr als einem [Arbeitsbereich](workspaces.md)): *Alle* (Standard)
+  zählt jedes Konto, egal welcher Arbeitsbereich zu sehen ist. *Dieser* zählt nur die Konten des
+  Arbeitsbereichs auf dem Bildschirm, wie der Tab-Titel.
 
 Zwei andere Arten von Push gehen an dieselben Geräte und sind nicht betroffen: eine Erinnerung aus
 den [Kalender-Erinnerungen](calendar-alerts.md) und der Hinweis, den ein Administrator bekommt, wenn
