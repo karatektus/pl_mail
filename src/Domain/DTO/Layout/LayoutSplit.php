@@ -115,6 +115,11 @@ final readonly class LayoutSplit extends LayoutNode
         return array_merge(...array_map(static fn (LayoutNode $child): array => $child->kinds(), $this->children));
     }
 
+    public function panes(): array
+    {
+        return array_merge(...array_map(static fn (LayoutNode $child): array => $child->panes(), $this->children));
+    }
+
     public function hasSplit(string $id): bool
     {
         if ($id === $this->id) {

@@ -7,7 +7,9 @@ Every link inside targets the frame by name; without that, clicking "next week"
 in the pane would navigate the whole page to a calendar and take the mail away.
 #}
 
-{% set frame = 'calendar-pane-frame' %}
+{# One frame per calendar pane: the first is `calendar-pane-frame`, each further
+   one (a workspace may show several, each on its own view) adds its id. #}
+{% set frame = paneId|default(null) ? 'calendar-pane-frame-' ~ paneId : 'calendar-pane-frame' %}
 
 <turbo-frame id="{{ frame }}" class="flex flex-col min-h-0 flex-1">
     {# `data-pane-min-width` is read by layout--workspace on turbo:frame-load: choosing a

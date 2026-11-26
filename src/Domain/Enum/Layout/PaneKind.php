@@ -7,12 +7,14 @@ namespace App\Domain\Enum\Layout;
 /**
  * What a pane in a workspace shows (#755).
  *
- * Five, and each at most once per workspace. The mail list is the reason for
- * "at most once": it is bound to the page's address, the list poll, the
- * selection and the arrow-key navigation, and a second independent list is a
- * feature of its own (a follow-up issue), not a case of this enum. The other
- * four are unique for a simpler reason: two copies of the address book side by
- * side would be the same address book twice.
+ * Five, and each at most once per workspace — except the calendar, which may
+ * appear up to Workspace::MAX_CALENDARS times, each on a view of its own (this
+ * week beside this month), told apart by an id (LayoutPane). The mail list is
+ * the reason for "at most once": it is bound to the page's address, the list
+ * poll, the selection and the arrow-key navigation, and a second independent
+ * list is a feature of its own (a follow-up issue), not a case of this enum.
+ * Contacts, tasks and the message are unique for a simpler reason: two copies
+ * of the address book side by side would be the same address book twice.
  *
  * The cases are in the order a new workspace offers them and the order the
  * tray and the menus list them.

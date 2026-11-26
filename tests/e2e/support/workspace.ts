@@ -55,7 +55,7 @@ export async function useWorkspaces(page: Page, workspaces: Array<{ name: string
 }
 
 export type Layout =
-    | { t: "pane"; kind: Kind }
+    | { t: "pane"; kind: Kind; id?: string }
     | { t: "split"; id: string; dir: "row" | "col"; sizes: number[]; children: Layout[] };
 
 export type Kind = "list" | "message" | "calendar" | "contacts" | "tasks";
@@ -77,9 +77,15 @@ export function col(...parts: Array<Kind | Layout>): Layout {
 }
 
 /** A workspace of one pane. */
+/** A calendar after the first: a workspace can show several, each with an id of its own. */
+export function calendar(id: string): Layout {
+    return { t: "pane", kind: "calendar", id };
+}
+
 export function only(kind: Kind): Layout {
     return { t: "pane", kind };
 }
 
 /** A pane, found by what it shows. */
-export const pane = (page: Page, kind: Kind) => page.locator(`[data-layout-pane="${kind}"]`);
+/** A pane by its key: its kind, or `calendar~<id>` for a further calendar. */
+export const pane = (page: Page, kind: Kind | `calendar~${string}`) => page.locator(`[data-layout-pane="${kind}"]`);

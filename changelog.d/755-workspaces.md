@@ -4,7 +4,8 @@ can now sit side by side or above and below each other, in any order. Every pane
 to split it, show something else in its place, move it, put it at full width or close it, and the
 same moves are on the keyboard (⌥ + arrows, ⌥⇧ + arrows to move). Save arrangements as
 **workspaces**, switch between them from the top bar, start one from eight shapes in the **Layout**
-menu, or rearrange one in edit mode by dragging panes. Workspaces follow your account; where you
+menu, or rearrange one in edit mode by dragging panes. A workspace can show up to four calendars,
+each on its own view. Workspaces follow your account; where you
 dragged the dividers stays with each device. On a phone the panes become tabs. Your first workspace
 is the layout you had, so nothing moves on the day you update. See
 [Workspaces](docs/features/workspaces.md). [#755](https://github.com/karatektus/pl_mail/issues/755).

@@ -204,7 +204,9 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
             {% set kinds = kinds|merge({ (kind.value): kind }) %}
         {% endfor %}
         {% set activeWorkspace = app.user ? layout.active : null %}
-        {% set present = activeWorkspace ? activeWorkspace.root.kinds|map(kind => kind.value) : ['list'] %}
+        {# The panes on screen by key (LayoutPane::key()): a kind, or
+           `calendar~<id>` for each calendar after the first. #}
+        {% set present = activeWorkspace ? activeWorkspace.root.keys : ['list'] %}
         {#
         Full width. A page that IS one pane — /contacts, /tasks — names it as
         `fullPane` and is drawn with it at full width whatever the device
@@ -212,7 +214,7 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
         pane is still in the workspace.
         #}
         {% set fullPane = fullPane|default(null) %}
-        {% set maxKind = fullPane ?? (app.user and layout.maximized ? layout.maximized.value : null) %}
+        {% set maxKind = fullPane ?? (app.user and layout.maximized ? layout.maximized : null) %}
         {#
         Whether the open message has a pane of its own beside the list. With
         no Message pane in the workspace — or with the list at full width — a
@@ -403,7 +405,28 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                 </section>
             {% endset %}
 
-            {% set bodies = bodies|merge({ message: messageBody, calendar: calendarBody, contacts: contactsBody, tasks: tasksBody }) %}
+            {# ── Further calendars ───────────────────────────────────────
+               A workspace may show several calendars, each on its own view
+               (LayoutPane, User::SETTING_CALENDAR_PANE_VIEWS). Each further one
+               is drawn as the first is, in a frame of its own named by its id.
+               One that is not on screen is not drawn at all: layout--workspace
+               makes it from `calendarTemplate` below when a workspace places
+               it. #}
+            {% set furtherCalendars = {} %}
+            {% for key in present|filter(key => key starts with 'calendar~') %}
+                {% set paneId = key|split('~')|last %}
+                {% set furtherBody %}
+                    <section class="layout-pane flex flex-col min-w-0 min-h-0" {{ workspace.attrs(kinds.calendar, key) }} {{ maxKind == key ? 'data-maxed' }} {{ firstTab == key ? 'data-tab-current' }}
+                             data-layout-src="{{ path('app_calendar_pane', { pane: paneId }) }}">
+                        <div class="main-pane layout-card flex flex-col flex-1 overflow-hidden min-w-0">
+                            {{ render(controller('App\\Controller\\Calendar\\CalendarController::pane', {}, { pane: paneId })) }}
+                        </div>
+                    </section>
+                {% endset %}
+                {% set furtherCalendars = furtherCalendars|merge({ (key): furtherBody }) %}
+            {% endfor %}
+
+            {% set bodies = bodies|merge({ message: messageBody, calendar: calendarBody, contacts: contactsBody, tasks: tasksBody })|merge(furtherCalendars) %}
         {% endif %}
 
         <div class="shell-frame flex h-full flex-col p-gutter gap-gutter"
@@ -468,7 +491,9 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                                         data-action="layout--workspace#tab"
                                         data-layout--workspace-kind-param="{{ kind }}"
                                         aria-pressed="{{ kind == firstTab ? 'true' : 'false' }}">
-                                    <i class="{{ kinds[kind].icon }}" aria-hidden="true"></i>{{ kinds[kind].transKey|trans }}
+                                    {# `kind` is a key: `calendar~<id>` for a further calendar. #}
+                                    {% set shown = kinds[kind|split('~')|first] %}
+                                    <i class="{{ shown.icon }}" aria-hidden="true"></i>{{ shown.transKey|trans }}
                                 </button>
                             {% endfor %}
                         </nav>
@@ -499,6 +524,19 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                             {% endif %}
                         {% endfor %}
                     </div>
+
+                    {# A further calendar, for layout--workspace to make when a
+                       workspace places one this page did not draw: __KEY__ and
+                       __ID__ are its key and id. Empty and lazy, like a parked
+                       pane. #}
+                    <template data-layout--workspace-target="calendarTemplate">
+                        <section class="layout-pane flex flex-col min-w-0 min-h-0" {{ workspace.attrs(kinds.calendar, '__KEY__') }}
+                                 data-layout-src="{{ path('app_calendar_pane') }}?pane=__ID__">
+                            <div class="main-pane layout-card flex flex-col flex-1 overflow-hidden min-w-0">
+                                {{ _self.lazyFrame('calendar-pane-frame-__ID__') }}
+                            </div>
+                        </section>
+                    </template>
                 {% endif %}
             </div>
         </div>

@@ -52,6 +52,10 @@ final class WorkspacesTest extends TestCase
         yield 'a name too long'           => [self::document([self::workspace('w1', str_repeat('x', 41), $list)])];
         yield 'an unknown pane'           => [self::document([self::workspace('w1', 'A', self::pane('browser'))])];
         yield 'a pane twice'              => [self::document([self::workspace('w1', 'A', self::row('s1', [$list, $list], [0.5, 0.5]))])];
+        yield 'a calendar id twice'       => [self::document([self::workspace('w1', 'A', self::row('s1', [self::calendar('c2'), self::calendar('c2')], [0.5, 0.5]))])];
+        yield 'an id on a list'           => [self::document([self::workspace('w1', 'A', ['t' => 'pane', 'kind' => 'list', 'id' => 'l2'])])];
+        yield 'a calendar id in capitals' => [self::document([self::workspace('w1', 'A', self::calendar('C2'))])];
+        yield 'five calendars'            => [self::document([self::workspace('w1', 'A', self::row('s1', [self::pane('calendar'), self::calendar('a'), self::calendar('b'), self::calendar('c'), self::calendar('d')], [1, 1, 1, 1, 1]))])];
         yield 'sizes and children differ' => [self::document([self::workspace('w1', 'A', self::row('s1', [$list, self::pane('message')], [1.0]))])];
         yield 'a zero size'               => [self::document([self::workspace('w1', 'A', self::row('s1', [$list, self::pane('message')], [1.0, 0]))])];
         yield 'a size as a string'        => [self::document([self::workspace('w1', 'A', self::row('s1', [$list, self::pane('message')], ['0.5', 0.5]))])];
@@ -64,6 +68,22 @@ final class WorkspacesTest extends TestCase
     public function testAnInvalidDocumentIsRefusedWhole(mixed $document): void
     {
         self::assertNull(Workspaces::fromArray($document));
+    }
+
+    public function testCalendarsComeUpToFourTimesEachNamedByItsKey(): void
+    {
+        $layout = self::row('s1', [self::pane('list'), self::pane('calendar'), self::calendar('c2'), self::calendar('c3'), self::calendar('c4')], [0.2, 0.2, 0.2, 0.2, 0.2]);
+        $workspaces = Workspaces::fromArray(self::document([self::workspace('w1', 'Planning', $layout)]));
+
+        self::assertNotNull($workspaces);
+
+        $workspace = $workspaces->active();
+
+        self::assertSame(['list', 'calendar', 'calendar~c2', 'calendar~c3', 'calendar~c4'], $workspace->root->keys());
+        self::assertTrue($workspace->hasKey('calendar~c3'));
+        self::assertFalse($workspace->hasKey('calendar~c9'));
+        // The id is kept as sent, so the page finds its pane again.
+        self::assertSame(['t' => 'pane', 'kind' => 'calendar', 'id' => 'c2'], $workspace->root->toArray()['children'][2]);
     }
 
     public function testASplitOfOneIsThatOne(): void
@@ -150,6 +170,12 @@ final class WorkspacesTest extends TestCase
     private static function workspace(string $id, string $name, array $layout): array
     {
         return ['id' => $id, 'name' => $name, 'layout' => $layout];
+    }
+
+    /** @return array<string, string> a calendar after the first */
+    private static function calendar(string $id): array
+    {
+        return ['t' => 'pane', 'kind' => 'calendar', 'id' => $id];
     }
 
     /** @return array<string, mixed> */

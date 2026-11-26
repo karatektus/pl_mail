@@ -71,12 +71,25 @@ final readonly class DeviceLayout
         return array_map(static fn (int|float $share): float => $share / $total, $stored);
     }
 
-    /** The pane this device last put at full width in that workspace, if any. */
-    public function maximized(string $workspaceId): ?PaneKind
+    /**
+     * The pane this device last put at full width in that workspace, if any,
+     * as its key (LayoutPane::key(): a kind, or `calendar~<id>`).
+     */
+    public function maximized(string $workspaceId): ?string
     {
-        $kind = $this->entry($workspaceId)['m'] ?? null;
+        $key = $this->entry($workspaceId)['m'] ?? null;
 
-        return is_string($kind) ? PaneKind::tryFrom($kind) : null;
+        if (false === is_string($key)) {
+            return null;
+        }
+
+        [$kind, $id] = array_pad(explode('~', $key, 2), 2, null);
+
+        if (null === PaneKind::tryFrom($kind)) {
+            return null;
+        }
+
+        return null === $id || (PaneKind::Calendar->value === $kind && 1 === preg_match(LayoutPane::ID_PATTERN, $id)) ? $key : null;
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

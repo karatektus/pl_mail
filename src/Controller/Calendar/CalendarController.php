@@ -6,6 +6,7 @@ namespace App\Controller\Calendar;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Calendar\EventCopy;
+use App\Domain\DTO\Layout\LayoutPane;
 use App\Domain\Enum\Calendar\AlertAction;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Calendar\EventStatus;
@@ -132,10 +133,26 @@ final class CalendarController extends AbstractController
     #[Route('/pane', name: 'pane', methods: ['GET'])]
     public function pane(Request $request): Response
     {
+        $paneId = $this->paneId($request);
+
         return $this->render(
             'calendar/_pane_frame.html.twig',
-            $this->viewData($request, $this->currentUser()->calendarPaneView, isPane: true),
+            $this->viewData($request, $this->currentUser()->calendarPaneViewFor($paneId), isPane: true, paneId: $paneId),
         );
+    }
+
+    /**
+     * Which calendar pane a request is for: null for the first (`?pane=1`, or
+     * the pane route without one), else a further pane's id (`?pane=<id>`,
+     * LayoutPane::$id). A workspace can show several calendars, each in a frame
+     * of its own and on a view of its own (User::SETTING_CALENDAR_PANE_VIEWS).
+     * Anything that is not an id is the first pane.
+     */
+    private function paneId(Request $request): ?string
+    {
+        $pane = $request->query->getString('pane');
+
+        return 1 === preg_match(LayoutPane::ID_PATTERN, $pane) && '1' !== $pane ? $pane : null;
     }
 
     /**
@@ -161,15 +178,17 @@ final class CalendarController extends AbstractController
     #[Route('/{view}/{date}', name: 'view', requirements: ['view' => 'day|week|month|agenda'], methods: ['GET'])]
     public function view(Request $request, string $view, ?string $date = null): Response
     {
-        $isPane = $request->query->getBoolean('pane');
+        $isPane = $request->query->has('pane');
+        $paneId = $isPane ? $this->paneId($request) : null;
 
-        $this->remember(CalendarView::from($view), $isPane);
+        $this->remember(CalendarView::from($view), $isPane, $paneId);
 
         $data = $this->viewData(
             $request,
             CalendarView::from($view),
             null === $date ? null : $this->time->parseDate($date, $this->time->zoneFor($this->currentUser())),
             $isPane,
+            $paneId,
         );
 
         return $this->render(
@@ -189,16 +208,16 @@ final class CalendarController extends AbstractController
      * unconditionally would be an UPDATE per navigation to store the value
      * already there.
      */
-    private function remember(CalendarView $view, bool $isPane): void
+    private function remember(CalendarView $view, bool $isPane, ?string $paneId = null): void
     {
         $user = $this->currentUser();
 
-        if ($view === ($isPane ? $user->calendarPaneView : $user->calendarView)) {
+        if ($view === ($isPane ? $user->calendarPaneViewFor($paneId) : $user->calendarView)) {
             return;
         }
 
         if (true === $isPane) {
-            $user->calendarPaneView = $view;
+            $user->setCalendarPaneViewFor($paneId, $view);
         } else {
             $user->calendarView = $view;
         }
@@ -991,6 +1010,7 @@ final class CalendarController extends AbstractController
         CalendarView       $default,
         ?DateTimeImmutable $date = null,
         bool               $isPane = false,
+        ?string            $paneId = null,
     ): array {
         $user = $this->currentUser();
 
@@ -1005,6 +1025,9 @@ final class CalendarController extends AbstractController
             'view'      => $view,
             'anchor'    => $anchor,
             'isPane'    => $isPane,
+            // Which calendar pane this is, for its frame's id and the `pane`
+            // its links carry: null is the first. See paneId().
+            'paneId'    => $paneId,
             'calendars' => $this->calendars->findForUser($user),
             'range'     => $this->rangeReader->read($user, $view, $anchor),
         ];

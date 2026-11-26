@@ -12,7 +12,9 @@ calendar has no ends, so it never does.
 #}
 
 {% set compact = compact|default(false) %}
-{% set paneQuery = compact ? '?pane=1' : '' %}
+{# Which pane a step or a view is for: `1` the first, else a further pane's id
+   (CalendarController::paneId()), so each remembers its own view. #}
+{% set paneQuery = compact ? '?pane=' ~ paneId|default('1') : '' %}
 
 {# Agenda steps a day at a time like day view: it is a rolling list, not a page. #}
 {% set step = view.value == 'month' ? '1 month' : (view.value == 'week' ? '7 days' : '1 day') %}
