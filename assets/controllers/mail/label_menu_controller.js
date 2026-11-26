@@ -11,6 +11,15 @@ import { requestFailed } from "../../request_errors.js";
  *   single → POST /status/{type}/{id}/label
  *   bulk   → POST /status/bulk/label, once for the whole selection
  *
+ * Typing narrows the entries (filter), and the arrow keys, Enter and Escape
+ * work the panel without a mouse (navigate). Both are shared with the move
+ * menu, which extends this one.
+ *
+ * Targets:
+ *   filter  — the text field at the top of the panel; absent with no labels
+ *   noMatch — said when the filter leaves nothing
+ *   create  — "Create new", which takes the filter's text along as `?name=`
+ *
  * Values:
  *   targetType — "thread" | "message"
  *   targetId   — entity id; omitted in bulk mode, in which case the ids are
@@ -21,7 +30,7 @@ export default class extends Controller {
     // `check` is read per button (querySelector inside each option) rather
     // than through this.checkTargets, because each tick belongs to its own
     // button; declared so the attribute the template writes is a real target.
-    static targets = ["panel", "check"];
+    static targets = ["panel", "check", "filter", "noMatch", "create"];
 
     static values = {
         targetType: { type: String, default: "thread" },
@@ -60,6 +69,12 @@ export default class extends Controller {
             // shows has to be read from the selection each time it opens.
             this._syncFromSelection();
 
+            // Where Escape gives the focus back: the opener is not always this
+            // element's own button, which the More menu and the action sheet
+            // keep out of sight.
+            this._opener = document.activeElement;
+            this._startFilter();
+
             document.addEventListener("click", this._boundClose, { capture: true });
 
             // A fixed panel does not travel with the thing it belongs to, so it
@@ -76,6 +91,83 @@ export default class extends Controller {
      */
     close() {
         this._close();
+    }
+
+    /**
+     * Shows only the entries whose name has what was typed in it, and points
+     * the keyboard at the first of them.
+     */
+    filter() {
+        const query = this.filterTarget.value.trim().toLocaleLowerCase();
+
+        for (const entry of this._entries()) {
+            entry.classList.toggle("hidden", "" !== query && false === entry.textContent.toLocaleLowerCase().includes(query));
+        }
+
+        if (this.hasNoMatchTarget) {
+            this.noMatchTarget.hidden = "" === query || this._entries().some((entry) => this._showing(entry));
+        }
+
+        if (this.hasCreateTarget) {
+            const url = new URL(this.createTarget.getAttribute("data-ui--modal-src-value"), window.location.href);
+
+            if ("" === query) {
+                url.searchParams.delete("name");
+            } else {
+                url.searchParams.set("name", this.filterTarget.value.trim());
+            }
+
+            this.createTarget.setAttribute("data-ui--modal-src-value", url.pathname + url.search);
+        }
+
+        this._activate("" === query ? null : this._shown()[0] ?? null);
+    }
+
+    /**
+     * The keys of an open panel: ↓ and ↑ through the entries, Enter, Escape.
+     *
+     * Enter is the filter's only. On an entry that has the focus — tabbed to,
+     * or clicked, since a label's click leaves the panel open — it is the
+     * browser's, and presses that entry rather than the highlighted one.
+     */
+    navigate(event) {
+        // Enter and the arrows belong to the input method while it composes.
+        if (event.isComposing) {
+            return;
+        }
+
+        if ("Escape" === event.key) {
+            event.preventDefault();
+            event.stopPropagation();
+            this._close();
+            this._focusOpener();
+
+            return;
+        }
+
+        if ("Enter" === event.key && this.hasFilterTarget && event.target === this.filterTarget && this._active) {
+            event.preventDefault();
+            this._active.click();
+
+            return;
+        }
+
+        if ("ArrowDown" !== event.key && "ArrowUp" !== event.key) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const shown = this._shown();
+
+        if (0 === shown.length) {
+            return;
+        }
+
+        const at = shown.indexOf(this._active);
+        const step = "ArrowDown" === event.key ? 1 : -1;
+
+        this._activate(shown[-1 === at ? (step > 0 ? 0 : shown.length - 1) : (at + step + shown.length) % shown.length]);
     }
 
     async toggleLabel(event) {
@@ -126,6 +218,63 @@ export default class extends Controller {
     }
 
     // ── Private ───────────────────────────────────────────────────────────
+
+    /**
+     * An empty filter on every open, and the focus in it — except under a
+     * finger, where focusing a field brings up the keyboard over the menu
+     * somebody opened to tap in.
+     */
+    _startFilter() {
+        this._activate(null);
+
+        if (false === this.hasFilterTarget) {
+            return;
+        }
+
+        this.filterTarget.value = "";
+        this.filter();
+
+        if (false === window.matchMedia("(pointer: coarse)").matches) {
+            this.filterTarget.focus({ preventScroll: true });
+        }
+    }
+
+    _focusOpener() {
+        const toggle = this.element.querySelector("button[data-action*='#toggle']");
+        const back = [this._opener, toggle].find(
+            (element) => element instanceof HTMLElement && element.isConnected && element !== document.body && element.checkVisibility(),
+        );
+
+        back?.focus({ preventScroll: true });
+    }
+
+    /** What the filter narrows: every entry with a label id or a place. */
+    _entries() {
+        return [...this.panelTarget.querySelectorAll("[data-label-id], [data-move-role]")];
+    }
+
+    /**
+     * What the arrows move through: the entries still showing, then "Create
+     * new". An entry the menu hid for its own reasons (the move menu's current
+     * place) is out as well as one the filter hid.
+     */
+    _shown() {
+        const shown = this._entries().filter((entry) => this._showing(entry));
+
+        return this.hasCreateTarget ? [...shown, this.createTarget] : shown;
+    }
+
+    _showing(entry) {
+        return false === entry.hidden && false === entry.classList.contains("hidden");
+    }
+
+    _activate(entry) {
+        this._active?.classList.remove("bg-hover");
+        this._active = entry;
+
+        entry?.classList.add("bg-hover");
+        entry?.scrollIntoView({ block: "nearest" });
+    }
 
     /**
      * Tick the labels the current selection already carries.

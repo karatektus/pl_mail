@@ -3171,6 +3171,8 @@ label:
     menu:
         create: Créer
         empty: Aucun libellé pour l’instant.
+        filter: "Tapez pour filtrer"
+        no_match: "Aucun résultat."
     updated: Libellé mis à jour.
     visibility:
         hidden: Le libellé est maintenant masqué.

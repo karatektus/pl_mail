@@ -3036,6 +3036,8 @@ label:
     menu:
         create: Hoist a new one
         empty: No flags yet.
+        filter: "Type to narrow the chart"
+        no_match: "Nothin' matches, matey."
     updated: Flag mended.
     visibility:
         hidden: That flag be lowered.

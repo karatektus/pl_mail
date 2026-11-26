@@ -44,6 +44,7 @@ Variables:
     </button>
 
     <div data-mail--label-menu-target="panel"
+         data-action="keydown->mail--label-menu#navigate"
          data-align="{{ align|default('right') }}"
          class="hidden absolute {{ 'left' == align|default('right') ? 'left-0' : 'right-0' }} top-full mt-1 z-30 w-56 max-h-72 pointer-events-auto overflow-y-auto rounded-pane
                 bg-pane-soft backdrop-blur-sm
@@ -53,6 +54,18 @@ Variables:
         {% if labels|length == 0 %}
             <p class="px-3 py-2 text-xs text-ink-faint">{{ 'label.menu.empty'|trans }}</p>
         {% else %}
+        {# Typed into to narrow the list: arrows move through what is left, Enter
+           picks, Escape closes. See mail--label-menu#filter. #}
+        <div class="px-2 pt-1 pb-1">
+            <input type="text"
+                   data-mail--label-menu-target="filter"
+                   data-action="input->mail--label-menu#filter"
+                   placeholder="{{ 'label.menu.filter'|trans }}"
+                   aria-label="{{ 'label.menu.filter'|trans }}"
+                   autocomplete="off" spellcheck="false"
+                   class="h-7 w-full rounded-lg border border-field-border bg-field px-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+        </div>
+        <p data-mail--label-menu-target="noMatch" hidden class="px-3 py-1.5 text-xs text-ink-faint">{{ 'label.menu.no_match'|trans }}</p>
             {% for label in labels %}
                 <button type="button"
                         data-action="click->mail--label-menu#toggleLabel"
@@ -73,8 +86,11 @@ Variables:
         {% endif %}
 
         <div class="border-t border-line mt-1 pt-1">
+            {# Carries what was typed in the filter as `?name=`, so the new
+               label starts with it (mail--label-menu#filter). #}
             <button type="button"
                     data-controller="ui--modal"
+                    data-mail--label-menu-target="create"
                     data-action="click->ui--modal#open click->mail--label-menu#close"
                     data-ui--modal-title-value="{{ 'sidebar.labels.add'|trans }}"
                     data-ui--modal-src-value="{{ path('app_label_new') }}"

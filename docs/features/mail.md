@@ -627,6 +627,11 @@ Labels** in **Settings → Labels** to list folders there too, where they wear a
 dot. Folders are made, renamed and deleted in the account's own folder list, never by making or
 renaming a label; see [Folders](accounts.md#folders).
 
+**Label as** and **Move to** open with a field to type into: a few letters narrow the list to what
+matches, `↓` and `↑` move through what is left, `Enter` picks the highlighted one and `Escape` closes
+the menu. With `l` or `v` on an open conversation that makes the keyboard enough. When nothing
+matches, **Create new** in **Label as** is what is left, and it opens with what you typed as the new label's name.
+
 ### Labels by account
 
 A label with the same name on several accounts is one label in plMail: "Sports" on two Gmail

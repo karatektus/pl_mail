@@ -2840,6 +2840,8 @@ label:
     menu:
         create: '新建'
         empty: '暂无标签。'
+        filter: '输入以筛选'
+        no_match: '没有匹配项。'
     updated: '标签已更新。'
     visibility:
         hidden: '标签已隐藏。'

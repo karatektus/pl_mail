@@ -83,7 +83,13 @@ final class LabelController extends AbstractController
     {
         $account = $this->requestedAccount($request);
         $label   = new Label();
-        $form    = $this->createForm(LabelType::class, $label, [
+
+        // "Create new" in the Label as menu brings what was typed into its
+        // filter, so the label starts with that name (mail--label-menu#filter).
+        $typed       = trim($request->query->getString('name'));
+        $label->name = '' !== $typed ? $typed : null;
+
+        $form = $this->createForm(LabelType::class, $label, [
             'action' => $this->generateUrl('app_label_new', null === $account ? [] : ['account' => $account->id]),
             'user'   => $this->getUser(),
         ]);

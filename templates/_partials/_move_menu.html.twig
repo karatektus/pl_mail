@@ -99,6 +99,7 @@ Variables:
     </button>
 
     <div data-mail--move-menu-target="panel"
+         data-action="keydown->mail--move-menu#navigate"
          role="menu"
          aria-label="{{ 'toolbar.actions.move_to'|trans }}"
          class="hidden absolute right-0 top-full mt-1 z-30 w-56 max-h-72 overflow-y-auto rounded-pane
@@ -109,6 +110,19 @@ Variables:
         <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
             {{ 'toolbar.actions.move_to'|trans }}
         </p>
+
+        {# Typed into to narrow the list: arrows move through what is left, Enter
+           picks, Escape closes. See mail--label-menu#filter. #}
+        <div class="px-2 pt-1 pb-1">
+            <input type="text"
+                   data-mail--move-menu-target="filter"
+                   data-action="input->mail--move-menu#filter"
+                   placeholder="{{ 'label.menu.filter'|trans }}"
+                   aria-label="{{ 'label.menu.filter'|trans }}"
+                   autocomplete="off" spellcheck="false"
+                   class="h-7 w-full rounded-lg border border-field-border bg-field px-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+        </div>
+        <p data-mail--move-menu-target="noMatch" hidden class="px-3 py-1.5 text-xs text-ink-faint">{{ 'label.menu.no_match'|trans }}</p>
 
         {# The three system places name a ROLE, not a label id. Their labels
            are made lazily — the first sync, the first delete — so a mailbox

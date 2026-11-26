@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:70e318cb31fe3b746708396c06f402ba5376dc6d -->
+<!-- translated-from: features/mail.md sha1:180f9a6be4923c4d60c17d66b7eeeefa300a8eea -->
 
 # Mail
 
@@ -691,6 +691,12 @@ nie. Der Bereich LABELS enthält diese Markierungen; schalte **Ordner unter Labe
 Ordner tragen. Ordner legst du in der eigenen Ordnerliste des Kontos an, benennst sie dort um und
 löschst sie dort, nie dadurch, dass du ein Label anlegst oder umbenennst; siehe
 [Ordner](accounts.md#ordner).
+
+**Label vergeben** und **Verschieben nach** öffnen sich mit einem Feld zum Tippen: Ein paar Buchstaben
+grenzen die Liste auf das ein, was passt, `↓` und `↑` gehen durch das, was übrig bleibt, `Enter` nimmt
+das hervorgehobene und `Escape` schließt das Menü. Mit `l` oder `v` in einer offenen Konversation
+reicht so die Tastatur. Passt nichts, bleibt in **Label vergeben** **Neu erstellen** übrig, und es öffnet sich mit dem, was
+du getippt hast, als Namen des neuen Labels.
 
 ### Labels nach Konto
 
