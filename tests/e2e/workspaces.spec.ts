@@ -270,6 +270,43 @@ test.describe("the pane menu", () => {
 });
 
 test.describe("the keyboard", () => {
+    test("acts on the pane under the mouse, and keeps a pane it moved until the mouse moves", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar", "contacts"));
+
+        const centre = async (kind: Kind) => {
+            const box = (await pane(page, kind).boundingBox())!;
+
+            return [box.x + box.width / 2, box.y + box.height / 2] as const;
+        };
+        const order = async () => (await page.locator("[data-layout--workspace-target='body'] [data-layout-pane]").evaluateAll((panes) => panes
+            .map((el) => [el.getAttribute("data-layout-pane"), el.getBoundingClientRect().x] as const)
+            .sort((a, b) => a[1] - b[1])
+            .map(([kind]) => kind)));
+
+        // Pointed at, no click: ⌥↩ puts the contacts at full width.
+        await page.mouse.move(...await centre("contacts"));
+        await page.keyboard.press("Alt+Enter");
+        await expect(pane(page, "contacts")).toHaveAttribute("data-maxed", "");
+        await page.keyboard.press("Alt+Enter");
+        await expect(pane(page, "contacts")).not.toHaveAttribute("data-maxed", "");
+
+        // ⌥⇧← moves the contacts left, out from under the mouse — the
+        // calendar is under it now — and the second ⌥⇧← still moves the
+        // contacts, because the mouse has not moved.
+        await page.mouse.move(...await centre("contacts"));
+        await page.keyboard.press("Alt+Shift+ArrowLeft");
+        await expect.poll(order).toEqual(["list", "contacts", "calendar"]);
+        await page.keyboard.press("Alt+Shift+ArrowLeft");
+        await expect.poll(order).toEqual(["contacts", "list", "calendar"]);
+
+        // Moving the mouse hands the keys to what is under it again.
+        const [x, y] = await centre("calendar");
+        await page.mouse.move(x - 5, y);
+        await page.mouse.move(x, y);
+        await page.keyboard.press("Alt+Enter");
+        await expect(pane(page, "calendar")).toHaveAttribute("data-maxed", "");
+    });
+
     test("⌥\\ splits the focused pane and ⌥⇧← moves a pane", async ({ page }) => {
         await pane(page, "list").click({ position: { x: 200, y: 20 } });
         await page.keyboard.press("Alt+Backslash");
