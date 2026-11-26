@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:0525586ed3332ac62f0a44fb5311e7d3adad6d04 -->
+<!-- translated-from: features/mail.md sha1:545953b7025238fea09a46eb4c661e4b875c8dc5 -->
 
 # Mail
 
@@ -1330,6 +1330,11 @@ ablaufen.
 Anhänge erscheinen als Chips unter der Nachricht, bei Bildern mit einer Vorschau. Ein Klick
 lädt sie herunter; nur Bilder werden je eingebettet ausgeliefert, damit per E-Mail geliefertes
 HTML niemals auf plMails eigener Herkunft laufen kann.
+
+**Eine Datei ist ein Anhang, außer die Nachricht zeigt sie an Ort und Stelle.** Ein Bild, das das
+HTML der Nachricht über seine `cid:` einbettet, bleibt im Text; jeder andere Teil erscheint als Chip,
+egal, wie das Mailprogramm des Absenders ihn markiert hat. Apple Mail markiert angehängte Dateien
+als „inline“, und vor #753 wurden sie nirgends angezeigt.
 
 **Ein PDF öffnet sich in einem Leser**, statt heruntergeladen zu werden — Seiten, Zoom, und der
 Download-Knopf bleibt in der Werkzeugleiste. Gezeichnet wird das Dokument von plMails eigenem Code

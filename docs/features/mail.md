@@ -1223,6 +1223,11 @@ of it; the web lists stop showing them at the top the moment they end.
 Attachments show as chips under the message, with a preview for images. Clicking one downloads it;
 only images are ever served inline, so email-supplied HTML can never run on plMail's own origin.
 
+**A file is an attachment unless the message shows it in place.** A picture the message's HTML
+embeds by its `cid:` stays in the text; every other part is listed as a chip, whatever the sender's
+mail program marked it as. Apple Mail marks the files it attaches as "inline", and before #753 those
+were shown nowhere.
+
 **A PDF opens in a reader** instead of downloading — pages, zoom, and the download button still
 there in the toolbar. The document is drawn by plMail's own code in your browser rather than handed
 to the browser's PDF plugin, which is what keeps the rule above intact: the file is still served as

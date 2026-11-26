@@ -439,6 +439,12 @@ admin:
 
                     This reads each affected message's stored original and gives the attachment back its real name, where the original names it unambiguously. It also runs by itself after an update.
                 summary: 'Give back their names to attachments stored under a checksum'
+            attachment_unreferenced_inline:
+                explanation: >-
+                    Some attachments, such as files attached in Apple Mail, were marked "inline" by the sender's mail program and stored as pictures inside the text. Nothing in the text showed them, so they appeared nowhere: no chip under the message and no paperclip in the list.
+
+                    This lists every such part as an attachment again; pictures the text really shows, and calendar invites, stay as they are. It also runs by itself after an update.
+                summary: 'Show attachments that were hidden as inline parts'
             calendars:
                 explanation: >-
                     Every new user gets a personal calendar, and one for each mail account. This gives the same calendars to users who were here before that started. It only fills gaps, so running it again after adding accounts is fine.

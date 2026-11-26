@@ -11,30 +11,21 @@ namespace App\Service\Mail;
  * "Content-ID: <f_xxxx>" on every attachment it uploads. Treating "has a cid"
  * as "is inline" therefore hides ordinary attachments from the UI.
  *
- * The body is the authority: a part is inline when the HTML actually
- * references its cid. Content-Disposition only decides the cases the body
- * cannot (no HTML part, or a cid the body never mentions).
+ * The body is the authority: a part is inline when, and only when, the HTML
+ * references its cid. Nothing else shows an inline part, so an inline part the
+ * body never references would be stored and then never seen anywhere.
+ *
+ * Content-Disposition cannot decide it either. Apple Mail sends every file it
+ * attaches as "Content-Disposition: inline" with no Content-ID, between the
+ * text parts of a multipart/mixed; Gmail, Apple Mail and Thunderbird all list
+ * those as attachments. Trusting the disposition hid them, with no paperclip
+ * and no chip (#753).
  */
 final class InlineAttachmentDetector
 {
-    public function isInline(
-        ?string $disposition,
-        ?string $contentId,
-        ?string $bodyHtml,
-    ): bool {
-        $contentId = $this->normalizeContentId($contentId);
-
-        if (true === $this->isReferencedBy($contentId, (string) $bodyHtml)) {
-            return true;
-        }
-
-        $disposition = strtolower(trim((string) $disposition));
-
-        if (true === str_contains($disposition, 'attachment')) {
-            return false;
-        }
-
-        return str_contains($disposition, 'inline');
+    public function isInline(?string $contentId, ?string $bodyHtml): bool
+    {
+        return $this->isReferencedBy($this->normalizeContentId($contentId), (string) $bodyHtml);
     }
 
     public function normalizeContentId(?string $contentId): string
