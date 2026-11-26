@@ -1119,11 +1119,12 @@ export default class extends Controller {
             return;
         }
 
-        // As for reset(): a save still queued would send the page's old
-        // theme after the import and drop it again.
+        // A save still queued would land after the import and send the
+        // page's old theme, dropping it again, so it goes first.
         if (this.pending) {
             clearTimeout(this.pending);
             this.pending = null;
+            this.saving = this.save();
         }
 
         await this.saving;
