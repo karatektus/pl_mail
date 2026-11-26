@@ -350,7 +350,7 @@ final class AppearanceController extends AbstractController
             return $this->json(['ok' => false, 'error' => 'appearance.import.version'], Response::HTTP_BAD_REQUEST);
         }
 
-        $user->appearance->applyArray($payload);
+        $user->appearance->applyArray($payload + ['palette' => null]);
         $this->entityManager->flush();
 
         return $this->json(['ok' => true]);

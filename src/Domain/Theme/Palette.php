@@ -102,7 +102,7 @@ final readonly class Palette
             '--border-alpha'       => '1',
             '--line-alpha'         => '1',
             '--raised-alpha'       => '1',
-            '--hover-alpha'        => '1',
+            '--hover-alpha'        => '0.6',
             '--sunken-alpha'       => '1',
             '--field-alpha'        => '1',
             '--field-border-alpha' => '1',

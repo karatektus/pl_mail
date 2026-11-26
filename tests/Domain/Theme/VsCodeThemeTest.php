@@ -125,6 +125,7 @@ final class VsCodeThemeTest extends TestCase
             }
         }
 
+        self::assertGreaterThanOrEqual(4.5, Oklab::contrast($c['ink'], $c['field']), 'ink in a field');
         self::assertGreaterThanOrEqual(4.5, Oklab::contrast($c['link'], $c['surface']), 'link on the sheet');
         self::assertGreaterThanOrEqual(3.0, Oklab::contrast($c['field-border'], $c['field']), 'field outline');
     }
@@ -147,6 +148,14 @@ final class VsCodeThemeTest extends TestCase
 
         self::assertNotNull($palette);
         self::assertEquals($palette, Palette::fromArray($palette->toArray()));
+    }
+
+    public function testAFieldTheInkCannotBeReadOnFallsBack(): void
+    {
+        $json = str_replace('"input.background": "#14141b"', '"input.background": "#c0caf5"', self::TOKYO_NIGHT);
+        $c = VsCodeTheme::fromJson($json)?->palette->colours ?? [];
+
+        self::assertSame($c['sunken'], $c['field']);
     }
 
     /** @return iterable<string, array{string}> */

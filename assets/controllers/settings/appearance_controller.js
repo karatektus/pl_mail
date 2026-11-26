@@ -15,6 +15,7 @@ export default class extends Controller {
         logoUploadUrl: String,
         logoRemoveUrl: String,
         logoDefault: String,
+        palette: Object,
     };
 
     static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme',
@@ -244,7 +245,13 @@ export default class extends Controller {
             this.paletteTarget.value = '';
             clearTimeout(this.pending);
             this.pending = null;
-            this.saving = this.save().then(() => window.location.reload());
+            this.saving = this.save().then((saved) => {
+                if (saved) {
+                    window.location.reload();
+                } else {
+                    this.paletteTarget.value = 'kept';
+                }
+            });
 
             return;
         }
@@ -819,7 +826,7 @@ export default class extends Controller {
             // --app-bg altogether there so the stylesheet's block for whichever
             // theme is on <html> answers instead.
             if (value === '') {
-                this.root.style.removeProperty('--app-bg');
+                this.restoreInline('--app-bg');
             } else {
                 this.root.style.setProperty('--app-bg', value);
             }
@@ -920,14 +927,16 @@ export default class extends Controller {
             });
         } catch {
             requestFailed(null);
-            return;
+            return false;
         }
 
         if (requestFailed(response)) {
-            return;
+            return false;
         }
 
         this.remember();
+
+        return true;
     }
 
     /*
@@ -1091,12 +1100,33 @@ export default class extends Controller {
         }
     }
 
+    /* What a variable falls back to once the user's own value goes: an
+     * imported theme's colour where there is one, else the stylesheet's. */
+    restoreInline(name) {
+        const value = this.paletteValue[name];
+
+        if (value === undefined) {
+            this.root.style.removeProperty(name);
+        } else {
+            this.root.style.setProperty(name, value);
+        }
+    }
+
     async importFile() {
         const file = this.importInputTarget.files[0];
 
         if (!file) {
             return;
         }
+
+        // As for reset(): a save still queued would send the page's old
+        // theme after the import and drop it again.
+        if (this.pending) {
+            clearTimeout(this.pending);
+            this.pending = null;
+        }
+
+        await this.saving;
 
         const text = await file.text();
 
@@ -1264,10 +1294,7 @@ export default class extends Controller {
             this.inkColorFieldTarget.value = '';
             this.inkMutedFieldTarget.value = '';
             this.inkFaintFieldTarget.value = '';
-            this.root.style.removeProperty('--rgb-ink');
-            this.root.style.removeProperty('--rgb-ink-soft');
-            this.root.style.removeProperty('--rgb-ink-muted');
-            this.root.style.removeProperty('--rgb-ink-faint');
+            ['--rgb-ink', '--rgb-ink-soft', '--rgb-ink-muted', '--rgb-ink-faint'].forEach((name) => this.restoreInline(name));
             this.inkDerivedTarget.classList.add('opacity-40', 'pointer-events-none');
         } else {
             this.inkColorFieldTarget.value = this.inkColorTarget.value;

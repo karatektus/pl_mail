@@ -80,3 +80,9 @@
 :root.palette.dark .mail-sheet {
     --accent-text: var(--accent-text-dark);
 }
+
+/* Raised is opaque in a palette, so a quiet button's two raised steps are
+   one colour; its hover steps toward the ink instead. */
+:root.palette .btn-quiet:hover {
+    background-color: color-mix(in oklab, rgb(var(--rgb-raised)), rgb(var(--rgb-ink)) 10%);
+}

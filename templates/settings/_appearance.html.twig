@@ -89,6 +89,7 @@
      data-settings--appearance-upload-url-value="{{ path('app_appearance_background_upload') }}"
      data-settings--appearance-import-url-value="{{ path('app_appearance_import') }}"
      data-settings--appearance-reset-url-value="{{ path('app_appearance_reset') }}"
+     data-settings--appearance-palette-value="{{ a.palette is null ? '{}' : a.palette().cssVariables()|json_encode }}"
      data-settings--appearance-app-icons-url-value="{{ path('app_appearance_app_icons') }}"
      data-settings--appearance-logo-upload-url-value="{{ path('app_appearance_logo_upload') }}"
      data-settings--appearance-logo-remove-url-value="{{ path('app_appearance_logo_remove') }}"

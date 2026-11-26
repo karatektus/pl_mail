@@ -150,7 +150,7 @@ final class AppearanceExtension extends AbstractExtension
         $palette = $this->appearance()->palette();
 
         if (null !== $palette) {
-            return [$media(null) => $palette->colours['page']];
+            return [$media(null) => $palette->colours['surface']];
         }
 
         if (null === $surfaces['dark']) {
