@@ -7327,6 +7327,19 @@ html[data-dnd-active] [data-dnd-ghost] {
     padding-left: 1.5em;
 }
 
+/* Paragraphs inside the compose editors, spaced the way the recipient will
+   see them (#782). Enter in a `<p>` makes a new `<p>`, and the body starts as
+   one (`<p><br></p>` above the signature or the quote). Preflight zeroes
+   their margin, so in the editor Enter looked like a single line break; the
+   mail goes out without any margin on them, and every mail client — and our
+   own reading pane, which has no preflight — gives a `<p>` the browser's
+   1em above and below. The sender saw tight lines and the recipient got a
+   gap after each one. 1em is that default, so what is on screen while
+   writing is what arrives. Shift+Enter is still a plain `<br>`. */
+[data-compose--compose-toolbar-target="editor"] p {
+    margin-block: 1em;
+}
+
 /* ── Row swipe ─────────────────────────────────────────────────────────────
    The action revealed on each side of a row, on a phone. row_swipe_controller.js
    moves the row's content (data-swipe-content) with an inline transform, sets
