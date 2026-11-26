@@ -46,9 +46,13 @@ final class GmailApiSyncerHistoryTest extends TestCase
     /** @var list<string> requested URLs, so a re-sync is provable */
     private array $requests = [];
 
+    /** @var list<string|null> each historyId the account was saved with, as it moved */
+    private array $savedHistoryIds = [];
+
     protected function setUp(): void
     {
-        $this->requests = [];
+        $this->requests        = [];
+        $this->savedHistoryIds = [];
     }
 
     public function testAnExpiredHistoryIdRestartsFromScratch(): void
@@ -437,6 +441,118 @@ final class GmailApiSyncerHistoryTest extends TestCase
         self::assertSame([], $dispatched);
     }
 
+    // ── a backlog longer than one window ─────────────────────────────────────
+
+    /**
+     * The whole feed used to be read before any of it was applied, with the
+     * cursor stored once at the end. A feed too long for one job was read
+     * again from the same cursor by every job after it, and none of them
+     * finished: live, 290,000 records after a mailbox clean-up, and no sync
+     * for hours.
+     *
+     * A failure on the second window stands in for the job being stopped.
+     * What the first window held has been applied and the cursor is past it.
+     */
+    public function testProgressThroughALongHistoryIsKeptWhenTheRunIsCutShort(): void
+    {
+        $account = $this->account();
+        $row     = new Message();
+        $erased  = [];
+
+        $syncer = $this->syncer(
+            [
+                $this->response(200, [
+                    'history'       => [['id' => '20001', 'messagesDeleted' => [['message' => ['id' => 'gone-1']]]]],
+                    'nextPageToken' => 'page-2',
+                    'historyId'     => '99999',
+                ]),
+                $this->response(200, [
+                    'history'       => [['id' => '20002', 'messagesDeleted' => [['message' => ['id' => 'gone-2']]]]],
+                    'nextPageToken' => 'page-3',
+                    'historyId'     => '99999',
+                ]),
+                $this->response(500, ['error' => ['code' => 500, 'message' => 'Backend Error']]),
+            ],
+            rows: [$row],
+            erased: $erased,
+            saving: $account,
+        );
+
+        try {
+            $syncer->syncIncremental($account);
+            self::fail('the failure on the second window must surface');
+        } catch (GmailApiException $e) {
+            self::assertSame(500, $e->getStatus());
+        }
+
+        self::assertSame([$row], $erased, 'the first window was applied before the second was asked for');
+        self::assertSame(['20002'], $this->savedHistoryIds, 'the cursor was saved at the last record applied, which is all a stopped job leaves behind');
+        self::assertStringContainsString('startHistoryId=20002', $this->requests[2], 'the second window starts after the first');
+    }
+
+    public function testALongHistoryIsWorkedThroughToTheMailboxsCurrentId(): void
+    {
+        $account    = $this->account();
+        $dispatched = [];
+
+        $this->syncer(
+            [
+                $this->response(200, [
+                    'history'       => [['id' => '20001', 'messagesAdded' => [['message' => ['id' => 'first']]]]],
+                    'nextPageToken' => 'page-2',
+                    'historyId'     => '99999',
+                ]),
+                $this->response(200, [
+                    'history'       => [['id' => '20002', 'messagesAdded' => [['message' => ['id' => 'second']]]]],
+                    'nextPageToken' => 'page-3',
+                    'historyId'     => '99999',
+                ]),
+                $this->response(200, [
+                    'history'   => [['id' => '20003', 'messagesAdded' => [['message' => ['id' => 'third']]]]],
+                    'historyId' => '99999',
+                ]),
+            ],
+            dispatched: $dispatched,
+            saving: $account,
+        )->syncIncremental($account);
+
+        self::assertSame(['first', 'second', 'third'], $dispatched);
+        self::assertSame(['20002', '99999'], $this->savedHistoryIds, 'saved after each window, and the end of the feed leaves the mailbox\'s own id');
+        self::assertStringContainsString('startHistoryId=20002', $this->requests[2], 'the second window is asked for from where the first stopped');
+        self::assertStringNotContainsString('pageToken', $this->requests[2]);
+    }
+
+    /**
+     * A window stops at a record, because a record's id is the only place the
+     * next one can start from. Gmail does send pages with nothing on them and
+     * more behind them, and a window that stopped on those would have no id to
+     * save.
+     */
+    public function testAWindowOfEmptyPagesReadsOnUntilItHasARecordToStopAt(): void
+    {
+        $account    = $this->account();
+        $dispatched = [];
+
+        $this->syncer(
+            [
+                $this->response(200, ['nextPageToken' => 'page-2', 'historyId' => '99999']),
+                $this->response(200, ['nextPageToken' => 'page-3', 'historyId' => '99999']),
+                $this->response(200, [
+                    'history'       => [['id' => '20001', 'messagesAdded' => [['message' => ['id' => 'first']]]]],
+                    'nextPageToken' => 'page-4',
+                    'historyId'     => '99999',
+                ]),
+                $this->response(200, ['historyId' => '99999']),
+            ],
+            dispatched: $dispatched,
+            saving: $account,
+        )->syncIncremental($account);
+
+        self::assertStringContainsString('pageToken=page-3', $this->requests[2], 'the window went on past its two pages');
+        self::assertSame(['first'], $dispatched);
+        self::assertSame(['20001', '99999'], $this->savedHistoryIds);
+    }
+
     // ── Fixture ──────────────────────────────────────────────────────────────
 
     /** Whether the recovery went on to re-list the mailbox. */
@@ -468,25 +584,32 @@ final class GmailApiSyncerHistoryTest extends TestCase
      * under test is which of the two the failure sends it down.
      */
     /**
+     * @param MockResponse|list<MockResponse> $history one answer for every
+     *                               history.list, or one per request in order
      * @param list<Message> $rows    what the repository holds for the ids the
      *                               feed names as deleted
      * @param list<string>  $synced  Gmail ids plMail already stores
+     * @param Account|null  $saving  the account whose historyId is noted in
+     *                               $savedHistoryIds each time it is saved
      *
      * @param-out list<Message> $erased      whatever was erased
      * @param-out list<string>  $dispatched  the Gmail ids queued for fetching
      */
     private function syncer(
-        MockResponse $history,
+        MockResponse|array $history,
         array        $rows = [],
         array        $synced = [],
         mixed        &$erased = null,
         mixed        &$dispatched = null,
+        ?Account     $saving = null,
     ): GmailApiSyncer {
-        $client = new MockHttpClient(function (string $method, string $url) use ($history): ResponseInterface {
+        $client = new MockHttpClient(function (string $method, string $url) use (&$history): ResponseInterface {
             $this->requests[] = $url;
 
             if (true === str_contains($url, '/history')) {
-                return $history;
+                return $history instanceof MockResponse
+                    ? $history
+                    : array_shift($history) ?? throw new \LogicException('A history.list the test did not expect: ' . $url);
             }
 
             if (true === str_contains($url, '/profile')) {
@@ -539,11 +662,20 @@ final class GmailApiSyncerHistoryTest extends TestCase
             },
         );
 
+        $em = $this->createStub(EntityManagerInterface::class);
+        $lastSaved = $saving?->gmailHistoryId;
+        $em->method('flush')->willReturnCallback(function () use ($saving, &$lastSaved): void {
+            if (null !== $saving && $lastSaved !== $saving->gmailHistoryId) {
+                $lastSaved               = $saving->gmailHistoryId;
+                $this->savedHistoryIds[] = $lastSaved;
+            }
+        });
+
         return new GmailApiSyncer(
             new GmailApiClient($client, $tokenManager, new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock())),
             $messageRepository,
             $messageProviderIds,
-            $this->createStub(EntityManagerInterface::class),
+            $em,
             $bus,
             new NullLogger(),
             $eraser,

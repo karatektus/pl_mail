@@ -60,6 +60,23 @@ final class GmailApiSyncer
     /** Hourly listings before an unfinished backfill stops retrying. */
     private const int BACKFILL_MAX_ATTEMPTS = 24;
 
+    /** The most history.list returns in one page. */
+    private const int HISTORY_PAGE_SIZE = 500;
+
+    /**
+     * Pages read before what they hold is applied and the historyId stored.
+     * Small, because a window is also what a stopped job loses: a thousand
+     * deletions are erased well inside the time one job is given.
+     */
+    private const int HISTORY_WINDOW_PAGES = 2;
+
+    /**
+     * How long one sync goes on taking windows. A third of the time a job is
+     * given (ChildProcessExecutionStrategy::DEADLINE_SECONDS), so the window
+     * in hand when it runs out still finishes.
+     */
+    private const int HISTORY_BUDGET_SECONDS = 120;
+
     public function __construct(
         private readonly GmailApiClient         $apiClient,
         private readonly MessageRepository      $messageRepository,
@@ -303,8 +320,34 @@ final class GmailApiSyncer
     /**
      * Read history since the stored historyId, dispatch batches for newly-added
      * messages, and advance the stored historyId.
+     *
+     * A window at a time, with the historyId stored after each. It used to
+     * read the whole feed first and store the historyId once at the end, and a
+     * mailbox where 200,000 messages had been trashed and deleted had more
+     * history than one job is given time for: six minutes of listing, the job
+     * stopped at its deadline with nothing stored, and the next one began at
+     * the same historyId. Nothing Gmail did reached plMail from then on, and
+     * every attempt held the queue the other accounts sync on for those six
+     * minutes.
+     *
+     * Bounded in time as well, for the sake of that queue. What is left is
+     * taken up by the next sync from where this one stopped.
      */
     public function syncIncremental(Account $account): void
+    {
+        $stopAt = hrtime(true) + self::HISTORY_BUDGET_SECONDS * 1_000_000_000;
+
+        while (true === $this->syncHistoryWindow($account) && hrtime(true) < $stopAt) {
+            continue;
+        }
+    }
+
+    // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * @return bool whether Gmail has more history after this window
+     */
+    private function syncHistoryWindow(Account $account): bool
     {
         $startHistoryId = $account->gmailHistoryId;
 
@@ -314,7 +357,7 @@ final class GmailApiSyncer
             ]);
             $this->initialSync($account);
 
-            return;
+            return false;
         }
 
         try {
@@ -334,7 +377,12 @@ final class GmailApiSyncer
             // which a query array cannot express without Google reading
             // `historyTypes[0]=…` as a name it does not know; omitted, the API
             // returns every type, which is what is wanted anyway.
-            $result = $this->apiClient->listHistory($account, $startHistoryId);
+            $result = $this->apiClient->listHistory(
+                $account,
+                $startHistoryId,
+                ['maxResults' => self::HISTORY_PAGE_SIZE],
+                self::HISTORY_WINDOW_PAGES,
+            );
         } catch (GmailApiException $e) {
             // Matched on the status, not the message text. It used to be
             // str_contains($e->getMessage(), '404'), which fires on any failure
@@ -391,7 +439,7 @@ final class GmailApiSyncer
                 $this->em->flush();
                 $this->initialSync($account);
 
-                return;
+                return false;
             }
 
             throw $e;
@@ -512,9 +560,9 @@ final class GmailApiSyncer
         }
 
         $this->em->flush();
-    }
 
-    // ── Private ───────────────────────────────────────────────────────────────
+        return $result['more'];
+    }
 
     /**
      * Whether a history window holds a change the push watch announces.

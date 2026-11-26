@@ -445,17 +445,26 @@ final class GmailApiClient
     // ── history ───────────────────────────────────────────────────────────────
 
     /**
-     * Fetch history records since a given historyId.
+     * Fetch history records since a given historyId, at most $maxPages pages
+     * of them.
+     *
+     * `more` says the feed went on past the last page read. `historyId` is
+     * then the id of the last record returned, which is where the next call
+     * picks up: Gmail answers startHistoryId with the records after it. A
+     * caller that applies the records and stores that id has kept its
+     * progress, however much of the feed is still to come.
      *
      * @param array<string,string|int> $params
-     * @return array{history: list<array<string,mixed>>, historyId: string}
+     * @return array{history: list<array<string,mixed>>, historyId: string, more: bool}
      */
-    public function listHistory(Account $account, string $startHistoryId, array $params = []): array
+    public function listHistory(Account $account, string $startHistoryId, array $params = [], ?int $maxPages = null): array
     {
         $token           = $this->tokenManager->getValidAccessToken($account);
         $history         = [];
         $page            = null;
+        $pages           = 0;
         $latestHistoryId = $startHistoryId;
+        $lastRecordId    = null;
 
         do {
             $query = array_merge($params, ['startHistoryId' => $startHistoryId]);
@@ -471,6 +480,7 @@ final class GmailApiClient
 
             $body = $this->decode($account, $response, 'history.list');
             $page = $body['nextPageToken'] ?? null;
+            ++$pages;
 
             if (true === isset($body['historyId'])) {
                 $latestHistoryId = (string) $body['historyId'];
@@ -478,12 +488,24 @@ final class GmailApiClient
 
             foreach ($body['history'] ?? [] as $record) {
                 $history[] = $record;
+
+                if (true === isset($record['id'])) {
+                    $lastRecordId = (string) $record['id'];
+                }
             }
-        } while (null !== $page);
+
+            // Stopping needs a record to stop at. A page can come back empty
+            // with more behind it, and a cursor left where it started would
+            // read the same pages again on every run.
+            $full = null !== $maxPages && $pages >= $maxPages && null !== $lastRecordId;
+        } while (null !== $page && false === $full);
+
+        $more = null !== $page;
 
         return [
             'history'   => $history,
-            'historyId' => $latestHistoryId,
+            'historyId' => true === $more ? (string) $lastRecordId : $latestHistoryId,
+            'more'      => $more,
         ];
     }
 
