@@ -24,9 +24,13 @@ on:
     # prove the Dockerfile compiles twice and push nothing. Use
     # workflow_dispatch to build an untagged commit by hand.
     push:
-        branches: [main, 'milestone/**']
+        branches: [main, prod, 'milestone/**']
         tags: ['v*']
     workflow_dispatch:
+
+concurrency:
+    group: docker-${{ github.ref }}
+    cancel-in-progress: false
 
 env:
     REGISTRY: ghcr.io

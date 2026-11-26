@@ -147,6 +147,12 @@ final class AppearanceExtension extends AbstractExtension
             $modes,
         ));
 
+        $palette = $this->appearance()->palette();
+
+        if (null !== $palette) {
+            return [$media(null) => $palette->colours['surface']];
+        }
+
         if (null === $surfaces['dark']) {
             return [$media(null) => $surfaces['light']];
         }

@@ -67,7 +67,7 @@ line at rest, where a title is read far more often than in the peek.
 line.** Same information, drawn as tall as there is room for it to be: a 6px
 dot centred in a two-line agenda row or in an hour-tall grid block is a speck
 with space around it, and the bar is the mark every other calendar draws. The
-grid block ALSO carries the colour as a 10% wash over its whole area, which is
+grid block ALSO carries the colour as a wash over its whole area, which is
 enough to group a week's meetings at a glance and not enough to tell two
 similar calendars apart — and it cannot say the one thing a merged cluster has
 to say, which is that this meeting is on two calendars at once. That is the
@@ -407,7 +407,7 @@ identity is threaded through a URL that would outlive the render that made it.
           focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent
           @max-[4rem]:justify-center
           {{ tall
-              ? 'h-full overflow-hidden ' ~ (stacked ? '' : 'items-start')
+              ? 'h-full overflow-hidden ' ~ (stacked ? 'grid-rows-[auto_1fr]' : 'items-start')
               : (timeColumn or stacked ? 'items-start' : 'items-center') }}
           {{ occurrence.cancelled ? 'opacity-50' : '' }}"
 >

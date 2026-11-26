@@ -1,0 +1,89 @@
+/* An imported theme (FLT-146) over the parts of plMail that name a Tailwind
+   colour rather than a palette token: the red of a delete button, the amber
+   of a warning chip, the greys of a hairline. AppearanceRenderer puts
+   `palette` on <html> and writes the theme's terminal colours as
+   --rgb-term-*; each shade here keeps Tailwind's lightness, which is what its
+   contrast was designed on, and takes the theme's hue, so a Tokyo Night red
+   is Tokyo Night's red at every step. The greys take the surface's hue.
+
+   Only the shades the templates use. A class that names a new one shows
+   Tailwind's own colour until it is added here.
+
+   Behind @supports because a browser without relative colours would drop
+   each declaration at the point of use and leave the class with no colour. */
+@supports (color: oklch(from red l c h)) {
+    :root.palette {
+        --term-orange: color-mix(in oklch, rgb(var(--rgb-term-red)), rgb(var(--rgb-term-yellow)));
+        --term-pink:   color-mix(in oklch, rgb(var(--rgb-term-magenta)), rgb(var(--rgb-term-red)));
+        --term-teal:   color-mix(in oklch, rgb(var(--rgb-term-green)), rgb(var(--rgb-term-cyan)));
+        --term-sky:    color-mix(in oklch, rgb(var(--rgb-term-cyan)), rgb(var(--rgb-term-blue)));
+
+        --color-amber-300: oklch(from rgb(var(--rgb-term-yellow)) 87.9% calc(.169 * min(1, c / 0.17)) h);
+        --color-amber-400: oklch(from rgb(var(--rgb-term-yellow)) 82.8% calc(.189 * min(1, c / 0.17)) h);
+        --color-amber-500: oklch(from rgb(var(--rgb-term-yellow)) 76.9% calc(.188 * min(1, c / 0.17)) h);
+        --color-amber-600: oklch(from rgb(var(--rgb-term-yellow)) 66.6% calc(.179 * min(1, c / 0.17)) h);
+        --color-amber-700: oklch(from rgb(var(--rgb-term-yellow)) 55.5% calc(.163 * min(1, c / 0.17)) h);
+        --color-amber-800: oklch(from rgb(var(--rgb-term-yellow)) 47.3% calc(.137 * min(1, c / 0.17)) h);
+        --color-blue-300: oklch(from rgb(var(--rgb-term-blue)) 80.9% calc(.105 * min(1, c / 0.17)) h);
+        --color-blue-400: oklch(from rgb(var(--rgb-term-blue)) 70.7% calc(.165 * min(1, c / 0.17)) h);
+        --color-blue-500: oklch(from rgb(var(--rgb-term-blue)) 62.3% calc(.214 * min(1, c / 0.17)) h);
+        --color-blue-600: oklch(from rgb(var(--rgb-term-blue)) 54.6% calc(.245 * min(1, c / 0.17)) h);
+        --color-blue-700: oklch(from rgb(var(--rgb-term-blue)) 48.8% calc(.243 * min(1, c / 0.17)) h);
+        --color-blue-800: oklch(from rgb(var(--rgb-term-blue)) 42.4% calc(.199 * min(1, c / 0.17)) h);
+        --color-emerald-400: oklch(from rgb(var(--rgb-term-green)) 76.5% calc(.177 * min(1, c / 0.17)) h);
+        --color-emerald-500: oklch(from rgb(var(--rgb-term-green)) 69.6% calc(.17 * min(1, c / 0.17)) h);
+        --color-emerald-600: oklch(from rgb(var(--rgb-term-green)) 59.6% calc(.145 * min(1, c / 0.17)) h);
+        --color-emerald-700: oklch(from rgb(var(--rgb-term-green)) 50.8% calc(.118 * min(1, c / 0.17)) h);
+        --color-gray-300: oklch(from rgb(var(--rgb-surface)) 87.2% min(.01, c + 0.01) h);
+        --color-gray-400: oklch(from rgb(var(--rgb-surface)) 70.7% min(.022, c + 0.01) h);
+        --color-gray-700: oklch(from rgb(var(--rgb-surface)) 37.3% min(.034, c + 0.01) h);
+        --color-green-300: oklch(from rgb(var(--rgb-term-green)) 87.1% calc(.15 * min(1, c / 0.17)) h);
+        --color-green-400: oklch(from rgb(var(--rgb-term-green)) 79.2% calc(.209 * min(1, c / 0.17)) h);
+        --color-green-500: oklch(from rgb(var(--rgb-term-green)) 72.3% calc(.219 * min(1, c / 0.17)) h);
+        --color-green-600: oklch(from rgb(var(--rgb-term-green)) 62.7% calc(.194 * min(1, c / 0.17)) h);
+        --color-green-700: oklch(from rgb(var(--rgb-term-green)) 52.7% calc(.154 * min(1, c / 0.17)) h);
+        --color-orange-300: oklch(from var(--term-orange) 83.7% calc(.128 * min(1, c / 0.17)) h);
+        --color-orange-500: oklch(from var(--term-orange) 70.5% calc(.213 * min(1, c / 0.17)) h);
+        --color-orange-700: oklch(from var(--term-orange) 55.3% calc(.195 * min(1, c / 0.17)) h);
+        --color-pink-300: oklch(from var(--term-pink) 82.3% calc(.12 * min(1, c / 0.17)) h);
+        --color-pink-500: oklch(from var(--term-pink) 65.6% calc(.241 * min(1, c / 0.17)) h);
+        --color-pink-700: oklch(from var(--term-pink) 52.5% calc(.223 * min(1, c / 0.17)) h);
+        --color-red-300: oklch(from rgb(var(--rgb-term-red)) 80.8% calc(.114 * min(1, c / 0.17)) h);
+        --color-red-400: oklch(from rgb(var(--rgb-term-red)) 70.4% calc(.191 * min(1, c / 0.17)) h);
+        --color-red-500: oklch(from rgb(var(--rgb-term-red)) 63.7% calc(.237 * min(1, c / 0.17)) h);
+        --color-red-600: oklch(from rgb(var(--rgb-term-red)) 57.7% calc(.245 * min(1, c / 0.17)) h);
+        --color-red-700: oklch(from rgb(var(--rgb-term-red)) 50.5% calc(.213 * min(1, c / 0.17)) h);
+        --color-red-800: oklch(from rgb(var(--rgb-term-red)) 44.4% calc(.177 * min(1, c / 0.17)) h);
+        --color-sky-300: oklch(from var(--term-sky) 82.8% calc(.111 * min(1, c / 0.17)) h);
+        --color-sky-400: oklch(from var(--term-sky) 74.6% calc(.16 * min(1, c / 0.17)) h);
+        --color-sky-500: oklch(from var(--term-sky) 68.5% calc(.169 * min(1, c / 0.17)) h);
+        --color-sky-600: oklch(from var(--term-sky) 58.8% calc(.158 * min(1, c / 0.17)) h);
+        --color-sky-700: oklch(from var(--term-sky) 50% calc(.134 * min(1, c / 0.17)) h);
+        --color-slate-400: oklch(from rgb(var(--rgb-surface)) 70.4% min(.04, c + 0.01) h);
+        --color-slate-600: oklch(from rgb(var(--rgb-surface)) 44.6% min(.043, c + 0.01) h);
+        --color-teal-300: oklch(from var(--term-teal) 85.5% calc(.138 * min(1, c / 0.17)) h);
+        --color-teal-500: oklch(from var(--term-teal) 70.4% calc(.14 * min(1, c / 0.17)) h);
+        --color-teal-700: oklch(from var(--term-teal) 51.1% calc(.096 * min(1, c / 0.17)) h);
+        --color-violet-300: oklch(from rgb(var(--rgb-term-magenta)) 81.1% calc(.111 * min(1, c / 0.17)) h);
+        --color-violet-400: oklch(from rgb(var(--rgb-term-magenta)) 70.2% calc(.183 * min(1, c / 0.17)) h);
+        --color-violet-500: oklch(from rgb(var(--rgb-term-magenta)) 60.6% calc(.25 * min(1, c / 0.17)) h);
+        --color-violet-600: oklch(from rgb(var(--rgb-term-magenta)) 54.1% calc(.281 * min(1, c / 0.17)) h);
+        --color-violet-700: oklch(from rgb(var(--rgb-term-magenta)) 49.1% calc(.27 * min(1, c / 0.17)) h);
+        --color-zinc-400: oklch(from rgb(var(--rgb-surface)) 70.5% min(.015, c + 0.01) h);
+        --color-zinc-500: oklch(from rgb(var(--rgb-surface)) 55.2% min(.016, c + 0.01) h);
+        --color-zinc-950: oklch(from rgb(var(--rgb-surface)) 14.1% min(.005, c + 0.01) h);
+    }
+}
+
+/* The sheet asks for the light-scheme accent text, because a built-in
+   sheet is always light. An imported dark theme paints the sheet dark too. */
+:root.palette.dark .mail-sheet {
+    --accent-text: var(--accent-text-dark);
+}
+
+/* Raised is opaque in a palette, so a quiet button's two raised steps are
+   one colour; its hover steps toward the ink instead. The mail sheet keeps
+   its own translucent raised, and with it the usual hover. */
+:root.palette .btn-quiet:hover:not(.mail-sheet *) {
+    background-color: color-mix(in oklab, rgb(var(--rgb-raised)), rgb(var(--rgb-ink)) 10%);
+}

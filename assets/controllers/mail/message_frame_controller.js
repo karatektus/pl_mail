@@ -153,6 +153,14 @@ export default class extends Controller {
      * posted across as concrete values.
      */
     postTheme() {
+        // Senders write HTML for a white page, so under an imported dark
+        // theme the frame keeps its light defaults rather than the dark sheet.
+        const root = document.documentElement.classList;
+
+        if (root.contains("palette") && root.contains("dark")) {
+            return;
+        }
+
         const styles = getComputedStyle(this.element);
         const rgb = (name) => {
             const value = styles.getPropertyValue(name).trim();

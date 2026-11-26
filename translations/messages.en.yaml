@@ -4130,6 +4130,7 @@ settings:
             subheading: How much of the background shows through your panels.
         heading: Appearance
         import: Import theme
+        import_hint: 'Or a VS Code colour theme (.json), which colours everything: panels, text, buttons and the open email.'
         layout:
             boxed: Boxed
             flat: Flat
@@ -4217,6 +4218,7 @@ settings:
             dark: Dark
             dusk: Dusk
             heading: Theme
+            imported: 'Imported from VS Code: %name%. Pick any theme to go back.'
             more: 'More themes'
             light: Light
             nord: Nord

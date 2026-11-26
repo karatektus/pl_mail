@@ -12,6 +12,7 @@ use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Helper\AppIconStorage;
 use App\Domain\Helper\CustomLogoStorage;
 use App\Domain\Helper\SvgSanitizer;
+use App\Domain\Theme\VsCodeTheme;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\User\User;
 use App\Service\Appearance\LogoIcons;
@@ -322,6 +323,10 @@ final class AppearanceController extends AbstractController
         return $response;
     }
 
+    /**
+     * A plMail export, or a VS Code colour theme (FLT-146), which becomes an
+     * imported palette over plain Dark or Light.
+     */
     #[Route('/import', name: 'import', methods: ['POST'])]
     public function import(Request $request): JsonResponse
     {
@@ -330,13 +335,22 @@ final class AppearanceController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        $payload = $request->toArray();
+        $vsCode = VsCodeTheme::fromJson($request->getContent(), $request->query->getString('name'));
 
-        if (1 !== ($payload['version'] ?? null)) {
+        if (null !== $vsCode) {
+            $user->appearance->applyArray($vsCode->settings());
+            $this->entityManager->flush();
+
+            return $this->json(['ok' => true]);
+        }
+
+        $payload = json_decode($request->getContent(), true);
+
+        if (false === is_array($payload) || 1 !== ($payload['version'] ?? null)) {
             return $this->json(['ok' => false, 'error' => 'appearance.import.version'], Response::HTTP_BAD_REQUEST);
         }
 
-        $user->appearance->applyArray($payload);
+        $user->appearance->applyArray($payload + ['palette' => null]);
         $this->entityManager->flush();
 
         return $this->json(['ok' => true]);
