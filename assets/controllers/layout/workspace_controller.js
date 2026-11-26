@@ -1162,7 +1162,30 @@ export default class extends Controller {
             return;
         }
 
-        this.#setMax(present.includes("list") ? null : "list");
+        if (present.includes("list")) {
+            this.#setMax(null);
+
+            return;
+        }
+
+        // No list here: the first workspace that has one, in the order of
+        // the tabs, which is where the mail was put. Only with none anywhere
+        // is the list borrowed at full width over this one. Not from edit
+        // mode, which keeps its workspace until it is saved or cancelled.
+        const other = this.doc.workspaces.findIndex((workspace) => leaves(workspace.layout).includes("list"));
+
+        if (-1 === other || null !== this.editing) {
+            this.#setMax("list");
+
+            return;
+        }
+
+        this.#switchTo(other);
+        this.#toast(this.stringsValue.followed.replace("%name%", this.#workspace().name));
+
+        // That workspace may have something else at full width on this
+        // device: the list is what was asked for.
+        this.#bringListForward();
     }
 
     /** openPane() from anywhere: on screen, beside what is there, showing `src`. */

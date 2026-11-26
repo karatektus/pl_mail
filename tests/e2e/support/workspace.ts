@@ -19,10 +19,15 @@ import type { Page } from "@playwright/test";
  *     await useWorkspace(page, row("list", col("calendar", "tasks")));
  */
 export async function useWorkspace(page: Page, layout: Layout): Promise<void> {
+    await useWorkspaces(page, [{ name: "Mail", layout }], 0);
+}
+
+/** Several workspaces, `active` the one drawn; otherwise as useWorkspace(). */
+export async function useWorkspaces(page: Page, workspaces: Array<{ name: string; layout: Layout }>, active: number): Promise<void> {
     await page.context().clearCookies({ name: "plmail_layout" });
     await page.goto("/mail/inbox");
 
-    const status = await page.evaluate(async (tree) => {
+    const status = await page.evaluate(async ({ workspaces, active }) => {
         const shell = document.querySelector("[data-controller~='layout--workspace']");
 
         if (null === shell) {
@@ -36,11 +41,11 @@ export async function useWorkspace(page: Page, layout: Layout): Promise<void> {
                 "X-CSRF-Token": shell.getAttribute("data-layout--workspace-token-value") ?? "",
                 "X-Requested-With": "fetch",
             },
-            body: JSON.stringify({ workspaces: [{ id: `e2e${Date.now()}`, name: "Mail", layout: tree }], active: 0 }),
+            body: JSON.stringify({ workspaces: workspaces.map((workspace, index) => ({ id: `e2e${Date.now()}${index}`, ...workspace })), active }),
         });
 
         return response.status;
-    }, layout);
+    }, { workspaces, active });
 
     if (200 !== status) {
         throw new Error(`saving the workspace answered ${status}`);

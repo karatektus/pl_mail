@@ -1,4 +1,4 @@
-<!-- translated-from: features/workspaces.md sha1:c739241758061d4f87ca9c836b272640cb384d33 -->
+<!-- translated-from: features/workspaces.md sha1:8acdc9d39e49a8709281dddf6c1022cae72bd241 -->
 
 # Arbeitsbereiche
 
@@ -119,9 +119,10 @@ Bereich in voller Breite.
 
 ## Fallstricke
 
-- **Ein Arbeitsbereich ohne Mailliste hat trotzdem Mail.** Wählst du einen Ordner in der
-  Seitenleiste, erscheint die Liste in voller Breite; **Zurück zum Layout** bringt dich zum
-  Arbeitsbereich, wie du ihn angeordnet hast.
+- **Ein Ordner, gewählt in einem Arbeitsbereich ohne Mailliste, wechselt den Arbeitsbereich.**
+  plMail geht zum ersten Arbeitsbereich (in der Reihenfolge der Reiter), der die Liste hat, und
+  sagt das. Hat keiner deiner Arbeitsbereiche eine, erscheint die Liste stattdessen in voller
+  Breite; **Zurück zum Layout** bringt dich zum Arbeitsbereich, wie du ihn angeordnet hast.
 - **Auf `/contacts` und `/tasks` führt das Verlassen der vollen Breite zum Posteingang.** Diese
   Seiten zeichnen einen Bereich und keine Liste dahinter, also gibt es kein Layout, zu dem es an Ort
   und Stelle zurückgehen könnte.
