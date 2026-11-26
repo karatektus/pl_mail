@@ -4211,6 +4211,7 @@ settings:
             subheading: À quel point l’arrière-plan transparaît à travers vos panneaux.
         heading: Apparence
         import: Importer un thème
+        import_hint: 'Ou un thème de couleurs VS Code (.json), qui colore tout : panneaux, texte, boutons et l’e-mail ouvert.'
         layout:
             boxed: Encadrée
             flat: À plat
@@ -4298,6 +4299,7 @@ settings:
             dark: Sombre
             dusk: Crépuscule
             heading: Thème
+            imported: 'Importé de VS Code : %name%. Choisissez n’importe quel thème pour revenir.'
             more: 'Plus de thèmes'
             light: Clair
             nord: Nord

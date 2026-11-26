@@ -3731,6 +3731,7 @@ settings:
             subheading: '面板透出背景的程度。'
         heading: '外观'
         import: '导入主题'
+        import_hint: '也可以导入 VS Code 配色主题（.json），为整个界面上色：面板、文字、按钮和打开的邮件。'
         layout:
             boxed: '卡片式'
             flat: '平面式'
@@ -3818,6 +3819,7 @@ settings:
             dark: '深色'
             dusk: '黄昏'
             heading: '主题'
+            imported: '已从 VS Code 导入：%name%。选择任一主题即可恢复。'
             more: '更多主题'
             light: '浅色'
             nord: 'Nord'

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./tom-select.css";
 @import "./motion.css";
+@import "./palette.css";
 
 @variant dark (&:where(.dark, .dark *));
 

@@ -15,6 +15,7 @@ export default class extends Controller {
         logoUploadUrl: String,
         logoRemoveUrl: String,
         logoDefault: String,
+        palette: Object,
     };
 
     static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme',
@@ -22,7 +23,7 @@ export default class extends Controller {
         'inkColor', 'inkColorField', 'inkDefault', 'inkCustom', 'inkDerived', 'inkMuted', 'inkMutedField', 'inkFaint', 'inkFaintField',
         'mainTint', 'mainTintField', 'mainTintDefault', 'mainTintCustom', 'mainAlpha', 'mainAlphaField', 'mainAlphaMatch', 'mainAlphaCustom',
         'backgroundSolid', 'backgroundSolidSwatch',
-        'moreThemes', 'moreThemesButton'];
+        'moreThemes', 'moreThemesButton', 'palette'];
 
     connect() {
         this.root = document.documentElement;
@@ -235,6 +236,24 @@ export default class extends Controller {
         // Resolving it again is idempotent in every other case.
         if (this.hasLogoMotifTarget) {
             this.repaintLogo();
+        }
+
+        // An imported theme's colours are inline on <html> and only the
+        // server knows the theme's own, so this one is saved and the whole
+        // page reloaded: a Turbo visit keeps <html> and its inline colours.
+        if (this.hasPaletteTarget && this.paletteTarget.value !== '') {
+            this.paletteTarget.value = '';
+            clearTimeout(this.pending);
+            this.pending = null;
+            this.saving = this.save().then((saved) => {
+                if (saved) {
+                    window.location.reload();
+                } else {
+                    this.paletteTarget.value = 'kept';
+                }
+            });
+
+            return;
         }
 
         this.queue();
@@ -807,7 +826,7 @@ export default class extends Controller {
             // --app-bg altogether there so the stylesheet's block for whichever
             // theme is on <html> answers instead.
             if (value === '') {
-                this.root.style.removeProperty('--app-bg');
+                this.restoreInline('--app-bg');
             } else {
                 this.root.style.setProperty('--app-bg', value);
             }
@@ -908,14 +927,16 @@ export default class extends Controller {
             });
         } catch {
             requestFailed(null);
-            return;
+            return false;
         }
 
         if (requestFailed(response)) {
-            return;
+            return false;
         }
 
         this.remember();
+
+        return true;
     }
 
     /*
@@ -1079,6 +1100,18 @@ export default class extends Controller {
         }
     }
 
+    /* What a variable falls back to once the user's own value goes: an
+     * imported theme's colour where there is one, else the stylesheet's. */
+    restoreInline(name) {
+        const value = this.paletteValue[name];
+
+        if (value === undefined) {
+            this.root.style.removeProperty(name);
+        } else {
+            this.root.style.setProperty(name, value);
+        }
+    }
+
     async importFile() {
         const file = this.importInputTarget.files[0];
 
@@ -1086,12 +1119,25 @@ export default class extends Controller {
             return;
         }
 
+        // A save still queued would land after the import and send the
+        // page's old theme, dropping it again, so it goes first.
+        if (this.pending) {
+            clearTimeout(this.pending);
+            this.pending = null;
+            this.saving = this.save();
+        }
+
+        await this.saving;
+
         const text = await file.text();
 
         let response;
 
         try {
-            response = await fetch(this.importUrlValue, {
+            // The file's name, for a VS Code theme that does not name itself.
+            const name = file.name.replace(/\.jsonc?$/i, '');
+
+            response = await fetch(`${this.importUrlValue}?name=${encodeURIComponent(name)}`, {
                 method: 'POST',
                 headers: jsonCsrfHeaders(),
                 body: text,
@@ -1249,10 +1295,7 @@ export default class extends Controller {
             this.inkColorFieldTarget.value = '';
             this.inkMutedFieldTarget.value = '';
             this.inkFaintFieldTarget.value = '';
-            this.root.style.removeProperty('--rgb-ink');
-            this.root.style.removeProperty('--rgb-ink-soft');
-            this.root.style.removeProperty('--rgb-ink-muted');
-            this.root.style.removeProperty('--rgb-ink-faint');
+            ['--rgb-ink', '--rgb-ink-soft', '--rgb-ink-muted', '--rgb-ink-faint'].forEach((name) => this.restoreInline(name));
             this.inkDerivedTarget.classList.add('opacity-40', 'pointer-events-none');
         } else {
             this.inkColorFieldTarget.value = this.inkColorTarget.value;

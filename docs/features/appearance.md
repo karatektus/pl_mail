@@ -242,6 +242,21 @@ not a value plMail recognises is ignored rather than stored, and a layout in the
 before the individual numbers, so an export written before a control existed still lands somewhere
 sensible.
 
+### A VS Code colour theme
+
+**Import theme** also takes a VS Code colour theme: the `.json` file in a theme extension's
+`themes/` folder, comments and all. It becomes one palette for everything, the panels, the text,
+the buttons, the status colours and the open email's sheet, laid over plain **Dark** or **Light**
+depending on the theme. Its accent becomes yours, and your own text colours, main pane tint and
+background are cleared, since each would paint over a colour the theme chose. The theme's name
+shows under **Theme**; picking any theme tile goes back to the built-in palettes.
+
+The colours are the theme's, held to plMail's contrast: body text at 10:1, every other text and
+status colour at 4.5:1, so a theme with very quiet greys comes out a little louder than it is in the
+editor. An email written in HTML is drawn on the theme's own background too, so one that assumes a
+white page can look wrong on a dark theme. A calendar's colour picker offers the theme's six
+terminal colours after the usual eight.
+
 ## Finding a setting
 
 Settings is a tree of eight areas — Account, General, Mail accounts, Inbox, Reading & writing,

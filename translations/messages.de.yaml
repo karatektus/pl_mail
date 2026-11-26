@@ -4154,6 +4154,7 @@ settings:
             subheading: Wie viel vom Hintergrund durch deine Flächen scheint.
         heading: Darstellung
         import: Theme importieren
+        import_hint: 'Oder ein VS-Code-Farbschema (.json), das alles einfärbt: Bereiche, Text, Schaltflächen und die geöffnete E-Mail.'
         layout:
             boxed: Kacheln
             flat: Flach
@@ -4244,6 +4245,7 @@ settings:
             dark: Dunkel
             dusk: Dämmerung
             heading: Theme
+            imported: 'Aus VS Code importiert: %name%. Wähle ein beliebiges Theme, um zurückzukehren.'
             more: 'Mehr Themes'
             light: Hell
             nord: Nord
