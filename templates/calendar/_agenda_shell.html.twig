@@ -128,9 +128,15 @@ Blocks, rendered inside the day loop and able to read `dayKey` and `dayEntries`:
                    `top-0` because nothing is pinned above this. The agenda's
                    scroller is the pane's own, unlike the time grid's, which
                    stacks two rows of its own inside it and has to count them. #}
-                <div class="col-span-full sticky top-0 z-10 flex items-baseline gap-2
+                {# `agenda-day-head` (app.css) for a background that is SOLID:
+                   the headings are siblings in one grid (the `contents`
+                   wrapper above), so they all stick at the top and the next
+                   one slides over the last — which only reads if it covers
+                   it. With the see-through tint alone, the day before and the
+                   rows behind showed through. #}
+                <div class="agenda-day-head col-span-full sticky top-0 z-10 flex items-baseline gap-2
                             border-y border-line px-3 py-1
-                            {{ isToday ? 'bg-accent/10' : 'bg-sunken' }}">
+                            {{ isToday ? 'is-today' }}">
                     <span class="text-xs font-medium {{ isToday ? 'text-accent' : 'text-ink' }}">
                         {{ dayKey|intl_date('EEEEdMMMM', false) }}
                     </span>

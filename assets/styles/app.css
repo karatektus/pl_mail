@@ -2936,6 +2936,21 @@
     }
 }
 
+/* ── The agenda's day headings ───────────────────────────────────────────
+   Sticky, and siblings in one grid (calendar/_agenda_shell.html.twig), so
+   they stack at the top and each new one has to cover the one before. The
+   tint is the theme's sunken or a tenth of the accent, which on most themes
+   is a few percent opaque; it is laid over the pane's own colour, solid, so
+   nothing behind shows through. */
+.agenda-day-head {
+    background-color: rgb(var(--rgb-main));
+    background-image: linear-gradient(var(--color-sunken), var(--color-sunken));
+}
+
+.agenda-day-head.is-today {
+    background-image: linear-gradient(rgb(var(--rgb-accent) / 0.1), rgb(var(--rgb-accent) / 0.1));
+}
+
 /* ── The topbar's workspace tabs ─────────────────────────────────────────── */
 .workspace-tabs {
     position: relative;
