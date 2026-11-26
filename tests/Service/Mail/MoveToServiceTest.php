@@ -358,6 +358,31 @@ final class MoveToServiceTest extends KernelTestCase
         self::assertContains('restore', $this->dispatchedActions(), 'nothing told the mail server to take the message out of the bin');
     }
 
+    /**
+     * #486: `in:trash …`, tick, Move to → a folder. A search has no label of
+     * its own, so all the plan takes away is the Inbox, which mail in the bin
+     * does not wear — nothing moved, and the toast said it had. It leaves the
+     * bin's folder for the target, as from the bin's own list.
+     */
+    public function testFromASearchMailInTheBinMovesIntoTheFolder(): void
+    {
+        [$target, $receipts] = $this->folderTarget('Receipts');
+        $bin                 = $this->seedMailbox('Trash');
+        $this->labelResolver->bindMailbox($this->role(LabelRole::Trash), $bin);
+        $this->em->flush();
+
+        $message          = $this->messageIn($this->thread(), $this->role(LabelRole::Trash));
+        $message->mailbox = $bin;
+        $this->em->flush();
+
+        $this->moveFrom('search', 'invoice', $target, $message);
+
+        self::assertSame([['move', (int) $bin->id, (int) $message->imapUid, 'Receipts']], $this->moves($message));
+        self::assertTrue($message->hasLabel($target));
+        self::assertFalse($message->hasLabel($this->role(LabelRole::Trash)), 'still in the bin');
+        self::assertNotNull($receipts->id);
+    }
+
     // ── to the Inbox ─────────────────────────────────────────────────────────
 
     public function testMovingToTheInboxFromALabelTakesThatLabelOff(): void
