@@ -13,8 +13,8 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
-use App\Repository\Calendar\EventSourceLinkRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
+use App\Repository\Calendar\EventSourceLink\EventSourceLinkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\DBAL\Connection;
@@ -200,7 +200,7 @@ final class EventFromMessageTest extends WebTestCase
         $account->imapPort       = 993;
         $account->imapEncryption = 'ssl';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $thread                    = new MessageThread();
