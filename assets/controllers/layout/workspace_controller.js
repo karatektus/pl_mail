@@ -598,6 +598,11 @@ export default class extends Controller {
         this.#leaveEdit();
         this.#render();
         this.#drawWorkspaceTabs();
+
+        // What was there before, which the server already has — unless this
+        // is a new workspace (newWorkspace() starts one in edit mode), whose
+        // copy is kept as it was made.
+        this.#save();
     }
 
     async deleteWorkspace() {
@@ -1998,6 +2003,14 @@ export default class extends Controller {
     async #post() {
         clearTimeout(this._saveTimer);
         this._saveTimer = null;
+
+        // Edit mode is a draft: Save workspace sends it (after leaving edit
+        // mode), Cancel and leaving the page throw it away. Sent as it went,
+        // a Cancel put the old arrangement back on screen while the server
+        // kept the edited one, which the next load then drew.
+        if (null !== this.editing) {
+            return;
+        }
 
         try {
             const response = await fetch(this.saveUrlValue, {

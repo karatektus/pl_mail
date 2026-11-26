@@ -3295,6 +3295,14 @@
     background-color: var(--color-hover);
 }
 
+/* In edit mode, whatever the pane draws is a stacking context of its own, so
+   nothing in it can rise above the card: avatars, attachment chips, a task's
+   tick and the calendar's today all carry a z-index of their own, and with the
+   card at 5 they showed through it. The card is the one child left out. */
+[data-layout-editing] .layout-pane > :not(.layout-edit-card) {
+    isolation: isolate;
+}
+
 .layout-edit-card {
     position: absolute;
     inset: 0;
