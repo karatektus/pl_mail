@@ -1565,6 +1565,27 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Whether a browser's "new mail" notification names the sender and the
+     * subject (#760). The push itself stays content-free: the service worker
+     * asks for the words over this user's own session when it arrives, through
+     * WebPushController::inboxState(), see NewMailNotice.
+     *
+     * OFF unless somebody switches it on, like SETTING_NOTIFY_SKIP_READ below:
+     * the words then show on a locked screen and in a shared screen too. Only a
+     * stored true is on, and no migration writes it. Browsers only: the phone
+     * apps write their own notifications.
+     */
+    public const string SETTING_NOTIFY_SHOW_CONTENT = 'notifications.show_content';
+
+    /** Virtual, out of the settings bag — see SETTING_NOTIFY_SHOW_CONTENT. */
+    public bool $notifyShowsContent {
+        get => true === $this->getSetting(self::SETTING_NOTIFY_SHOW_CONTENT, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_NOTIFY_SHOW_CONTENT, $on ? true : null);
+        }
+    }
+
+    /**
      * Whether a browser drops a notification for mail that has been read by the
      * time it would show it.
      *

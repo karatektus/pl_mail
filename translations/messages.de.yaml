@@ -3487,6 +3487,9 @@ message:
             to: An
         heading: Originalnachricht
         reconstructed: 'Die Originalbytes dieser Nachricht wurden nicht aufbewahrt. Du siehst eine Rekonstruktion aus den gespeicherten Headern und dem Textteil — die MIME-Struktur und ein etwaiger HTML-Teil fehlen, und gegen eine DKIM-Signatur lässt sie sich nicht prüfen.'
+    push_notice:
+        several: '{1}1 neue Nachricht|]1,Inf[ %count% neue Nachrichten'
+        unknown_sender: 'Unbekannter Absender'
     quote:
         hide: Zitierten Text ausblenden
         show: Zitierten Text anzeigen
@@ -5471,7 +5474,7 @@ settings:
             list_content: 'anhänge chips büroklammer dateien labels absender datum uhrzeit anzahl beantwortet'
             list_layout: 'zeilen einzeilig kompakt dicht vorschau gestapelt breite'
             list_markers: 'stern überfahren avatar kreis konto ecke ungelesen fett'
-            notifications: "push browser handy ton hinweis"
+            notifications: "push browser handy ton hinweis absender betreff"
             password: "kennwort anmeldung login"
             pinning: 'anheften angeheftet reißzwecke oben erinnerung pin'
             profile: "name avatar foto bild"
@@ -5534,6 +5537,8 @@ settings:
         notify_for_hint: 'Welche Mail eine Benachrichtigung auslöst: ein Kästchen pro Posteingang-Tab und pro Label. Gilt für alle deine Browser und für die Android-App. Ist nichts angehakt, benachrichtigt keine Mail.'
         'off': 'Aus'
         'on': 'An'
+        show_content: 'Absender und Betreff anzeigen'
+        show_content_hint: 'Eine Browser-Benachrichtigung nennt, wer geschrieben hat, und den Betreff, statt nur „New mail“. Beides ist dann auch auf dem gesperrten Bildschirm zu sehen. Gilt für alle deine Browser.'
         skip_read: 'Nur bei ungelesener Mail benachrichtigen'
         skip_read_hint: 'Bevor eine Browser-Benachrichtigung erscheint, wartet plMail einige Sekunden und prüft, ob die neue Mail noch ungelesen ist. Hast du sie schon gelesen oder gelöscht, etwa auf dem Handy, erscheint nichts.'
         state_denied: >-

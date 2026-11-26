@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:23ed96492efacd6f213489e63de7c8aaca465619 -->
+<!-- translated-from: features/clients.md sha1:6de3414ce9ab1302e4f0dc4c67dacc39a55fac9f -->
 
 # Andere Clients
 
@@ -133,9 +133,9 @@ Browser behält.
 unter einen deiner Benachrichtigungs-Schalter fällt (siehe unten), und sonst von nichts: nicht vom
 Lesen, Markieren, Archivieren oder Verschieben, nicht von Spam, nicht von einem Entwurf oder einer
 Kopie von etwas, das du gesendet hast, und nicht von Post, die importiert wird oder in einem Postfach
-ankommt, dessen Import noch läuft. Die Benachrichtigung sagt nur „New mail“; Absender und Betreff
-trägt sie nicht. Eine Nachricht, deren Ankunftszeit plMail aus ihren Headern nicht ermitteln kann,
-wird nicht gemeldet.
+ankommt, dessen Import noch läuft. Die Benachrichtigung sagt „New mail“ oder, wenn du das möchtest
+(siehe unten), wer geschrieben hat und den Betreff. Eine Nachricht, deren Ankunftszeit plMail aus
+ihren Headern nicht ermitteln kann, wird nicht gemeldet.
 
 Als neu gilt Post erst, nachdem deine [Filter](filters.md) gelaufen sind. Eine Nachricht, die ein
 Filter als gelesen markiert oder in den Papierkorb oder Spam verschiebt, wird nicht gemeldet, und
@@ -156,12 +156,23 @@ auf dem Server entscheidet; die App bekommt jede Änderung (sie braucht sie, um 
 und entscheidet mit denselben Kästchen auf dem Handy. Post, die der Assistent noch einsortiert, wird
 gemeldet, sobald sie in ihrem Tab liegt — ein paar Sekunden später und nur einmal.
 
+**Absender und Betreff anzeigen** (standardmäßig aus) schreibt in die Benachrichtigung eines Browsers,
+wer geschrieben hat, und den Betreff statt „New mail“, und ein Klick öffnet diese Unterhaltung. Post,
+die zusammen ankam, etwa drei Nachrichten aus einem Abgleich, ist eine Benachrichtigung: „3 neue
+Nachrichten“ und von wem. Ein Klick auf eine plMail-Benachrichtigung nutzt den plMail-Tab, den du
+offen hast, wie bei Gmail, und öffnet nur dann einen neuen, wenn keiner offen ist. Die Worte reisen
+nie mit dem Push. Der Push-Dienst erfährt nur, dass sich
+etwas geändert hat, und der Browser fragt plMail über deine eigene Sitzung danach, wenn der Push
+ankommt; ein Browser, der plMail in dem Moment nicht erreicht, sagt deshalb „New mail“. Die Worte
+sind dann auch auf dem gesperrten Bildschirm zu sehen. Wie die Kästchen oben gilt das für alle deine
+Browser.
+
 **Nur bei ungelesener Mail benachrichtigen** (standardmäßig aus) begegnet einem Push, der sich nicht
 zurückrufen lässt: Sind die Benachrichtigungen in mehreren Browsern an, meldet jeder „New mail“, auch
 wenn du die Nachricht eine Minute später auf dem Handy gelesen oder gelöscht hast. Ein Browser mit
-dieser Option wartet nach dem Push zwanzig Sekunden und fragt, ob Post aus den letzten fünfzehn
-Minuten, die unter ein angehaktes Kästchen fällt, noch ungelesen ist. Wenn nicht, zeigt er nichts an
-und nimmt eine Benachrichtigung zurück, die er für frühere Post gezeigt hatte. Alte ungelesene Post
+dieser Option wartet nach dem Push zwanzig Sekunden und fragt, ob die Post, um die es ging, oder
+etwas, das danach kam, noch ungelesen ist. Wenn nicht, zeigt er nichts an und nimmt eine
+Benachrichtigung zurück, die er für frühere Post gezeigt hatte. Ungelesene Post von vor dem Push
 zählt nicht, ebenso wenig ungelesene Post in einem Tab oder Label, das du nicht angehakt hast.
 
 Zwei andere Arten von Push gehen an dieselben Geräte und sind nicht betroffen: eine Erinnerung aus

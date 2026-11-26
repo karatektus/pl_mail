@@ -3166,6 +3166,9 @@ message:
             to: '收件人'
         heading: '原始邮件'
         reconstructed: '此邮件的原始字节未被保留，因此这里的内容是根据已存储的邮件头和纯文本正文重建的。其中缺少 MIME 结构及所有 HTML 部分，无法通过 DKIM 签名验证。'
+    push_notice:
+        several: '{1}1 封新邮件|]1,Inf[ %count% 封新邮件'
+        unknown_sender: '未知发件人'
     quote:
         hide: '隐藏引用内容'
         show: '显示引用内容'
@@ -4766,7 +4769,7 @@ settings:
             list_content: '附件 文件标签 回形针 文件 标签 发件人 日期 时间 数量 已回复'
             list_layout: '行 单行 紧凑 预览 摘要 分行 宽度'
             list_markers: '星标 悬停 头像 圆圈 账户 角标 未读 粗体'
-            notifications: "推送 浏览器 手机 声音 提醒"
+            notifications: "推送 浏览器 手机 声音 提醒 发件人 主题"
             password: "密码 登录"
             pinning: '置顶 固定 图钉 提醒 pin'
             profile: "姓名 头像 照片"
@@ -4816,6 +4819,8 @@ settings:
         notify_for_hint: '哪些邮件会触发通知：每个收件箱标签页和每个标签各一个勾选框。对你的所有浏览器和 Android 应用生效。全部不勾选时，任何邮件都不会通知。'
         'off': '关'
         'on': '开'
+        show_content: '显示发件人和主题'
+        show_content_hint: '浏览器通知会显示发件人和主题，而不只是“New mail”。锁屏时也会显示。适用于你的所有浏览器。'
         skip_read: '仅通知未读邮件'
         skip_read_hint: '显示浏览器通知前，plMail 会等待几秒，并检查新邮件是否仍未读。如果你已经读过或删除了它（例如在手机上），就不会显示。'
         state_denied: '通知已被浏览器设置拦截。请允许此网站发送通知，然后重试。'
