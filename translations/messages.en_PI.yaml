@@ -3288,6 +3288,9 @@ message:
             to: To
         heading: The original scroll
         reconstructed: "The true scroll be lost to the deep, so what ye see here be redrawn from the headers we kept and the plain text. The MIME riggin' and any HTML sail be missin', and it'll ne'er answer to a DKIM seal."
+    push_notice:
+        several: '{1}1 new bottle|]1,Inf[ %count% new bottles'
+        unknown_sender: 'Unknown sailor'
     quote:
         hide: Stow the quoted words
         show: Unfurl the quoted words
@@ -5165,7 +5168,7 @@ settings:
             list_content: 'cargo attachments chips paperclip files flags labels sender date hour tally answered'
             list_layout: 'rows one line compact dense peek preview stacked width'
             list_markers: 'mark star hover medallion avatar crew corner unread bold'
-            notifications: "push browser phone sound alert"
+            notifications: "push browser phone sound alert sender heading"
             password: "login sign-in"
             pinning: 'pin pinned nail mast top nag'
             profile: "name avatar photo picture"
@@ -5216,6 +5219,8 @@ settings:
         notify_for_hint: 'Which bottles ring the bell: a box for each Inbox tab an'' each flag. Holds for all yer browsers an'' the Android app. Tick nothin'' an'' no bottle rings it.'
         'off': Off
         'on': On
+        show_content: 'Show who wrote an'' what about'
+        show_content_hint: 'A browser notice names th'' sender an'' th'' heading, not just "New mail". They show on a locked screen too, mind. Holds fer every browser o'' yers.'
         skip_read: 'Only for bottles still unread'
         skip_read_hint: 'Afore showin'' a notice in yer browser, plMail waits a few seconds an'' checks if the new bottle be still unread. If ye already read or sunk it, say on yer phone, nothing be shown.'
         state_denied: >-

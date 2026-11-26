@@ -247,6 +247,10 @@ final readonly class ConfigBackupUsers
         // internet (#642). Their consent to publishing their face; a restore
         // must carry it, and must never invent it. A boolean, no id.
         User::SETTING_LIBRAVATAR_PUBLISH,
+        // Whether a browser's notification names the sender and the subject
+        // (#760). A choice about what one's lock screen shows, which a restore
+        // must not turn on or off behind the user's back. A boolean, no id.
+        User::SETTING_NOTIFY_SHOW_CONTENT,
         // Which tabs and labels notify, and whether a browser skips mail
         // already read (#369). Choices about how one wants to be interrupted,
         // which a restore must not quietly undo: back to Primary alone is

@@ -3424,6 +3424,9 @@ message:
             to: To
         heading: Original message
         reconstructed: 'The original bytes of this message were not kept, so this is a reconstruction from the stored headers and the text body. The MIME structure and any HTML part are missing, and it will not verify against a DKIM signature.'
+    push_notice:
+        several: '{1}1 new message|]1,Inf[ %count% new messages'
+        unknown_sender: 'Unknown sender'
     quote:
         hide: Hide quoted text
         show: Show quoted text
@@ -5355,7 +5358,7 @@ settings:
             list_content: 'attachments chips paperclip files labels sender date time count replied answered'
             list_layout: 'rows one line compact dense preview snippet stacked lines width'
             list_markers: 'star hover avatar disc account corner unread bold'
-            notifications: "push browser phone sound alert"
+            notifications: "push browser phone sound alert sender subject"
             password: "login sign-in"
             pinning: 'pin pinned thumbtack sticky top reminder'
             profile: "name avatar photo picture"
@@ -5414,6 +5417,8 @@ settings:
         notify_for_hint: 'Which mail makes a notification: a box for each inbox tab and each label. Applies to every browser of yours and to the Android app. With nothing ticked, no mail notifies.'
         'off': 'Off'
         'on': 'On'
+        show_content: 'Show sender and subject'
+        show_content_hint: 'A browser notification names who wrote and the subject, instead of only "New mail". They then also show on a locked screen. Applies to every browser of yours.'
         skip_read: 'Only notify for unread mail'
         skip_read_hint: 'Before showing a browser notification, plMail waits a few seconds and checks whether the new mail is still unread. If you have already read or deleted it, for example on your phone, nothing is shown.'
         state_denied: >-

@@ -12,6 +12,7 @@ use App\Jmap\Push\PushEndpointPolicy;
 use App\Jmap\Push\WebPushSender;
 use App\Repository\User\PushSubscription\PushSubscriptionRepository;
 use App\Service\Mail\NotifyScopes;
+use App\Service\Push\NewMailNotice;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -225,20 +226,28 @@ final class WebPushController extends AbstractController
      * without a new service worker reaching every browser.
      *
      * "The mail it was woken for" is recent unread mail under one of this
-     * user's switches (NotifyScopes::hasRecentUnread()), not the Inbox's
-     * unread count: last week's unread newsletters, in a tab nobody asked to
-     * hear about, would otherwise keep every notification alive.
+     * user's switches (NotifyScopes::recentUnread()), not the Inbox's unread
+     * count: last week's unread newsletters, in a tab nobody asked to hear
+     * about, would otherwise keep every notification alive.
+     *
+     * And, for somebody who asked for it (User::$notifyShowsContent, #760),
+     * what the notification says about that mail: $notice, the sender and the
+     * subject as finished strings in the reader's language, or null, and the
+     * worker then says "New mail". Answered here rather than carried by the
+     * push for the same reason: the push stays content-free. See NewMailNotice.
      */
     #[Route('/inbox-state', name: 'inbox_state', methods: ['GET'])]
-    public function inboxState(NotifyScopes $notifyScopes): JsonResponse
+    public function inboxState(NotifyScopes $notifyScopes, NewMailNotice $notices): JsonResponse
     {
         /** @var User $user */
-        $user = $this->getUser();
+        $user   = $this->getUser();
+        $recent = true === $user->notifySkipsRead || true === $user->notifyShowsContent ? $notifyScopes->recentUnread($user) : [];
 
         return $this->json([
             'skipRead'  => $user->notifySkipsRead,
-            'hasUnread' => true === $user->notifySkipsRead && true === $notifyScopes->hasRecentUnread($user),
+            'hasUnread' => true === $user->notifySkipsRead && [] !== $recent,
             'delay'     => self::SKIP_READ_DELAY_SECONDS,
+            'notice'    => true === $user->notifyShowsContent ? $notices->for($recent) : null,
         ]);
     }
 

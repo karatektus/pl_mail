@@ -3441,6 +3441,9 @@ message:
             to: À
         heading: Message original
         reconstructed: 'Les octets d’origine de ce message n’ont pas été conservés : ceci est une reconstruction à partir des en-têtes stockés et du corps en texte. La structure MIME et toute partie HTML manquent, et il ne sera pas validé par une signature DKIM.'
+    push_notice:
+        several: '{1}1 nouveau message|]1,Inf[ %count% nouveaux messages'
+        unknown_sender: 'Expéditeur inconnu'
     quote:
         hide: Masquer le texte cité
         show: Afficher le texte cité
@@ -5417,7 +5420,7 @@ settings:
             list_content: 'pièces jointes puces trombone fichiers libellés expéditeur date heure nombre répondu'
             list_layout: 'lignes une ligne compact dense aperçu empilé largeur'
             list_markers: 'étoile survol avatar pastille compte coin non lu gras'
-            notifications: "push navigateur téléphone son alerte"
+            notifications: "push navigateur téléphone son alerte expéditeur objet"
             password: "connexion identifiant"
             pinning: 'épingler épinglé punaise haut rappel pin'
             profile: "nom avatar photo image"
@@ -5477,6 +5480,8 @@ settings:
         notify_for_hint: 'Quel courrier déclenche une notification : une case par onglet de la boîte de réception et par libellé. S’applique à tous vos navigateurs et à l’application Android. Si rien n’est coché, aucun courrier ne notifie.'
         'off': 'Désactivé'
         'on': 'Activé'
+        show_content: 'Afficher l’expéditeur et l’objet'
+        show_content_hint: 'Une notification du navigateur indique qui a écrit et l’objet, au lieu de seulement « New mail ». Ils s’affichent alors aussi sur l’écran verrouillé. S’applique à tous vos navigateurs.'
         skip_read: 'Notifier seulement le courrier non lu'
         skip_read_hint: 'Avant d’afficher une notification du navigateur, plMail attend quelques secondes et vérifie si le nouveau courrier est toujours non lu. Si vous l’avez déjà lu ou supprimé, par exemple sur votre téléphone, rien n’est affiché.'
         state_denied: >-

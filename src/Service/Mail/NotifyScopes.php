@@ -116,7 +116,21 @@ final readonly class NotifyScopes
      */
     public function hasRecentUnread(User $user, ?DateTimeImmutable $now = null): bool
     {
-        $since = ($now ?? new DateTimeImmutable())->modify(sprintf('-%d minutes', self::RECENT_MINUTES));
+        return [] !== $this->recentUnread($user, $now);
+    }
+
+    /**
+     * That recent unread mail itself, newest first — what a notification that
+     * names the sender and the subject is about (#760). The same rule as
+     * hasRecentUnread(), so the two can never disagree about which mail a push
+     * was for.
+     *
+     * @return list<Message>
+     */
+    public function recentUnread(User $user, ?DateTimeImmutable $now = null): array
+    {
+        $since  = ($now ?? new DateTimeImmutable())->modify(sprintf('-%d minutes', self::RECENT_MINUTES));
+        $wanted = [];
 
         foreach ($this->messages->findRecentUnreadForUser($user, $since) as $message) {
             if (true === $message->isSetAside()) {
@@ -125,12 +139,14 @@ final readonly class NotifyScopes
 
             foreach ($this->forMessage($message, $message->isInInbox()) as $scope) {
                 if (true === $user->notifiesFor($scope)) {
-                    return true;
+                    $wanted[] = $message;
+
+                    continue 2;
                 }
             }
         }
 
-        return false;
+        return $wanted;
     }
 
     /**

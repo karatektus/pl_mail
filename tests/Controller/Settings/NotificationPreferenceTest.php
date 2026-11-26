@@ -221,13 +221,118 @@ final class NotificationPreferenceTest extends WebTestCase
         self::assertResponseRedirects();
     }
 
+    /** "Show sender and subject" (#760): off until switched on, and off again is the absent key. */
+    public function testShowContentSwitchesOnAndOffAgain(): void
+    {
+        self::assertSame('0', $this->client->request('GET', '/settings/notifications')->filter('input[name="showContent"]:checked')->attr('value'));
+
+        $this->post(['showContent' => '1']);
+
+        self::assertTrue($this->reread()->notifyShowsContent);
+        self::assertSame('1', $this->client->request('GET', '/settings/notifications')->filter('input[name="showContent"]:checked')->attr('value'));
+
+        // A post that does not mention it leaves it alone.
+        $this->post(['skipRead' => '1']);
+        self::assertTrue($this->reread()->notifyShowsContent);
+
+        $this->post(['showContent' => '0']);
+
+        self::assertFalse($this->reread()->notifyShowsContent);
+        self::assertNull($this->reread()->getSetting(User::SETTING_NOTIFY_SHOW_CONTENT));
+    }
+
+    /**
+     * The words a notification shows (#760): only for somebody who asked, and
+     * then the sender, the subject and the conversation to open — of the mail
+     * the push was about, not of anything unread.
+     */
+    public function testTheNoticeNamesTheSenderAndTheSubjectOnlyWhenAsked(): void
+    {
+        $message = $this->arrived('Lunch on Friday', minutesAgo: 1, from: 'Ada Lovelace');
+
+        self::assertNull($this->inboxState()['notice'], 'off: the worker says "New mail"');
+
+        $this->post(['showContent' => '1']);
+
+        $state = $this->inboxState();
+
+        self::assertSame(
+            ['title' => 'Ada Lovelace', 'body' => 'Lunch on Friday', 'url' => sprintf('/mail/thread/%d', $message->thread?->id)],
+            $state['notice'],
+        );
+        self::assertFalse($state['hasUnread'], 'the skip-read check is its own switch, still off');
+    }
+
+    /**
+     * Several at once is what arrived together with the newest, not all that
+     * is unread: a letter from five minutes ago must not turn the next
+     * notification into "2 new messages" and hide the subject that just came.
+     */
+    public function testTheNoticeCountsWhatArrivedTogetherAndNothingEarlier(): void
+    {
+        $this->post(['showContent' => '1']);
+
+        $this->arrived('Five minutes old', minutesAgo: 5, from: 'Early Bird');
+        $this->arrived('Just in', minutesAgo: 1, from: 'Ada Lovelace');
+
+        $notice = $this->inboxState()['notice'];
+
+        self::assertSame('Ada Lovelace', $notice['title'] ?? null, 'the newest alone, not "2 new messages"');
+        self::assertSame('Just in', $notice['body'] ?? null);
+
+        $this->arrived('Came with it', minutesAgo: 1, from: 'Grace Hopper');
+
+        $notice = $this->inboxState()['notice'];
+
+        self::assertSame('2 new messages', $notice['title'] ?? null);
+        self::assertStringContainsString('Ada Lovelace', $notice['body'] ?? '');
+        self::assertStringContainsString('Grace Hopper', $notice['body'] ?? '');
+        self::assertStringNotContainsString('Early Bird', $notice['body'] ?? '', 'the earlier letter is not part of this delivery');
+        self::assertSame('/mail/inbox', $notice['url'] ?? null);
+    }
+
+    /** Mail the reader did not tick, read already or old says nothing: "New mail" then. */
+    public function testTheNoticeLeavesOutMailNobodyAskedFor(): void
+    {
+        $this->post(['showContent' => '1']);
+
+        $this->arrived('A promotion', minutesAgo: 1, category: MessageCategory::Promotions, from: 'A Shop');
+        $this->arrived('Last week', minutesAgo: 60 * 24 * 7, from: 'Old Friend');
+
+        $read         = $this->arrived('Read on the phone', minutesAgo: 1, from: 'Ada Lovelace');
+        $read->seenAt = new DateTimeImmutable();
+        $this->em->flush();
+
+        self::assertNull($this->inboxState()['notice']);
+    }
+
+    /** The server writes the words, so they are in the reader's language, fallbacks included. */
+    public function testTheNoticeIsInTheReadersLanguage(): void
+    {
+        $this->user->locale = 'de';
+        $this->em->flush();
+        $this->post(['showContent' => '1']);
+
+        $this->arrived('', minutesAgo: 1);
+
+        self::assertSame(
+            ['sender@example.test', '(kein Betreff)'],
+            [$this->inboxState()['notice']['title'] ?? null, $this->inboxState()['notice']['body'] ?? null],
+            'no name: the address; no subject: said so',
+        );
+
+        $this->arrived('Zweite', minutesAgo: 1, from: 'Grace Hopper');
+
+        self::assertSame('2 neue Nachrichten', $this->inboxState()['notice']['title'] ?? null);
+    }
+
     /**
      * An unread message that reached the Inbox $minutesAgo — stored then, as
      * the endpoint asks by when plMail stored it, and dated then too.
      */
-    private function arrived(string $subject, int $minutesAgo, MessageCategory $category = MessageCategory::Primary): Message
+    private function arrived(string $subject, int $minutesAgo, MessageCategory $category = MessageCategory::Primary, ?string $from = null): Message
     {
-        $thread  = $this->thread($subject, $category, sprintf('-%d minutes', $minutesAgo), unread: 1);
+        $thread  = $this->thread($subject, $category, sprintf('-%d minutes', $minutesAgo), unread: 1, fromName: $from);
         $message = $thread->messages->first();
         self::assertInstanceOf(Message::class, $message);
 
@@ -244,7 +349,7 @@ final class NotificationPreferenceTest extends WebTestCase
         return $message;
     }
 
-    /** @return array{skipRead: bool, hasUnread: bool, delay: int} */
+    /** @return array{skipRead: bool, hasUnread: bool, delay: int, notice: array{title: string, body: string, url: string}|null} */
     private function inboxState(): array
     {
         $this->client->request('GET', '/settings/push/inbox-state');
