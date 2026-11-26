@@ -224,6 +224,9 @@ test.describe("account form — incoming protocol", () => {
 
             await chooseProtocol(page, "IMAP");
             await expect(page.locator(PORT)).toHaveValue("993");
+            // Other servers now: the stored password only goes to the ones it
+            // was saved for, so it is typed again (StoredSecretTarget, #799).
+            await page.locator('input[name="account[password]"]').fill("hunter2");
             await modal.locator('button[type="submit"]').click();
             await expect(page.locator("#modal " + HOST)).toHaveCount(0);
 
