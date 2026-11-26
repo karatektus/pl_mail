@@ -163,16 +163,34 @@ export default class extends Controller {
             close: () => this.#close(kind),
         }));
 
+        // A view picked in the calendar's toolbar, for frameLoaded() to tell
+        // from a step to the next month. A calendar the server drew is shown
+        // already; a parked one gets room for its view on its first load.
+        const calendarSlot = this.slots.get("calendar");
+
+        if (calendarSlot?.querySelector("[data-pane-min-width]")) {
+            calendarSlot.setAttribute("data-calendar-shown", "");
+        }
+
+        this._onViewPick = (event) => {
+            if (event.target.closest?.("[data-calendar-views] a")) {
+                this._viewPicked = true;
+            }
+        };
+        calendarSlot?.addEventListener("click", this._onViewPick, true);
+
         // A change still waiting to be sent goes when the page does, not with
         // it. keepalive (#post) lets the request outlive the document.
         this._onLeave = () => this.#flush();
         window.addEventListener("pagehide", this._onLeave);
 
         this.#arrange();
+        this.#placeThumb(false);
     }
 
     disconnect() {
         window.removeEventListener("pagehide", this._onLeave);
+        this.slots.get("calendar")?.removeEventListener("click", this._onViewPick, true);
         this.narrow.removeEventListener("change", this._onNarrow);
         this.rootTarget.removeEventListener("pointerdown", this._onFocus, true);
         this.rootTarget.removeEventListener("focusin", this._onFocus);
@@ -180,6 +198,7 @@ export default class extends Controller {
         this._unregister.forEach((unregister) => unregister());
         this.#closePopover();
         this.#endDrag();
+        this.element.classList.remove("is-resizing-row", "is-resizing-col");
 
         // Sent, not dropped: a Turbo visit disconnects this mid-pause.
         this.#flush();
@@ -368,18 +387,29 @@ export default class extends Controller {
             this.#updateEditSizes();
         };
 
+        // Ends the drag however it ends, once. Heard on the window, not the
+        // divider: a divider taken out of the page mid-drag (a render) never
+        // hears its pointerup — nor its lostpointercapture, which goes to the
+        // document — and the resize cursor, a class on the root, stayed on
+        // everything until a reload.
+        let ended = false;
         const up = () => {
-            divider.removeEventListener("pointermove", move);
-            divider.removeEventListener("pointerup", up);
-            divider.removeEventListener("pointercancel", up);
+            if (ended) {
+                return;
+            }
+
+            ended = true;
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", up);
+            window.removeEventListener("pointercancel", up);
             divider.classList.remove("is-dragging");
             this.element.classList.remove("is-resizing-row", "is-resizing-col");
             this.#rememberSizes(split);
         };
 
-        divider.addEventListener("pointermove", move);
-        divider.addEventListener("pointerup", up);
-        divider.addEventListener("pointercancel", up);
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+        window.addEventListener("pointercancel", up);
     }
 
     /** Arrow keys on a focused divider; the arrows across its line, not along it. */
@@ -764,12 +794,17 @@ export default class extends Controller {
      * and below lg the list becomes the tab. The old calendar switch demoted
      * itself the same way (#755 replaced it).
      *
-     * The calendar: the view it landed on may need more room — a week or a
-     * month is seven columns (CalendarView::minimumPaneWidth(), read from
-     * INSIDE the frame because Turbo keeps the frame element's own attributes
-     * from the first load). The pane's minimum rises, and if it is narrower
-     * than that it is widened at its row-neighbours' expense, never the other
-     * way: a pane somebody dragged wider keeps its width.
+     * The calendar: a view PICKED in its toolbar, or the view a parked
+     * calendar first loads with, gets the room it needs — a week or a month
+     * is seven columns (CalendarView::minimumPaneWidth(), read from INSIDE the
+     * frame because Turbo keeps the frame element's own attributes from the
+     * first load). The pane is widened at its row-neighbours' expense, never
+     * narrowed: a pane somebody dragged wider keeps its width. Its MINIMUM
+     * stays the calendar's floor (Day's width), so the divider can still take
+     * a month narrower; it used to rise with the view, which left a pane
+     * showing Month unable to be dragged below 720px when Day was a click
+     * away. Stepping to the next month is a load too, and does not throw a
+     * pane dragged narrow wide again.
      */
     frameLoaded(event) {
         const frame = event.target;
@@ -791,8 +826,14 @@ export default class extends Controller {
             return;
         }
 
-        slot.dataset.minW = String(wanted);
-        this.#widen("calendar", wanted);
+        const picked = true === this._viewPicked || false === slot.hasAttribute("data-calendar-shown");
+
+        this._viewPicked = false;
+        slot.setAttribute("data-calendar-shown", "");
+
+        if (picked) {
+            this.#widen("calendar", wanted);
+        }
     }
 
     resized() {
@@ -1180,8 +1221,8 @@ export default class extends Controller {
             return;
         }
 
+        // No toast: the tab sliding over says where the mail went.
         this.#switchTo(other);
-        this.#toast(this.stringsValue.followed.replace("%name%", this.#workspace().name));
 
         // That workspace may have something else at full width on this
         // device: the list is what was asked for.
@@ -1542,7 +1583,10 @@ export default class extends Controller {
             return;
         }
 
-        this.workspaceTabsTarget.replaceChildren(...this.doc.workspaces.map((workspace, index) => {
+        const thumb = this.workspaceTabsTarget.querySelector("[data-workspace-thumb]");
+        const before = this.workspaceTabsTarget.querySelector("[aria-pressed='true']")?.dataset.layoutWorkspaceIndexParam;
+
+        this.workspaceTabsTarget.replaceChildren(...(thumb ? [thumb] : []), ...this.doc.workspaces.map((workspace, index) => {
             const button = document.createElement("button");
             const name = document.createElement("span");
             button.type = "button";
@@ -1556,6 +1600,30 @@ export default class extends Controller {
 
             return button;
         }));
+
+        // Slides only when the active tab changed; a rename or a new tab
+        // just puts it where it belongs.
+        this.#placeThumb(undefined !== before && String(this.doc.active) !== before);
+    }
+
+    /**
+     * The highlight under the active workspace tab. Its own element, so a
+     * switch can slide it from one tab to the other rather than the pressed
+     * background jumping (see app.css, .workspace-tab-thumb).
+     */
+    #placeThumb(slide) {
+        const nav = this.hasWorkspaceTabsTarget ? this.workspaceTabsTarget : null;
+        const thumb = nav?.querySelector("[data-workspace-thumb]");
+        const active = nav?.querySelector("[aria-pressed='true']");
+
+        if (!thumb || !active || 0 === active.offsetWidth) {
+            return;
+        }
+
+        nav.toggleAttribute("data-thumb-sliding", slide);
+        thumb.style.transform = `translateX(${active.offsetLeft}px)`;
+        thumb.style.width = `${active.offsetWidth}px`;
+        nav.setAttribute("data-thumb-ready", "");
     }
 
     #icon(kind) {

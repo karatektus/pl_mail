@@ -3225,7 +3225,6 @@ layout:
         at_edge: "Dieser Bereich ist schon an diesem Rand."
         deleted: "„%name%“ gelöscht."
         edit_first: "Speichere oder verwirf zuerst den Arbeitsbereich, den du bearbeitest."
-        followed: "Zu „%name%“ gewechselt, dort ist die Mailliste."
         no_list: "Dieser Arbeitsbereich hat keine Mailliste, deshalb wird sie in voller Breite gezeigt."
         no_room: "Neben %pane% ist nicht genug Platz. Mach den Bereich zuerst größer oder schließ einen anderen."
         only_pane: "Das ist der einzige Bereich. Wähl mit „Stattdessen zeigen“ etwas anderes dafür."

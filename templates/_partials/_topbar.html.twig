@@ -391,6 +391,9 @@
         {% set workspaces = layout.workspaces %}
         <nav class="max-lg:hidden workspace-tabs" aria-label="{{ 'layout.workspace.tabs_label'|trans }}"
              data-layout--workspace-target="workspaceTabs">
+            {# The highlight under the active tab, its own element so it can
+               slide from tab to tab (layout--workspace places it). #}
+            <span class="workspace-tab-thumb" data-workspace-thumb aria-hidden="true"></span>
             {% for space in workspaces.all %}
                 <button type="button"
                         class="workspace-tab"

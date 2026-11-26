@@ -3221,7 +3221,6 @@ layout:
         at_edge: "That pane is already at that edge."
         deleted: "Deleted “%name%”."
         edit_first: "Save or cancel the workspace you are editing first."
-        followed: "Switched to “%name%”, which has the mail list."
         no_list: "This workspace has no mail list, so the list is shown at full width."
         no_room: "Not enough room beside %pane%. Make it bigger first, or close a pane."
         only_pane: "This is the only pane. Pick something else for it with Show instead."

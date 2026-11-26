@@ -64,6 +64,8 @@ export default class extends Controller {
         window.removeEventListener("resize", this._onResize);
         window.removeEventListener("side-pane:changed", this._onResize);
         this._stopListening();
+        this._dragging = false;
+        document.body.classList.remove("select-none", "cursor-col-resize");
     }
 
     start(event) {
@@ -84,6 +86,9 @@ export default class extends Controller {
         window.addEventListener("pointermove", this._onMove);
         window.addEventListener("pointerup", this._onUp);
         window.addEventListener("pointercancel", this._onUp);
+        // A handle that loses the pointer mid-drag gets no pointerup; without
+        // this the resize cursor stayed on the whole page (#755).
+        this.handleTarget.addEventListener("lostpointercapture", this._onUp);
 
         document.body.classList.add("select-none", "cursor-col-resize");
     }
@@ -131,6 +136,10 @@ export default class extends Controller {
     }
 
     _onUp() {
+        if (true !== this._dragging) {
+            return;
+        }
+
         this._stopListening();
         this._dragging = false;
         document.body.classList.remove("select-none", "cursor-col-resize");
@@ -141,6 +150,7 @@ export default class extends Controller {
         window.removeEventListener("pointermove", this._onMove);
         window.removeEventListener("pointerup", this._onUp);
         window.removeEventListener("pointercancel", this._onUp);
+        this.handleTarget?.removeEventListener("lostpointercapture", this._onUp);
 
         if (this._pointerId !== undefined) {
             this.handleTarget?.releasePointerCapture?.(this._pointerId);

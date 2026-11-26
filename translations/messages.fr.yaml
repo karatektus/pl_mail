@@ -3238,7 +3238,6 @@ layout:
         at_edge: "Ce volet est déjà sur ce bord."
         deleted: "« %name% » supprimé."
         edit_first: "Enregistrez ou annulez d'abord l'espace de travail en cours de modification."
-        followed: "Passage à « %name% », qui contient la liste des messages."
         no_list: "Cet espace de travail n'a pas de liste des messages, elle est donc affichée en pleine largeur."
         no_room: "Pas assez de place à côté de %pane%. Agrandissez-le d'abord ou fermez un volet."
         only_pane: "C'est le seul volet. Choisissez autre chose pour lui avec Afficher à la place."

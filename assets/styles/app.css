@@ -2895,6 +2895,7 @@
 
 /* ── The topbar's workspace tabs ─────────────────────────────────────────── */
 .workspace-tabs {
+    position: relative;
     display: inline-flex;
     gap: 2px;
     min-width: 0;
@@ -2923,10 +2924,50 @@
     color: var(--color-ink);
 }
 
+.workspace-tab {
+    position: relative;
+    z-index: 1;
+}
+
 .workspace-tab[aria-pressed="true"] {
     background-color: rgb(var(--rgb-surface));
     color: var(--color-ink);
     box-shadow: 0 1px 2px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 2));
+}
+
+/* The highlight, once layout--workspace has placed it: the pressed tab gives
+   its own background up to it, and a switch slides it from tab to tab. Before
+   that (the first paint, or no script) the pressed tab draws its own. Slides
+   only at Full motion; Minimal and None move it at once, nothing travelling. */
+.workspace-tab-thumb {
+    position: absolute;
+    top: 3px;
+    left: 0;
+    height: 1.875rem;
+    border-radius: 0.375rem;
+    background-color: rgb(var(--rgb-surface));
+    box-shadow: 0 1px 2px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 2));
+    opacity: 0;
+    pointer-events: none;
+}
+
+.workspace-tabs[data-thumb-ready] .workspace-tab-thumb {
+    opacity: 1;
+}
+
+.workspace-tabs[data-thumb-ready] .workspace-tab[aria-pressed="true"] {
+    background-color: transparent;
+    box-shadow: none;
+}
+
+[data-motion="full"] .workspace-tabs[data-thumb-sliding] .workspace-tab-thumb {
+    transition: transform var(--motion-slow) var(--motion-ease), width var(--motion-slow) var(--motion-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .workspace-tabs .workspace-tab-thumb {
+        transition: none !important;
+    }
 }
 
 @media (max-width: 1023px) {
