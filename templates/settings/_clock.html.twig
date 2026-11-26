@@ -69,7 +69,10 @@ says how a time is written, that one where the time now is written.
                 data-action="change->ui--auto-submit#submit"
                 {{ select.enhance() }}
                 class="select-field w-full h-9 text-sm">
-            {% for placement in clockPlacements %}
+            {# In the sidebar is not a placement any more (#783): the Mail
+               sidebar has its own clock switch in the workspace settings, and
+               a sidebar of one's own a Clock row. #}
+            {% for placement in clockPlacements|filter(p => p.value != 'sidebar') %}
                 <option value="{{ placement.value }}" {{ placement == activeClockPlacement ? 'selected' : '' }}>
                     {{ placement.transKey|trans }}
                 </option>

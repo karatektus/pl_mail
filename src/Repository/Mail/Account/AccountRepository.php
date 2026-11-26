@@ -81,7 +81,7 @@ class AccountRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('account')
             ->andWhere('account.incomingProtocol = :jmap')
             ->andWhere('account.pushEnabled = true')
-            ->andWhere('account.mailEnabled = true OR account.calendarEnabled = true OR account.contactsEnabled = true')
+            ->andWhere('account.mailEnabled = true OR account.calendarEnabled = true OR account.contactsEnabled = true OR account.tasksEnabled = true')
             ->setParameter('jmap', IncomingProtocol::Jmap)
             ->orderBy('account.id', 'ASC')
             ->getQuery()

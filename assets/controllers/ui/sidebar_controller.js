@@ -817,6 +817,19 @@ export default class extends Controller {
      * opposite until it next re-renders. Mirrored here rather than left to the
      * next navigation — opening the drawer to find the section you just
      * collapsed still expanded reads as the preference not having saved.
+     *
+     * Only a CHANGE is sent (#745). `toggle` is not a click event: the browser
+     * fires it for every `<details open>` put into the live document, and a
+     * Turbo stream puts its markup in by cloning it there. So every stream
+     * that redraws a tree or the whole sidebar (a label change in any tab;
+     * the whole sidebar when labels are listed by account) fired it once per
+     * open disclosure, twice over for the two copies — a POST each, saving the
+     * state the server had just rendered. Seen at hundreds a minute.
+     * (A Drive visit does not: Turbo parses the page elsewhere and moves the
+     * nodes in, which fires nothing.) `data-collapse-saved` is that
+     * rendered state, so a toggle that agrees with it is a render, not a
+     * person, and is not sent. It is moved along with every change, on both
+     * copies, so the mirrored toggle below also agrees and is not sent twice.
      */
     rememberCollapse(event) {
         const details = event.target;
@@ -827,6 +840,11 @@ export default class extends Controller {
         }
 
         this._announce(details);
+
+        if (details.open === ("open" === details.dataset.collapseSaved)) {
+            return;
+        }
+
         this._mirror(key, details.open);
         this._persistCollapse(key, false === details.open);
     }
@@ -845,19 +863,23 @@ export default class extends Controller {
             ?.setAttribute("aria-expanded", details.open ? "true" : "false");
     }
 
-    /** The other copy of this sidebar, if it is on the page. */
+    /**
+     * Record the new state on every copy, and open or shut the other one.
+     *
+     * The record comes first: assigning `open` fires `toggle` on the other
+     * copy, which lands back in rememberCollapse, and it is the record already
+     * agreeing that makes that second pass announce only — no loop, and no
+     * second POST of the same preference.
+     */
     _mirror(key, open) {
         document
             .querySelectorAll(`details[data-collapse-key="${CSS.escape(key)}"]`)
             .forEach((other) => {
-                if (other.open === open) {
-                    return;
-                }
+                other.dataset.collapseSaved = open ? "open" : "closed";
 
-                // Assigning fires `toggle` on the other one too, which lands
-                // back here — the guard above makes that second pass a no-op
-                // rather than a loop, since by then the two already agree.
-                other.open = open;
+                if (other.open !== open) {
+                    other.open = open;
+                }
             });
     }
 
@@ -866,6 +888,12 @@ export default class extends Controller {
      * the click that collapses a section is often the click that navigates, and
      * a preference that fails to save is not worth interrupting anyone over —
      * the section is shut either way, it just will not be next time.
+     *
+     * `redirect: "error"`, because the answer is JSON or nothing. A refused
+     * request used to come back as a redirect to the login page, which fetch()
+     * followed on to the inbox — a whole mailbox rendered for a reply nobody
+     * reads (#745). The server no longer answers that way, and this keeps a
+     * redirect from anywhere else from costing the same.
      */
     _persistCollapse(key, collapsed) {
         if (false === this.hasCollapseUrlValue) {
@@ -877,6 +905,7 @@ export default class extends Controller {
             headers: jsonCsrfHeaders(),
             body: JSON.stringify({ key, collapsed }),
             keepalive: true,
+            redirect: "error",
         }).catch(() => {});
     }
 

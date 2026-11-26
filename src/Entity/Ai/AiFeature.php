@@ -48,4 +48,15 @@ enum AiFeature: string
      * for the reason Summary's note above gives.
      */
     case ContactHelp = 'contact_help';
+
+    /**
+     * Translating one message into the reader's language, on request — needs
+     * the CHAT model.
+     *
+     * Its own switch rather than riding on Summary: a summary is read beside
+     * the mail, a translation is read instead of it, and an operator may trust
+     * a model with the first and not with the second. Added last for the reason
+     * Summary's note above gives.
+     */
+    case Translation = 'translation';
 }

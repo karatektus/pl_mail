@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Mail;
 
-use App\Domain\Enum\Calendar\CalendarPaneMode;
+use App\Domain\DTO\Layout\LayoutNode;
+use App\Domain\DTO\Layout\Workspace;
+use App\Domain\DTO\Layout\Workspaces;
+use App\Domain\Enum\Layout\PaneKind;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
+use App\Entity\User\User;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\DataCollector\DoctrineDataCollector;
@@ -102,7 +106,14 @@ final class ThreadListQueryBudgetTest extends WebTestCase
     // and the administrator's lookup switch — three reads per PAGE, made once
     // for every sender on it (SenderPictures::preload() from ThreadRows). A
     // fourth, the looked-up pictures, is made only while lookups are on.
-    private const int BUDGET = 34;
+    //
+    // 36 since the page knows what is about to happen (#783): the dot on
+    // Happening soon and the moment the workspace tabs' "new" counts can
+    // change by the clock alone — one read over the calendars and one over
+    // the tasks, each answering both (WorkspaceNews::pulse()). The other
+    // workspaces' counts add nothing for somebody with one workspace, which
+    // the fixture user is.
+    private const int BUDGET = 36;
 
     /**
      * The ceiling for the INBOX alone: one above BUDGET, and the one read that
@@ -119,10 +130,10 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * the ceiling they had: a shared ceiling raised for one view would let each
      * of the others regress by a query and still pass.
      *
-     * Raised with BUDGET, by the same two reads, for #265, and by the same
-     * three for #639.
+     * Raised with BUDGET, by the same two reads, for #265, by the same
+     * three for #639, and by the same two for #783.
      */
-    private const int INBOX_BUDGET = 35;
+    private const int INBOX_BUDGET = 37;
 
     /**
      * The ceiling for the same list NAVIGATED rather than visited.
@@ -209,11 +220,14 @@ final class ThreadListQueryBudgetTest extends WebTestCase
         $this->account = $this->seedAccount();
         $this->inbox   = $this->seedLabel('Inbox', LabelRole::Inbox);
 
-        // The calendar pane shut. It is open by default now, and an open pane
-        // arrives with its body embedded: a fixed handful of queries of its
-        // own, the same on an empty list as on a full one. What this measures
-        // is what the LIST costs, so the pane stays out of the count.
-        $this->user->calendarPaneMode = CalendarPaneMode::Mail;
+        // A workspace of the list alone. The calendar is in a new user's first
+        // workspace, and a pane on screen arrives with its body embedded: a
+        // fixed handful of queries of its own, the same on an empty list as on
+        // a full one. What this measures is what the LIST costs, so the other
+        // panes stay out of the count.
+        $this->user->setSetting(User::SETTING_WORKSPACES, (new Workspaces([
+            new Workspace('w1', 'Mail', LayoutNode::pane(PaneKind::List)),
+        ], 0))->toArray());
         $this->em->flush();
 
         $this->client->loginUser($this->user);

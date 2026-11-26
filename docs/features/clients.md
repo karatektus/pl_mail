@@ -120,9 +120,9 @@ Re-subscribing from the same browser replaces its registration rather than pilin
 **What it notifies about.** A device registered here is told when new mail arrives that falls under
 one of your notification switches (below), and about nothing else: not reading, starring, archiving
 or moving something, not spam, not a draft or a copy of something you sent, and not mail being
-imported or arriving in a mailbox that is still importing. The notification says only "New mail";
-it carries no sender or subject. A message whose arrival time plMail cannot work out from its
-headers is not announced.
+imported or arriving in a mailbox that is still importing. The notification says "New mail", or
+who wrote and the subject if you ask for that (below). A message whose arrival time plMail cannot
+work out from its headers is not announced.
 
 Mail counts as new only once your [filters](filters.md) have run. A message a filter marks as read
 or moves to Trash or Spam is not announced, and one it archives only for a label you ticked (below).
@@ -142,12 +142,21 @@ on the server; the app gets every change (it needs them to stay in sync) and dec
 boxes on the phone. Mail the assistant is still sorting is announced once it has been put in its tab,
 a few seconds late and only once.
 
+**Show sender and subject** (off by default) puts who wrote and the subject in a browser's
+notification instead of "New mail", and a click opens that conversation. Mail that came in together,
+a sync that brought three, is one notification: "3 new messages" and who sent them. A click on any
+plMail notification uses the plMail tab you have open, as Gmail does, and opens a new one only when
+there is none. The words never travel with the push. The push service learns only that something
+changed, and the browser asks plMail for the words over your own session when the push arrives, so a
+browser that cannot reach plMail at that moment says "New mail". They then show on a locked screen
+as well. Like the boxes above, it applies to every browser of yours.
+
 **Only notify for unread mail** (off by default) deals with a push that cannot be recalled: with
 notifications on in several browsers, each one says "New mail" even when you read or deleted the
 message on your phone a minute later. A browser with this on waits twenty seconds after the push and
-asks whether mail from the last fifteen minutes that falls under a ticked box is still unread. If
-not, it shows nothing, and it takes down a notification it had shown for earlier mail. Old unread
-mail does not count, and neither does unread mail in a tab or label you did not tick.
+asks whether the mail the push was about, or anything that came after it, is still unread. If not,
+it shows nothing, and it takes down a notification it had shown for earlier mail. Unread mail from
+before the push does not count, and neither does unread mail in a tab or label you did not tick.
 
 Two other kinds of push go to the same devices and are not affected: a reminder from
 [Calendar alerts](calendar-alerts.md), and the notice an administrator gets when a newer plMail is

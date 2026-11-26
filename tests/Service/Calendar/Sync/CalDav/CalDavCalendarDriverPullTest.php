@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Calendar\Sync\CalDav;
 
 use App\Domain\Exception\CalendarResyncRequiredException;
+use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\CalendarSyncThrottledException;
 use PHPUnit\Framework\TestCase;
@@ -160,6 +161,63 @@ final class CalDavCalendarDriverPullTest extends TestCase
         self::assertStringContainsString('/calendars/alice/personal/standup.ics', $fixture->body(2));
         self::assertCount(1, $changes->events);
         self::assertSame('Standup', $changes->events[0]->jscalendar['title'] ?? null);
+    }
+
+    /**
+     * #637: iCloud answers a 404 for every absolute URL in a calendar-multiget
+     * and returns the events for their paths. The sync report here hands out
+     * absolute hrefs, as some servers do, and the multiget still asks by path.
+     */
+    public function testTheMultigetAsksByPathEvenForAbsoluteHrefs(): void
+    {
+        $fixture = new CalDavFixture(
+            CalDavFixture::multistatus($this->collectionProbe(syncCollection: true)),
+            CalDavFixture::multistatus($this->etagsOnlyReport('https://dav.example.com/calendars/alice/personal/standup.ics')),
+            CalDavFixture::multistatus($this->multigetResponse()),
+        );
+
+        $changes = $fixture->driver->pull(CalDavFixture::calendar(), 'sync-token-17');
+
+        self::assertStringContainsString('<d:href>/calendars/alice/personal/standup.ics</d:href>', $fixture->body(2));
+        self::assertStringNotContainsString('https://', $fixture->body(2));
+        self::assertSame('https://dav.example.com/calendars/alice/personal/standup.ics', $changes->events[0]->remoteId, 'events stay keyed on the absolute URL');
+    }
+
+    /**
+     * What iCloud did before #637: a 207 with a 404 for every href. That used
+     * to be an empty change set, and the stored token then kept the events
+     * from ever being asked for again.
+     */
+    public function testAMultigetThatReturnsNothingFailsSoTheTokenIsNotStored(): void
+    {
+        $fixture = new CalDavFixture(
+            CalDavFixture::multistatus($this->collectionProbe(syncCollection: true)),
+            CalDavFixture::multistatus($this->etagsOnlyReport()),
+            CalDavFixture::multistatus($this->notFound('/calendars/alice/personal/standup.ics')),
+        );
+
+        $this->expectException(CalendarSyncException::class);
+        $this->expectExceptionMessage('returned none of them');
+
+        $fixture->driver->pull(CalDavFixture::calendar(), 'sync-token-17');
+    }
+
+    /**
+     * One event deleted between the sync report and the multiget is normal:
+     * the others are kept, and the next report lists the deletion.
+     */
+    public function testAMultigetMissingSomeEventsKeepsTheOthers(): void
+    {
+        $fixture = new CalDavFixture(
+            CalDavFixture::multistatus($this->collectionProbe(syncCollection: true)),
+            CalDavFixture::multistatus($this->etagsOnlyReport('/calendars/alice/personal/standup.ics', '/calendars/alice/personal/gone.ics')),
+            CalDavFixture::multistatus(str_replace('</d:multistatus>', $this->notFoundResponse('/calendars/alice/personal/gone.ics') . '</d:multistatus>', $this->multigetResponse())),
+        );
+
+        $changes = $fixture->driver->pull(CalDavFixture::calendar(), 'sync-token-17');
+
+        self::assertCount(1, $changes->events);
+        self::assertSame('sync-token-18', $changes->nextSyncToken);
     }
 
     public function testTheCtagFallbackReportsNothingWhenTheCtagHasNotMoved(): void
@@ -392,21 +450,43 @@ final class CalDavCalendarDriverPullTest extends TestCase
             XML, CalDavFixture::calendarData(CalDavFixture::ics('first-1', 'First')));
     }
 
-    private function etagsOnlyReport(): string
+    private function etagsOnlyReport(string ...$hrefs): string
     {
-        return <<<'XML'
+        $responses = '';
+
+        foreach ([] === $hrefs ? ['/calendars/alice/personal/standup.ics'] : $hrefs as $i => $href) {
+            $responses .= sprintf(<<<'XML'
+                <d:response>
+                  <d:href>%s</d:href>
+                  <d:propstat>
+                    <d:prop><d:getetag>"etag-%d"</d:getetag></d:prop>
+                    <d:status>HTTP/1.1 200 OK</d:status>
+                  </d:propstat>
+                </d:response>
+                XML, $href, $i + 1);
+        }
+
+        return sprintf(<<<'XML'
             <?xml version="1.0" encoding="utf-8"?>
             <d:multistatus xmlns:d="DAV:">
-              <d:response>
-                <d:href>/calendars/alice/personal/standup.ics</d:href>
-                <d:propstat>
-                  <d:prop><d:getetag>"etag-1"</d:getetag></d:prop>
-                  <d:status>HTTP/1.1 200 OK</d:status>
-                </d:propstat>
-              </d:response>
+              %s
               <d:sync-token>sync-token-18</d:sync-token>
             </d:multistatus>
-            XML;
+            XML, $responses);
+    }
+
+    /** A multiget answer that found none of the hrefs, the way iCloud says it. */
+    private function notFound(string ...$hrefs): string
+    {
+        return sprintf(<<<'XML'
+            <?xml version="1.0" encoding="utf-8"?>
+            <d:multistatus xmlns:d="DAV:">%s</d:multistatus>
+            XML, implode('', array_map($this->notFoundResponse(...), $hrefs)));
+    }
+
+    private function notFoundResponse(string $href): string
+    {
+        return sprintf('<d:response><d:href>%s</d:href><d:status>HTTP/1.1 404 Not Found</d:status></d:response>', $href);
     }
 
     private function multigetResponse(): string

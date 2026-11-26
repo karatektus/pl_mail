@@ -64,8 +64,10 @@ final class TypeAheadSearch
 
     /**
      * @return list<TypeAheadHit>
+     *
+     * @param list<int>|null $only `space:<workspace>`'s accounts (#783); null is every account
      */
-    public function suggest(User $user, string $text, int $limit = 10): array
+    public function suggest(User $user, string $text, int $limit = 10, ?array $only = null): array
     {
         $free = $this->freeText->compile($text);
 
@@ -81,6 +83,10 @@ final class TypeAheadSearch
         // untouched, against 126ms when it is handed the ids. Measured, twice,
         // and reintroduced once in between.
         $accountIds = $this->accountRepository->findActiveIdsForUser($user);
+
+        if (null !== $only) {
+            $accountIds = array_values(array_intersect($accountIds, $only));
+        }
 
         if ([] === $accountIds) {
             return [];
@@ -148,6 +154,7 @@ final class TypeAheadSearch
                 receivedAt:  null !== $row['received_at']
                     ? new \DateTimeImmutable((string) $row['received_at'])
                     : null,
+                accountId:   isset($row['account_id']) ? (int) $row['account_id'] : null,
             );
 
             if (count($hits) >= $limit) {

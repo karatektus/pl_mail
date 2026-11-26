@@ -34,6 +34,8 @@ use Psr\Log\LoggerInterface;
  *
  * ── The two ways to read changes ──────────────────────────────────────────
  *
+ * Both are CalDavCollectionReader's, which the tasks' driver reads through too.
+ *
  * **sync-collection (RFC 6578) when the server advertises it.** One REPORT
  * carrying the stored token answers with the events that changed and a
  * `<status>404</status>` for each one removed, which is exactly a
@@ -85,50 +87,12 @@ use Psr\Log\LoggerInterface;
  */
 final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface, VerifiableDriverInterface
 {
-    /**
-     * Everything worth knowing about a collection, asked in one PROPFIND.
-     *
-     * Also used at Depth: 0 before a pull, because the two questions the pull
-     * has to answer first — can this server do sync-collection, and has
-     * anything changed — are two of these properties.
-     */
-    private const string COLLECTION_PROPS = <<<'XML'
-        <?xml version="1.0" encoding="utf-8"?>
-        <d:propfind xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav"
-                    xmlns:ical="http://apple.com/ns/ical/" xmlns:cs="http://calendarserver.org/ns/">
-          <d:prop>
-            <d:resourcetype/>
-            <d:displayname/>
-            <d:current-user-privilege-set/>
-            <d:supported-report-set/>
-            <d:sync-token/>
-            <cs:getctag/>
-            <ical:calendar-color/>
-            <cal:calendar-timezone/>
-            <cal:supported-calendar-component-set/>
-          </d:prop>
-        </d:propfind>
-        XML;
-
-    /**
-     * How many sync-collection pages one pull will follow.
-     *
-     * A server that truncates answers with a 507 on the collection's own href
-     * and a token to resume from (RFC 6578 §3.6), and the loop is what turns
-     * that into the one complete window the contract promises. Bounded because
-     * a server that always answers "truncated" with the same token would
-     * otherwise be an infinite loop inside a Messenger handler — twenty pages
-     * of a calendar is a big calendar, and stopping means the next poll
-     * continues from the last token rather than losing anything.
-     */
-    private const int MAX_SYNC_PAGES = 20;
-
     public function __construct(
-        private CalDavClient         $client,
-        private CalDavDiscovery      $discovery,
-        private MultiStatusParser    $parser,
-        private CalDavEventConverter $converter,
-        private LoggerInterface      $logger,
+        private CalDavClient           $client,
+        private CalDavDiscovery        $discovery,
+        private CalDavCollectionReader $reader,
+        private CalDavEventConverter   $converter,
+        private LoggerInterface        $logger,
     ) {
     }
 
@@ -201,19 +165,9 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
         $endpoint = $this->discovery->endpointFor($integration);
         $url      = $endpoint->collection ?? (string) $endpoint->home;
 
-        // Depth 1 on a home lists its children; Depth 0 on a single pasted
-        // collection asks about that collection alone. Same body, same parse.
-        $response = $this->client->request($integration, 'PROPFIND', $url, [
-            'headers' => [
-                'Depth'        => true === $endpoint->isSingleCollection() ? '0' : '1',
-                'Content-Type' => 'application/xml; charset=utf-8',
-            ],
-            'body' => self::COLLECTION_PROPS,
-        ]);
-
         $calendars = [];
 
-        foreach ($this->parser->parse($response['body']) as $resource) {
+        foreach ($this->reader->listCollections($integration, $endpoint) as $resource) {
             if (false === $resource->isCalendarCollection() || false === $this->holdsEvents($resource)) {
                 continue;
             }
@@ -244,13 +198,33 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
         $integration = $this->integrationOf($calendar);
         $collection  = $this->collectionOf($calendar);
 
-        $probe = $this->probeCollection($integration, $collection);
+        $read = $this->reader->read($integration, $collection, $syncToken, 'VEVENT');
 
-        if (true === $probe->contains('supported-report-set', 'sync-collection')) {
-            return $this->pullBySyncCollection($integration, $collection, $syncToken);
+        if (true === $read->requiresFullResync) {
+            return CalendarChangeSet::resyncRequired();
         }
 
-        return $this->pullByCtag($integration, $collection, $probe->prop('getctag'), $syncToken);
+        $events = [];
+
+        foreach ($read->changes as $change) {
+            if (true === $change->isDeleted()) {
+                $events[] = RemoteEvent::deleted($change->href);
+
+                continue;
+            }
+
+            $event = $this->converter->toRemoteEvent((string) $change->data, $change->href, $change->etag);
+
+            if (null === $event) {
+                $this->logger->info('CalDav: skipped a resource that is not a usable event', ['href' => $change->href]);
+
+                continue;
+            }
+
+            $events[] = $event;
+        }
+
+        return new CalendarChangeSet($events, $read->nextSyncToken);
     }
 
     /**
@@ -321,303 +295,6 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
                 412,
             );
         }
-    }
-
-    // ── Pulling ───────────────────────────────────────────────────────────────
-
-    /**
-     * @throws CalendarSyncException
-     */
-    private function pullBySyncCollection(
-        Integration $integration,
-        string      $collection,
-        ?string     $syncToken,
-    ): CalendarChangeSet {
-        $events = [];
-        $token  = $syncToken;
-
-        for ($page = 0; $page < self::MAX_SYNC_PAGES; ++$page) {
-            $response = $this->client->request($integration, 'REPORT', $collection, [
-                'headers' => [
-                    'Depth'        => '1',
-                    'Content-Type' => 'application/xml; charset=utf-8',
-                ],
-                'body' => $this->syncReportBody($token),
-            ]);
-
-            $resources = $this->parser->parse($response['body']);
-            $nextToken = $this->parser->syncToken($response['body']);
-
-            foreach ($this->toRemoteEvents($integration, $collection, $resources) as $event) {
-                $events[] = $event;
-            }
-
-            // The token has to move for the next page to be a different one. A
-            // server that truncates without issuing one has given us no way to
-            // continue, and asking again would replay the same page forever.
-            if (false === $this->isTruncated($resources) || null === $nextToken || $nextToken === $token) {
-                return new CalendarChangeSet($events, $nextToken ?? $token);
-            }
-
-            $token = $nextToken;
-        }
-
-        $this->logger->warning('CalDav: stopped following a truncated sync report at the page cap', [
-            'collection' => $collection,
-            'pages'      => self::MAX_SYNC_PAGES,
-        ]);
-
-        return new CalendarChangeSet($events, $token);
-    }
-
-    /**
-     * The fallback, and the reason a moved ctag surrenders the token rather
-     * than reporting the listing — see the class docblock.
-     *
-     * A server with neither sync-collection nor a ctag lands here with a null
-     * ctag, which never equals a stored token: it therefore reads the whole
-     * calendar on every poll. That is the only correct answer when the server
-     * offers no way to ask whether anything changed, and it is why the ctag is
-     * worth asking for even though it is not a standard.
-     *
-     * @throws CalendarSyncException
-     */
-    private function pullByCtag(
-        Integration $integration,
-        string      $collection,
-        ?string     $ctag,
-        ?string     $syncToken,
-    ): CalendarChangeSet {
-        if (null !== $syncToken) {
-            if (null !== $ctag && $ctag === $syncToken) {
-                return CalendarChangeSet::unchanged($syncToken);
-            }
-
-            return CalendarChangeSet::resyncRequired();
-        }
-
-        $response = $this->client->request($integration, 'REPORT', $collection, [
-            'headers' => [
-                'Depth'        => '1',
-                'Content-Type' => 'application/xml; charset=utf-8',
-            ],
-            'body' => $this->queryReportBody(),
-        ]);
-
-        $events = $this->toRemoteEvents(
-            $integration,
-            $collection,
-            $this->parser->parse($response['body']),
-        );
-
-        // The ctag read *before* the listing, not after: a change landing
-        // between the two would otherwise be marked as already seen and never
-        // read. Stale in the other direction costs one redundant full read.
-        return new CalendarChangeSet($events, $ctag);
-    }
-
-    /**
-     * Multistatus responses turned into RemoteEvents, fetching any bodies the
-     * report left out.
-     *
-     * sync-collection is allowed to answer with etags alone, and several
-     * servers do exactly that for large windows. The missing bodies are
-     * collected and asked for in one calendar-multiget rather than one GET
-     * each, because a window of two hundred changes would otherwise be two
-     * hundred round trips.
-     *
-     * @param list<DavResource> $resources
-     *
-     * @return list<RemoteEvent>
-     *
-     * @throws CalendarSyncException
-     */
-    private function toRemoteEvents(Integration $integration, string $collection, array $resources): array
-    {
-        $events  = [];
-        $pending = [];
-
-        foreach ($resources as $resource) {
-            $href = $this->client->absolutise($resource->href, $collection);
-
-            // The collection reports on itself in a sync report — it is the
-            // href the truncation status is attached to — and it is not an
-            // event.
-            if (rtrim($href, '/') === rtrim($collection, '/')) {
-                continue;
-            }
-
-            if (404 === $resource->status || 410 === $resource->status) {
-                $events[] = RemoteEvent::deleted($href);
-
-                continue;
-            }
-
-            $data = $resource->prop('calendar-data');
-
-            if (null === $data) {
-                $pending[$href] = $resource->prop('getetag');
-
-                continue;
-            }
-
-            $event = $this->converter->toRemoteEvent($data, $href, $resource->prop('getetag'));
-
-            if (null === $event) {
-                $this->logger->info('CalDav: skipped a resource that is not a usable event', ['href' => $href]);
-
-                continue;
-            }
-
-            $events[] = $event;
-        }
-
-        foreach ($this->multiget($integration, $collection, array_keys($pending)) as $event) {
-            $events[] = $event;
-        }
-
-        return $events;
-    }
-
-    /**
-     * @param list<string> $hrefs
-     *
-     * @return list<RemoteEvent>
-     *
-     * @throws CalendarSyncException
-     */
-    private function multiget(Integration $integration, string $collection, array $hrefs): array
-    {
-        if ([] === $hrefs) {
-            return [];
-        }
-
-        $response = $this->client->request($integration, 'REPORT', $collection, [
-            'headers' => [
-                'Depth'        => '1',
-                'Content-Type' => 'application/xml; charset=utf-8',
-            ],
-            'body' => $this->multigetBody($hrefs),
-        ]);
-
-        $events = [];
-
-        foreach ($this->parser->parse($response['body']) as $resource) {
-            $data = $resource->prop('calendar-data');
-
-            if (null === $data) {
-                continue;
-            }
-
-            $event = $this->converter->toRemoteEvent(
-                $data,
-                $this->client->absolutise($resource->href, $collection),
-                $resource->prop('getetag'),
-            );
-
-            if (null !== $event) {
-                $events[] = $event;
-            }
-        }
-
-        return $events;
-    }
-
-    /**
-     * RFC 6578 §3.6: a truncated report says so with a 507 on a response inside
-     * the multistatus, which is a different thing from the HTTP 507 that means
-     * the server will not produce the report at all — that one is classified as
-     * a resync in CalDavClient.
-     *
-     * @param list<DavResource> $resources
-     */
-    private function isTruncated(array $resources): bool
-    {
-        foreach ($resources as $resource) {
-            if (507 === $resource->status) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * @throws CalendarSyncException
-     */
-    private function probeCollection(Integration $integration, string $collection): DavResource
-    {
-        $response = $this->client->request($integration, 'PROPFIND', $collection, [
-            'headers' => [
-                'Depth'        => '0',
-                'Content-Type' => 'application/xml; charset=utf-8',
-            ],
-            'body' => self::COLLECTION_PROPS,
-        ]);
-
-        $resources = $this->parser->parse($response['body']);
-
-        if ([] === $resources) {
-            throw new CalendarSyncPermanentException(
-                'The calendar server did not describe this calendar. It may have been deleted or renamed there.',
-            );
-        }
-
-        return $resources[0];
-    }
-
-    // ── Request bodies ────────────────────────────────────────────────────────
-
-    private function syncReportBody(?string $token): string
-    {
-        return sprintf(
-            '<?xml version="1.0" encoding="utf-8"?>'
-            . '<d:sync-collection xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">'
-            . '<d:sync-token>%s</d:sync-token>'
-            . '<d:sync-level>1</d:sync-level>'
-            . '<d:prop><d:getetag/><cal:calendar-data/></d:prop>'
-            . '</d:sync-collection>',
-            // Empty for an initial sync, which is how RFC 6578 spells "send me
-            // everything". Escaped because the token is the server's own string
-            // and several servers put a URL with an ampersand in it.
-            htmlspecialchars($token ?? '', ENT_XML1),
-        );
-    }
-
-    /**
-     * Every VEVENT in the collection, with no time-range filter.
-     *
-     * Unbounded on purpose. A range would make the listing cheaper and would
-     * also make it a lie: the engine treats a full read as authoritative and
-     * removes local rows the listing did not mention, so filtering to "the next
-     * six months" would delete everything outside the window on the first
-     * fallback pull.
-     */
-    private function queryReportBody(): string
-    {
-        return '<?xml version="1.0" encoding="utf-8"?>'
-            . '<cal:calendar-query xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">'
-            . '<d:prop><d:getetag/><cal:calendar-data/></d:prop>'
-            . '<cal:filter><cal:comp-filter name="VCALENDAR">'
-            . '<cal:comp-filter name="VEVENT"/>'
-            . '</cal:comp-filter></cal:filter>'
-            . '</cal:calendar-query>';
-    }
-
-    /**
-     * @param list<string> $hrefs
-     */
-    private function multigetBody(array $hrefs): string
-    {
-        $body = '<?xml version="1.0" encoding="utf-8"?>'
-            . '<cal:calendar-multiget xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">'
-            . '<d:prop><d:getetag/><cal:calendar-data/></d:prop>';
-
-        foreach ($hrefs as $href) {
-            $body .= sprintf('<d:href>%s</d:href>', htmlspecialchars($href, ENT_XML1));
-        }
-
-        return $body . '</cal:calendar-multiget>';
     }
 
     // ── Reading one collection ────────────────────────────────────────────────

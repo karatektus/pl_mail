@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Ai\ReplyContext;
+use App\Domain\Enum\Ai\TranslationLanguage;
 use App\Entity\Ai\AiFeature;
 use App\Entity\User\User;
 use App\Service\Ai\AiAssistant;
@@ -102,6 +103,7 @@ final class AiPreferencesController extends AbstractController
             AiFeature::WritingHelp => $user->aiPreferences->writingHelpOff = $off,
             AiFeature::Summary     => $user->aiPreferences->summaryOff = $off,
             AiFeature::ContactHelp => $user->aiPreferences->contactHelpOff = $off,
+            AiFeature::Translation => $user->aiPreferences->translationOff = $off,
         };
 
         $this->entityManager->flush();
@@ -168,6 +170,33 @@ final class AiPreferencesController extends AbstractController
         }
 
         $user->aiPreferences->replyContext = $depth;
+
+        $this->entityManager->flush();
+
+        return $this->redirectToRoute('app_settings_page', ['page' => 'ai']);
+    }
+
+    /**
+     * The language messages are translated into (#713). The context picker's
+     * shape: submits on change, redirects, and a value outside the list is our
+     * own form's bug and a 404. The empty value is "follow the interface
+     * language", stored as null so it keeps following.
+     */
+    #[Route('/translate-into', name: 'translate_into', methods: ['POST'])]
+    public function translateInto(Request $request): Response
+    {
+        $this->assertCsrf($request, 'settings-ai-translate-into');
+
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $value = (string) $request->request->get('language', '');
+
+        if ('' !== $value && null === TranslationLanguage::tryFrom($value)) {
+            throw $this->createNotFoundException('Unknown translation language.');
+        }
+
+        $user->aiPreferences->translateInto = '' === $value ? null : $value;
 
         $this->entityManager->flush();
 

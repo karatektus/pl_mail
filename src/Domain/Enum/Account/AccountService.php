@@ -48,6 +48,13 @@ enum AccountService: string
     case Calendar = 'calendar';
     case Contacts = 'contacts';
 
+    /**
+     * Microsoft To Do (#75). Offered on a Microsoft OAuth account only: no other
+     * account has a task list plMail speaks to — CalDAV task lists come through a
+     * connection, not a mail account. See Account::offers().
+     */
+    case Tasks    = 'tasks';
+
     /** The translation key for the switch's label in Settings. */
     public function labelKey(): string
     {
@@ -56,6 +63,7 @@ enum AccountService: string
             self::Send     => 'settings.accounts.services.send',
             self::Calendar => 'settings.accounts.services.calendar',
             self::Contacts => 'settings.accounts.services.contacts',
+            self::Tasks    => 'settings.accounts.services.tasks',
         };
     }
 
@@ -67,6 +75,7 @@ enum AccountService: string
             self::Send     => 'fa-solid fa-paper-plane',
             self::Calendar => 'fa-solid fa-calendar-days',
             self::Contacts => 'fa-solid fa-address-book',
+            self::Tasks    => 'fa-solid fa-list-check',
         };
     }
 

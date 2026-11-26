@@ -1,0 +1,36 @@
+{#
+tasks/_subscribe_sources.html.twig — which connection to look for task lists on.
+
+Asked separately from the list itself, because finding a server's lists is three
+round trips per server, and nobody should wait for all of them to pick one.
+
+The pane offers no way here without a source. The empty state is for a page left
+open while its last connection was removed.
+
+Accepts: sources  list of { kind, id, label }
+#}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'tasks.subscribe.title'|trans }}</template>
+
+    <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 space-y-4 max-md:px-4">
+        {% if sources is empty %}
+            <p class="py-4 text-sm text-ink-muted">{{ 'tasks.subscribe.no_sources'|trans }}</p>
+            <a href="{{ path('app_settings_index', { section: 'calendars' }) }}"
+               data-turbo-frame="_top"
+               class="inline-block text-sm text-accent underline">{{ 'tasks.subscribe.open_settings'|trans }}</a>
+        {% else %}
+            <p class="text-xs text-ink-muted leading-relaxed">{{ 'tasks.subscribe.pick_source'|trans }}</p>
+            <ul class="divide-y divide-line">
+                {% for source in sources %}
+                    <li>
+                        <a href="{{ path('app_tasks_subscribe_source', { kind: source.kind, id: source.id }) }}"
+                           class="flex items-center justify-between gap-3 py-2.5 text-sm text-ink hover:text-accent">
+                            <span class="truncate">{{ source.label }}</span>
+                            <i class="fa-solid fa-chevron-right text-xs text-ink-faint" aria-hidden="true"></i>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+</turbo-frame>

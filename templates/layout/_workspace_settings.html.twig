@@ -1,0 +1,163 @@
+{#
+The workspace on screen's settings (#783), in the modal frame: which accounts
+it shows, which sidebar, where that sidebar's links open, and what a link does
+when the workspace has no pane for it. Below, the chosen sidebar's editor,
+when it is one of the user's own.
+
+Everything is sent together on Save (layout--workspace-settings), and the page
+then reloads: the accounts and the sidebar change what every pane and the
+sidebar draw, which is the server's to draw again.
+
+Accepts:
+  workspace  Workspace — the active one
+  groups     list<UnifiedInbox> — the user's account groups, Other included
+  sidebars   list<array> — the user's own sidebars, as stored
+  catalog    what the editor can add, by group (SidebarRows::catalog())
+  panes      kind => list<{key, n}> — the workspace's panes, for the targets
+  usedBy     sidebar id => names of the workspaces that show it
+#}
+{% set _strings = {
+    builtIn:      'layout.settings.built_in'|trans,
+    none:         'layout.settings.sidebar_none'|trans,
+    newSidebar:   'layout.settings.new_sidebar'|trans,
+    duplicate:    'layout.settings.duplicate_mail'|trans,
+    newName:      'layout.settings.new_name'|trans,
+    headingText:  'layout.settings.heading_prompt'|trans,
+    moveUp:       'layout.settings.move_up'|trans,
+    moveDown:     'layout.settings.move_down'|trans,
+    remove:       'layout.settings.remove'|trans,
+    gone:         'layout.settings.gone'|trans,
+    live:         'layout.settings.live'|trans,
+    heading:      'layout.settings.heading'|trans,
+    saveFailed:   'layout.settings.save_failed'|trans,
+    targetNth:    'layout.settings.target_nth'|trans({ '%kind%': 'layout.settings.target_calendar'|trans }),
+    targetDefault:'layout.settings.target_default'|trans,
+    deleteSidebar:'layout.settings.delete_sidebar'|trans,
+    usedBy:       'layout.settings.used_by'|trans,
+    groups: {
+        blocks:    'layout.settings.group.blocks'|trans,
+        mail:      'layout.settings.group.mail'|trans,
+        labels:    'layout.settings.group.labels'|trans,
+        calendars: 'layout.settings.group.calendars'|trans,
+        tasks:     'layout.settings.group.tasks'|trans,
+        other:     'layout.settings.group.other'|trans,
+    },
+} %}
+{# Catalog names that are translation keys, translated here once. #}
+{% set _catalog = {} %}
+{% for group, items in catalog %}
+    {% set _catalog = _catalog|merge({ (group): items|map(item => {
+        entry: item.entry,
+        name: item.name starts with 'key:' ? (item.name|slice(4))|trans : item.name,
+    }) }) %}
+{% endfor %}
+<turbo-frame id="modal" class="flex-1 min-h-0 flex flex-col">
+{# The sections scroll; the footer with Cancel and Save stays put under them,
+   so nobody scrolls to find the button that keeps what they did. #}
+<div class="flex-1 min-h-0 flex flex-col text-sm"
+     data-controller="layout--workspace-settings"
+     data-layout--workspace-settings-layout--workspace-outlet="[data-controller~='layout--workspace']"
+     data-layout--workspace-settings-save-url-value="{{ path('app_layout_workspace_settings_save') }}"
+     data-layout--workspace-settings-token-value="{{ csrf_token('layout_workspaces') }}"
+     data-layout--workspace-settings-sidebars-value="{{ sidebars|json_encode }}"
+     data-layout--workspace-settings-catalog-value="{{ _catalog|json_encode }}"
+     data-layout--workspace-settings-sidebar-value="{{ workspace.sidebar ?? '' }}"
+     data-layout--workspace-settings-used-by-value="{{ usedBy is empty ? '{}' : usedBy|json_encode }}"
+     data-layout--workspace-settings-strings-value="{{ _strings|json_encode }}">
+
+    <div class="flex-1 min-h-0 overflow-y-auto px-6 pt-2 pb-3">
+    <p class="text-ink-muted mb-3">{{ 'layout.settings.intro'|trans({ '%name%': workspace.name }) }}</p>
+
+    {# ── Accounts ─────────────────────────────────────────────────── #}
+    <section class="py-3 border-t border-line">
+        <h3 class="font-medium text-ink">{{ 'layout.settings.groups'|trans }}</h3>
+        <p class="text-xs text-ink-faint mt-0.5 mb-2">{{ 'layout.settings.groups_help'|trans }}</p>
+        <div class="flex flex-wrap gap-1.5" data-layout--workspace-settings-target="accounts">
+            <label class="settings-chip">
+                <input type="checkbox" class="sr-only" value="all" data-action="layout--workspace-settings#pickAll"
+                       {{ workspace.groups is null ? 'checked' : '' }}>
+                <span>{{ 'layout.settings.all_accounts'|trans }}</span>
+            </label>
+            {% for group in groups %}
+                <label class="settings-chip">
+                    <input type="checkbox" class="sr-only" value="{{ group.id }}" data-action="layout--workspace-settings#pickAccount"
+                           {{ workspace.groups is not null and group.id in workspace.groups ? 'checked' : '' }}>
+                    <i class="fa-solid {{ group.iconCase.cssClass }} text-[11px]" aria-hidden="true"></i>
+                    <span class="truncate max-w-[16rem]">{{ unified_inbox_name(group) }}</span>
+                </label>
+            {% endfor %}
+        </div>
+        <a href="{{ path('app_settings_page', { page: 'inboxes' }) }}" data-turbo-frame="_top"
+           class="mt-2 inline-block text-xs text-accent hover:underline">{{ 'layout.settings.edit_groups'|trans }}</a>
+    </section>
+
+    {# ── Sidebar ─────────────────────────────────────────────────── #}
+    <section class="py-3 border-t border-line">
+        <h3 class="font-medium text-ink">{{ 'layout.settings.sidebar'|trans }}</h3>
+        <p class="text-xs text-ink-faint mt-0.5 mb-2">{{ 'layout.settings.sidebar_help'|trans }}</p>
+        <select class="select-field block w-full h-9 text-sm" data-layout--workspace-settings-target="sidebarSelect"
+                data-action="layout--workspace-settings#pickSidebar"></select>
+        {# The Mail sidebar is not edited, but it has a clock (#783), switched
+           with the On/Off control every setting uses. #}
+        {% import '_partials/_segmented.html.twig' as seg %}
+        <div class="mt-3 flex items-center justify-between gap-3" data-layout--workspace-settings-target="mailClock" hidden>
+            <span class="text-ink-soft">{{ 'layout.settings.mail_clock'|trans }}</span>
+            {{ seg.control('mail-sidebar-clock', [
+                { value: '1', label: 'layout.settings.on'|trans },
+                { value: '0', label: 'layout.settings.off'|trans },
+            ], app.user.mailSidebarClock ? '1' : '0', {
+                label: 'layout.settings.mail_clock'|trans,
+                width: 'w-28 shrink-0',
+            }) }}
+        </div>
+        <div class="mt-3" data-layout--workspace-settings-target="editor" hidden></div>
+    </section>
+
+    {# ── Targets: only a kind the workspace has more than one of needs one.
+       Drawn always and hidden below two calendars: in edit mode the dialog
+       redraws the choices from the draft, which may have one more. #}
+    {% set _calendars = panes.calendar ?? [] %}
+    <section class="py-3 border-t border-line" data-layout--workspace-settings-target="targetSection" {{ _calendars|length > 1 ? '' : 'hidden' }}>
+        <h3 class="font-medium text-ink">{{ 'layout.settings.targets'|trans }}</h3>
+        <p class="text-xs text-ink-faint mt-0.5 mb-2">{{ 'layout.settings.targets_help'|trans }}</p>
+        <label class="flex items-center gap-3">
+            <span class="w-28 text-ink-muted">{{ 'layout.settings.target_calendar'|trans }}</span>
+            <select class="select-field block flex-1 h-9 text-sm" data-layout--workspace-settings-target="target" data-kind="calendar">
+                {% for pane in _calendars %}
+                    <option value="{{ pane.key }}" {{ (workspace.targets.calendar ?? _calendars[0].key) == pane.key ? 'selected' : '' }}>
+                        {{ 'layout.settings.target_nth'|trans({ '%kind%': 'layout.settings.target_calendar'|trans, '%n%': pane.n }) }}{% if loop.first %} — {{ 'layout.settings.target_default'|trans }}{% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+    </section>
+
+    {# ── No such pane ───────────────────────────────────────────── #}
+    <section class="py-3 border-t border-line">
+        <h3 class="font-medium text-ink">{{ 'layout.settings.missing'|trans }}</h3>
+        <label class="flex items-start gap-2 mt-2 cursor-pointer">
+            <input type="radio" name="missing" value="switch" class="mt-1 accent-accent" data-layout--workspace-settings-target="missing"
+                   {{ workspace.missing == 'switch' ? 'checked' : '' }}>
+            <span>{{ 'layout.settings.missing_switch'|trans }}<span class="block text-xs text-ink-faint">{{ 'layout.settings.missing_switch_help'|trans }}</span></span>
+        </label>
+        <label class="flex items-start gap-2 mt-2 cursor-pointer">
+            <input type="radio" name="missing" value="edge" class="mt-1 accent-accent" data-layout--workspace-settings-target="missing"
+                   {{ workspace.missing == 'edge' ? 'checked' : '' }}>
+            <span>{{ 'layout.settings.missing_edge'|trans }}</span>
+        </label>
+    </section>
+
+    </div>
+
+    <div class="shrink-0 flex items-center justify-end gap-2 px-6 py-3 border-t border-line">
+        <button type="button"
+                data-action="click->ui--modal#close"
+                class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                       text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">{{ 'form.cancel'|trans }}</button>
+        <button type="button"
+                data-action="layout--workspace-settings#save"
+                class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink
+                       bg-accent hover:bg-accent-strong transition-colors">{{ 'form.submit'|trans }}</button>
+    </div>
+</div>
+</turbo-frame>

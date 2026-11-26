@@ -487,6 +487,33 @@ final class GmailApiClientFailureTest extends TestCase
         self::assertGreaterThan(0, $pacer->waitSeconds($this->account()));
     }
 
+    /**
+     * What Gmail would not hand over comes back with the status it answered,
+     * so a message deleted before it was fetched (404) can be told from a
+     * request Gmail would not take (400).
+     */
+    public function testAnUnfetchableMessageComesBackWithItsStatus(): void
+    {
+        $part = static fn (string $id, string $status): string => implode("\r\n", [
+            '--batch_x',
+            'Content-Type: application/http',
+            'Content-ID: <response-' . $id . '>',
+            '',
+            'HTTP/1.1 ' . $status,
+            'Content-Type: application/json',
+            '',
+            '{"error": {"code": ' . (int) $status . '}}',
+        ]);
+
+        $body = implode("\r\n", [$part('m1', '404 Not Found'), $part('m2', '400 Bad Request'), '--batch_x--']);
+
+        $fetched = $this->clientWith(new GmailQuotaPacer(new MockClock()), new MockResponse($body, ['http_code' => 200]))
+            ->getMessages($this->account(), ['m1', 'm2']);
+
+        self::assertSame(['m1' => 404, 'm2' => 400], $fetched['gone']);
+        self::assertSame([], $fetched['retryable']);
+    }
+
     // ── Fixture ──────────────────────────────────────────────────────────────
 
     private function clientWith(GmailQuotaPacer $pacer, MockResponse $response): GmailApiClient

@@ -1,0 +1,81 @@
+{#
+A pane header's choice of a few, folded into a menu where the header is short
+of room (#783): the calendar's views and the Workspace / + Others / All switch
+of the calendar and tasks panes.
+
+Both forms are in the markup and the caller's container query shows one —
+`foldClass` on the menu, `openClass` on the row — so nothing measures. The
+folded form is the workspace strip's on a phone: the current choice's icon and
+a chevron, opening the list of them with their names.
+
+  options  list of { href, icon, label, current, hint? }
+  label    the group's name, for screen readers
+  frame    Turbo Frame the links target, or null
+#}
+{% macro menu(options, label, frame, foldClass) %}
+    {% set current = (options|filter(o => o.current)|first) ?: options|first %}
+    {# Lifted out of the pane, which clips. #}
+    <div class="relative {{ foldClass }}" data-controller="ui--dropdown" data-ui--dropdown-place-value="below">
+        <button type="button"
+                data-action="click->ui--dropdown#toggle"
+                aria-haspopup="menu"
+                aria-label="{{ label }}: {{ current.label }}"
+                title="{{ label }}: {{ current.label }}"
+                class="pane-fold">
+            <i class="fa-solid {{ current.icon }}" aria-hidden="true"></i>
+            <i class="fa-solid fa-chevron-down pane-fold-chevron" aria-hidden="true"></i>
+        </button>
+        <div data-ui--dropdown-target="menu" hidden role="menu"
+             class="pane-fold-list rounded-pane bg-pane-soft backdrop-blur-sm border border-line shadow-pop">
+            {% for option in options %}
+                <a href="{{ option.href }}"
+                   role="menuitem"
+                   {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
+                   data-action="click->ui--dropdown#close"
+                   aria-current="{{ option.current ? 'true' : 'false' }}"
+                   class="pane-fold-item">
+                    <i class="fa-solid {{ option.icon }} w-4 text-center" aria-hidden="true"></i>
+                    <span class="min-w-0">
+                        <span class="block">{{ option.label }}</span>
+                        {% if option.hint is defined and option.hint %}<span class="block text-[11px] text-ink-faint">{{ option.hint }}</span>{% endif %}
+                    </span>
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+{% endmacro %}
+
+{# The Workspace / + Others / All switch, open and folded. `here` is the
+   pane's current address; `?scope=` or `&scope=` is added to it. `hints` is
+   the catalogue prefix of the group's name (`scope_label`) and the one-line
+   explanations, which name what the pane holds (calendars, lists). #}
+{% macro scope(here, current, frame, openClass, foldClass, hints) %}
+    {% set join = '?' in here ? '&' : '?' %}
+    {% set hints = hints ?? 'calendar.pane.scope_' %}
+    {% set groupLabel = (hints ~ 'label')|trans %}
+    {% set options = [] %}
+    {% for mode, icon in { workspace: 'fa-briefcase', overlay: 'fa-layer-group', all: 'fa-globe' } %}
+        {% set options = options|merge([{
+            href:    here ~ join ~ 'scope=' ~ mode,
+            icon:    icon,
+            label:   ('calendar.pane.scope_' ~ mode)|trans,
+            hint:    (hints ~ mode ~ '_hint')|trans,
+            current: current == mode,
+        }]) %}
+    {% endfor %}
+
+    {# Wrapped: .pane-scope's own display would outrank a utility's `hidden`. #}
+    <span class="inline-flex {{ openClass }}">
+    <span class="pane-scope" role="group" aria-label="{{ groupLabel }}">
+        {% for option in options %}
+            <a href="{{ option.href }}"
+               {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
+               class="pane-scope-option"
+               aria-pressed="{{ option.current ? 'true' : 'false' }}"
+               aria-label="{{ option.label }}"
+               title="{{ option.label }} — {{ option.hint }}"><i class="fa-solid {{ option.icon }}" aria-hidden="true"></i></a>
+        {% endfor %}
+    </span>
+    </span>
+    {{ _self.menu(options, groupLabel, frame, foldClass) }}
+{% endmacro %}

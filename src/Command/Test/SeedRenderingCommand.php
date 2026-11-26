@@ -48,6 +48,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *  · "E2E Long Body" — a very long body with an attachment, so "are the
  *    attachment chips above the fold" and "does the header stay put" are
  *    questions with an answer.
+ *  · "E2E Commit Table" — a Bitbucket-style commit table, for the layout of
+ *    a table on a phone-width sheet (#747).
  *
  * Adds only its own threads and removes previous copies by subject, like
  * seed-attachment does, so it composes with seed-mail in either order.
@@ -70,6 +72,7 @@ final class SeedRenderingCommand extends Command
     public const string SUBJECT_LONG      = 'E2E Long Body';
     public const string SUBJECT_FETCHABLE = 'E2E Fetchable Image';
     public const string SUBJECT_QUOTED    = 'E2E Quoted Reply';
+    public const string SUBJECT_TABLE     = 'E2E Commit Table';
 
     /**
      * Markers the collapse-quoted-text spec keys off: the sender's new line must
@@ -144,7 +147,7 @@ final class SeedRenderingCommand extends Command
 
         $account = $this->account($user);
 
-        foreach ([self::SUBJECT_REMOTE, self::SUBJECT_PHISH, self::SUBJECT_LONG, self::SUBJECT_FETCHABLE, self::SUBJECT_QUOTED] as $subject) {
+        foreach ([self::SUBJECT_REMOTE, self::SUBJECT_PHISH, self::SUBJECT_LONG, self::SUBJECT_FETCHABLE, self::SUBJECT_QUOTED, self::SUBJECT_TABLE] as $subject) {
             $this->removePreviousSeed($account, $subject);
         }
 
@@ -214,6 +217,17 @@ final class SeedRenderingCommand extends Command
             when:     $now->modify('-4 minutes'),
         );
 
+        $table = $this->seedMessage(
+            account:  $account,
+            user:     $user,
+            label:    $inbox,
+            subject:  self::SUBJECT_TABLE,
+            fromName: 'E2E Commits',
+            fromAddr: 'commits@e2e.test',
+            html:     $this->commitTableBody(),
+            when:     $now->modify('-5 minutes'),
+        );
+
         $this->entityManager->flush();
 
         $this->attach($long);
@@ -221,7 +235,7 @@ final class SeedRenderingCommand extends Command
         $accountId = (int) $account->id;
         $threadIds = [];
 
-        foreach ([$remote, $phish, $long, $fetchable, $quoted] as $message) {
+        foreach ([$remote, $phish, $long, $fetchable, $quoted, $table] as $message) {
             $this->stateManager->recordCreated($accountId, JmapObjectType::Email, (string) $message->id);
 
             if (null !== $message->thread) {
@@ -232,7 +246,7 @@ final class SeedRenderingCommand extends Command
         $this->stateManager->recordThreadsTouched($accountId, $threadIds);
         $this->entityManager->flush();
 
-        $io->success('Seeded 5 rendering-security threads.');
+        $io->success('Seeded 6 rendering threads.');
 
         return Command::SUCCESS;
     }
@@ -335,6 +349,41 @@ final class SeedRenderingCommand extends Command
             self::QUOTED_NEW,
             self::QUOTED_BURIED,
         );
+    }
+
+    /**
+     * A commit notification shaped like Bitbucket's (#747): a full-width table
+     * whose Author, Commit and Date columns have fixed widths and whose
+     * Message column takes what is left. On a phone the fixed ones already
+     * fill the sheet, so how narrow Message may go is decided by its longest
+     * word — or, under `word-break: break-word`, by its widest letter.
+     */
+    private function commitTableBody(): string
+    {
+        $cell = 'border-bottom: 1px solid #ccc; text-align: left; padding: 5px;';
+        $row  = static fn (string $commit, string $message): string => sprintf(
+            '<tr><td style="%1$s width: 132px;" width="132">Jane Roe</td>'
+            . '<td style="%1$s width: 50px; font-family: monospace;" width="50">%2$s</td>'
+            . '<td style="%1$s">%3$s</td>'
+            . '<td style="%1$s width: 100px;" width="100">23 Nov 2026</td></tr>',
+            $cell,
+            $commit,
+            $message,
+        );
+
+        return '<div style="border: 1px solid #ccc; padding: 20px;">'
+            . '<p><strong>E2E Commits</strong> pushed 2 commits to the repository:</p>'
+            . '<table style="width: 100%; border-collapse: collapse;" width="100%">'
+            . sprintf(
+                '<tr><th style="%1$s width: 132px;" width="132">Author</th>'
+                . '<th style="%1$s width: 50px;" width="50">Commit</th>'
+                . '<th style="%1$s">Message</th>'
+                . '<th style="%1$s width: 100px;" width="100">Date</th></tr>',
+                $cell,
+            )
+            . $row('9f1c2d3', 'config: remove unused proxy settings')
+            . $row('3e7a1b9', 'network: update service endpoint')
+            . '</table></div>';
     }
 
     private function seedMessage(

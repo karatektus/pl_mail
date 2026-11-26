@@ -21,6 +21,8 @@ final readonly class TypeAheadHit
         public ?string             $fromName,
         public ?string             $fromAddress,
         public ?\DateTimeImmutable $receivedAt,
+        /** The account the conversation is in, so opening it can go to a workspace that shows it (#783). */
+        public ?int                $accountId = null,
     ) {
     }
 

@@ -19,18 +19,6 @@ instead of the console. Mail is now read by a maintained MIME parser, so attachm
 names, and Hebrew mail from Outlook, search results acted on as a whole and drafts reopened with
 encryption switched off work as they should.
 
-<!-- highlight screenshot=thank-you -->
-**Thank you, all of you.** Thank you for every issue, pull request and comment, here on GitHub and
-on Reddit. plMail has had far more feedback than I ever expected, and much of what it can do today
-began as one of your ideas.
-
-Special thanks to my sponsors on GitHub: dz. (@dzonder), Dmitry Rude (@swell-d), Christoph Müller
-(@chris-jp), @tommyfao, and a few more who would rather not be named. You know who you are.
-
-And thank you to everyone who bought the Android app. I know it still needs work, and that work is
-on the roadmap. If you'd rather not buy it from the Play Store, it's free on
-[GitHub](https://github.com/karatektus/pl_mail_android/releases).
-
 <!-- highlight screenshot=sidebar-width -->
 **The sidebar can be made wider.** Drag the edge between the sidebar and the mail, or focus it and use
 the arrow keys; a double-click puts it back. The width is kept per user, on every device, and is the

@@ -7,10 +7,12 @@ Every link inside targets the frame by name; without that, clicking "next week"
 in the pane would navigate the whole page to a calendar and take the mail away.
 #}
 
-{% set frame = 'calendar-pane-frame' %}
+{# One frame per calendar pane: the first is `calendar-pane-frame`, each further
+   one (a workspace may show several, each on its own view) adds its id. #}
+{% set frame = paneId|default(null) ? 'calendar-pane-frame-' ~ paneId : 'calendar-pane-frame' %}
 
 <turbo-frame id="{{ frame }}" class="flex flex-col min-h-0 flex-1">
-    {# `data-pane-min-width` is read by ui--split on turbo:frame-load: choosing a
+    {# `data-pane-min-width` is read by layout--workspace on turbo:frame-load: choosing a
        view that needs seven columns widens the pane to fit it rather than
        drawing seven slivers. Rendered per view, because the view is what has
        the requirement — see CalendarView::minimumPaneWidth().
@@ -24,6 +26,23 @@ in the pane would navigate the whole page to a calendar and take the mail away.
        children are laid out by the frame exactly as if it were not here. #}
     <div class="contents" data-pane-min-width="{{ view.minimumPaneWidth }}">
         {% include 'calendar/_toolbar.html.twig' with { compact: true } %}
+        {# Narrowed to one calendar (#783), from a sidebar's calendar row: said
+           as a chip, whose × shows every calendar again. #}
+        {% if paneOnly ?? null %}
+            <div class="px-3 py-1.5 border-b border-line flex items-center gap-1.5" data-pane-only="{{ paneOnly.id }}">
+                <span class="filter-chip">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: {{ paneOnly.color }}" aria-hidden="true"></span>
+                    <span class="truncate">{{ paneOnly.name }}</span>
+                    <a href="{{ path('app_calendar_pane', paneId|default(null) ? { pane: paneId, only: 'all' } : { only: 'all' }) }}"
+                       data-turbo-frame="{{ frame }}"
+                       class="filter-chip-remove"
+                       title="{{ 'calendar.pane.show_all'|trans }}"
+                       aria-label="{{ 'calendar.pane.show_all'|trans }}">
+                        <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
+                    </a>
+                </span>
+            </div>
+        {% endif %}
         {# `frame` is set above rather than passed here, because the grid does
            not use it itself — _view_month's "N more" link does, two includes
            down, and an `include ... with` would have to be repeated at every

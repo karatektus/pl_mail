@@ -58,6 +58,16 @@ export default class extends Controller {
         this._close();
     }
 
+    /**
+     * Ask this message's body to translate itself (#713). The body has its own
+     * controller, mail--message-translation, and the menu does not reach into
+     * it: it says which message, and the body that is that message answers.
+     */
+    translate() {
+        this._close();
+        this.dispatch("translate", { target: document, detail: { id: this.entityIdValue } });
+    }
+
     async star(event) {
         event.stopPropagation();
         this._close();

@@ -1,0 +1,73 @@
+{#
+_workspace.html.twig — the active workspace's layout tree, as markup (#755).
+
+    {% import '_layout/_workspace.html.twig' as workspace %}
+    {{ workspace.node(layout.active.root, bodies) }}
+
+`bodies` maps a pane's key ('list', 'calendar', 'calendar~a1b2', …; see
+LayoutPane::key()) to that pane's whole markup:
+the <section data-layout-pane> and everything in it, rendered once by the
+mailbox shell. This file only places them. The page's layout--workspace
+controller builds the same structure when the layout changes, and it MOVES
+those sections between cells rather than re-rendering them, so a pane's frame,
+scroll position and open contact survive a split or a move. Its build is the
+reference for the markup below; the two must agree, or the first change after
+a load would redraw the page into a slightly different shape.
+
+  .layout-split   one split: data-layout-split is its id (the device's sizes
+                  are keyed by it), data-dir its direction
+  .layout-cell    one child of a split, carrying the child's share as its
+                  flex-grow — the only place a size lives in the DOM
+  .layout-divider the boundary between two cells, a window splitter in the
+                  ARIA sense
+
+Sizes are this device's (layout.sizes, from the cookie DeviceLayout reads),
+falling back to the workspace's own proportions.
+#}
+
+{% macro node(node, bodies) %}
+    {% import _self as workspace %}
+    {% if node.kind is defined %}
+        {{ bodies[node.key] }}
+    {% else %}
+        {% set sizes = layout.sizes(node) %}
+        <div class="layout-split" data-layout-split="{{ node.id }}" data-dir="{{ node.direction.value }}">
+            {% for child in node.children %}
+                {% if not loop.first %}
+                    {{ workspace.divider(node) }}
+                {% endif %}
+                <div class="layout-cell" style="flex-grow: {{ sizes[loop.index0]|round(4) }}">
+                    {{ workspace.node(child, bodies) }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endmacro %}
+
+{#
+The boundary between two cells. A separator rather than a button: it has a
+position and arrow keys, which is what a window splitter is. Its value is not
+announced as a number — the share of a box whose size changes with the window
+means nothing read aloud — so it carries a label only.
+#}
+{% macro divider(split) %}
+    <div class="layout-divider"
+         role="separator"
+         tabindex="0"
+         aria-orientation="{{ split.direction.value == 'row' ? 'vertical' : 'horizontal' }}"
+         aria-label="{{ 'layout.divider'|trans }}"
+         title="{{ 'layout.divider_hint'|trans }}"
+         data-action="pointerdown->layout--workspace#startResize keydown->layout--workspace#nudge dblclick->layout--workspace#evenOut"></div>
+{% endmacro %}
+
+{#
+The attributes of one pane's outer <section class="layout-pane">. `kind` is
+the PaneKind case; `key` names the pane for the controller and the stylesheet
+(LayoutPane::key(): the kind's value, or `calendar~<id>` for a further
+calendar) and `data-pane-kind` says what it shows; the two minimums are what a divider
+stops at and what a split must leave room for (PaneKind::minWidth(),
+minHeight()). The section and its content are the caller's.
+#}
+{% macro attrs(kind, key = null) -%}
+    data-layout-pane="{{ key ?? kind.value }}" data-pane-kind="{{ kind.value }}" data-min-w="{{ kind.minWidth }}" data-min-h="{{ kind.minHeight }}" aria-label="{{ kind.transKey|trans }}"
+{%- endmacro %}

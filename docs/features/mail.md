@@ -110,24 +110,27 @@ Every list pages at fifty conversations. **Newer** and **Older** in the toolbar 
 ### Several inboxes
 
 One **Inbox** over every account is where everybody starts. If you would rather read work and private
-mail apart, **Settings → Unified inboxes** makes more of them: add one, give it a name and an icon,
-and under **Accounts** choose which inbox each account's mail is listed in. Every inbox is a row of
-its own in the sidebar, in the order you drag them into, with its own unread badge, its own "new"
-dot and its own tabs — the strip of an inbox only counts the mail of its accounts, and **Select all**
-in it reaches no further. The first inbox is the one the plain **Inbox** address opens, and a new
-account goes there until you move it.
+mail apart, **Settings → Inbox → Account groups** makes more of them: add a group, give it a name and
+an icon, and put accounts in it with **+ Add account**. Every group is an inbox row of its own in the
+sidebar, in the order you drag them into, with its own unread badge, its own "new" dot and its own
+tabs — the strip of a group only counts the mail of its accounts, and **Select all** in it reaches no
+further. The first group is the one the plain **Inbox** address opens, and a new account goes there
+unless you tick other groups when you add it. Groups are also what a [workspace](workspaces.md)
+shows.
 
-An account is in one inbox at a time. The one you take out of all of yours goes to **Other**, an inbox
-plMail keeps for exactly that, so it is still one click away; Other shows in the sidebar only while
-it holds a switched-on account, and you can rename it, change its icon and move it like the others,
-but not delete it. Deleting an inbox of your own moves its accounts there too — no mail is deleted
-either way, an inbox is only a way of listing it. Leave a name empty and the inbox is called
-**Inbox** (or **Other**) in your language.
+An account can be in several groups. Take it out of its last one and it goes to **Other**, the rest:
+the accounts in none of your own groups. You cannot put an account in Other or rename it; putting an
+account in one of your groups takes it out of Other. Other shows in the sidebar only while it holds
+a switched-on account; you can change its icon and move it, but not delete it. Deleting a group of
+your own moves the accounts that are in no other group to Other — no mail is deleted either way, a
+group is only a way of listing it. Leave a name empty and the group is called **Inbox** in your
+language.
 
-**Unread**, **Starred**, **Snoozed** and the rest of the system rows still span every account, and the
-browser tab counts the inbox you have open. Each account keeps its own inbox under **Accounts**. A
-configuration backup carries the inboxes and which account is in which. Phone apps can read them
-over JMAP (`UnifiedInbox/get`); they are arranged only here.
+**Unread**, **Starred**, **Snoozed** and the rest of the system rows span every account, unless a
+workspace limits them to its groups, and the browser tab counts the inbox you have open. Each
+account keeps its own inbox under **Accounts**. A configuration backup carries the groups and which
+accounts are in each. Phone apps can read them over JMAP (`UnifiedInbox/get`); they are arranged
+only here.
 
 ## Tabs
 
@@ -226,7 +229,7 @@ you had dragged into a tab you switch off goes back to being sorted like any oth
 
 The five are what plMail knows how to recognise. If you want a tab for something it cannot — parcels,
 receipts, one client's mail — add it at the bottom of the **Tabs** card under **Settings →
-Categories**: a name, and nothing else. It goes to the end of the strip until you move it. A tab of your own holds nothing until a [filter](filters.md#filing-into-your-own-tabs)
+Categories**: a name, and nothing else. It goes to the end of the strip until you move it. A tab of your own holds nothing until a [filter](filters.md#filing-into-a-tab)
 whose action is **File in category** puts mail into it, and like the others it only shows in the
 inbox while it holds mail. A filter files Gmail mail too: Google's categories outrank plMail's own
 sorting unless you say otherwise, but a filter is something you wrote, and it outranks both.
@@ -602,6 +605,46 @@ the messages themselves changing.
 
 It is a model's account of the mail, not the mail. The line under it says so, and the messages are
 directly below.
+
+### Translating a message
+
+Where the administrator has switched translation on, a message's **⋮** menu carries **Translate**.
+It translates that one message into your language: the language plMail is in, or the one you chose
+under **Settings → Assistant → Translate into**, which lists many more languages than plMail has an
+interface in. Nothing is translated until you ask.
+
+The translation takes the place of the message, on a sheet with a dashed violet edge and an **AI
+translation** tag on its corner, so it never passes for what the sender wrote. Pointing at the
+sheet names the model that wrote it. Above it, under the sender, a switch reads **Original ·
+German** and **English · AI**: the half that is pressed is the one you are reading, and one click
+on the other half switches, as often as you like. The language of the message is the one the model
+names while translating; when it names none, the switch says only **Original**. The translation arrives a few words at a time; how long it takes
+depends on the machine running the model, and on one without a graphics card a long message takes
+minutes. You do not have to wait for it: leave the message and it is finished anyway, and the
+message opens translated the next time.
+
+Once written, a translation is kept, and the message opens as its translation, at no cost. If the
+message itself changes afterwards, the sheet says so and **Translate again** appears beside the
+switch.
+
+A message that is already in your language is not translated: the model stops as soon as it has
+named the language, a line under the sender says there is nothing to translate, and the message
+stays as it is.
+That is remembered too, so asking again costs nothing.
+
+What is sent is the message's own text, as plain text:
+
+- **Without the earlier messages it quotes.** They are mail you already have, each translatable on
+  its own, and sending them again would make every reply in a long conversation slower to translate.
+  The sheet says when something was left out. A forward that adds nothing of its own is sent whole.
+- **Up to about 6,000 characters.** A longer message is translated from its beginning, and the sheet
+  says so.
+
+The translation is plain text: the layout, pictures and links of the original stay in the original.
+Replying or forwarding always quotes the original, never the translation.
+
+It is a model's translation, and small models make mistakes that read well — a day of the week, a
+number, a name. Where it matters, check the original or ask the sender.
 
 ## Labels
 
@@ -1013,47 +1056,28 @@ bin, so `#` does nothing in those places; the flame, with its question, is the o
 selection there. With it off, `#` works in Spam as it does elsewhere, and does nothing in the bin,
 which has no **Delete**.
 
-## The reading pane
+## The message beside the list
 
-**Settings → Reading & writing → Reading** decides where the message you open goes: **Off** or **Right**. Off is how plMail
-has always worked — the list and the open message take turns on the same space, and the back arrow
-returns you to the list. Right puts the message beside the list, so you can read one conversation
-and see the rest of the mailbox at the same time. Off is the default, and nothing about your
-mailbox changes until you pick Right.
+Where an opened conversation goes depends on your workspace (see [Workspaces](workspaces.md)). With
+a **Message** pane in it, the conversation opens there, beside or below the list, so you can read one
+conversation and see the rest of the mailbox at the same time. Without one, the list and the open
+message take turns on the same space, and the back arrow returns you to the list — how plMail always
+worked, and what a phone or a window narrower than 1024 pixels does whatever the workspace.
 
-With the pane on the right, the list stays where it is when you open something. The open row is
-marked with a tint and a bar on its leading edge, and the area beside the list says
-*Select a conversation to read it here* until you open one. The back arrow closes the message and
-leaves the list as it was.
+With a Message pane, the list stays where it is when you open something. The open row is marked with
+a tint and a bar on its leading edge, and the Message pane says *Select a conversation to read it
+here* until you open one. The back arrow closes the message and leaves the list as it was.
 
 The open message also stays put while you move around the list. Choosing another folder, switching
 a category tab, turning the page, sorting or searching changes what the list shows and leaves the
 conversation you were reading where it is, so you can look for the next one without losing this one.
 No row is marked while the list shows a folder the message is not in, and the mark comes back when
 you return to its folder. The back arrow then closes the message and leaves you on the folder you
-switched to. With one pane at a time (see below) the message has covered the list, so choosing a
-folder closes it and shows the new list, as it always did.
+switched to. With one pane at a time the message has covered the list, so choosing a folder closes
+it and shows the new list, as it always did.
 
-**The divider** between the two is dragged with the mouse, or moved with the arrow keys once it has
-focus (two percent a step; Home and End go to the ends). A double-click puts it back to the
-default. What is stored is the message's share of the **mail card** — the list and the message
-together, without the sidebar or a docked calendar — as a percentage between 25 and 75, 55 to
-begin with. It is a percentage rather than a width in pixels because the card changes size whenever
-the calendar pane opens, closes or is dragged, and a share keeps its meaning across all of those.
-It is remembered for your account, not for the browser. It is set on the mailbox itself, against
-real mail, and there is no slider for it in Settings.
-
-**It steps aside when there is no room.** Right is a preference, not a promise: it is drawn only
-while the mail card is at least 52rem (832 pixels at the default text size) wide. A narrow window,
-a phone, or a wide window with the calendar docked beside the mail all fall back to one pane at a
-time, with no setting to change. Each pane also keeps a minimum width, so a share of 75% on a card
-only just wide enough gives way before the list becomes a sliver.
-
-The reading pane is not part of an exported theme, although it changes how the mailbox looks: where
-a message is drawn is a decision about the mailbox, not part of a look somebody might share, and
-importing a colour scheme does not rearrange the mail it lands in. **Reset to defaults** on the Appearance page
-leaves it alone for the same reason. A config backup does carry it, so a restore puts the mailbox back the way
-you had it.
+Opening a conversation by its own address — a bookmark, a link — with a Message pane in the
+workspace shows the Inbox beside it, with the conversation marked if it is on that page.
 
 **Keys and ticked rows.** Beside the list a selection and an open conversation can be on screen
 together. A key still goes to the selection first: `e` with two rows ticked archives those two and

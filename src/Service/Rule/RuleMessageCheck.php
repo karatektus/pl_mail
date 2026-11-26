@@ -11,6 +11,7 @@ use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use App\Repository\Mail\Message\MessageFilterRepository;
 use App\Repository\Rule\MailRule\MailRuleRepository;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * "Test my filters on this message": which of the reader's filters match it,
@@ -35,6 +36,7 @@ final readonly class RuleMessageCheck
         private RuleConditions          $conditions,
         private RuleCategoryFiler       $categoryFiler,
         private InboxCategoryRepository $categories,
+        private TranslatorInterface     $translator,
         private LoggerInterface         $logger
     ) {}
 
@@ -131,15 +133,36 @@ final readonly class RuleMessageCheck
                 continue;
             }
 
-            $category = is_int($action['categoryId'] ?? null) ? $this->categories->find($action['categoryId']) : null;
+            $filing = $this->categoryFiler->check($rule, $message, $action);
 
             $actions[] = [
                 'type'     => $type,
-                'filing'   => $this->categoryFiler->check($rule, $message, $action),
-                'category' => null !== $category && $category->usr === $rule->usr ? $category->name : null,
+                'filing'   => $filing,
+                'category' => $this->categoryName($rule, $action, $filing),
             ];
         }
 
         return $actions;
+    }
+
+    /**
+     * The tab an action files into, named as the tab strip names it: a
+     * built-in through its translation, the reader's own by its name.
+     *
+     * @param array<string,mixed> $action
+     */
+    private function categoryName(MailRule $rule, array $action, CategoryFiling $filing): ?string
+    {
+        if (CategoryFiling::Filed !== $filing) {
+            return null;
+        }
+
+        if (true === is_string($action['builtIn'] ?? null)) {
+            return $this->translator->trans('tabs.' . $action['builtIn']);
+        }
+
+        $category = is_int($action['categoryId'] ?? null) ? $this->categories->find($action['categoryId']) : null;
+
+        return null !== $category && $category->usr === $rule->usr ? $category->name : null;
     }
 }

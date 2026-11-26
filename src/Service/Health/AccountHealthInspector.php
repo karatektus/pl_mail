@@ -488,6 +488,37 @@ final readonly class AccountHealthInspector
      * and one reconnect brings its contacts. The same repair as the scope
      * card, which asks for everything scopes() lists — contacts included.
      */
+    /** contactsPermission(), for Microsoft To Do. */
+    private function tasksPermission(Account $account): HealthIssue
+    {
+        $providerLabel = $this->providerLabel($account);
+
+        return new HealthIssue(
+            id: 'account-tasks-scope-' . $account->id,
+            kind: HealthIssueKind::AccountTasksScopeMissing,
+            severity: HealthSeverity::Notice,
+            subject: $account->email,
+            titleParams: ['%account%' => $account->email],
+            bodyParams: ['%account%' => $account->email],
+            repairs: [
+                new HealthRepair(
+                    route: 'app_health_reconnect',
+                    routeParams: ['id' => $account->id],
+                    labelKey: 'settings.health.repair.grant_tasks.label',
+                    promiseKey: 'settings.health.repair.grant_tasks.promise',
+                    promiseParams: ['%account%' => $account->email],
+                    pendingKey: null !== $providerLabel
+                        ? 'settings.health.pending.reconnect'
+                        : 'settings.health.pending.reconnect_generic',
+                    pendingParams: null !== $providerLabel
+                        ? ['%provider%' => $providerLabel]
+                        : [],
+                ),
+            ],
+            detail: $account->oauthGrantedScopes,
+        );
+    }
+
     private function contactsPermission(Account $account): HealthIssue
     {
         $providerLabel = $this->providerLabel($account);
@@ -568,12 +599,18 @@ final readonly class AccountHealthInspector
         // calendars right now had the evidence on screen and nothing read it.
         $missing = $provider->missingScopes($account->oauthGrantedScopes, $account->services);
 
-        // Contacts were added to the grant after these accounts existed (see
-        // MailProvider::contactScopes()). A grant missing only those has not
-        // refused anything — it predates the question — and gets its own,
-        // quieter card instead of this one.
-        if (null !== $missing && [] !== $missing && [] === array_diff($missing, $provider->contactScopes())) {
-            return $this->contactsPermission($account);
+        // Contacts, and then tasks, were added to the grant after these accounts
+        // existed (see MailProvider::contactScopes() and taskScopes()). A grant
+        // missing only those has not refused anything — it predates the
+        // question — and gets its own, quieter card instead of this one: the
+        // contacts card when contacts are among them, since the one reconnect
+        // it offers brings both.
+        $askedLater = array_merge($provider->contactScopes(), $provider->taskScopes());
+
+        if (null !== $missing && [] !== $missing && [] === array_diff($missing, $askedLater)) {
+            return [] === array_intersect($missing, $provider->contactScopes())
+                ? $this->tasksPermission($account)
+                : $this->contactsPermission($account);
         }
 
         // A KNOWN-GOOD GRANT ENDS THE QUESTION.

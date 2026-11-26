@@ -7,8 +7,7 @@ namespace App\Service\Calendar\Alert;
 use App\Domain\DTO\Calendar\DueAlert;
 use App\Domain\Enum\Calendar\AlertAction;
 use App\Domain\Interface\AlertChannelInterface;
-use App\Jmap\Push\PushSenderRegistry;
-use App\Repository\User\PushSubscription\PushSubscriptionRepository;
+use App\Service\Push\UserPushNotifier;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -41,7 +40,8 @@ use Psr\Log\LoggerInterface;
  * of an install where nobody has granted notification permission, and it answers
  * false so AlertDeliverer can say so once rather than raise something.
  *
- * **Delivery goes through PushSenderRegistry rather than one sender**, since
+ * **Delivery goes through PushSenderRegistry rather than one sender** (now in
+ * UserPushNotifier, which task reminders share), since
  * push grew a second transport. A phone registered over FCM is in the same
  * subscription list as the laptop's browser, and pushing it at WebPushSender
  * would produce a subscription with no endpoint URL and an error per alert.
@@ -60,10 +60,9 @@ final readonly class PushAlertChannel implements AlertChannelInterface
     public const string PAYLOAD_TYPE = 'CalendarAlert';
 
     public function __construct(
-        private PushSubscriptionRepository $subscriptions,
-        private PushSenderRegistry         $senders,
-        private AlertMessageBuilder        $wording,
-        private LoggerInterface            $logger,
+        private UserPushNotifier    $notifier,
+        private AlertMessageBuilder $wording,
+        private LoggerInterface     $logger,
     ) {
     }
 
@@ -74,20 +73,6 @@ final readonly class PushAlertChannel implements AlertChannelInterface
 
     public function deliver(DueAlert $due): bool
     {
-        // Any transport, not Web Push specifically. An install that runs
-        // Firebase and no VAPID keys still has devices to remind, and asking
-        // one sender whether push works at all was how this used to silently
-        // skip them.
-        if (false === $this->senders->anyConfigured()) {
-            return false;
-        }
-
-        $devices = $this->subscriptions->findDeliverableForUser($due->userId);
-
-        if ([] === $devices) {
-            return false;
-        }
-
         $payload = [
             '@type' => self::PAYLOAD_TYPE,
             'title' => $this->wording->title($due),
@@ -102,27 +87,17 @@ final readonly class PushAlertChannel implements AlertChannelInterface
             'tag'   => sprintf('%d/%s/%s', $due->eventId, $due->alert->key, $due->recurrenceId->format('Y-m-d\TH:i:s\Z')),
         ];
 
-        $delivered = false;
+        $delivered = $this->notifier->notify($due->userId, $payload);
 
-        foreach ($devices as $device) {
-            $sender = $this->senders->for($device);
-
-            if (null === $sender || false === $sender->isConfigured()) {
-                continue;
-            }
-
-            // Every device, and the result is an OR rather than an AND: one
-            // phone with a dead endpoint must not make an alert that reached the
-            // laptop count as undelivered. The senders already retire the
-            // endpoints that keep failing.
-            $delivered = $sender->send($device, $payload) || $delivered;
+        // Nowhere to send it is how most installs and most users are.
+        if (null === $delivered) {
+            return false;
         }
 
         if (false === $delivered) {
             $this->logger->warning('CalendarAlert: no device accepted the notification', [
                 'userId'  => $due->userId,
                 'eventId' => $due->eventId,
-                'devices' => count($devices),
             ]);
         }
 

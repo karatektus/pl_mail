@@ -247,6 +247,14 @@ final class PageRendersTest extends WebTestCase
                     return null;
                 }
 
+                // A select that cannot be a Tom Select where it is drawn, and
+                // says why in its template: the Layout menu's slot pickers sit
+                // in a top-layer popover, and Tom Select's panel hangs off
+                // <body>, underneath it (#755).
+                if (null !== $select->attr('data-native-select')) {
+                    return null;
+                }
+
                 return $select->attr('name') ?? $select->attr('id') ?? '(anonymous)';
             },
         )));

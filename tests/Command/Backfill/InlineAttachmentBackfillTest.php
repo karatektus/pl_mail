@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Command\Backfill;
 
 use App\Command\Backfill\InlineAttachmentBackfillTask;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
@@ -107,6 +108,22 @@ final class InlineAttachmentBackfillTest extends KernelTestCase
         self::assertSame(['invite.ics' => true, 'agenda.pdf' => false], $this->inlineByName($id));
     }
 
+    /**
+     * A picture pasted into the editor is stored inline before the autosave
+     * that writes its cid: into the body. The repair must not catch it there.
+     */
+    public function testADraftsInlineImageStaysInlineBeforeTheBodyNamesIt(): void
+    {
+        $id = $this->seed('<p>Look at this</p>', [
+            ['pasted.png', 'image/png', 'a1b2@plmail'],
+        ], [MessageFlag::DRAFT->value]);
+
+        $this->runTask();
+
+        self::assertSame(['pasted.png' => true], $this->inlineByName($id));
+        self::assertFalse($this->hasAttachments($id));
+    }
+
     public function testRunningItAgainChangesNothing(): void
     {
         $id = $this->seed('<p>See attached.</p>', [
@@ -124,10 +141,12 @@ final class InlineAttachmentBackfillTest extends KernelTestCase
      * Stored as the old detector stored it: every part inline, no attachments.
      *
      * @param list<array{string, string, string|null}> $parts filename, content type, Content-ID
+     * @param list<string>                             $flags
      */
-    private function seed(string $bodyHtml, array $parts): int
+    private function seed(string $bodyHtml, array $parts, array $flags = []): int
     {
         $message                 = new Message();
+        $message->flags          = $flags;
         $message->account        = $this->account;
         $message->subject        = 'Fwd: report';
         $message->fromAddress    = 'sender@example.test';

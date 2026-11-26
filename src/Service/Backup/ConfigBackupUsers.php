@@ -125,24 +125,33 @@ final readonly class ConfigBackupUsers
     public const array USER_SETTINGS = [
         User::SETTING_CLOCK,
         User::SETTING_CLOCK_PLACEMENT,
-        User::SETTING_CALENDAR_PANE_OPEN,
-        User::SETTING_CALENDAR_PANE_WIDTH,
-        User::SETTING_CALENDAR_PANE_MODE,
-        // The address book docked beside the mail, for the calendar pane's
-        // reason: a layout somebody chose, a bool and a number — and since
-        // #311 its position (what the bool grew into) and which position its
-        // button skips, one enum value each, like the calendar's.
-        User::SETTING_CONTACTS_PANE_OPEN,
-        User::SETTING_CONTACTS_PANE_MODE,
-        User::SETTING_CONTACTS_PANE_WIDTH,
-        User::SETTING_CONTACTS_SWITCH_SKIP,
+        // The user's workspaces (#755): which panes, how they are arranged,
+        // their names. A layout somebody chose, which holds no id — pane kinds
+        // and split ids the browser made up mean the same on any install. The
+        // divider positions are the device's cookie and do not travel, which
+        // is right: a restore lands on a different screen.
+        User::SETTING_WORKSPACES,
         // Which view each shape opens on. In the backup for the same reason the
-        // pane's width and mode are: it is a preference somebody set, it costs
+        // workspaces are: it is a preference somebody set, it costs
         // one short string, and a restore that put the calendar back on Week
         // would be the kind of small wrongness that makes a restore feel like a
         // different installation.
         User::SETTING_CALENDAR_VIEW,
         User::SETTING_CALENDAR_PANE_VIEW,
+        User::SETTING_CALENDAR_PANE_VIEWS,
+        // How each calendar pane and the tasks pane show a workspace of some
+        // account groups (#783): keyed by pane ids the browser made up, which
+        // mean the same anywhere.
+        User::SETTING_CALENDAR_PANE_SCOPES,
+        User::SETTING_TASKS_PANE_SCOPE,
+        // The user's own sidebars (#783). Their ids for accounts, labels,
+        // groups and calendars are rewritten on the way in, like a filter's
+        // (ConfigBackupUserRestorer::retargetSidebars()).
+        User::SETTING_SIDEBARS,
+        // Whether the Mail sidebar shows the clock, and whether search starts
+        // in the workspace on screen (#783): choices, with no id in them.
+        User::SETTING_MAIL_SIDEBAR_CLOCK,
+        User::SETTING_SEARCH_AUTOSCOPE,
         User::SETTING_SEARCH_SORT,
         // Whether single keys act on mail. Stored only as a false, by
         // somebody who decided they did not want that — and a restore that
@@ -200,15 +209,6 @@ final readonly class ConfigBackupUsers
         // somebody made about their own screen, holds no id, and means the same
         // thing on any install — so there was never an argument for leaving
         // them out, only an absence of one.
-        // Whether the open message sits beside the list, and how much of the mail
-        // card it takes. In the backup for the reason the calendar pane's mode
-        // and width are: it is a preference somebody set about their own screen,
-        // it costs a short string and a number, and a restore that put the
-        // mailbox back to one pane at a time would be the kind of small
-        // wrongness that makes a restore feel like a different installation.
-        // Neither holds an id, and a percentage means the same on any install.
-        User::SETTING_READING_PANE_MODE,
-        User::SETTING_READING_PANE_WIDTH,
         // How wide the sidebar is, and whether a clipped row may lean out over
         // the mail (#699). In the backup for the reasons the two above are: a
         // choice about one's own screen, no id, and a number of pixels and a
@@ -218,7 +218,7 @@ final readonly class ConfigBackupUsers
         User::SETTING_SIDEBAR_WIDTH,
         User::SETTING_SIDEBAR_PEEK,
         // What a dragged row does, one key per direction. In the backup for the
-        // reason the reading pane's keys are: a choice about one's own screen,
+        // reason the workspaces are: a choice about one's own screen,
         // a short string with no id, and the same meaning on any install. A
         // restore that left them out would put each direction back to its
         // default, so somebody who had chosen star would find the left swipe
@@ -260,6 +260,10 @@ final readonly class ConfigBackupUsers
         // internet (#642). Their consent to publishing their face; a restore
         // must carry it, and must never invent it. A boolean, no id.
         User::SETTING_LIBRAVATAR_PUBLISH,
+        // Whether a browser's notification names the sender and the subject
+        // (#760). A choice about what one's lock screen shows, which a restore
+        // must not turn on or off behind the user's back. A boolean, no id.
+        User::SETTING_NOTIFY_SHOW_CONTENT,
         // Which tabs and labels notify, and whether a browser skips mail
         // already read (#369). Choices about how one wants to be interrupted,
         // which a restore must not quietly undo: back to Primary alone is
@@ -269,12 +273,8 @@ final readonly class ConfigBackupUsers
         User::SETTING_NOTIFY_SCOPES,
         User::SETTING_NOTIFY_SKIP_READ,
         // Whether an account's own inbox has the category tabs. How the
-        // mailbox is drawn, like the reading pane above; a boolean, no id.
+        // mailbox is drawn, like the workspaces above; a boolean, no id.
         User::SETTING_ACCOUNT_INBOX_TABS,
-        // How the topbar's calendar button moves between views. One enum
-        // value, no id, the same on any install, and a preference about one's
-        // own screen like the pane's mode and width above.
-        User::SETTING_CALENDAR_SWITCH_SKIP,
         // "Don't show this after updates". A choice about being interrupted,
         // and one somebody made on purpose: a restore that brought the dialog
         // back would be undoing it. A boolean, no id.
@@ -374,7 +374,11 @@ final readonly class ConfigBackupUsers
         User::SETTING_LOGS_SEEN_AT => 'a read marker against log rows, which do not travel',
         User::SETTING_WHATS_NEW_SEEN => 'a read marker like admin.logs_seen_at, against the release the source install ran: restored onto another version it would either hide notes this person has not read or repeat ones they have',
         User::SETTING_SIDEBAR_ACCOUNT => 'account ids from the source database — on the target they are nothing, or somebody else',
+        User::SETTING_TASKS_ADD_TO => 'a task list id from the source database, like sidebar.expanded_account; task lists do not travel, and without it new tasks land in the default list',
         User::SETTING_INSIGHT_PANE_DISMISSED_AT => 'a read marker like admin.logs_seen_at: it says when this person last waved the strip away, not what they chose',
+        User::SETTING_WORKSPACES_SEEN => 'a read marker like admin.logs_seen_at, per workspace: what counts as new is what reached the source install since, and a restore starts every workspace at nothing new',
+        User::SETTING_LOCAL_WORKSPACES => 'calendar and task list ids from the source database; task lists do not travel, and a calendar without an account lands in the first workspace, which is the default anyway',
+        User::SETTING_CALENDAR_PANE_FILTERS => 'calendar ids from the source database, like sidebar.expanded_account; without them a pane shows every calendar again, which one click narrows',
     ];
 
     /**
@@ -851,6 +855,7 @@ final readonly class ConfigBackupUsers
                 'sendEnabled'       => $account->sendEnabled,
                 'calendarEnabled'   => $account->calendarEnabled,
                 'contactsEnabled'   => $account->contactsEnabled,
+                'tasksEnabled'      => $account->tasksEnabled,
                 'pushEnabled'       => $account->pushEnabled,
                 'settings'          => $this->settingsOfAccount($account),
                 'aliases'           => $this->exportAliases($account),
@@ -1024,6 +1029,9 @@ final readonly class ConfigBackupUsers
 
         foreach ($this->unifiedInboxes->findForUserOrdered($user) as $inbox) {
             $exported[] = [
+                // For the workspaces and sidebars that name it (#783), which
+                // the restore rewrites to the group it becomes.
+                'id'         => (int) $inbox->id,
                 'name'       => $inbox->name,
                 'icon'       => $inbox->icon,
                 'isOther'    => $inbox->isOther,

@@ -192,7 +192,7 @@ final readonly class ConfigBackupUserRestorer
         $labels       = $this->createLabels($user, $this->rows($document, 'labels'));
         $categories   = $this->createInboxCategories($user, $this->rows($document, 'inboxCategories'));
 
-        $this->createUnifiedInboxes($user, $this->rows($document, 'unifiedInboxes'), $accounts);
+        $groups       = $this->createUnifiedInboxes($user, $this->rows($document, 'unifiedInboxes'), $accounts);
         $calendars    = $this->createCalendars($user, $this->rows($document, 'calendars'), $accounts, $integrations);
 
         $this->createAppPasswords($user, $this->rows($document, 'appPasswords'));
@@ -211,10 +211,106 @@ final readonly class ConfigBackupUserRestorer
         $this->applyAliasOverrides($accounts, $this->rows($document, 'accounts'));
         $this->createRules($user, $this->rows($document, 'rules'), $accounts, $labels, $integrations, $categories);
         $this->retargetTabOrder($user, $categories);
+        $this->retargetWorkspaces($user, $groups);
+        $this->retargetSidebars($user, $accounts, $labels, $groups, $calendars);
 
         $this->entityManager->flush();
 
         return $user;
+    }
+
+    /**
+     * A workspace names its account groups by id (#783), rows in the source
+     * database. Each is rewritten to the group it became; one the file did
+     * not carry is dropped, and a workspace left with none shows every
+     * account, as it does when its groups are deleted. A backup written
+     * before groups had ids in the file restores every workspace that way.
+     *
+     * @param array<int, UnifiedInbox> $groups keyed by the id in the file
+     */
+    private function retargetWorkspaces(User $user, array $groups): void
+    {
+        $document = $user->getSetting(User::SETTING_WORKSPACES);
+
+        if (false === is_array($document) || false === is_array($document['workspaces'] ?? null)) {
+            return;
+        }
+
+        foreach ($document['workspaces'] as $index => $workspace) {
+            if (false === is_array($workspace) || false === is_array($workspace['groups'] ?? null)) {
+                continue;
+            }
+
+            $ids = [];
+
+            foreach ($workspace['groups'] as $id) {
+                $group = is_int($id) ? ($groups[$id] ?? null) : null;
+
+                if (null !== $group?->id) {
+                    $ids[] = (int) $group->id;
+                }
+            }
+
+            $document['workspaces'][$index]['groups'] = [] === $ids ? null : $ids;
+        }
+
+        $user->setSetting(User::SETTING_WORKSPACES, $document);
+    }
+
+    /**
+     * The user's own sidebars (#783) point at accounts, labels, account
+     * groups and calendars by id. Each is rewritten to the row it became and
+     * dropped when the file did not carry it; a task list never travels, so
+     * its rows go. Headings, the clock, system rows and live blocks hold no id
+     * and come over as they were.
+     *
+     * @param array<int, Account>      $accounts
+     * @param array<int, Label>        $labels
+     * @param array<int, UnifiedInbox> $groups
+     * @param array<int, Calendar>     $calendars
+     */
+    private function retargetSidebars(User $user, array $accounts, array $labels, array $groups, array $calendars): void
+    {
+        $stored = $user->getSetting(User::SETTING_SIDEBARS);
+
+        if (false === is_array($stored)) {
+            return;
+        }
+
+        $maps = ['acc' => ['acc', $accounts], 'label' => ['label', $labels], 'inbox' => ['inbox', $groups], 'cal' => ['cal', $calendars]];
+
+        foreach ($stored as $index => $sidebar) {
+            if (false === is_array($sidebar) || false === is_array($sidebar['entries'] ?? null)) {
+                continue;
+            }
+
+            $entries = [];
+
+            foreach ($sidebar['entries'] as $entry) {
+                $type = is_array($entry) ? ($entry['t'] ?? null) : null;
+
+                if ('tasks' === $type) {
+                    continue;
+                }
+
+                if (is_string($type) && isset($maps[$type])) {
+                    [$key, $map] = $maps[$type];
+                    $row         = is_int($entry[$key] ?? null) ? ($map[$entry[$key]] ?? null) : null;
+
+                    if (null === $row?->id) {
+                        continue;
+                    }
+
+                    $entry[$key] = (int) $row->id;
+                }
+
+                $entries[] = $entry;
+            }
+
+            $stored[$index]['entries'] = $entries;
+        }
+
+        $user->setSetting(User::SETTING_SIDEBARS, $stored);
     }
 
     /**
@@ -424,6 +520,8 @@ final readonly class ConfigBackupUserRestorer
             $account->mailEnabled       = true === ($row['mailEnabled'] ?? $legacyActive);
             $account->calendarEnabled   = true === ($row['calendarEnabled'] ?? true);
             $account->contactsEnabled   = true === ($row['contactsEnabled'] ?? $legacyActive);
+            // Off when the backup predates it, as the migration leaves every account.
+            $account->tasksEnabled      = true === ($row['tasksEnabled'] ?? false);
             // A file made before #628 has no send switch: read as the
             // migration filled it — on where mail was, unless the account
             // had no server to send through.
@@ -949,8 +1047,8 @@ final readonly class ConfigBackupUserRestorer
      * The unified inboxes (#265), in the order the file lists them, each with
      * the accounts it was assigned — named by their ids in the file and
      * rewritten to the accounts created above. An id the file has no account
-     * for is dropped; an account named twice keeps the first inbox that names
-     * it, because an account is in one inbox.
+     * for is dropped. An account may be in several (#783: account groups), but
+     * in each once.
      *
      * A hand-edited file is not trusted: a name is trimmed and cut to the
      * column, an empty one is plMail's own word, an icon outside the set is the
@@ -959,14 +1057,19 @@ final readonly class ConfigBackupUserRestorer
      * A file without the section — every backup written before #265 — restores
      * none, and the person gets the starting rows on their first page.
      *
+     * Returned by the id in the file, for the workspaces and sidebars that
+     * name them (#783); a file written before it carried those ids gives none.
+     *
      * @param list<array<string, mixed>> $rows
      * @param array<int, Account>        $accounts keyed by the id in the file
+     *
+     * @return array<int, UnifiedInbox> keyed by the id in the file
      */
-    private function createUnifiedInboxes(User $user, array $rows, array $accounts): void
+    private function createUnifiedInboxes(User $user, array $rows, array $accounts): array
     {
         $position = 0;
         $hasOther = false;
-        $placed   = [];
+        $created  = [];
 
         foreach ($rows as $row) {
             $name    = mb_substr(trim((string) ($this->text($row, 'name') ?? '')), 0, UnifiedInbox::NAME_MAX_LENGTH);
@@ -984,7 +1087,14 @@ final readonly class ConfigBackupUserRestorer
 
             $this->entityManager->persist($inbox);
 
-            $ids = $row['accountIds'] ?? [];
+            $sourceId = $this->number($row, 'id');
+
+            if (null !== $sourceId) {
+                $created[$sourceId] = $inbox;
+            }
+
+            $ids    = $row['accountIds'] ?? [];
+            $placed = [];
 
             foreach (is_array($ids) ? $ids : [] as $id) {
                 $account = is_int($id) ? ($accounts[$id] ?? null) : null;
@@ -998,6 +1108,8 @@ final readonly class ConfigBackupUserRestorer
                 $this->entityManager->persist(new UnifiedInboxAccount($inbox, $account));
             }
         }
+
+        return $created;
     }
 
     /**

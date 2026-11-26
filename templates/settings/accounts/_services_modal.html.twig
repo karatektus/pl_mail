@@ -29,7 +29,7 @@ and never from the server.
             <p class="text-sm text-ink-muted">{{ 'settings.accounts.services.intro'|trans }}</p>
 
             <ul class="divide-y divide-line rounded-pane border border-line">
-                {% for service in account_services() %}
+                {% for service in account_services()|filter(service => account.offers(service)) %}
                     {% set on          = account.isEnabled(service) %}
                     {% set serviceName = service.labelKey|trans %}
                     <li class="flex items-center gap-3 px-4 py-3">

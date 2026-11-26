@@ -22,6 +22,12 @@ use App\Entity\Mail\Message;
  * an "invite.ics" chip. Run through the detector, every such invite would come
  * out an attachment, since no body references it.
  *
+ * Drafts are left alone entirely. Their parts were not guessed from a sender's
+ * MIME: DraftAttachmentService stores an image pasted into the editor as
+ * inline on purpose, and the body only names its cid once the next autosave
+ * has run InlineImageRewriter::toCid(). A repair landing in between would
+ * turn that picture into a chip and put a paperclip on the draft.
+ *
  * Only the entities change; flushing, and the thread counters derived from
  * has_attachments, are the caller's.
  */
@@ -36,6 +42,10 @@ final readonly class InlineAttachmentReclassifier
      */
     public function reclassify(Message $message): int
     {
+        if (true === $message->isDraft()) {
+            return 0;
+        }
+
         $changed        = 0;
         $hasAttachments = false;
 

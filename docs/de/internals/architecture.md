@@ -1,4 +1,4 @@
-<!-- translated-from: internals/architecture.md sha1:fe017125bffb3c0f0bc7d14115bf639cf1811099 -->
+<!-- translated-from: internals/architecture.md sha1:234874777b614489e41929877fe410ba10f2af9a -->
 # Architektur
 
 Die Schichten, was wo liegt, und die Regeln, die das so halten. Diese Seite beschreibt die
@@ -252,6 +252,8 @@ war, in dem das Projekt vorher steckte: Logs und verwaiste Blobs wuchsen ohne Gr
 | `* * * * *` | `app:mail:wake-snoozed` | Eine Minute ist die Einheit, in der Menschen eine Weckzeit wählen |
 | `*/15 * * * *` | `app:mail:unpin-ended` | Die Listen lassen eine abgelaufene Anheftung selbst fallen; das hier sagt es nur den JMAP-Clients, und Anheftungen werden in Tagen gesetzt |
 | `* * * * *` | `app:calendar:alerts` | Dasselbe Argument, und zusätzlich ist das Intervall die Schranke dafür, wie spät eine Erinnerung kommen kann |
+| `* * * * *` | `app:tasks:alerts` | Dieselbe Schranke für die Erinnerung einer Aufgabe |
+| `13-59/15 * * * *` | `app:tasks:sync --stale` | Aufgabenlisten führen eigene Sync-Tokens, also auch einen eigenen Durchlauf |
 | `0 4 * * *` | `app:push:renew --repair` | Gmail-Watches halten 7 Tage, Graph-Abonnements etwa 3 |
 | `50 3 * * *` | `app:calendar:materialise` | Rollt den Horizont der Termininstanzen vorwärts, damit einem Serientermin nicht klammheimlich die Termine ausgehen |
 | `30 4 * * *` | `app:monitoring:prune` | Log-Einträge, Push-Zustellungen, tote Heartbeats, fertige Hintergrundjobs (30 Tage) und abgelaufene vertraute Geräte |

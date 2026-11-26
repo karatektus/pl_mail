@@ -32,6 +32,9 @@ Variables:
   aiReplyContext  ReplyContext — how much the composer reads
   aiAboutMe       string
   aiSystemPrompt  string
+  aiTranslateInto         string|null          the reader's translation language, null = interface language
+  aiTranslateIntoDefault  TranslationLanguage  what null resolves to
+  aiTranslationLanguages  list<TranslationLanguage>  in the order of their names on this page
 #}
 
 {# _card.html.twig pads a body only when asked, because most bodies are lists
@@ -58,6 +61,8 @@ Variables:
                  data-settings--toggle-url-value="{{ path('app_settings_ai_toggle') }}"
                  data-settings--toggle-token-value="{{ csrf_token('ai_preferences_toggle') }}">
 
+                {# Search by meaning is on the Search page too (#783): the same
+                   switch, so it is found from either side. #}
                 {% for feature in aiFeatures %}
                     {% set name = ('settings.ai.feature.' ~ feature.key)|trans %}
                     <div class="flex items-start justify-between gap-3"
@@ -92,6 +97,38 @@ Variables:
                             </span>
                         {% endif %}
                     </div>
+
+                    {# Into which language, under the switch it belongs to and
+                       only while that switch is on (#713). A free choice from
+                       the list rather than the interface language, because
+                       people read mail in languages plMail has no interface
+                       in. Submits on change, like the context picker below. #}
+                    {% if feature.key == 'translation' and feature.adminOn and feature.enabled %}
+                        {% import '_partials/_select.html.twig' as select %}
+                        <form method="post" action="{{ path('app_settings_ai_translate_into') }}"
+                              data-controller="ui--auto-submit"
+                              class="pl-7"
+                              data-ai-translate-into>
+                            <input type="hidden" name="_token" value="{{ csrf_token('settings-ai-translate-into') }}">
+                            <label for="settings-ai-translate-into" class="block mb-1.5 text-[11px] text-ink-faint">
+                                {{ 'settings.ai.translate_into.label'|trans }}
+                            </label>
+                            <select id="settings-ai-translate-into"
+                                    name="language"
+                                    data-action="change->ui--auto-submit#submit"
+                                    {{ select.enhance() }}
+                                    class="select-field w-full h-9 text-sm">
+                                <option value="" {{ aiTranslateInto is null ? 'selected' : '' }}>
+                                    {{ 'settings.ai.translate_into.follow_language'|trans({ '%language%': aiTranslateIntoDefault.label(app.request.locale) }) }}
+                                </option>
+                                {% for language in aiTranslationLanguages %}
+                                    <option value="{{ language.value }}" {{ language.value == aiTranslateInto ? 'selected' : '' }}>
+                                        {{ language.label(app.request.locale) }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    {% endif %}
                 {% endfor %}
             </div>
         {% endblock %}

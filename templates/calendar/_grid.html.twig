@@ -11,8 +11,8 @@ time-grid and the pane got a column list, on the reasoning that seven columns of
 positioned blocks behind a time gutter need roughly a screen's width and the
 pane had ~380px of a row it shared with the mail. That reasoning was right about
 380px and wrong about the pane, for two reasons that only became true later. The
-pane is resizable to CALENDAR_PANE_MAX_WIDTH and can now be dragged past it into
-a full-width calendar (see ui--split), so its width is the user's choice rather
+pane is a pane of the user's workspace, resizable and able to take the whole
+area (#755), so its width is the user's choice rather
 than a constant to design around. And a pane that quietly draws a *different*
 calendar is a worse answer to a narrow column than a grid that is tight in one:
 the timeline is the thing the view is for, and somebody who widened the pane

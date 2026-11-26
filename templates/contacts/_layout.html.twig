@@ -4,7 +4,7 @@ contacts/_layout.html.twig — the address book inside the app shell.
 Pages extend this and fill `contacts_content`; they may override `title`.
 Button and field classes are shared here so every contacts page matches.
 
-Every page runs in the pane docked beside the mail (_contacts_pane.html.twig),
+Every page runs in the address book's pane of the workspace (#755),
 and only there. Asked for by that frame — the header Turbo sends on every
 navigation inside it, or the attribute the mailbox sets when it renders an
 open pane with the page — a page renders into the frame alone, with no topbar

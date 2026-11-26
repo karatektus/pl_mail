@@ -30,6 +30,7 @@ use App\Service\Ai\ThreadSummaryStore;
 use App\Service\Ai\ThreadTranscript;
 use App\Service\Mail\BinView;
 use App\Service\Mail\InboxTabs;
+use App\Service\Layout\WorkspaceScope;
 use App\Service\Mail\MailLists;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\NewMailMarkers;
@@ -79,6 +80,7 @@ final class MailController extends AbstractController
         private readonly NewMailMarkers $newMail,
         private readonly SenderPictures $senderPictures,
         private readonly MailLists $mailLists,
+        private readonly WorkspaceScope $workspaceScope,
     )
     {
     }
@@ -96,7 +98,10 @@ final class MailController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        return $this->mailLists->for($user);
+        // Narrowed to the workspace's accounts (#783). A list that names its
+        // account (one account's inbox, its All Mail) asks by that account and
+        // is not narrowed further: it shows what it says.
+        return $this->mailLists->for($user, $this->workspaceScope->accountIds($user));
     }
 
     /**
@@ -313,10 +318,16 @@ final class MailController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        $accountIds = $this->unifiedInboxes->scopeOf($user, $unified);
+        // The plain /mail/inbox in a workspace of some account groups (#783)
+        // is those groups together — a workspace of one group draws it as its
+        // one Inbox row. A group asked for by id is that group, within the
+        // workspace's accounts.
+        $scope      = $this->workspaceScope->accountIds($user);
+        $wholeScope = null === $inbox && null !== $scope;
+        $accountIds = $wholeScope ? $scope : $this->workspaceScope->narrow($user, $this->unifiedInboxes->scopeOf($user, $unified));
 
         // The tab marks the strip draws are this inbox's, not every account's.
-        $this->newMail->scopeTabsTo($unified);
+        $this->newMail->scopeTabsTo($wholeScope ? null : $unified);
 
         // What `?tab=` may hold, what a key that is not a tab opens, and the
         // one list somebody with the tabs switched off gets: requestedTab().
@@ -1146,6 +1157,12 @@ final class MailController extends AbstractController
             : null;
 
         $newMail->scopeTabsTo($stripInbox);
+
+        // And within the workspace's accounts (#783): the strip on screen is
+        // the scoped inbox's, so its numbers are too.
+        if ($countsUser instanceof User) {
+            $stripAccounts = $this->workspaceScope->narrow($countsUser, $stripAccounts);
+        }
 
         $tabUnread  = $tabbed ? $this->lists()->countUnreadByCategoryForUnifiedInbox($countsUser, $stripAccounts) : [];
 

@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:df4207ab54859543805d62c5e78e583c823271e7 -->
+<!-- translated-from: features/admin.md sha1:eb7f8b188df6d1b94898f7d928d197e108cd29e3 -->
 
 # Administration
 
@@ -740,7 +740,7 @@ Speicher und der Klick hat nichts gebracht. Praktisch nach einem Neustart — un
 was ein kalter Ladevorgang auf deiner Hardware wirklich kostet, bevor du entscheidest, wie lange du
 das Modell hältst.
 
-### Die fünf Funktionen sind einzeln schaltbar
+### Die sechs Funktionen sind einzeln schaltbar
 
 Sie kosten sehr Unterschiedliches, und es hat sehr unterschiedliche Folgen, wenn das Modell danebenliegt.
 
@@ -751,6 +751,7 @@ Sie kosten sehr Unterschiedliches, und es hat sehr unterschiedliche Folgen, wenn
 | **Beim Schreiben helfen** | Bietet Entwürfe und Umformulierungen im Editor an | Nur wenn du fragst |
 | **Konversationen zusammenfassen** | Schreibt einen kurzen Abriss eines langen Gesprächs | Nur wenn jemand darum bittet |
 | **Kontakthilfe** | Liest einen Kontakt aus eingefügtem Text und schlägt Änderungen an einem Kontakt anhand der Signatur seiner letzten Mail vor | Nur wenn jemand auf **Mit KI verbessern** klickt |
+| **Nachrichten übersetzen** | Übersetzt eine Nachricht in die Sprache der Person, die sie liest | Nur wenn jemand auf **Übersetzen** klickt |
 
 Beim Einsortieren solltest du am ehesten vorsichtig sein: Es läuft unbeaufsichtigt. Es kann immer nur
 den Stichentscheid geben — wenn ein Header, ein Gmail-Label oder die Tatsache, dass du der Person
@@ -788,7 +789,7 @@ Drei Dinge sorgen dafür, dass das Einsortieren ankommender Mail nicht im Weg st
 
 Die Schreibhilfe ersetzt nie, was du geschrieben hast. Sie hängt an, dein Original bleibt stehen.
 
-Zusammenfassungen sind die teuerste der fünf. Sie nutzen dasselbe Schreibmodell, aber ein ganzes
+Zusammenfassungen sind der größte Prompt der sechs. Sie nutzen dasselbe Schreibmodell, aber ein ganzes
 Gespräch ist eine deutlich größere Eingabe als ein Entwurf: Auf einem 30B-Modell mit einer GPU
 rechne mit rund einer Minute für die erste Zusammenfassung nach einer ruhigen Phase und etwa der
 Hälfte, solange das Modell warm ist. Die GPU ist die ganze Zeit belegt, auf einer geteilten Maschine
@@ -802,6 +803,16 @@ geschickt hat — der Teil unter `-- ` oder unter der Grußformel („Viele Grü
 Eine Mail mit keinem von beiden schickt nichts aus dieser Mail. Nichts, was sie vorschlägt, wird
 gespeichert, bevor die Person es anhakt und den Kontakt speichert. Ohne sie funktioniert das Einfügen
 trotzdem: plMail liest den Text nach Regeln, nur der Knopf, der das Modell fragt, fällt weg.
+
+Das Übersetzen schickt den eigenen Text einer Nachricht — ohne die zitierte frühere Mail und bis etwa
+6.000 Zeichen — an das Schreibmodell, und die Antwort ist so lang wie die Nachricht. Ohne GPU ist das
+pro Aufruf die langsamste der sechs Funktionen: Die ganze Übersetzung entsteht auf der CPU, ein paar
+Wörter pro Sekunde, eine lange Nachricht braucht also Minuten und hält so lange einen PHP-Worker. Eine
+Übersetzung wird pro Nachricht und Sprache aufbewahrt, das erneute Öffnen kostet also nichts. Auf das
+Modell kommt es hier mehr an als irgendwo sonst, weil die Person das Ergebnis nicht an einer Sprache
+prüfen kann, die sie nicht liest: Ein kleines Modell schreibt flüssigen Text mit dem falschen
+Wochentag darin. Probier deins an einer Nachricht aus, deren Original du lesen kannst, bevor du es für
+andere einschaltest.
 
 ### Suchen nach Bedeutung braucht einmal einen Durchlauf
 

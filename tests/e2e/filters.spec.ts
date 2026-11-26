@@ -259,4 +259,50 @@ test.describe("mail filters", () => {
         const chip = await row.locator("[data-action-label]").first().innerText();
         expect(sentence).toContain(chip);
     });
+    // "Amazon goes to Notifications": a built-in tab is a choice of File in
+    // category beside the reader's own, and it survives the round trip.
+    test("files into a built-in tab and reopens on it", async ({ page }) => {
+        await page.goto(URL);
+
+        const list = page.locator("#settings-filter-list");
+        await list.getByRole("link", { name: "New filter" }).click();
+
+        const editor = page.locator("#filter-editor");
+        const name = `E2E Built-in tab ${Date.now()}`;
+        await editor.getByLabel("Name").fill(name);
+        await editor.locator('[data-rules--rule-builder-target="tree"] input[data-rule-value]').first().fill("amazon.fr");
+
+        await editor.getByRole("button", { name: "Add action" }).click();
+
+        const actionType = editor.locator('[data-rules--rule-builder-target="actionList"] select').first();
+
+        // Through Move to folder on the way: picking it used to throw, because
+        // a Map of folder names shadowed the method listing the folders, and
+        // the row was left without its folder choice.
+        const errors: string[] = [];
+        page.on("pageerror", (error) => errors.push(error.message));
+
+        await actionType.selectOption("moveToFolder");
+        await expect(editor.locator('[data-rules--rule-builder-target="actionList"] select')).toHaveCount(2);
+
+        await actionType.selectOption("fileInCategory");
+        const target = editor.locator('[data-rules--rule-builder-target="actionList"] select').nth(1);
+        // Named "Updates" in English and "Notifications" in French, so picked by its key.
+        await expect(target.locator('option[value="updates"]')).toHaveCount(1);
+        await target.selectOption("updates");
+
+        expect(errors).toEqual([]);
+
+        await expect(editor.locator('[data-rules--rule-builder-target="summary"]')).toContainText("File in category Updates");
+
+        await editor.getByRole("button", { name: "Save" }).click();
+        await expect(list.getByText(name)).toBeVisible();
+
+        await page.locator("#settings-filter-list li", { hasText: name })
+            .getByRole("link", { name: /^Edit filter/ })
+            .click();
+
+        const reopened = page.locator('#filter-editor [data-rules--rule-builder-target="actionList"] select').nth(1);
+        await expect(reopened).toHaveValue("updates");
+    });
 });

@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { test } from "./support/test";
 import { mailRow, seed } from "./support/config";
+import { only, row, useWorkspace } from "./support/workspace";
 
 /**
  * Answering an invitation shows the meeting in the calendar at once.
@@ -35,13 +36,13 @@ test.describe("answering an invitation", () => {
         // The pane open beside the mail, on the week — the view a slot is
         // worked out in. Visiting a view is how the pane remembers it.
         await page.request.get("/calendar/week?pane=1");
-        await paneMode(page, "split");
+        await useWorkspace(page, row("list", "calendar"));
     });
 
     test.afterEach(async ({ page }) => {
         // The pane mode is stored on the worker's user, which every other spec
         // on this worker shares; see calendar-pane.spec.ts.
-        await paneMode(page, "mail");
+        await useWorkspace(page, only("list"));
         seed("seed-invite --clear");
     });
 
@@ -123,26 +124,4 @@ async function watchForFlights(page: Page): Promise<void> {
             }
         }).observe(document.body, { childList: true });
     });
-}
-
-/** Put the calendar pane in a mode through the endpoint the switch posts to. */
-async function paneMode(page: Page, mode: "mail" | "split"): Promise<void> {
-    await page.goto("/mail/inbox");
-    await page.evaluate(async (wanted) => {
-        const shell = document.querySelector("[data-controller~='ui--split']");
-
-        if (null === shell) {
-            return;
-        }
-
-        const body = new FormData();
-
-        body.append("_token", shell.getAttribute("data-ui--split-token-value") ?? "");
-        body.append("mode", wanted);
-        await fetch(shell.getAttribute("data-ui--split-state-url-value") ?? "", {
-            method: "POST",
-            body,
-            headers: { "X-Requested-With": "fetch" },
-        });
-    }, mode);
 }

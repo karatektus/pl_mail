@@ -459,16 +459,22 @@ final readonly class ThreadStatusUpdater
     /**
      * Attach or detach a custom label across the set.
      *
+     * $asCopy is for the user labelling mail ("Label as", a drop on a label):
+     * on a plain IMAP account a folder's label then goes on as a copy into
+     * that folder, and comes off by deleting that copy (#693). Moves, rules
+     * and undo leave it off: they say where mail goes, and a copy beside
+     * their move would put the mail in two places.
+     *
      * @param list<Message> $messages
      */
-    public function applyLabel(array $messages, Label $label, bool $attach): void
+    public function applyLabel(array $messages, Label $label, bool $attach, bool $asCopy = false): void
     {
         if (true === $attach) {
             foreach ($messages as $message) {
                 $message->addLabel($label);
             }
 
-            $this->propagator->attachLabel($messages, $label);
+            $this->propagator->attachLabel($messages, $label, copyIntoFolder: $asCopy);
         } else {
             foreach ($messages as $message) {
                 $message->removeLabel($label);
@@ -476,7 +482,7 @@ final readonly class ThreadStatusUpdater
 
             // Handles the IMAP location-label replacement (physical move)
             // internally; must run before flush.
-            $this->propagator->detachLabel($messages, $label);
+            $this->propagator->detachLabel($messages, $label, deleteCopy: $asCopy);
         }
 
         $this->finish($messages);

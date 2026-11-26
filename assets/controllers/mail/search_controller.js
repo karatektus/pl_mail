@@ -48,6 +48,7 @@ const MIN_LIVE_LENGTH = 3;
  * never made; SearchSuggestController decides for real.
  */
 const OPERATOR_TOKEN = /(^|\s)(from|to|cc|subject|label|has|is|in|after|before):/i;
+// `space:` is not among them: the preview honours a workspace (#783).
 
 /**
  * The operators SearchQueryParser understands. Kept in the same order the
@@ -73,7 +74,15 @@ const OPERATORS = [
     { token: "in:junk",         hint: "in junk" },
     { token: "after:",          hint: "YYYY-MM-DD" },
     { token: "before:",         hint: "YYYY-MM-DD" },
+    { token: "space:",          hint: "a workspace's accounts" },
 ];
+
+/**
+ * A finished operator token — the operator, a colon and a value, quoted or
+ * not — which the box turns into a chip (#783). Finished means followed by a
+ * space: "from:ann" is still being typed until the space after it.
+ */
+const COMPLETE_TOKEN = /(^|\s)((?:from|to|cc|subject|label|has|is|in|after|before|space):(?:"[^"]+"|[^\s"]+))(?=\s)/gi;
 
 /** Operator values that are a closed set — suggested rather than searched. */
 const VALUES = {
@@ -110,9 +119,13 @@ export default class extends Controller {
     static targets = [
         "input", "dropdown", "recentsList", "dropdownTitle", "clear", "header",
         "resultsGroup", "resultsList", "status",
-    ];
+    , "chips", "clear"];
 
     static values = {
+        autoscope: Boolean,
+        space: String,
+        spaces: Array,
+        chipRemove: String,
         suggestUrl:      String,
         recentsTitle:    String,
         operatorsTitle:  String,
@@ -218,14 +231,150 @@ export default class extends Controller {
 
         const query = new URLSearchParams(window.location.search).get("q") ?? "";
 
-        if (this.inputTarget.value !== query) {
-            this.inputTarget.value = query;
+        // Always, not only when it differs: the server writes the query into
+        // the box as text, and its operators still have to become chips.
+        this.#setQuery(query);
+    }
+
+    // ── Chips (#783) ──────────────────────────────────────────────────────
+    //
+    // Finished operator tokens leave the text and sit in the box as chips:
+    // "from:ann space:Work" reads as two filters and the words after them.
+    // A chip goes with its × or one backspace at the start of the text. The
+    // query is the chips and the text together, in that order.
+
+    #chips = [];
+
+    /** Keep the caret in the box while the clear button is pressed. */
+    keepFocus(event) {
+        event.preventDefault();
+    }
+
+    /**
+     * Empty the box — chips and text — and, on the results page, leave it for
+     * the Inbox: a search cleared is a search no longer asked for (#783).
+     */
+    clear() {
+        this.#setQuery("");
+        this.#clearResults();
+        this.#liveRequest?.abort();
+        this.inputTarget.focus();
+        this.#refresh();
+
+        if (window.location.pathname === SEARCH_ROUTE) {
+            this._closeDropdown();
+            this._visit("/mail/inbox");
         }
+    }
+
+    /** Shown only while there is something to clear. */
+    #drawClear() {
+        if (this.hasClearTarget) {
+            this.clearTarget.hidden = "" === this.#query();
+        }
+    }
+
+    /** The whole query: the chips, then what is typed. */
+    #query() {
+        return [...this.#chips, this.inputTarget.value].join(" ").replace(/\s+/g, " ").trim();
+    }
+
+    /** Put a whole query in the box, its finished tokens as chips. */
+    #setQuery(query) {
+        this.#chips = [];
+        this.inputTarget.value = query;
+        this.#absorb(true);
+        this.#drawChips();
+    }
+
+    /**
+     * Move finished tokens from the text into chips. `all` counts the last
+     * token as finished too — for a query put in whole, not one being typed.
+     */
+    #absorb(all = false) {
+        const input = this.inputTarget;
+        const found = [];
+        const text = (all ? input.value + " " : input.value).replace(COMPLETE_TOKEN, (match, lead, token) => {
+            found.push(token);
+
+            return lead;
+        });
+
+        if (0 === found.length) {
+            return false;
+        }
+
+        // One space:, the last named: two workspaces at once is not a query.
+        found.forEach((token) => {
+            if (token.toLowerCase().startsWith("space:")) {
+                this.#chips = this.#chips.filter((chip) => false === chip.toLowerCase().startsWith("space:"));
+            }
+
+            this.#chips.push(token);
+        });
+
+        input.value = text.replace(/\s+/g, " ").replace(/^\s+/, "");
+
+        if (all) {
+            input.value = input.value.trim();
+        }
+
+        input.setSelectionRange(input.value.length, input.value.length);
+        this.#drawChips();
+
+        return true;
+    }
+
+    #drawChips() {
+        if (false === this.hasChipsTarget) {
+            return;
+        }
+
+        this.chipsTarget.replaceChildren(...this.#chips.map((token, index) => {
+            const chip = document.createElement("span");
+            const text = document.createElement("span");
+            const remove = document.createElement("button");
+
+            chip.className = "search-chip";
+            text.className = "truncate";
+            text.textContent = token;
+            remove.type = "button";
+            remove.className = "search-chip-remove";
+            remove.setAttribute("aria-label", (this.chipRemoveValue || "%token%").replace("%token%", token));
+            remove.innerHTML = '<i class="fa-solid fa-xmark text-[9px]" aria-hidden="true"></i>';
+            remove.addEventListener("mousedown", (event) => event.preventDefault());
+            remove.addEventListener("click", (event) => {
+                event.stopPropagation();
+                this.#chips.splice(index, 1);
+                this.#drawChips();
+                this.inputTarget.focus();
+                this.#refresh();
+            });
+
+            chip.append(text, remove);
+
+            return chip;
+        }));
+
+        // The text starts after the chips: the box keeps its own look, and
+        // the chips sit in it, between the glass and the caret.
+        const width = 0 === this.#chips.length ? 0 : this.chipsTarget.offsetWidth + 6;
+        this.inputTarget.style.paddingLeft = 0 === width ? "" : `${40 + width}px`;
+        this.#drawClear();
     }
 
     // ── Input events ──────────────────────────────────────────────────────
 
     onKeydown(event) {
+        if ("Backspace" === event.key && 0 === this.inputTarget.selectionStart && 0 === this.inputTarget.selectionEnd && this.#chips.length > 0) {
+            event.preventDefault();
+            this.#chips.pop();
+            this.#drawChips();
+            this.#refresh();
+
+            return;
+        }
+
         if (event.key === "Enter") {
             event.preventDefault();
 
@@ -264,7 +413,7 @@ export default class extends Controller {
                 return;
             }
 
-            this.inputTarget.value = "";
+            this.#setQuery("");
             this.inputTarget.blur();
             return;
         }
@@ -284,15 +433,28 @@ export default class extends Controller {
     onFocus() {
         const scope = SCOPE_BY_PATH[window.location.pathname];
 
-        if (scope !== undefined && this.inputTarget.value === "") {
+        if (scope !== undefined && "" === this.#query()) {
             this.inputTarget.value = `${scope} `;
-            this.inputTarget.setSelectionRange(this.inputTarget.value.length, this.inputTarget.value.length);
+            this.#absorb();
+        }
+
+        // Search starts in the workspace on screen, for whoever asked for
+        // that (#783): as a chip, so one backspace searches everything.
+        if (this.autoscopeValue && "" !== this.spaceValue && false === this.#chips.some((chip) => chip.toLowerCase().startsWith("space:")) && "" === this.inputTarget.value) {
+            this.#chips.unshift(`space:${this.#quote(this.spaceValue)}`);
+            this.#drawChips();
         }
 
         this.#refresh();
     }
 
     onInput() {
+        if (/\s$/.test(this.inputTarget.value)) {
+            this.#absorb();
+        }
+
+        this.#drawClear();
+
         this.#refresh();
     }
 
@@ -302,7 +464,7 @@ export default class extends Controller {
         const query = event.currentTarget.dataset.query;
         if (!query) { return; }
 
-        this.inputTarget.value = query;
+        this.#setQuery(query);
         this._closeDropdown();
         this._navigate(query);
     }
@@ -312,8 +474,34 @@ export default class extends Controller {
      * takes the list down, so it is not left hanging over the mail that was
      * just opened.
      */
-    selectResult() {
+    selectResult(event) {
         this._closeDropdown();
+
+        // In a workspace that does not show this conversation's account, the
+        // workspace that does opens it instead (#783).
+        const link = event.currentTarget;
+
+        if (this.#openInItsWorkspace(link.getAttribute("href"), link.dataset.account)) {
+            event.preventDefault();
+        }
+    }
+
+    /**
+     * Ask the workspaces (layout--workspace, #783) to open a conversation in
+     * the workspace it belongs to. True when they did — a switch, then a
+     * visit — and the caller should do nothing; false when the one on screen
+     * shows it, or when there are no workspaces here (Settings, the calendar).
+     */
+    #openInItsWorkspace(url, account) {
+        if (!account) {
+            return false;
+        }
+
+        const ask = new CustomEvent("layout:open-mail", { detail: { url, account: Number(account) }, cancelable: true });
+
+        window.dispatchEvent(ask);
+
+        return ask.defaultPrevented;
     }
 
     selectSuggestion(event) {
@@ -354,7 +542,7 @@ export default class extends Controller {
         this.#liveRequest?.abort();
         this.#liveRequest = null;
 
-        if (this.inputTarget.value.trim() === "") {
+        if ("" === this.#query()) {
             this.#clearResults();
             this.#showRecents();
             return;
@@ -404,6 +592,11 @@ export default class extends Controller {
                 // harvested correspondents send photoUrl: null.
                 photoUrl: contact.photoUrl ?? null,
             }));
+        } else if ("space" === operator) {
+            // The user's workspaces (#783), named as they are.
+            items = this.spacesValue
+                .filter((name) => name.toLowerCase().startsWith(value.replace(/^"/, "").toLowerCase()))
+                .map((name) => ({ kind: "operator", token: `space:${this.#quote(name)}`, hint: "" }));
         } else if (VALUES[operator]) {
             items = VALUES[operator]
                 .filter((candidate) => candidate.startsWith(value.toLowerCase()))
@@ -421,7 +614,7 @@ export default class extends Controller {
         // somebody that `is:` takes `unread`.
         this.#render();
         this.#settle();
-        this.#live(this.inputTarget.value.trim());
+        this.#live(this.#query());
     }
 
     /**
@@ -587,7 +780,7 @@ export default class extends Controller {
         if (!item) { return; }
 
         if (item.kind === "recent") {
-            this.inputTarget.value = item.query;
+            this.#setQuery(item.query);
             this._closeDropdown();
             this._navigate(item.query);
             return;
@@ -599,7 +792,11 @@ export default class extends Controller {
         // #syncToUrl's business, and its answer for a thread page is nothing.
         if (item.kind === "result") {
             this._closeDropdown();
-            this._visit(item.url);
+
+            if (false === this.#openInItsWorkspace(item.url, item.account)) {
+                this._visit(item.url);
+            }
+
             return;
         }
 
@@ -617,6 +814,11 @@ export default class extends Controller {
         input.value = replaced + after;
         input.setSelectionRange(replaced.length, replaced.length);
         input.focus();
+
+        // A finished token becomes a chip (#783).
+        if ("" !== trailing) {
+            this.#absorb();
+        }
 
         this.#refresh();
     }
@@ -669,8 +871,9 @@ export default class extends Controller {
         // server sent: the rows carry their own destination in the href, so
         // there is no second copy of it here to fall out of step.
         const results = [...this.#resultOptions()].map((option) => ({
-            kind: "result",
-            url:  option.getAttribute("href"),
+            kind:    "result",
+            url:     option.getAttribute("href"),
+            account: option.dataset.account ?? null,
         }));
 
         this.#items = [...this.#suggestions, ...results];
@@ -822,7 +1025,7 @@ export default class extends Controller {
     // ── Private ───────────────────────────────────────────────────────────
 
     _submit() {
-        const q = this.inputTarget.value.trim();
+        const q = this.#query();
 
         if (q === "") {
             return;

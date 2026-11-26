@@ -39,6 +39,13 @@ final class NotificationPreferenceController extends AbstractController
 
         $this->assertCsrf($request, 'settings-notifications');
 
+        // Whether a notification names the sender and the subject
+        // (User::$notifyShowsContent, #760), which the service worker reads
+        // back with the words through WebPushController::inboxState().
+        if (true === $request->request->has('showContent')) {
+            $user->notifyShowsContent = '1' === (string) $request->request->get('showContent');
+        }
+
         // Read only when posted, like every control on the settings pages: a
         // form that did not mention the switch must not move it.
         if (true === $request->request->has('skipRead')) {

@@ -93,6 +93,29 @@ final readonly class OccurrenceCluster implements TimeGridEntryInterface
     }
 
     /**
+     * Whether every copy is on one of these calendars (#783). A pane set to
+     * "+ Others" fades a cluster only when this is true for the calendars
+     * outside its workspace: a meeting that is also on one inside is the
+     * workspace's, whichever copy happens to be the primary.
+     *
+     * @param list<int> $calendarIds
+     */
+    public function onlyOn(array $calendarIds): bool
+    {
+        if ([] === $calendarIds) {
+            return false;
+        }
+
+        foreach ($this->members as $member) {
+            if (null === $member->calendar || false === in_array((int) $member->calendar->id, $calendarIds, true)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Where a time-grid draws this, answered from the primary — which is the
      * whole cluster's answer, because members that disagree about when they are
      * have already been split apart by EventClusterer. See

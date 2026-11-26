@@ -45,7 +45,7 @@ final class SearchQueryParser
      * @var list<string>
      */
     private const array OPERATORS = [
-        'from', 'to', 'cc', 'subject', 'label', 'has', 'is', 'in', 'after', 'before',
+        'from', 'to', 'cc', 'subject', 'label', 'has', 'is', 'in', 'after', 'before', 'space',
     ];
 
     private const array ROLES = [
@@ -112,6 +112,7 @@ final class SearchQueryParser
                 'in'      => $this->applyIn($filters, $value),
                 'after'   => null !== ($filters->after = $this->parseDate($value)),
                 'before'  => null !== ($filters->before = $this->parseDate($value)),
+                'space'   => (bool) ($filters->space = $value),
                 default   => false,
             };
 

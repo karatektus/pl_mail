@@ -18,6 +18,7 @@ use App\Domain\Enum\Mail\SyncTrigger;
 use App\Domain\Helper\ReadableBody;
 use App\Domain\Model\MessageModel;
 use App\Entity\Label\Label;
+use App\Entity\Rule\MailRule;
 use App\Repository\Mail\Message\MessageRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -46,6 +47,8 @@ use Doctrine\ORM\Mapping as ORM;
 // nearly every row. Serves "which mail is in this category" and the SET NULL a
 // category's removal performs.
 #[ORM\Index(name: 'idx_message_rule_category', columns: ['rule_category_id'], options: ['where' => '(rule_category_id IS NOT NULL)'])]
+// Which mail a filter filed into a built-in tab, for when it is deleted or changed.
+#[ORM\Index(name: 'idx_message_rule_builtin_rule', columns: ['rule_builtin_rule_id'], options: ['where' => '(rule_builtin_rule_id IS NOT NULL)'])]
 // The sidebar's unsent-draft warning counts these on every refresh; partial,
 // because nearly every row is null here and only the few marked ones matter.
 #[ORM\Index(name: 'idx_message_send_failed', columns: ['account_id'], options: ['where' => '(send_failed_at IS NOT NULL)'])]
@@ -75,6 +78,8 @@ use Doctrine\ORM\Mapping as ORM;
 // provider accepted it. They cannot use the index above, because they no
 // longer measure from received_at.
 #[ORM\Index(name: 'idx_message_account_accepted_at', columns: ['account_id', 'provider_accepted_at'])]
+// What arrived in an account since a workspace was last looked at (#783).
+#[ORM\Index(name: 'idx_message_account_created_at', columns: ['account_id', 'created_at'])]
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 // Partial, and declared so the mapping and the migrations agree. A where clause
@@ -867,6 +872,43 @@ class Message extends MessageModel
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'rule_category_id', nullable: true, onDelete: 'SET NULL')]
     public ?InboxCategory $ruleCategory = null;
+
+    /**
+     * The BUILT-IN tab a filter filed this message under — "Amazon goes to
+     * Notifications".
+     *
+     * Its own column for the reason $ruleCategory is: $category is recomputed
+     * by five writers, and a filter's verdict written there alone would be
+     * erased by the next re-sort. Unlike $ruleCategory it is not a second
+     * answer beside $category but an input to it: MessageCategorizer reads it
+     * first, so every one of those writers arrives at the filter's answer by
+     * itself, and $category — the column every tab query and JMAP read — goes
+     * on holding the built-in the message is in.
+     *
+     * Only a filter's action writes it. Filing under a tab of the reader's own
+     * leaves it be: $ruleCategory wins the tab, and this is still the built-in
+     * underneath it.
+     *
+     * Undone with the filter: deleting it, or changing it to file somewhere
+     * else, clears this and $ruleBuiltinRule and re-sorts the mail
+     * (RuleBuiltinTabReleaser). A built-in tab cannot be removed the way one
+     * of the reader's own can, so without that a filter written too broadly
+     * would hold its mail in the tab for good.
+     */
+    #[ORM\Column(name: 'rule_builtin_category', enumType: MessageCategory::class, nullable: true)]
+    public ?MessageCategory $ruleBuiltinCategory = null;
+
+    /**
+     * The filter that chose $ruleBuiltinCategory, so that deleting or changing
+     * it can let go of exactly the mail it filed.
+     *
+     * ON DELETE SET NULL only as the database's last word: every way the
+     * application deletes a filter releases its mail first, while this column
+     * still says which mail that is.
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'rule_builtin_rule_id', nullable: true, onDelete: 'SET NULL')]
+    public ?MailRule $ruleBuiltinRule = null;
 
     /**
      * The Gmail account that can act on this message, when it is not this

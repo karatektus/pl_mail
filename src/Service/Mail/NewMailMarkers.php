@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Service\Layout\WorkspaceScope;
+
 use App\Domain\DTO\Mail\InboxTab;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
@@ -75,7 +77,8 @@ class NewMailMarkers implements ResetInterface
     public function __construct(
         private readonly MessageThreadBadgeRepository $messageThreadBadgeRepository,
         private readonly Security                $security,
-        private readonly UnifiedInboxes          $inboxes
+        private readonly UnifiedInboxes          $inboxes,
+        private readonly WorkspaceScope          $workspaceScope,
     ) {
     }
 
@@ -194,7 +197,7 @@ class NewMailMarkers implements ResetInterface
 
             $this->byCategory = null === $user
                 ? []
-                : $this->messageThreadBadgeRepository->countNewByCategoryForUnifiedInbox($user, $this->now(), $this->tabAccounts);
+                : $this->messageThreadBadgeRepository->countNewByCategoryForUnifiedInbox($user, $this->now(), $this->workspaceScope->narrow($user, $this->tabAccounts));
         }
 
         return $this->byCategory[$tab->value] ?? 0;
@@ -217,7 +220,7 @@ class NewMailMarkers implements ResetInterface
 
             $this->sendersByCategory = null === $user
                 ? []
-                : $this->messageThreadBadgeRepository->newSendersByCategoryForUnifiedInbox($user, $this->now(), accountIds: $this->tabAccounts);
+                : $this->messageThreadBadgeRepository->newSendersByCategoryForUnifiedInbox($user, $this->now(), accountIds: $this->workspaceScope->narrow($user, $this->tabAccounts));
         }
 
         return $this->sendersByCategory[$tab->value] ?? [];
@@ -248,7 +251,7 @@ class NewMailMarkers implements ResetInterface
 
             $this->byRole = null === $user
                 ? []
-                : $this->messageThreadBadgeRepository->countNewPerRole($user, $this->now());
+                : $this->messageThreadBadgeRepository->countNewPerRole($user, $this->now(), $this->workspaceScope->narrow($user, null));
         }
 
         return $this->byRole[$role->value] ?? 0;
@@ -274,7 +277,7 @@ class NewMailMarkers implements ResetInterface
 
             $this->starred = null === $user
                 ? 0
-                : $this->messageThreadBadgeRepository->countNewForStarred($user, $this->now());
+                : $this->messageThreadBadgeRepository->countNewForStarred($user, $this->now(), $this->workspaceScope->narrow($user, null));
         }
 
         return $this->starred;

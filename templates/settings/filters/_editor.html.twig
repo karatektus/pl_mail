@@ -9,7 +9,8 @@ indent and wrapped control rows rather than a reduced set of options — there i
 nothing here a narrow screen has to give up.
 
 Variables:
-  rule, errors, submitted*, labels, accounts, actionTypes, categories
+  rule, errors, submitted*, labels, accounts, actionTypes, categories,
+  builtInCategories
 #}
 {% import '_partials/_select.html.twig' as select %}
 <turbo-frame id="filter-editor">
@@ -34,6 +35,8 @@ Variables:
               data-rules--rule-builder-labels-value="{{ labels|map(l => { id: l.id, name: l.fullName, system: l.isSystem, folder: move_labels([l]) is not empty })|json_encode|e('html_attr') }}"
               {# The reader's own categories, for the "File in category" row. #}
               data-rules--rule-builder-categories-value="{{ categories|json_encode|e('html_attr') }}"
+              {# And the built-in tabs beside them, named as the tab strip names them. #}
+              data-rules--rule-builder-built-in-categories-value="{{ builtInCategories|map(c => { key: c.key, name: ('tabs.' ~ c.key)|trans, off: c.off })|json_encode|e('html_attr') }}"
               {# More than id and name: the editor opens the shared destination
                  picker for whichever connection is selected, so each one brings
                  the URL that chooser lives at and whether it is a photo library

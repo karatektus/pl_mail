@@ -67,13 +67,33 @@ final class CalendarType extends AbstractType
                 // IANA names are their own labels; see `color` above.
                 'choice_translation_domain'    => false,
             ]);
+
+        // A calendar without an account belongs to one workspace (#783): no
+        // account group holds it. Not on the entity — workspaces live in the
+        // user's settings, so the controller stores the choice there.
+        if ([] !== $options['workspaces']) {
+            $builder->add('workspace', ChoiceType::class, [
+                'label'                     => 'calendar.form.workspace',
+                'help'                      => 'calendar.form.workspace_help',
+                'mapped'                    => false,
+                'choices'                   => $options['workspaces'],
+                'data'                      => $options['workspace'],
+                'choice_translation_domain' => false,
+            ]);
+        }
     }
 
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
             'data_class' => Calendar::class,
+            // Workspace name => id, for a calendar without an account; empty
+            // leaves the field off (an account's calendar, or one workspace).
+            'workspaces' => [],
+            'workspace'  => null,
         ]);
+        $resolver->setAllowedTypes('workspaces', 'array');
+        $resolver->setAllowedTypes('workspace', ['null', 'string']);
 
         // The zone "Follow plMail" stands for, named in the help text.
         $resolver->setRequired('owner_zone');

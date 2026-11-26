@@ -34,6 +34,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 class MessageThreadRepository extends ServiceEntityRepository
 {
+    /** @var list<int>|null see withScope() */
+    private ?array $scope = null;
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, MessageThread::class);
@@ -45,7 +48,25 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     private function lists(): MailListQuery
     {
-        return new MailListQuery($this->getEntityManager());
+        return new MailListQuery($this->getEntityManager(), $this->scope);
+    }
+
+    /**
+     * The same lists, narrowed to a workspace's accounts (#783). A copy, so
+     * the shared service stays unscoped for everybody else in the request.
+     *
+     * @param list<int>|null $accountIds null is every account
+     */
+    public function withScope(?array $accountIds): static
+    {
+        if (null === $accountIds) {
+            return $this;
+        }
+
+        $scoped        = clone $this;
+        $scoped->scope = $accountIds;
+
+        return $scoped;
     }
 
     /**

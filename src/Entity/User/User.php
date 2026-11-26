@@ -5,14 +5,9 @@ declare(strict_types=1);
 namespace App\Entity\User;
 
 use App\Domain\DTO\Push\NotifyScope;
-use App\Domain\Enum\Calendar\CalendarPaneMode;
-use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Domain\Enum\Calendar\CalendarView;
-use App\Domain\Enum\Contacts\ContactsPaneMode;
-use App\Domain\Enum\Contacts\ContactsSwitchSkip;
 use App\Domain\Enum\Crypto\KeyringRoot;
 use App\Domain\Enum\Mail\ComposeAction;
-use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Enum\Mail\SenderPictureKind;
 use App\Domain\Enum\Mail\SidebarRow;
@@ -735,9 +730,47 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public const string SETTING_CLOCK_PLACEMENT = 'display.clock_placement';
 
-    /** Virtual, out of the settings bag — see SETTING_CLOCK_PLACEMENT. */
+    /**
+     * Whether search starts limited to the workspace on screen (#783): the
+     * search box opens with `space:<workspace>` as a chip, which one
+     * backspace takes off. Off, search covers every account.
+     */
+    public const string SETTING_SEARCH_AUTOSCOPE = 'search.autoscope';
+
+    /** Virtual, out of the settings bag — see SETTING_SEARCH_AUTOSCOPE. */
+    public bool $searchAutoscope {
+        get => true === $this->getSetting(self::SETTING_SEARCH_AUTOSCOPE);
+        set (bool $on) {
+            $this->setSetting(self::SETTING_SEARCH_AUTOSCOPE, $on);
+        }
+    }
+
+    /**
+     * Whether the built-in Mail sidebar shows the clock at its bottom (#783).
+     * A sidebar of one's own holds a Clock row instead. Absent, it follows
+     * the old placement: whoever had put the clock in the sidebar keeps it.
+     */
+    public const string SETTING_MAIL_SIDEBAR_CLOCK = 'layout.mail_sidebar_clock';
+
+    /** Virtual, out of the settings bag — see SETTING_MAIL_SIDEBAR_CLOCK. */
+    public bool $mailSidebarClock {
+        get => is_bool($this->getSetting(self::SETTING_MAIL_SIDEBAR_CLOCK))
+            ? $this->getSetting(self::SETTING_MAIL_SIDEBAR_CLOCK)
+            : ClockPlacement::Sidebar->value === $this->getSetting(self::SETTING_CLOCK_PLACEMENT);
+        set (bool $shown) {
+            $this->setSetting(self::SETTING_MAIL_SIDEBAR_CLOCK, $shown);
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CLOCK_PLACEMENT. A stored
+     * "sidebar" reads as Off (#783): that clock is the Mail sidebar's switch
+     * now (mailSidebarClock), and it is in neither of the places this names.
+     */
     public ClockPlacement $clockPlacement {
-        get => ClockPlacement::fromSetting($this->getSetting(self::SETTING_CLOCK_PLACEMENT));
+        get => ClockPlacement::Sidebar === ClockPlacement::fromSetting($this->getSetting(self::SETTING_CLOCK_PLACEMENT))
+            ? ClockPlacement::Off
+            : ClockPlacement::fromSetting($this->getSetting(self::SETTING_CLOCK_PLACEMENT));
         set (ClockPlacement $placement) {
             $this->setSetting(self::SETTING_CLOCK_PLACEMENT, $placement->value);
         }
@@ -858,30 +891,19 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public const string SETTING_LOGS_SEEN_AT = 'admin.logs_seen_at';
 
-    /**
-     * Whether the calendar pane is docked open beside the mail panes, and how
-     * wide it is in pixels.
-     *
-     * Server-side rather than in localStorage so the width is rendered into
-     * the first paint — a pane that appears at 380px and jumps to the user's
-     * 520px once JavaScript runs is worse than no memory at all — and so it
-     * follows the user to their other devices, which is the whole reason this
-     * bag exists.
-     */
-    public const string SETTING_CALENDAR_PANE_OPEN = 'calendar.pane_open';
-    public const string SETTING_CALENDAR_PANE_WIDTH = 'calendar.pane_width';
+    /** The user's own sidebars (#783), see SidebarStore. */
+    public const string SETTING_SIDEBARS = 'layout.sidebars';
+
+    /** When each workspace was last on screen (#783): workspace id => unix time, see WorkspaceNews. */
+    public const string SETTING_WORKSPACES_SEEN = 'layout.workspaces_seen';
 
     /**
-     * Which of the three positions the topbar's calendar switch is in — see
-     * CalendarPaneMode, which is what SETTING_CALENDAR_PANE_OPEN grew into when
-     * "the calendar, full width, without leaving the mail" turned out to be the
-     * state people wanted and a boolean could not hold.
-     *
-     * The old key is still read as the fallback, so an upgrade does not reset
-     * anybody's pane: `true` there means Split, which is what it always meant.
-     * It is no longer written.
+     * The user's workspaces: which panes are on screen, how they are arranged,
+     * and which arrangement is active (#755). One document, read and written
+     * by WorkspaceStore; see Workspaces for its shape. Divider positions are
+     * NOT here: they belong to the device (DeviceLayout).
      */
-    public const string SETTING_CALENDAR_PANE_MODE = 'calendar.pane_mode';
+    public const string SETTING_WORKSPACES = 'layout.workspaces';
 
     /**
      * Which of day/week/month/agenda the calendar opens on, remembered per
@@ -903,75 +925,41 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_CALENDAR_VIEW = 'calendar.view';
     public const string SETTING_CALENDAR_PANE_VIEW = 'calendar.pane_view';
 
-    /** Matches the clamp in ui--split; the server is what enforces it. */
-    public const int CALENDAR_PANE_MIN_WIDTH = 320;
-    public const int CALENDAR_PANE_MAX_WIDTH = 900;
-    public const int CALENDAR_PANE_DEFAULT_WIDTH = 380;
+    /**
+     * The view of each FURTHER calendar pane, by its id (LayoutPane::$id): a
+     * workspace can show several calendars, each on its own view — this week
+     * beside this month — and choosing one's view leaves the others alone.
+     * The first calendar pane, which has no id, keeps
+     * SETTING_CALENDAR_PANE_VIEW. A pane with nothing stored opens on what the
+     * first one shows. Ids of panes since removed stay, up to a cap: a
+     * handful of short strings, and a pane put back finds its view.
+     */
+    public const string SETTING_CALENDAR_PANE_VIEWS = 'calendar.pane_views';
 
     /**
-     * Whether the address book is docked beside the mail, and how wide.
-     *
-     * The settings bag for the calendar pane's reasons: rendered into the first
-     * paint, the same at every desk, no migration. Its own keys rather than a
-     * position of the calendar switch, because from a wide enough screen the
-     * two are docked side by side (see contacts--pane) — one setting cannot
-     * say "both".
-     *
-     * Three positions since #311, the calendar's: closed, beside the mail, and
-     * full width with the mail behind it (ContactsPaneMode). Kept as
-     * SETTING_CONTACTS_PANE_MODE; SETTING_CONTACTS_PANE_OPEN is what it grew
-     * out of, and is still read for somebody who has never moved the switch
-     * since, so their pane opens where they left it.
+     * The one calendar a calendar pane is narrowed to (#783), pane id => calendar
+     * id; '' is the first pane. Set from a sidebar's calendar row, cleared by
+     * the chip in the pane. A pane not listed shows every visible calendar.
      */
-    public const string SETTING_CONTACTS_PANE_OPEN = 'contacts.pane_open';
-    public const string SETTING_CONTACTS_PANE_MODE = 'contacts.pane_mode';
-    public const string SETTING_CONTACTS_PANE_WIDTH = 'contacts.pane_width';
+    public const string SETTING_CALENDAR_PANE_FILTERS = 'calendar.pane_filters';
 
     /**
-     * Which position the contacts button skips — SETTING_CALENDAR_SWITCH_SKIP,
-     * for the address book. Absent for the default three-way cycle.
+     * How many further panes' views are kept. Past it some are dropped — not
+     * strictly the oldest, as the column is JSONB and keeps keys in an order
+     * of its own; a dropped pane just opens on the first pane's view.
      */
-    public const string SETTING_CONTACTS_SWITCH_SKIP = 'contacts.switch_skip';
+    private const int CALENDAR_PANE_VIEWS_KEPT = 24;
 
     /**
-     * Matches the clamp in ui--split; the server is what enforces it.
-     *
-     * 368 (23rem), not 320: the narrowest the list's header fits on one line
-     * — the title in full ("Shipmates", the longest of the four) and its five
-     * buttons. At 320 the title ran under the buttons, and both other ways out
-     * (truncating it, wrapping the buttons) read worse than a slightly wider
-     * pane. A width stored below this is raised on read (contactsPaneWidth).
+     * The list a new task lands on when nothing else was picked (My Day, All, quick
+     * add from either). An id, read through TaskListProvisioner::landingFor(), which
+     * falls back to the default list when this one is gone, foreign or read-only.
      */
-    public const int CONTACTS_PANE_MIN_WIDTH = 368;
-    public const int CONTACTS_PANE_MAX_WIDTH = 900;
-    public const int CONTACTS_PANE_DEFAULT_WIDTH = 420;
-
-    /**
-     * Whether the open message sits beside the message list, and how much of the
-     * mail card it takes — see ReadingPaneMode.
-     *
-     * The settings bag for the reasons the calendar pane's keys are: rendered
-     * into the first paint, the same at every desk, no migration. And its own
-     * keys rather than a place in the Appearance embeddable, which is what a
-     * theme export, a JMAP appearance method and the config backup all read:
-     * where the message is drawn is a layout choice about THIS screen, not part
-     * of a palette somebody might share, and importing a colour scheme must not
-     * rearrange the mailbox it lands in.
-     *
-     * The width is a PERCENTAGE of the mail card — the list and the message
-     * together, without the sidebar or a docked calendar — and not pixels. The
-     * card changes width whenever the calendar pane opens, closes or is dragged,
-     * and a pixel figure remembered from one of those states is wrong in the
-     * next: 520px is a comfortable half of a wide card and most of a narrow one.
-     * A share keeps its meaning across all of them.
-     */
-    public const string SETTING_READING_PANE_MODE = 'reading.pane_mode';
-    public const string SETTING_READING_PANE_WIDTH = 'reading.pane_width_pct';
+    public const string SETTING_TASKS_ADD_TO = 'tasks.add_to';
 
     /**
      * What a dragged row does, one key per direction — see SwipeAction and
-     * SwipeDirection. The bag, like the reading pane's keys beside them, for a
-     * choice about THIS screen that needs no column and no migration. Each
+     * SwipeDirection. The bag, for a choice about THIS screen that needs no column and no migration. Each
      * stores one SwipeAction value; anything else stored reads as the
      * direction's default (SwipeAction::fromSetting).
      */
@@ -979,30 +967,14 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_SWIPE_LEFT_ACTION = 'swipe.left_action';
 
     /**
-     * The range the divider can be dragged through, in percent of the mail card.
-     *
-     * Matches the clamp in mail--reading-split; the server is what enforces it.
-     * The ends are 25 and 75 rather than something tighter because a share
-     * outside them leaves one pane too narrow to read or to click a row in on
-     * the card widths this layout is drawn at, and the pixel floors in app.css
-     * take over before these figures are ever the limit on a small card.
-     */
-    public const int READING_PANE_MIN_PCT = 25;
-    public const int READING_PANE_MAX_PCT = 75;
-
-    /** A little over half: the message is the thing being read, the list is how it was found. */
-    public const int READING_PANE_DEFAULT_PCT = 55;
-
-    /**
      * How wide the sidebar is, and whether a row too long for it may lean out
      * over the mail to show itself (#699).
      *
-     * The bag, for the reasons the reading pane's keys are in it: rendered into
-     * the first paint, so a sidebar never appears at 224px and jumps to the
+     * The bag, so it is rendered into the first paint, so a sidebar never appears at 224px and jumps to the
      * user's 300px once JavaScript runs, and the same at every desk. No
      * migration.
      *
-     * Pixels rather than a share, unlike the reading pane: the sidebar holds
+     * Pixels rather than a share, unlike a workspace's dividers: the sidebar holds
      * rows of text whose length does not change with the window, so the width
      * that fits them is a number of pixels on any screen.
      *
@@ -1115,131 +1087,20 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     /** The composer stays open and is its own cancel. */
     public const string SEND_FEEDBACK_HOLD = 'hold';
 
-    /**
-     * Virtual, so there is no column behind it — the value lives in the
-     * settings bag, and Doctrine refuses to map a property whose hooks do not
-     * touch a backing store.
-     */
-    public int $calendarPaneWidth {
+    /** Virtual, out of the settings bag — see SETTING_TASKS_ADD_TO. */
+    public ?int $tasksAddToListId {
         get {
-            $width = $this->getSetting(self::SETTING_CALENDAR_PANE_WIDTH, self::CALENDAR_PANE_DEFAULT_WIDTH);
+            $id = $this->getSetting(self::SETTING_TASKS_ADD_TO);
 
-            if (false === is_int($width)) {
-                return self::CALENDAR_PANE_DEFAULT_WIDTH;
-            }
-
-            return max(self::CALENDAR_PANE_MIN_WIDTH, min(self::CALENDAR_PANE_MAX_WIDTH, $width));
-        }
-    }
-
-    /** Virtual, out of the settings bag — see SETTING_CONTACTS_PANE_OPEN. */
-    public int $contactsPaneWidth {
-        get {
-            $width = $this->getSetting(self::SETTING_CONTACTS_PANE_WIDTH, self::CONTACTS_PANE_DEFAULT_WIDTH);
-
-            if (false === is_int($width)) {
-                return self::CONTACTS_PANE_DEFAULT_WIDTH;
-            }
-
-            return max(self::CONTACTS_PANE_MIN_WIDTH, min(self::CONTACTS_PANE_MAX_WIDTH, $width));
-        }
-    }
-
-    /**
-     * Virtual, out of the settings bag — see SETTING_CONTACTS_PANE_OPEN. The
-     * old open flag is read when no mode was ever stored, and written null once
-     * one is, so the two cannot disagree later.
-     */
-    public ContactsPaneMode $contactsPaneMode {
-        get {
-            $stored = $this->getSetting(self::SETTING_CONTACTS_PANE_MODE);
-
-            if (true === is_string($stored) && null !== ContactsPaneMode::tryFrom($stored)) {
-                return ContactsPaneMode::from($stored);
-            }
-
-            return true === $this->getSetting(self::SETTING_CONTACTS_PANE_OPEN, false)
-                ? ContactsPaneMode::Split
-                : ContactsPaneMode::Mail;
-        }
-        set (ContactsPaneMode $mode) {
-            $this->setSetting(self::SETTING_CONTACTS_PANE_MODE, $mode->value);
-            $this->setSetting(self::SETTING_CONTACTS_PANE_OPEN, null);
-        }
-    }
-
-    /**
-     * Whether the address book is on screen, in either position. Opening one
-     * that is already open keeps its position; opening a closed one docks it.
-     */
-    public bool $contactsPaneOpen {
-        get => $this->contactsPaneMode->showsContacts();
-        set (bool $open) {
-            if (false === $open) {
-                $this->contactsPaneMode = ContactsPaneMode::Mail;
-            } elseif (false === $this->contactsPaneMode->showsContacts()) {
-                $this->contactsPaneMode = ContactsPaneMode::Split;
-            }
-        }
-    }
-
-    /** Virtual, out of the settings bag — see SETTING_CONTACTS_SWITCH_SKIP. */
-    public ContactsSwitchSkip $contactsSwitchSkip {
-        get {
-            $stored = $this->getSetting(self::SETTING_CONTACTS_SWITCH_SKIP);
-
-            return true === is_string($stored)
-                ? ContactsSwitchSkip::tryFrom($stored) ?? ContactsSwitchSkip::None
-                : ContactsSwitchSkip::None;
-        }
-        set (ContactsSwitchSkip $skip) {
-            $this->setSetting(
-                self::SETTING_CONTACTS_SWITCH_SKIP,
-                ContactsSwitchSkip::None === $skip ? null : $skip->value,
-            );
-        }
-    }
-
-    /**
-     * Virtual, out of the settings bag — see SETTING_READING_PANE_MODE.
-     *
-     * Off until somebody chooses, so an upgrade changes nothing about a
-     * mailbox anybody already uses.
-     */
-    public ReadingPaneMode $readingPaneMode {
-        get => ReadingPaneMode::fromSetting($this->getSetting(self::SETTING_READING_PANE_MODE));
-        set (ReadingPaneMode $mode) {
-            $this->setSetting(self::SETTING_READING_PANE_MODE, $mode->value);
-        }
-    }
-
-    /**
-     * Virtual, out of the settings bag — see SETTING_READING_PANE_WIDTH.
-     *
-     * Clamped on the way out as well as on the way in. The endpoint clamps what
-     * it stores, but the bag is JSON that a restore or an older build may have
-     * written, and a value outside the range here is a divider nobody can reach.
-     * Anything that is not an integer reads as the default rather than being
-     * coerced: a stored "60" is a value nobody on this build wrote.
-     */
-    public int $readingPaneWidthPct {
-        get {
-            $share = $this->getSetting(self::SETTING_READING_PANE_WIDTH, self::READING_PANE_DEFAULT_PCT);
-
-            if (false === is_int($share)) {
-                return self::READING_PANE_DEFAULT_PCT;
-            }
-
-            return max(self::READING_PANE_MIN_PCT, min(self::READING_PANE_MAX_PCT, $share));
+            return is_int($id) && 0 < $id ? $id : null;
         }
     }
 
     /**
      * Virtual, out of the settings bag — see SETTING_SIDEBAR_WIDTH.
      *
-     * Clamped on the way out as well as on the way in, for the reason the
-     * reading pane's share is: a stored width outside the range is a sidebar
-     * nobody can drag back.
+     * Clamped on the way out as well as on the way in: a stored width outside
+     * the range is a sidebar nobody can drag back.
      */
     public int $sidebarWidth {
         get {
@@ -1292,36 +1153,11 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
-     * Virtual, out of the settings bag — see SETTING_CALENDAR_PANE_MODE.
-     *
-     * Nobody who has not chosen starts on the mail alone any more: the default
-     * is Split, the calendar beside the mail, because mail and a diary side by
-     * side is what plMail is for and a closed pane is one nobody finds. That is
-     * a desktop's default only. Below lg the pane never opens on arrival (see
-     * ui--split's connect()), so a phone still opens on its mail.
-     *
-     * The boolean this replaced is still read, so a pane somebody shut under
-     * it stays shut. Only an explicit `false` means that; a missing key means
-     * nobody ever chose.
-     */
-    public CalendarPaneMode $calendarPaneMode {
-        get => CalendarPaneMode::fromSetting(
-            $this->getSetting(self::SETTING_CALENDAR_PANE_MODE),
-            false === $this->getSetting(self::SETTING_CALENDAR_PANE_OPEN)
-                ? CalendarPaneMode::Mail
-                : CalendarPaneMode::Split,
-        );
-        set (CalendarPaneMode $mode) {
-            $this->setSetting(self::SETTING_CALENDAR_PANE_MODE, $mode->value);
-        }
-    }
-
-    /**
      * The view the full calendar page opens on. Week until somebody chooses
      * otherwise, which is what it always did.
      *
-     * Virtual, out of the settings bag, for the reason $calendarPaneWidth
-     * gives. `tryFrom` rather than `from`: the bag is JSON that a config
+     * Virtual, out of the settings bag, so it is rendered into the first
+     * paint and follows the user to every desk. `tryFrom` rather than `from`: the bag is JSON that a config
      * restore or an older build may have written, and an unrecognised value is
      * a reason to open on the default rather than to fail rendering the
      * calendar.
@@ -1348,14 +1184,141 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
-     * Stays a method rather than becoming a property: there is no boolean
-     * column here to read. It interprets the mode, which is the thing actually
-     * stored, and answers the one question most callers have — is there a
-     * calendar on this page at all?
+     * The view the calendar pane of that id opens on; null is the first pane.
+     * See SETTING_CALENDAR_PANE_VIEWS.
      */
-    public function isCalendarPaneOpen(): bool
+    public function calendarPaneViewFor(?string $paneId): CalendarView
     {
-        return $this->calendarPaneMode->showsCalendar();
+        if (null === $paneId) {
+            return $this->calendarPaneView;
+        }
+
+        $views = $this->getSetting(self::SETTING_CALENDAR_PANE_VIEWS);
+        $view  = is_array($views) && is_string($views[$paneId] ?? null) ? CalendarView::tryFrom($views[$paneId]) : null;
+
+        return $view ?? $this->calendarPaneView;
+    }
+
+    /**
+     * What a calendar pane shows of a workspace narrowed to some account
+     * groups (#783): 'workspace' its calendars only, 'overlay' those and the
+     * rest as faint blocks, 'all' every calendar alike. Pane id => mode, ''
+     * the first pane; a pane not listed shows all.
+     */
+    public const string SETTING_CALENDAR_PANE_SCOPES = 'calendar.pane_scopes';
+
+    public const array CALENDAR_PANE_SCOPES = ['workspace', 'overlay', 'all'];
+
+    public function calendarPaneScopeFor(?string $paneId): string
+    {
+        $scopes = $this->getSetting(self::SETTING_CALENDAR_PANE_SCOPES);
+        $scope  = is_array($scopes) ? ($scopes[$paneId ?? ''] ?? null) : null;
+
+        // "+ Others" until chosen: the workspace's calendars, and what else
+        // takes the time, faint.
+        return in_array($scope, self::CALENDAR_PANE_SCOPES, true) ? $scope : 'overlay';
+    }
+
+    public function setCalendarPaneScopeFor(?string $paneId, string $scope): void
+    {
+        $scopes = $this->getSetting(self::SETTING_CALENDAR_PANE_SCOPES);
+        $scopes = is_array($scopes) ? array_filter($scopes, 'is_string') : [];
+        $scopes[$paneId ?? ''] = in_array($scope, self::CALENDAR_PANE_SCOPES, true) ? $scope : 'overlay';
+
+        $this->setSetting(self::SETTING_CALENDAR_PANE_SCOPES, array_slice($scopes, -self::CALENDAR_PANE_VIEWS_KEPT, null, true));
+    }
+
+    /**
+     * Which workspace each calendar or task list without an account belongs
+     * to (#783), keyed "calendar:<id>" or "tasks:<id>": with no account for a
+     * workspace's groups to hold, it is placed in one. One not in here, or
+     * placed in a workspace since deleted, is in the first workspace
+     * (WorkspaceScope::homeOf()).
+     */
+    public const string SETTING_LOCAL_WORKSPACES = 'layout.local_workspaces';
+
+    /** The workspace id a calendar or task list without an account was placed in, or null for the first. */
+    public function localWorkspaceOf(string $kind, int $id): ?string
+    {
+        $placed = $this->getSetting(self::SETTING_LOCAL_WORKSPACES);
+        $found  = is_array($placed) ? ($placed[$kind . ':' . $id] ?? null) : null;
+
+        return is_string($found) ? $found : null;
+    }
+
+    /** Place a calendar or task list without an account in a workspace, or null for the first. */
+    public function setLocalWorkspaceOf(string $kind, int $id, ?string $workspaceId): void
+    {
+        $placed = $this->getSetting(self::SETTING_LOCAL_WORKSPACES);
+        $placed = is_array($placed) ? array_filter($placed, 'is_string') : [];
+
+        if (null === $workspaceId) {
+            unset($placed[$kind . ':' . $id]);
+        } else {
+            $placed[$kind . ':' . $id] = $workspaceId;
+        }
+
+        $this->setSetting(self::SETTING_LOCAL_WORKSPACES, $placed);
+    }
+
+    /**
+     * What the tasks pane shows of a workspace narrowed to some account
+     * groups (#783): the calendar pane's three, "+ Others" until chosen.
+     */
+    public const string SETTING_TASKS_PANE_SCOPE = 'tasks.pane_scope';
+
+    public function tasksPaneScope(): string
+    {
+        $scope = $this->getSetting(self::SETTING_TASKS_PANE_SCOPE);
+
+        return in_array($scope, self::CALENDAR_PANE_SCOPES, true) ? $scope : 'overlay';
+    }
+
+    public function setTasksPaneScope(string $scope): void
+    {
+        $this->setSetting(self::SETTING_TASKS_PANE_SCOPE, in_array($scope, self::CALENDAR_PANE_SCOPES, true) ? $scope : 'overlay');
+    }
+
+    /** The calendar the pane of that id is narrowed to, or null for all (#783). */
+    public function calendarPaneFilterFor(?string $paneId): ?int
+    {
+        $filters = $this->getSetting(self::SETTING_CALENDAR_PANE_FILTERS);
+        $id      = is_array($filters) ? ($filters[$paneId ?? ''] ?? null) : null;
+
+        return is_int($id) ? $id : null;
+    }
+
+    /** Narrow the pane of that id to one calendar, or null to show them all again. */
+    public function setCalendarPaneFilterFor(?string $paneId, ?int $calendarId): void
+    {
+        $filters = $this->getSetting(self::SETTING_CALENDAR_PANE_FILTERS);
+        $filters = is_array($filters) ? array_filter($filters, 'is_int') : [];
+
+        if (null === $calendarId) {
+            unset($filters[$paneId ?? '']);
+        } else {
+            $filters[$paneId ?? ''] = $calendarId;
+        }
+
+        $this->setSetting(self::SETTING_CALENDAR_PANE_FILTERS, array_slice($filters, -self::CALENDAR_PANE_VIEWS_KEPT, null, true));
+    }
+
+    /** Keep the view of the calendar pane of that id; null is the first pane. */
+    public function setCalendarPaneViewFor(?string $paneId, CalendarView $view): void
+    {
+        if (null === $paneId) {
+            $this->calendarPaneView = $view;
+
+            return;
+        }
+
+        $views = $this->getSetting(self::SETTING_CALENDAR_PANE_VIEWS);
+        $views = is_array($views) ? array_filter($views, static fn (mixed $value, mixed $key): bool => is_string($key) && is_string($value), ARRAY_FILTER_USE_BOTH) : [];
+
+        unset($views[$paneId]);
+        $views[$paneId] = $view->value;
+
+        $this->setSetting(self::SETTING_CALENDAR_PANE_VIEWS, array_slice($views, -self::CALENDAR_PANE_VIEWS_KEPT, null, true));
     }
 
     /**
@@ -1599,6 +1562,27 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public function notifiesFor(string $scope): bool
     {
         return true === in_array($scope, $this->notifyScopes, true);
+    }
+
+    /**
+     * Whether a browser's "new mail" notification names the sender and the
+     * subject (#760). The push itself stays content-free: the service worker
+     * asks for the words over this user's own session when it arrives, through
+     * WebPushController::inboxState(), see NewMailNotice.
+     *
+     * OFF unless somebody switches it on, like SETTING_NOTIFY_SKIP_READ below:
+     * the words then show on a locked screen and in a shared screen too. Only a
+     * stored true is on, and no migration writes it. Browsers only: the phone
+     * apps write their own notifications.
+     */
+    public const string SETTING_NOTIFY_SHOW_CONTENT = 'notifications.show_content';
+
+    /** Virtual, out of the settings bag — see SETTING_NOTIFY_SHOW_CONTENT. */
+    public bool $notifyShowsContent {
+        get => true === $this->getSetting(self::SETTING_NOTIFY_SHOW_CONTENT, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_NOTIFY_SHOW_CONTENT, $on ? true : null);
+        }
     }
 
     /**
@@ -1922,41 +1906,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
-     * Which position the topbar's calendar button leaves out — Settings →
-     * Calendar → Behaviour. None unless somebody chooses: the three-way cycle
-     * is what the button has always done, and a person who has learned it
-     * should not find it moved.
-     *
-     * One value, the enum's own, and absent for the default like every setting
-     * in the bag. It was two booleans at first, "skip the split" and "skip the
-     * full width", which could both be true and then had to be kept apart by
-     * the setters and read as neither when a backup held both anyway. One value
-     * cannot say "skip both", so none of that is here.
-     */
-    public const string SETTING_CALENDAR_SWITCH_SKIP = 'calendar.switch_skip';
-
-    /**
-     * Virtual, out of the settings bag — see SETTING_CALENDAR_SWITCH_SKIP.
-     * Anything stored that is not one of the enum's values, a hand-edited
-     * backup say, reads as the default cycle.
-     */
-    public CalendarSwitchSkip $calendarSwitchSkip {
-        get {
-            $stored = $this->getSetting(self::SETTING_CALENDAR_SWITCH_SKIP);
-
-            return true === is_string($stored)
-                ? CalendarSwitchSkip::tryFrom($stored) ?? CalendarSwitchSkip::None
-                : CalendarSwitchSkip::None;
-        }
-        set (CalendarSwitchSkip $skip) {
-            $this->setSetting(
-                self::SETTING_CALENDAR_SWITCH_SKIP,
-                CalendarSwitchSkip::None === $skip ? null : $skip->value,
-            );
-        }
-    }
-
-    /**
      * The last plMail release this person was shown What's new for, as
      * `0.3.6` (#165).
      *
@@ -2015,8 +1964,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
-     * Virtual for the same reason as $calendarPaneWidth: it is read out of the
-     * settings bag and has no column of its own.
+     * Virtual: it is read out of the settings bag and has no column of its own.
      *
      * @var list<string>
      */

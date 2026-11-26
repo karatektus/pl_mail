@@ -246,6 +246,85 @@ final readonly class CalDavClient
     }
 
     /**
+     * An href as it goes back to the server inside a request body: the path
+     * (and query, if any), without scheme and host.
+     *
+     * The reverse of absolutise(), for calendar-multiget and
+     * addressbook-multiget. RFC 4918 allows a full URL in DAV:href, but iCloud
+     * does not take one: for every absolute href it answers a 404 response
+     * (CalDAV) or refuses the whole report with a 400 (CardDAV), while the
+     * path alone returns the data (#637). A path is what servers themselves
+     * send in the hrefs they hand out, so every server takes it. The request
+     * already goes to the collection's own host, so leaving the host out
+     * loses nothing.
+     *
+     * We could keep the server's original href from the sync report instead
+     * of absolutising and stripping it again. Not done because the drivers key
+     * everything on the absolute form, and the original may be relative to
+     * the collection, which is no better a thing to send back.
+     */
+    public function pathOf(string $href): string
+    {
+        $href = trim($href);
+
+        if (1 !== preg_match('#^https?://#i', $href)) {
+            return $href;
+        }
+
+        $path  = parse_url($href, PHP_URL_PATH);
+        $query = parse_url($href, PHP_URL_QUERY);
+
+        if (false === is_string($path) || '' === $path) {
+            return $href;
+        }
+
+        return true === is_string($query) && '' !== $query ? $path . '?' . $query : $path;
+    }
+
+    /**
+     * A multiget that came back with no bodies at all is a failure, not an
+     * empty change set.
+     *
+     * A server answers a multiget with a 207 even when it can return nothing,
+     * and puts a 404 on each href it did not find. Skipping those responses
+     * one by one is right for a single resource deleted between the sync
+     * report and the multiget, but when NONE came back the request itself was
+     * wrong. Before #637 that happened to every iCloud calendar: the pull
+     * "succeeded" with nothing in it, the sync token was stored, and later
+     * polls never asked for those events again. Throwing keeps the token where
+     * it was and puts the failure into the calendar's or address book's last
+     * sync error, where someone can see it.
+     *
+     * Unclassified on purpose: an event deleted in the moment between the two
+     * requests ends here too, and a retry, whose sync report lists it as
+     * deleted, is the right answer to that.
+     *
+     * Some missing, some there: logged, and the ones that came back are kept.
+     *
+     * @throws CalendarSyncException
+     */
+    public function assertMultigetAnswered(DavService $service, string $collection, int $asked, int $answered): void
+    {
+        if ($answered >= $asked) {
+            return;
+        }
+
+        $this->logger->warning('Dav: a multiget left hrefs unanswered', [
+            'collection' => $collection,
+            'asked'      => $asked,
+            'answered'   => $answered,
+        ]);
+
+        if (0 === $answered) {
+            throw new CalendarSyncException($this->say(
+                $service,
+                'The calendar server listed changed events but returned none of them when asked.',
+                'The contacts server listed changed contacts but returned none of them when asked.',
+            ));
+        }
+    }
+
+    /**
      * The scheme, host and port of a URL, with no path and no trailing slash —
      * what .well-known and the fallback probe are appended to.
      */

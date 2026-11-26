@@ -1,5 +1,6 @@
 import { test, expect } from "./support/test";
 import { setWhen } from "./support/datetime";
+import { only, row, useWorkspace } from "./support/workspace";
 import { APP_TIMEZONE, TEST_DEMO, TEST_DEMO_ADMIN, ajaxPost, consoleCommand, login, seedUser } from "./support/config";
 
 /**
@@ -54,29 +55,6 @@ async function capture(page: import("@playwright/test").Page, name: string): Pro
     await page.screenshot({ path: `${OUT}/${name}.png` });
 }
 
-/**
- * Put the docked calendar in one position, the way the topbar switch persists
- * it: a POST to the pane-state endpoint with the shell's own token.
- */
-async function paneMode(page: import("@playwright/test").Page, mode: "mail" | "split"): Promise<void> {
-    const status = await page.evaluate(async (wanted) => {
-        const shell = document.querySelector("[data-controller~='ui--split']") as HTMLElement;
-        const body = new FormData();
-        body.append("_token", shell.getAttribute("data-ui--split-token-value") ?? "");
-        body.append("mode", wanted);
-
-        const response = await fetch(shell.getAttribute("data-ui--split-state-url-value") ?? "", {
-            method: "POST",
-            body,
-            headers: { "X-Requested-With": "fetch" },
-        });
-
-        return response.status;
-    }, mode);
-
-    expect(status, `the pane could not be put in ${mode}`).toBeLessThan(300);
-}
-
 test.describe("README screenshots", () => {
     test.skip(
         undefined === process.env.E2E_SCREENSHOTS,
@@ -109,7 +87,7 @@ test.describe("README screenshots", () => {
      */
     test("inbox", async ({ page }) => {
         await page.goto("/mail/inbox");
-        await paneMode(page, "split");
+        await useWorkspace(page, row("list", "calendar"));
 
         try {
             await page.goto("/mail/inbox");
@@ -118,7 +96,7 @@ test.describe("README screenshots", () => {
             await page.waitForTimeout(600);
             await capture(page, "inbox");
         } finally {
-            await paneMode(page, "mail");
+            await useWorkspace(page, only("list"));
         }
     });
 

@@ -224,11 +224,11 @@ final class InstallRestoreTest extends WebTestCase
     }
 
     /**
-     * A 302 rather than a 403, and that is not the assertion being loose. This
-     * page has no session to be forbidden from, so the firewall's entry point
-     * turns the refusal into a redirect at the login page — which on a userless
-     * install redirects here again. What matters is that the request did not go
-     * through, and that is what is asserted twice: the response and the table.
+     * A plain 403. This used to be a 302: the refusal went through the
+     * firewall, whose entry point turned it into a redirect at the login page
+     * — which on a userless install redirected here again. A bad token is no
+     * longer a sign-in matter (ChecksCsrf, #745). What matters is still that
+     * the request did not go through: the response and the table.
      */
     public function testAPostWithoutACsrfTokenRestoresNothing(): void
     {
@@ -236,7 +236,7 @@ final class InstallRestoreTest extends WebTestCase
 
         $client->request('POST', '/install/restore', ['password' => self::PASSWORD], ['backup' => $this->upload($this->sealedFixture())]);
 
-        self::assertResponseRedirects();
+        self::assertResponseStatusCodeSame(403);
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT count(*) FROM fcm_config'));
     }
 
