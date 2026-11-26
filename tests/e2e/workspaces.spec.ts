@@ -241,6 +241,33 @@ test.describe("the pane menu", () => {
         await expect(tabs.filter({ hasText: "Triage" })).toHaveAttribute("aria-pressed", "true");
     });
 
+    test("from a page without workspaces, the inbox opens in the workspace that has the list", async ({ page }) => {
+        await useWorkspaces(page, [
+            { name: "Triage", layout: row("list", "contacts") },
+            { name: "Planning", layout: row("calendar", "tasks") },
+        ], 1);
+
+        // Settings draws the mail's sidebar but no workspace; the click is a
+        // whole page load, which says nothing of why it happened.
+        await page.goto("/settings");
+        await page.locator(INBOX_LINK).click();
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+
+        const tabs = page.locator("[data-layout--workspace-target='workspaceTabs'] button");
+
+        await expect(tabs.filter({ hasText: "Triage" })).toHaveAttribute("aria-pressed", "true");
+        await expect(pane(page, "list")).toBeVisible();
+
+        // A reload is not asking for the mail: Planning, chosen again, stays.
+        const saved = nextSave(page);
+
+        await tabs.filter({ hasText: "Planning" }).click();
+        await expect(pane(page, "list")).toBeHidden();
+        expect((await saved).ok()).toBe(true);
+        await page.reload();
+        await expect(tabs.filter({ hasText: "Planning" })).toHaveAttribute("aria-pressed", "true");
+    });
+
     test("with no workspace that has a list, a folder brings the list at full width, and the next folder leaves it where it is", async ({ page }) => {
         await useWorkspace(page, row("calendar", "contacts"));
         await page.locator(INBOX_LINK).click();

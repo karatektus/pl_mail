@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import * as Turbo from "@hotwired/turbo";
-import { registerPane } from "../../panes.js";
+import { mailWasAskedFor, registerPane } from "../../panes.js";
 import { showToast } from "../../toast.js";
 import { askConfirm } from "../../confirm.js";
 
@@ -228,6 +228,14 @@ export default class extends Controller {
 
         this.#arrange();
         this.#placeThumb(false);
+
+        // The mail was asked for from a page without workspaces — a folder
+        // in the sidebar of Settings or the admin panel (panes.js). That page
+        // load drew the last workspace; if it has no list, the mail goes where
+        // a folder opened in the mailbox would have taken it.
+        if (mailWasAskedFor() && "" === this.pageValue) {
+            this.#bringListForward();
+        }
     }
 
     disconnect() {
