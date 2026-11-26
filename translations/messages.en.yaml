@@ -5247,6 +5247,7 @@ settings:
             reading_pane: "preview split right bottom"
             sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender'
             sharing: "link public booking"
+            auto_advance: "auto advance next after archive open next conversation"
             shortcuts: "keyboard hotkeys keys"
             sidebar: 'width wide narrow resize drag long names truncated cut off hover peek more folders'
             swipe_actions: "swipe gesture phone archive"
@@ -5412,6 +5413,14 @@ settings:
         subheading: >-
             Links that show part of your calendar to someone without an account,
             and pages that let them book an hour of it.
+    auto_advance:
+        heading: "Auto-advance"
+        hint: "When you archive, delete, move, snooze or report the open conversation."
+        label: "Afterwards, show"
+        list: "The list"
+        next: "The one below"
+        previous: "The one above"
+        subheading: "What opens after the conversation you are reading leaves the list."
     shortcuts:
         heading: "Keyboard shortcuts"
         hint: "c to compose, e to archive, j and k to move through a list. They only act while you are not typing into something, and filing mail this way can be undone like any other."

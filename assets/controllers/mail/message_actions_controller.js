@@ -14,7 +14,8 @@ import { postPin, redrawAndPlace, swingTack } from "../../pin.js";
  * The status endpoints answer with a Turbo Stream that targets the *list row*
  * (#thread_{id}); nothing in the reading pane is re-rendered, so anything that
  * stays on screen (the star) is updated optimistically here. Actions that mean
- * "this message left the view" (archive, trash, mark unread) close the pane.
+ * "this message left the view" (archive, trash, mark unread) close the pane, or
+ * move it on to the next conversation — see mail--mail-pane#leaving.
  */
 export default class extends Controller {
     static targets = ["panel", "starIcon", "starLabel", "pin"];
@@ -119,7 +120,9 @@ export default class extends Controller {
             return;
         }
 
-        this._closePane();
+        // Back to the list, whatever the auto-advance choice: an unread
+        // conversation is still in it, waiting.
+        this._pane()?.close();
     }
 
     /**
@@ -137,12 +140,14 @@ export default class extends Controller {
         const { until = null } = event.params;
         event.stopPropagation();
 
+        const leave = this._pane()?.leaving(this._subject());
+
         if (false === await this._post(this._url("snooze"), { until })) {
             return;
         }
 
         if (null !== until) {
-            this._closePane();
+            await leave?.();
         }
     }
 
@@ -150,22 +155,26 @@ export default class extends Controller {
         event.stopPropagation();
         this._close();
 
+        const leave = this._pane()?.leaving(this._subject());
+
         if (false === await this._post(this._url("archive"))) {
             return;
         }
 
-        this._closePane();
+        await leave?.();
     }
 
     async trash(event) {
         event.stopPropagation();
         this._close();
 
+        const leave = this._pane()?.leaving(this._subject());
+
         if (false === await this._post(this._url("trash"))) {
             return;
         }
 
-        this._closePane();
+        await leave?.();
     }
 
     /** Out of the bin, as the row's Restore does. */
@@ -177,7 +186,7 @@ export default class extends Controller {
             return;
         }
 
-        this._closePane();
+        this._pane()?.close();
     }
 
     /**
@@ -193,11 +202,13 @@ export default class extends Controller {
             return;
         }
 
+        const leave = this._pane()?.leaving(this._subject());
+
         if (false === await this._post(this._url("purge"))) {
             return;
         }
 
-        this._closePane();
+        await leave?.();
     }
 
     starredValueChanged() {
@@ -257,17 +268,16 @@ export default class extends Controller {
         return true;
     }
 
+    /** What this toolbar writes to, as mail--mail-pane#leaving asks. */
+    _subject() {
+        return { type: this.entityTypeValue, id: this.entityIdValue };
+    }
+
     /** mail-pane lives on <body> (see _layout/app.html.twig). */
-    _closePane() {
+    _pane() {
         const element = document.querySelector('[data-controller~="mail--mail-pane"]');
 
-        if (!element) {
-            return;
-        }
-
-        this.application
-            .getControllerForElementAndIdentifier(element, "mail--mail-pane")
-            ?.close();
+        return element ? this.application.getControllerForElementAndIdentifier(element, "mail--mail-pane") : null;
     }
 
     _closeOnOutsideClick(event) {

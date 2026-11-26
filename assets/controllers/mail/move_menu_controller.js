@@ -58,6 +58,7 @@ export default class extends LabelMenuController {
         }
 
         const view = this.#view();
+        const leave = this.#pane()?.leaving({ type: this.targetTypeValue, id: this.targetIdValue });
 
         let response;
 
@@ -87,10 +88,10 @@ export default class extends LabelMenuController {
         Turbo.renderStreamMessage(await response.text());
         announceWrite();
 
-        // The conversation has been filed, so the pane showing it closes — the
-        // same ending archive has in mail--message-actions, and for the same
-        // reason: what is on screen is no longer in the list behind it.
-        this.#closePane();
+        // The conversation has been filed, so the pane showing it moves on —
+        // the same ending archive has in mail--message-actions, and for the
+        // same reason: what is on screen is no longer in the list behind it.
+        await leave?.();
     }
 
     // ── Private ───────────────────────────────────────────────────────────
@@ -176,15 +177,9 @@ export default class extends LabelMenuController {
     }
 
     /** mail-pane lives on <body> (see _layout/app.html.twig). */
-    #closePane() {
+    #pane() {
         const element = document.querySelector('[data-controller~="mail--mail-pane"]');
 
-        if (!element) {
-            return;
-        }
-
-        this.application
-            .getControllerForElementAndIdentifier(element, "mail--mail-pane")
-            ?.close();
+        return element ? this.application.getControllerForElementAndIdentifier(element, "mail--mail-pane") : null;
     }
 }

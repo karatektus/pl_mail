@@ -5273,6 +5273,7 @@ settings:
             reading_pane: "vorschau geteilt rechts unten"
             sender_pictures: 'avatar bild foto gravatar libravatar bimi logo symbol absender'
             sharing: "link öffentlich buchung"
+            auto_advance: "automatisch weiter nächste nach archivieren nächste unterhaltung öffnen"
             shortcuts: "tastatur tasten kürzel hotkeys"
             sidebar: 'breite breit schmal größe ziehen lange namen abgeschnitten darüberfahren mehr ordner'
             swipe_actions: "wischen geste handy archivieren"
@@ -5444,6 +5445,14 @@ settings:
         subheading: >-
             Links, die jemandem ohne Konto einen Teil deines Kalenders zeigen,
             und Seiten, auf denen er eine Stunde davon buchen kann.
+    auto_advance:
+        heading: "Automatisch weiter"
+        hint: "Wenn du die offene Unterhaltung archivierst, löschst, verschiebst, zurückstellst oder meldest."
+        label: "Danach zeigen"
+        list: "Die Liste"
+        next: "Die darunter"
+        previous: "Die darüber"
+        subheading: "Was sich öffnet, nachdem die Unterhaltung, die du liest, die Liste verlassen hat."
     shortcuts:
         heading: "Tastenkürzel"
         hint: "c zum Schreiben, e zum Archivieren, j und k, um durch eine Liste zu gehen. Sie wirken nur, solange du nicht gerade irgendwo tippst, und was du so ablegst, lässt sich wie sonst auch rückgängig machen."

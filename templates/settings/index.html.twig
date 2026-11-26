@@ -288,6 +288,18 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                     } only %}
                                                 {% endblock %}
                                             {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
+                                                id:         'card-auto-advance',
+                                                heading:    'settings.auto_advance.heading'|trans,
+                                                subheading: 'settings.auto_advance.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_auto_advance.html.twig' with {
+                                                        advance: app.user.autoAdvance,
+                                                    } only %}
+                                                {% endblock %}
+                                            {% endembed %}
                                         </div>
                                     {% elseif section == 'reading' %}
                                         {# What happens when a mail is opened: where it opens, and

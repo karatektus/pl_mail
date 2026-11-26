@@ -561,11 +561,13 @@ export default class extends Controller {
         return true;
     }
 
-    /** A conversation opened with the mouse is where the cursor is. */
+    /**
+     * A conversation opened with the mouse is where the cursor is. Read off the
+     * row the pane marks as open, which a single email has as well as a
+     * conversation, and which is also where auto-advance went.
+     */
     #followOpen() {
-        const open = this.#reading()
-            ?.querySelector("[data-mail--message-actions-entity-type-value='thread']")
-            ?.getAttribute("data-mail--message-actions-entity-id-value");
+        const open = document.querySelector(`${ROW}[data-selected]`)?.getAttribute(ROW_ID);
 
         if (open) {
             cursorId = open;

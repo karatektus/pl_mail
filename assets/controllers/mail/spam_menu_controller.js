@@ -148,6 +148,7 @@ export default class extends LabelMenuController {
 
         const filter = event.currentTarget.dataset.spamFilter ?? "none";
         const view   = this.#view();
+        const leave  = true === this.closesPaneValue ? this.#pane()?.leaving() : null;
 
         this._close();
 
@@ -172,9 +173,7 @@ export default class extends LabelMenuController {
         Turbo.renderStreamMessage(await response.text());
         announceWrite();
 
-        if (true === this.closesPaneValue) {
-            this.#closePane();
-        }
+        await leave?.();
     }
 
     // ── Private ───────────────────────────────────────────────────────────
@@ -233,15 +232,9 @@ export default class extends LabelMenuController {
     }
 
     /** mail-pane lives on <body> (see _layout/app.html.twig). */
-    #closePane() {
+    #pane() {
         const element = document.querySelector('[data-controller~="mail--mail-pane"]');
 
-        if (!element) {
-            return;
-        }
-
-        this.application
-            .getControllerForElementAndIdentifier(element, "mail--mail-pane")
-            ?.close();
+        return element ? this.application.getControllerForElementAndIdentifier(element, "mail--mail-pane") : null;
     }
 }

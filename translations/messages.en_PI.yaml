@@ -5057,6 +5057,7 @@ settings:
             reading_pane: "preview split right bottom"
             sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender likeness flag'
             sharing: "link public booking"
+            auto_advance: "auto advance next after archive open next conversation"
             shortcuts: "keyboard hotkeys keys"
             sidebar: 'width wide narrow resize haul long names cut short hover more folders'
             swipe_actions: "swipe gesture phone archive"
@@ -5211,6 +5212,14 @@ settings:
         subheading: >-
             Berths that show part o yer log to someone wi no account, an notices
             that let em board an hour o it.
+    auto_advance:
+        heading: "Auto-advance"
+        hint: "When ye stow, scuttle, move, snooze or report the open conversation."
+        label: "Afterwards, show"
+        list: "The list"
+        next: "The one below"
+        previous: "The one above"
+        subheading: "What opens after the conversation ye be readin' leaves the list."
     shortcuts:
         heading: "Keyboard shortcuts"
         hint: "c to scribble, e to stow, j an' k to walk the list. They only act while ye be not typin' into somethin', an' post stowed this way can be hauled back like any other."

@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:cab600db4a3f080be55e3f2c5144fadb3143df40 -->
+<!-- translated-from: features/mail.md sha1:70e318cb31fe3b746708396c06f402ba5376dc6d -->
 
 # Mail
 
@@ -1157,6 +1157,16 @@ zurückbringt, wie du es eingerichtet hattest.
 **Tasten und angehakte Zeilen.** Neben der Liste können eine Auswahl und eine geöffnete
 Unterhaltung gleichzeitig zu sehen sein. Eine Taste gilt trotzdem zuerst der Auswahl: `e` mit zwei
 angehakten Zeilen archiviert diese zwei und lässt die Unterhaltung offen, die du gerade liest.
+
+**Wenn die offene Unterhaltung die Liste verlässt.** Archivierst, löschst, verschiebst, stellst du
+die Unterhaltung zurück, die du gerade liest, oder meldest du sie, kommst du zurück zur Liste.
+**Einstellungen → Allgemein → Layout & Bedienung → Automatisch weiter** kann stattdessen die
+Unterhaltung darunter in der Liste öffnen oder die darüber, sodass du mit `e` ein Postfach
+durcharbeitest, ohne jedes Mal zurückzugehen. Das gilt mit einem Bereich wie mit zweien, per Knopf
+wie per Taste. Am Ende der Liste, oder bei einer Nachricht, die die Liste gar nicht zeigt, kommst
+du wie bisher zur Liste zurück. Ebenso, wenn du nur eine E-Mail einer Unterhaltung archivierst, und
+bei Als ungelesen markieren, denn die Unterhaltung steht noch in der Liste. Zurück im Browser
+überspringt die Unterhaltung, die gegangen ist.
 
 ## Von wem eine Mail kommt
 

@@ -195,11 +195,14 @@ const TOOLBAR = "[data-controller~='mail--list-toolbar']";
 
 export default class extends Controller {
     static targets = ["list", "reading"];
-    static values = { open: Boolean , mailBoxId: Number, inboxUrl: String };
+    static values = { open: Boolean , mailBoxId: Number, inboxUrl: String, advance: { type: String, default: "list" } };
 
     connect() {
         this._listUrl = this.openValue ? null : window.location.href;
         this._selectedPath = null;
+        // Counts the reader's own moves — opening, closing, Back, another folder — so an
+        // auto-advance still loading can tell it has been overtaken. See leaving().
+        this._navigation = 0;
         this._onPopState = this._handlePopState.bind(this);
         window.addEventListener("popstate", this._onPopState);
 
@@ -257,6 +260,7 @@ export default class extends Controller {
                 return;
             }
 
+            this._navigation++;
             this._showList();
         };
         document.addEventListener("turbo:frame-load", this._onListSwap);
@@ -407,6 +411,7 @@ export default class extends Controller {
     }
 
     async _openUrl(url) {
+        this._navigation++;
         const fromContacts = this._contactsFull();
 
         // Remember where to go back to, if we don't already know. Not the full
@@ -455,6 +460,8 @@ export default class extends Controller {
             event.preventDefault();
         }
 
+        this._navigation++;
+
         // The URL moves back to the list BEFORE the list is shown, because
         // showing it may have to fetch it and _refreshList asks for wherever the
         // page currently is. The other way round it would fetch the thread's own
@@ -473,8 +480,67 @@ export default class extends Controller {
         history.back();
     }
 
+    /**
+     * What to do once the open conversation has left the list: the reader's
+     * auto-advance choice (App\Domain\Enum\Mail\AutoAdvance), as a function to
+     * call after the write succeeds.
+     *
+     * Asked BEFORE the write, because its answer is a turbo-stream that takes
+     * the open row out of the list, and with it the only way to tell which row
+     * was beside it. Nothing beside it — the end of the list, or a message
+     * opened from somewhere the list does not show — closes, as always. So
+     * does a write to something other than the open row: one email of the
+     * conversation, or a row the long-press sheet acted on.
+     *
+     * @param {{type: string, id: number}|null} subject  what is being written,
+     *        or null when the caller can only be acting on the open row
+     * @returns {() => Promise<void>}
+     */
+    leaving(subject = null) {
+        const next = this._besideOpenRow(subject);
+
+        if (null === next) {
+            return async () => this.close();
+        }
+
+        const left = this._selectedPath;
+        const navigation = this._navigation;
+
+        // Somebody went Back or opened something else while the write, or the
+        // next conversation, was on its way. Where they went is where they
+        // meant to be.
+        const current = () => navigation === this._navigation;
+
+        return async () => {
+            if (false === current() || left !== this._selectedPath) {
+                return;
+            }
+
+            const shown = await this._loadMessage(next, { current, navigateOnError: false });
+
+            if (false === current()) {
+                return;
+            }
+
+            if (false === shown) {
+                this.close();
+
+                return;
+            }
+
+            // Replaced while the address is still the conversation that left,
+            // which is not somewhere Back should return to. Pushed when the
+            // list beside it has moved to another folder since: that entry is
+            // the folder's.
+            const replace = window.location.pathname === left;
+
+            history[replace ? "replaceState" : "pushState"]({ mailPaneOpen: true }, "", next);
+        };
+    }
+
     async _handlePopState(event) {
         const state = event.state;
+        this._navigation++;
 
         // Back to the full contacts page a message was opened from. That entry
         // is Turbo's, and Turbo restores the page; a list fetched here for its
@@ -492,7 +558,17 @@ export default class extends Controller {
         }
     }
 
-    async _loadMessage(url) {
+    /**
+     * @param {string} url
+     * @param {{current?: () => boolean, navigateOnError?: boolean}} options
+     *        `current` is false once the answer is no longer wanted, which
+     *        leaves the pane as it is. `navigateOnError` false answers a
+     *        refusal with false instead of loading the page in full: an
+     *        auto-advance to a conversation that has gone since goes back to
+     *        the list rather than to an error page.
+     * @returns {Promise<boolean>} whether the message was put in the pane
+     */
+    async _loadMessage(url, { current = () => true, navigateOnError = true } = {}) {
         let response;
 
         try {
@@ -503,18 +579,32 @@ export default class extends Controller {
             // No answer at all, so the real navigation below would only swap
             // the page for the browser's offline screen. Say it here instead.
             requestFailed(null);
-            return;
+            return false;
+        }
+
+        if (false === current()) {
+            return false;
         }
 
         if (!response.ok) {
-            window.location.href = url; // fall back to a real navigation on failure
-            return;
+            if (navigateOnError) {
+                window.location.href = url; // fall back to a real navigation on failure
+            }
+
+            return false;
         }
 
         const html = await response.text();
+
+        if (false === current()) {
+            return false;
+        }
+
         this.readingTarget.innerHTML = html;
         this._showReading();
         this._markSelected(new URL(url, window.location.href).pathname);
+
+        return true;
     }
 
     _showReading() {
@@ -609,6 +699,45 @@ export default class extends Controller {
 
         row.dataset.selected = "true";
         row.setAttribute("aria-current", "true");
+    }
+
+    /**
+     * The address of the row below or above the open one, as the reader chose,
+     * or null for "back to the list", for a row with nothing it can open on
+     * that side, and for a subject that is not the open row. A draft has no
+     * reading-pane link and is stepped over. See leaving().
+     *
+     * @param {{type: string, id: number}|null} subject
+     */
+    _besideOpenRow(subject) {
+        const step = { next: 1, previous: -1 }[this.advanceValue];
+
+        if (undefined === step) {
+            return null;
+        }
+
+        const rows = [...this.listTarget.querySelectorAll(`${ROW}:not([hidden]):not([data-leaving])`)];
+        const at = rows.findIndex((row) => row.hasAttribute("data-selected"));
+
+        if (-1 === at) {
+            return null;
+        }
+
+        const open = rows[at];
+
+        if (null !== subject && (open.dataset.rowType !== subject.type || Number(open.getAttribute("data-mail--message-row-id-value")) !== subject.id)) {
+            return null;
+        }
+
+        for (let i = at + step; i >= 0 && i < rows.length; i += step) {
+            const link = rows[i].querySelector(':scope > a[data-action~="click->mail--mail-pane#open"]');
+
+            if (null !== link) {
+                return link.href;
+            }
+        }
+
+        return null;
     }
 
     /** Tells the layout a message is open, so the placeholder beside the list stands down. */

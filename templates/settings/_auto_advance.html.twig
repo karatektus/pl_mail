@@ -1,0 +1,37 @@
+{#
+settings/_auto_advance.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Where the reading pane goes after the open conversation is archived, deleted,
+moved, snoozed or reported: back to the list, or on to the conversation below
+or above it there.
+
+A plain form that submits on change and redirects, like the shortcuts card
+beside it: the choice is read from <body> on the next page.
+
+Accepts:
+  advance  App\Domain\Enum\Mail\AutoAdvance  the user's current choice
+#}
+{% import '_partials/_segmented.html.twig' as seg %}
+
+<div class="px-4 py-3">
+
+<form method="post" action="{{ path('app_settings_auto_advance_update') }}" data-controller="ui--auto-submit">
+    <input type="hidden" name="_token" value="{{ csrf_token('settings-auto-advance') }}">
+
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted" id="auto-advance-label">{{ 'settings.auto_advance.label'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.auto_advance.hint'|trans }}</span>
+        </span>
+
+        {{ seg.control('advance', enum('App\\Domain\\Enum\\Mail\\AutoAdvance').cases|map(case => {
+            value: case.value,
+            label: ('settings.auto_advance.' ~ case.value)|trans,
+        }), advance.value, {
+            labelledby: 'auto-advance-label',
+            action:     'change->ui--auto-submit#submit',
+        }) }}
+    </div>
+</form>
+
+</div>

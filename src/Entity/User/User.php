@@ -11,6 +11,7 @@ use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Contacts\ContactsPaneMode;
 use App\Domain\Enum\Contacts\ContactsSwitchSkip;
 use App\Domain\Enum\Crypto\KeyringRoot;
+use App\Domain\Enum\Mail\AutoAdvance;
 use App\Domain\Enum\Mail\ComposeAction;
 use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SearchSortOrder;
@@ -1422,6 +1423,24 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         get => false !== $this->getSetting(self::SETTING_KEYBOARD_SHORTCUTS, true);
         set(bool $on) {
             $this->setSetting(self::SETTING_KEYBOARD_SHORTCUTS, $on ? null : false);
+        }
+    }
+
+    /**
+     * Where the reading pane goes after the open conversation leaves the list —
+     * back to the list, or on to the conversation below or above it. See
+     * AutoAdvance.
+     *
+     * Back to the list is stored as the absent key, so it is the default for
+     * everybody who has not chosen.
+     */
+    public const string SETTING_AUTO_ADVANCE = 'mail.auto_advance';
+
+    /** Virtual, out of the settings bag — see SETTING_AUTO_ADVANCE. */
+    public AutoAdvance $autoAdvance {
+        get => AutoAdvance::fromSetting($this->getSetting(self::SETTING_AUTO_ADVANCE));
+        set(AutoAdvance $advance) {
+            $this->setSetting(self::SETTING_AUTO_ADVANCE, AutoAdvance::List === $advance ? null : $advance->value);
         }
     }
 

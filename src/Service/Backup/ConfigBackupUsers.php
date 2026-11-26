@@ -149,6 +149,10 @@ final readonly class ConfigBackupUsers
         // switched it back on would have `e` archiving mail for a person who
         // had said no.
         User::SETTING_KEYBOARD_SHORTCUTS,
+        // Where the reading pane goes after archiving. A preference like the
+        // swipe actions, and a restore that put it back to the list would
+        // change what `e` does.
+        User::SETTING_AUTO_ADVANCE,
         // How mail goes out once it can be encrypted. Choices about one's own
         // mail like the rest, and a restore that quietly turned Autocrypt
         // back on — or blocking off — would be sending mail differently.

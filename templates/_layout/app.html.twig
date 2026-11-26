@@ -324,6 +324,7 @@
                      mail--dnd:dragging->mail--mail-pane#hold
                      mail--dnd:dropped->mail--mail-pane#release"
         data-mail--mail-pane-open-value="{% block pane_open %}false{% endblock %}"
+        data-mail--mail-pane-advance-value="{{ app.user.autoAdvance.value }}"
         {# Room for a layout below this one to put ITS body controller's values
            here. A Stimulus value has to sit on the same element as the
            controller that reads it, and body_controllers above is a block

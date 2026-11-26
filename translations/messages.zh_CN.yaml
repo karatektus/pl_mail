@@ -4568,6 +4568,7 @@ settings:
             reading_pane: "预览 分栏 右侧 下方"
             sender_pictures: '头像 图片 照片 gravatar libravatar bimi 标志 图标 发件人'
             sharing: "链接 公开 预约"
+            auto_advance: "自动 前进 下一封 归档后 打开下一个会话"
             shortcuts: "键盘 按键 快捷键"
             sidebar: '宽度 宽 窄 调整 拖动 长名称 截断 悬停 更多 文件夹'
             swipe_actions: "滑动 手势 手机 归档"
@@ -4693,6 +4694,14 @@ settings:
     sharing:
         heading: '共享'
         subheading: '通过链接向没有账户的人展示部分日历，或通过页面让他们预约一小时的时间。'
+    auto_advance:
+        heading: "自动前进"
+        hint: "在归档、删除、移动、延后或举报当前打开的会话时。"
+        label: "之后显示"
+        list: "列表"
+        next: "下方那封"
+        previous: "上方那封"
+        subheading: "正在阅读的会话离开列表后要打开的内容。"
     shortcuts:
         heading: '键盘快捷键'
         hint: '按 c 撰写，e 归档，j 和 k 浏览列表。仅在未输入文字时生效，用快捷键整理邮件同样可以撤销。'

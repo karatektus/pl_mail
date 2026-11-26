@@ -5309,6 +5309,7 @@ settings:
             reading_pane: "aperçu partagé droite bas"
             sender_pictures: 'avatar image photo gravatar libravatar bimi logo icône expéditeur'
             sharing: "lien public réservation"
+            auto_advance: "avance automatique suivante après archiver ouvrir la conversation suivante"
             shortcuts: "clavier touches raccourcis"
             sidebar: 'largeur large étroit redimensionner glisser noms longs coupés survol plus dossiers'
             swipe_actions: "balayer geste téléphone archiver"
@@ -5477,6 +5478,14 @@ settings:
         subheading: >-
             Des liens qui montrent une partie de votre agenda à quelqu’un sans compte,
             et des pages qui lui permettent d’en réserver une heure.
+    auto_advance:
+        heading: "Avance automatique"
+        hint: "Lorsque vous archivez, supprimez, déplacez, mettez en attente ou signalez la conversation ouverte."
+        label: "Ensuite, afficher"
+        list: "La liste"
+        next: "Celle du dessous"
+        previous: "Celle du dessus"
+        subheading: "Ce qui s’ouvre une fois que la conversation que vous lisez quitte la liste."
     shortcuts:
         heading: "Raccourcis clavier"
         hint: "c pour rédiger, e pour archiver, j et k pour parcourir une liste. Ils n’agissent que lorsque vous n’êtes pas en train de taper quelque part, et le courrier classé ainsi peut être annulé comme n’importe quel autre."

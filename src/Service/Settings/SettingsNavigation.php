@@ -124,6 +124,7 @@ final class SettingsNavigation
                 ['card-sidebar', 'settings.sidebar.heading', 'settings.search.keywords.sidebar'],
                 ['card-swipe-actions', 'settings.swipe_actions.heading', 'settings.search.keywords.swipe_actions'],
                 ['card-shortcuts', 'settings.shortcuts.heading', 'settings.search.keywords.shortcuts'],
+                ['card-auto-advance', 'settings.auto_advance.heading', 'settings.search.keywords.auto_advance'],
             ],
             'notifications' => [
                 ['card-notifications', 'settings.notifications.heading', 'settings.search.keywords.notifications'],

@@ -1059,6 +1059,15 @@ you had it.
 together. A key still goes to the selection first: `e` with two rows ticked archives those two and
 leaves the conversation you are reading open.
 
+**After the open conversation leaves the list.** Archiving, deleting, moving, snoozing or reporting
+the conversation you are reading takes you back to the list. **Settings → General → Layout &
+controls → Auto-advance** can open the one below it in the list instead, or the one above, so `e`
+works through a mailbox without going back each time. It works the same with one pane or two, from a
+button or a key. At the end of the list, or for a message opened from somewhere the list does not
+show it, you go back to the list as before. So does archiving one email of a conversation, and
+Mark as unread, because the conversation is still in the list. Back in the browser skips the
+conversation that left.
+
 ## Who a message is from
 
 A sender's name is whatever they typed, so a mail signed **PayPal** can come from anywhere. The
