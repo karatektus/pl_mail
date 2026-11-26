@@ -104,6 +104,7 @@ account:
             jmap_submission: 'Messages sail out through the JMAP server.'
             missing_fields: 'Give us an email address an’ one server at least first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored one, which the test can only use once the ship be saved.'
+            password_for_new_server: 'Type the password again, matey: the ports of call changed, and the stowed password only sails to the ports it were saved for.'
             pop3_ok: 'Aye, connected — %count% messages in the hold.'
             private_network: 'This server lies in private waters. Th'' captain must let it aboard under Admin → Friendly ports → Holds in private waters afore plMail may sail to it.'
             smtp_none: 'No SMTP host charted — this ship sends no letters.'
@@ -599,6 +600,7 @@ admin:
         export:
             error:
                 mismatch: "The two passwords didn't match, so naught were sent ashore."
+                remembered_session: 'A remembered boarding cannot do this, matey. Go ashore, board again and try once more; nothing were taken or changed.'
                 too_short: "That password be too short, so naught were sent ashore."
             heading: "Send the ship's papers ashore"
             intro: "Every settin' and credential this installation sails on, in one password-locked chest: the environment values, the files in the secrets hold, the provider and Firebase credentials from the database, and the crew — each with their password, their second factor, their mailboxes and all else they rigged up. No post, no calendar entries and no contacts; that be what `app:backup` is for."
@@ -1220,6 +1222,7 @@ admin:
             issuer_help: 'Th'' fleet''s issuer URL, exactly as its discovery document states it. In Authentik it be th'' "OpenID Configuration Issuer" on th'' provider''s page.'
             password_login_disabled: 'Th'' fleet''s seal only'
             password_login_disabled_help: 'Hides th'' password form an'' turns away password boardin''s, so every sailor comes in through th'' fleet. Only holds while a fleet be set up here. Ye can tick it only after ye''ve boarded through th'' fleet yerself, an'' if th'' fleet ever sinks, run bin/console app:sso:allow-password-login t'' bring th'' form back. Passwords fer mail clients (app passwords) be left alone.'
+            password_login_disabled_locked_help: 'In force, matey. Only the console can strike it: run bin/console app:sso:allow-password-login. Till then the provider cannot be thrown overboard here neither.'
             require_verified_email: 'Only tie a bottle address th'' fleet has vouched fer'
             require_verified_email_help: 'A first boardin'' finds its berth by bottle address. Shut this off only where sailors cannot change their own address at th'' fleet: with it off, any who can may claim any berth that has not boarded through th'' fleet yet.'
             scopes: 'Scopes'

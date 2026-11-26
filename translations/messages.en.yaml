@@ -104,6 +104,7 @@ account:
             jmap_submission: 'Sending goes through the JMAP server.'
             missing_fields: 'Enter an email address and at least one server first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored password, which the test can only use once the account is saved.'
+            password_for_new_server: 'Type the password again: the servers changed, and the stored password only goes to the servers it was saved for.'
             pop3_ok: 'Connected — %count% messages in the mailbox.'
             private_network: 'This server is on a private network. An administrator has to allow it under Admin → Integrations → Servers on a private network before plMail may connect to it.'
             smtp_none: 'No SMTP host configured — sending is disabled for this account.'
@@ -627,6 +628,7 @@ admin:
         export:
             error:
                 mismatch: 'The two passwords did not match, so nothing was exported.'
+                remembered_session: 'A remembered sign-in cannot do this. Sign out, sign in again and try once more; nothing was exported or changed.'
                 too_short: 'That password is too short, so nothing was exported.'
             heading: 'Export configuration'
             intro: >-
@@ -1287,6 +1289,7 @@ admin:
             issuer_help: 'The provider''s issuer URL, exactly as its discovery document states it. In Authentik it is the "OpenID Configuration Issuer" on the provider''s page.'
             password_login_disabled: 'Single sign-on only'
             password_login_disabled_help: 'Hides the password form and refuses password sign-ins, so everybody comes in through the provider. Only in force while a provider is set up here. You can tick it only after you have signed in through the provider yourself, and if the provider is ever down, run bin/console app:sso:allow-password-login to bring the form back. Passwords for mail clients (app passwords) are not affected.'
+            password_login_disabled_locked_help: 'In force. Only the console can switch it off: run bin/console app:sso:allow-password-login. Until then the provider cannot be cleared here either.'
             require_verified_email: 'Only link an address the provider has verified'
             require_verified_email_help: 'A first sign-in finds its account by email address. Switch this off only where people cannot edit their own address at the provider: with it off, anybody who can is able to claim any account that has not signed in through the provider yet.'
             scopes: 'Scopes'

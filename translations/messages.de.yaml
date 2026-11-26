@@ -104,6 +104,7 @@ account:
             jmap_submission: 'Gesendet wird über den JMAP-Server.'
             missing_fields: 'Gib zuerst eine E-Mail-Adresse und mindestens einen Server ein.'
             missing_password: 'Kein Passwort zum Testen. Gib oben eins ein — beim Bearbeiten behält ein leeres Feld das gespeicherte Passwort, und das kann der Test erst nutzen, wenn das Konto gespeichert ist.'
+            password_for_new_server: 'Gib das Passwort noch einmal ein: Die Server haben sich geändert, und das gespeicherte Passwort geht nur an die Server, für die es gespeichert wurde.'
             pop3_ok: 'Verbunden — %count% Nachrichten im Postfach.'
             private_network: 'Dieser Server liegt in einem privaten Netz. Eine Administratorin oder ein Administrator muss ihn erst unter Admin → Integrationen → Server in privaten Netzen erlauben, bevor plMail sich verbinden darf.'
             smtp_none: 'Kein SMTP-Host eingetragen — Senden ist für dieses Konto aus.'
@@ -637,6 +638,7 @@ admin:
         export:
             error:
                 mismatch: 'Die beiden Passwörter stimmten nicht überein, es wurde nichts exportiert.'
+                remembered_session: 'Mit einer gemerkten Anmeldung geht das nicht. Melde dich ab, wieder an und versuch es noch einmal; nichts wurde exportiert oder geändert.'
                 too_short: 'Dieses Passwort ist zu kurz, es wurde nichts exportiert.'
             heading: 'Konfiguration exportieren'
             intro: >-
@@ -1298,6 +1300,7 @@ admin:
             issuer_help: 'Die Issuer-URL des Anbieters, genau so, wie sein Discovery-Dokument sie angibt. In Authentik ist das der „OpenID Configuration Issuer“ auf der Seite des Providers.'
             password_login_disabled: 'Nur Single Sign-on'
             password_login_disabled_help: 'Blendet das Passwortformular aus und weist Passwort-Anmeldungen ab, sodass alle über den Anbieter hereinkommen. Gilt nur, solange hier ein Anbieter eingerichtet ist. Du kannst es erst ankreuzen, nachdem du dich selbst über den Anbieter angemeldet hast, und fällt der Anbieter einmal aus, holt bin/console app:sso:allow-password-login das Formular zurück. Passwörter für Mail-Programme (App-Passwörter) sind nicht betroffen.'
+            password_login_disabled_locked_help: 'Aktiv. Ausschalten geht nur über die Konsole: bin/console app:sso:allow-password-login. Bis dahin lässt sich der Anbieter hier auch nicht entfernen.'
             require_verified_email: 'Nur eine Adresse verknüpfen, die der Anbieter bestätigt hat'
             require_verified_email_help: 'Eine erste Anmeldung findet ihr Konto über die E-Mail-Adresse. Schalt das nur aus, wenn man die eigene Adresse beim Anbieter nicht selbst ändern kann: Ist es aus, kann jede Person, die das darf, jedes Konto übernehmen, das sich noch nicht über den Anbieter angemeldet hat.'
             scopes: 'Scopes'
