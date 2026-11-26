@@ -645,6 +645,25 @@ test.describe("the panes in a workspace", () => {
         await expect(current()).toHaveText("All");
     });
 
+    test("a remembered place that has gone sends the pane to its start, not the page away", async ({ page }) => {
+        await useWorkspace(page, row("list", "contacts"));
+
+        // As if this workspace had left its contacts on one since deleted.
+        await page.evaluate(() => {
+            const shell = document.querySelector("[data-layout--workspace-document-value]")!;
+            const doc = JSON.parse(shell.getAttribute("data-layout--workspace-document-value")!);
+
+            localStorage.setItem("plmail.paneState", JSON.stringify({ [doc.workspaces[doc.active].id]: { contacts: "/contacts/999999999" } }));
+        });
+        await page.reload();
+
+        // Its page has no frame for the pane; Turbo would have visited it whole.
+        await expect(pane(page, "contacts").locator("turbo-frame#contacts-pane-frame")).toHaveAttribute("src", /\/contacts$/);
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+        await expect(pane(page, "list")).toBeVisible();
+        expect(await page.evaluate(() => localStorage.getItem("plmail.paneState"))).not.toContain("999999999");
+    });
+
     test("a split can add another calendar beside one, up to four", async ({ page }) => {
         await page.setViewportSize({ width: 1900, height: 900 });
         await useWorkspace(page, row("list", "calendar"));

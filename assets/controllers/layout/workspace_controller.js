@@ -220,7 +220,10 @@ export default class extends Controller {
 
         // A change still waiting to be sent goes when the page does, not with
         // it. keepalive (#post) lets the request outlive the document.
-        this._onLeave = () => this.#flush();
+        this._onLeave = () => {
+            this.#snapshotPaneStates();
+            this.#flush();
+        };
         window.addEventListener("pagehide", this._onLeave);
 
         this.#arrange();
@@ -868,14 +871,6 @@ export default class extends Controller {
             return;
         }
 
-        const kind = frame?.closest("[data-layout-pane]")?.dataset.layoutPane;
-
-        if (this.constructor.STATE_KINDS.includes(kind) && frame === this.slots.get(kind)?.querySelector("turbo-frame")) {
-            this.#keepPaneState(kind, frame.getAttribute("src"));
-
-            return;
-        }
-
         // Any calendar: the first's frame is `calendar-pane-frame`, a further
         // one's adds its id.
         if (false === (frame?.id ?? "").startsWith("calendar-pane-frame")) {
@@ -1451,6 +1446,77 @@ export default class extends Controller {
         return this.#paneStates()[this.#workspace().id]?.[kind] ?? null;
     }
 
+    /**
+     * Note where the active workspace's contacts and tasks are: when it is
+     * left, and when the page goes. Read from the frame's `src`, which Turbo
+     * sets as a navigation starts. Not on every frame load, which was how it
+     * started: a load begun for one workspace can finish after a quick switch
+     * to another, and was then put down as the other's.
+     */
+    #snapshotPaneStates() {
+        if ("" !== this.pageValue) {
+            return;
+        }
+
+        const shown = [...this.#kinds(), this.maxKind];
+
+        this.constructor.STATE_KINDS.filter((kind) => shown.includes(kind)).forEach((kind) => {
+            const frame = this.slots.get(kind)?.querySelector("turbo-frame");
+
+            if (frame && false === frame.hasAttribute("data-layout-lazy")) {
+                this.#keepPaneState(kind, frame.getAttribute("src"));
+            }
+        });
+    }
+
+    /**
+     * Send the pane's frame to `wanted`. A remembered place can have gone — a
+     * contact deleted since. Its address then answers 404, which Turbo meets
+     * by leaving the frame as it was, stuck on an address that is not there;
+     * or with a page that has no frame for the pane, which Turbo answers by
+     * visiting that page whole, taking the mail with it. Either way the place
+     * is forgotten and the pane goes to its start instead.
+     */
+    #restore(frame, kind, wanted, start) {
+        if (wanted !== start) {
+            const back = () => {
+                frame.removeEventListener("turbo:before-fetch-response", answered);
+                frame.removeEventListener("turbo:frame-missing", missing);
+                this.#forgetPaneState(kind);
+                queueMicrotask(() => frame.setAttribute("src", start));
+            };
+            const answered = (event) => {
+                frame.removeEventListener("turbo:before-fetch-response", answered);
+
+                if (false === event.detail.fetchResponse?.succeeded) {
+                    back();
+                }
+            };
+            const missing = (event) => {
+                event.preventDefault();
+                back();
+            };
+
+            frame.addEventListener("turbo:before-fetch-response", answered);
+            frame.addEventListener("turbo:frame-missing", missing, { once: true });
+            frame.addEventListener("turbo:frame-load", () => frame.removeEventListener("turbo:frame-missing", missing), { once: true });
+        }
+
+        frame.setAttribute("src", wanted);
+    }
+
+    #forgetPaneState(kind) {
+        const states = this.#paneStates();
+
+        delete states[this.#workspace().id]?.[kind];
+
+        try {
+            localStorage.setItem(this.constructor.STATE_STORE, JSON.stringify(states));
+        } catch {
+            // Nothing kept, nothing to forget.
+        }
+    }
+
     /** Note where the pane of `kind` now is, for the active workspace. */
     #keepPaneState(kind, src) {
         const start = this.slots.get(kind)?.dataset.layoutSrc;
@@ -1580,6 +1646,9 @@ export default class extends Controller {
         if (index < 0 || index >= this.doc.workspaces.length) {
             return;
         }
+
+        // Where the workspace being left has its panes, before it is left.
+        this.#snapshotPaneStates();
 
         // A pane page draws one pane and no workspace around it: the choice
         // is saved and the mail visited, which draws the workspace chosen.
@@ -1770,9 +1839,9 @@ export default class extends Controller {
 
             if (frame.hasAttribute("data-layout-lazy")) {
                 frame.removeAttribute("data-layout-lazy");
-                frame.setAttribute("src", wanted);
+                this.#restore(frame, kind, wanted, slot.dataset.layoutSrc);
             } else if (this.constructor.STATE_KINDS.includes(kind) && samePlace(frame.getAttribute("src") ?? slot.dataset.layoutSrc, wanted) === false) {
-                frame.setAttribute("src", wanted);
+                this.#restore(frame, kind, wanted, slot.dataset.layoutSrc);
             }
         }
 

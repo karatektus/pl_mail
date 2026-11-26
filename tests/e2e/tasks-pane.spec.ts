@@ -871,7 +871,14 @@ test.describe("tasks pane on a notebook", () => {
         await expect(modal(page)).toBeHidden();
 
         // Back on the list, for what deleting it while it is shown does below.
+        // Waited for as the pane's load: the pane may already be on it (a
+        // reload puts it back where it was, #755), and then the link is
+        // current before the redraw it starts — which lands on the menu
+        // opened next and closes it.
+        const shown = frame(page).evaluate((element) => new Promise((resolve) => element.addEventListener("turbo:frame-load", resolve, { once: true })));
+
         await frame(page).getByRole("link", { name: `${name} renamed` }).click();
+        await shown;
         await expect(frame(page).getByRole("link", { name: `${name} renamed` })).toHaveAttribute("aria-current", "page");
 
         await openLists(page);
