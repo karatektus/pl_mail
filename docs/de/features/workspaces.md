@@ -1,4 +1,4 @@
-<!-- translated-from: features/workspaces.md sha1:52a79ad920f93e057b5f36e29f50e1a5fdba144f -->
+<!-- translated-from: features/workspaces.md sha1:c29cdb8ee126100f48f62570b3dd2ccb64719503 -->
 
 # Arbeitsbereiche
 
@@ -101,6 +101,13 @@ zu deinem Konto und sind in jedem Browser gleich, in dem du dich anmeldest. Sie 
 Wohin du die Trenner gezogen hast und welcher Bereich in voller Breite ist, gehört zum Gerät: Ein
 Laptop und ein großer Monitor können eigene Größen für denselben Arbeitsbereich behalten. Ein neues
 Gerät startet mit den Anteilen, mit denen der Arbeitsbereich gespeichert wurde.
+
+Die Bereiche jedes Arbeitsbereichs gehören ihm. Ein Kalender merkt sich seine Ansicht für dein Konto,
+sodass ein Monat in einem Arbeitsbereich und eine Agenda in einem anderen jeweils bleiben.
+**Kontakte** und **Aufgaben** merken sich, wo du sie verlassen hast — welche Aufgabenliste, welchen
+Kontakt oder welche Gruppe —, für jeden Arbeitsbereich auf diesem Gerät: Wechselst du weg und zurück
+oder lädst neu, sind sie dort, wo dieser Arbeitsbereich sie gelassen hat. Ein neues Gerät beginnt
+sie oben.
 
 ## Auf dem Telefon und in einem kleinen Fenster
 

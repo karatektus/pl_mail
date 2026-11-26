@@ -578,6 +578,36 @@ test.describe("the panes in a workspace", () => {
         await expect(current()).toHaveAttribute("aria-label", "Agenda");
     });
 
+    test("tasks in each of two workspaces stay on their own list", async ({ page }) => {
+        await useWorkspaces(page, [
+            { name: "Mail", layout: row("list", "tasks") },
+            { name: "Planning", layout: row("tasks", "list") },
+        ], 0);
+
+        const tabs = page.locator("[data-layout--workspace-target='workspaceTabs'] button");
+        const frame = page.locator("turbo-frame#tasks-pane-frame");
+        const current = () => frame.getByRole("navigation", { name: "Task lists" }).locator("a.bg-accent-soft");
+
+        await expect(current()).toHaveText(/My Day/);
+        await frame.getByRole("link", { name: "All", exact: true }).click();
+        await expect(current()).toHaveText("All");
+
+        // Planning's tasks pane is its own: it starts on My Day, and coming
+        // back to Mail finds All where it was left.
+        await tabs.filter({ hasText: "Planning" }).click();
+        await expect(current()).toHaveText(/My Day/);
+
+        const saved = nextSave(page);
+
+        await tabs.filter({ hasText: "Mail" }).click();
+        await expect(current()).toHaveText("All");
+
+        // On this device, across a reload too.
+        expect((await saved).ok()).toBe(true);
+        await page.reload();
+        await expect(current()).toHaveText("All");
+    });
+
     test("a split can add another calendar beside one, up to four", async ({ page }) => {
         await page.setViewportSize({ width: 1900, height: 900 });
         await useWorkspace(page, row("list", "calendar"));
