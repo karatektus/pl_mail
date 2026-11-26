@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Runs on the QA host inside qa-exec's disposable checkout of the commit under test.
 set -uo pipefail
 
 head=$PWD
@@ -52,8 +51,6 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT TERM HUP
 
-# Starts the test stack for one tree, seeds the demo mailbox and checks the instance.
-# Sets PORT and COMPOSE for drive.
 serve() {
   local side=$1 tree=$2 out=$ev/$1 port compose
   mkdir -p "$out" "$tree/var/log" "$tree/public/assets"
