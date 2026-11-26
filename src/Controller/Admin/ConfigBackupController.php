@@ -12,6 +12,7 @@ use App\Domain\Exception\InvalidFirebaseCredentialsException;
 use App\Infrastructure\Backup\ConfigBackupCipher;
 use App\Service\Backup\ConfigBackupExporter;
 use App\Service\Backup\ConfigBackupImporter;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
@@ -63,6 +64,7 @@ final class ConfigBackupController extends AbstractController
     public function __construct(
         private readonly ConfigBackupExporter $exporter,
         private readonly ConfigBackupImporter $importer,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -76,10 +78,13 @@ final class ConfigBackupController extends AbstractController
 
     public const string ERROR_PASSWORD_MISMATCH = 'password-mismatch';
 
+    public const string ERROR_REMEMBERED_SESSION = 'remembered-session';
+
     /** @var array<string, string> */
     private const array EXPORT_ERRORS = [
         self::ERROR_PASSWORD_TOO_SHORT => 'admin.config_backup.export.error.too_short',
         self::ERROR_PASSWORD_MISMATCH  => 'admin.config_backup.export.error.mismatch',
+        self::ERROR_REMEMBERED_SESSION => 'admin.config_backup.export.error.remembered_session',
     ];
 
     #[Route('', name: 'panel', methods: ['GET'])]
@@ -114,6 +119,10 @@ final class ConfigBackupController extends AbstractController
     {
         $this->assertCsrf($request, 'config_backup_export');
 
+        if (false === $this->signedInThisSession()) {
+            return $this->redirectToSection(self::ERROR_REMEMBERED_SESSION);
+        }
+
         $password = (string) $request->request->get('password', '');
         $repeated = (string) $request->request->get('password_repeat', '');
 
@@ -124,6 +133,14 @@ final class ConfigBackupController extends AbstractController
         if (false === hash_equals($password, $repeated)) {
             return $this->redirectToSection(self::ERROR_PASSWORD_MISMATCH);
         }
+
+        // Every export is on the record. The file holds every user's mail
+        // passwords and second factors, so "did anybody take one?" must have
+        // an answer afterwards; a warning, so it shows in Admin → Logs.
+        $this->logger->warning('Configuration backup exported, with every user\'s credentials', [
+            'admin' => $this->getUser()?->getUserIdentifier(),
+            'ip'    => $request->getClientIp(),
+        ]);
 
         $response = new Response(
             $this->exporter->export($password),
@@ -158,6 +175,10 @@ final class ConfigBackupController extends AbstractController
     public function apply(Request $request): Response
     {
         $this->assertCsrf($request, 'config_backup_apply');
+
+        if (false === $this->signedInThisSession()) {
+            return $this->panelWithError('admin.config_backup.export.error.remembered_session');
+        }
 
         return $this->review($request, apply: true);
     }
@@ -206,10 +227,32 @@ final class ConfigBackupController extends AbstractController
             return $this->renderPanel(errorLiteral: $e->getMessage(), envelope: $envelope);
         }
 
+        if (true === $apply) {
+            $this->logger->warning('Configuration backup applied', [
+                'admin' => $this->getUser()?->getUserIdentifier(),
+                'ip'    => $request->getClientIp(),
+            ]);
+        }
+
         // The envelope is carried on so the review's own "apply" button has
         // something to send, and dropped once applied — there is nothing left
         // to do with it, and a page that keeps it invites a second apply.
         return $this->renderPanel(plan: $plan, envelope: $apply ? null : $envelope);
+    }
+
+    /**
+     * Whether this session was opened by signing in (password, passkey or the
+     * provider), not carried over from a "keep me signed in" cookie.
+     *
+     * Export hands out every user's decrypted credentials and apply replaces
+     * them, so both want the admin to have proved who they are in this
+     * session. A stolen remember-me cookie lasts up to 60 days and is the
+     * likeliest way into an admin session; signing in again is a small price
+     * for an action an admin takes a few times a year.
+     */
+    private function signedInThisSession(): bool
+    {
+        return $this->isGranted('IS_AUTHENTICATED_FULLY');
     }
 
     private function envelopeFromUpload(Request $request): ?string
