@@ -207,7 +207,7 @@ final readonly class VsCodeTheme
 
         // Status colours are text, and also text on a 12% wash of themselves.
         foreach ($status as $key => $colour) {
-            $status[$key] = Oklab::liftLightness($colour, $dark, [$surface, $page, $raised, Oklab::mix($surface, $colour, 0.12)], self::TEXT_CONTRAST);
+            $status[$key] = Oklab::liftLightness($colour, $dark, [...$grounds, Oklab::mix($surface, $colour, 0.12)], self::TEXT_CONTRAST);
         }
 
         // A theme that leaves a terminal colour out gets the status colour of

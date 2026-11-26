@@ -167,6 +167,18 @@ final class VsCodeThemeTest extends TestCase
         }
     }
 
+    public function testAStatusColourReadsOnALighterWidget(): void
+    {
+        $json = '{"type": "dark", "colors": {"editor.background": "#1e1e1e", "sideBar.background": "#181818", "editorWidget.background": "#555555", "editorWarning.foreground": "#b58900"}}';
+        $c = VsCodeTheme::fromJson($json)?->palette->colours ?? [];
+
+        self::assertSame('#555555', $c['sunken']);
+
+        foreach (Palette::STATUS as $status) {
+            self::assertGreaterThanOrEqual(4.5, Oklab::contrast($c[$status], $c['sunken']), $status . ' on sunken');
+        }
+    }
+
     /** @return iterable<string, array{string}> */
     public static function unreadableFields(): iterable
     {
