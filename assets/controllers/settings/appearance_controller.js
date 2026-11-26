@@ -238,12 +238,13 @@ export default class extends Controller {
         }
 
         // An imported theme's colours are inline on <html> and only the
-        // server knows the theme's own, so this one is saved and reloaded.
+        // server knows the theme's own, so this one is saved and the whole
+        // page reloaded: a Turbo visit keeps <html> and its inline colours.
         if (this.hasPaletteTarget && this.paletteTarget.value !== '') {
             this.paletteTarget.value = '';
             clearTimeout(this.pending);
             this.pending = null;
-            this.saving = this.save().then(() => this.reloadPane());
+            this.saving = this.save().then(() => window.location.reload());
 
             return;
         }
@@ -1102,7 +1103,10 @@ export default class extends Controller {
         let response;
 
         try {
-            response = await fetch(this.importUrlValue, {
+            // The file's name, for a VS Code theme that does not name itself.
+            const name = file.name.replace(/\.jsonc?$/i, '');
+
+            response = await fetch(`${this.importUrlValue}?name=${encodeURIComponent(name)}`, {
                 method: 'POST',
                 headers: jsonCsrfHeaders(),
                 body: text,

@@ -95,11 +95,11 @@ final class VsCodeThemeTest extends TestCase
 
     public function testALightThemeSitsOnLight(): void
     {
-        $theme = VsCodeTheme::fromJson(self::AYU_LIGHT);
+        $theme = VsCodeTheme::fromJson(self::AYU_LIGHT, 'ayu-light');
 
         self::assertNotNull($theme);
         self::assertFalse($theme->palette->dark);
-        self::assertSame('Imported', $theme->palette->name);
+        self::assertSame('ayu-light', $theme->palette->name);
         self::assertSame('#f29718', $theme->accent);
         self::assertSame('light', $theme->settings()['theme']);
     }

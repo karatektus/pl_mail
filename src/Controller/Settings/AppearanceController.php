@@ -335,7 +335,7 @@ final class AppearanceController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        $vsCode = VsCodeTheme::fromJson($request->getContent());
+        $vsCode = VsCodeTheme::fromJson($request->getContent(), $request->query->getString('name'));
 
         if (null !== $vsCode) {
             $user->appearance->applyArray($vsCode->settings());

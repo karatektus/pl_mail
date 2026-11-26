@@ -49,8 +49,11 @@ final readonly class VsCodeTheme
     ) {
     }
 
-    /** The theme in $json, or null if it is not a VS Code colour theme. */
-    public static function fromJson(string $json): ?self
+    /**
+     * The theme in $json, or null if it is not a VS Code colour theme.
+     * $fallbackName names one whose file does not, as many don't.
+     */
+    public static function fromJson(string $json, string $fallbackName = ''): ?self
     {
         $theme = json_decode(self::stripJsonc($json), true);
 
@@ -64,7 +67,7 @@ final readonly class VsCodeTheme
             return null;
         }
 
-        $name = is_string($theme['name'] ?? null) ? $theme['name'] : '';
+        $name = is_string($theme['name'] ?? null) ? $theme['name'] : $fallbackName;
         $type = is_string($theme['type'] ?? null) ? $theme['type'] : null;
 
         return self::convert($colours, $name, $type);
