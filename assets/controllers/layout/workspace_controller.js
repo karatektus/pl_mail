@@ -1221,7 +1221,8 @@ export default class extends Controller {
             return;
         }
 
-        // No toast: the tab sliding over says where the mail went.
+        // No toast: the tab sliding over, with a spark, says where the mail went.
+        this._switchedBy = "spark";
         this.#switchTo(other);
 
         // That workspace may have something else at full width on this
@@ -1584,7 +1585,10 @@ export default class extends Controller {
         }
 
         const thumb = this.workspaceTabsTarget.querySelector("[data-workspace-thumb]");
-        const before = this.workspaceTabsTarget.querySelector("[aria-pressed='true']")?.dataset.layoutWorkspaceIndexParam;
+        // getAttribute, not dataset: the double dash in the Stimulus param's
+        // name has no camelCase dataset key, so it read undefined and no
+        // switch ever slid.
+        const before = this.workspaceTabsTarget.querySelector("[aria-pressed='true']")?.getAttribute("data-layout--workspace-index-param") ?? undefined;
 
         this.workspaceTabsTarget.replaceChildren(...(thumb ? [thumb] : []), ...this.doc.workspaces.map((workspace, index) => {
             const button = document.createElement("button");
@@ -1603,7 +1607,32 @@ export default class extends Controller {
 
         // Slides only when the active tab changed; a rename or a new tab
         // just puts it where it belongs.
-        this.#placeThumb(undefined !== before && String(this.doc.active) !== before);
+        const switched = undefined !== before && String(this.doc.active) !== before;
+
+        this.#placeThumb(switched);
+
+        if (switched) {
+            this.#glow(this._switchedBy ?? "bloom");
+        }
+
+        this._switchedBy = null;
+    }
+
+    /**
+     * The switch's glow (app.css, .workspace-glow): `spark` when plMail
+     * switched by itself, `bloom` when the user did. Full motion only, which
+     * the stylesheet decides; the -0/-1 ending alternates so the same effect
+     * twice in a row starts again.
+     */
+    #glow(effect) {
+        const nav = this.hasWorkspaceTabsTarget ? this.workspaceTabsTarget : null;
+
+        if (null === nav) {
+            return;
+        }
+
+        this._glowTurn = 1 - (this._glowTurn ?? 1);
+        nav.dataset.glow = `${effect}-${this._glowTurn}`;
     }
 
     /**

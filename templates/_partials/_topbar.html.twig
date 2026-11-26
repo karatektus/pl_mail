@@ -393,7 +393,19 @@
              data-layout--workspace-target="workspaceTabs">
             {# The highlight under the active tab, its own element so it can
                slide from tab to tab (layout--workspace places it). #}
-            <span class="workspace-tab-thumb" data-workspace-thumb aria-hidden="true"></span>
+            <span class="workspace-tab-thumb" data-workspace-thumb aria-hidden="true">
+                {# The switch's glow (app.css, .workspace-glow): a spark's lap
+                   with the twinkles it leaves, at the share of the lap it
+                   passes each, and a bloom. Drawn only while `data-glow` is
+                   set on the strip. #}
+                <span class="workspace-glow">
+                    <svg class="workspace-glow-trace" viewBox="0 0 100 32" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="30" rx="6" ry="6" pathLength="100" vector-effect="non-scaling-stroke"/></svg>
+                    {% for star in [[22, 0, 72], [70, 0, 243], [100, 50, 396], [62, 100, 576], [18, 100, 738], [0, 45, 846]] %}
+                        <span class="workspace-glow-star" style="left: {{ star[0] }}%; top: {{ star[1] }}%; --at: {{ star[2] }}ms"><svg viewBox="0 0 10 10"><path d="M5 0 6 4 10 5 6 6 5 10 4 6 0 5 4 4Z" fill="currentColor"/></svg></span>
+                    {% endfor %}
+                    <span class="workspace-glow-bloom"></span>
+                </span>
+            </span>
             {% for space in workspaces.all %}
                 <button type="button"
                         class="workspace-tab"

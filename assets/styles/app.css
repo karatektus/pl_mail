@@ -94,6 +94,11 @@
        seeds the setting with the same colour when the theme is picked. */
     --rgb-accent:        37  99 235;
     --rgb-accent-ink:   255 255 255;
+    /* The light a manual switch of workspace gives off (.workspace-tab-thumb).
+       The theme's accent taken toward white — a little on a light theme, a
+       lot on a dark one, where a glow has to read as light. Not the stored
+       accent: a user's own accent does not reach it. */
+    --rgb-glow:         70 122 238;
 
     /* Fields. The field is the surface's own white, so its border is all
        that marks it, and the border is held to WCAG 1.4.11's 3:1 for the
@@ -262,6 +267,7 @@
 
     --rgb-accent:       37  99 235;
     --rgb-accent-ink:  255 255 255;
+    --rgb-glow:        135 169 244;
 
     --rgb-field:        39  39  42;
     --rgb-field-border: 112 114 122;
@@ -351,6 +357,7 @@
 
     --rgb-accent:    125 107  79;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        144 129 105;
 
     --rgb-field:        255 255 255;
 
@@ -457,6 +464,7 @@
 
     --rgb-accent:      58 111  92;
     --rgb-accent-ink: 240 245 242;
+    --rgb-glow:        147 176 165;
 
     /* Fields lighten the surface instead of darkening it. .dark's field is
        #27272a, which is the same colour as this surface — the search input
@@ -547,6 +555,7 @@
 
     --rgb-accent:    136 192 208;   /* frost  #88c0d0 */
     --rgb-accent-ink: 24  24  27;   /* the frost blue is light enough to need dark ink */
+    --rgb-glow:        190 220 229;
 
     --rgb-field:        39  39  42;
     --rgb-field-border:153 157 163;
@@ -626,6 +635,7 @@
 
     --rgb-accent:    167 139 250;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        207 191 252;
 
     --rgb-field:        39  39  42;
     --rgb-field-border:120 118 132;
@@ -701,6 +711,7 @@
 
     --rgb-accent:    181 137   0;   /* yellow #b58900 */
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        192 155  38;
 
     --rgb-field:        255 255 255;
 
@@ -832,6 +843,7 @@
 
     --rgb-accent:    232 226 217;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        242 239 234;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 135 131 125;
@@ -891,6 +903,7 @@
 
     --rgb-accent:    217 119 6;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        234 180 118;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 131 135 140;
@@ -950,6 +963,7 @@
 
     --rgb-accent:    245 158 11;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        250 202 121;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 133 131 127;
@@ -1009,6 +1023,7 @@
 
     --rgb-accent:    214 199 174;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        232 224 210;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 138 128 113;
@@ -1068,6 +1083,7 @@
 
     --rgb-accent:    16 185 129;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        124 216 186;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 118 133 137;
@@ -1127,6 +1143,7 @@
 
     --rgb-accent:    234 88 12;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        243 163 121;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 135 124 119;
@@ -1186,6 +1203,7 @@
 
     --rgb-accent:    244 114 182;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        249 177 215;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 132 128 151;
@@ -1245,6 +1263,7 @@
 
     --rgb-accent:    37 99 235;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         70 122 238;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 126 133 146;
@@ -1302,6 +1321,7 @@
 
     --rgb-accent:    71 85 105;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         99 110 128;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 125 130 138;
@@ -1359,6 +1379,7 @@
 
     --rgb-accent:    22 101 52;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         57 124  82;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 126 134 123;
@@ -1416,6 +1437,7 @@
 
     --rgb-accent:    159 18 57;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        173  54  87;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 142 129 132;
@@ -1473,6 +1495,7 @@
 
     --rgb-accent:    109 40 217;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        131  72 223;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 132 128 147;
@@ -1530,6 +1553,7 @@
 
     --rgb-accent:    30 58 110;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         64  88 132;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 125 133 151;
@@ -1587,6 +1611,7 @@
 
     --rgb-accent:    125 107 79;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        144 129 105;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 132 127 120;
@@ -1644,6 +1669,7 @@
 
     --rgb-accent:    15 118 110;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         51 139 132;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 121 134 132;
@@ -1701,6 +1727,7 @@
 
     --rgb-accent:    30 58 138;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         64  88 156;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 123 134 157;
@@ -1758,6 +1785,7 @@
 
     --rgb-accent:    132 204 22;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        150 212  57;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 129 136 122;
@@ -1815,6 +1843,7 @@
 
     --rgb-accent:    134 25 143;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        152  60 160;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 142 128 136;
@@ -1872,6 +1901,7 @@
 
     --rgb-accent:    29 78 216;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         63 105 222;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 127 133 153;
@@ -1929,6 +1959,7 @@
 
     --rgb-accent:    15 118 110;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         51 139 132;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 123 134 130;
@@ -1986,6 +2017,7 @@
 
     --rgb-accent:    220 38 38;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        225  71  71;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 127 129 135;
@@ -2043,6 +2075,7 @@
 
     --rgb-accent:    200 64 47;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        208  93  78;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 136 132 129;
@@ -2100,6 +2133,7 @@
 
     --rgb-accent:    2 132 199;
     --rgb-accent-ink: 0 0 0;
+    --rgb-glow:         40 150 207;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 131 135 137;
@@ -2157,6 +2191,7 @@
 
     --rgb-accent:    125 107 79;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        144 129 105;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 136 132 128;
@@ -2214,6 +2249,7 @@
 
     --rgb-accent:    139 92 246;
     --rgb-accent-ink: 0 0 0;
+    --rgb-glow:        156 116 247;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 134 132 139;
@@ -2271,6 +2307,7 @@
 
     --rgb-accent:    200 64 47;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        208  93  78;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 128 133 149;
@@ -2328,6 +2365,7 @@
 
     --rgb-accent:    79 70 229;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        105  98 233;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 129 130 153;
@@ -2385,6 +2423,7 @@
 
     --rgb-accent:    225 29 72;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        230  63  99;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 140 129 119;
@@ -2442,6 +2481,7 @@
 
     --rgb-accent:    14 116 144;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         50 137 161;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 121 136 141;
@@ -2499,6 +2539,7 @@
 
     --rgb-accent:    162 28 175;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        176  62 187;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 143 128 138;
@@ -2556,6 +2597,7 @@
 
     --rgb-accent:    180 83 9;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        191 109  46;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 140 129 119;
@@ -2613,6 +2655,7 @@
 
     --rgb-accent:    30 64 175;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         64  93 187;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 122 133 149;
@@ -2902,12 +2945,15 @@
     padding: 3px;
     border-radius: 0.5rem;
     background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 2));
-    overflow-x: auto;
-    scrollbar-width: none;
+    /* Not a scroller: the switch's glow is drawn outside the highlight, and a
+       scroll box clips it. Many tabs shrink and truncate instead. */
+    overflow: visible;
 }
 
 .workspace-tab {
     display: inline-flex;
+    flex: 0 1 auto;
+    min-width: 2.5rem;
     align-items: center;
     max-width: 10rem;
     height: 1.875rem;
@@ -2964,9 +3010,103 @@
     transition: transform var(--motion-slow) var(--motion-ease), width var(--motion-slow) var(--motion-ease);
 }
 
+/* A little magic on a switch, at Full motion only. layout--workspace sets
+   `data-glow` on the strip for one switch: `spark-…` when plMail switched by
+   itself (a folder chosen in a workspace without the list, #769) — a gold
+   spark runs once round the highlight and leaves twinkles behind it, which
+   says "this happened to you" — and `bloom-…` when the user switched, the
+   highlight's edge lighting up in the theme's --rgb-glow as it lands. The
+   -0/-1 ending alternates so the same effect twice in a row restarts. */
+.workspace-glow,
+.workspace-glow-trace,
+.workspace-glow-star,
+.workspace-glow-bloom {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.workspace-glow {
+    inset: 0;
+    opacity: 1;
+}
+
+.workspace-glow-trace {
+    inset: -1px;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
+    overflow: visible;
+}
+
+.workspace-glow-trace rect {
+    fill: none;
+    stroke: #fff6d8;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-dasharray: 0.5 99.5;
+    filter: drop-shadow(0 0 3px #ffe9a8) drop-shadow(0 0 7px #f5b942);
+}
+
+.workspace-glow-star {
+    width: 9px;
+    height: 9px;
+    margin: -4.5px 0 0 -4.5px;
+    color: #ffe9a8;
+    filter: drop-shadow(0 0 3px #f5b942);
+}
+
+.workspace-glow-star svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.workspace-glow-bloom {
+    inset: 0;
+    border-radius: inherit;
+}
+
+[data-motion="full"] .workspace-tabs[data-glow="spark-0"] .workspace-glow-trace { animation: workspace-trace-0 900ms linear; }
+[data-motion="full"] .workspace-tabs[data-glow="spark-1"] .workspace-glow-trace { animation: workspace-trace-1 900ms linear; }
+[data-motion="full"] .workspace-tabs[data-glow="spark-0"] .workspace-glow-trace rect { animation: workspace-trace-dash-0 900ms linear; }
+[data-motion="full"] .workspace-tabs[data-glow="spark-1"] .workspace-glow-trace rect { animation: workspace-trace-dash-1 900ms linear; }
+[data-motion="full"] .workspace-tabs[data-glow="spark-0"] .workspace-glow-star { animation: workspace-twinkle-0 700ms ease-out var(--at) both; }
+[data-motion="full"] .workspace-tabs[data-glow="spark-1"] .workspace-glow-star { animation: workspace-twinkle-1 700ms ease-out var(--at) both; }
+[data-motion="full"] .workspace-tabs[data-glow="bloom-0"] .workspace-glow-bloom { animation: workspace-bloom-0 900ms cubic-bezier(.2, .7, .3, 1) 180ms both; }
+[data-motion="full"] .workspace-tabs[data-glow="bloom-1"] .workspace-glow-bloom { animation: workspace-bloom-1 900ms cubic-bezier(.2, .7, .3, 1) 180ms both; }
+
+@keyframes workspace-trace-0 { 0% { opacity: 0; } 6% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes workspace-trace-1 { 0% { opacity: 0; } 6% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes workspace-trace-dash-0 { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -100; } }
+@keyframes workspace-trace-dash-1 { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -100; } }
+@keyframes workspace-twinkle-0 {
+    0% { opacity: 0; transform: scale(.2) rotate(0deg); }
+    25% { opacity: 1; transform: scale(1.1) rotate(20deg); }
+    100% { opacity: 0; transform: scale(.4) rotate(70deg); }
+}
+@keyframes workspace-twinkle-1 {
+    0% { opacity: 0; transform: scale(.2) rotate(0deg); }
+    25% { opacity: 1; transform: scale(1.1) rotate(20deg); }
+    100% { opacity: 0; transform: scale(.4) rotate(70deg); }
+}
+@keyframes workspace-bloom-0 {
+    0% { opacity: 0; box-shadow: 0 0 0 0 rgb(var(--rgb-glow) / 0), inset 0 0 0 1px rgb(var(--rgb-glow) / 0); }
+    25% { opacity: 1; box-shadow: 0 0 14px 2px rgb(var(--rgb-glow) / .45), inset 0 0 0 1px rgb(var(--rgb-glow) / .9); }
+    100% { opacity: 0; box-shadow: 0 0 22px 8px rgb(var(--rgb-glow) / 0), inset 0 0 0 1px rgb(var(--rgb-glow) / 0); }
+}
+@keyframes workspace-bloom-1 {
+    0% { opacity: 0; box-shadow: 0 0 0 0 rgb(var(--rgb-glow) / 0), inset 0 0 0 1px rgb(var(--rgb-glow) / 0); }
+    25% { opacity: 1; box-shadow: 0 0 14px 2px rgb(var(--rgb-glow) / .45), inset 0 0 0 1px rgb(var(--rgb-glow) / .9); }
+    100% { opacity: 0; box-shadow: 0 0 22px 8px rgb(var(--rgb-glow) / 0), inset 0 0 0 1px rgb(var(--rgb-glow) / 0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .workspace-tabs .workspace-tab-thumb {
         transition: none !important;
+    }
+
+    .workspace-tabs .workspace-glow * {
+        animation: none !important;
     }
 }
 
