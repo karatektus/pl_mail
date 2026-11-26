@@ -104,6 +104,34 @@ final class SsoSettingsControllerTest extends WebTestCase
     }
 
     /**
+     * Once in force, the web cannot switch it off — not by unticking it, and
+     * not by clearing the provider it depends on. Only the console command
+     * can, as docs/internals/security-model.md says.
+     */
+    public function testSingleSignOnOnlyCannotBeUndoneFromTheWeb(): void
+    {
+        $this->linkAdmin('https://auth.example.com/');
+        $this->submit($this->provider() + ['passwordLoginDisabled' => '1']);
+
+        $form = $this->client->request('GET', '/admin/sso')->filter('turbo-frame#admin-sso form')->form();
+        self::assertTrue($form['oidc_config[passwordLoginDisabled]']->isDisabled(), 'the box is locked');
+
+        // The browser sends nothing for a disabled box; a hand-built request
+        // that sends "off" and clears the provider is refused all the same.
+        $this->client->request('POST', '/admin/sso', ['oidc_config' => [
+            '_token'   => $form['oidc_config[_token]']->getValue(),
+            'issuer'   => '',
+            'clientId' => '',
+        ]]);
+
+        static::getContainer()->get(\Doctrine\ORM\EntityManagerInterface::class)->clear();
+        $config = static::getContainer()->get(OidcConfigRepository::class)->current();
+
+        self::assertTrue($config?->passwordLoginDisabled);
+        self::assertSame('https://auth.example.com/', $config?->issuer);
+    }
+
+    /**
      * A link to the provider this page held before is not a sign-in through
      * the one being saved: switching providers and ticking the box in one save
      * would make a provider the administrator has never used the only way in.

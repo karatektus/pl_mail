@@ -41,7 +41,13 @@ final class ConfigBackupOidcTest extends KernelTestCase
         parent::tearDown();
     }
 
-    public function testARestoreLeavesSingleSignOnOnlyOffOverARowThatHadItOn(): void
+    /**
+     * While "Single sign-on only" is in force, a restore leaves the provider
+     * and the flag exactly as they are: only `app:sso:allow-password-login`
+     * reopens the password form, and a backup file in an admin's session is
+     * not that command.
+     */
+    public function testARestoreLeavesSingleSignOnOnlyAndItsProviderAlone(): void
     {
         $row                        = new OidcConfig();
         $row->issuer                = 'https://auth.example.com/';
@@ -53,10 +59,37 @@ final class ConfigBackupOidcTest extends KernelTestCase
         $this->em->flush();
 
         self::getContainer()->get(ConfigBackupDatabase::class)->restoreOidcConfig([
-            'issuer'       => 'https://auth.example.com/',
-            'clientId'     => 'plmail',
-            'clientSecret' => 'the-secret',
-            // A document that somehow carries the key is not believed either.
+            'issuer'       => 'https://other.example.com/',
+            'clientId'     => 'someone-else',
+            'clientSecret' => 'another-secret',
+        ]);
+        $this->em->flush();
+        $this->em->clear();
+
+        $current = self::getContainer()->get(OidcConfigRepository::class)->current();
+
+        self::assertNotNull($current);
+        self::assertTrue($current->passwordLoginDisabled);
+        self::assertSame('https://auth.example.com/', $current->issuer);
+        self::assertSame('plmail', $current->clientId);
+    }
+
+    /** Without the flag in force, a restore takes the file's provider, flag off. */
+    public function testARestoreReplacesAProviderThatIsNotTheOnlyWayIn(): void
+    {
+        $row               = new OidcConfig();
+        $row->issuer       = 'https://auth.example.com/';
+        $row->clientId     = 'plmail';
+        $row->clientSecret = 'the-secret';
+
+        $this->em->persist($row);
+        $this->em->flush();
+
+        self::getContainer()->get(ConfigBackupDatabase::class)->restoreOidcConfig([
+            'issuer'       => 'https://other.example.com/',
+            'clientId'     => 'someone-else',
+            'clientSecret' => 'another-secret',
+            // A document that somehow carries the key is not believed.
             'passwordLoginDisabled' => true,
         ]);
         $this->em->flush();
@@ -65,7 +98,7 @@ final class ConfigBackupOidcTest extends KernelTestCase
         $current = self::getContainer()->get(OidcConfigRepository::class)->current();
 
         self::assertNotNull($current);
-        self::assertTrue($current->isComplete());
+        self::assertSame('https://other.example.com/', $current->issuer);
         self::assertFalse($current->passwordLoginDisabled);
     }
 }
