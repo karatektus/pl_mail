@@ -12,8 +12,11 @@
  *                      subscription becomes deliverable. This is why the SW
  *                      must exist before subscribing, not after.
  *   StateChange      — something moved. It carries no mail content by design,
- *                      so the notification is generic and the app fetches the
- *                      detail when opened.
+ *                      so the notification is generic, unless the reader asked
+ *                      for the sender and the subject (#760): then the worker
+ *                      asks plMail for them over the reader's own session when
+ *                      the push arrives (inboxState() below), and the push
+ *                      service still sees nothing of the mail.
  *   CalendarAlert    — plMail's own, sent by PushAlertChannel. Unlike the two
  *                      above it carries its own text, because a reminder that
  *                      makes you open the app to find out what it is about is
@@ -142,19 +145,31 @@ async function notifyStateChange(payload) {
         }
     }
 
-    await showNewMail();
+    await showNewMail(state);
 }
 
-function showNewMail() {
-    return self.registration.showNotification("plMail", {
-        body: "New mail",
+/**
+ * The notification, from the last answer the server gave.
+ *
+ * Its `notice` is there for a reader who asked for the sender and the subject
+ * (#760): the server's own words, in the reader's language, and the
+ * conversation to open. Without one — the switch off, no recent unread mail
+ * under a ticked box, or no answer at all (offline, signed out, too slow) — it
+ * is the content-free "New mail" this always was.
+ */
+function showNewMail(state) {
+    const notice = state && state.notice;
+
+    return self.registration.showNotification(notice ? notice.title : "plMail", {
+        body: notice ? notice.body : "New mail",
         icon: "/icons/icon-192.png",
         badge: "/icons/icon-192.png",
-        // One replaceable notification rather than a growing stack: the push
-        // carries no per-message detail, so several would all say the same.
+        // One replaceable notification rather than a growing stack: a burst of
+        // mail is one notification, which the next arrival replaces with what
+        // the server says then.
         tag: NEW_MAIL_TAG,
         renotify: true,
-        data: { url: "/mail/inbox" },
+        data: { url: (notice && notice.url) || "/mail/inbox" },
     });
 }
 
@@ -204,10 +219,11 @@ function isWebKit() {
 
 /**
  * Whether the mail a push was about is still unread, and whether this user
- * wants that checked (User::$notifySkipsRead). Null when it cannot be told —
- * offline, signed out, a server error, a server too slow to answer — and the
- * caller then shows the notification, because a missed notification is worse
- * than one for mail that is already read.
+ * wants that checked (User::$notifySkipsRead); and, for a user who asked for
+ * it, what the notification says about that mail (`notice`, #760). Null when
+ * it cannot be told — offline, signed out, a server error, a server too slow to
+ * answer — and the caller then shows the notification, content-free, because
+ * a missed notification is worse than one for mail that is already read.
  *
  * Bounded by a timeout, because the notification waits for this answer even
  * for somebody who never switched the check on: a server that hangs must not
@@ -279,14 +295,53 @@ self.addEventListener("notificationclick", (event) => {
     event.waitUntil(
         self.clients
             .matchAll({ type: "window", includeUncontrolled: true })
-            .then((clients) => {
-                for (const client of clients) {
-                    if (client.url.includes(target) && "focus" in client) {
-                        return client.focus();
-                    }
+            .then((windows) => {
+                const choice = windowFor(windows, target);
+
+                if (null === choice) {
+                    return self.clients.openWindow(target);
                 }
 
-                return self.clients.openWindow(target);
+                // Focus first, while the click still allows it; a window that
+                // cannot be navigated (not controlled by this worker yet) is
+                // at least brought forward, never a second tab.
+                return choice.client.focus().then((focused) => (true === choice.navigate
+                    ? (focused || choice.client).navigate(target).catch(() => focused)
+                    : focused));
             }),
     );
 });
+
+/**
+ * The plMail window a click brings forward, and whether it has to be taken to
+ * the notification's page: one already there (or under it) as it is,
+ * otherwise the plMail window used last, taken there. As Gmail does: no second
+ * tab while one is open (the user's call on #760, now that a click can open a
+ * conversation). Null when none is open, and a window is opened.
+ *
+ * matchAll() lists windows most recently focused first, so the first of ours
+ * is the one the reader was in last.
+ */
+function windowFor(windows, target) {
+    const ours = windows.filter((client) => "focus" in client && new URL(client.url).origin === self.location.origin);
+    const there = ours.find((client) => isAt(client.url, target));
+
+    if (there) {
+        return { client: there, navigate: false };
+    }
+
+    return ours.length > 0 ? { client: ours[0], navigate: true } : null;
+}
+
+/**
+ * Whether a window is on the page a notification opens, or a page under it:
+ * /mail/inbox?page=2 and /mail/inbox/3 are the Inbox. But the match has to end
+ * where a path segment ends. It used to be a plain "contains", and since #760
+ * a notification can open a conversation: /mail/thread/12 is contained in
+ * /mail/thread/123, and a click would have focused that other conversation.
+ */
+function isAt(url, target) {
+    const wanted = new URL(target, self.location.origin).href;
+
+    return url === wanted || (url.startsWith(wanted) && ["/", "?", "#", "&"].includes(url.charAt(wanted.length)));
+}
