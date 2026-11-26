@@ -2,6 +2,30 @@
 import { Controller } from '@hotwired/stimulus';
 import { liftAbove, visible } from '../../place_above.js';
 
+/**
+ * Give each paragraph the writer wrote `margin: 0`, as the editor shows it.
+ *
+ * The editor makes a paragraph of every line and draws it with no margin —
+ * the app's base styles zero every margin — but a mail program draws a bare
+ * `<p>` with a line of space above and below. Sent as it was, every Enter
+ * arrived as a blank line and every blank line as two, in the recipient's
+ * client and in the reading pane alike.
+ *
+ * Not a paragraph with a margin of its own, which the editor shows with it,
+ * nor one in the quote under a reply or a forward: that is the sender's mail
+ * as the sender made it. MailBodySanitizer::withoutParagraphGaps() is the same
+ * rule on the server.
+ */
+function closeParagraphGaps(root) {
+    root.querySelectorAll('p').forEach((paragraph) => {
+        if (null !== paragraph.closest('[data-quoted], blockquote') || /(^|;)\s*margin[\s:-]/i.test(paragraph.getAttribute('style') ?? '')) {
+            return;
+        }
+
+        paragraph.style.margin = '0';
+    });
+}
+
 export default class extends Controller {
     static targets = [
         'editor',
@@ -1401,15 +1425,21 @@ export default class extends Controller {
      * is unhidden and its wrapper unwrapped; a draft reopened from this is
      * folded again by compose_controller, as it always was.
      * MailBodySanitizer::unfoldQuotes() does the same on the server.
+     *
+     * And each paragraph of the writer's own says it has no margin, as the
+     * editor draws it — see closeParagraphGaps(). Here rather than only on the
+     * server because an encrypted mail is built from this in the browser, and
+     * the server never sees its body.
      */
     _cleanHtml() {
         const html = this.editorTarget.innerHTML;
 
-        if (!/sf-toolbar|<script|sfwdt|data-quote-toggle|data-quote-wrapped|data-image-placeholder/i.test(html)) {
+        if (!/sf-toolbar|<script|sfwdt|data-quote-toggle|data-quote-wrapped|data-image-placeholder|<p[\s>]/i.test(html)) {
             return html;
         }
 
         const clone = this.editorTarget.cloneNode(true);
+        closeParagraphGaps(clone);
 
         clone.querySelectorAll(
             'script, .sf-toolbar, [id^="sfwdt"], [data-frankenphp-hot-reload-preserve], [data-quote-toggle], '
