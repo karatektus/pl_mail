@@ -3029,6 +3029,10 @@
 .workspace-glow {
     inset: 0;
     opacity: 1;
+    /* The highlight's corners, passed down: the bloom draws its edge and glow
+       with inherit, and without this it inherited nothing and lit up a
+       square-cornered box round a rounded tab. */
+    border-radius: inherit;
 }
 
 .workspace-glow-trace {
