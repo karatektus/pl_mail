@@ -6136,6 +6136,7 @@ contacts:
     import_uploading: 'Envoi en cours…'
     imported: '%count% contacts importés.'
     in_address_book: 'Dans vos contacts'
+    open_in_twenty: 'Ouvrir dans Twenty'
     keep_this: 'Garder celui-ci'
     label: Étiquette
     label_home: Domicile

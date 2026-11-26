@@ -38,4 +38,15 @@ targets, so every message from this sender is updated at once.
             <i class="fa-solid fa-user-plus text-[11px]" aria-hidden="true"></i>
         </button>
     {% endif %}
+    {% set twentyUrl = twenty_person_url(address) %}
+    {% if twentyUrl %}
+        <a href="{{ twentyUrl }}"
+           target="_blank" rel="noopener noreferrer"
+           data-twenty-link
+           title="{{ 'contacts.open_in_twenty'|trans }}"
+           aria-label="{{ 'contacts.open_in_twenty'|trans }}"
+           class="ml-1.5 text-ink-faint hover:text-accent transition-colors">
+            <i class="fa-solid fa-briefcase text-[11px]" aria-hidden="true"></i>
+        </a>
+    {% endif %}
 </span>

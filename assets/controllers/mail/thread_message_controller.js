@@ -14,6 +14,10 @@ export default class extends Controller {
     }
 
     toggle(event) {
+        if (event.target.closest("[data-no-toggle]")) {
+            return;
+        }
+
         this.expandedValue = !this.expandedValue;
     }
 

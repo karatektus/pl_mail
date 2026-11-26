@@ -6100,6 +6100,7 @@ contacts:
     import_uploading: Uploading…
     imported: 'Imported %count% contacts.'
     in_address_book: 'In your contacts'
+    open_in_twenty: 'Open in Twenty'
     keep_this: 'Keep this one'
     label: Label
     label_home: Home

@@ -82,6 +82,13 @@ inRelations (ones pointing at it), refEmails (ReferenceEmailFinder rows).
                                 <div class="min-w-0">
                                     <a href="{{ path('app_compose_new', {to: email.email, name: contact.displayName}) }}" data-turbo-frame="compose_dock" class="text-accent hover:underline break-all">{{ email.email }}</a>
                                     <span class="text-xs text-ink-faint ml-1.5">{{ ('contacts.label_' ~ email.label)|trans }}{{ email.isPrimary ? ' · ' ~ 'contacts.primary_short'|trans }}</span>
+                                    {% set twentyUrl = twenty_person_url(email.email) %}
+                                    {% if twentyUrl %}
+                                        <a href="{{ twentyUrl }}" target="_blank" rel="noopener noreferrer" data-twenty-link
+                                           class="text-xs text-accent hover:underline ml-1.5 whitespace-nowrap">
+                                            <i class="fa-solid fa-briefcase text-[10px]" aria-hidden="true"></i> {{ 'contacts.open_in_twenty'|trans }}
+                                        </a>
+                                    {% endif %}
                                 </div>
                             </div>
                         {% endfor %}

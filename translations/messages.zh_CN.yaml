@@ -5328,6 +5328,7 @@ contacts:
     import_uploading: "正在上传…"
     imported: "已导入 %count% 位联系人。"
     in_address_book: "已在联系人中"
+    open_in_twenty: "在 Twenty 中打开"
     keep_this: "保留此联系人"
     label: "标签"
     label_home: "家庭"

@@ -5871,6 +5871,7 @@ contacts:
     import_uploading: "Hoistin'…"
     imported: 'Hauled in %count% shipmates.'
     in_address_book: 'In yer crew'
+    open_in_twenty: 'Spy on this one in Twenty'
     keep_this: 'Keep this one'
     label: Label
     label_home: 'Home port'

@@ -6107,6 +6107,7 @@ contacts:
     import_uploading: 'Wird hochgeladen…'
     imported: '%count% Kontakte importiert.'
     in_address_book: 'In deinen Kontakten'
+    open_in_twenty: 'In Twenty öffnen'
     keep_this: 'Diesen behalten'
     label: Bezeichnung
     label_home: Privat
