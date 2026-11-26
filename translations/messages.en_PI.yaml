@@ -285,6 +285,7 @@ admin:
                 embedding: "Divinin' model"
                 missing: 'not at this berth'
                 missing_body: "A model named here be not aboard the berth. Haul her in, or name one that be there — 'til then ev'ry askin' founders."
+                missing_body_listed: "A model named here be not on this berth's list. Check the name 'gainst what she offers — a name she don't know founders ev'ry askin'."
                 none: 'not set'
                 resident: 'aboard'
             no_history: "Nowt has asked the oracle in this stretch. The numbers come once somethin' does."
@@ -322,6 +323,7 @@ admin:
             openai: 'OpenAI-compatible'
         probe:
             missing_model: "That berth answered, but holds no: %models%. Haul 'em aboard there first."
+            missing_model_listed: "That berth answered, but her list holds no: %models%. Check the names 'gainst the list below."
             host:
                 search: "Searcher's berth"
                 writing: "Oracle's berth"

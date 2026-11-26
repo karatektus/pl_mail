@@ -54,7 +54,7 @@ final class AiPerformancePanelRenderTest extends KernelTestCase
     public function testAnUnreachableHostRendersWithoutTheTelemetry(): void
     {
         $html = $this->render(self::panel([
-            'host' => ['baseUrl' => 'http://10.0.0.5:11434', 'provider' => 'ollama', 'managesMemory' => true, 'reachable' => false, 'version' => null, 'reason' => 'unreachable'],
+            'host' => ['baseUrl' => 'http://10.0.0.5:11434', 'provider' => 'ollama', 'managesMemory' => true, 'pullsModels' => true, 'reachable' => false, 'version' => null, 'reason' => 'unreachable'],
         ]));
 
         self::assertStringNotContainsString('<table', $html);
@@ -152,7 +152,7 @@ final class AiPerformancePanelRenderTest extends KernelTestCase
     public function testAHostThatCannotReportItsMemoryIsNotSaidToBeCold(): void
     {
         $html = $this->render(self::panel([
-            'host'       => ['baseUrl' => 'https://api.example.test/v1', 'provider' => 'openai', 'managesMemory' => false, 'reachable' => true, 'version' => null, 'reason' => null],
+            'host'       => ['baseUrl' => 'https://api.example.test/v1', 'provider' => 'openai', 'managesMemory' => false, 'pullsModels' => false, 'reachable' => true, 'version' => null, 'reason' => null],
             'loaded'     => [],
             'coldLoadMs' => null,
         ]));
@@ -161,6 +161,31 @@ final class AiPerformancePanelRenderTest extends KernelTestCase
         self::assertStringNotContainsString('No model is loaded', $html);
         self::assertStringNotContainsString('In memory now', $html);
         self::assertStringContainsString('<table', $html, 'what the calls cost is still worth showing');
+    }
+
+    /**
+     * A hosted service is not told to pull a model (#743).
+     *
+     * "Pull it there" is Ollama's fix. A host that offers what it offers gets
+     * the other sentence, about the name.
+     */
+    public function testAMissingModelOnAHostedServiceIsAboutTheNameNotAPull(): void
+    {
+        $models = [
+            ['role' => 'chat', 'name' => 'gemini-3.8-flahs', 'installed' => false, 'resident' => false],
+            ['role' => 'embedding', 'name' => 'gemini-embedding-2', 'installed' => true, 'resident' => false],
+        ];
+
+        $hosted = $this->render(self::panel([
+            'host'   => ['baseUrl' => 'https://generativelanguage.googleapis.com/v1beta/openai', 'provider' => 'openai', 'managesMemory' => false, 'pullsModels' => false, 'reachable' => true, 'version' => null, 'reason' => null],
+            'models' => $models,
+            'loaded' => [],
+        ]));
+        $ollama = $this->render(self::panel(['models' => $models]));
+
+        self::assertStringNotContainsString('Pull it', $hosted);
+        self::assertStringContainsString('model list', $hosted);
+        self::assertStringContainsString('Pull it', $ollama);
     }
 
     /** @param array<string, mixed> $panel */
@@ -181,7 +206,7 @@ final class AiPerformancePanelRenderTest extends KernelTestCase
             'configured' => true,
             'ready'      => true,
             'features'   => ['search' => true, 'categorise' => false, 'writing' => true, 'summary' => false],
-            'host'       => ['baseUrl' => 'http://10.0.0.5:11434', 'provider' => 'ollama', 'managesMemory' => true, 'reachable' => true, 'version' => '0.6.2', 'reason' => null],
+            'host'       => ['baseUrl' => 'http://10.0.0.5:11434', 'provider' => 'ollama', 'managesMemory' => true, 'pullsModels' => true, 'reachable' => true, 'version' => '0.6.2', 'reason' => null],
             'models'     => [
                 ['role' => 'chat', 'name' => 'qwen2.5:32b', 'installed' => true, 'resident' => true],
                 ['role' => 'embedding', 'name' => 'nomic-embed-text', 'installed' => true, 'resident' => false],

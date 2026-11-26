@@ -288,6 +288,7 @@ admin:
                 embedding: 'Such-Modell'
                 missing: 'nicht auf diesem Host'
                 missing_body: 'Ein hier eingetragenes Modell ist auf dem Host nicht installiert. Zieh es dort, oder trag eines ein, das vorhanden ist — bis dahin scheitert jede Anfrage dafür.'
+                missing_body_listed: 'Ein hier eingetragenes Modell steht nicht in der Modell-Liste des Hosts. Vergleich den Namen mit dem, was der Host anbietet — einen Namen, den er nicht kennt, lehnt er bei jeder Anfrage ab.'
                 none: 'nicht gesetzt'
                 resident: 'im Speicher'
             no_history: 'In diesem Zeitraum hat nichts ein Modell gefragt. Die Zahlen erscheinen, sobald etwas es tut.'
@@ -325,6 +326,7 @@ admin:
             openai: 'OpenAI-kompatibel'
         probe:
             missing_model: 'Der Host hat geantwortet, hat aber nicht: %models%. Zieh sie dort erst.'
+            missing_model_listed: 'Der Host hat geantwortet, aber seine Modell-Liste enthält nicht: %models%. Vergleich die Namen mit der Liste unten.'
             host:
                 search: 'Such-Host'
                 writing: 'Modell-Host'

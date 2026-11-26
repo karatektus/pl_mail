@@ -266,6 +266,7 @@ admin:
                 embedding: 搜索模型
                 missing: 此主机上不存在
                 missing_body: 此处指定的模型未安装在主机上。请先在主机上拉取该模型，或填写已安装的模型名称；否则每次请求都会失败。
+                missing_body_listed: 此处指定的模型不在该主机的模型列表中。请对照主机提供的模型核对名称；主机不认识的名称会导致每次请求失败。
                 none: 未设置
                 resident: 已驻留内存
             no_history: 此时间范围内尚未调用模型。调用后会显示数据。
@@ -306,6 +307,7 @@ admin:
                 search: 搜索主机
                 writing: 模型主机
             missing_model: 主机已响应，但未安装以下模型：%models%。请先在主机上拉取。
+            missing_model_listed: 主机已响应，但其模型列表中没有：%models%。请对照下方列表核对名称。
             no_host: 请先输入地址。
             no_model_list: '该地址有响应，但未提供模型列表（HTTP %status%）。请检查地址是否以 API 版本结尾，通常为 /v1。部分服务器虽无模型列表也可正常工作；保存后尝试生成草稿即可确认。'
             not_an_api: '该地址有响应，但返回的不是 JSON。通常这是登录页面或代理，而非 API。'
