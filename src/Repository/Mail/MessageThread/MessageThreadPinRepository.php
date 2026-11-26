@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Repository\Mail\MessageThread;
 
 use App\Domain\Enum\Mail\LabelRole;
-use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
+use App\Repository\Mail\Message\WearsLabel;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -92,7 +92,7 @@ class MessageThreadPinRepository extends ServiceEntityRepository
             ->andWhere('a.mailEnabled = true')
             ->andWhere('m.pinnedAt IS NOT NULL')
             ->andWhere('m.pinnedUntil IS NULL OR m.pinnedUntil > :now')
-            ->andWhere('NOT EXISTS (SELECT setAside.id FROM ' . Label::class . ' setAside WHERE setAside MEMBER OF m.labels AND setAside.role IN (:setAside))')
+            ->andWhere('NOT ' . WearsLabel::where('setAsideLabel', 'setAsideLabel.role IN (:setAside)'))
             ->setParameter('user', $user)
             ->setParameter('now', $now ?? new DateTimeImmutable())
             ->setParameter('setAside', [LabelRole::Trash, LabelRole::Spam])

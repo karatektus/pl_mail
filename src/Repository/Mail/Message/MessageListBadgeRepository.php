@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Repository\Mail\Message;
 
 use App\Domain\Enum\Mail\LabelRole;
-use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -46,7 +45,7 @@ class MessageListBadgeRepository extends ServiceEntityRepository
     {
         $qb = $this->unread($user)
             ->select('a.id AS accountId', 'COUNT(m.id) AS unreadCount')
-            ->andWhere('EXISTS (SELECT inboxLabel.id FROM ' . Label::class . ' inboxLabel WHERE inboxLabel MEMBER OF m.labels AND inboxLabel.role = :inbox)')
+            ->andWhere(WearsLabel::where('inboxLabel', 'inboxLabel.role = :inbox'))
             // Held for the assistant: in no tab and in no inbox yet.
             ->andWhere('t.category IS NOT NULL')
             ->setParameter('inbox', LabelRole::Inbox)
@@ -79,7 +78,7 @@ class MessageListBadgeRepository extends ServiceEntityRepository
 
         $qb->andWhere($qb->expr()->orX(
             'l.role = :trashRole',
-            'NOT EXISTS (SELECT binLabel.id FROM ' . Label::class . ' binLabel WHERE binLabel MEMBER OF m.labels AND binLabel.role = :trashRole)',
+            'NOT ' . WearsLabel::where('binLabel', 'binLabel.role = :trashRole'),
         ))->setParameter('trashRole', LabelRole::Trash);
 
         // Held for the assistant: not in the Inbox count yet.
@@ -132,7 +131,7 @@ class MessageListBadgeRepository extends ServiceEntityRepository
     {
         $qb = $this->unread($user)
             ->select('COUNT(m.id)')
-            ->andWhere('EXISTS (SELECT userLabel.id FROM ' . Label::class . ' userLabel WHERE userLabel MEMBER OF m.labels AND userLabel.role IS NULL)');
+            ->andWhere(WearsLabel::where('userLabel', 'userLabel.role IS NULL'));
 
         $this->notBinned($qb);
 
@@ -164,7 +163,7 @@ class MessageListBadgeRepository extends ServiceEntityRepository
     /** Not in the bin — the email's own Trash label. */
     private function notBinned(QueryBuilder $qb): void
     {
-        $qb->andWhere('NOT EXISTS (SELECT binnedLabel.id FROM ' . Label::class . ' binnedLabel WHERE binnedLabel MEMBER OF m.labels AND binnedLabel.role = :binnedRole)')
+        $qb->andWhere('NOT ' . WearsLabel::where('binnedLabel', 'binnedLabel.role = :binnedRole'))
             ->setParameter('binnedRole', LabelRole::Trash);
     }
 }

@@ -14,6 +14,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
+use App\Repository\Mail\Message\WearsLabel;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -336,7 +337,7 @@ final readonly class MailListQuery
             return;
         }
 
-        $qb->andWhere('EXISTS (SELECT roleLabel.id FROM ' . Label::class . ' roleLabel WHERE roleLabel MEMBER OF m.labels AND roleLabel.role = :role)')
+        $qb->andWhere(WearsLabel::where('roleLabel', 'roleLabel.role = :role'))
             ->setParameter('role', $role);
     }
 
@@ -371,11 +372,7 @@ final readonly class MailListQuery
                 MessageThread::class,
             ));
         } else {
-            $qb->andWhere(sprintf(
-                'NOT EXISTS (SELECT %1$sLabel.id FROM %2$s %1$sLabel WHERE %1$sLabel MEMBER OF m.labels AND %1$sLabel.role IN (:%1$sRoles))',
-                $name,
-                Label::class,
-            ));
+            $qb->andWhere('NOT ' . WearsLabel::where($name . 'Label', sprintf('%1$sLabel.role IN (:%1$sRoles)', $name)));
         }
 
         $qb->setParameter($name . 'Roles', $roles);
