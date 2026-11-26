@@ -197,6 +197,8 @@ test.describe("the pane menu", () => {
             { name: "People", layout: row("contacts", "calendar") },
         ], 2);
 
+        const saved = nextSave(page);
+
         await page.locator(INBOX_LINK).click();
 
         const tabs = page.locator("[data-layout--workspace-target='workspaceTabs'] button");
@@ -204,9 +206,18 @@ test.describe("the pane menu", () => {
         await expect(tabs.filter({ hasText: "Triage" })).toHaveAttribute("aria-pressed", "true");
         await expect(pane(page, "list")).toBeVisible();
         await expect(pane(page, "list").getByRole("button", { name: "Back to the layout" })).toBeHidden();
-        await expect(page.locator("#toast-region").getByText("Switched to “Triage”, which has the mail list.")).toBeAttached();
+
+        // The highlight has slid under the tab it went to.
+        await expect.poll(async () => {
+            const [thumb, tab] = [await page.locator("[data-workspace-thumb]").boundingBox(), await tabs.filter({ hasText: "Triage" }).boundingBox()];
+
+            return Math.abs(thumb!.x - tab!.x) + Math.abs(thumb!.width - tab!.width);
+        }, { timeout: 2_000 }).toBeLessThan(2);
+        // Said by the tab, not a toast.
+        await expect(page.locator("#toast-region").getByText("Triage")).toHaveCount(0);
 
         // And stays: the switch is saved, as a click on the tab would be.
+        expect((await saved).ok()).toBe(true);
         await page.reload();
         await expect(tabs.filter({ hasText: "Triage" })).toHaveAttribute("aria-pressed", "true");
     });
@@ -480,6 +491,46 @@ test.describe("the panes in a workspace", () => {
         await frame.getByRole("link", { name: "7 days" }).click();
 
         await expect.poll(async () => (await pane(page, "calendar").boundingBox())!.width, { timeout: 3_000 }).toBeGreaterThanOrEqual(700);
+
+        // But the divider can still take it narrower: its floor is Day's,
+        // not the view's. It used to be stuck at the view's width.
+        const divider = page.locator(".layout-divider").first();
+        const box = (await divider.boundingBox())!;
+
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(box.x + 300, box.y + box.height / 2, { steps: 8 });
+        await page.mouse.up();
+
+        const narrowed = (await pane(page, "calendar").boundingBox())!.width;
+        expect(narrowed).toBeLessThan(600);
+
+        // And stepping on does not throw it wide again: only a change of view widens.
+        const loaded = page.waitForResponse((response) => response.url().includes("/calendar/") && 200 === response.status());
+        await frame.getByRole("link", { name: "Next" }).click();
+        await loaded;
+        await page.waitForTimeout(300);
+
+        expect(Math.abs((await pane(page, "calendar").boundingBox())!.width - narrowed)).toBeLessThan(3);
+    });
+
+    test("a divider that goes away mid-drag does not leave the resize cursor behind", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar"));
+
+        const divider = page.locator(".layout-divider").first();
+        const box = (await divider.boundingBox())!;
+
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(box.x - 40, box.y + box.height / 2, { steps: 3 });
+        await expect(page.locator(".is-resizing-row")).toHaveCount(1);
+
+        // Taken out of the page with the pointer still down, as a re-render
+        // does: no pointerup ever reaches it.
+        await divider.evaluate((el) => el.remove());
+        await page.mouse.up();
+
+        await expect(page.locator(".is-resizing-row, .is-resizing-col")).toHaveCount(0);
     });
 
     // #678: one rule across the window, from under Compose through every
