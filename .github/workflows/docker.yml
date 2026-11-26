@@ -28,6 +28,10 @@ on:
         tags: ['v*']
     workflow_dispatch:
 
+concurrency:
+    group: docker-${{ github.ref }}
+    cancel-in-progress: false
+
 env:
     REGISTRY: ghcr.io
     IMAGE_NAME: ${{ github.repository }}
