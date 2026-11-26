@@ -26,6 +26,12 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
  * A user signed in by loginUser() would not show it: their token counts as
  * fully authenticated and was always answered with a 403. So this signs in
  * through the real form with the box ticked, and comes back on the cookie.
+ *
+ * Since the page's `ajax` token became stateless (csrf.yaml) it no longer goes
+ * stale with the session: the morning-after post from the old page is simply
+ * accepted, which is the second test. A post is still refused when it comes
+ * from another site, and THAT refusal, for the same remember-me user, is what
+ * the first test now pins to a 403.
  */
 final class StaleCsrfTokenIsRefusedNotRedirectedTest extends WebTestCase
 {
@@ -76,15 +82,17 @@ final class StaleCsrfTokenIsRefusedNotRedirectedTest extends WebTestCase
 
         $this->client->request('GET', '/mail/inbox');
         self::assertResponseIsSuccessful('remember-me did not sign the browser back in');
-        self::assertNotSame($stale, $this->pageToken(), 'the session survived, so the token is not stale');
 
+        // Refused for where it came from, not for its age.
         $this->client->request(
             'POST',
             '/mail/sidebar/section-collapsed',
             server: [
-                'CONTENT_TYPE'      => 'application/json',
-                'HTTP_ACCEPT'       => 'application/json',
-                'HTTP_X_CSRF_TOKEN' => $stale,
+                'CONTENT_TYPE'        => 'application/json',
+                'HTTP_ACCEPT'         => 'application/json',
+                'HTTP_X_CSRF_TOKEN'   => $stale,
+                'HTTP_ORIGIN'         => 'https://evil.example',
+                'HTTP_SEC_FETCH_SITE' => 'cross-site',
             ],
             content: json_encode(['key' => User::SIDEBAR_SECTION_LABELS, 'collapsed' => true], JSON_THROW_ON_ERROR),
         );
@@ -99,6 +107,46 @@ final class StaleCsrfTokenIsRefusedNotRedirectedTest extends WebTestCase
         $stored = $this->em->getRepository(User::class)->find($user->id);
         self::assertInstanceOf(User::class, $stored);
         self::assertSame([], $stored->collapsedSidebarSections, 'the stale token wrote the preference anyway');
+    }
+
+    /**
+     * The page left open overnight: its token, from the session that is gone,
+     * still works from this site — it used to be refused, and every mark-read,
+     * star and archive on that page failed with "Invalid CSRF token".
+     */
+    public function testThePageFromTheExpiredSessionStillPostsAfterARememberMeLogin(): void
+    {
+        $user = $this->user();
+        $this->signInRemembered($user);
+        $old = $this->pageToken();
+
+        $jar = $this->client->getCookieJar();
+
+        foreach ($jar->all() as $cookie) {
+            if ('REMEMBERME' !== $cookie->getName() && 'plmail_trusted_device' !== $cookie->getName()) {
+                $jar->expire($cookie->getName(), $cookie->getPath(), $cookie->getDomain());
+            }
+        }
+
+        $this->client->request(
+            'POST',
+            '/mail/sidebar/section-collapsed',
+            server: [
+                'CONTENT_TYPE'        => 'application/json',
+                'HTTP_ACCEPT'         => 'application/json',
+                'HTTP_X_CSRF_TOKEN'   => $old,
+                'HTTP_ORIGIN'         => 'http://localhost',
+                'HTTP_SEC_FETCH_SITE' => 'same-origin',
+            ],
+            content: json_encode(['key' => User::SIDEBAR_SECTION_LABELS, 'collapsed' => true], JSON_THROW_ON_ERROR),
+        );
+
+        self::assertResponseIsSuccessful();
+
+        $this->em->clear();
+        $stored = $this->em->getRepository(User::class)->find($user->id);
+        self::assertInstanceOf(User::class, $stored);
+        self::assertSame([User::SIDEBAR_SECTION_LABELS], $stored->collapsedSidebarSections);
     }
 
     private function user(): User
