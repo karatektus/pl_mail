@@ -86,6 +86,31 @@ final class WorkspacesTest extends TestCase
         self::assertSame(['t' => 'pane', 'kind' => 'calendar', 'id' => 'c2'], $workspace->root->toArray()['children'][2]);
     }
 
+    public function testACalendarInTwoWorkspacesIsTwoCalendars(): void
+    {
+        $document = self::document([
+            self::workspace('w1', 'Mail', self::row('s1', [self::pane('list'), self::pane('calendar')], [1, 1])),
+            self::workspace('w2', 'Planning', self::row('s2', [self::pane('calendar'), self::pane('list')], [1, 1])),
+        ]);
+
+        $first  = Workspaces::fromArray($document);
+        $second = Workspaces::fromArray($document);
+
+        self::assertNotNull($first);
+        self::assertNotNull($second);
+
+        // The first keeps the plain key; the repeat gets an id of its own,
+        // the same on every read so its remembered view stays with it.
+        $planning = $first->all[1]->root->keys()[0];
+
+        self::assertSame(['list', 'calendar'], $first->all[0]->root->keys());
+        self::assertMatchesRegularExpression('/^calendar~c[0-9a-f]{8}$/', $planning);
+        self::assertSame($planning, $second->all[1]->root->keys()[0]);
+
+        // And it round-trips: the stored document then names it.
+        self::assertSame($first->toArray(), Workspaces::fromArray($first->toArray())?->toArray());
+    }
+
     public function testASplitOfOneIsThatOne(): void
     {
         $workspaces = Workspaces::fromArray(self::document([self::workspace('w1', 'A', self::row('s1', [self::pane('calendar')], [1]))]));
