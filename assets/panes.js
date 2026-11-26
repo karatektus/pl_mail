@@ -98,3 +98,59 @@ Turbo.StreamActions.open_pane = function () {
 Turbo.StreamActions.close_pane = function () {
     closePane(this.getAttribute("pane") ?? "");
 };
+
+/**
+ * The mail, asked for from a page without workspaces (#755).
+ *
+ * In the mailbox, opening a folder in a workspace without the mail list goes
+ * to the first workspace that has one (layout--workspace's
+ * #bringListForward), because the list's frame load says the mail was asked
+ * for. From Settings or the admin panel the same click is a whole page load,
+ * and a page load says nothing of why it happened: the server draws the
+ * workspace last used, which may have no list, and the mail asked for is
+ * nowhere on screen.
+ *
+ * So a click here on a link into the mail leaves a note for the next page,
+ * and layout--workspace takes it up as it starts. A note, not a URL
+ * parameter, so the address stays the folder's; short-lived, so a mail page
+ * reached some other way later in the tab is not taken for it; and only from
+ * a page without workspaces, since in the mailbox the frame load already
+ * says it. A reload leaves none, so reloading a workspace without a list
+ * keeps it.
+ */
+export const MAIL_ASKED_FOR = "plmail.mailAskedFor";
+
+document.addEventListener("click", (event) => {
+    if (event.defaultPrevented || 0 !== event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+    }
+
+    const link = event.target.closest?.("a[href]");
+
+    if (!link || link.target === "_blank" || null !== document.querySelector("[data-layout-root]")) {
+        return;
+    }
+
+    const url = new URL(link.href, location.href);
+
+    if (url.origin === location.origin && url.pathname.startsWith("/mail")) {
+        try {
+            sessionStorage.setItem(MAIL_ASKED_FOR, String(Date.now()));
+        } catch {
+            // Without storage the next page simply draws the last workspace.
+        }
+    }
+}, true);
+
+/** Whether the page being drawn was asked for as "the mail" (and forget it either way). */
+export function mailWasAskedFor() {
+    try {
+        const at = Number(sessionStorage.getItem(MAIL_ASKED_FOR) ?? 0);
+
+        sessionStorage.removeItem(MAIL_ASKED_FOR);
+
+        return Date.now() - at < 15_000;
+    } catch {
+        return false;
+    }
+}

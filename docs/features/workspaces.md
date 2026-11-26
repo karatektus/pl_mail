@@ -119,7 +119,8 @@ and their pages (`/contacts`, `/tasks`) show the pane at full width.
 ## Things that bite
 
 - **Choosing a folder from a workspace without the mail list switches workspace.** plMail goes to
-  the first workspace (in the order of the tabs) that has the list; its tab lights up. If none of your
+  the first workspace (in the order of the tabs) that has the list; its tab lights up. The same goes
+  for a folder chosen in the sidebar of Settings or the admin panel; reloading the page does not. If none of your
   workspaces has one, the list is shown at full width instead; **Back to the layout** returns to
   the workspace as you arranged it.
 - **On `/contacts` and `/tasks`, leaving full width goes to the Inbox.** Those pages draw one pane
