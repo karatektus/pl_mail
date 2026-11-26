@@ -450,7 +450,7 @@
                 {% set _n = _news[space.id] ?? null %}
                 <button type="button"
                         class="workspace-tab"
-                        data-action="layout--workspace#switch"
+                        data-action="layout--workspace#switch pointerenter->layout--workspace#prefetch focus->layout--workspace#prefetch pointerleave->layout--workspace#cancelPrefetch"
                         data-layout--workspace-index-param="{{ loop.index0 }}"
                         aria-pressed="{{ loop.index0 == workspaces.activeIndex ? 'true' : 'false' }}">
                     <span class="truncate">{{ space.name }}</span>

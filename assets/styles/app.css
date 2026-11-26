@@ -7768,7 +7768,11 @@ li[data-swipe-side] > [data-swipe-content] {
 /* A workspace switch on its way (#783): what the new workspace draws again —
    its sidebar, the mail list, its calendar and tasks panes — goes faint until
    the one stream with all of them lands, so the old content does not read as
-   the new workspace's. After a beat, so a quick answer shows no flicker. */
+   the new workspace's. At once, in the frame the new arrangement is drawn in:
+   a delay (90ms, then a fade) showed the old content at full strength in the
+   new layout first, and the dimming looked like it came after the switch. An
+   answer fetched ahead is never dimmed (layout--workspace#applyRedraw); the
+   way back fades in. */
 .sidebar-boundary,
 [data-layout-pane="list"] > .layout-card,
 [data-layout-pane] turbo-frame {
@@ -7779,7 +7783,7 @@ li[data-swipe-side] > [data-swipe-content] {
 [data-workspace-redrawing] :is(.sidebar-boundary, [data-layout-pane="list"] > .layout-card, [data-layout-pane] turbo-frame[disabled]) {
     opacity: 0.45;
     pointer-events: none;
-    transition-delay: 90ms;
+    transition-duration: 0ms;
 }
 
 [data-workspace-redrawing] .workspace-tabs {
