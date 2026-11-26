@@ -196,8 +196,59 @@ final readonly class MailBodySanitizer
         }
 
         return trim($this->restoreCidReferences(
-            $this->buildComposeSanitizer()->sanitize(self::withoutStyleSheets($this->unfoldQuotes(CharsetHelper::retagHtmlAsUtf8($html)))),
+            $this->buildComposeSanitizer()->sanitize(self::withoutStyleSheets(self::withoutParagraphGaps($this->unfoldQuotes(CharsetHelper::retagHtmlAsUtf8($html))))),
         ));
+    }
+
+    /**
+     * Each paragraph the writer wrote says it has no space above or below it,
+     * as the composer showed it.
+     *
+     * The composer makes a paragraph of every line, and draws it with no margin:
+     * the app's base styles zero every margin. A mail program draws a bare `<p>`
+     * with a line of space above and below. So every Enter arrived as a blank
+     * line and every blank line as two, in the recipient's client and in the
+     * reading pane alike, while the same mail looked right while it was written.
+     *
+     * Not a paragraph with a margin of its own (pasted, and shown with it in the
+     * editor too), and not one inside the quote under a reply or a forward,
+     * which is the sender's mail as the sender made it. The editor's clean-up
+     * does the same (compose--compose-toolbar#_cleanHtml); this is the copy for
+     * a page loaded before it, and for any other client that posts a body.
+     */
+    private static function withoutParagraphGaps(string $html): string
+    {
+        if (1 !== preg_match('/<p[\s>]/i', $html)) {
+            return $html;
+        }
+
+        try {
+            $document = \Dom\HTMLDocument::createFromString(
+                '<!DOCTYPE html><html><body>' . $html . '</body></html>',
+                LIBXML_NOERROR,
+                'UTF-8',
+            );
+        } catch (\Throwable) {
+            return $html;
+        }
+
+        $body = $document->body;
+
+        if (null === $body) {
+            return $html;
+        }
+
+        foreach ($body->querySelectorAll('p') as $paragraph) {
+            $style = trim((string) $paragraph->getAttribute('style'));
+
+            if (null !== $paragraph->closest('[data-quoted], blockquote') || 1 === preg_match('/(^|;)\s*margin[\s:-]/i', $style)) {
+                continue;
+            }
+
+            $paragraph->setAttribute('style', '' === $style ? 'margin: 0' : rtrim($style, '; ') . '; margin: 0');
+        }
+
+        return $body->innerHTML;
     }
 
     /**

@@ -101,7 +101,7 @@ final class UnknownElementsInMailTest extends KernelTestCase
 
         self::assertStringContainsString('Hello', $composed);
         self::assertStringNotContainsString('Draft', $composed);
-        self::assertStringNotContainsString('margin', $composed);
+        self::assertStringNotContainsString('p{margin:0}', $composed, 'the stylesheet is not shown as text');
     }
 
     /**

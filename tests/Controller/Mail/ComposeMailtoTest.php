@@ -62,7 +62,7 @@ final class ComposeMailtoTest extends WebTestCase
         self::assertStringContainsString('carol@example.com', $crawler->filter('select[name$="[bccAddresses][]"] option[selected]')->text());
         self::assertSame('Grüße', $crawler->filter('[data-compose--compose-target="subject"]')->attr('value'));
         self::assertStringContainsString(
-            '<p>Hello</p><p>there</p>',
+            '<p style="margin: 0">Hello</p><p style="margin: 0">there</p>',
             (string) $crawler->filter('input[name$="[bodyHtml]"]')->attr('value'),
         );
 
