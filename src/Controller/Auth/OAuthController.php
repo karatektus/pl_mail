@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Auth;
 
+use App\Service\Mail\UnifiedInboxes;
 use App\Domain\Enum\Account\AccountService;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Exception\AccountIdentityMismatch;
@@ -42,6 +43,7 @@ class OAuthController extends AbstractController
         private readonly TranslatorInterface $translator,
         private readonly LoggerInterface $logger,
         private readonly AccountRepository $accounts,
+        private readonly UnifiedInboxes $unifiedInboxes,
     ) {}
 
     /**
@@ -62,6 +64,9 @@ class OAuthController extends AbstractController
      * to be the same list.
      */
     private const string SESSION_SERVICES = 'oauth2_account_services';
+
+    /** The account groups ticked on the add-account panel (#783), for the account this handshake makes. */
+    private const string SESSION_GROUPS = 'oauth2_account_groups';
 
     #[Route('/{provider}/connect', name: 'connect', methods: ['GET'])]
     public function connect(string $provider, Request $request): RedirectResponse
@@ -96,6 +101,14 @@ class OAuthController extends AbstractController
             self::SESSION_SERVICES,
             array_map(static fn (AccountService $service): string => $service->value, $services),
         );
+
+        // Only when the panel showed the groups: otherwise the account goes
+        // where a new account always went.
+        if ($request->query->has('groups_shown')) {
+            $request->getSession()->set(self::SESSION_GROUPS, array_map(intval(...), $request->query->all('groups')));
+        } else {
+            $request->getSession()->remove(self::SESSION_GROUPS);
+        }
 
         // Reconnect mode. The health page sends the account it wants repaired;
         // everything else omits it and gets the original find-or-create
@@ -207,11 +220,19 @@ class OAuthController extends AbstractController
         // Single-use, like the state itself: a repair intent left in the
         // session would be picked up by the next ordinary "add an account"
         // handshake and silently turn it into an overwrite.
+        $groups = $session->get(self::SESSION_GROUPS);
+
         $session->remove(self::SESSION_RECONNECT);
         $session->remove(self::SESSION_SERVICES);
+        $session->remove(self::SESSION_GROUPS);
 
         if (false === is_int($reconnect)) {
-            $this->accountLinker->link($user, $mailProvider, $email, $token, $services);
+            $linked = $this->accountLinker->link($user, $mailProvider, $email, $token, $services);
+
+            if (is_array($groups)) {
+                $this->unifiedInboxes->placeNew($user, $linked, $groups);
+            }
+
             $this->warnIfCalendarWasDeclined($mailProvider, $token, $services);
 
             return $this->redirectToRoute($this->landingRoute());

@@ -6,6 +6,7 @@ namespace App\Tests\Service\Label;
 
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Mail\ThreadingMethod;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -15,6 +16,7 @@ use App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage;
 use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
 use App\Service\Label\LabelChangePropagator;
+use App\Service\Label\LabelResolver;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -317,6 +319,90 @@ final class LabelChangePropagatorTest extends KernelTestCase
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /** @return list<object> */
+    // ── a folder put on as a label (#693) ─────────────────────────────────
+
+    /**
+     * Labelling IMAP mail with a folder's label copies it there and leaves it
+     * where it is, the way a label works; a move would take it out of the
+     * inbox, which is what "Move to" is for.
+     */
+    public function testAFolderLabelPutOnImapMailCopiesItThere(): void
+    {
+        $message = $this->imapMessage();
+        $work    = $this->folderLabel($message->account, 'Work');
+
+        $this->propagator->attachLabel([$message], $work, copyIntoFolder: true);
+
+        $sent = $this->sentOfType(ApplyImapFlagsMessage::class);
+
+        self::assertCount(1, $sent);
+        self::assertSame('copy', $sent[0]->action);
+        self::assertSame('Work', $sent[0]->destinationPath);
+        self::assertSame(4242, $sent[0]->sourceUidFor((int) $message->id));
+    }
+
+    public function testMailAlreadyInTheFolderIsNotCopiedAgain(): void
+    {
+        $message = $this->imapMessage();
+        $work    = $this->folderLabel($message->account, 'Work');
+        $message->addLocation($work->bindingFor($message->account)->mailbox, 7);
+        $this->em->flush();
+
+        $this->propagator->attachLabel([$message], $work, copyIntoFolder: true);
+
+        self::assertCount(0, $this->sentOfType(ApplyImapFlagsMessage::class));
+    }
+
+    /**
+     * Taken off again, the copy in that folder is deleted and the mail stays
+     * in the inbox. The old rule, a move to where the remaining labels say,
+     * would have put a second copy in the inbox.
+     */
+    public function testAFolderLabelTakenOffMailKeptElsewhereDeletesThatCopy(): void
+    {
+        $message = $this->imapMessage();
+        $work    = $this->folderLabel($message->account, 'Work');
+        $folder  = $work->bindingFor($message->account)->mailbox;
+        $message->addLocation($folder, 7);
+        $this->em->flush();
+
+        $this->propagator->detachLabel([$message], $work, deleteCopy: true);
+
+        $sent = $this->sentOfType(ApplyImapFlagsMessage::class);
+
+        self::assertCount(1, $sent);
+        self::assertSame('delete', $sent[0]->action);
+        self::assertSame([[(int) $message->id, (int) $folder->id, 7]], $sent[0]->copies, 'that copy and no other');
+    }
+
+    /**
+     * A move attaches the folder it goes to as well, and moves the copy
+     * itself: no copy beside it, which would leave the mail in both places.
+     */
+    public function testAMovesAttachMakesNoCopy(): void
+    {
+        $message = $this->imapMessage();
+        $work    = $this->folderLabel($message->account, 'Work');
+
+        $this->propagator->attachLabel([$message], $work);
+
+        self::assertCount(0, $this->sentOfType(ApplyImapFlagsMessage::class));
+    }
+
+    /** A folder label on Gmail is a Gmail label; nothing is copied over IMAP. */
+    public function testOnlyPlainImapMailIsCopied(): void
+    {
+        $message = $this->gmailMessage();
+        $work    = $this->folderLabel($message->account, 'Work');
+
+        $this->propagator->attachLabel([$message], $work, copyIntoFolder: true);
+
+        self::assertCount(0, array_filter(
+            $this->sentOfType(ApplyImapFlagsMessage::class),
+            static fn (ApplyImapFlagsMessage $sent): bool => 'copy' === $sent->action,
+        ));
+    }
+
     // ── discarding, which had no caller until drafts needed one ───────────
 
     /**
@@ -516,6 +602,29 @@ final class LabelChangePropagatorTest extends KernelTestCase
         $this->em->flush();
 
         return $account;
+    }
+
+    /** A label that is a folder on the account. */
+    private function folderLabel(Account $account, string $name): Label
+    {
+        $folder                = new Mailbox();
+        $folder->account       = $account;
+        $folder->name          = $name;
+        $folder->fullPath      = $name;
+        $folder->isSyncEnabled = true;
+        $folder->isIdleEnabled = false;
+        $this->em->persist($folder);
+
+        $label       = new Label();
+        $label->usr  = $account->usr;
+        $label->name = $name;
+        $this->em->persist($label);
+        $this->em->flush();
+
+        self::getContainer()->get(LabelResolver::class)->bindMailbox($label, $folder);
+        $this->em->flush();
+
+        return $label;
     }
 
     private function mailbox(Account $account): Mailbox

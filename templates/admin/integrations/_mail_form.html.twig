@@ -69,9 +69,23 @@ prose and the copyable redirect URI, neither of which is a field.
                 </p>
             </div>
 
+            {# Microsoft To Do rides it as well. Google has no task API plMail
+               speaks, so there is nothing to say for it. #}
+            {% if 'microsoft' == provider.value %}
+                <div class="rounded-lg border border-line bg-sunken px-3 py-2.5" data-admin-tasks-scope>
+                    <p class="text-xs font-medium text-ink-soft">
+                        <i class="fa-solid fa-list-check mr-1" aria-hidden="true"></i>
+                        {{ 'admin.integrations.mail.tasks_heading'|trans }}
+                    </p>
+                    <p class="text-xs text-ink-faint mt-1 leading-relaxed">
+                        {{ 'admin.integrations.mail.tasks_microsoft'|trans }}
+                    </p>
+                </div>
+            {% endif %}
+
             {# A tenant where only an administrator approves apps approved
-               plMail for the permissions it asked for then. Contacts added
-               one, and until it is approved too Microsoft refuses the whole
+               plMail for the permissions it asked for then. Contacts and tasks
+               each added one, and until it is approved too Microsoft refuses the whole
                sign-in, mail included. The admin is on this page when they
                would want to know. #}
             {% if 'microsoft' == provider.value %}

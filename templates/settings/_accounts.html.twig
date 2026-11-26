@@ -116,7 +116,7 @@
                     <p class="truncate text-xs text-ink-faint">{{ account.username }} · {{ account.imapHost ?: account.smtpHost }}</p>
                     {# Said only when something is off, so the common case — an
                        account used for everything — reads as it always did. #}
-                    {% if account.services|length < account_services()|length %}
+                    {% if account.services|length < account_services()|filter(service => account.offers(service))|length %}
                         <p class="truncate text-xs text-ink-faint" data-account-services>
                             {% if account.services is empty %}
                                 {{ 'settings.accounts.services.none'|trans }}

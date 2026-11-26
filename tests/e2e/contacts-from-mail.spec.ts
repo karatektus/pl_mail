@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 import { expect, test } from "./support/test";
+import { only, pane as workspacePane, row, useWorkspace } from "./support/workspace";
 
 /**
  * "Add to contacts" on a sender: the dialog it opens, and both ways out of it.
@@ -10,7 +11,7 @@ import { expect, test } from "./support/test";
  * closing it, and a save closes it and turns the badge into a link.
  *
  * Every worker's seeded inbox is from sender@e2e.test, and other specs
- * (contacts-pane) leave a contact for that address behind. So each test first
+ * (workspaces) leave a contact for that address behind. So each test first
  * bins whatever holds it, and bins what it made on the way out.
  *
  * The test user is per worker; E2E_SLOT pins every worker to one, so run it
@@ -126,25 +127,15 @@ test.describe("on a screen with no pane", () => {
     });
 });
 
-/**
- * Remembers the address book docked or not, the way contacts-pane's
- * closeEverything() does, so each pane test starts from a known state.
- */
+/** The address book beside the list, or the list alone (#755). */
 async function rememberPane(page: Page, open: boolean): Promise<void> {
-    await page.goto("/mail/inbox");
-    await page.evaluate(async (open) => {
-        const el = document.querySelector("[data-controller~='contacts--pane']") as HTMLElement | null;
-        const body = new FormData();
-        body.append("_token", el?.getAttribute("data-contacts--pane-token-value") ?? "");
-        body.append("open", open ? "1" : "0");
-        await fetch(el?.getAttribute("data-contacts--pane-state-url-value") ?? "", { method: "POST", body, headers: { "X-Requested-With": "fetch" } });
-    }, open);
+    await useWorkspace(page, open ? row("list", "contacts") : only("list"));
 }
 
 test.describe("with the address book beside the mail", () => {
     test.use({ viewport: { width: 1600, height: 900 } });
 
-    const dock = (page: Page) => page.locator("[data-side-pane='contacts']");
+    const dock = (page: Page) => workspacePane(page, "contacts");
     const pane = (page: Page) => page.locator("turbo-frame#contacts-pane-frame");
 
     test.afterEach(async ({ page }) => rememberPane(page, false));

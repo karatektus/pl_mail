@@ -183,7 +183,9 @@ final class SidebarStateTest extends WebTestCase
         self::assertCount(1, $boundary);
         self::assertStringContainsString('--sidebar-width: 310px', (string) $boundary->attr('style'));
         self::assertCount(1, $boundary->filter('[data-sidebar-handle][role="separator"]'));
-        self::assertCount(1, $boundary->filter('.sidebar-pane > #sidebar'));
+        // Inside the pane, not necessarily its child: the mailbox draws it in
+        // the frame a workspace switch fills again (#783, workspace-sidebar).
+        self::assertCount(1, $boundary->filter('.sidebar-pane #sidebar'));
 
         // What the clamp measures against has to exist on the page.
         $room = (string) $boundary->attr('data-ui--sidebar-split-main-selector-value');

@@ -67,7 +67,7 @@ how "label everything arriving in this account" is written.
 | **Move to trash** | |
 | **Mark as spam** | |
 | **Save attachments to** | Uploads the message's attachments to a connected service |
-| **File in category** | Files the mail under an inbox tab: one of your own, or a built-in one such as Notifications — see [Filing into a tab](#filing-into-a-tab) |
+| **File in category** | Files the mail under an inbox tab: one of your own, or a built-in one such as Updates — see [Filing into a tab](#filing-into-a-tab) |
 
 At least one action is required; a filter with none would do nothing, and the editor says so rather
 than saving it.
@@ -172,10 +172,14 @@ them.
 ## Filing into a tab
 
 A filter can put mail into an inbox tab: one of the built-in ones, or one of your own. For
-"Amazon goes to Notifications", add a filter whose action is **File in category** and pick
-**Notifications**; the condition is **Sender's domain is amazon.fr**. A built-in tab you switched
-off under **Settings → Categories** is not offered, and mail a filter files into one that is off
-lands in Primary, like the rest of that tab's mail.
+"Amazon goes to Updates", add a filter whose action is **File in category** and pick **Updates**;
+the condition is **Sender's domain is amazon.com**. A built-in tab you switched off under
+**Settings → Categories** is not offered, and mail a filter files into one that is off lands in
+Primary, like the rest of that tab's mail.
+
+Mail a filter put into a built-in tab stays there until you delete the filter or change it to file
+somewhere else. Then that mail is sorted again like any other, in the background. Switching the
+filter off leaves it where it is.
 
 For a tab of your own, make the tab first, at the bottom of the **Tabs** card under **Settings →
 Categories**; then pick it in the same action. Any condition works. For "everything from my parcel carriers" it is

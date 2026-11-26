@@ -238,6 +238,7 @@ account inside ThreadStatusUpdater.
         <details class="group/tree"
                  data-collapse-key="{{ _treeKey }}"
                  data-action="toggle->ui--sidebar#rememberCollapse"
+                 data-collapse-saved="{{ sidebarCounts.isCollapsed(_treeKey) ? 'closed' : 'open' }}"
                  {{ sidebarCounts.isCollapsed(_treeKey) ? '' : 'open' }}>
             <summary class="nav-item group/label flex items-center gap-1 cursor-pointer list-none
                             transition-colors {{ sidebar_row_state(_href) }}"
@@ -374,7 +375,27 @@ the row.
     {% import _self as macros %}
     {# The Inbox slot holds the reader's unified inboxes (#265), each a row of
        its own, in their order — wherever the reader put the slot. #}
-    {% if row.value == 'inbox' %}
+    {% if row.value == 'inbox' and sidebarCounts.isSingleGroup %}
+        {# A workspace of one account group (#783): the group is the inbox,
+           so one plain Inbox row, which the bare /mail/inbox answers with that
+           group's accounts. Its badge is the Inbox count, narrowed the same. #}
+        {% set _role  = enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox %}
+        {% set _href  = path('app_mail_inbox') %}
+        {% set _title = 'sidebar.nav.inbox'|trans %}
+        <div class="nav-item flex items-center justify-between gap-2 {{ nested ? 'pl-9 pr-3' : 'px-3' }} rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
+             data-sidebar-row="inbox"
+             {{ macros.drop_target(sidebarCounts.roleLabelId(_role), null, true) }}>
+            <a class="flex-1 min-w-0 flex items-center gap-2" data-nav-tier="row" href="{{ _href }}"
+               {{ macros.list_frame() }} data-ui--sidebar-target="link" data-action="{{ drawerClose }}" title="{{ _title }}">
+                <span class="flex min-w-0 items-center gap-2">
+                    <i class="fa-solid fa-inbox w-4" aria-hidden="true"></i>
+                    <span class="rail-hide truncate">{{ _title }}</span>
+                    {{ macros.role_dot(_role) }}
+                </span>
+            </a>
+            {{ macros.unread_badge(sidebarCounts.forRoleBadge(_role), 'role:inbox', path('app_mail_inbox', { unread: 1 })) }}
+        </div>
+    {% elseif row.value == 'inbox' %}
         {% for _inbox in sidebarCounts.inboxes %}
             {{ macros.unified_inbox_row(_inbox, _inbox.id == sidebarCounts.firstInboxId, nested, drawerClose) }}
         {% endfor %}
@@ -788,6 +809,19 @@ controller instead — the scroll position and which trees are open.
                 <span class="rail-hide">{{ 'contacts.nav'|trans }}</span>
             </span>
         </a>
+        {% set _tasksHref = path('app_tasks_index') %}
+        <a href="{{ _tasksHref }}"
+           class="nav-item mb-2 flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_tasksHref) }}"
+           data-nav-tier="row"
+           data-ui--sidebar-target="link"
+           data-action="{{ _drawerClose }}"
+           title="{{ 'tasks.title'|trans }}"
+        >
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-list-check w-4" aria-hidden="true"></i>
+                <span class="rail-hide">{{ 'tasks.title'|trans }}</span>
+            </span>
+        </a>
         {% endif %}
 
         {# ── Labels section ────────────────────────────────────────────────
@@ -825,6 +859,7 @@ controller instead — the scroll position and which trees are open.
         <details class="rail-hide group/section nav-section-y"
                  data-action="toggle->ui--sidebar#rememberCollapse"
                  data-collapse-key="{{ constant('App\\Entity\\User\\User::SIDEBAR_SECTION_LABELS') }}"
+                 data-collapse-saved="{{ _labelsCollapsed ? 'closed' : 'open' }}"
                  {{ _labelsCollapsed ? '' : 'open' }}>
             {# The heading row is shared with ACCOUNTS below; see
                _sidebar_section_head.html.twig. #}
@@ -896,6 +931,7 @@ controller instead — the scroll position and which trees are open.
         <details class="rail-hide group/section nav-section-y"
                  data-action="toggle->ui--sidebar#rememberCollapse"
                  data-collapse-key="{{ constant('App\\Entity\\User\\User::SIDEBAR_SECTION_ACCOUNTS') }}"
+                 data-collapse-saved="{{ _accountsCollapsed ? 'closed' : 'open' }}"
                  {{ _accountsCollapsed ? '' : 'open' }}>
             {% embed '_partials/_sidebar_section_head.html.twig' with {
                 heading:   'sidebar.accounts.heading'|trans,
@@ -949,88 +985,10 @@ controller instead — the scroll position and which trees are open.
 
     </nav>
 
-    {# ClockPlacement::Sidebar: the day at a glance, pinned under the nav — the
-       nav is the part that scrolls, so this stays put however long the label
-       list grows. The time, the date, and the next thing coming up, which opens
-       the same Happening Soon panel the topbar button does. Hidden in the rail,
-       which has no width for any of it. #}
-    {% if clock.placement == 'sidebar' %}
-        {% import '_partials/_clock.html.twig' as clockui %}
-        {% set soonest = calendar.soonest %}
-        <div class="rail-hide shrink-0 px-2 pb-2">
-            <div {{ clockui.attrs() }}
-                 data-clock-placement="sidebar"
-                 class="flex flex-col gap-2 rounded-pane border border-line bg-surface/60 px-3.5 py-3">
-                <div class="flex items-baseline gap-1.5 tabular-nums">
-                    <span data-ui--clock-target="bare"
-                          class="text-3xl font-semibold tracking-tight leading-none text-ink">{{ clockui.bare() }}</span>
-                    {% if clock.is12Hour %}
-                        <span data-ui--clock-target="meridiem" class="text-sm text-ink-faint">{{ clockui.meridiem() }}</span>
-                    {% endif %}
-                </div>
-                <div class="-mt-1 text-xs text-ink-muted">{{ clockui.longDate() }}</div>
-
-                {% if soonest %}
-                    {# data-sidebar-peek-own: a clipped title leans the
-                       sidebar out only while this button is hovered or
-                       focused, not whenever the pointer is over the sidebar
-                       (see "The peek" in app.css). #}
-                    <button type="button"
-                            data-sidebar-peek-own
-                            data-controller="ui--modal"
-                            data-action="click->ui--modal#open {{ _drawerClose }}"
-                            data-ui--modal-src-value="{{ path('app_calendar_soon') }}"
-                            data-ui--modal-title-value="{{ 'calendar.soon.title'|trans }}"
-                            data-ui--modal-size-value="wide"
-                            class="flex min-w-0 items-start gap-2 rounded-lg bg-sunken px-2.5 py-1.5 text-left
-                                   hover:bg-hover transition-colors cursor-pointer
-                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                        <i class="{{ soonest.icon }} mt-0.5 text-xs text-ink-faint" aria-hidden="true"></i>
-                        {# Both lines truncate, never wrap: the button is the
-                           peek's hover target, and its box must be the same
-                           shape out as in. A date line that wrapped narrow
-                           and not wide made the button 16px shorter once the
-                           peek was out, its top moved down from under a
-                           pointer resting there, the peek closed, the line
-                           wrapped again — and the sidebar flickered for as
-                           long as the pointer stayed. #}
-                        <span class="flex min-w-0 flex-col">
-                            {# The day relative to today, the ladder the insights
-                               pane uses (insight/_pane.html.twig): Today,
-                               Tomorrow, a weekday within the week, then the
-                               date. "Next · Tue, Nov 24, 10:00 am" was 150px in
-                               a 136px line at the default width, and cutting
-                               "am" to "…" saves nothing; this fits, in every
-                               catalogue, down to a sidebar of about 205px.
-                               Below that the truncate takes over and the peek
-                               shows the rest. "Next" is still read out, just
-                               not drawn: the card says it already.
-
-                               An all-day event's start is a floating date, so
-                               its day is read without moving it into a zone
-                               (`false`), as the date itself always was. #}
-                            {% set _tz      = soonest.event.isAllDay ? false : null %}
-                            {% set _day     = soonest.startsAt|date('Y-m-d', _tz) %}
-                            {% set _today   = 'now'|date('Y-m-d') %}
-                            <span class="truncate text-[11px] text-ink-faint"><span class="sr-only">{{ 'calendar.soon.next'|trans }} · </span>
-                                {%- if _day == _today -%}
-                                    {{ 'insights.pane.when.today'|trans }}
-                                {%- elseif _day == 'now'|date_modify('+1 day')|date('Y-m-d') -%}
-                                    {{ 'insights.pane.when.tomorrow'|trans }}
-                                {%- elseif _day <= 'now'|date_modify('+6 days')|date('Y-m-d') -%}
-                                    {{ soonest.startsAt|intl_date('EEE', _tz) }}
-                                {%- else -%}
-                                    {{ soonest.startsAt|intl_date('dMMM', _tz) }}
-                                {%- endif -%}
-                                {%- if not soonest.event.isAllDay %} · {{ soonest.startsAt|date(clock.time) }}{% endif -%}
-                            </span>
-                            <span class="truncate text-xs font-medium text-ink">
-                                {{- soonest.event.title ?: 'calendar.soon.untitled'|trans -}}
-                            </span>
-                        </span>
-                    </button>
-                {% endif %}
-            </div>
-        </div>
+    {# The Mail sidebar's clock (#783): its own switch in the workspace
+       settings, pinned under the nav, which is the part that scrolls. A
+       sidebar of one's own holds a Clock row instead. #}
+    {% if app.user and app.user.mailSidebarClock %}
+        {% include '_partials/_sidebar_clock.html.twig' with { _drawerClose: _drawerClose } %}
     {% endif %}
 </aside>

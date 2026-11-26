@@ -195,6 +195,8 @@ identity is threaded through a URL that would outlive the render that made it.
 
 {% set occurrence = cluster.primary %}
 {% set event = occurrence.event %}
+{# A calendar outside the workspace, in a pane set to "+ Others" (#783). #}
+{% set faint = cluster.onlyOn(paneFaded ?? []) %}
 {# `?? true`, not `|default(true)`: the default filter treats false as absent,
    so the time-grid's `showTime: false` never took and every chip printed a start
    time the column's own axis was already showing. #}
@@ -363,6 +365,7 @@ identity is threaded through a URL that would outlive the render that made it.
    {# Which event this is, in every view. calendar--invite looks the chip up by
       it once an answered invitation has been drawn, to light where it landed. #}
    data-event-chip="{{ event.id }}"
+   {% if faint %}data-faint{% endif %}
    {% if tentative %}
    data-tentative
    style="--block-stripe: {{ event.displayColor }}2e; --block-edge: {{ event.displayColor }}b3"

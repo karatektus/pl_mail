@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository\Mail\MessageThread;
 
+use App\Entity\User\User;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
@@ -76,8 +77,10 @@ class MessageThreadBadgeRepository extends ServiceEntityRepository
      * conversations while every other badge counted messages.
      *
      * @return array<string,int> role value → conversations holding unread mail
+     *
+     * @param list<int>|null $accountIds a workspace's accounts (#783); null is all
      */
-    public function countUnreadPerRole(UserInterface $user): array
+    public function countUnreadPerRole(UserInterface $user, ?array $accountIds = null): array
     {
         $qb = $this->createQueryBuilder('t')
             ->select('l.role AS role', 'COUNT(DISTINCT t.id) AS unreadCount')
@@ -89,6 +92,8 @@ class MessageThreadBadgeRepository extends ServiceEntityRepository
             ->andWhere('t.unreadCount > 0')
             ->setParameter('user', $user)
             ->groupBy('l.role');
+
+        MessageThreadListCriteria::narrowToAccounts($qb, $accountIds);
 
         // The badge has to agree with the list under it, so a trashed thread
         // stops counting towards Archive or Sent — but the Trash row is one of
@@ -194,8 +199,10 @@ class MessageThreadBadgeRepository extends ServiceEntityRepository
      * mail, for the reason countUnreadPerRole() gives.
      *
      * @return array<int,int> label id → conversations holding unread mail
+     *
+     * @param list<int>|null $accountIds a workspace's accounts (#783); null is all
      */
-    public function countUnreadPerUserLabel(UserInterface $user, ?Account $account = null): array
+    public function countUnreadPerUserLabel(UserInterface $user, ?Account $account = null, ?array $accountIds = null): array
     {
         $qb = $this->createQueryBuilder('t')
             ->select('l.id AS labelId', 'COUNT(DISTINCT t.id) AS unreadCount')
@@ -214,6 +221,8 @@ class MessageThreadBadgeRepository extends ServiceEntityRepository
         if (null !== $account) {
             $qb->andWhere('t.account = :account')
                 ->setParameter('account', $account);
+        } else {
+            MessageThreadListCriteria::narrowToAccounts($qb, $accountIds);
         }
 
         // Custom labels only (role IS NULL above), so there is no bin row to
@@ -248,8 +257,10 @@ class MessageThreadBadgeRepository extends ServiceEntityRepository
      * per-label badges it stands in for: the heading has to be the number of
      * rows expanding the section would show you, and those rows are
      * conversations.
+     *
+     * @param list<int>|null $accountIds a workspace's accounts (#783); null is all
      */
-    public function countUnreadInUserLabels(UserInterface $user): int
+    public function countUnreadInUserLabels(UserInterface $user, ?array $accountIds = null): int
     {
         $qb = $this->createQueryBuilder('t')
             ->select('COUNT(DISTINCT t.id)')
@@ -265,6 +276,8 @@ class MessageThreadBadgeRepository extends ServiceEntityRepository
             )
             ->setParameter('user', $user);
 
+        MessageThreadListCriteria::narrowToAccounts($qb, $accountIds);
+
         // Same rule the per-label counts follow: a trashed thread stops
         // counting, so the heading cannot be louder than the rows under it.
         MessageThreadListCriteria::excludeTrashed($qb);
@@ -275,19 +288,23 @@ class MessageThreadBadgeRepository extends ServiceEntityRepository
     /**
      * COUNT DISTINCT over a join to Account — neither expressible through
      * count(), which takes field-to-value criteria on this entity alone.
+     *
+     * @param list<int>|null $accountIds a workspace's accounts (#783); null is all
      */
-    public function countUnreadForStarred(UserInterface $user): int
+    public function countUnreadForStarred(UserInterface $user, ?array $accountIds = null): int
     {
-        return $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->select('COUNT(DISTINCT t.id)')
             ->join('t.account', 'a')
             ->where('a.usr = :user')
             ->andWhere('a.mailEnabled = true')
             ->andWhere('t.starredAt IS NOT NULL')
             ->andWhere('t.unreadCount > 0')
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->setParameter('user', $user);
+
+        MessageThreadListCriteria::narrowToAccounts($qb, $accountIds);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /**
@@ -543,8 +560,10 @@ class MessageThreadBadgeRepository extends ServiceEntityRepository
      * while every other row stops counting what was thrown away.
      *
      * @return array<string,int> role value → new thread count
+     *
+     * @param list<int>|null $accountIds a workspace's accounts (#783); null is all
      */
-    public function countNewPerRole(UserInterface $user, \DateTimeImmutable $now): array
+    public function countNewPerRole(UserInterface $user, \DateTimeImmutable $now, ?array $accountIds = null): array
     {
         $qb = $this->createQueryBuilder('t')
             ->select('l.role AS role', 'COUNT(DISTINCT t.id) AS newCount')
@@ -557,6 +576,7 @@ class MessageThreadBadgeRepository extends ServiceEntityRepository
             ->groupBy('l.role');
 
         $this->restrictToNew($qb, $now);
+        MessageThreadListCriteria::narrowToAccounts($qb, $accountIds);
 
         $qb->andWhere(
             $qb->expr()->orX(
@@ -612,8 +632,12 @@ class MessageThreadBadgeRepository extends ServiceEntityRepository
         return $counts;
     }
 
-    /** New threads among the starred ones. */
-    public function countNewForStarred(UserInterface $user, \DateTimeImmutable $now): int
+    /**
+     * New threads among the starred ones.
+     *
+     * @param list<int>|null $accountIds a workspace's accounts (#783); null is all
+     */
+    public function countNewForStarred(UserInterface $user, \DateTimeImmutable $now, ?array $accountIds = null): int
     {
         $qb = $this->createQueryBuilder('t')
             ->select('COUNT(DISTINCT t.id)')
@@ -624,8 +648,45 @@ class MessageThreadBadgeRepository extends ServiceEntityRepository
             ->setParameter('user', $user);
 
         $this->restrictToNew($qb, $now);
+        MessageThreadListCriteria::narrowToAccounts($qb, $accountIds);
         MessageThreadListCriteria::excludeTrashed($qb);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Conversations that had mail arrive in the Inbox since a moment — a
+     * workspace tab's "new" count (#783). Arrived means the email row was
+     * made, which is when plMail first had it, not the Date header, which a
+     * delayed mail can put days in the past. Mail the user sent is not news:
+     * it wears Sent (sent_at would not tell, received mail has one too).
+     *
+     * Read from the emails by (account, created_at), an index range per
+     * account that holds only what came in since the visit, then checked
+     * against the Inbox and the bin — so its cost is the news, not the
+     * mailbox. Raw SQL for that order of reading.
+     *
+     * @param list<int> $accountIds the accounts to count in; the caller
+     *                              resolves "every account" to its ids
+     */
+    public function countInboxArrivedSince(array $accountIds, \DateTimeImmutable $since): int
+    {
+        if ([] === $accountIds) {
+            return 0;
+        }
+
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT COUNT(DISTINCT m.thread_id)
+               FROM message m
+               JOIN message_thread t ON t.id = m.thread_id AND t.binned = false
+              WHERE m.account_id IN (:accounts)
+                AND m.created_at > :since
+                AND EXISTS (SELECT 1 FROM message_label ml JOIN label l ON l.id = ml.label_id
+                             WHERE ml.message_id = m.id AND l.role = :inbox)
+                AND NOT EXISTS (SELECT 1 FROM message_label ml JOIN label l ON l.id = ml.label_id
+                                 WHERE ml.message_id = m.id AND l.role = :sent)',
+            ['accounts' => $accountIds, 'since' => $since->format('Y-m-d H:i:s'), 'inbox' => LabelRole::Inbox->value, 'sent' => LabelRole::Sent->value],
+            ['accounts' => \Doctrine\DBAL\ArrayParameterType::INTEGER],
+        );
     }
 }

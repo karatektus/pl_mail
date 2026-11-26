@@ -77,8 +77,10 @@ final readonly class CalendarRangeReader
      *     band: Band,
      *     clusters: list<OccurrenceCluster>,
      * }
+     *
+     * @param list<int>|null $only these calendars of the visible ones (#783: a pane narrowed to one); null is all
      */
-    public function read(User $user, CalendarView $view, DateTimeImmutable $anchor): array
+    public function read(User $user, CalendarView $view, DateTimeImmutable $anchor, ?array $only = null): array
     {
         $zone = $this->zoneOf($user);
 
@@ -87,7 +89,9 @@ final readonly class CalendarRangeReader
         $calendarIds = [];
 
         foreach ($this->calendars->findVisibleForUser($user) as $calendar) {
-            $calendarIds[] = (int) $calendar->id;
+            if (null === $only || in_array((int) $calendar->id, $only, true)) {
+                $calendarIds[] = (int) $calendar->id;
+            }
         }
 
         $clusters = $this->clusterer->cluster($this->occurrences->findInRange(

@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\Controller\Calendar;
 
+use App\Service\Layout\WorkspaceScope;
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Calendar\EventCopy;
+use App\Domain\DTO\Layout\LayoutPane;
 use App\Domain\Enum\Calendar\AlertAction;
-use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Helper\DefaultEventStart;
 use App\Domain\Helper\EventColor;
+use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
@@ -34,7 +36,6 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -112,6 +113,7 @@ final class CalendarController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly EventSourceLinkRepository $sourceLinks,
         private readonly CalendarEventRepository $calendarEventRepository,
+        private readonly WorkspaceScope         $workspaceScope,
     ) {
     }
 
@@ -134,10 +136,54 @@ final class CalendarController extends AbstractController
     #[Route('/pane', name: 'pane', methods: ['GET'])]
     public function pane(Request $request): Response
     {
+        $paneId = $this->paneId($request);
+
         return $this->render(
             'calendar/_pane_frame.html.twig',
-            $this->viewData($request, $this->currentUser()->calendarPaneView, isPane: true),
+            $this->viewData($request, $this->currentUser()->calendarPaneViewFor($paneId), isPane: true, paneId: $paneId),
         );
+    }
+
+    /** The calendar a pane is narrowed to, after `?only=` has had its say. */
+    private function paneFilter(Request $request, User $user, ?string $paneId): ?Calendar
+    {
+        $asked = $request->query->getString('only');
+
+        if ('all' === $asked) {
+            $user->setCalendarPaneFilterFor($paneId, null);
+            $this->em->flush();
+
+            return null;
+        }
+
+        if (1 === preg_match('/^\d+$/', $asked)) {
+            $calendar = $this->calendars->findOneForUser($user, (int) $asked);
+
+            if (null !== $calendar) {
+                $user->setCalendarPaneFilterFor($paneId, (int) $calendar->id);
+                $this->em->flush();
+
+                return $calendar;
+            }
+        }
+
+        $id = $user->calendarPaneFilterFor($paneId);
+
+        return null === $id ? null : $this->calendars->findOneForUser($user, $id);
+    }
+
+    /**
+     * Which calendar pane a request is for: null for the first (`?pane=1`, or
+     * the pane route without one), else a further pane's id (`?pane=<id>`,
+     * LayoutPane::$id). A workspace can show several calendars, each in a frame
+     * of its own and on a view of its own (User::SETTING_CALENDAR_PANE_VIEWS).
+     * Anything that is not an id is the first pane.
+     */
+    private function paneId(Request $request): ?string
+    {
+        $pane = $request->query->getString('pane');
+
+        return 1 === preg_match(LayoutPane::ID_PATTERN, $pane) && '1' !== $pane ? $pane : null;
     }
 
     /**
@@ -163,15 +209,17 @@ final class CalendarController extends AbstractController
     #[Route('/{view}/{date}', name: 'view', requirements: ['view' => 'day|week|month|agenda'], methods: ['GET'])]
     public function view(Request $request, string $view, ?string $date = null): Response
     {
-        $isPane = $request->query->getBoolean('pane');
+        $isPane = $request->query->has('pane');
+        $paneId = $isPane ? $this->paneId($request) : null;
 
-        $this->remember(CalendarView::from($view), $isPane);
+        $this->remember(CalendarView::from($view), $isPane, $paneId);
 
         $data = $this->viewData(
             $request,
             CalendarView::from($view),
             null === $date ? null : $this->time->parseDate($date, $this->time->zoneFor($this->currentUser())),
             $isPane,
+            $paneId,
         );
 
         return $this->render(
@@ -191,16 +239,16 @@ final class CalendarController extends AbstractController
      * unconditionally would be an UPDATE per navigation to store the value
      * already there.
      */
-    private function remember(CalendarView $view, bool $isPane): void
+    private function remember(CalendarView $view, bool $isPane, ?string $paneId = null): void
     {
         $user = $this->currentUser();
 
-        if ($view === ($isPane ? $user->calendarPaneView : $user->calendarView)) {
+        if ($view === ($isPane ? $user->calendarPaneViewFor($paneId) : $user->calendarView)) {
             return;
         }
 
         if (true === $isPane) {
-            $user->calendarPaneView = $view;
+            $user->setCalendarPaneViewFor($paneId, $view);
         } else {
             $user->calendarView = $view;
         }
@@ -897,50 +945,6 @@ final class CalendarController extends AbstractController
         return $this->redirectAfterWrite($request, $date);
     }
 
-    /**
-     * Remembers which position the calendar switch is in and how wide the
-     * docked pane is.
-     *
-     * Its own endpoint rather than a query parameter on the grid, because the
-     * drag handle writes on release and must not re-render anything: a pane
-     * that reloads while you are dragging it is unusable.
-     */
-    #[Route('/pane-state', name: 'pane_state', methods: ['POST'])]
-    public function paneState(Request $request): JsonResponse
-    {
-        $this->assertCsrf($request, 'calendar_pane_state');
-
-        $user = $this->currentUser();
-
-        if (true === $request->request->has('mode')) {
-            // Anything unrecognised keeps the mode the user is already in
-            // rather than resetting it: this is posted by a controller, so a
-            // value that is not one of the three is a bug or a forgery, and
-            // neither is a reason to shut somebody's calendar.
-            $user->calendarPaneMode = CalendarPaneMode::fromSetting(
-                $request->request->getString('mode'),
-                $user->calendarPaneMode,
-            );
-        }
-
-        if (true === $request->request->has('width')) {
-            // Clamped server-side too: the client's bounds are a convenience,
-            // not a guarantee, and a stored 40000 would wedge the layout with
-            // no way back short of the database.
-            $user->setSetting(User::SETTING_CALENDAR_PANE_WIDTH, max(
-                User::CALENDAR_PANE_MIN_WIDTH,
-                min(User::CALENDAR_PANE_MAX_WIDTH, $request->request->getInt('width')),
-            ));
-        }
-
-        $this->em->flush();
-
-        return $this->json([
-            'mode'  => $user->calendarPaneMode->value,
-            'width' => $user->calendarPaneWidth,
-        ]);
-    }
-
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
@@ -1037,6 +1041,7 @@ final class CalendarController extends AbstractController
         CalendarView       $default,
         ?DateTimeImmutable $date = null,
         bool               $isPane = false,
+        ?string            $paneId = null,
     ): array {
         $user = $this->currentUser();
 
@@ -1047,12 +1052,60 @@ final class CalendarController extends AbstractController
         $view   = CalendarView::tryFrom($request->query->getString('view')) ?? $default;
         $anchor = $date ?? new DateTimeImmutable('today', $this->time->zoneFor($user));
 
+        // A pane narrowed to one calendar (#783): `?only=<id>` from a sidebar's
+        // calendar row sets it, `?only=all` from the chip clears it, and the
+        // pane keeps it across its own navigation until then.
+        $only = null;
+
+        // And how it shows a workspace narrowed to some groups (#783):
+        // `?scope=workspace|overlay|all` from its toolbar, kept per pane.
+        $workspaceCalendars = null;
+        $paneScope          = 'all';
+        $faded              = [];
+
+        if (true === $isPane) {
+            $only = $this->paneFilter($request, $user, $paneId);
+
+            $asked = $request->query->getString('scope');
+
+            if (in_array($asked, User::CALENDAR_PANE_SCOPES, true)) {
+                $user->setCalendarPaneScopeFor($paneId, $asked);
+                $this->em->flush();
+            }
+
+            // Its accounts' calendars and the local ones placed in it.
+            $workspaceCalendars = $this->workspaceScope->calendarIds($user);
+
+            if (null !== $workspaceCalendars) {
+                $paneScope = $user->calendarPaneScopeFor($paneId);
+
+                foreach ($this->calendars->findForUser($user) as $calendar) {
+                    if (false === in_array((int) $calendar->id, $workspaceCalendars, true)) {
+                        $faded[] = (int) $calendar->id;
+                    }
+                }
+            }
+        }
+
+        $readOnly = null === $only ? null : [(int) $only->id];
+
+        if ('workspace' === $paneScope && null !== $workspaceCalendars) {
+            $readOnly = null === $readOnly ? $workspaceCalendars : array_values(array_intersect($readOnly, $workspaceCalendars));
+        }
+
         return [
             'view'      => $view,
             'anchor'    => $anchor,
             'isPane'    => $isPane,
+            // Which calendar pane this is, for its frame's id and the `pane`
+            // its links carry: null is the first. See paneId().
+            'paneId'    => $paneId,
             'calendars' => $this->calendars->findForUser($user),
-            'range'     => $this->rangeReader->read($user, $view, $anchor),
+            'range'     => $this->rangeReader->read($user, $view, $anchor, $readOnly),
+            'paneOnly'  => $only,
+            // The scope control is drawn only where the workspace has one.
+            'paneScope' => null === $workspaceCalendars ? null : $paneScope,
+            'paneFaded' => 'overlay' === $paneScope ? $faded : [],
         ];
     }
 

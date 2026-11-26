@@ -9,6 +9,8 @@ use App\Domain\Helper\UploadStorage;
 use App\Repository\Mail\MessagePart\MessagePartRepository;
 use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Repository\Mail\UploadedBlob\UploadedBlobRepository;
+use App\Repository\Task\TaskAttachmentRepository;
+use App\Service\Task\TaskAttachmentStorage;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
@@ -255,6 +257,7 @@ final class PruneBlobsCommandTest extends TestCase
             $messages,
             new UploadStorage($this->projectDir, $storageDir),
             $this->createStub(EntityManagerInterface::class),
+            new TaskAttachmentStorage($this->projectDir, $storageDir, new Filesystem(), $this->createStub(TaskAttachmentRepository::class)),
             $this->projectDir,
             $storageDir,
         ));

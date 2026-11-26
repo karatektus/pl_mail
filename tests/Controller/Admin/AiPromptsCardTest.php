@@ -13,7 +13,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
  * Admin → AI: the seven system prompts, and the round trip that edits one.
@@ -197,7 +197,7 @@ final class AiPromptsCardTest extends WebTestCase
     {
         $this->client->catchExceptions(false);
 
-        $this->expectException(AccessDeniedException::class);
+        $this->expectException(AccessDeniedHttpException::class);
 
         $this->client->request('POST', '/admin/ai/prompts', ['prompt' => ['summary' => 'nope']]);
     }

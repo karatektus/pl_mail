@@ -17,17 +17,35 @@ mail/label.html.twig — thread list for a custom label.
 {% block title_count_key %}label:{{ label.id }}{% endblock %}
 
 {% block inbox_tabs %}
-    <div class="px-4 py-2.5 border-b border-line flex items-center gap-2">
-        <h2 class="text-sm font-semibold text-ink-soft">{{ label.fullName }}</h2>
-        {# Narrowed to one account. Said out loud, and with a way back out:
-           the same label under a different account looks identical otherwise,
-           and an empty one is then indistinguishable from an empty label. #}
-        {% if account is defined and account %}
-            <span class="text-xs text-ink-faint">{{ account.displayAddress }}</span>
-            <a href="{{ path('app_mail_label', { id: label.id }) }}"
-               class="text-xs text-accent hover:underline">
-                {{ 'label.all_accounts'|trans }}
+    {# The label is a filter on the mail, so it reads as one (#783): a chip
+       with an ×, which takes it off — back to the Inbox — without reaching for
+       the sidebar, which a workspace may not even have. Narrowed to one
+       account, that account is a second chip, whose × keeps the label and
+       drops the account; the same label under another account looks identical
+       otherwise, and an empty one would read as an empty label. #}
+    {% import '_partials/_sidebar.html.twig' as sidebarMacros %}
+    <div class="px-4 py-2 border-b border-line flex flex-wrap items-center gap-1.5" role="group" aria-label="{{ 'label.filters'|trans }}">
+        <span class="filter-chip">
+            {{ sidebarMacros.label_dot(label.color) }}
+            <span class="truncate">{{ label.fullName }}</span>
+            <a href="{{ path('app_mail_inbox') }}"
+               class="filter-chip-remove"
+               title="{{ 'label.remove_filter'|trans({ '%name%': label.fullName }) }}"
+               aria-label="{{ 'label.remove_filter'|trans({ '%name%': label.fullName }) }}">
+                <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
             </a>
+        </span>
+        {% if account is defined and account %}
+            <span class="filter-chip">
+                <i class="fa-solid fa-at text-[10px] text-ink-faint" aria-hidden="true"></i>
+                <span class="truncate">{{ account.displayAddress }}</span>
+                <a href="{{ path('app_mail_label', { id: label.id }) }}"
+                   class="filter-chip-remove"
+                   title="{{ 'label.all_accounts'|trans }}"
+                   aria-label="{{ 'label.all_accounts'|trans }}">
+                    <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
+                </a>
+            </span>
         {% endif %}
     </div>
 {% endblock %}

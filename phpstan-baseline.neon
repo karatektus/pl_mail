@@ -455,10 +455,34 @@ parameters:
 			path: src/Jmap/Mapper/EmailMapper.php
 
 		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Jmap/Method/Core/PushSubscriptionSetMethod.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Jmap/Method/Mail/EmailSetMethod.php
+
+		-
 			message: '#^Property App\\Jmap\\Method\\Mail\\EmailSetMethod\:\:\$mailboxRepository is never read, only written\.$#'
 			identifier: property.onlyWritten
 			count: 1
 			path: src/Jmap/Method/Mail/EmailSetMethod.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Jmap/Method/Mail/IdentitySetMethod.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Jmap/Method/Mail/MailboxSetMethod.php
 
 		-
 			message: '#^Method App\\Jmap\\Push\\PushDispatcher\:\:groupByUser\(\) should return array\<int, array\<string, array\<string, string\>\>\> but returns array\<int, array\<int, array\<string, string\>\>\>\.$#'
@@ -471,6 +495,12 @@ parameters:
 			identifier: arrayValues.list
 			count: 3
 			path: src/Jmap/State/StateManager.php
+
+		-
+			message: '#^Method App\\Kernel\:\:getAllowedEnvs\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: src/Kernel.php
 
 		-
 			message: '#^Access to an undefined property Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:\$id\.$#'

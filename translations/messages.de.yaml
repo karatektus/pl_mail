@@ -49,6 +49,9 @@ account:
             username: Benutzername zum Senden
             username_help: 'Leer lassen, um mit dem Benutzernamen oben zu senden.'
         username: Benutzername
+    groups:
+        help: "Wo seine Mail erscheint und welche Arbeitsbereiche es zeigen. Ohne Haken kommt es in die Sammelgruppe."
+        legend: "Kontogruppen"
     mail_purge_queued: 'Die E-Mails dieses Kontos werden aus plMail entfernt. Auf dem Server bleiben sie.'
     oauth:
         calendar_declined: Das Konto ist verbunden, aber der Kalenderzugriff wurde nicht erteilt — seine Kalender werden also nicht synchronisiert. Verbinde es neu und hak auf Googles Zustimmungsseite den Kalenderzugriff an.
@@ -58,6 +61,7 @@ account:
         services:
             help: 'Auf der nächsten Seite wird nur das angefragt, was du ankreuzt. Ändern kannst du es später unter Einstellungen → Konten.'
             legend: 'Konto verwenden für'
+            tasks_microsoft: '(Microsoft To Do)'
     primary_set: Primäres Konto geändert
     removal_started: 'Das Konto wird entfernt. Seine E-Mails werden im Hintergrund gelöscht; auf dem Server bleiben sie.'
     removed: Konto entfernt
@@ -68,6 +72,9 @@ account:
         contacts:
             off: 'Kontakte ausgeschaltet'
             on: 'Kontakte eingeschaltet'
+        tasks:
+            off: 'Aufgaben ausgeschaltet'
+            on: 'Aufgaben eingeschaltet'
         mail:
             off: 'Empfangen ausgeschaltet. Was schon da ist, bleibt.'
             on: 'Empfangen eingeschaltet'
@@ -206,6 +213,8 @@ admin:
             base_url: 'Modell-Host'
             contact_help: 'Kontakthilfe'
             contact_help_help: 'Liest einen Kontakt aus eingefügtem Text und schlägt Korrekturen anhand der Signatur der letzten Mail vor. Nutzt das Schreibmodell und schickt ihm diesen Text.'
+            translation: 'Nachrichten übersetzen'
+            translation_help: 'Nutzt das Schreibmodell und schickt ihm die Nachricht. Die Antwort ist so lang wie die Mail, auf einem Host ohne GPU dauert eine lange Nachricht also Minuten.'
             embedding_base_url: 'Such-Host'
             embedding_own: 'Die Suche nutzt einen anderen Modell-Host'
             embedding_own_help: 'Wenn das Such-Modell woanders laufen soll als das Schreib-Modell: ein gehostetes Modell zum Schreiben und ein kleines zu Hause für die Suche, oder umgekehrt. Jede Nachricht geht einmal an den Such-Host, um indiziert zu werden. Heißt das Such-Modell dort gleich, bleibt der vorhandene Index erhalten.'
@@ -222,7 +231,7 @@ admin:
             chat_keep_alive: 'Schreib-Modell geladen lassen für'
             chat_keep_alive_help: '5m, 30m, 4h oder einfach eine Zahl in Sekunden. -1 lässt es dauerhaft geladen, 0 entlädt es nach jeder Anfrage. Je länger, desto schneller kommt die erste Antwort — der Host hält den Speicher aber die ganze Zeit belegt. Leer lassen, um das zu nehmen, was am Host selbst eingestellt ist.'
             chat_model: 'Schreib-Modell'
-            chat_model_help: 'Für Antworten, Zusammenfassungen und das Einsortieren. Nimm ein instruction-tuned Modell.'
+            chat_model_help: 'Für Antworten, Zusammenfassungen, Übersetzungen und das Einsortieren. Nimm ein instruction-tuned Modell.'
             embedding_keep_alive: 'Such-Modell geladen lassen für'
             embedding_keep_alive_help: 'Gleiches Format wie oben. Dieses Modell ist klein und wird ständig gebraucht, deshalb kostet -1 — dauerhaft geladen — meist kaum etwas und spart bei jeder Suche eine Wartezeit; wenn der Host den Speicher übrig hat, lohnt es sich. Leer lassen, um das zu nehmen, was am Host selbst eingestellt ist.'
             embedding_model: 'Such-Modell'
@@ -267,6 +276,7 @@ admin:
                 warm: 'Geladen'
             feature:
                 thread_summary: 'Zusammenfassungen'
+                message_translation: 'Übersetzungen'
                 categorise: 'Mail einsortieren'
                 mail_index: 'Mail indexieren'
                 search_query: 'Suche'
@@ -334,7 +344,7 @@ admin:
                 hint: 'Wird benutzt, wenn jemand dieselbe Nachricht in förmlicherem Ton will.'
                 label: 'Förmlicher machen'
             language:
-                hint: 'Wird an jeden Prompt oben angehängt, außer ans Einsortieren. Das ist der Grund, warum eine deutsche Mail eine deutsche Antwort bekommt — ohne das folgt das Modell dem Englisch, in dem diese Anweisungen geschrieben sind, und beim Korrekturlesen übersetzt es deinen deutschen Entwurf. Du kannst es umformulieren, aber nicht entfernen: Wenn du das Feld leerst, gilt wieder der mitgelieferte Text.'
+                hint: 'Wird an jeden Prompt oben angehängt, außer ans Einsortieren und ans Übersetzen. Das ist der Grund, warum eine deutsche Mail eine deutsche Antwort bekommt — ohne das folgt das Modell dem Englisch, in dem diese Anweisungen geschrieben sind, und beim Korrekturlesen übersetzt es deinen deutschen Entwurf. Du kannst es umformulieren, aber nicht entfernen: Wenn du das Feld leerst, gilt wieder der mitgelieferte Text.'
                 label: 'Immer in der Sprache der Mail antworten'
             proofread:
                 hint: 'Wird benutzt, wenn jemand nur Rechtschreibung und Grammatik korrigiert haben will. Lass "sonst nichts ändern" drin — ohne das schreibt das Modell Sätze um, die schon richtig waren.'
@@ -348,13 +358,16 @@ admin:
             summary:
                 hint: 'Wird vom Zusammenfassen-Knopf im Lesebereich benutzt. Wenn du das änderst, gelten alle schon geschriebenen Zusammenfassungen als veraltet — gelöscht wird nichts, sie werden beim nächsten Mal neu geschrieben.'
                 label: 'Gespräch zusammenfassen'
+            translation:
+                hint: 'Wird von „Übersetzen“ im Menü einer Nachricht benutzt. Die Sprache wird mit der Nachricht geschickt, nicht hier. Wenn du das änderst, gelten alle schon geschriebenen Übersetzungen als veraltet — gelöscht wird nichts, sie werden bei der nächsten Anfrage neu geschrieben.'
+                label: 'Eine Nachricht übersetzen'
         prompts:
             changed: '%count% geändert'
             heading: 'System-Prompts'
             intro: 'Das sind die Anweisungen, die plMail dem Modell gibt. Lass ein Feld leer, dann gilt der mitgelieferte Text — so kann ein späteres Update ihn noch verbessern. Was du einträgst, ersetzt den mitgelieferten Text vollständig.'
             reset: 'Auf den mitgelieferten Text zurücksetzen'
             save: 'Prompts speichern'
-            saved: 'Gespeichert. Neue Zusammenfassungen nutzen das hier; schon geschriebene sind jetzt veraltet.'
+            saved: 'Gespeichert. Neue Zusammenfassungen und Übersetzungen nutzen das hier; schon geschriebene sind jetzt veraltet.'
             show_shipped: 'Mitgelieferten Text anzeigen'
             untouched: 'Wie ausgeliefert'
         save: 'Speichern'
@@ -842,7 +855,7 @@ admin:
                 kommen dann mit derselben Anmeldung wie die E-Mails. Ohne das
                 funktioniert E-Mail weiter, die Kalender erscheinen einfach nicht.
             consent_heading: 'Wenn deine Organisation Apps für ihre Benutzer freigibt'
-            consent_microsoft: 'Manche Microsoft-365-Organisationen lassen Benutzer Apps nicht selbst freigeben: Ein Administrator hat plMail einmal freigegeben, für die Berechtigungen, die es damals verlangt hat. plMail fragt jetzt zusätzlich nach Contacts.ReadWrite, und das deckt diese Freigabe nicht ab. Microsoft lehnt deshalb jede Anmeldung bei plMail ab, auch für Mail, bis die Freigabe erneuert ist. Bevor sich jemand neu anmeldet: Öffne das Microsoft Entra Admin Center → Unternehmensanwendungen → plMail → Berechtigungen und wähle „Administratorzustimmung erteilen“. Private Microsoft-Konten und Organisationen, in denen Benutzer Apps selbst freigeben, sind nicht betroffen.'
+            consent_microsoft: 'Manche Microsoft-365-Organisationen lassen Benutzer Apps nicht selbst freigeben: Ein Administrator hat plMail einmal freigegeben, für die Berechtigungen, die es damals verlangt hat. plMail fragt jetzt zusätzlich nach Contacts.ReadWrite, und das deckt diese Freigabe nicht ab. Microsoft lehnt deshalb jede Anmeldung bei plMail ab, auch für Mail, bis die Freigabe erneuert ist. Bevor sich jemand neu anmeldet: Öffne das Microsoft Entra Admin Center → Unternehmensanwendungen → plMail → Berechtigungen und wähle „Administratorzustimmung erteilen“. Nach Tasks.ReadWrite fragt plMail erst, wenn der Schalter Aufgaben eines Kontos eingeschaltet wird, und auch das wird bis zur Freigabe abgelehnt. Private Microsoft-Konten und Organisationen, in denen Benutzer Apps selbst freigeben, sind nicht betroffen.'
             contacts_google: >-
                 Aktiviere die Google People API für dieses Projekt und füge den
                 Scope .../auth/contacts zum Zustimmungsbildschirm hinzu — dann
@@ -850,6 +863,8 @@ admin:
                 die schon vorher verbunden waren, werden in ihren Einstellungen
                 einmal gebeten, sich neu anzumelden. Ohne das funktionieren Mail
                 und Kalender weiter, und Kontakte erscheinen einfach nicht.
+            tasks_heading: 'Microsoft To Do nutzt dieselbe App'
+            tasks_microsoft: 'Füge dieser App-Registrierung die delegierte Berechtigung Tasks.ReadWrite hinzu — Benutzer bekommen dann ihre To-Do-Listen mit derselben Anmeldung. Vorher verbundene Konten werden in ihren Einstellungen einmal gebeten, sich neu anzumelden. Ohne sie laufen Mail, Kalender und Kontakte weiter, und To-Do-Listen lassen sich einfach nicht abonnieren.'
             contacts_heading: 'Die Kontakt-Synchronisation nutzt dieselbe App'
             contacts_microsoft: >-
                 Füge dieser App-Registrierung die delegierte Berechtigung
@@ -1558,6 +1573,15 @@ attachment:
         zoom_out: Verkleinern
 calendar:
     # plMail's date-and-time picker; see calendar--when.
+    pane:
+        scope_all: "Alle"
+        scope_all_hint: "Alle Kalender gleich"
+        scope_label: "Welche Kalender"
+        scope_overlay: "+ Andere"
+        scope_overlay_hint: "Die Kalender dieses Arbeitsbereichs, die anderen blass"
+        scope_workspace: "Bereich"
+        scope_workspace_hint: "Nur die Kalender der Konten dieses Arbeitsbereichs"
+        show_all: "Alle Kalender anzeigen"
     when:
         previous_month: 'Vorheriger Monat'
         next_month: 'Nächster Monat'
@@ -1830,6 +1854,8 @@ calendar:
             Die Zone, in der ein neuer Termin in diesem Kalender angelegt wird.
             „plMail folgen“ nimmt deine eigene, gerade %zone%. Termine stehen
             immer zu der Uhrzeit da, zu der sie bei dir stattfinden.
+        workspace: "Arbeitsbereich"
+        workspace_help: "Ein Kalender ohne Konto gehört zu keiner Kontogruppe und erscheint deshalb in diesem Arbeitsbereich. Arbeitsbereiche über alle Konten zeigen ihn ebenfalls."
     grid:
         all_day: Ganztägig
         continues_after: Geht in den nächsten Tag hinein
@@ -1963,13 +1989,6 @@ calendar:
         next: Weiter
         previous: Zurück
     open_day: 'Alles am %date%'
-    pane:
-        close: 'Kalender schließen'
-        mode:
-            calendar: Kalender in voller Breite zeigen
-            mail: Mail zeigen
-            split: Kalender neben der Mail zeigen
-        resize: Kalender in der Breite ändern
     proposal:
         action:
             add: In den Kalender
@@ -2103,11 +2122,8 @@ calendar:
         range_day: '%day%.'
         range_short: '%start%–%end%'
         range_short_month: '%start%.–%end%. %month%'
-    upcoming:
-        imminent: Beginnt innerhalb einer Stunde
-        later: Heute noch
-        soon: In wenigen Stunden
     view:
+        label: "Ansicht"
         agenda: Agenda
         day: Tag
         monday_week: Woche
@@ -2893,6 +2909,8 @@ discarded:
         restore: In den Posteingang
 header:
     search:
+        chip_remove: "%token% entfernen"
+        clear: "Suche leeren"
         close: Suche schließen
         live:
             status: '%count% passende Unterhaltungen'
@@ -3079,7 +3097,6 @@ label:
         red: Rot
         teal: Petrol
         violet: Violett
-    empty: Keine Konversationen mit diesem Label.
     created: Label erstellt.
     delete:
         already_running: '"%name%" wird schon gelöscht.'
@@ -3099,8 +3116,10 @@ label:
     delete_confirm: 'Das Label "%name%" löschen? Es verschwindet aus allen Konten. Nachrichten behalten ihre übrigen Labels und werden nicht gelöscht.'
     delete_confirm_children: '"%name%" und die %count% untergeordneten Label(s) löschen? Sie verschwinden aus allen Konten. Nachrichten werden nicht gelöscht.'
     deleted: Label gelöscht.
+    empty: Keine Konversationen mit diesem Label.
     error:
         duplicate: Hier gibt es bereits ein Label mit diesem Namen. Groß- und Kleinschreibung macht daraus keinen anderen.
+    filters: "Filter"
     form:
         account_note:
             new: 'Wird nur auf %account% angelegt.'
@@ -3140,11 +3159,156 @@ label:
     menu:
         create: Neu erstellen
         empty: Noch keine Labels.
+    remove_filter: "Filter „%name%“ entfernen"
     updated: Label aktualisiert.
     visibility:
         hidden: Label ist jetzt ausgeblendet.
         shown: Label ist jetzt sichtbar.
 
+layout:
+    divider: "Größe der Bereiche ändern"
+    divider_hint: "Ziehen zum Ändern, Doppelklick zum Angleichen"
+    drop:
+        bottom: "Unter %pane%"
+        left: "Links von %pane%"
+        replace: "%pane% ersetzen"
+        right: "Rechts von %pane%"
+        swap: "Mit %pane% tauschen"
+        top: "Über %pane%"
+    edit:
+        add_below: "Darunter"
+        add_right: "Rechts"
+        cancel: "Abbrechen"
+        delete: "Arbeitsbereich löschen"
+        delete_confirm: "Arbeitsbereich „%name%“ löschen? Deine anderen Arbeitsbereiche bleiben, wie sie sind."
+        grip: "Ziehen, um diesen Bereich zu verschieben"
+        hint: "Klick auf einen Bereich, um ihn auszuwählen. Zieh am Griff, um ihn zu verschieben, oder leg einen Bereich aus der Leiste auf einen Rand."
+        kind: "Was dieser Bereich zeigt"
+        name: "Name des Arbeitsbereichs"
+        percent_high: "%n%% hoch"
+        percent_wide: "%n%% breit"
+        remove: "Bereich entfernen"
+        save: "Arbeitsbereich speichern"
+        title: "Bearbeiten"
+        tray: "Bereich hinzufügen"
+        tray_empty: "Alle Bereiche sind schon zu sehen."
+        tray_hint: "Auf einen Rand ziehen zum Teilen, in die Mitte zum Ersetzen. Oder klicken, um ihn neben dem gewählten Bereich einzufügen."
+    menu:
+        all_shown: "Alle Bereiche sind schon zu sehen."
+        close: "Bereich schließen"
+        full_width: "Volle Breite"
+        label: "Bereichsmenü"
+        layout: "Layout"
+        layout_title: "Arbeitsbereiche und Layouts (⌥L)"
+        move: "Verschieben"
+        move_down: "Nach unten"
+        move_left: "Nach links"
+        move_right: "Nach rechts"
+        move_up: "Nach oben"
+        restore: "Zurück zum Layout"
+        show_instead: "Stattdessen zeigen"
+        show_instead_heading: "In diesem Bereich zeigen"
+        split_col: "Darunter teilen"
+        split_col_heading: "Neuer Bereich darunter"
+        split_row: "Rechts teilen"
+        split_row_heading: "Neuer Bereich rechts"
+    pane:
+        calendar: "Kalender"
+        contacts: "Kontakte"
+        list: "Mailliste"
+        message: "Nachricht"
+        tasks: "Aufgaben"
+    presets:
+        apply: "Für diesen Arbeitsbereich nutzen"
+        back: "Zurück"
+        edit: "Diesen Arbeitsbereich bearbeiten"
+        new: "Neuer Arbeitsbereich"
+        save_new: "Als neuen Arbeitsbereich speichern"
+        shape:
+            four: "Vier"
+            list_stack: "Liste + Stapel"
+            list_stack_side: "Liste, Stapel, Seite"
+            one: "Ein Bereich"
+            rows: "Über- und untereinander"
+            side: "Nebeneinander"
+            three: "Drei Spalten"
+            top_two: "Oben + zwei"
+        shapes: "Mit einer Form beginnen"
+        slots: "Was wohin kommt"
+        workspaces: "Arbeitsbereiche"
+    settings:
+        all_accounts: "Alle Konten"
+        built_in: "Mail (eingebaut)"
+        delete_sidebar: "Diese Seitenleiste löschen"
+        duplicate_mail: "Kopie der Mail-Seitenleiste…"
+        edit_groups: "Kontogruppen bearbeiten"
+        gone: "(nicht mehr vorhanden)"
+        group:
+            blocks: "Wächst von selbst"
+            calendars: "Kalender"
+            labels: "Labels"
+            mail: "Mail"
+            other: "Sonstiges"
+            tasks: "Aufgabenlisten"
+        groups: "Kontogruppen"
+        groups_help: "Was dieser Arbeitsbereich zeigt: die Mailliste, Markiert und Ungelesen, die Seitenleiste mit ihren Zahlen und die Zahl neuer Einträge auf seinem Tab."
+        heading: "Überschrift"
+        heading_prompt: "Text der Überschrift"
+        intro: "Einstellungen des Arbeitsbereichs „%name%“."
+        live: "live"
+        mail_clock: "Uhr unten anzeigen"
+        missing: "Wenn dieser Arbeitsbereich keinen Bereich für einen Link hat"
+        missing_edge: "Den Bereich am rechten Rand hinzufügen"
+        missing_switch: "Zu einem Arbeitsbereich wechseln, der einen hat"
+        missing_switch_help: "Am liebsten zu einem, der das Konto des Kalenders oder der Liste zeigt."
+        move_down: "Nach unten"
+        move_up: "Nach oben"
+        new_name: "Seitenleiste %n%"
+        new_sidebar: "Neue Seitenleiste…"
+        'off': "Aus"
+        'on': "An"
+        open: "Gruppen & Seitenleiste"
+        remove: "Entfernen"
+        save_failed: "Die Einstellungen konnten nicht gespeichert werden. Nichts wurde geändert."
+        sidebar: "Seitenleiste"
+        sidebar_help: "Seitenleisten werden geteilt: Änderst du eine, ändert sie sich in jedem Arbeitsbereich, der sie nutzt."
+        sidebar_none: "Keine Seitenleiste"
+        target_calendar: "Kalender"
+        target_default: "Standard"
+        target_nth: "%kind% %n%"
+        targets: "Links der Seitenleiste öffnen in"
+        targets_help: "Dieser Arbeitsbereich hat mehr als einen Kalender. Ohne Auswahl öffnen Links im ersten."
+        title: "Einstellungen des Arbeitsbereichs"
+        used_by: "Auch in %names%: Eine Änderung hier ändert sie dort mit."
+    sidebar:
+        block:
+            accounts: "Konten und ihre Ordner"
+            calendars: "Alle Kalender"
+            inboxes: "Posteingänge"
+            labels: "Alle Labels"
+            tasklists: "Alle Aufgabenlisten"
+        clock: "Uhr"
+        empty: "Diese Seitenleiste ist leer. Füge in den Einstellungen des Arbeitsbereichs Zeilen hinzu."
+    tabs:
+        label: "Bereiche"
+    toast:
+        all_shown: "Alle Bereiche sind schon zu sehen."
+        applied: "Layout geändert."
+        at_edge: "Dieser Bereich ist schon an diesem Rand."
+        deleted: "„%name%“ gelöscht."
+        edit_first: "Speichere oder verwirf zuerst den Arbeitsbereich, den du bearbeitest."
+        no_list: "Dieser Arbeitsbereich hat keine Mailliste, deshalb wird sie in voller Breite gezeigt."
+        no_room: "Neben %pane% ist nicht genug Platz. Mach den Bereich zuerst größer oder schließ einen anderen."
+        only_pane: "Das ist der einzige Bereich. Wähl mit „Stattdessen zeigen“ etwas anderes dafür."
+        save_failed: "Das Layout konnte nicht gespeichert werden. Es bleibt auf dieser Seite so; lade neu, um das gespeicherte zu sehen."
+        saved: "„%name%“ gespeichert."
+    workspace:
+        first_name: "Mail"
+        more: "Weitere Arbeitsbereiche"
+        new: "%count% neu, seit du zuletzt hier warst"
+        new_name: "Arbeitsbereich %n%"
+        soon: "Hier beginnt etwas innerhalb der nächsten Stunde"
+        tabs_label: "Arbeitsbereiche"
 list:
     conversation_view: 'Konversationsansicht'
     sort:
@@ -3187,6 +3351,7 @@ message:
         filter_from_message: 'Filter aus dieser Nachricht erstellen'
         show_original: Original anzeigen
         star: Markieren
+        translate: 'Übersetzen'
         unstar: Markierung entfernen
     attachments: Anhänge
     back: Zurück
@@ -3345,6 +3510,35 @@ message:
         spam:
             body: "Diese Nachricht wurde als Spam eingestuft. Ihre Links und Bilder sind riskant — behandle jede Aufforderung darin wie die eines Fremden."
             title: Diese Nachricht ist im Spam
+    translation:
+        again: 'Noch einmal übersetzen'
+        already_in: 'Diese Nachricht ist schon in der Zielsprache (%language%). Es gibt nichts zu übersetzen.'
+        error:
+            connection_lost: 'Die Verbindung zu plMail ist abgerissen, während die Übersetzung geschrieben wurde. Am Modell-Host liegt es nicht — irgendetwas zwischen diesem Browser und dem Server hat die Verbindung geschlossen.'
+            disabled: 'Übersetzen ist ausgeschaltet.'
+            empty: 'In dieser Nachricht gibt es keinen Text zum Übersetzen.'
+            encrypted: 'Diese Nachricht war verschlüsselt, und ihr Konto gibt den entschlüsselten Text nicht an den Assistenten.'
+            generic: 'Die Nachricht konnte nicht übersetzt werden.'
+            model_missing: 'Der Modell-Host hat das Schreib-Modell nicht. Jemand mit Admin-Rechten muss es erst ziehen.'
+            no_answer: 'Das Modell hat nichts geantwortet.'
+            refused: 'Der Modell-Host hat die Anfrage abgelehnt.'
+            timeout: 'Der Modell-Host hat zu lange gebraucht.'
+            unreachable: 'Der Modell-Host war nicht erreichbar.'
+        generated: 'Von einer KI übersetzt, Sprache: %language% (%model%). Das ist nicht der Originaltext.'
+        generated_from: 'Von einer KI übersetzt (%source% → %language%, %model%). Das ist nicht der Originaltext.'
+        partial: 'Die Nachricht ist lang, deshalb wurde nur ihr Anfang übersetzt.'
+        quote_left_out: 'Die zitierten früheren Nachrichten wurden weggelassen; die kannst du einzeln übersetzen.'
+        stale: 'Die Nachricht hat sich seit der Übersetzung geändert.'
+        state:
+            reading: 'Die Nachricht wird noch gelesen — bisher %elapsed%. Danach erscheint die Übersetzung Wort für Wort.'
+            waiting: 'Die erste Anfrage nach einer Pause wartet, bis das Modell geladen ist.'
+            working: 'Wird übersetzt (%language%) …'
+        switch:
+            label: 'Anzeigen'
+            original: 'Original'
+            original_from: 'Original · %source%'
+            translation: '%language% · KI'
+        tag: 'KI-Übersetzung'
 
 mercure:
     status:
@@ -3521,7 +3715,6 @@ profile:
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
-    handle: Größe des Nachrichtenbereichs ändern
     placeholder: Wähle eine Unterhaltung aus, um sie hier zu lesen
 
 # Said in a toast when a request fails and there is no better place to say it;
@@ -3672,6 +3865,8 @@ settings:
             search_hint: 'Findet Mails, die meinen, wonach du gefragt hast — nicht nur solche, die es genauso schreiben. Aus bedeutet: Deine Mails werden weder durchsucht noch indiziert.'
             summary: 'Zusammenfassungen'
             summary_hint: 'Fasst ein langes Gespräch zusammen, wenn du darum bittest. Von allein passiert nichts.'
+            translation: 'Nachrichten übersetzen'
+            translation_hint: 'Übersetzt eine Nachricht in deine Sprache, wenn du im Menü der Nachricht darum bittest. Von allein wird nichts übersetzt.'
             writing_help: 'Schreibhilfe'
             writing_help_hint: 'Entwirft Antworten, kürzt, formuliert förmlicher, liest Korrektur — im Schreibfenster, wenn du danach fragst.'
         features:
@@ -3694,10 +3889,14 @@ settings:
             heading: 'Was der Assistent bekommt'
             search: 'Indizierung: Betreff, Absender und der Anfang jeder Mail.'
             summary: 'Die Nachrichten eines Gesprächs, das du zusammenfassen lässt'
+            translation: 'Übersetzen: der Text der Nachricht, die du übersetzen lässt, ohne die früheren Nachrichten, die sie zitiert.'
             writing_help: 'Schreiben: deine Betreffzeile, was du getippt hast, und so viel vom Gespräch, wie die Einstellung oben zulässt.'
         seg:
             off: 'Aus'
             on: 'An'
+        translate_into:
+            follow_language: 'Die Sprache von plMail (%language%)'
+            label: 'Übersetzen in'
     accounts:
         categories:
             off_hint: 'Aus: Eine Kategorie, die in Outlook gesetzt oder entfernt wird, ändert hier keine Labels. Beim Einschalten werden alle Ordner dieses Kontos noch einmal aufgelistet.'
@@ -3865,6 +4064,8 @@ settings:
             close: 'Fertig'
             contacts: 'Kontakte'
             contacts_help: 'Seine Adressbücher, in beide Richtungen abgeglichen'
+            tasks: 'Aufgaben'
+            tasks_help: 'Seine Microsoft-To-Do-Listen, in beide Richtungen abgeglichen'
             intro: 'Schalte aus, wofür du dieses Konto nicht verwendest. plMail spricht dann mit dem Server nicht mehr darüber und behält, was schon da ist.'
             mail: 'E-Mail empfangen'
             mail_help: 'Seine E-Mails synchronisieren und jede Änderung, die du daran machst'
@@ -4517,6 +4718,9 @@ settings:
                     betroffen. Melde dich einmal neu an und erlaube den Zugriff
                     auf Kontakte, dann erscheint sein Adressbuch unter Kontakte.
                 title: '%account% erneut verbinden, um seine Kontakte zu synchronisieren'
+            account_tasks_scope_missing:
+                body: 'plMail kann jetzt die Microsoft-To-Do-Listen dieses Kontos synchronisieren, aber %account% wurde verbunden, bevor plMail danach gefragt hat. Mail, Kalender und Kontakte sind nicht betroffen. Melde dich einmal neu an und erlaube den Zugriff auf Aufgaben, dann lassen sich seine Listen unter Aufgaben abonnieren.'
+                title: '%account% erneut verbinden, um seine Microsoft-To-Do-Listen zu synchronisieren'
             account_scope_missing:
                 body: >-
                     Einige Rechte, die plMail beim Verbinden dieses Kontos
@@ -4697,6 +4901,9 @@ settings:
                     Versucht die liegen gebliebenen Aufgaben noch einmal.
                     Unbedenklich — was erneut scheitert, landet einfach wieder
                     hier.
+            grant_tasks:
+                label: 'Aufgaben erlauben'
+                promise: 'Bringt dich zurück zum Anbieter, um dich als %account% anzumelden und den Zugriff auf Aufgaben zu erlauben. An deiner Mail ändert sich nichts, und keine Mail wird neu heruntergeladen.'
             grant_contacts:
                 label: 'Kontakte erlauben'
                 promise: >-
@@ -4873,22 +5080,6 @@ settings:
         test_failed: 'Verbindungstest fehlgeschlagen'
         test_ok: 'Verbindung funktioniert'
         unavailable_heading: 'Hier nicht verfügbar'
-    calendar_behaviour:
-        button: Kalenderschaltfläche
-        button_hint: 'Welche Ansichten die Schaltfläche in der Kopfleiste durchläuft. Eine ausgelassene Ansicht wird nicht entfernt: Mit dem Ziehgriff erreichst du sie weiterhin.'
-        heading: Verhalten
-        option_calendar: Nur geteilt
-        option_none: Alle drei
-        option_split: Nur volle Breite
-        subheading: 'Wie die Kalenderschaltfläche in der Kopfleiste zwischen den Ansichten wechselt.'
-    contacts_behaviour:
-        button: 'Kontakte-Knopf'
-        button_hint: 'Durch welche Ansichten der Knopf in der oberen Leiste schaltet. Eine ausgelassene Ansicht ist nicht weg: Der Ziehgriff erreicht sie weiterhin.'
-        heading: 'Verhalten'
-        option_contacts: 'Nur neben der Mail'
-        option_none: 'Alle drei'
-        option_split: 'Nur volle Breite'
-        subheading: 'Wie der Kontakte-Knopf in der oberen Leiste zwischen den Ansichten wechselt.'
     contacts:
         allow_contacts: 'Kontakte erlauben'
         allow_contacts_hint: 'Verbunden, bevor plMail nach Kontakten gefragt hat. Melde dich einmal neu an und erlaube sie, dann erscheint das Adressbuch dieses Kontos hier.'
@@ -5126,6 +5317,16 @@ settings:
         'off': Aus
         'on': An
         subheading: Ob Bilder, die eine Mail von anderswo lädt, erst auf Nachfrage geladen werden.
+    search_meaning:
+        heading: "Suche nach Bedeutung"
+        subheading: "Findet neben den getippten Wörtern auch Mail zu dem, was du gemeint hast. Ob es verfügbar ist, entscheidet deine Administration."
+    search_scope:
+        heading: "Suche"
+        hint: "Fügt den Arbeitsbereich als Filter (space:Name) hinzu, sobald du tippst. Einmal Rücktaste entfernt ihn."
+        label: "Suche im Arbeitsbereich beginnen"
+        'off': "Aus"
+        'on': "An"
+        subheading: "Ob die Suche alle Konten umfasst oder mit dem angezeigten Arbeitsbereich beginnt."
     sender_pictures:
         admin_off: 'Deine Administration hat diesem Server nicht erlaubt, Bilder im Internet nachzuschlagen, deshalb bewirken diese Schalter gerade nichts. Deine Wahl bleibt für später gespeichert.'
         bimi: 'Firmenlogos'
@@ -5158,17 +5359,16 @@ settings:
             label: Nach rechts wischen
         subheading: Was eine Wischbewegung über eine Zeile auf dem Telefon bewirkt.
     unified_inboxes:
-        account_label: 'Sammel-Posteingang für %account%'
         account_off: 'E-Mail ausgeschaltet — nichts davon wird hier angezeigt, bis du sie wieder einschaltest.'
-        accounts_heading: 'Konten'
-        accounts_subheading: 'In welchem Posteingang die Mail jedes Kontos erscheint. Ein neues Konto landet in deinem ersten Posteingang.'
         add: 'Hinzufügen'
+        add_account: "Konto zu %group% hinzufügen"
+        add_account_short: "Konto hinzufügen"
         created: '„%name%“ angelegt.'
         delete: '%inbox% löschen'
-        delete_confirm: '„%name%“ löschen? Seine Konten wandern nach %other%. Es wird keine Mail gelöscht.'
-        deleted: 'Posteingang gelöscht. Seine Konten stehen jetzt im Sammelbecken.'
-        heading: 'Sammel-Posteingänge'
-        hint: 'Jeder Posteingang zeigt die Mail der Konten, die du ihm zuordnest, als eine Liste mit eigenen Tabs. Lass den Namen leer, um den Standardnamen zu verwenden.'
+        delete_confirm: "„%name%“ löschen? Konten, die in keiner anderen Gruppe sind, wandern nach %other%. Es wird keine Mail gelöscht."
+        deleted: "Gruppe gelöscht. Konten, die nur in ihr waren, stehen jetzt in der Sammelgruppe."
+        heading: "Kontogruppen"
+        hint: "Eine Gruppe zeigt die Mail ihrer Konten als einen Posteingang mit eigenen Tabs. Ein Konto kann in mehreren Gruppen sein; ein neues Konto kommt in deine erste. Lass den Namen leer, um den Standardnamen zu verwenden."
         icon_label: 'Symbol für %inbox%'
         icon_new: 'Symbol für den neuen Posteingang'
         last_stays: 'Mindestens ein eigener Posteingang muss bleiben.'
@@ -5177,16 +5377,18 @@ settings:
         name_label: 'Name'
         name_required: 'Ein Posteingang braucht einen Namen.'
         name_too_long: 'Der Name ist zu lang (höchstens 40 Zeichen).'
-        no_accounts: 'Noch keine Mailkonten.'
+        no_accounts_in_group: "Noch keine Konten."
         not_found: 'Diesen Posteingang gibt es nicht mehr.'
-        other_hint: 'Sammelt jedes Konto, das du aus deinen eigenen Posteingängen nimmst. In der Seitenleiste erscheint er erst, wenn er eins enthält.'
-        other_option: 'Sammelbecken'
+        other_is_the_rest: "„Sonstige“ enthält den Rest: Leg das Konto stattdessen in eine deiner eigenen Gruppen."
+        other_hint: "Nimmt jedes Konto auf, das du aus seiner letzten Gruppe nimmst. In der Seitenleiste erscheint sie erst, wenn sie eins enthält."
         other_stays: 'Das Sammelbecken kann nicht gelöscht werden: Dort stehen die Konten, die in keinem deiner Posteingänge sind.'
         placeholder: 'z. B. Arbeit'
+        remove_account: "%account% aus %group% nehmen"
+        remove_to_other: "%account% aus %group% nehmen; es ist in keiner anderen Gruppe und wandert in die Sammelgruppe"
         reorder: 'Zum Sortieren ziehen'
         save: 'Speichern'
         saved: 'Gespeichert.'
-        subheading: 'Gib ihnen Namen und Symbole und zieh sie in die Reihenfolge, in der die Seitenleiste sie zeigt.'
+        subheading: "Jede Gruppe ist ein Posteingang in der Seitenleiste und etwas, das ein Arbeitsbereich zeigen kann. Gib ihnen Namen und Symbole, leg Konten hinein und zieh sie in die richtige Reihenfolge."
     whats_new:
         heading: 'Was ist neu'
         'off': 'Aus'
@@ -5209,6 +5411,7 @@ settings:
             integrations: "Integrationen"
             mail_accounts: "E-Mail-Konten"
             reading_writing: "Lesen & Schreiben"
+            search: "Suche"
         calendar_behaviour: "Kalenderverhalten"
         calendars: Kalender
         categories: "Kategorien & Sortierung"
@@ -5219,11 +5422,12 @@ settings:
         filters: Filter
         health: 'Zustand der Konten'
         health_banner: "Etwas braucht deine Aufmerksamkeit — siehe Zustand der Konten."
-        inboxes: 'Sammel-Posteingänge'
+        inboxes: "Kontogruppen"
         insights: Insights
         integrations: Integrationen
         labels: Labels
         layout: "Layout & Bedienung"
+        mail_search: "Suche"
         message_list: 'Nachrichtenliste'
         notifications: Benachrichtigungen
         profile: Profil
@@ -5244,7 +5448,7 @@ settings:
         keywords:
             accent: "farbe akzent hervorhebung color"
             accounts: "imap smtp pop3 jmap server hinzufügen postfach"
-            ai: "ki künstliche intelligenz zusammenfassung schreibhilfe modell ai"
+            ai: "ki künstliche intelligenz zusammenfassung schreibhilfe modell ai übersetzung übersetzen translation"
             aliases: "alias identität absender von adresse"
             app_passwords: "imap smtp programm thunderbird token api jmap"
             calendars: "caldav ics abonnieren feed"
@@ -5272,7 +5476,8 @@ settings:
             pinning: 'anheften angeheftet reißzwecke oben erinnerung pin'
             profile: "name avatar foto bild"
             read_receipts: "mdn empfangsbestätigung bestätigung bcc kopie sicherung blindkopie"
-            reading_pane: "vorschau geteilt rechts unten"
+            search_meaning: "semantisch bedeutung ki suche ähnlich"
+            search_scope: "suche bereich arbeitsbereich space filter"
             sender_pictures: 'avatar bild foto gravatar libravatar bimi logo symbol absender'
             sharing: "link öffentlich buchung"
             shortcuts: "tastatur tasten kürzel hotkeys"
@@ -5368,13 +5573,6 @@ settings:
         subheading: 'Womit du dich anmeldest. Nur du kannst es ändern — nicht einmal die Administration kann es für dich setzen.'
         submit: Passwort ändern
         submitting: Wird gespeichert…
-    reading_pane:
-        heading: Lesebereich
-        hint: '„Aus“ zeigt Liste und Nachricht nacheinander; „Rechts“ stellt die Nachricht neben die Liste, sobald das Fenster genug Platz für beide hat – am Trenner dazwischen stellst du ein, wie viel jede bekommt.'
-        label: 'Geöffnete Nachricht anzeigen'
-        off: Aus
-        right: Rechts
-        subheading: 'Wo eine Unterhaltung aufgeht: anstelle der Liste oder daneben.'
     security:
         codes:
             copy: Codes kopieren
@@ -5649,6 +5847,8 @@ shortcuts:
         anywhere: "Überall"
         conversation: "In einer Unterhaltung"
         list: "In einer Liste"
+        panes: "Bereiche und Arbeitsbereiche"
+        panes_hint: "Alt ist ⌥ auf dem Mac. Diese gehen auch bei ausgeschalteten Einzeltasten-Kürzeln."
     keys:
         archive: "Archivieren"
         back: "Zurück zur Liste"
@@ -5663,12 +5863,19 @@ shortcuts:
         go_starred: "Zu Markiert"
         help: "Diese Liste anzeigen"
         label: "Label vergeben"
+        layout_menu: "Layout-Menü"
         mark_read: "Als gelesen markieren"
         mark_unread: "Als ungelesen markieren"
         move: "Verschieben nach"
         next: "Eine Unterhaltung nach unten"
         next_conversation: "Nächste Unterhaltung öffnen"
         open: "Hervorgehobene Unterhaltung öffnen"
+        pane_close: "Bereich schließen"
+        pane_focus: "Nächsten Bereich in diese Richtung fokussieren"
+        pane_full_width: "Volle Breite, und zurück"
+        pane_move: "Bereich in diese Richtung verschieben"
+        pane_split_below: "Bereich darunter teilen"
+        pane_split_right: "Bereich rechts teilen"
         pin: 'Anheften oder lösen'
         previous: "Eine Unterhaltung nach oben"
         previous_conversation: "Vorherige Unterhaltung öffnen"
@@ -5685,6 +5892,8 @@ shortcuts:
         spam: "Als Spam markieren"
         star: "Markieren oder Markierung entfernen"
         undo: "Letzte Aktion rückgängig machen"
+        workspace_edit: "Arbeitsbereich bearbeiten"
+        workspace_switch: "Arbeitsbereich wechseln"
     or: "oder"
     switched_off: "Die Kürzel sind für dich ausgeschaltet. Schalte sie unter Einstellungen → Allgemein → Layout & Bedienung ein."
     then: "dann"
@@ -6156,13 +6365,6 @@ contacts:
     no_subject: '(kein Betreff)'
     notes: Notizen
     page: 'Seite %page%'
-    pane:
-        close: 'Kontakte schließen'
-        mode:
-            contacts: 'Kontakte in voller Breite zeigen'
-            mail: 'Kontakte ausblenden'
-            split: 'Kontakte neben der Mail zeigen'
-        resize: 'Kontakte in der Breite ändern'
     pending: 'Wartet darauf, an den Server zu gehen'
     phone_placeholder: '+49 30 1234567'
     phonetic: 'Phonetische Schreibweise'
@@ -6319,3 +6521,139 @@ contacts:
         unsure_one: 'Wohin gehört diese Zeile?'
         use_as: 'Verwenden als …'
         you_placed: 'Von dir zugeordnet'
+tasks:
+    pane:
+        scope_label: "Welche Listen"
+        scope_workspace_hint: "Nur die Aufgabenlisten dieses Arbeitsbereichs"
+        scope_overlay_hint: "Die Listen dieses Arbeitsbereichs, die übrigen blass"
+        scope_all_hint: "Alle Listen gleich"
+    occurrence_undone: 'Abhaken rückgängig gemacht.'
+    added: 'Aufgabe hinzugefügt.'
+    completed: 'Aufgabe erledigt.'
+    reopened: 'Aufgabe wieder geöffnet.'
+    moved: 'Aufgabe verschoben.'
+    step_completed: 'Schritt erledigt.'
+    step_reopened: 'Schritt wieder geöffnet.'
+    advanced: 'Erledigt. Die Aufgabe ist auf ihren nächsten Termin gesprungen.'
+    advanced_remote: 'Erledigt. Microsoft To Do schiebt sie auf ihren nächsten Termin, sobald die Änderung dort ist.'
+    title: 'Aufgaben'
+    default_list: 'Aufgaben'
+    new: 'Neue Aufgabe'
+    my_day: 'Mein Tag'
+    quick_add: 'Aufgabe hinzufügen'
+    read_only: 'Diese Liste ist schreibgeschützt, ihre Aufgaben lassen sich hier nicht ändern.'
+    saved: 'Aufgabe gespeichert.'
+    deleted: 'Aufgabe gelöscht.'
+    section:
+        loading: 'Wird geladen …'
+        more: 'Mehr anzeigen'
+        overdue: 'Überfällig'
+        today: 'Heute'
+        upcoming: 'Demnächst'
+        no_date: 'Ohne Datum'
+        completed: 'Erledigt'
+        pending: 'Offen'
+    empty:
+        my_day: 'Für heute steht nichts an. Hier erscheinen Aufgaben, die heute fällig sind, beginnen oder erinnern.'
+        list: 'Hier gibt es keine Aufgaben.'
+    row:
+        steps: '%done% von %total%'
+        steps_toggle: 'Schritte von „%title%“'
+        repeats: 'Wiederholt sich'
+        complete: '„%title%“ als erledigt markieren'
+        reopen: '„%title%“ als nicht erledigt markieren'
+        edit: '„%title%“ bearbeiten'
+    editor:
+        reminder: 'Erinnern'
+        reminder_hint: 'Kommt als Browser- oder Telefon-Benachrichtigung, sobald Benachrichtigungen eingeschaltet sind.'
+        repeat: 'Wiederholen'
+        repeat_none: 'Keine Wiederholung'
+        repeat_daily: 'Täglich'
+        repeat_weekly: 'Wöchentlich'
+        repeat_monthly: 'Monatlich'
+        repeat_yearly: 'Jährlich'
+        repeat_keep: 'Bisherigen Rhythmus beibehalten'
+        repeat_hint: 'Beim Abhaken springt die Aufgabe auf ihren nächsten Termin in der Zukunft.'
+        steps: 'Schritte'
+        step_add: 'Schritt hinzufügen'
+        step_done: 'Schritt erledigt'
+        step_title: 'Schritt'
+        step_remove: 'Diesen Schritt entfernen'
+        step_delete: 'Schritt „%title%“ löschen'
+        new: 'Neue Aufgabe'
+        edit: 'Aufgabe bearbeiten'
+        title: 'Titel'
+        title_required: 'Gib einen Titel ein – ohne Titel lässt sich eine Aufgabe nicht von den anderen unterscheiden.'
+        notes: 'Notizen'
+        list: 'Liste'
+        due_date: 'Fällig am'
+        due_time: 'Uhrzeit (optional)'
+        due_day_only: 'Microsoft To Do speichert nur den Tag, eine Fälligkeit hat hier also keine Uhrzeit. Für die Uhrzeit gibt es die Erinnerung.'
+        save: 'Speichern'
+        delete: 'Löschen'
+    lists:
+        move_down: '„%name%“ nach unten'
+        move_up: '„%name%“ nach oben'
+        reorder: 'Ziehen, um die Reihenfolge zu ändern'
+        landing: 'Neue Aufgaben landen hier'
+        landing_set: 'Neue Aufgaben landen jetzt in %name%.'
+        make_landing: 'Neue Aufgaben in „%name%“ ablegen'
+        manage: 'Listen'
+        settings: 'Aufgaben-Einstellungen'
+        back: 'Zurück zu den Listen'
+        synced: 'Synchronisiert'
+        done: 'Fertig'
+        edit_named: '„%name%“ bearbeiten'
+        delete_named: '„%name%“ löschen'
+        sync_failed: 'Diese Liste konnte nicht synchronisiert werden:'
+        label: 'Aufgabenlisten'
+        all: 'Alle'
+        new: 'Neue Liste'
+        edit: 'Liste bearbeiten'
+        name: 'Name'
+        name_required: 'Gib einen Namen für die Liste ein.'
+        color: 'Farbe'
+        read_only: 'Schreibgeschützt'
+        saved: 'Liste gespeichert.'
+        deleted: 'Liste gelöscht.'
+        delete_confirm: '„%name%“ und alle Aufgaben darin löschen?'
+        default_hint: 'Neue Aufgaben landen hier, wenn nichts anderes gewählt wurde. Deshalb lässt sich diese Liste nicht löschen.'
+        synced_hint: 'Diese Liste wird synchronisiert, ihr Name kommt vom Server. Die Farbe bestimmst du.'
+        workspace: "Arbeitsbereich"
+        workspace_help: "Eine Liste ohne Konto gehört zu keiner Kontogruppe und erscheint deshalb in diesem Arbeitsbereich. Arbeitsbereiche über alle Konten zeigen sie ebenfalls."
+        transferred: '%count% Aufgabe nach „%name%“ verschoben.|%count% Aufgaben nach „%name%“ verschoben.'
+    transfer:
+        title: 'In eine lokale Liste übertragen'
+        open_named: '„%name%“ in eine lokale Liste übertragen'
+        what: '„%name%“ hat %open% offene und %finished% erledigte Aufgaben.'
+        target: 'Verschieben nach'
+        new_list: 'Neue Liste „%name%“'
+        moves: 'Alle Aufgaben werden verschoben, offene und erledigte, mit Schritten, Notizen, Terminen, Wiederholung, Erinnerung und Dateien.'
+        remote_kept: 'Auf dem Server wird nichts gelöscht. Die Aufgaben bleiben dort, wie sie sind.'
+        unsubscribes: 'plMail synchronisiert „%name%“ danach nicht mehr, damit nichts doppelt erscheint.'
+        foreign: 'Angaben, die nur andere Apps verstehen, etwa Verknüpfungen zu anderen Elementen, gehen verloren.'
+        submit: 'Übertragen'
+        submit_stale: 'Trotzdem übertragen'
+        pull_failed: 'Die neuesten Änderungen konnten nicht vom Server gelesen werden:'
+        stale_since: 'Du kannst übertragen, was plMail hat, Stand der letzten Synchronisierung am %date%. Spätere Änderungen von anderswo fehlen dann.'
+        stale: 'Du kannst übertragen, was plMail hat. Änderungen von anderswo fehlen dann.'
+    subscribe:
+        color: 'Farbe von %name%'
+        title: 'Listen von einem Server synchronisieren'
+        intro: 'Wähle die Aufgabenlisten auf %name% aus, die mit plMail synchron bleiben sollen.'
+        empty: '%name% hat keine Aufgabenlisten.'
+        saved: 'Aufgabenlisten aktualisiert. Ihre Aufgaben werden gerade geladen.'
+        pick_source: 'Wähle die Verbindung, auf der nach Aufgabenlisten gesucht werden soll.'
+        no_sources: 'Es gibt noch keine Verbindung, von der sich Aufgaben synchronisieren lassen. Verbinde zuerst unter Einstellungen → Kalender einen CalDAV-Server.'
+        open_settings: 'Kalender-Einstellungen öffnen'
+        untick_hint: 'Wenn du das Häkchen entfernst, verschwinden die Liste und ihre Aufgaben aus plMail. Auf dem Server bleiben sie erhalten.'
+    alert:
+        untitled: 'Aufgabe'
+        due: 'Fällig: %when%'
+        reminder: 'Erinnerung'
+    attachments:
+        heading: 'Dateien'
+        add: 'Datei auswählen'
+        delete: '„%name%“ löschen'
+        limit: 'Bis zu 25 MB. Bei synchronisierten Listen erhalten andere Apps einen Link, für den eine plMail-Anmeldung nötig ist.'
+        too_large: 'Diese Datei konnte nicht übernommen werden. Dateien dürfen bis zu 25 MB groß sein.'

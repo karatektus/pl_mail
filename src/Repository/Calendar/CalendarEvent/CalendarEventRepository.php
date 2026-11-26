@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository\Calendar\CalendarEvent;
 
+use App\Entity\User\User;
 use App\Repository\Calendar\CalendarEventOccurrence\CalendarEventOccurrenceRepository;
 
 use App\Domain\Enum\Calendar\SyncState;
@@ -302,5 +303,103 @@ class CalendarEventRepository extends ServiceEntityRepository
             ->orderBy('event.id', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Events added to the user's calendars since a moment, and events
+     * starting within a window — a workspace tab's "new" count and its
+     * "happening soon" mark (#783), on the calendars the caller names
+     * (WorkspaceScope::calendarIds()). Raw SQL for the calendar condition.
+     *
+     * $soonAfter leaves out what was already within the window at an earlier
+     * moment (the last visit), so a visit clears the mark. Null is none.
+     *
+     * @param list<int>|null $calendarIds a workspace's calendars (WorkspaceScope::calendarIds()); null is all
+     *
+     * @return array{added: int, soon: int}
+     */
+    public function countNewsForWorkspace(User $user, ?array $calendarIds, \DateTimeImmutable $since, \DateTimeImmutable $now, \DateTimeImmutable $soonUntil, ?\DateTimeImmutable $soonAfter = null): array
+    {
+        $scope  = '';
+        $params = [
+            'user'  => $user->id,
+            'since' => $since->format('Y-m-d H:i:s'),
+            'now'   => $now->format('Y-m-d H:i:s'),
+            'until' => $soonUntil->format('Y-m-d H:i:s'),
+            'after' => ($soonAfter ?? $now)->format('Y-m-d H:i:s'),
+        ];
+        $types = [];
+
+        if (null !== $calendarIds) {
+            $scope = ' AND c.id IN (:calendars)';
+            $params['calendars'] = [] === $calendarIds ? [0] : $calendarIds;
+            $types['calendars']  = \Doctrine\DBAL\ArrayParameterType::INTEGER;
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+
+        // Nothing is added after now: a workspace seen this moment asks only
+        // for "soon", and the count is not read.
+        $added = $since >= $now ? 0 : $connection->fetchOne(
+            'SELECT COUNT(*)
+               FROM calendar_event e
+               JOIN calendar c ON c.id = e.calendar_id
+              WHERE c.usr_id = :user
+                AND c.is_visible = true
+                AND e.created_at > :since' . $scope,
+            $params,
+            $types,
+        );
+
+        // Starting soon reads the occurrences, which hold every dated
+        // instance — a weekly meeting's next one included, which the event
+        // row's own start (its first) never is. All-day events have no hour
+        // to be an hour away from; cancelled ones are not happening.
+        $soon = $connection->fetchOne(
+            "SELECT COUNT(*)
+               FROM calendar_event_occurrence o
+               JOIN calendar_event e ON e.id = o.event_id
+               JOIN calendar c ON c.id = o.calendar_id
+              WHERE o.usr_id = :user
+                AND c.is_visible = true
+                AND o.cancelled = false
+                AND e.is_all_day = false
+                AND e.status <> 'cancelled'
+                AND o.starts_at >= :now AND o.starts_at < :until AND o.starts_at >= :after" . $scope,
+            $params,
+            $types,
+        );
+
+        return ['added' => (int) $added, 'soon' => (int) $soon];
+    }
+
+    /**
+     * Whether anything timed starts between now and $until in any visible
+     * calendar, and when the first one after $until starts — the dot on
+     * Happening soon and the moment the page asks again (#783), in one read.
+     *
+     * @return array{soon: int, next: \DateTimeImmutable|null}
+     */
+    public function soonAndNext(User $user, \DateTimeImmutable $now, \DateTimeImmutable $until): array
+    {
+        $row = $this->getEntityManager()->getConnection()->fetchAssociative(
+            "SELECT COUNT(*) FILTER (WHERE o.starts_at < :until) AS soon,
+                    MIN(o.starts_at) FILTER (WHERE o.starts_at >= :until) AS next
+               FROM calendar_event_occurrence o
+               JOIN calendar_event e ON e.id = o.event_id
+               JOIN calendar c ON c.id = o.calendar_id
+              WHERE o.usr_id = :user
+                AND c.is_visible = true
+                AND o.cancelled = false
+                AND e.is_all_day = false
+                AND e.status <> 'cancelled'
+                AND o.starts_at >= :now",
+            ['user' => $user->id, 'now' => $now->format('Y-m-d H:i:s'), 'until' => $until->format('Y-m-d H:i:s')],
+        );
+
+        return [
+            'soon' => (int) ($row['soon'] ?? 0),
+            'next' => is_string($row['next'] ?? null) ? new \DateTimeImmutable($row['next'], new \DateTimeZone('UTC')) : null,
+        ];
     }
 }

@@ -84,6 +84,11 @@ final class MessageCategorizer
      * sender is somebody the reader writes to. Everywhere else, an
      * assistant-first reader's mail goes wherever the model says.
      *
+     * The filter only counts here once it has run. Arriving mail is held
+     * before the filters run (PostIngestPipeline), so mail a filter files into
+     * a built-in tab still waits for the model, exactly like mail filed into a
+     * tab of the reader's own, and lands in the filter's tab on release.
+     *
      * Asked with $ignoreAi so the answer describes the cascade and not a
      * verdict that happens to be on the row already.
      *

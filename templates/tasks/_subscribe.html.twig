@@ -1,0 +1,91 @@
+{#
+tasks/_subscribe.html.twig — which of a source's task lists to mirror.
+
+calendar/_subscribe.html.twig's form, for its reasons: the submission is a set of
+opaque ids, and everything else about a list is read again from the server on the
+way through (TaskListSubscriber).
+
+Accepts:
+  offered      list of { remote: RemoteTaskList, local: TaskList|null }
+  sourceKind   string  'account' | 'integration'
+  sourceId     int
+  sourceLabel  string
+  error        string|null  why there is no list
+  colors       list<string>, Calendar::COLORS, one picked per list right here
+#}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'tasks.subscribe.title'|trans }}</template>
+
+    <form method="post"
+          action="{{ path('app_tasks_subscribe_source', { kind: sourceKind, id: sourceId }) }}"
+          data-turbo-frame="modal"
+          class="flex-1 min-h-0 flex flex-col">
+        <input type="hidden" name="_token" value="{{ csrf_token('tasks-subscribe' ~ sourceKind ~ sourceId) }}">
+
+        <div class="flex-1 min-h-0 px-6 pb-6 space-y-4 overflow-y-auto max-md:px-4">
+            <p class="text-xs text-ink-muted leading-relaxed">{{ 'tasks.subscribe.intro'|trans({ '%name%': sourceLabel }) }}</p>
+
+            {% if error is not null %}
+                <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ error }}</p>
+                </div>
+            {% elseif offered is empty %}
+                <p class="py-6 text-center text-sm text-ink-faint italic">{{ 'tasks.subscribe.empty'|trans({ '%name%': sourceLabel }) }}</p>
+            {% else %}
+                {# The first time a source is opened, its default list is ticked, which
+                   is the one somebody who uses one list at all means. Once anything is
+                   mirrored, the ticks say what is, and nothing is ticked for them. #}
+                {% set firstVisit = offered|filter(entry => entry.local)|length == 0 %}
+                <ul class="divide-y divide-line">
+                    {% for entry in offered %}
+                        {% set field  = 'remote-task-list-' ~ loop.index %}
+                        {# A mirror keeps its own; a new one starts from the remote's, or, as
+                           Microsoft has none, from the next colour round, so they differ. #}
+                        {% set chosen = entry.local ? entry.local.color : (entry.remote.color in colors ? entry.remote.color : colors[loop.index0 % colors|length]) %}
+                        <li class="flex items-start gap-3 py-2.5" data-task-subscribe-list="{{ entry.remote.remoteId }}">
+                            <input type="checkbox" id="{{ field }}" name="remoteIds[]" value="{{ entry.remote.remoteId }}"
+                                   {% if entry.local or (firstVisit and entry.remote.isDefault) %}checked{% endif %}
+                                   class="mt-0.5 size-4 rounded accent-accent">
+                            <label for="{{ field }}" class="min-w-0 flex-1 text-sm text-ink">
+                                <span class="block truncate">{{ entry.remote.name }}</span>
+                                {% if entry.remote.isReadOnly %}
+                                    <span class="block text-xs text-ink-muted">{{ 'tasks.lists.read_only'|trans }}</span>
+                                {% endif %}
+                            </label>
+                            {# The list's colour, picked as it is ticked rather than after,
+                               in Lists. Sent for every row and used for the ticked ones. #}
+                            <fieldset class="flex shrink-0 items-center gap-1">
+                                <legend class="sr-only">{{ 'tasks.subscribe.color'|trans({ '%name%': entry.remote.name }) }}</legend>
+                                {% for color in colors %}
+                                    <label class="relative cursor-pointer">
+                                        <input type="radio" name="colors[{{ entry.remote.remoteId }}]" value="{{ color }}"
+                                               {% if color == chosen %}checked{% endif %}
+                                               class="peer sr-only">
+                                        <span class="block size-4 rounded-full ring-offset-1 ring-offset-surface peer-checked:ring-2 peer-checked:ring-ink peer-focus-visible:ring-2 peer-focus-visible:ring-accent"
+                                              style="background-color: {{ color }}"></span>
+                                        <span class="sr-only">{{ color }}</span>
+                                    </label>
+                                {% endfor %}
+                            </fieldset>
+                        </li>
+                    {% endfor %}
+                </ul>
+                <p class="text-xs text-ink-muted">{{ 'tasks.subscribe.untick_hint'|trans }}</p>
+            {% endif %}
+        </div>
+
+        <footer class="shrink-0 flex items-center justify-end gap-2 border-t border-line px-6 py-3 max-md:px-4">
+            <button type="button"
+                    data-action="ui--modal#close"
+                    class="px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors">
+                {{ 'form.cancel'|trans }}
+            </button>
+            {% if error is null and offered is not empty %}
+                <button type="submit" class="px-4 py-2 rounded-lg text-sm bg-accent text-accent-ink hover:opacity-90 transition-opacity">
+                    {{ 'tasks.editor.save'|trans }}
+                </button>
+            {% endif %}
+        </footer>
+    </form>
+</turbo-frame>

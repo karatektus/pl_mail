@@ -33,8 +33,9 @@ use App\Entity\Mail\Message;
  *     catch-all domain. Delivery first here, the reverse of step 2, because
  *     at a catch-all domain a visible recipient may be somebody else — a
  *     colleague with a mailbox of their own — and the delivery header is the
- *     one thing that says which address was this mailbox's. See
- *     OwnAddressHelper.
+ *     one thing that says which address was this mailbox's. A delivery
+ *     header naming the mailbox's own address does not count: some providers
+ *     rewrite Delivered-To to it (#631). See OwnAddressHelper.
  *  4. Delivered-To, X-Original-To, Envelope-To for an alias — the only place
  *     it appears when the user was in Bcc or on a list. Last, because a
  *     forwarding hop rewrites these to an address nobody wrote to.

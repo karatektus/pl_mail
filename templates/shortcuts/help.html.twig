@@ -55,6 +55,17 @@ handled before the controller's switch rather than in it — see #arrow() there.
         [['v'], 'shortcuts.keys.move'],
         [['b'], 'shortcuts.keys.snooze'],
     ] },
+    { title: 'shortcuts.groups.panes', hint: 'shortcuts.groups.panes_hint', rows: [
+        [['Alt', '←↑→↓'], 'shortcuts.keys.pane_focus'],
+        [['Alt', 'Shift', '←↑→↓'], 'shortcuts.keys.pane_move'],
+        [['Alt', '\\'], 'shortcuts.keys.pane_split_right'],
+        [['Alt', '-'], 'shortcuts.keys.pane_split_below'],
+        [['Alt', 'Enter'], 'shortcuts.keys.pane_full_width'],
+        [['Alt', 'w'], 'shortcuts.keys.pane_close'],
+        [['Alt', '1–9'], 'shortcuts.keys.workspace_switch'],
+        [['Alt', 'e'], 'shortcuts.keys.workspace_edit'],
+        [['Alt', 'l'], 'shortcuts.keys.layout_menu'],
+    ] },
     { title: 'shortcuts.groups.conversation', rows: [
         [['u'], 'shortcuts.keys.back'],
         [['j'], 'shortcuts.keys.next_conversation'],

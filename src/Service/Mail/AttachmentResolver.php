@@ -97,9 +97,9 @@ final readonly class AttachmentResolver
         $message      = $part->message;
         $account      = $message->account;
 
-        if ('' === $attachmentId) {
+        if ('' === $attachmentId || null === $account) {
             throw new \RuntimeException(sprintf(
-                'Cannot materialise attachment for part %d: missing attachmentId.',
+                'Cannot materialise attachment for part %d: missing account or attachmentId.',
                 (int) $part->id,
             ));
         }

@@ -168,15 +168,37 @@ final readonly class SyncGmailMessageBatchHandler
         $newlySkipped   = 0;
 
         if (count($fetch['gone']) > 0) {
-            $this->logger->warning('SyncGmailMessageBatch: messages permanently unfetchable, skipping', [
-                'accountId' => $account->id,
-                'gmailIds'  => $fetch['gone'],
-            ]);
+            // NOT FOUND IS NEWS, NOT TROUBLE.
+            //
+            // Gmail names a message in a listing or in its history and has
+            // deleted it by the time it is asked for: every autosave of a draft
+            // written in Gmail is a new message that replaces the last, and
+            // mail a filter or another device deletes on arrival goes the same
+            // way. That came up about twice a day as a warning nobody could act
+            // on, and it looked exactly like a 400 or 401, which is a request
+            // Gmail would not take and is worth looking at. The status is kept
+            // so the two can be told apart, and only the second warns.
+            $notFound = array_filter($fetch['gone'], static fn (int $status): bool => 404 === $status || 410 === $status);
+            $refused  = array_diff_key($fetch['gone'], $notFound);
+
+            if ([] !== $notFound) {
+                $this->logger->info('SyncGmailMessageBatch: messages deleted in Gmail before they were fetched, skipping', [
+                    'accountId' => $account->id,
+                    'gmailIds'  => array_map(strval(...), array_keys($notFound)),
+                ]);
+            }
+
+            if ([] !== $refused) {
+                $this->logger->warning('SyncGmailMessageBatch: messages permanently unfetchable, skipping', [
+                    'accountId' => $account->id,
+                    'statuses'  => $refused,
+                ]);
+            }
 
             // Written down, so the next listing does not name them again. A
             // message Gmail lists and answers 404 for is not going to arrive
             // by being asked for every hour.
-            foreach ($fetch['gone'] as $goneId) {
+            foreach (array_keys($fetch['gone']) as $goneId) {
                 $goneId = (string) $goneId;
 
                 if ('' !== $goneId && false === isset($alreadySkipped[$goneId])) {

@@ -211,6 +211,7 @@ final class RuleCategoryFilerTest extends TestCase
         self::assertSame(CategoryFiling::Filed, $this->file($message, action: ['type' => 'fileInCategory', 'builtIn' => 'updates']));
 
         self::assertSame(MessageCategory::Updates, $message->ruleBuiltinCategory);
+        self::assertSame('Carriers', $message->ruleBuiltinRule?->name, 'the filter is not recorded, so deleting it could not let go of the mail');
         self::assertSame(MessageCategory::Updates, $message->category);
         self::assertSame(MessageCategory::Updates, $message->thread->category);
         self::assertNull($message->thread->userCategory);

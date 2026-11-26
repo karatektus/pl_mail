@@ -322,6 +322,8 @@ framework:
             App\Infrastructure\Messaging\Message\ImportContactsMessage: bulk
             App\Infrastructure\Messaging\Message\ImportCalendarMessage: bulk
             App\Infrastructure\Messaging\Message\ResortRemovedCategoryMessage: bulk
+            # And mail a deleted or changed filter held in a built-in tab (#762).
+            App\Infrastructure\Messaging\Message\RecategoriseMessagesMessage: bulk
             # And so is filing a label's mail into the folder it has just become.
             App\Infrastructure\Messaging\Message\MakeLabelFolderMessage: bulk
             App\Infrastructure\Messaging\Message\MakeLabelTagMessage: bulk
@@ -482,6 +484,9 @@ framework:
             # every failure worth retrying is a third-party rate limit that
             # takes minutes to clear.
             App\Infrastructure\Messaging\Message\SyncCalendarMessage: ingest
+            # A read of the server like the one above, and on its queue for the
+            # same reason.
+            App\Infrastructure\Messaging\Message\SyncTaskListMessage: ingest
             # Same queue and the same reasoning as SyncCalendarMessage: the sweep
             # and a book's first sync are reads of the server, minutes long on a
             # big book, and nobody waits on them.

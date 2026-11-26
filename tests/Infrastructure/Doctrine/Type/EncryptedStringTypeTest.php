@@ -9,6 +9,7 @@ use App\Infrastructure\Encryption\Encryptor;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Types\ConversionException;
+use Doctrine\DBAL\Types\Type;
 use PHPUnit\Framework\TestCase;
 
 final class EncryptedStringTypeTest extends TestCase
@@ -20,11 +21,13 @@ final class EncryptedStringTypeTest extends TestCase
     {
         $this->platform = new PostgreSQLPlatform();
 
-        // Built directly rather than through the static type registry, whose
-        // lookups DBAL 4.6 deprecates in favour of the connection's own type
-        // provider. A unit test has no connection, and the registration itself
-        // is config (doctrine.yaml, dbal.types), which the kernel tests cover.
-        $this->type = new EncryptedStringType();
+        if (false === Type::hasType(EncryptedStringType::NAME)) {
+            Type::addType(EncryptedStringType::NAME, EncryptedStringType::class);
+        }
+
+        $type = Type::getType(EncryptedStringType::NAME);
+        self::assertInstanceOf(EncryptedStringType::class, $type);
+        $this->type = $type;
 
         EncryptedStringType::setEncryptor(
             new Encryptor(base64_encode(sodium_crypto_secretbox_keygen())),

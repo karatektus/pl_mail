@@ -98,6 +98,11 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // should not hold up mail.
                 RecurringMessage::cron('7-59/15 * * * *', new RunCommandMessage('app:calendar:sync --stale')),
 
+                // Task lists keep their own tokens, and so their own sweep. Off
+                // the calendar's minute, as that one is off the mail's: they
+                // share a worker, and a full read should not wait behind another.
+                RecurringMessage::cron('13-59/15 * * * *', new RunCommandMessage('app:tasks:sync --stale')),
+
                 // The same polling for CardDAV address books, which have no
                 // push mechanism at all. Offset again, off both sweeps above,
                 // for the same shared-worker reason.
@@ -129,6 +134,9 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // Cheap when nothing is due: the candidate query is bounded on
                 // starts_at and asks for a jsonb key most events do not have.
                 RecurringMessage::cron('* * * * *', new RunCommandMessage('app:calendar:alerts')),
+
+                // The same bound on lateness, for the same one indexed query.
+                RecurringMessage::cron('* * * * *', new RunCommandMessage('app:tasks:alerts')),
 
                 // The sweep two docblocks already claimed was running. An
                 // event's occurrences are drawn when it is saved and the window

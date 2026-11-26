@@ -60,10 +60,14 @@ enum PromptSlot: string
     /** Decide which tab a message that no rule recognised belongs in. */
     case Categorise = 'categorise';
 
+    /** Translate one message into the reader's language. */
+    case Translation = 'translation';
+
     /**
-     * The rule appended to every prompt above except categorisation.
+     * The rule appended to every prompt above except categorisation and
+     * translation.
      *
-     * Last in the list because it is read last on the page: the six above are
+     * Last in the list because it is read last on the page: the seven above are
      * jobs, and this is the sentence all of them carry. See
      * {@see \App\Service\Ai\PromptLibrary::forTask()} for the append, which is
      * structural and is not something an administrator can remove — emptying
@@ -90,8 +94,9 @@ enum PromptSlot: string
             self::Formal     => WritingTask::Formal->shippedPrompt(),
             self::Proofread  => WritingTask::Proofread->shippedPrompt(),
             self::Summary    => PromptRules::SUMMARY,
-            self::Categorise => PromptRules::CATEGORISE,
-            self::Language   => PromptRules::LANGUAGE,
+            self::Categorise  => PromptRules::CATEGORISE,
+            self::Translation => PromptRules::TRANSLATION,
+            self::Language    => PromptRules::LANGUAGE,
         };
     }
 }

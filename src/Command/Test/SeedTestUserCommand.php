@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
-use App\Domain\Enum\Calendar\CalendarPaneMode;
+use App\Domain\DTO\Layout\LayoutNode;
+use App\Domain\DTO\Layout\Workspace;
+use App\Domain\DTO\Layout\Workspaces;
+use App\Domain\Enum\Layout\PaneKind;
 use App\Entity\User\User;
 use App\Repository\User\User\UserRepository;
 use App\Security\PasswordKdf;
@@ -167,7 +170,11 @@ final class SeedTestUserCommand extends Command
         // until row actions are display:none, which fails as missing buttons
         // rather than as a layout. SeedTestEmailCommand puts the same furniture
         // back on every mail seed; this covers the specs that never seed mail.
-        $user->calendarPaneMode = CalendarPaneMode::Mail;
+        // Since #755 the furniture is a workspace: the mail list alone, under a
+        // fresh id (see SeedTestEmailCommand for why).
+        $user->setSetting(User::SETTING_WORKSPACES, (new Workspaces([
+            new Workspace('e2e' . bin2hex(random_bytes(4)), 'Mail', LayoutNode::pane(PaneKind::List)),
+        ], 0))->toArray());
 
         $this->entityManager->flush();
 

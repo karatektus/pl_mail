@@ -12,7 +12,7 @@ import { requestFailed } from "../../request_errors.js";
  * that it acts when you click it.
  *
  * The body is FormData with a `_token` field rather than JSON with the shared
- * `ajax` header, matching how ui--split posts the pane width: the token is
+ * `ajax` header, matching how ui--sidebar-split posts the sidebar's width: the token is
  * minted for one action and travels as a Stimulus value from the template, so
  * one endpoint's token is not good for every other endpoint.
  *

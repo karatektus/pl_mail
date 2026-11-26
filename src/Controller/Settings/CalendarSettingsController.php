@@ -20,6 +20,7 @@ use App\Repository\Integration\Integration\IntegrationRepository;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\Subscription\CalDavConnector;
+use App\Service\Layout\WorkspaceScope;
 use App\Service\Calendar\Subscription\CalendarDiscoverer;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
 use App\Service\Calendar\Subscription\CalendarSubscriber;
@@ -92,6 +93,7 @@ final class CalendarSettingsController extends AbstractController
         private readonly MessageBusInterface    $bus,
         private readonly EntityManagerInterface $em,
         private readonly PushTeardown           $pushTeardown,
+        private readonly WorkspaceScope         $workspaceScope,
     ) {
     }
 
@@ -104,6 +106,7 @@ final class CalendarSettingsController extends AbstractController
         $form = $this->createForm(CalendarType::class, $calendar, [
             'action'     => $this->generateUrl('app_settings_calendar_new'),
             'owner_zone' => $this->timezones->nameFor($user),
+            ...$this->workspaceOptions($user, $calendar),
         ]);
 
         $form->handleRequest($request);
@@ -111,6 +114,7 @@ final class CalendarSettingsController extends AbstractController
         if (true === $form->isSubmitted() && true === $form->isValid()) {
             $this->em->persist($calendar);
             $this->em->flush();
+            $this->placeInWorkspace($user, $calendar, $form);
 
             return $this->calendarListStream('calendar.toast.created');
         }
@@ -126,11 +130,13 @@ final class CalendarSettingsController extends AbstractController
         $form = $this->createForm(CalendarType::class, $calendar, [
             'action'     => $this->generateUrl('app_settings_calendar_edit', ['id' => $calendar->id]),
             'owner_zone' => $this->timezones->nameFor($calendar->usr),
+            ...$this->workspaceOptions($this->currentUser(), $calendar),
         ]);
 
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
+            $this->placeInWorkspace($this->currentUser(), $calendar, $form);
             $this->em->flush();
 
             return $this->calendarListStream('calendar.toast.updated');
@@ -535,6 +541,36 @@ final class CalendarSettingsController extends AbstractController
             'calendarAccounts'    => $this->sources->accountsFor($user),
             'calendarConnections' => $this->sources->connectionsFor($user),
         ];
+    }
+
+    /**
+     * The workspace field's choices for a calendar without an account (#783).
+     * A new calendar has no id yet and is offered the first workspace.
+     *
+     * @return array{workspaces: array<string, string>, workspace: string|null}
+     */
+    private function workspaceOptions(User $user, Calendar $calendar): array
+    {
+        $options = $this->workspaceScope->placeChoices($user, $calendar);
+
+        if ([] !== $options['workspaces'] && null === $options['workspace']) {
+            $options['workspace'] = (string) array_values($options['workspaces'])[0];
+        }
+
+        return $options;
+    }
+
+    /** Store the workspace a calendar without an account was put in. */
+    private function placeInWorkspace(User $user, Calendar $calendar, FormInterface $form): void
+    {
+        if (false === $form->has('workspace')) {
+            return;
+        }
+
+        $chosen = $form->get('workspace')->getData();
+
+        $this->workspaceScope->place($user, $calendar, is_string($chosen) ? $chosen : null);
+        $this->em->flush();
     }
 
     /**

@@ -24,6 +24,7 @@ use App\Repository\Rule\MailRule\MailRuleRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Rule\FilterDescriber;
 use App\Service\Rule\RuleActionExecutor;
+use App\Service\Rule\RuleBuiltinTabReleaser;
 use App\Service\Rule\RuleDraftFromMessage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -67,6 +68,7 @@ final class MailRuleController extends AbstractController
         private readonly MessageBusInterface    $bus,
         private readonly FilterDescriber        $describer,
         private readonly RuleDraftFromMessage   $draftFromMessage,
+        private readonly RuleBuiltinTabReleaser $builtinTabs,
     ) {}
 
     /**
@@ -209,6 +211,10 @@ final class MailRuleController extends AbstractController
 
         $this->em->flush();
 
+        // A filter that no longer files into the built-in tab it did lets go
+        // of the mail it put there (#762). Nothing to let go of for a new one.
+        $this->builtinTabs->releaseChanged($rule);
+
         return $this->listStream('settings.filters.saved');
     }
 
@@ -217,6 +223,9 @@ final class MailRuleController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $rule);
         $this->assertCsrf($request, 'mail_rule_delete' . $rule->id);
+
+        // Before the delete, while the mail still names the filter (#762).
+        $this->builtinTabs->releaseDeleted($rule);
 
         $this->em->remove($rule);
         $this->em->flush();
@@ -326,14 +335,14 @@ final class MailRuleController extends AbstractController
      */
     private function editor(MailRule $rule, array $errors = [], ?Request $request = null, int $status = Response::HTTP_OK): Response
     {
-        $categories = $this->categoryRepository->findForUserOrdered($this->getUser());
-        $user       = $this->getUser();
+        $user = $this->getUser();
 
         if (false === $user instanceof User) {
             throw $this->createAccessDeniedException();
         }
 
-        $sorting = $user->categorySorting;
+        $categories = $this->categoryRepository->findForUserOrdered($user);
+        $sorting    = $user->categorySorting;
 
         return $this->render('settings/filters/_editor.html.twig', [
             'rule' => $rule,

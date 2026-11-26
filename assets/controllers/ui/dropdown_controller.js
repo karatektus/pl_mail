@@ -40,6 +40,10 @@ import { liftAbove, visible } from "../../place_above.js";
  * `auto`: closing stays this controller's (outside click, Escape), and auto's
  * light dismiss would eat the first click inside the menu.
  *
+ * `data-ui--dropdown-place-value="below"` lifts it the same way but under
+ * the button, right edges lined up: a pane header's menu, which the pane's
+ * own clipping would otherwise cut off (#783).
+ *
  * openAt(anchor) opens it over another element: the compose window's ⋮ menu
  * when the button itself has been folded into it (compose--action-overflow).
  */
@@ -86,7 +90,7 @@ export default class extends Controller {
     open() {
         this.menuTarget.hidden = false;
 
-        if ("above" === this.placeValue) {
+        if ("above" === this.placeValue || "below" === this.placeValue) {
             this._lift();
         }
 
@@ -120,6 +124,7 @@ export default class extends Controller {
         this._unlift = liftAbove(
             this.menuTarget,
             () => visible(this._anchor) ?? visible(this.element.querySelector("button")) ?? this.element,
+            "below" === this.placeValue ? { side: "below", align: "end" } : {},
         );
     }
 

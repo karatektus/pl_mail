@@ -21,8 +21,9 @@ class UnifiedInboxAccountRepository extends ServiceEntityRepository
     }
 
     /**
-     * Every account of the reader's with the inbox it is assigned to, or null
-     * for one that never was: account id => [inbox id or null, switched on].
+     * Every account of the reader's with the groups it is in — none for one
+     * that was never put anywhere, which is in the first by rule (#783: an
+     * account may be in several): account id => [group ids, switched on].
      *
      * One read for both, because both are asked on every sidebar render — the
      * accounts to know what an unassigned one is, the assignments to know
@@ -30,7 +31,7 @@ class UnifiedInboxAccountRepository extends ServiceEntityRepository
      * list and a lookup table, and hydrating every account to read its id
      * would be a heavier version of the same query.
      *
-     * @return array<int, array{inbox: int|null, active: bool}>
+     * @return array<int, array{inboxes: list<int>, active: bool}>
      */
     public function inboxesByAccount(UserInterface $user): array
     {
@@ -48,10 +49,13 @@ class UnifiedInboxAccountRepository extends ServiceEntityRepository
         $map = [];
 
         foreach ($rows as $row) {
-            $map[(int) $row['accountId']] = [
-                'inbox'  => null === $row['inboxId'] ? null : (int) $row['inboxId'],
-                'active' => true === (bool) $row['active'],
-            ];
+            $id = (int) $row['accountId'];
+
+            $map[$id] ??= ['inboxes' => [], 'active' => true === (bool) $row['active']];
+
+            if (null !== $row['inboxId']) {
+                $map[$id]['inboxes'][] = (int) $row['inboxId'];
+            }
         }
 
         return $map;

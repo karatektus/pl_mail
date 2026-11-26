@@ -24,7 +24,9 @@ use Psr\Log\LoggerInterface;
  * for a built-in, which MessageCategorizer reads first so that no re-sort
  * undoes it. Filing under a built-in clears the reader's own category off the
  * message, or that tab would go on winning; filing under the reader's own
- * leaves a built-in a filter chose as the category underneath it.
+ * leaves a built-in a filter chose as the category underneath it. The filter
+ * is recorded beside its built-in tab, so that deleting or changing it lets go
+ * of that mail again (RuleBuiltinTabReleaser).
  *
  * A FILTER IS THE LAST WORD
  * ─────────────────────────
@@ -78,6 +80,7 @@ final readonly class RuleCategoryFiler
 
         if ($category instanceof MessageCategory) {
             $message->ruleBuiltinCategory = $category;
+            $message->ruleBuiltinRule     = $rule;
             $message->ruleCategory        = null;
             // Recomputed rather than set: the reader may have switched this
             // tab off, and the categorizer is what knows that. No

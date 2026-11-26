@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Service\Mail\UnifiedInboxes;
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\ConnectionTestResult;
 use App\Domain\Enum\Account\AccountService;
@@ -57,6 +58,7 @@ final class AccountController extends AbstractController
         private readonly AccountCreator $accountCreator,
         private readonly AccountRemoval $accountRemoval,
         private readonly AccountRemovalState $removalState,
+        private readonly UnifiedInboxes $unifiedInboxes,
     ) {
     }
 
@@ -71,12 +73,23 @@ final class AccountController extends AbstractController
         if (true === $form->isSubmitted() && true === $form->isValid()) {
             $this->accountCreator->create($account, $this->getUser());
 
+            // The groups ticked on the form (#783), when it showed them.
+            $user = $this->getUser();
+
+            if ($request->request->has('account_groups_shown') && $user instanceof User) {
+                $this->unifiedInboxes->placeNew($user, $account, $request->request->all('account_groups'));
+            }
+
             return $this->streamAccountList($request, 'account.added');
         }
 
+        $user = $this->getUser();
+
         return $this->render('account/_form_modal.html.twig', [
-            'title' => 'New Account',
-            'form'  => $form,
+            'title'      => 'New Account',
+            'form'       => $form,
+            'groups'     => $user instanceof User ? $this->unifiedInboxes->all($user) : [],
+            'firstGroup' => $user instanceof User ? $this->unifiedInboxes->first($user) : null,
         ]);
     }
 
@@ -162,7 +175,7 @@ final class AccountController extends AbstractController
      * on an account added to send through a relay: the page links to the
      * account form for that one.
      */
-    #[Route('/{id}/service/{service}', name: 'service', requirements: ['service' => 'mail|send|calendar|contacts'], methods: ['POST'])]
+    #[Route('/{id}/service/{service}', name: 'service', requirements: ['service' => 'mail|send|calendar|contacts|tasks'], methods: ['POST'])]
     public function service(Request $request, Account $account, string $service, AccountServiceSwitch $switch): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
@@ -173,6 +186,10 @@ final class AccountController extends AbstractController
 
         $which   = AccountService::from($service);
         $enabled = true === $request->request->getBoolean('enabled');
+
+        if (true === $enabled && false === $account->offers($which)) {
+            throw new BadRequestHttpException('This account cannot be used for that service.');
+        }
 
         if (true === $enabled && true === $switch->needsConsent($account, $which)) {
             throw new BadRequestHttpException('The account\'s grant does not cover this service; reconnect to allow it.');

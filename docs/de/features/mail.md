@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:68543952cd6565e2d2901fa41ea4d559e55bc480 -->
+<!-- translated-from: features/mail.md sha1:0525586ed3332ac62f0a44fb5311e7d3adad6d04 -->
 
 # Mail
 
@@ -125,27 +125,28 @@ Werkzeugleiste blättern.
 ### Mehrere Posteingänge
 
 Ein **Posteingang** über alle Konten ist der Anfang für alle. Willst du Arbeit und Privates getrennt
-lesen, legt **Einstellungen → Sammel-Posteingänge** weitere an: einen hinzufügen, ihm Namen und
-Symbol geben und unter **Konten** wählen, in welchem Posteingang die Mail jedes Kontos erscheint.
-Jeder Posteingang ist eine eigene Zeile in der Seitenleiste, in der Reihenfolge, in die du sie
-ziehst, mit eigenem Ungelesen-Zähler, eigenem „Neu“-Punkt und eigenen Tabs — die Tabs eines
-Posteingangs zählen nur die Mail seiner Konten, und **Alle auswählen** reicht darin nicht weiter.
-Der erste Posteingang ist der, den die einfache **Posteingang**-Adresse öffnet, und ein neues Konto
-landet dort, bis du es verschiebst.
+lesen, legt **Einstellungen → Posteingang → Kontogruppen** weitere an: eine Gruppe hinzufügen, ihr
+Namen und Symbol geben und mit **+ Konto hinzufügen** Konten hineinlegen. Jede Gruppe ist eine eigene
+Posteingangszeile in der Seitenleiste, in der Reihenfolge, in die du sie ziehst, mit eigenem
+Ungelesen-Zähler, eigenem „Neu“-Punkt und eigenen Tabs — die Tabs einer Gruppe zählen nur die Mail
+ihrer Konten, und **Alle auswählen** reicht darin nicht weiter. Die erste Gruppe ist die, die die
+einfache **Posteingang**-Adresse öffnet, und ein neues Konto landet dort, es sei denn, du hakst beim
+Hinzufügen andere Gruppen an. Gruppen sind auch das, was ein [Arbeitsbereich](workspaces.md) zeigt.
 
-Ein Konto ist immer in genau einem Posteingang. Nimmst du eines aus all deinen heraus, landet es in
-**Sonstige**, einem Posteingang, den plMail genau dafür bereithält, damit es weiter nur einen Klick
-entfernt ist. Sonstige erscheint in der Seitenleiste nur, solange es ein eingeschaltetes Konto
-enthält; du kannst es umbenennen, ihm ein anderes Symbol geben und es verschieben wie die anderen,
-aber nicht löschen. Löschst du einen eigenen Posteingang, wandern seine Konten ebenfalls dorthin —
-in keinem Fall wird Mail gelöscht, ein Posteingang ist nur eine Art, sie aufzulisten. Lässt du den
-Namen leer, heißt der Posteingang in deiner Sprache **Posteingang** (oder **Sonstige**).
+Ein Konto kann in mehreren Gruppen sein. Nimmst du es aus seiner letzten heraus, landet es in
+**Sonstige**, dem Rest: den Konten, die in keiner deiner eigenen Gruppen sind. In Sonstige kannst du
+kein Konto legen und sie nicht umbenennen; legst du ein Konto in eine deiner Gruppen, verlässt es
+Sonstige. Sonstige erscheint in der Seitenleiste nur, solange sie ein eingeschaltetes Konto enthält;
+du kannst ihr ein anderes Symbol geben und sie verschieben, aber nicht löschen. Löschst du eine
+eigene Gruppe, wandern die Konten, die in keiner anderen Gruppe sind, nach Sonstige — in keinem Fall
+wird Mail gelöscht, eine Gruppe ist nur eine Art, sie aufzulisten. Lässt du den Namen leer, heißt die
+Gruppe in deiner Sprache **Posteingang**.
 
-**Ungelesen**, **Markiert**, **Zurückgestellt** und die übrigen Systemzeilen reichen weiterhin über
-alle Konten, und der Browser-Tab zählt den Posteingang, den du offen hast. Jedes Konto behält unter
-**Konten** seinen eigenen Posteingang. Eine Konfigurationssicherung enthält die Posteingänge und
-welches Konto in welchem liegt. Apps auf dem Telefon können sie über JMAP lesen (`UnifiedInbox/get`);
-angeordnet werden sie nur hier.
+**Ungelesen**, **Markiert**, **Zurückgestellt** und die übrigen Systemzeilen reichen über alle Konten,
+es sei denn, ein Arbeitsbereich beschränkt sie auf seine Gruppen, und der Browser-Tab zählt den
+Posteingang, den du offen hast. Jedes Konto behält unter **Konten** seinen eigenen Posteingang. Eine
+Konfigurationssicherung enthält die Gruppen und welche Konten in jeder sind. Apps auf dem Telefon
+können sie über JMAP lesen (`UnifiedInbox/get`); angeordnet werden sie nur hier.
 
 ## Tabs
 
@@ -254,7 +255,7 @@ Die fünf sind das, was plMail zu erkennen weiß. Willst du einen Tab für etwas
 erkennen kann — Pakete, Belege, die Mail eines Kunden —, leg ihn unten auf der Karte **Tabs** unter
 **Einstellungen → Kategorien** an: ein Name, sonst nichts. Er steht am Ende der Leiste, bis du ihn
 verschiebst. Ein eigener Tab enthält nichts, bis ein
-[Filter](filters.md#in-eigene-tabs-ablegen), dessen Aktion **In Kategorie ablegen** ist, Mail
+[Filter](filters.md#in-einen-tab-ablegen), dessen Aktion **In Kategorie ablegen** ist, Mail
 hineinlegt, und wie die anderen erscheint er im Posteingang nur, solange er Mail enthält. Ein Filter
 legt auch Gmail-Mail ab: Googles Kategorien haben Vorrang vor plMails eigener Sortierung, solange du
 nichts anderes sagst, aber einen Filter hast du selbst geschrieben, und er hat Vorrang vor beiden.
@@ -664,6 +665,47 @@ löst das nicht aus — nur die Nachrichten selbst.
 
 Es ist die Darstellung eines Modells, nicht die Mail. Die Zeile darunter sagt das, und die
 Nachrichten stehen direkt darunter.
+
+### Eine Nachricht übersetzen
+
+Wo die Administration das Übersetzen eingeschaltet hat, steht im **⋮**-Menü einer Nachricht
+**Übersetzen**. Damit wird diese eine Nachricht in deine Sprache übersetzt: in die Sprache, in der
+plMail läuft, oder in die, die du unter **Einstellungen → Assistent → Übersetzen in** gewählt hast —
+dort gibt es viel mehr Sprachen als Oberflächen von plMail. Übersetzt wird erst, wenn du darum bittest.
+
+Die Übersetzung tritt an die Stelle der Nachricht, auf einem Blatt mit gestricheltem violettem Rand
+und einem Etikett **KI-Übersetzung** an der Ecke, damit sie nie für das gehalten wird, was der
+Absender geschrieben hat. Zeigst du auf das Blatt, nennt es das Modell, das übersetzt hat. Darüber,
+unter dem Absender, steht ein Schalter **Original · Deutsch** und **Englisch · KI**: Die gedrückte
+Hälfte ist die, die du liest, und ein Klick auf die andere schaltet um, so oft du willst. Die Sprache
+der Nachricht ist die, die das Modell beim Übersetzen nennt; nennt es keine, steht im Schalter nur
+**Original**. Die Übersetzung kommt Stück für Stück an; wie
+lange das dauert, hängt von der Maschine ab, auf der das Modell läuft, und auf einer ohne
+Grafikkarte braucht eine lange Nachricht Minuten. Du musst nicht warten: Verlässt du die Nachricht,
+wird sie trotzdem fertig übersetzt und öffnet sich beim nächsten Mal übersetzt.
+
+Einmal geschrieben, wird die Übersetzung aufbewahrt, und die Nachricht öffnet sich ohne Wartezeit als
+Übersetzung. Ändert sich die Nachricht selbst danach, sagt das Blatt das, und neben dem Schalter
+erscheint **Noch einmal übersetzen**.
+
+Eine Nachricht, die schon in deiner Sprache ist, wird nicht übersetzt: Das Modell hört auf, sobald
+es die Sprache genannt hat, eine Zeile unter dem Absender sagt, dass es nichts zu übersetzen gibt,
+und die Nachricht bleibt, wie sie ist. Auch das wird aufbewahrt, eine neue Anfrage kostet also nichts.
+
+Geschickt wird der eigene Text der Nachricht, als reiner Text:
+
+- **Ohne die früheren Nachrichten, die sie zitiert.** Die hast du schon, jede lässt sich für sich
+  übersetzen, und sie jedes Mal mitzuschicken, würde jede Antwort in einem langen Gespräch langsamer
+  machen. Das Blatt sagt, wenn etwas weggelassen wurde. Eine Weiterleitung ohne eigenen Text wird
+  ganz geschickt.
+- **Bis etwa 6.000 Zeichen.** Eine längere Nachricht wird von ihrem Anfang her übersetzt, und das
+  Blatt sagt das.
+
+Die Übersetzung ist reiner Text: Layout, Bilder und Links bleiben im Original. Antworten und
+Weiterleiten zitieren immer das Original, nie die Übersetzung.
+
+Es ist die Übersetzung eines Modells, und kleine Modelle machen Fehler, die sich gut lesen — ein
+Wochentag, eine Zahl, ein Name. Wo es darauf ankommt, sieh ins Original oder frag beim Absender nach.
 
 ## Labels
 
@@ -1106,19 +1148,19 @@ Papierkorb nicht, und `#` tut dort nichts; die Flamme mit ihrer Frage ist der ei
 eine Auswahl zu löschen. Ist sie aus, funktioniert `#` im Spam wie überall sonst und tut im
 Papierkorb nichts, der kein **Löschen** hat.
 
-## Der Lesebereich
+## Die Nachricht neben der Liste
 
-**Einstellungen → Lesen & Schreiben → Lesen** legt fest, wohin die Nachricht kommt, die du öffnest: **Aus** oder
-**Rechts**. Aus
-ist, wie plMail immer funktioniert hat — Liste und geöffnete Nachricht wechseln sich auf derselben
-Fläche ab, und der Zurück-Pfeil bringt dich zur Liste. Rechts stellt die Nachricht neben die Liste,
-sodass du eine Unterhaltung lesen und den Rest des Postfachs gleichzeitig sehen kannst. Aus ist die
-Voreinstellung, und an deinem Postfach ändert sich nichts, bis du Rechts wählst.
+Wohin eine geöffnete Unterhaltung kommt, hängt von deinem Arbeitsbereich ab (siehe
+[Arbeitsbereiche](workspaces.md)). Ist ein Bereich **Nachricht** darin, öffnet sie sich dort, neben
+oder unter der Liste, sodass du eine Unterhaltung lesen und gleichzeitig den Rest des Postfachs sehen
+kannst. Ohne ihn wechseln sich die Liste und die geöffnete Nachricht auf demselben Platz ab, und der
+Zurück-Pfeil bringt dich zur Liste zurück — so, wie plMail immer funktioniert hat, und so, wie es ein
+Telefon oder ein Fenster unter 1024 Pixeln Breite unabhängig vom Arbeitsbereich macht.
 
-Steht der Lesebereich rechts, bleibt die Liste beim Öffnen stehen, wo sie ist. Die geöffnete Zeile
-ist mit einem Farbton und einem Balken an der vorderen Kante markiert, und der Bereich neben der
-Liste sagt *Wähle eine Unterhaltung aus, um sie hier zu lesen*, bis du eine öffnest. Der
-Zurück-Pfeil schließt die Nachricht und lässt die Liste, wie sie war.
+Mit einem Bereich Nachricht bleibt die Liste beim Öffnen stehen, wo sie ist. Die geöffnete Zeile ist
+mit einem Farbton und einem Balken an der vorderen Kante markiert, und der Bereich Nachricht sagt
+*Wähle eine Unterhaltung aus, um sie hier zu lesen*, bis du eine öffnest. Der Zurück-Pfeil schließt
+die Nachricht und lässt die Liste, wie sie war.
 
 Die geöffnete Nachricht bleibt auch stehen, während du dich in der Liste bewegst. Wählst du einen
 anderen Ordner, wechselst du den Kategorie-Tab, blätterst um, sortierst oder suchst, ändert sich,
@@ -1126,33 +1168,12 @@ was die Liste zeigt, und die Konversation, die du gerade liest, bleibt, wo sie i
 der nächsten suchen kannst, ohne diese zu verlieren. Solange die Liste einen Ordner zeigt, in dem die
 Nachricht nicht liegt, ist keine Zeile markiert, und die Markierung kommt zurück, wenn du in ihren
 Ordner zurückkehrst. Der Zurück-Pfeil schließt die Nachricht dann und lässt dich in dem Ordner, zu dem
-du gewechselt hast. Bei einem Bereich nach dem anderen (siehe unten) hat die Nachricht die Liste
-verdeckt, deshalb schließt die Wahl eines Ordners sie und zeigt die neue Liste, wie es immer war.
+du gewechselt hast. Bei einem Bereich nach dem anderen hat die Nachricht die Liste verdeckt, deshalb
+schließt die Wahl eines Ordners sie und zeigt die neue Liste, wie es immer war.
 
-**Der Trenner** dazwischen wird mit der Maus gezogen, oder mit den Pfeiltasten bewegt, sobald er den
-Fokus hat (zwei Prozent pro Schritt; Pos1 und Ende springen an die Enden). Ein Doppelklick setzt ihn
-auf die Voreinstellung zurück. Gespeichert wird der Anteil der Nachricht an der **Postfachkarte** —
-Liste und Nachricht zusammen, ohne Seitenleiste und ohne angedockten Kalender — als Prozentwert
-zwischen 25 und 75, anfangs 55. Es ist ein Prozentwert und keine Breite in Pixeln, weil sich die
-Karte jedes Mal ändert, wenn der Kalenderbereich geöffnet, geschlossen oder gezogen wird, und ein
-Anteil in all diesen Fällen seine Bedeutung behält. Er wird für dein Konto gespeichert, nicht für den
-Browser. Du stellst ihn im Postfach selbst ein, an echter Post, und in den Einstellungen gibt es
-dafür keinen Regler.
-
-**Er weicht aus, wenn der Platz fehlt.** Rechts ist eine Vorliebe, kein Versprechen: gezeichnet wird
-es nur, solange die Postfachkarte mindestens 52rem breit ist (832 Pixel bei der Standardschrift-
-größe). Ein schmales Fenster, ein Telefon oder ein breites Fenster mit angedocktem Kalender neben
-der Post fallen auf ein Fenster nach dem anderen zurück, ohne dass du etwas umstellen musst. Jeder
-Bereich behält außerdem eine Mindestbreite, sodass 75 % auf einer gerade eben breiten Karte nachgeben,
-bevor die Liste zum Streifen wird.
-
-Der Lesebereich gehört nicht zu einem exportierten Farbschema, obwohl er verändert, wie das Postfach
-aussieht: Wo eine Nachricht gezeichnet wird, ist eine Entscheidung über das Postfach und nicht Teil
-eines Erscheinungsbilds, das jemand teilen könnte, und ein importiertes Farbschema ordnet die Post,
-in der es landet, nicht um. **Auf Standard zurücksetzen** auf der Seite Darstellung lässt ihn aus
-demselben Grund in Ruhe.
-Eine Konfigurationssicherung enthält ihn dagegen, sodass eine Wiederherstellung das Postfach so
-zurückbringt, wie du es eingerichtet hattest.
+Öffnest du eine Unterhaltung über ihre eigene Adresse — ein Lesezeichen, einen Link —, während ein
+Bereich Nachricht im Arbeitsbereich ist, steht der Posteingang daneben, mit der Unterhaltung
+markiert, wenn sie auf dieser Seite ist.
 
 **Tasten und angehakte Zeilen.** Neben der Liste können eine Auswahl und eine geöffnete
 Unterhaltung gleichzeitig zu sehen sein. Eine Taste gilt trotzdem zuerst der Auswahl: `e` mit zwei

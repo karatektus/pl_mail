@@ -49,6 +49,9 @@ account:
             username: "Name fer sendin'"
             username_help: "Leave it bare t' sail under th' name above."
         username: Name ye go by
+    groups:
+        help: "Where its letters be listed, an’ which berths show it. None ticked puts it in the catch-all fleet."
+        legend: "Fleets"
     mail_purge_queued: 'Heavin’ this ship’s letters out o’ plMail. The far port keeps its copy.'
     oauth:
         calendar_declined: The account be aboard, but ye never granted the almanac — so its calendars will not sync. Sign in again and tick the calendar box when Google asks.
@@ -58,6 +61,7 @@ account:
         services:
             help: 'The next screen only asks for what ye tick. Ye can change it later under Settings → Accounts.'
             legend: 'Sail this ship for'
+            tasks_microsoft: '(Microsoft To Do)'
     primary_set: A new flagship be named
     removal_started: 'Scuttlin’ this ship. Her letters go overboard below decks; the far port keeps its copy.'
     removed: Crew member put ashore
@@ -68,6 +72,9 @@ account:
         contacts:
             off: 'Crew roster be lashed shut'
             on: 'Crew roster be open again'
+        tasks:
+            off: 'Tasks struck'
+            on: 'Tasks hoisted'
         mail:
             off: 'Receivin’ becalmed. What’s aboard stays aboard.'
             on: 'Receivin’ under way'
@@ -203,6 +210,8 @@ admin:
             base_url: "Oracle's berth"
             contact_help: 'Crew roster help'
             contact_help_help: 'Reads a shipmate out o’ pasted text, an’ suggests fixes from the signature o’ their latest letter. Uses the writin’ model, an’ sends it that text.'
+            translation: "Turnin' a letter into yer tongue"
+            translation_help: "Uses the writin' model, an' sends it the letter. Th' answer be as long as th' letter, so on a berth without a GPU a long one takes minutes."
             embedding_base_url: "Searcher's berth"
             embedding_own: 'The searcher sails from another berth'
             embedding_own_help: "For keepin' the search model somewhere other than the scrivener: a hired oracle for writin' an' a small one at home for searchin', or t'other way about. Ev'ry message goes to the searcher's berth once to be charted. If the search model bears the same name there, the old chart be kept."
@@ -219,7 +228,7 @@ admin:
             chat_keep_alive: "Keep the scrivener aboard for"
             chat_keep_alive_help: "5m, 30m, 4h, or a plain count o' seconds. -1 keeps it aboard for good, 0 puts it ashore after ev'ry errand. Longer means the first reply comes quicker — but the berth stays taken the whole while. Leave it empty to sail by whatever the host itself says."
             chat_model: 'Scrivener model'
-            chat_model_help: "For replies, summaries an' sortin'. Somethin' instruction-tuned."
+            chat_model_help: "For replies, summaries, translations an' sortin'. Somethin' instruction-tuned."
             embedding_keep_alive: "Keep the diviner aboard for"
             embedding_keep_alive_help: "Same shape as above. This one be small an' called for constantly, so -1 — aboard for good — mostly costs barely a crumb an' spares a wait on ev'ry search; worth settin' if the host has the hold to spare. Leave it empty to sail by whatever the host itself says."
             embedding_model: "Divinin' model"
@@ -264,6 +273,7 @@ admin:
                 warm: 'Aboard'
             feature:
                 thread_summary: 'Yarns-in-short'
+                message_translation: "Translatin'"
                 categorise: "Sortin' mail"
                 mail_index: "Chartin' mail"
                 search_query: 'Search'
@@ -331,7 +341,7 @@ admin:
                 hint: 'Used when someone asks for the same message in a statelier tone.'
                 label: 'Make it statelier'
             language:
-                hint: "Hung on the end o' ev'ry order above, save the sortin'. 'Tis what makes a German letter get a German answer — without it the oracle follows the English these orders be writ in, an' proofreadin' a German draft turns it English. Ye may reword her; ye cannot cast her overboard. Empty the box an' the shipped words come back."
+                hint: "Hung on the end o' ev'ry order above, save the sortin' an' the translatin'. 'Tis what makes a German letter get a German answer — without it the oracle follows the English these orders be writ in, an' proofreadin' a German draft turns it English. Ye may reword her; ye cannot cast her overboard. Empty the box an' the shipped words come back."
                 label: "Answer in the tongue o' the letter"
             proofread:
                 hint: "Used when someone asks for spellin' an' grammar mended an' nowt else. Keep \"change nowt else\" in it — without that the oracle rewrites lines that were already sound."
@@ -345,13 +355,16 @@ admin:
             summary:
                 hint: "Used by the yarn button in the readin' pane. Change this an' ev'ry yarn already writ be stale — nowt goes overboard, they be writ anew next time someone asks."
                 label: 'Yarn-in-short'
+            translation:
+                hint: "Used by 'Translate' in a letter's menu. Th' tongue goes with th' letter, not in here. Changin' this marks ev'ry translation already writ as stale — nowt be thrown overboard, they be writ anew next time somebody asks."
+                label: 'Turn a letter into another tongue'
         prompts:
             changed: '%count% rewritten'
             heading: "The oracle's standin' orders"
             intro: "These be the orders plMail gives the oracle. Leave a box empty an' the shipped words stand — that way a later update can still better 'em. What ye write replaces the shipped words entire."
             reset: 'Back to the shipped words'
             save: 'Save the orders'
-            saved: 'Saved. New yarns use these; yarns already writ be stale now.'
+            saved: "Saved. New yarns an' translations use these; them already writ be stale now."
             show_shipped: 'Show the shipped words'
             untouched: 'As shipped'
         save: 'Save'
@@ -775,7 +788,7 @@ admin:
                 come aboard with the same boardin' they already use for mail.
                 Without it, mail sails on an' the almanacs simply never appear.
             consent_heading: 'If yer fleet approves apps for its crew'
-            consent_microsoft: 'Some Microsoft 365 fleets don''t let the crew approve apps themselves: an admiral approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval don''t cover, so Microsoft turns away every sign-in to plMail, mail and all, till it be approved again. Before any hand signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and fleets where the crew approve apps themselves, be not affected.'
+            consent_microsoft: 'Some Microsoft 365 fleets don''t let the crew approve apps themselves: an admiral approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval don''t cover, so Microsoft turns away every sign-in to plMail, mail and all, till it be approved again. Before any hand signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Tasks.ReadWrite be asked for only when an account''s Tasks switch be thrown, and it be turned away the same till it be approved. Personal Microsoft accounts, and fleets where the crew approve apps themselves, be not affected.'
             contacts_google: >-
                 Hoist the Google People API for this project and add the
                 .../auth/contacts scope to the consent screen — the crew then
@@ -783,6 +796,8 @@ admin:
                 came aboard earlier are asked once, in their settings, to sign
                 in again. Without it, post and almanacs sail on and the
                 shipmates simply stay ashore.
+            tasks_heading: 'Microsoft To Do sails under this same charter'
+            tasks_microsoft: 'Add the Tasks.ReadWrite delegated permission to this app registration — the crew then get their To Do lists with the same sign-in. Accounts that came aboard before are asked once, in their settings, to sign in again. Without it, mail, charts and shipmates sail on and To Do lists simply cannot be mustered.'
             contacts_heading: 'The crew rolls sail under this same charter'
             contacts_microsoft: >-
                 Add the Contacts.ReadWrite delegated permission to this app
@@ -1464,6 +1479,15 @@ attachment:
         zoom_out: Further off
 calendar:
     # plMail's date-and-time picker; see calendar--when.
+    pane:
+        scope_all: "All"
+        scope_all_hint: "Every chart alike"
+        scope_label: "Which charts"
+        scope_overlay: "+ Others"
+        scope_overlay_hint: "This berth’s charts, an’ the others faint"
+        scope_workspace: "Deck"
+        scope_workspace_hint: "Only the charts o’ this deck’s ships"
+        show_all: "Show every chart"
     when:
         previous_month: 'Last moon'
         next_month: 'Next moon'
@@ -1727,6 +1751,8 @@ calendar:
             The bell a new reckonin' on this almanac be written by. Followin'
             plMail takes yer own, now %zone%. Reckonin's always show at the hour
             they happen by yer own bell.
+        workspace: "Deck"
+        workspace_help: "A chart with no ship's account has no fleet t' follow, so it shows on this deck. Decks over every account show it too."
     grid:
         all_day: All the day long
         continues_after: Sails on into the next day
@@ -1853,13 +1879,6 @@ calendar:
         next: Onward
         previous: Back
     open_day: 'All that be on %date%'
-    pane:
-        close: 'Stow the almanac'
-        mode:
-            calendar: Give the almanac the whole deck
-            mail: Show the letters
-            split: Set the almanac alongside the letters
-        resize: Shift the almanac's width
     proposal:
         action:
             add: Write it in the almanac
@@ -1990,11 +2009,8 @@ calendar:
         range_day: '%day%'
         range_short: '%start%–%end%'
         range_short_month: '%month% %start%–%end%'
-    upcoming:
-        imminent: Within the hour
-        later: Later this day
-        soon: In a few hours
     view:
+        label: "Spyglass"
         agenda: The list
         day: Day
         monday_week: Week
@@ -2773,6 +2789,8 @@ discarded:
 
 header:
     search:
+        chip_remove: "Cast off %token%"
+        clear: "Clear the search"
         close: Batten the hunt
         live:
             status: "%count% matchin' parleys"
@@ -2957,7 +2975,6 @@ label:
         red: Red
         teal: Teal
         violet: Violet
-    empty: No yarns flyin' this flag.
     created: Flag hoisted.
     delete:
         already_running: '"%name%" be comin'' down already.'
@@ -2977,8 +2994,10 @@ label:
     delete_confirm: 'Strike the flag "%name%"? It comes down on every ship in the fleet. Yarns keep their other flags and be not thrown overboard.'
     delete_confirm_children: 'Strike "%name%" and the %count% flag(s) beneath it? They come down on every ship in the fleet. No yarns be thrown overboard.'
     deleted: Flag struck.
+    empty: No yarns flyin' this flag.
     error:
         duplicate: A flag by that name already flies here. Shoutin it in capitals dont make it a new one.
+    filters: "Filters"
     form:
         account_note:
             new: 'Hoisted on %account% only.'
@@ -3018,11 +3037,156 @@ label:
     menu:
         create: Hoist a new one
         empty: No flags yet.
+    remove_filter: "Cast off the filter “%name%”"
     updated: Flag mended.
     visibility:
         hidden: That flag be lowered.
         shown: That flag flies again.
 
+layout:
+    divider: "Haul the bulkhead"
+    divider_hint: "Drag to shift the bulkhead, double-click to square her up"
+    drop:
+        bottom: "Below %pane%"
+        left: "Port o' %pane%"
+        replace: "Make %pane% walk the plank"
+        right: "Starboard o' %pane%"
+        swap: "Swap berths with %pane%"
+        top: "Above %pane%"
+    edit:
+        add_below: "Below"
+        add_right: "Starboard"
+        cancel: "Belay that"
+        delete: "Scuttle this deck"
+        delete_confirm: "Scuttle the deck “%name%”? Yer other decks stay shipshape."
+        grip: "Drag to shift this cabin"
+        hint: "Click a cabin to pick it. Haul its grip to shift it, or drop a cabin from the hold onto an edge."
+        kind: "What this cabin shows"
+        name: "Name o' the deck"
+        percent_high: "%n%% tall"
+        percent_wide: "%n%% broad"
+        remove: "Clear the cabin"
+        save: "Stow the deck"
+        title: "Refittin'"
+        tray: "Add a cabin"
+        tray_empty: "Every cabin be on deck already."
+        tray_hint: "Drop on an edge to split, amidships to replace. Or click to berth it beside the picked cabin."
+    menu:
+        all_shown: "Every cabin be on deck already."
+        close: "Batten the cabin"
+        full_width: "Full beam"
+        label: "Cabin orders"
+        layout: "Deck plan"
+        layout_title: "Decks an' deck plans (⌥L)"
+        move: "Shift"
+        move_down: "Below decks"
+        move_left: "To port"
+        move_right: "To starboard"
+        move_up: "Aloft"
+        restore: "Back to the deck plan"
+        show_instead: "Show instead"
+        show_instead_heading: "Show in this cabin"
+        split_col: "Split below decks"
+        split_col_heading: "New cabin below"
+        split_row: "Split to starboard"
+        split_row_heading: "New cabin to starboard"
+    pane:
+        calendar: "Cap'n's log"
+        contacts: "Crew roster"
+        list: "Bottle rack"
+        message: "Message in a bottle"
+        tasks: "Chores"
+    presets:
+        apply: "Use fer this deck"
+        back: "Back"
+        edit: "Refit this deck"
+        new: "New deck"
+        save_new: "Stow as a new deck"
+        shape:
+            four: "Four"
+            list_stack: "Rack + stack"
+            list_stack_side: "Rack, stack, side"
+            one: "One cabin"
+            rows: "Aloft an' below"
+            side: "Side by side"
+            three: "Three masts"
+            top_two: "Crow's nest + two"
+        shapes: "Start from a deck plan"
+        slots: "What goes where"
+        workspaces: "Decks"
+    settings:
+        all_accounts: "All accounts"
+        built_in: "Mail (built in)"
+        delete_sidebar: "Scuttle this sidebar"
+        duplicate_mail: "Copy o’ the Mail sidebar…"
+        edit_groups: "Refit the fleets"
+        gone: "(lost at sea)"
+        group:
+            blocks: "Grows by itself"
+            calendars: "Calendars"
+            labels: "Labels"
+            mail: "Mail"
+            other: "Other"
+            tasks: "Task lists"
+        groups: "Fleets"
+        groups_help: "What this berth shows: the mail list, Starred an’ Unread, the sidebar an’ its tallies, an’ the new count on its tab."
+        heading: "Headin’"
+        heading_prompt: "Words fer the headin’"
+        intro: "Settin’s o’ the berth “%name%”."
+        live: "live"
+        mail_clock: "Hang the ship’s clock at the bottom"
+        missing: "When this berth has no pane fer a link"
+        missing_edge: "Lash the pane to the starboard edge"
+        missing_switch: "Sail to a berth that has one"
+        missing_switch_help: "Best one that shows the account the calendar or list belongs to."
+        move_down: "Haul down"
+        move_up: "Haul up"
+        new_name: "Sidebar %n%"
+        new_sidebar: "New sidebar…"
+        'off': "Nay"
+        'on': "Aye"
+        open: "Fleets & sidebar"
+        remove: "Throw overboard"
+        save_failed: "The settin’s could not be stowed. Nothin’ changed."
+        sidebar: "Sidebar"
+        sidebar_help: "Sidebars be shared: change one an’ it changes in every berth that uses it."
+        sidebar_none: "No sidebar"
+        target_calendar: "Calendar"
+        target_default: "default"
+        target_nth: "%kind% %n%"
+        targets: "Sidebar links open in"
+        targets_help: "This berth has more than one calendar. Without a choice, links open in the first."
+        title: "Berth settin’s"
+        used_by: "Also flown in %names%: change it here an’ it changes there too."
+    sidebar:
+        block:
+            accounts: "Accounts an’ their holds"
+            calendars: "All calendars"
+            inboxes: "Inboxes"
+            labels: "All labels"
+            tasklists: "All task lists"
+        clock: "Ship’s clock"
+        empty: "This sidebar be empty. Add rows in the berth settin’s."
+    tabs:
+        label: "Cabins"
+    toast:
+        all_shown: "Every cabin be on deck already."
+        applied: "Deck plan changed."
+        at_edge: "That cabin be at the rail already."
+        deleted: "Scuttled “%name%”."
+        edit_first: "Stow or belay the deck ye be refittin' first."
+        no_list: "This deck has no bottle rack, so it be shown full beam."
+        no_room: "No room beside %pane%. Make her bigger first, or batten a cabin."
+        only_pane: "This be the only cabin. Pick somethin' else fer it with Show instead."
+        save_failed: "The deck plan could not be stowed. She stays as she be on this page; reload to see the stowed one."
+        saved: "Stowed “%name%”."
+    workspace:
+        first_name: "Bottles"
+        more: "Other berths"
+        new: "%count% new since ye were last aboard"
+        new_name: "Deck %n%"
+        soon: "Somethin’ here starts within the hour"
+        tabs_label: "Decks"
 list:
     conversation_view: 'Yarn view'
     sort:
@@ -3065,6 +3229,7 @@ message:
         filter_from_message: 'Rig a sorting order from this yarn'
         show_original: Show the original scroll
         star: Mark with an X
+        translate: 'Translate'
         unstar: Rub out the X
     attachments: Cargo
     back: Back
@@ -3223,6 +3388,35 @@ message:
         spam:
             body: "This bottle was fished from the bilge. Its links and pictures be treacherous — treat aught it asks of ye as a stranger's demand."
             title: This bottle sits in the bilge
+    translation:
+        again: "Translate 'er again"
+        already_in: 'This message already be in %language%. There be naught to translate.'
+        error:
+            connection_lost: "Th' line to plMail parted while th' translation were bein' writ. Th' oracle's berth be blameless — summat betwixt this glass an' th' server cut it."
+            disabled: "Translatin' be switched off."
+            empty: "There be no words in this letter t' translate."
+            encrypted: "This letter were sealed, an' its account keeps th' unsealed words from th' oracle."
+            generic: "Th' letter could nay be translated."
+            model_missing: "That berth holds no writin' oracle. Somebody with the captain's keys must haul it aboard first."
+            no_answer: "Th' oracle gave nowt back."
+            refused: "Th' oracle's berth turned th' askin' away."
+            timeout: "Th' oracle's berth took o'er long t' answer."
+            unreachable: "Th' oracle's berth could nay be raised."
+        generated: "Turned into %language% by th' oracle (%model%). This be NOT th' original text."
+        generated_from: "Turned from %source% into %language% by th' oracle (%model%). This be NOT th' original text."
+        partial: "This letter be long, so only its beginnin' were translated."
+        quote_left_out: "Th' quoted earlier letters were left out; they can be translated on their own."
+        stale: "Th' letter has changed since this were translated."
+        state:
+            reading: "Still readin' th' letter — %elapsed% so far. After that, th' translation comes word by word."
+            waiting: "Th' first askin' after a while waits for th' oracle t' wake."
+            working: "Turnin' it into %language%…"
+        switch:
+            label: 'Show'
+            original: "Th' original"
+            original_from: "Th' original · %source%"
+            translation: "%language% · th' oracle"
+        tag: "Th' oracle's translation"
 
 mercure:
     status:
@@ -3395,7 +3589,6 @@ profile:
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
-    handle: Shift the rail 'tween list an' letter
     placeholder: Pick a conversation, matey, an' it'll be laid out here
 
 # Said in a toast when a request fails and there is no better place to say it;
@@ -3536,6 +3729,8 @@ settings:
             search_hint: "Finds mail that means what ye asked, not only mail that spells it so. Off stops yer mail bein' charted as well as searched."
             summary: 'Yarn-in-short'
             summary_hint: 'Boils a long yarn down when ye ask. Nowt be boiled unasked.'
+            translation: 'Translate a letter'
+            translation_hint: "Turns a letter into yer own tongue when ye ask, from th' letter's menu. Nowt be translated unasked."
             writing_help: "Quill Wranglin'"
             writing_help_hint: "Drafts a reply, shortens, makes fancy, proofreads — in the writin' window, when ye ask."
         features:
@@ -3558,10 +3753,14 @@ settings:
             heading: 'What the Oracle Be Handed'
             search: "Chartin': the subject, the sender an' the start o' each message."
             summary: "Th' messages o' a yarn ye ask t' have boiled down"
+            translation: "Translatin': th' words o' th' letter ye ask t' have translated, without th' earlier letters it quotes."
             writing_help: "Writin': yer subject line, what ye typed, an' as much o' the parley as the setting above allows."
         seg:
             off: 'Nay'
             on: 'Aye'
+        translate_into:
+            follow_language: "Th' tongue o' plMail (%language%)"
+            label: 'Translate into'
     accounts:
         categories:
             off_hint: 'Off: a category hoisted or struck in Outlook changes no flags here. Turning it on charts every folder of this account once more.'
@@ -3721,6 +3920,8 @@ settings:
             close: 'Aye'
             contacts: 'Crew roster'
             contacts_help: 'Its crew rosters, kept true both ways'
+            tasks: 'Tasks'
+            tasks_help: 'Its Microsoft To Do lists, kept true both ways'
             intro: 'Furl what ye don’t sail this ship for. plMail then stops hailin’ the far port about it an’ keeps what’s already aboard.'
             mail: 'Receive letters'
             mail_help: 'Fetchin’ its letters an’ every change ye make to ’em'
@@ -4347,6 +4548,9 @@ settings:
                     on unharmed. Sign aboard once more and allow the shipmates,
                     and the crew roll appears under Shipmates.
                 title: 'Bring %account% aboard again to muster its shipmates'
+            account_tasks_scope_missing:
+                body: 'plMail can now keep this vessel''s Microsoft To Do lists, but %account% came aboard before it asked. Post, charts and shipmates sail on unharmed. Sign aboard once more and allow the tasks, and its lists can be mustered under Tasks.'
+                title: 'Bring %account% aboard again to muster its Microsoft To Do lists'
             account_scope_missing:
                 body: >-
                     Some leave plMail asked for when ye signed this account on
@@ -4503,6 +4707,9 @@ settings:
                 promise: >-
                     Tries th'' abandoned tasks once more. Safe t'' press — any
                     that fail again just wash back up here.
+            grant_tasks:
+                label: 'Allow the tasks'
+                promise: 'Sends ye back to the harbourmaster to sign aboard as %account% and allow the tasks. Yer post stays as it is, and nothing is hauled aboard twice.'
             grant_contacts:
                 label: 'Allow the shipmates'
                 promise: >-
@@ -4670,22 +4877,6 @@ settings:
         test_failed: 'Soundin'' came back foul'
         test_ok: 'Passage be clear'
         unavailable_heading: 'No passage from here'
-    calendar_behaviour:
-        button: Calendar button
-        button_hint: 'Which views the button up top steps through. A view it leaves out be not scuttled: the drag handle still reaches it.'
-        heading: Behaviour
-        option_calendar: Split only
-        option_none: All three
-        option_split: Full breadth only
-        subheading: 'How the calendar button up top moves between views.'
-    contacts_behaviour:
-        button: 'Crew log button'
-        button_hint: 'Which views the button up top steps through. A view it skips be not thrown overboard: the drag handle still reaches it.'
-        heading: 'Behaviour'
-        option_contacts: 'Beside the post only'
-        option_none: 'All three'
-        option_split: 'Full deck only'
-        subheading: 'How the crew log button up top moves between views.'
     contacts:
         allow_contacts: 'Allow the shipmates'
         allow_contacts_hint: 'Came aboard before plMail asked for shipmates. Sign aboard once more and allow them, and this vessel''s crew roll appears here.'
@@ -4911,6 +5102,16 @@ settings:
         'off': Off
         'on': On
         subheading: "Whether pictures a bottle hauls in from elsewhere wait to be asked for."
+    search_meaning:
+        heading: "Search by meanin’"
+        subheading: "Besides the words ye typed, also finds letters about what ye meant. Yer captain decides whether it be aboard."
+    search_scope:
+        heading: "Search"
+        hint: "Adds the berth as a filter (space:Name) when ye start typin’. One backspace casts it off."
+        label: "Start search in the berth"
+        'off': "Nay"
+        'on': "Aye"
+        subheading: "Whether search scours every ship or starts in the berth ye be in."
     sender_pictures:
         admin_off: 'Yer captain hasn''t let this ship go lookin'' fer pictures across the seven seas, so these switches do naught fer now. Yer choice be kept fer when they do.'
         bimi: 'Company flags'
@@ -4942,17 +5143,16 @@ settings:
             label: "Swipe right"
         subheading: "What a swipe across a bottle does on yer phone."
     unified_inboxes:
-        account_label: 'Gathered hold fer %account%'
         account_off: 'Letters becalmed — none o’ its letters be shown here till ye raise ’em again.'
-        accounts_heading: 'Ships'
-        accounts_subheading: 'Which hold each ship’s letters be stowed in. A new ship goes in yer first hold.'
         add: 'Add'
+        add_account: "Add a ship to %group%"
+        add_account_short: "Add ship"
         created: 'Built "%name%".'
         delete: 'Scuttle %inbox%'
-        delete_confirm: 'Scuttle "%name%"? Its ships move to %other%. No letters be lost.'
-        deleted: 'Hold scuttled. Its ships be in the catch-all hold now.'
-        heading: 'Gathered holds'
-        hint: 'Each hold shows the letters o’ the ships ye put in it as one list, with its own tabs. Leave a name empty fer the usual one.'
+        delete_confirm: "Scuttle \"%name%\"? Ships in no other fleet move to %other%. No letters be lost."
+        deleted: "Fleet scuttled. Ships that sailed only in it be in the catch-all fleet now."
+        heading: "Fleets"
+        hint: "A fleet shows the letters o’ its ships as one hold, with its own tabs. A ship can sail in several fleets; a new ship joins yer first. Leave a name empty fer the usual one."
         icon_label: 'Flag fer %inbox%'
         icon_new: 'Flag fer the new hold'
         last_stays: 'Keep at least one hold o’ yer own, matey.'
@@ -4961,16 +5161,18 @@ settings:
         name_label: 'Name'
         name_required: 'A hold needs a name.'
         name_too_long: 'That name be too long (40 letters at most).'
-        no_accounts: 'No ships yet.'
+        no_accounts_in_group: "No ships yet."
         not_found: 'That hold be gone.'
-        other_hint: 'Gathers every ship ye take out o’ yer own holds. Stays off the sidebar while it holds none.'
-        other_option: 'catch-all'
+        other_is_the_rest: "Other holds the rest o’ the fleet: put the ship in one o’ yer own fleets instead."
+        other_hint: "Takes every ship ye pull out o’ its last fleet. Stays off the sidebar while it holds none."
         other_stays: 'The catch-all hold cannot be scuttled: ships in none o’ yer holds be stowed there.'
         placeholder: 'e.g. Plunder'
+        remove_account: "Pull %account% out o’ %group%"
+        remove_to_other: "Pull %account% out o’ %group%; it sails in no other fleet, so it joins the catch-all"
         reorder: 'Drag to reorder'
         save: 'Stow'
         saved: 'Stowed.'
-        subheading: 'Name ’em, give ’em a flag an’ drag ’em into the order the sidebar shows.'
+        subheading: "Each fleet be a hold in the sidebar an’ somethin’ a berth can show. Name ’em, flag ’em, put ships in ’em an’ drag ’em into order."
     whats_new:
         heading: 'What''s new aboard'
         'off': 'Off'
@@ -4993,6 +5195,7 @@ settings:
             integrations: "Friendly ports"
             mail_accounts: "Mail crews"
             reading_writing: "Readin' an' scribblin'"
+            search: "Search"
         calendar_behaviour: "Almanac's habits"
         calendars: Almanacs
         categories: "Holds an' sortin'"
@@ -5003,11 +5206,12 @@ settings:
         filters: Sieves
         health: "State o' yer crew"
         health_banner: "Somethin' needs yer eye — see State o' yer crew."
-        inboxes: 'Gathered holds'
+        inboxes: "Fleets"
         insights: The spyglass
         integrations: 'Friendly ports'
         labels: Flags
         layout: "Riggin' an' helm"
+        mail_search: "Search"
         message_list: 'Manifest'
         notifications: Word from the crow's nest
         profile: Yer colours
@@ -5028,7 +5232,7 @@ settings:
         keywords:
             accent: "colour color highlight"
             accounts: "imap smtp pop3 jmap server add mailbox"
-            ai: "ai artificial intelligence summary writing help model"
+            ai: "ai artificial intelligence summary writing help model translation translate"
             aliases: "alias identity sender from address"
             app_passwords: "imap smtp client thunderbird token api jmap"
             calendars: "caldav ics subscribe feed"
@@ -5056,7 +5260,8 @@ settings:
             pinning: 'pin pinned nail mast top nag'
             profile: "name avatar photo picture"
             read_receipts: "mdn receipt confirmation bcc copy backup always"
-            reading_pane: "preview split right bottom"
+            search_meaning: "semantic meaning ai search similar"
+            search_scope: "search scope berth space filter"
             sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender likeness flag'
             sharing: "link public booking"
             shortcuts: "keyboard hotkeys keys"
@@ -5141,13 +5346,6 @@ settings:
         subheading: 'What ye board with. Only ye can change it — not even a quartermaster may set it for ye.'
         submit: Change th' secret word
         submitting: Stowin'…
-    reading_pane:
-        heading: Spyglass deck
-        hint: 'Stowed shows the list an'' the letter one at a time; Starboard lays the letter beside the list when the ship has room for both — drag the rail between ''em to say how much deck each gets.'
-        label: 'Lay out the open letter'
-        off: Stowed
-        right: Starboard
-        subheading: 'Where a parley opens: in place o'' the list, or beside it.'
     security:
         codes:
             copy: Copy the tokens
@@ -5416,6 +5614,8 @@ shortcuts:
         anywhere: "Anywhere"
         conversation: "In a yarn"
         list: "In a list"
+        panes: "Cabins an' decks"
+        panes_hint: "Alt be ⌥ on a Mac. These work even with single-key orders off."
     keys:
         archive: "Stow in the hold"
         back: "Back to the list"
@@ -5430,12 +5630,19 @@ shortcuts:
         go_starred: "Sail to Marked"
         help: "Show this list"
         label: "Label as"
+        layout_menu: "Deck plan menu"
         mark_read: "Mark as read"
         mark_unread: "Mark as unread"
         move: "Move to"
         next: "Down one yarn"
         next_conversation: "Open the next yarn"
         open: "Open the marked yarn"
+        pane_close: "Batten the cabin"
+        pane_focus: "Look to the next cabin that way"
+        pane_full_width: "Full beam, an' back"
+        pane_move: "Shift the cabin that way"
+        pane_split_below: "Split the cabin below"
+        pane_split_right: "Split the cabin to starboard"
         pin: 'Nail to the mast or pry it off'
         previous: "Up one yarn"
         previous_conversation: "Open the yarn afore"
@@ -5452,6 +5659,8 @@ shortcuts:
         spam: "Mark as bilge"
         star: "Mark or unmark"
         undo: "Undo the last deed"
+        workspace_edit: "Refit the deck"
+        workspace_switch: "Change decks"
     or: "or"
     switched_off: "Shortcuts be struck fer ye. Raise 'em under Settings → General → Riggin' an' helm."
     then: "then"
@@ -5920,13 +6129,6 @@ contacts:
     no_subject: '(no subject)'
     notes: Scribblings
     page: 'Page %page%'
-    pane:
-        close: 'Stow the shipmates'
-        mode:
-            contacts: 'Spread the crew log across the deck'
-            mail: 'Stow the shipmates'
-            split: 'Muster the shipmates beside the post'
-        resize: 'Haul the shipmates wider or narrower'
     pending: 'Waiting on a fair wind to the server'
     phone_placeholder: '+1 555 010 2030'
     phonetic: 'As it be spoken'
@@ -6083,3 +6285,139 @@ contacts:
         unsure_one: 'Where does this line belong?'
         use_as: 'Use as…'
         you_placed: 'Ye berthed this line'
+tasks:
+    pane:
+        scope_label: "Which lists"
+        scope_workspace_hint: "Only the lists o’ this deck"
+        scope_overlay_hint: "This deck’s lists, an’ the others faint"
+        scope_all_hint: "Every list alike"
+    occurrence_undone: 'Tick undone.'
+    added: 'Task added.'
+    completed: 'Task done.'
+    reopened: 'Task reopened.'
+    moved: 'Task moved to another hold.'
+    step_completed: 'Step done.'
+    step_reopened: 'Step reopened.'
+    advanced: 'Done. The task moved to its next date.'
+    advanced_remote: 'Done. Microsoft To Do moves it to its next date once the word reaches it.'
+    title: 'Tasks to do'
+    default_list: 'Tasks to do'
+    new: 'New task'
+    my_day: 'Me Day'
+    quick_add: 'Add a task'
+    read_only: 'This list be read-only, so its tasks can''t be changed here.'
+    saved: 'Task stowed.'
+    deleted: 'Task sent overboard.'
+    section:
+        loading: 'Haulin'' it aboard…'
+        more: 'Show more'
+        overdue: 'Overdue'
+        today: 'Today'
+        upcoming: 'On the horizon'
+        no_date: 'No date'
+        completed: 'Done'
+        pending: 'Pending'
+    empty:
+        my_day: 'Nothin'' for today. Tasks due, startin'' or remindin'' today show up here.'
+        list: 'No tasks here.'
+    row:
+        steps: '%done% of %total%'
+        steps_toggle: 'Steps of “%title%”'
+        repeats: 'Repeats'
+        complete: 'Mark “%title%” as done'
+        reopen: 'Mark “%title%” as not done'
+        edit: 'Edit “%title%”'
+    editor:
+        reminder: 'Remind me'
+        reminder_hint: 'Sent as a browser or phone notification, once notifications be on.'
+        repeat: 'Repeat'
+        repeat_none: 'Does not repeat'
+        repeat_daily: 'Every day'
+        repeat_weekly: 'Every week'
+        repeat_monthly: 'Every month'
+        repeat_yearly: 'Every year'
+        repeat_keep: 'Keep the current schedule'
+        repeat_hint: 'Tickin'' it off moves it to its next date in the future.'
+        steps: 'Steps'
+        step_add: 'Add a step'
+        step_done: 'Step done'
+        step_title: 'Step'
+        step_remove: 'Toss this step overboard'
+        step_delete: 'Scuttle step “%title%”'
+        new: 'New task'
+        edit: 'Edit task'
+        title: 'Title'
+        title_required: 'Enter a title — a task without one can''t be told from the others.'
+        notes: 'Notes'
+        list: 'Hold'
+        due_date: 'Due date'
+        due_time: 'Time (optional)'
+        due_day_only: 'Microsoft To Do keeps the day only, so a due date here has no hour. Use a reminder for the hour.'
+        save: 'Stow'
+        delete: 'Scuttle'
+    lists:
+        move_down: 'Lower “%name%” down'
+        move_up: 'Hoist “%name%” up'
+        reorder: 'Drag to change the order'
+        landing: 'New tasks come aboard here'
+        landing_set: 'New tasks now come aboard in %name%.'
+        make_landing: 'Stow new tasks in “%name%”'
+        manage: 'Lists'
+        settings: 'Task settings'
+        back: 'Back to the lists'
+        synced: 'Synced'
+        done: 'Done'
+        edit_named: 'Edit “%name%”'
+        delete_named: 'Scuttle “%name%”'
+        sync_failed: 'This list could not be synced:'
+        label: 'Task lists'
+        all: 'All'
+        new: 'New list'
+        edit: 'Edit list'
+        name: 'Name'
+        name_required: 'Enter a name for the list.'
+        color: 'Colour'
+        read_only: 'Read-only'
+        saved: 'List stowed.'
+        deleted: 'List sent overboard.'
+        delete_confirm: 'Scuttle “%name%” and every task aboard?'
+        default_hint: 'New tasks land here when nothin'' else was picked, so this list can''t be scuttled.'
+        synced_hint: 'This list be synced, so its name comes from the server. The colour be yers.'
+        workspace: "Deck"
+        workspace_help: "A list with no ship's account has no fleet t' follow, so it shows on this deck. Decks over every account show it too."
+        transferred: 'Hauled %count% task over to “%name%”.|Hauled %count% tasks over to “%name%”.'
+    transfer:
+        title: 'Haul to a local list'
+        open_named: 'Haul “%name%” to a local list'
+        what: '“%name%” holds %open% open an’ %finished% finished tasks.'
+        target: 'Haul ’em to'
+        new_list: 'A fresh list “%name%”'
+        moves: 'Every task goes, open an’ finished, with its steps, notes, dates, repeat, reminder an’ files.'
+        remote_kept: 'Naught be deleted on the server. The tasks stay there as they be.'
+        unsubscribes: 'plMail stops syncin’ “%name%” after, so naught shows up twice.'
+        foreign: 'Details only other apps understand, like links to other items, be not kept.'
+        submit: 'Haul'
+        submit_stale: 'Haul anyway'
+        pull_failed: 'The latest changes could not be read from the server:'
+        stale_since: 'Ye can haul what plMail has, as of its last sync on %date%. Changes made elsewhere since then be not included.'
+        stale: 'Ye can haul what plMail has. Changes made elsewhere be not included.'
+    subscribe:
+        color: 'Colours of %name%'
+        title: 'Sync lists from a server'
+        intro: 'Tick the task lists on %name% to keep in sync with plMail.'
+        empty: '%name% has no task lists.'
+        saved: 'Task lists updated. Their tasks be on their way.'
+        pick_source: 'Pick the connection to look for task lists on.'
+        no_sources: 'There be no connection to sync tasks from yet. Connect a CalDAV server under Settings → Calendars first.'
+        open_settings: 'Open the calendar settings'
+        untick_hint: 'Unticking a list removes it and its tasks from plMail. They stay on the server.'
+    alert:
+        untitled: 'Task'
+        due: 'Due %when%'
+        reminder: 'Reminder'
+    attachments:
+        heading: 'Files'
+        add: 'Choose a file'
+        delete: 'Scuttle “%name%”'
+        limit: 'Up to 25 MB. On a synced list, other apps get a link that needs a plMail sign-in.'
+        too_large: 'That file could not be taken. Files can be up to 25 MB.'

@@ -30,11 +30,13 @@ mechanism behind it.
 | [Account health](features/health.md) | What is broken and what fixes it, reconnecting an account without losing its mail, the two ways push breaks |
 | [Templates](features/templates.md) | Reusable messages, the folder tree that mirrors your accounts, variables for recipient, sender, signature and dates, inserting one while composing |
 | [Filters](features/filters.md) | Condition trees, actions, the plain-English restatement, applying a rule to mail that already arrived |
-| [Calendar](features/calendar.md) | The four views and the time grid, creating and editing events, recurrence, editing one occurrence, the docked pane |
+| [Workspaces](features/workspaces.md) | Arranging the panes: splits side by side and above and below, the pane menu, the keyboard, saved workspaces, the Layout menu and edit mode |
+| [Calendar](features/calendar.md) | The four views and the time grid, creating and editing events, recurrence, editing one occurrence, the calendar pane |
 | [Invitations and events from mail](features/calendar-invitations.md) | RSVP, events extracted from invitations and from ordinary prose, proposals, Happening Soon |
 | [Reminders](features/calendar-alerts.md) | Setting alerts, how they are delivered, what a fresh install needs before they arrive |
 | [Connected calendars](features/calendar-sync.md) | Subscribing to Google, Microsoft and CalDAV calendars, two-way sync, ICS import, export and feed subscriptions, duplicate meetings |
 | [Sharing and booking](features/calendar-sharing.md) | Share links and what each reveals, appointment pages, how a booking arrives |
+| [Tasks](features/tasks.md) | Your task lists beside the mail: My Day, steps, repeats, reminders, files, and two-way sync with a CalDAV server |
 | [Contacts](features/contacts.md) | The address book: your own contacts and synced ones side by side, editing, duplicates and merging, vCard and CSV import and export |
 | [Files and integrations](features/integrations.md) | Attaching from and saving to Drive, Photos, OneDrive, Dropbox, Nextcloud, OpenCloud, Immich, Paperless-ngx and WebDAV |
 | [Security](features/security.md) | Changing your password, two-factor authentication, recovery codes, remembered devices, app passwords, sessions |

@@ -320,6 +320,7 @@ final readonly class ConfigBackupDatabase
             'writingHelpEnabled'    => $settings->writingHelpEnabled,
             'summaryEnabled'        => $settings->summaryEnabled,
             'contactHelpEnabled'    => $settings->contactHelpEnabled,
+            'translationEnabled'    => $settings->translationEnabled,
             'prompts'               => $prompts,
         ];
     }
@@ -414,6 +415,7 @@ final readonly class ConfigBackupDatabase
         $settings->writingHelpEnabled    = true === ($values['writingHelpEnabled'] ?? false);
         $settings->summaryEnabled        = true === ($values['summaryEnabled'] ?? false);
         $settings->contactHelpEnabled    = true === ($values['contactHelpEnabled'] ?? false);
+        $settings->translationEnabled    = true === ($values['translationEnabled'] ?? false);
 
         $prompts = $values['prompts'] ?? [];
 

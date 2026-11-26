@@ -46,6 +46,20 @@ final class SearchQueryParserTest extends TestCase
         self::assertSame('quarterly report', $parsed->freeText);
     }
 
+    /**
+     * `space:` names a workspace (#783). The parser keeps the name as typed;
+     * which accounts it means is the caller's to resolve, since only the
+     * caller knows the user's workspaces.
+     */
+    public function testSpaceNamesAWorkspaceAndLeavesTheAccountsToTheCaller(): void
+    {
+        $parsed = $this->parser->parse('space:"Morning post" invoice');
+
+        self::assertSame('Morning post', $parsed->space);
+        self::assertNull($parsed->accountIds);
+        self::assertSame('invoice', $parsed->freeText);
+    }
+
     /** A value with a space is one value, not a value and a search term. */
     public function testQuotedValuesStayWhole(): void
     {

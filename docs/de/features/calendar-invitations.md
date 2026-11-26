@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-invitations.md sha1:3ced29776774f39a54c13e09a7470d0de2c8cfaf -->
+<!-- translated-from: features/calendar-invitations.md sha1:aee072f79ac7da2741895f51f474fb3a9d0cfd5b -->
 
 # Einladungen und Termine aus E-Mails
 
@@ -67,8 +67,8 @@ Kalenders, bei Vielleicht zusätzlich gestreift. Antwortest du, steht der Termin
 gezeichnet, ohne dass die Seite neu lädt, und der Termin ist kurz umrandet, damit dein Blick ihn
 findet. Steht die Bewegung auf **Voll**, fliegt die Antwort selbst dorthin und wird unterwegs zum
 Termin; bei **Dezent** oder **Keine**, oder wenn dein System weniger Bewegung verlangt, bewegt sich
-nichts, und die Markierung ist alles. Ist der Kalender geschlossen, landet die Antwort auf dem
-Kalender-Knopf oben in der Leiste, der einen Punkt behält, bis du ihn öffnest.
+nichts, und die Markierung ist alles. Ist kein Kalender zu sehen, fliegt nichts: Die Antwort ist
+gespeichert, und der Termin steht im Kalender, wenn du ihn öffnest.
 
 Das gilt für Einladungen an dich. Eine Flugbestätigung, ein Paket, ein Datum,
 das du aus einem Satz übernommen hast, ein von Google gespiegelter Kalender, eine Besprechung, die
@@ -289,12 +289,6 @@ Eines steht **nicht** in dieser Liste, und das ist Absicht:
 
 Es werden nur sichtbare Kalender gelesen, einen Kalender auszublenden versteckt seine Buchungen hier
 also ebenfalls.
-
-Davon getrennt trägt die Kalenderschaltfläche in der Kopfleiste einen farbigen Punkt für das, was
-**heute** noch bevorsteht — innerhalb der Stunde, in wenigen Stunden oder später heute. Es sind drei
-Bänder und kein Countdown, denn eine Farbe, von der man eine Zahl ablesen muss, ist kein Punkt, und
-es zählt nur der heutige Tag: Eine Besprechung, die vor einer Stunde endete, ist keine Neuigkeit, und
-die von morgen ist nicht dringend.
 
 ## Mail erneut lesen, die du schon hast
 

@@ -17,6 +17,7 @@ use App\Infrastructure\Messaging\Message\ExtractEventsMessage;
 use App\Infrastructure\Messaging\Message\ExtractInsightsMessage;
 use App\Infrastructure\Messaging\Message\ProposeEventsMessage;
 use App\Repository\Ai\MessageEmbedding\MessageEmbeddingRepository;
+use App\Repository\Ai\MessageTranslation\MessageTranslationRepository;
 use App\Repository\Ai\ThreadSummary\ThreadSummaryRepository;
 use App\Repository\Calendar\EventProposal\EventProposalRepository;
 use App\Repository\Insight\MailInsight\MailInsightRepository;
@@ -66,6 +67,7 @@ final readonly class DecryptedMail
         private ThreadSummaryRepository $summaries,
         private MailInsightRepository $mailInsightRepository,
         private EventProposalRepository $eventProposalRepository,
+        private MessageTranslationRepository $translations,
     ) {
     }
 
@@ -175,6 +177,7 @@ final readonly class DecryptedMail
         $this->storage->delete($message->id, SealedMessageStorage::DECRYPTED);
 
         $this->embeddings->deleteForMessage((int) $message->id);
+        $this->translations->deleteForMessage((int) $message->id);
 
         if (null !== $message->thread?->id) {
             $this->summaries->deleteForThread($message->thread->id);
@@ -199,12 +202,13 @@ final readonly class DecryptedMail
 
     /**
      * What the models made of an account's decrypted mail, gone: its
-     * embeddings and the summaries of its threads. For the models switch
-     * being turned off while the mail itself stays readable.
+     * embeddings, its translations and the summaries of its threads. For the
+     * models switch being turned off while the mail itself stays readable.
      */
     public function forgetModelOutput(Account $account): void
     {
         $this->embeddings->deleteForPlaintextSource((int) $account->id, PlaintextSource::Client->value);
+        $this->translations->deleteForPlaintextSource((int) $account->id, PlaintextSource::Client->value);
         $this->summaries->deleteForPlaintextSource((int) $account->id, PlaintextSource::Client->value);
     }
 

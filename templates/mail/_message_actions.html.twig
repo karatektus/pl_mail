@@ -120,6 +120,20 @@ Variables:
 
         <div class="border-t border-line my-1"></div>
 
+        {# First in this group, where it is in reach without scrolling, and not
+           with Archive or Delete for the reason given for the report below: it
+           does nothing to the mail. The body answers it; the menu only says
+           which message (#713). #}
+        {% if message_translation_offered(message) %}
+            <button type="button"
+                    data-action="click->mail--message-actions#translate"
+                    data-testid="translate-message"
+                    class="w-full flex items-center gap-2 px-4 py-2 text-left text-ink-soft hover:bg-hover transition-colors cursor-pointer">
+                <i class="fa-solid fa-language w-4 text-ink-faint" aria-hidden="true"></i>
+                {{ 'message.actions.translate'|trans }}
+            </button>
+        {% endif %}
+
         {# Opens Settings → Filters with the editor already holding this
            message's sender; the reader chooses what the filter does. #}
         <a href="{{ path('app_settings_page', { page: 'filters', from_message: message.id }) }}"

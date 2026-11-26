@@ -1,0 +1,14 @@
+{#
+tasks/_step_ticked.stream.html.twig — a step's tick has been saved.
+
+The tick itself is already on screen: see tasks--step-tick. What is left is saying
+so, and the count on the task's row, which is there whichever of the two it was
+pressed in.
+
+Accepts: message string · task Task, the step's parent
+#}
+{% set steps = task.liveSteps %}
+{% include '_partials/_toast.stream.html.twig' with { message: message, type: 'success' } only %}
+<turbo-stream action="update" target="task-steps-count-{{ task.id }}">
+    <template>{{ 'tasks.row.steps'|trans({ '%done%': steps|filter(step => not step.status.isOpen)|length, '%total%': steps|length }) }}</template>
+</turbo-stream>

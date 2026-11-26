@@ -1,0 +1,340 @@
+{#
+tasks/_editor.html.twig — creating or editing a task, in the app's modal frame.
+
+Never rendered inside the pane; _event_modal.html.twig says why. Hand-written
+rather than a FormType for its reason too: a few fields read straight off the
+request with a CSRF check, and a date and time pair that TaskWriter turns into one
+of two columns.
+
+Start date and priority have no field in the first version. They are not posted,
+so TaskDraft cannot carry them and an edit leaves them as they are.
+
+A step is worked on here too, and is not a task of its own in the pane. Ticking one
+is not a submit at all, so nothing here moves: see tasks--step-tick. A saved step's
+title is a field of the editor's form and is saved with it; one emptied keeps the
+title it had, since the × beside it is how a step goes. A new step is a field too,
+saved done if its own tick says so, and its × only takes the field away.
+
+**One form, whatever is pressed.** A delete is a submit button of the editor's form
+with a `formaction` of its own, not a form of its own, and stays in the dialog
+(data-ui--modal-keep-open on the button). So they post everything typed
+so far, and the answer puts it back: separate forms answered with the dialog as
+stored, which threw away a changed title and any step being typed. The form itself is empty of anything visible, and every field names it
+with `form=`, because the order puts these buttons in among the fields.
+
+Accepts:
+  task        Task, or null for a new one
+  list        TaskList it is on, or lands on
+  query       TaskPaneQuery, where the pane goes back to
+  error       string|null, said at the top after a refused save
+  zone        DateTimeZone the due time is written and read in
+  paneUrl     string|null, set after a step or a file changed
+  posted      array, what the form sent when the dialog is its answer, to put back
+  lists       list<TaskList>, the lists a task can be put on
+#}
+{% import '_partials/_select.html.twig' as select %}
+{% set params = query.toParameters() %}
+{% set posted = posted|default({}) %}
+{% set field = 'w-full rounded-lg border border-line bg-field px-3 py-2 text-sm text-ink placeholder:text-ink-faint' %}
+{% set label = 'block mb-1 text-sm font-medium text-ink' %}
+{% set sectionHeading = 'text-sm font-medium text-ink' %}
+{% set readOnly = list.isReadOnly %}
+{# A step repeats with its task, and an entry is one occurrence already done, so
+   neither has a repeat, steps or files of its own. #}
+{% set isWhole = task is null or not (task.isStep or task.isOccurrence) %}
+
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ (task ? 'tasks.editor.edit' : 'tasks.editor.new')|trans }}</template>
+
+    {# A step or a file just changed: the pane underneath is told, since it is a
+       different frame. Runs as it lands, as the pane's toasts do. #}
+    {% if paneUrl|default(null) %}
+        <turbo-stream action="open_pane" pane="tasks" src="{{ paneUrl }}"></turbo-stream>
+    {% endif %}
+
+    <form id="task-editor" action="{{ path('app_tasks_save') }}" method="post" enctype="multipart/form-data" data-turbo-frame="modal">
+        <input type="hidden" name="_token" value="{{ csrf_token('tasks_editor') }}">
+        <input type="hidden" name="taskId" value="{{ task ? task.id : 0 }}">
+        {# A step and a finished entry go where their task goes; anything else
+           picks its list below. #}
+        {% if not isWhole or readOnly %}
+            <input type="hidden" name="listId" value="{{ list.id }}">
+        {% endif %}
+        {% for name, value in params %}
+            <input type="hidden" name="{{ name }}" value="{{ value }}">
+        {% endfor %}
+
+        {# First, because Enter in a field presses the form's first submit button in
+           document order, and every other one here does something else: it was the
+           footer's Delete, so Enter in the title deleted the task. #}
+        <button type="submit" hidden tabindex="-1" aria-hidden="true"></button>
+    </form>
+
+    <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4 max-md:px-4">
+        {% if error %}
+            <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                <p>{{ error }}</p>
+            </div>
+        {% endif %}
+
+        {% if readOnly %}
+            <p class="flex items-start gap-2.5 rounded-lg bg-sunken px-3.5 py-3 text-sm text-ink-muted">
+                <i class="fa-solid fa-lock mt-0.5 shrink-0" aria-hidden="true"></i>
+                {{ 'tasks.read_only'|trans }}
+            </p>
+        {% endif %}
+
+        <div data-editor-part="title">
+            <label class="{{ label }}" for="task-title">{{ 'tasks.editor.title'|trans }}</label>
+            <input id="task-title" type="text" name="title" form="task-editor" required autofocus
+                   maxlength="{{ constant('App\\Entity\\Task\\Task::TITLE_MAX_LENGTH') }}"
+                   value="{{ posted.title ?? (task ? task.title : '') }}"
+                   {% if readOnly %}disabled{% endif %}
+                   class="{{ field }}">
+        </div>
+
+        {% if isWhole %}
+            <section data-editor-part="steps" aria-labelledby="task-steps-heading" class="space-y-2"
+                     {% if not readOnly %}data-controller="tasks--new-steps"{% endif %}>
+                <h3 id="task-steps-heading" class="{{ sectionHeading }}">{{ 'tasks.editor.steps'|trans }}</h3>
+
+                {% if task %}
+                    <ul class="space-y-1">
+                            {% for step in task.liveSteps %}
+                                <li class="flex items-center gap-2" data-task-step="{{ step.id }}">
+                                    {% include 'tasks/_step_tick.html.twig' with { step: step, readOnly: readOnly, offset: '' } only %}
+                                    <input type="text" name="stepTitles[{{ step.id }}]" form="task-editor" autocomplete="off"
+                                           value="{{ posted.stepTitles[step.id] ?? step.title }}"
+                                           maxlength="{{ constant('App\\Entity\\Task\\Task::TITLE_MAX_LENGTH') }}"
+                                           aria-label="{{ 'tasks.editor.step_title'|trans }}"
+                                           {% if readOnly %}disabled{% endif %}
+                                           class="{{ field }} peer-aria-checked:text-ink-faint peer-aria-checked:line-through">
+                                    {% if not readOnly %}
+                                        <button type="submit"
+                                            form="task-editor"
+                                            formaction="{{ path('app_tasks_step_delete', { id: step.id }) }}"
+                                            formnovalidate
+                                            data-ui--modal-keep-open
+                                            aria-label="{{ 'tasks.editor.step_delete'|trans({ '%title%': step.title }) }}"
+                                            title="{{ 'tasks.editor.step_delete'|trans({ '%title%': step.title }) }}"
+                                            class="w-6 h-6 shrink-0 rounded text-ink-faint hover:text-danger hover:bg-hover cursor-pointer">
+                                        <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                                    </button>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                {% endif %}
+
+                {% if not readOnly %}
+                    <template data-tasks--new-steps-target="template">
+                        {{ _self.stepField('', field) }}
+                    </template>
+
+                    {# One more than was typed, with or without the script: a page
+                       before it connects, and one where it never does, can still
+                       take the one step. Empty ones are not steps. #}
+                    <ul class="space-y-1.5" data-tasks--new-steps-target="list">
+                        {% for index, title in posted.steps ?? [] %}
+                            {% if title|trim is not empty %}{{ _self.stepField(title, field, '1' == (posted.stepsDone[index] ?? '0')) }}{% endif %}
+                        {% endfor %}
+                        {{ _self.stepField('', field) }}
+                    </ul>
+                {% endif %}
+            </section>
+        {% endif %}
+
+        <div data-editor-part="reminder">
+            <label class="{{ label }}" for="task-reminder">{{ 'tasks.editor.reminder'|trans }}</label>
+            <input id="task-reminder" type="datetime-local" name="reminder" form="task-editor"
+                   value="{{ posted.reminder ?? (task and task.reminderAt ? task.reminderAt|date('Y-m-d\\TH:i', zone) : '') }}"
+                   {% if readOnly %}disabled{% endif %}
+                   class="{{ field }}">
+            <p class="mt-1 text-xs text-ink-muted">{{ 'tasks.editor.reminder_hint'|trans }}</p>
+        </div>
+
+        {# Printed in the reader's zone and read back in it, so a time saved
+           unchanged is the same instant. A date has no zone to convert. #}
+        <div class="grid grid-cols-2 gap-3" data-editor-part="due">
+            <div>
+                <label class="{{ label }}" for="task-due-date">{{ 'tasks.editor.due_date'|trans }}</label>
+                <input id="task-due-date" type="date" name="dueDate" form="task-editor"
+                       value="{{ posted.dueDate ?? (task and task.dueDate ? task.dueDate|date('Y-m-d', false) : (task and task.dueAt ? task.dueAt|date('Y-m-d', zone) : '')) }}"
+                       {% if readOnly %}disabled{% endif %}
+                       class="{{ field }}">
+            </div>
+            <div>
+                <label class="{{ label }}" for="task-due-time">{{ 'tasks.editor.due_time'|trans }}</label>
+                <input id="task-due-time" type="time" name="dueTime" form="task-editor"
+                       value="{{ posted.dueTime ?? (task and task.dueAt ? task.dueAt|date('H:i', zone) : '') }}"
+                       {% if readOnly or not list.keepsDueTime %}disabled{% endif %}
+                       {% if not list.keepsDueTime %}aria-describedby="task-due-day-only"{% endif %}
+                       class="{{ field }}">
+            </div>
+            {# Offered and then lost at the next sync would be worse than not offered. #}
+            {% if not list.keepsDueTime %}
+                <p id="task-due-day-only" class="col-span-2 -mt-1 text-xs text-ink-muted">{{ 'tasks.editor.due_day_only'|trans }}</p>
+            {% endif %}
+        </div>
+
+        {% if isWhole %}
+            {% set choice = posted.recurrence ?? (task ? task.recurrenceChoice : '') %}
+            <div data-editor-part="repeat">
+                <label class="{{ label }}" for="task-recurrence">{{ 'tasks.editor.repeat'|trans }}</label>
+                <select id="task-recurrence" name="recurrence" form="task-editor" {% if readOnly %}disabled{% endif %}
+                        {{ select.enhance() }}
+                        class="select-field w-full h-9 text-sm">
+                    <option value="">{{ 'tasks.editor.repeat_none'|trans }}</option>
+                    {% for option in constant('App\\Entity\\Task\\Task::RECURRENCE_RULES')|keys %}
+                        <option value="{{ option }}" {% if choice == option %}selected{% endif %}>{{ ('tasks.editor.repeat_' ~ option)|trans }}</option>
+                    {% endfor %}
+                    {% if 'keep' == choice %}
+                        <option value="keep" selected>{{ 'tasks.editor.repeat_keep'|trans }}</option>
+                    {% endif %}
+                </select>
+                <p class="mt-1 text-xs text-ink-muted">{{ 'tasks.editor.repeat_hint'|trans }}</p>
+            </div>
+
+            {# A chosen file goes up with Save, the same for a task new or saved. Not
+               offered on a public demo, whose disk nothing reaps: see DemoMode. #}
+            {% set canAttach = not readOnly and not demo.isEnabled %}
+            <div data-editor-part="files">
+                {% if canAttach or (task and task.attachments is not empty) %}
+                    <section aria-labelledby="task-files-heading" class="space-y-2">
+                        <h3 id="task-files-heading" class="{{ sectionHeading }}">{{ 'tasks.attachments.heading'|trans }}</h3>
+
+                        {% if task and task.attachments is not empty %}
+                            <ul class="space-y-1">
+                                {% for attachment in task.attachments %}
+                                    <li class="flex items-center gap-2 text-sm" data-task-attachment="{{ attachment.id }}">
+                                        <i class="fa-solid fa-paperclip text-ink-faint shrink-0" aria-hidden="true"></i>
+                                        {# A foreign link leaves through the browser, with no referrer.
+                                           It is http or https, or the converter never stored it. #}
+                                        {% if attachment.isStoredHere %}
+                                            <a href="{{ path('app_tasks_attachment_download', { id: attachment.id }) }}"
+                                               data-turbo="false"
+                                               class="flex-1 min-w-0 truncate text-accent underline">{{ attachment.filename }}</a>
+                                        {% else %}
+                                            <a href="{{ attachment.externalUrl }}"
+                                               target="_blank" rel="noopener noreferrer"
+                                               class="flex-1 min-w-0 truncate text-accent underline">{{ attachment.filename }}</a>
+                                        {% endif %}
+                                        {% if not readOnly and attachment.isStoredHere %}
+                                            <button type="submit"
+                                                form="task-editor"
+                                                formaction="{{ path('app_tasks_attachment_delete', { id: attachment.id }) }}"
+                                                formnovalidate
+                                                data-ui--modal-keep-open
+                                                aria-label="{{ 'tasks.attachments.delete'|trans({ '%name%': attachment.filename }) }}"
+                                                title="{{ 'tasks.attachments.delete'|trans({ '%name%': attachment.filename }) }}"
+                                                class="w-6 h-6 shrink-0 rounded text-ink-faint hover:text-danger hover:bg-hover cursor-pointer">
+                                            <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                                        </button>
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        {% if canAttach %}
+                            <label class="sr-only" for="task-new-file">{{ 'tasks.attachments.add'|trans }}</label>
+                            <input id="task-new-file" type="file" name="file" form="task-editor" class="w-full min-w-0 text-sm text-ink-muted">
+                            <p class="text-xs text-ink-muted">{{ 'tasks.attachments.limit'|trans }}</p>
+                        {% endif %}
+                    </section>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <div data-editor-part="notes">
+            <label class="{{ label }}" for="task-notes">{{ 'tasks.editor.notes'|trans }}</label>
+            <textarea id="task-notes" name="notes" form="task-editor" rows="4"
+                      {% if readOnly %}disabled{% endif %}
+                      class="{{ field }}">{{ posted.notes ?? (task ? task.notes : '') }}</textarea>
+            {% if task and task.notes %}
+                {# The links, which a textarea cannot make clickable. #}
+                <p class="mt-1 text-xs text-ink-muted whitespace-pre-wrap break-words">{{ task.notes|linkify }}</p>
+            {% endif %}
+        </div>
+
+        {# Moving a synced task deletes it where it was and creates it where it
+           goes: see TaskWriter::move(). #}
+        {% if isWhole and not readOnly %}
+            {% set chosenList = posted.listId ?? list.id %}
+            <div data-editor-part="list">
+                <label class="{{ label }}" for="task-list">{{ 'tasks.editor.list'|trans }}</label>
+                <select id="task-list" name="listId" form="task-editor"
+                        {{ select.enhance() }}
+                        class="select-field w-full h-9 text-sm">
+                    {% for candidate in lists %}
+                        <option value="{{ candidate.id }}" {% if candidate.id == chosenList %}selected{% endif %}>{{ candidate.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        {% endif %}
+
+    </div>
+
+    <footer class="shrink-0 flex items-center gap-2 border-t border-line px-6 py-3 max-md:px-4">
+        {% if task and not readOnly %}
+            <button type="submit"
+                    form="task-editor"
+                    formaction="{{ path('app_tasks_delete', { id: task.id }) }}"
+                    formnovalidate
+                    class="px-3 py-2 rounded-lg text-sm text-danger hover:bg-hover transition-colors">
+                {{ 'tasks.editor.delete'|trans }}
+            </button>
+        {% endif %}
+        <button type="button"
+                data-action="ui--modal#close"
+                class="ml-auto px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors">
+            {{ 'form.cancel'|trans }}
+        </button>
+        {% if not readOnly %}
+            <button type="submit"
+                    form="task-editor"
+                    class="px-4 py-2 rounded-lg text-sm bg-accent text-accent-ink hover:opacity-90 transition-opacity">
+                {{ 'tasks.editor.save'|trans }}
+            </button>
+        {% endif %}
+    </footer>
+</turbo-frame>
+
+
+{# A field a step is typed into. See tasks--new-steps. #}
+{% macro stepField(title, field, done = false) %}
+    <li class="flex items-center gap-2" data-task-new-step>
+        <input type="hidden" name="stepsDone[]" form="task-editor" value="{{ done ? '1' : '0' }}">
+        <button type="button"
+                role="checkbox"
+                aria-checked="{{ done ? 'true' : 'false' }}"
+                aria-label="{{ 'tasks.editor.step_done'|trans }}"
+                title="{{ 'tasks.editor.step_done'|trans }}"
+                data-action="tasks--new-steps#tick"
+                {% if title|trim is empty %}disabled{% endif %}
+                class="peer group/tick flex items-center justify-center size-4 shrink-0 rounded-full border border-ink-faint transition-colors cursor-pointer hover:border-accent
+                       disabled:cursor-default disabled:hover:border-ink-faint
+                       aria-checked:border-accent aria-checked:bg-accent aria-checked:text-accent-ink">
+            <i class="fa-solid fa-check text-[0.5rem] invisible group-aria-checked/tick:visible" aria-hidden="true"></i>
+        </button>
+        <input type="text" name="steps[]" form="task-editor" autocomplete="off"
+               value="{{ title }}"
+               maxlength="{{ constant('App\\Entity\\Task\\Task::TITLE_MAX_LENGTH') }}"
+               aria-label="{{ 'tasks.editor.step_add'|trans }}"
+               placeholder="{{ 'tasks.editor.step_add'|trans }}"
+               data-tasks--new-steps-target="field"
+               data-action="input->tasks--new-steps#typed keydown.enter->tasks--new-steps#next blur->tasks--new-steps#left"
+               class="{{ field }} peer-aria-checked:text-ink-faint peer-aria-checked:line-through">
+        {# Kept in its place while there is nothing to take away, so the column does not shift. #}
+        <button type="button"
+                data-step-remove
+                data-action="tasks--new-steps#remove"
+                aria-label="{{ 'tasks.editor.step_remove'|trans }}"
+                title="{{ 'tasks.editor.step_remove'|trans }}"
+                {% if title|trim is empty %}disabled{% endif %}
+                class="w-6 h-6 shrink-0 rounded text-ink-faint hover:text-danger hover:bg-hover cursor-pointer disabled:invisible">
+            <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+        </button>
+    </li>
+{% endmacro %}

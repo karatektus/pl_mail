@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
-use App\Domain\Enum\Calendar\CalendarPaneMode;
+use App\Domain\DTO\Layout\LayoutNode;
+use App\Domain\DTO\Layout\Workspace;
+use App\Domain\DTO\Layout\Workspaces;
+use App\Domain\Enum\Layout\PaneKind;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
@@ -119,12 +122,10 @@ final class SeedTestEmailCommand extends Command
         // A deterministic inbox has to mean a deterministic LIST, not merely
         // deterministic mail.
         //
-        // The calendar pane's mode and width live on the USER, and the client
-        // writes them whenever the pane is docked -- including on arrival at
-        // mail from outside it, which persists by itself without anyone
-        // touching the switch (see ui--split's connect). So the state outlives
+        // The workspace lives on the USER, and a spec that splits a pane off
+        // beside the list saves it (layout--workspace). So the state outlives
         // the browser context, and the per-worker user is shared by every spec
-        // file this worker runs: one spec that left the calendar docked
+        // file this worker runs: one spec that left a calendar beside it
         // narrows this list below the 36rem CONTAINER width that the row's
         // `hidden @xl:flex` actions query.
         //
@@ -139,8 +140,14 @@ final class SeedTestEmailCommand extends Command
         //
         // Put the furniture back on every seed rather than trusting each
         // producer to clean up after itself.
-        $user->calendarPaneMode = CalendarPaneMode::Mail;
-        $user->setSetting(User::SETTING_CALENDAR_PANE_WIDTH, User::CALENDAR_PANE_DEFAULT_WIDTH);
+        //
+        // Since #755 the furniture is a workspace: the mail list alone. A fresh
+        // id each time, so a divider position or a full-width pane a spec left
+        // in this browser's device cookie (DeviceLayout) names a workspace that
+        // no longer exists and is ignored.
+        $user->setSetting(User::SETTING_WORKSPACES, (new Workspaces([
+            new Workspace('e2e' . bin2hex(random_bytes(4)), 'Mail', LayoutNode::pane(PaneKind::List)),
+        ], 0))->toArray());
 
         $address = true === $input->getOption('own-address') ? strtolower((string) $user->email) : self::SEED_ACCOUNT_USERNAME;
         $account = $this->accountRepository->findOneBy([

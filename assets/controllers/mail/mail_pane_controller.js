@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import * as Turbo from "@hotwired/turbo";
 import { Idiomorph } from "idiomorph";
 import { leave, makeRoom, motionIsOff } from "../../motion.js";
 import { requestFailed } from "../../request_errors.js";
@@ -203,11 +204,11 @@ export default class extends Controller {
         this._onPopState = this._handlePopState.bind(this);
         window.addEventListener("popstate", this._onPopState);
 
-        // The reading pane moved beside the list or away from it — the window
-        // was resized, or the calendar pane opened and took the room. See
-        // _fillBesideList for the one case where that needs anything done.
+        // The workspace changed (#755): the message may have moved into its own
+        // pane beside the list or back into the list's. See _fillBesideList for
+        // the one case where that needs anything done.
         this._onSplitLayout = () => this._fillBesideList();
-        document.addEventListener("reading-split:layout", this._onSplitLayout);
+        document.addEventListener("layout:changed", this._onSplitLayout);
 
         // The open row's mark has to outlive anything that replaces the row.
         //
@@ -334,7 +335,7 @@ export default class extends Controller {
 
     disconnect() {
         window.removeEventListener("popstate", this._onPopState);
-        document.removeEventListener("reading-split:layout", this._onSplitLayout);
+        document.removeEventListener("layout:changed", this._onSplitLayout);
         this._selectionObserver?.disconnect();
         document.removeEventListener("turbo:frame-load", this._onListSwap);
         document.removeEventListener("turbo:before-frame-render", this._onListRendering);
@@ -407,47 +408,33 @@ export default class extends Controller {
     }
 
     async _openUrl(url) {
-        const fromContacts = this._contactsFull();
+        // A pane's own page has no list and no workspace drawn around its
+        // pane, so a message asked for there — the address book's "Reference
+        // emails" — is the conversation's page, visited. Back returns to the
+        // contact.
+        if (this._onPanePage()) {
+            Turbo.visit(url);
 
-        // Remember where to go back to, if we don't already know. Not the full
-        // contacts page's own address: closing a message opened from it shows
-        // the Inbox, in the mail column the message brought in.
-        if (fromContacts) {
-            this._listUrl = this.inboxUrlValue;
-        } else if (!this._listUrl) {
+            return;
+        }
+
+        // Remember where to go back to, if we don't already know.
+        if (!this._listUrl) {
             this._listUrl = window.location.href;
         }
 
         await this._loadMessage(url);
 
         history.pushState({ mailPaneOpen: true }, "", url);
-
-        // Loaded while the column was still put away, so it arrives filled.
-        if (fromContacts) {
-            await this._revealFromContacts();
-            this._fillBesideList();
-        }
     }
 
     /**
-     * Whether this is the full contacts page, with the mail column put away
-     * (contacts/_page_shell.html.twig).
+     * Whether this is a pane's own page — /contacts or /tasks — which draws
+     * that pane at full width with no list behind it (#755; see the page
+     * shells).
      */
-    _contactsFull() {
-        return null !== document.querySelector("[data-contacts-full]");
-    }
-
-    /**
-     * Asks contacts--pane to bring the mail column in beside the address book,
-     * and waits until it is in the DOM — the transition itself may still be
-     * running. The shell owns that state, so it is asked rather than told;
-     * nobody answering is a page without one, where there is nothing to wait for.
-     */
-    async _revealFromContacts() {
-        const request = new CustomEvent("contacts-pane:reveal", { detail: { done: null } });
-        document.dispatchEvent(request);
-
-        await request.detail.done;
+    _onPanePage() {
+        return null !== document.querySelector("[data-layout-page]");
     }
 
     close(event) {
@@ -528,18 +515,15 @@ export default class extends Controller {
     }
 
     /**
-     * Whether the reading pane sits beside the list at this moment.
-     *
-     * Asked of the divider rather than of the mode or the width. The mode is a
-     * preference and the width is a measurement; what decides is the container
-     * query in app.css, and the one thing it leaves behind that script can read
-     * is whether the divider is drawn. A second copy of the threshold here
-     * would be a second number to keep in step with the stylesheet's.
+     * Whether the message has a pane of its own beside the list at this moment
+     * (#755). layout--workspace marks the workspace so whenever it puts the
+     * message's element in the Message pane — which it does only with that
+     * pane in the workspace, the list not at full width, and the window lg or
+     * wider. Asked of the mark rather than worked out again here, so the two
+     * cannot disagree.
      */
     _besideList() {
-        const handle = document.querySelector("[data-reading-handle]");
-
-        return null !== handle && "none" !== getComputedStyle(handle).display;
+        return null !== document.querySelector("[data-message-beside]");
     }
 
     /**
@@ -562,8 +546,8 @@ export default class extends Controller {
      * widened after the page loaded is the same situation arriving late.
      */
     _fillBesideList() {
-        // Nothing is beside anything while the contacts have the row.
-        if (this._contactsFull() || false === this._besideList() || false === this._listNeedsRendering() || "" === this.inboxUrlValue) {
+        // Nothing is beside anything on a pane's own page.
+        if (this._onPanePage() || false === this._besideList() || false === this._listNeedsRendering() || "" === this.inboxUrlValue) {
             return;
         }
 
@@ -855,10 +839,9 @@ export default class extends Controller {
             return;
         }
 
-        // The full contacts page: no list on screen, and its address would
-        // answer with a contacts page. The list is fetched when the mail
-        // column comes in.
-        if (this._contactsFull()) {
+        // A pane's own page: no list on screen, and its address would answer
+        // with that page.
+        if (this._onPanePage()) {
             return;
         }
 
