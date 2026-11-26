@@ -55,6 +55,10 @@ final class ThemeVariableCompletenessTest extends TestCase
         // Accent
         '--rgb-accent',
         '--rgb-accent-ink',
+        // The light a switch of workspace gives off (#755). The theme's, not
+        // the stored accent's: a glow is light, so a dark theme's is its accent
+        // taken well toward white, and a user's own accent does not reach it.
+        '--rgb-glow',
         // Fields
         '--rgb-field',
         '--rgb-field-border',

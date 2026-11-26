@@ -213,8 +213,18 @@ test.describe("the pane menu", () => {
 
             return Math.abs(thumb!.x - tab!.x) + Math.abs(thumb!.width - tab!.width);
         }, { timeout: 2_000 }).toBeLessThan(2);
-        // Said by the tab, not a toast.
+        // Said by the tab, not a toast — with a spark, which is plMail's
+        // switch; one the user makes blooms instead.
         await expect(page.locator("#toast-region").getByText("Triage")).toHaveCount(0);
+        await expect(page.locator(".workspace-tabs")).toHaveAttribute("data-glow", /^spark-/);
+
+        await tabs.filter({ hasText: "Planning" }).click();
+        await expect(page.locator(".workspace-tabs")).toHaveAttribute("data-glow", /^bloom-/);
+
+        // And slid there, rather than jumping: a lookup that read undefined
+        // once left every switch a jump with the highlight in the right place.
+        await expect(page.locator(".workspace-tabs")).toHaveAttribute("data-thumb-sliding", "");
+        await tabs.filter({ hasText: "Triage" }).click();
 
         // And stays: the switch is saved, as a click on the tab would be.
         expect((await saved).ok()).toBe(true);
