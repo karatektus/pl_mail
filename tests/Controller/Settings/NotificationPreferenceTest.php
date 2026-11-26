@@ -327,6 +327,49 @@ final class NotificationPreferenceTest extends WebTestCase
     }
 
     /**
+     * The second ask, after the wait, is about the mail of the first answer
+     * and anything newer: read on the phone meanwhile, it is not stood in for
+     * by an older unread letter, neither by its presence nor by its words.
+     */
+    public function testTheSecondAskLooksOnlyAtTheMailOfTheFirst(): void
+    {
+        $this->post(['skipRead' => '1', 'showContent' => '1']);
+
+        $this->arrived('Five minutes old', minutesAgo: 5, from: 'Early Bird');
+        $pushed = $this->arrived('Just in', minutesAgo: 1, from: 'Ada Lovelace');
+
+        $first = $this->inboxState();
+        self::assertSame($pushed->createdAt->getTimestamp(), $first['newest']);
+
+        // Read on the phone while the worker waited.
+        $this->readElsewhere($pushed);
+
+        $second = $this->inboxState($first['newest']);
+        self::assertFalse($second['hasUnread'], 'the mail this push was about is read');
+        self::assertNull($second['notice'], 'and the older letter is not named as if it had just come');
+
+        // Something newer that came during the wait still counts.
+        $this->arrived('Came during the wait', minutesAgo: 0, from: 'Grace Hopper');
+
+        $third = $this->inboxState($first['newest']);
+        self::assertTrue($third['hasUnread']);
+        self::assertSame('Grace Hopper', $third['notice']['title'] ?? null);
+
+        // A worker from before `since` gets the old answer: any recent unread mail.
+        self::assertTrue($this->inboxState()['hasUnread']);
+    }
+
+    /** Marks a message read as another device would, past the entity manager inboxState() clears. */
+    private function readElsewhere(Message $message): void
+    {
+        $reloaded = $this->em->find(Message::class, $message->id);
+        self::assertInstanceOf(Message::class, $reloaded);
+
+        $reloaded->seenAt = new DateTimeImmutable();
+        $this->em->flush();
+    }
+
+    /**
      * An unread message that reached the Inbox $minutesAgo — stored then, as
      * the endpoint asks by when plMail stored it, and dated then too.
      */
@@ -349,10 +392,10 @@ final class NotificationPreferenceTest extends WebTestCase
         return $message;
     }
 
-    /** @return array{skipRead: bool, hasUnread: bool, delay: int, notice: array{title: string, body: string, url: string}|null} */
-    private function inboxState(): array
+    /** @return array{skipRead: bool, hasUnread: bool, delay: int, newest: int|null, notice: array{title: string, body: string, url: string}|null} */
+    private function inboxState(?int $since = null): array
     {
-        $this->client->request('GET', '/settings/push/inbox-state');
+        $this->client->request('GET', '/settings/push/inbox-state', null === $since ? [] : ['since' => $since]);
 
         self::assertResponseIsSuccessful();
 

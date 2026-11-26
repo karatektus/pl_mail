@@ -82,6 +82,18 @@ async function setSwitch(page: Page, name: "showContent" | "skipRead", value: "1
     await expect(page.locator(`input[name="${name}"][value="${value}"]`)).toBeChecked();
 }
 
+/**
+ * Changes this worker's copy of a seeded message behind the app's back, as
+ * another device or an earlier delivery would have. Through the console, so
+ * the quotes have to survive a template literal, a shell and psql in turn.
+ */
+function alterMessage(subject: string, set: string): void {
+    consoleCommand(
+        `dbal:run-sql "UPDATE message SET ${set} FROM account WHERE message.account_id = account.id ` +
+            `AND account.usr_id = (SELECT id FROM \\"user\\" WHERE email = '${TEST_USER.email}') AND message.subject = '${subject}'"`,
+    );
+}
+
 /** Tick conversations by their subjects and mark them read from the toolbar. */
 async function markRead(page: Page, ...subjects: string[]): Promise<void> {
     await page.goto("/mail/inbox");
@@ -230,5 +242,40 @@ test.describe("with \"Show sender and subject\" on", () => {
         consoleCommand(`app:test:seed-mail --email=${TEST_USER.email}`);
 
         expect(await shown(worker, 40_000)).toEqual({ title: "4 new messages", body: "E2E Sender", url: "/mail/inbox", tag: "plmail-new-mail" });
+    });
+
+    /**
+     * The second answer is about the mail of the first and anything newer:
+     * the message the push was for, read on the phone during the wait, is not
+     * stood in for by an older unread letter. No notification at all then,
+     * and certainly not one naming that older letter as if it had just come.
+     */
+    test("with the unread check on, mail read during the wait is not stood in for by older mail", async ({ page, context }) => {
+        test.setTimeout(90_000);
+
+        await setSwitch(page, "skipRead", "1");
+        await markRead(page, INBOX_SUBJECTS.read, INBOX_SUBJECTS.star);
+        alterMessage(INBOX_SUBJECTS.archive, "created_at = message.created_at - INTERVAL '5 minutes'");
+        const { worker, push } = await serviceWorker(page, context);
+
+        const asked = (again: boolean) => context.waitForEvent("response", {
+            predicate: (response) => response.url().includes("/settings/push/inbox-state") && again === response.url().includes("since="),
+            timeout: 40_000,
+        });
+        const first = asked(false);
+        const second = asked(true);
+
+        await push();
+        await first;
+        alterMessage(INBOX_SUBJECTS.trash, "seen_at = NOW()");
+        await second;
+
+        // showNothing() runs right after the answer; give it the moment it takes.
+        await page.waitForTimeout(1000);
+        expect(await worker.evaluate(async () => {
+            const registration = (self as unknown as { registration: ServiceWorkerRegistration }).registration;
+
+            return (await registration.getNotifications()).map((n) => n.body);
+        })).toEqual([]);
     });
 });

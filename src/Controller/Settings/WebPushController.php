@@ -13,6 +13,7 @@ use App\Jmap\Push\WebPushSender;
 use App\Repository\User\PushSubscription\PushSubscriptionRepository;
 use App\Service\Mail\NotifyScopes;
 use App\Service\Push\NewMailNotice;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -235,18 +236,31 @@ final class WebPushController extends AbstractController
      * subject as finished strings in the reader's language, or null, and the
      * worker then says "New mail". Answered here rather than carried by the
      * push for the same reason: the push stays content-free. See NewMailNotice.
+     *
+     * $newest is when the newest of that mail was stored (a Unix time), and
+     * `?since=` takes it back: the worker's second ask, after the wait, is
+     * about the mail of its first answer and anything newer, never an older
+     * unread letter. Without it, mail read on the phone during the wait was
+     * stood in for by any unread letter of the last minutes, and with
+     * "Show sender and subject" on the notification even named that letter
+     * as if it had just come. A worker from before this sends no `since` and
+     * gets the old answer.
      */
     #[Route('/inbox-state', name: 'inbox_state', methods: ['GET'])]
-    public function inboxState(NotifyScopes $notifyScopes, NewMailNotice $notices): JsonResponse
+    public function inboxState(Request $request, NotifyScopes $notifyScopes, NewMailNotice $notices): JsonResponse
     {
         /** @var User $user */
         $user   = $this->getUser();
-        $recent = true === $user->notifySkipsRead || true === $user->notifyShowsContent ? $notifyScopes->recentUnread($user) : [];
+        $since  = $request->query->getInt('since');
+        $recent = true === $user->notifySkipsRead || true === $user->notifyShowsContent
+            ? $notifyScopes->recentUnread($user, notBefore: $since > 0 ? (new DateTimeImmutable())->setTimestamp($since) : null)
+            : [];
 
         return $this->json([
             'skipRead'  => $user->notifySkipsRead,
             'hasUnread' => true === $user->notifySkipsRead && [] !== $recent,
             'delay'     => self::SKIP_READ_DELAY_SECONDS,
+            'newest'    => [] === $recent ? null : $recent[0]->createdAt->getTimestamp(),
             'notice'    => true === $user->notifyShowsContent ? $notices->for($recent) : null,
         ]);
     }

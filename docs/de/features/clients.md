@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:a018e1c892f81830341a87681bc2d0dcebe0997c -->
+<!-- translated-from: features/clients.md sha1:6de3414ce9ab1302e4f0dc4c67dacc39a55fac9f -->
 
 # Andere Clients
 
@@ -170,9 +170,9 @@ Browser.
 **Nur bei ungelesener Mail benachrichtigen** (standardmäßig aus) begegnet einem Push, der sich nicht
 zurückrufen lässt: Sind die Benachrichtigungen in mehreren Browsern an, meldet jeder „New mail“, auch
 wenn du die Nachricht eine Minute später auf dem Handy gelesen oder gelöscht hast. Ein Browser mit
-dieser Option wartet nach dem Push zwanzig Sekunden und fragt, ob Post aus den letzten fünfzehn
-Minuten, die unter ein angehaktes Kästchen fällt, noch ungelesen ist. Wenn nicht, zeigt er nichts an
-und nimmt eine Benachrichtigung zurück, die er für frühere Post gezeigt hatte. Alte ungelesene Post
+dieser Option wartet nach dem Push zwanzig Sekunden und fragt, ob die Post, um die es ging, oder
+etwas, das danach kam, noch ungelesen ist. Wenn nicht, zeigt er nichts an und nimmt eine
+Benachrichtigung zurück, die er für frühere Post gezeigt hatte. Ungelesene Post von vor dem Push
 zählt nicht, ebenso wenig ungelesene Post in einem Tab oder Label, das du nicht angehakt hast.
 
 Zwei andere Arten von Push gehen an dieselben Geräte und sind nicht betroffen: eine Erinnerung aus

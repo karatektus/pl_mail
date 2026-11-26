@@ -154,9 +154,9 @@ as well. Like the boxes above, it applies to every browser of yours.
 **Only notify for unread mail** (off by default) deals with a push that cannot be recalled: with
 notifications on in several browsers, each one says "New mail" even when you read or deleted the
 message on your phone a minute later. A browser with this on waits twenty seconds after the push and
-asks whether mail from the last fifteen minutes that falls under a ticked box is still unread. If
-not, it shows nothing, and it takes down a notification it had shown for earlier mail. Old unread
-mail does not count, and neither does unread mail in a tab or label you did not tick.
+asks whether the mail the push was about, or anything that came after it, is still unread. If not,
+it shows nothing, and it takes down a notification it had shown for earlier mail. Unread mail from
+before the push does not count, and neither does unread mail in a tab or label you did not tick.
 
 Two other kinds of push go to the same devices and are not affected: a reminder from
 [Calendar alerts](calendar-alerts.md), and the notice an administrator gets when a newer plMail is

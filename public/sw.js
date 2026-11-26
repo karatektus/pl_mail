@@ -136,7 +136,9 @@ async function notifyStateChange(payload) {
             return;
         }
 
-        state = await inboxState();
+        // About the mail of the first answer and anything newer (#760): an
+        // older unread letter must not stand in for mail read meanwhile.
+        state = await inboxState(state.newest);
 
         if (state && state.hasUnread === false) {
             await showNothing();
@@ -225,13 +227,18 @@ function isWebKit() {
  * answer — and the caller then shows the notification, content-free, because
  * a missed notification is worse than one for mail that is already read.
  *
+ * `since` is the `newest` of an earlier answer: asked again after the wait,
+ * the server then looks only at that mail and what came after it.
+ *
  * Bounded by a timeout, because the notification waits for this answer even
  * for somebody who never switched the check on: a server that hangs must not
  * hold every notification back with it.
  */
-async function inboxState() {
+async function inboxState(since) {
+    const url = Number(since) > 0 ? `${INBOX_STATE_URL}?since=${Number(since)}` : INBOX_STATE_URL;
+
     try {
-        const response = await fetch(INBOX_STATE_URL, {
+        const response = await fetch(url, {
             credentials: "same-origin",
             headers: { Accept: "application/json" },
             signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(INBOX_STATE_TIMEOUT_MS) : undefined,
