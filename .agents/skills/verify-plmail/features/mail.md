@@ -36,6 +36,6 @@ Preconditions:
 ## Gotchas
 
 - Row buttons are `visibility: hidden` until hovered, so `getByRole` finds nothing on an unhovered row. Use `rowAction`, which re-hovers until the button is there; never `force: true`.
-- Row actions do not exist on the phone; skip the phone project for a hover recipe and drive the swipe instead.
+- The phone has no hover, so its rows show only a tappable star; skip the phone project for a hover recipe and drive the swipe instead.
 - An archived conversation stays archived for the rest of the run, so the second project in the same run no longer finds it in the inbox.
 - `Re: Lieferschein 4471` is a seeded bounce from `Mail Delivery System`; it is meant to look like a failure.

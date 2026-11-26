@@ -7,6 +7,7 @@ for (const path of paths) {
   test(`land on ${path}`, async ({ page }) => {
     const response = await page.goto(path);
     expect(response?.status(), `${path} answers`).toBeLessThan(400);
+    await expect(page, "still signed in as the demo user").not.toHaveURL(/\/login/);
     await notAnErrorPage(page);
     await settle(page, 800);
     await shot(page, "viewport");

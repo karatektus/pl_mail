@@ -27,4 +27,4 @@ Preconditions:
 ## Gotchas
 
 - The choice is saved for the user, so it carries into every later test in the run. Reset it at the end of the spec.
-- `tests/e2e/appearance/` holds contrast checks for every theme; run them with `--e2e tests/e2e/appearance` after a colour change.
+- `tests/e2e/appearance/` holds the theme checks; run them with `--e2e tests/e2e/appearance` after a colour change. The contrast checks in `tests/e2e/appearance-shots.spec.ts` run only with `E2E_SHOTS=1`, which `verify` does not set.

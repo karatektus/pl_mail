@@ -28,10 +28,10 @@ Preconditions:
 - **Write.** Fill `input[name="compose[subject]"]` and the editor `[data-compose--compose-toolbar-target="editor"]`.
 - **Send.** Click the window's `getByRole("button", { name: /^Send/ })`. The window is gone within five seconds and `#toast-region` says `Sending` with an `Undo` button.
 - **Reply.** Open a conversation, `getByRole("link", { name: "Reply", exact: true }).first()`, and the inline editor is `#compose_inline [data-compose--compose-toolbar-target="editor"]`.
-- **Proof.** `shot` the filled window before Send and the toast after it, then open `/mail/sent` and see the subject.
+- **Proof.** `shot` the filled window before Send and the toast with its Undo after it.
 
 ## Gotchas
 
-- The test stack's message bus is in memory, so nothing delivers a sent mail: the UI moves it to Sent, and no SMTP is ever reached. `app:test:finish-send` runs the send job by hand when a spec needs what went out (`tests/e2e/compose-send-optimistic.spec.ts`).
+- The test stack's message bus is in memory, so the send job never runs on its own and no SMTP is reached: a send from the demo user stays pending, and Sent proves nothing about delivery. `tests/e2e/compose-signature-sent.spec.ts` shows how a spec runs the job by hand with `app:test:finish-send` for its own user.
 - The window animates open; `settle` before a shot.
 - Drafts autosave. A spec that leaves a draft behind changes the Drafts count for later tests in the same run.

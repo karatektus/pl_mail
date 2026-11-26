@@ -21,7 +21,7 @@ Preconditions:
 
 - **Open.** `page.keyboard.press("ControlOrMeta+k")`. `#settings-palette` is visible.
 - **Search.** Fill `#settings-palette` `getByRole("combobox")` with `archive`. The first `getByRole("option")` says Archive and its `kbd` reads `e`.
-- **Run.** Press `j` first to put the cursor on a row, then Enter in the box. The box closes and the inbox has one row fewer.
+- **Run.** On the inbox with the box closed, press `j` to put the cursor on a row. Then open the box, search `archive` and press Enter. The box closes and the inbox has one row fewer.
 - **Close.** Escape clears the field first, then closes the box.
 - **Proof.** `shot` the open box with its results and the list after the action. `tests/e2e/command-box.spec.ts` covers the rest.
 

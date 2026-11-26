@@ -1,17 +1,20 @@
 import { defineConfig } from "@playwright/test";
+import { dirname, join } from "node:path";
 import { APP_TIMEZONE, BASE_URL } from "../../../tests/e2e/support/config";
 import { AUTH_STATE } from "./support";
 
+const OUT = process.env.VERIFY_OUT ?? "evidence/scratch-run/test-results";
+
 export default defineConfig({
   testDir: ".",
-  testMatch: ["pages.spec.ts", "scratch/*.spec.ts"],
-  outputDir: process.env.VERIFY_OUT ?? "evidence/scratch-run",
+  testMatch: ["pages.spec.ts", "scratch/**/*.spec.ts"],
+  outputDir: OUT,
   fullyParallel: false,
   workers: 1,
   retries: 0,
   timeout: 90_000,
   expect: { timeout: 10_000 },
-  reporter: [["list"]],
+  reporter: [["list"], ["json", { outputFile: join(dirname(OUT), "results.json") }]],
   use: {
     baseURL: BASE_URL,
     timezoneId: APP_TIMEZONE,

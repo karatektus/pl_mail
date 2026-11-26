@@ -6,6 +6,7 @@ QA_EXEC=${DEVOPS_REPO:-$HOME/devops}/bin/qa-exec
 skill_dir=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
 top=$(git -C "$skill_dir" rev-parse --show-toplevel)
 skill=${skill_dir#"$top"/}
+caller=$PWD
 cd "$top"
 
 usage() {
@@ -48,13 +49,14 @@ doctor() {
   check "qa-exec at $QA_EXEC" '[ -x "$QA_EXEC" ]'
   check "this checkout is committed (qa-exec refuses otherwise)" \
     '[ -z "$(git -C "$top" status --porcelain --untracked-files=all)" ]'
+  check "this is not $QA_HOST, which qa-exec refuses to run on" '[ "$QA_HOST" != "$(hostname)" ]'
   check "ssh $QA_HOST answers" 'on_host true'
   check "$QA_HOST has the checkout qa-exec sends commits to (~/$rel)" "on_host 'test -d ~/$rel/.git'"
   check "$QA_HOST has ~/devops/bin/qa-slots, which queues each run" 'on_host "test -x ~/devops/bin/qa-slots"'
   check "$QA_HOST reaches Docker, directly or through sudo -n" \
     'on_host "docker info || sudo -n docker info"'
-  check "$QA_HOST has docker compose, node, npx and ss on its ssh PATH" \
-    'on_host "command -v node npx ss && { docker compose version || sudo -n docker compose version; }"'
+  check "$QA_HOST has docker compose, node, npx, ss, curl, tar and base64 on its ssh PATH" \
+    'on_host "command -v node npx ss curl tar base64 && { docker compose version || sudo -n docker compose version; }"'
   echo "info  $QA_HOST load average $(on_host 'cut -d" " -f1-3 /proc/loadavg' || echo unknown)"
   return "$bad"
 }
@@ -67,14 +69,15 @@ while [ $# -gt 0 ]; do
     --base) base=${2:?--base needs a revision}; shift 2 ;;
     --e2e) e2e+=("${2:?--e2e needs Playwright arguments}"); shift 2 ;;
     --spec)
-      file=$(readlink -f "${2:?--spec needs a file}")
+      file=$(cd "$caller" && readlink -f "${2:?--spec needs a file}")
       case $file in "$skill_dir"/scratch/*.spec.ts) ;; *) die "a scratch spec lives in $skill/scratch/ and ends in .spec.ts" ;; esac
       specs+=("${file#"$top"/}")
       shift 2
       ;;
     -h | --help) usage; exit ;;
     -*) usage >&2; die "unknown option $1" ;;
-    *) paths+=("$1"); shift ;;
+    /*) paths+=("$1"); shift ;;
+    *) die "a page is a path on plMail starting with /, such as /mail/inbox; got $1" ;;
   esac
 done
 [ $((${#paths[@]} + ${#specs[@]} + ${#e2e[@]})) -gt 0 ] || { usage >&2; die "nothing to drive"; }

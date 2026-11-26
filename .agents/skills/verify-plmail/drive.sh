@@ -6,6 +6,7 @@ skill=.agents/skills/verify-plmail
 ev=${QA_EVIDENCE_DIR:?drive.sh runs under qa-exec; start it with $skill/verify}
 cache=$HOME/.cache/plmail-verify
 mkdir -p "$cache/composer"
+unset E2E_BASE_URL
 : >"$ev/summary.txt"
 
 DEMO_EMAIL=demo@plmail.test
@@ -37,15 +38,19 @@ compose_for() {
 }
 
 teardown() {
-  local compose=$1
-  $compose run --rm --no-deps --entrypoint chown app -R "$(id -u):$(id -g)" /app >/dev/null 2>&1
-  $compose down -v --remove-orphans >/dev/null 2>&1
+  local side=$1 tree=$2 compose=$3 log=$ev/$1/teardown.log
+  $compose down -v --remove-orphans >>"$log" 2>&1 || record $? "$side/teardown.log"
+  $SUDO docker run --rm --entrypoint chown -v "$tree:/app" -v "$cache:/cache" pl_mail_test-app \
+    -R "$(id -u):$(id -g)" /app /cache >>"$log" 2>&1 || record $? "$side/teardown.log"
 }
 
 stacks=()
 cleanup() {
-  local compose
-  for compose in "${stacks[@]}"; do teardown "$compose"; done
+  local entry side tree compose
+  for entry in "${stacks[@]}"; do
+    IFS='|' read -r side tree compose <<<"$entry"
+    teardown "$side" "$tree" "$compose"
+  done
   stacks=()
 }
 trap cleanup EXIT
@@ -54,9 +59,13 @@ trap 'exit 130' INT TERM HUP
 serve() {
   local side=$1 tree=$2 out=$ev/$1 port compose
   mkdir -p "$out" "$tree/var/log" "$tree/public/assets"
-  port=$(free_port) || { echo "FAIL  no free port in 8100-8199" >"$out/doctor.txt"; return 1; }
+  port=$(free_port) || {
+    echo "FAIL  no free port in 8100-8199" >"$out/doctor.txt"
+    record 1 "$side/doctor.txt"
+    return 1
+  }
   compose=$(compose_for "$side" "$tree" "$port")
-  stacks+=("$compose")
+  stacks+=("$side|$tree|$compose")
   echo "$compose" >"$out/compose.txt"
 
   $compose build app >"$out/build.log" 2>&1 || { record $? "$side/build.log"; return 1; }
@@ -108,12 +117,13 @@ drive() {
     [ -z "$line" ] || run "spec-$(basename "$line" .spec.ts)" npx playwright test -c "$skill/playwright.config.ts" "$line"
   done <<<"$VERIFY_SPECS"
   while IFS= read -r line; do
-    [ -z "$line" ] || eval "run e2e npx playwright test -c playwright.config.ts --workers=1 --output=\"\$ev/$side/e2e-results-$n\" $line"
+    [ -z "$line" ] || run e2e bash -c \
+      'exec npx playwright test -c playwright.config.ts --workers=1 --reporter=list --output="$VERIFY_OUT" '"$line"
   done <<<"$VERIFY_E2E"
 }
 
 if [ -n "${VERIFY_SPECS_TAR:-}" ]; then
-  base64 -d <<<"$VERIFY_SPECS_TAR" | tar -xzf - -C "$head"
+  base64 -d <<<"$VERIFY_SPECS_TAR" | tar -xzf - -C "$head" || { record $? "scratch specs failed to unpack"; exit 1; }
   while IFS= read -r line; do [ -z "$line" ] || cp "$line" "$ev/"; done <<<"$VERIFY_SPECS"
 fi
 
