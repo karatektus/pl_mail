@@ -1,3 +1,4 @@
+import type { Locator } from "@playwright/test";
 import { test, expect, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 import { INBOX_LINK } from "./support/sidebar";
@@ -598,9 +599,9 @@ test.describe("the panes in a workspace", () => {
         await expect(first).toBeVisible();
         await expect(second).toBeVisible();
 
-        await first.locator("[data-calendar-views] a[aria-label='Day']").click();
+        await pickView(first, "Day");
         await expect(current(first)).toHaveAttribute("aria-label", "Day");
-        await second.locator("[data-calendar-views] a[aria-label='Agenda']").click();
+        await pickView(second, "Agenda");
         await expect(current(second)).toHaveAttribute("aria-label", "Agenda");
 
         // Each one's choice left the other alone, and both are kept.
@@ -719,7 +720,7 @@ test.describe("the panes in a workspace", () => {
         await useWorkspace(page, { t: "split", id: "s1", dir: "row", sizes: [4, 1], children: [{ t: "pane", kind: "list" }, { t: "pane", kind: "calendar" }] });
 
         const frame = page.locator("turbo-frame#calendar-pane-frame");
-        await frame.getByRole("link", { name: "7 days" }).click();
+        await pickView(frame, "7 days");
 
         await expect.poll(async () => (await pane(page, "calendar").boundingBox())!.width, { timeout: 3_000 }).toBeGreaterThanOrEqual(700);
 
@@ -810,3 +811,20 @@ test.describe("on a phone", () => {
         await expect(page.locator("#message-list")).toBeHidden();
     });
 });
+
+/**
+ * Pick a calendar view in a pane: from its row of views, or from the menu
+ * they fold into where the pane's header is short of room (#783).
+ */
+async function pickView(frame: Locator, label: string): Promise<void> {
+    const button = frame.locator(`[data-calendar-views] a[aria-label='${label}']`);
+
+    if (await button.isVisible()) {
+        await button.click();
+
+        return;
+    }
+
+    await frame.locator(".pane-fold[aria-label^='View:']").click();
+    await frame.getByRole("menuitem", { name: label, exact: true }).click();
+}

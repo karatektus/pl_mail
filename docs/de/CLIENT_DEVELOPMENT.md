@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:74da721fdd1da9a7ef899d8355f2240a49eb3523 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:5c371a525f79cbdd6de9dc2adf247025a5913925 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -280,8 +280,9 @@ Posteingang tragen kann), und an jedem Konto; jedes Konto antwortet mit derselbe
   ist null bei einem Posteingang, dem die Nutzerin keinen Namen gegeben hat: Nenn ihn
   „Posteingang“, bei Sonstige „Sonstige“, in deiner eigenen Sprache. `icon` ist ein
   Font-Awesome-Solid-Name aus den `icons` der Capability; bilde ihn auf deine eigenen Symbole ab.
-  `accountIds` sind die Konten, deren Posteingang er listet, **eine Liste**: Heute ist ein Konto in
-  einem Posteingang, und das Format ändert sich nicht, falls es einmal mehrere werden.
+  `accountIds` sind die Konten, deren Posteingang er listet, **eine Liste**, und ein Konto kann in
+  mehreren Posteingängen sein (Kontogruppen, #783) — außer in Sonstige, das nur die Konten enthält,
+  die in keinem der anderen sind.
 - Zeichne einen Posteingang wie das Web: den Posteingang seiner Konten als eine Liste, die Tabs nur
   über diese Konten gezählt. Das Web lässt Sonstige weg, solange keines seiner Konten eingeschaltet
   ist.

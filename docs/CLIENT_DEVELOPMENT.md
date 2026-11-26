@@ -252,8 +252,8 @@ every account answers with the same list.
   UnifiedInbox is `{ id, name, icon, sortOrder, isOther, accountIds }`. `name` is null for an inbox
   the user did not name: call it "Inbox", or for Other "Other", in your own language. `icon` is a
   Font Awesome solid icon name from the capability's `icons`; map it to your own set. `accountIds`
-  are the accounts whose Inbox it lists, **a list**: an account is in one inbox today, and the
-  format will not change if that ever becomes several.
+  are the accounts whose Inbox it lists, **a list**, and an account can be in several inboxes
+  (account groups, #783) — except Other, which holds only the accounts in none of the others.
 - Draw an inbox the way the web does: the Inbox of its accounts as one list, with the tabs counted
   over those accounts only. The web leaves Other out while none of its accounts is switched on.
 - **`UnifiedInbox/changes`** is the standard /changes, and push `StateChange` carries a

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Service\Layout\WorkspaceScope;
 use App\Domain\DTO\ParsedSearchQuery;
 use App\Entity\User\User;
 use App\Service\Search\SearchQueryParser;
@@ -51,6 +52,7 @@ final class SearchSuggestController extends AbstractController
     public function __construct(
         private readonly SearchQueryParser $parser,
         private readonly TypeAheadSearch   $typeAhead,
+        private readonly WorkspaceScope    $workspaceScope,
     ) {}
 
     #[Route('', name: '', methods: ['GET'])]
@@ -88,8 +90,10 @@ final class SearchSuggestController extends AbstractController
             return $this->empty();
         }
 
+        $only = null === $parsed->space ? null : $this->workspaceScope->forSpace($user, $parsed->space);
+
         return $this->render('_partials/_search_suggestions.html.twig', [
-            'hits' => $this->typeAhead->suggest($user, $parsed->freeText, self::LIMIT),
+            'hits' => $this->typeAhead->suggest($user, $parsed->freeText, self::LIMIT, $only),
         ]);
     }
 
@@ -114,7 +118,9 @@ final class SearchSuggestController extends AbstractController
         $none = new ParsedSearchQuery();
 
         foreach (get_object_vars($parsed) as $field => $value) {
-            if ('freeText' === $field) {
+            // `space:` narrows the preview to a workspace, which it can
+            // honour cheaply (#783); the resolved accounts come with it.
+            if ('freeText' === $field || 'space' === $field || 'accountIds' === $field) {
                 continue;
             }
 

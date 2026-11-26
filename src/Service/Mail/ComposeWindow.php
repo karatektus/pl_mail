@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Service\Layout\WorkspaceScope;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Integration\Integration;
@@ -34,6 +35,7 @@ final readonly class ComposeWindow
         private AccountRepository     $accounts,
         private IntegrationRepository $integrations,
         private SignatureProvider     $signatures,
+        private WorkspaceScope        $workspaceScope,
     ) {}
 
     /**
@@ -53,6 +55,19 @@ final readonly class ComposeWindow
      */
     public function defaultAccountFor(User $user): ?Account
     {
+        // In a workspace of some accounts (#783), the first of them that can
+        // send, in the user's own order. Every account is still in the From
+        // list; this is only where it starts.
+        $scope = $this->workspaceScope->accountIds($user);
+
+        if (null !== $scope) {
+            foreach ($this->accounts->findForUserOrdered($user) as $account) {
+                if (true === $account->sendEnabled && true === in_array((int) $account->id, $scope, true)) {
+                    return $account;
+                }
+            }
+        }
+
         $primary = $this->accounts->findOneBy([
             'usr'         => $user,
             'sendEnabled' => true,

@@ -320,4 +320,82 @@ class TaskRepository extends ServiceEntityRepository
 
         return $tasks;
     }
+
+    /**
+     * Open tasks added since a moment, and open tasks falling due within a
+     * window — a workspace tab's "new" count and its "happening soon" mark
+     * (#783): the lists WorkspaceScope::taskListIds() gives it.
+     *
+     * $soonAfter leaves out what was already within the window at an earlier
+     * moment (the last visit), so a visit clears the mark. Null is none.
+     *
+     * @param list<int>|null $listIds a workspace's task lists; null is all
+     *
+     * @return array{added: int, soon: int}
+     */
+    public function countNewsForWorkspace(User $user, ?array $listIds, DateTimeImmutable $since, DateTimeImmutable $now, DateTimeImmutable $soonUntil, ?DateTimeImmutable $soonAfter = null, ?string $today = null, bool $todaySince = true): array
+    {
+        $scope  = '';
+        $params = [
+            'user'  => $user->id,
+            'since' => $since->format('Y-m-d H:i:s'),
+            'now'   => $now->format('Y-m-d H:i:s'),
+            'until' => $soonUntil->format('Y-m-d H:i:s'),
+            'after' => ($soonAfter ?? $now)->format('Y-m-d H:i:s'),
+            'done'  => TaskStatus::Completed->value,
+            'today' => $today ?? $now->format('Y-m-d'),
+        ];
+        $types = [];
+
+        if (null !== $listIds) {
+            $scope = ' AND l.id IN (:lists)';
+            $params['lists'] = [] === $listIds ? [0] : $listIds;
+            $types['lists']  = ArrayParameterType::INTEGER;
+        }
+
+        $row = $this->getEntityManager()->getConnection()->fetchAssociative(
+            'SELECT COUNT(*) FILTER (WHERE t.created_at > :since) AS added,
+                    COUNT(*) FILTER (WHERE (t.due_at >= :now AND t.due_at < :until AND t.due_at >= :after)'
+                . ($todaySince ? ' OR (t.due_at IS NULL AND t.due_date = :today)' : '') . ') AS soon
+               FROM task t
+               JOIN task_list l ON l.id = t.task_list_id
+              WHERE l.usr_id = :user
+                AND t.status <> :done' . $scope,
+            $params,
+            $types,
+        );
+
+        return ['added' => (int) ($row['added'] ?? 0), 'soon' => (int) ($row['soon'] ?? 0)];
+    }
+
+    /**
+     * Whether an open task falls due between now and $until (or is due today
+     * with no time), and when the first one with a time after $until falls
+     * due — the task half of WorkspaceNews::pulse(), in one read (#783).
+     *
+     * @return array{soon: int, next: DateTimeImmutable|null}
+     */
+    public function soonAndNext(User $user, DateTimeImmutable $now, DateTimeImmutable $until, string $today): array
+    {
+        $row = $this->getEntityManager()->getConnection()->fetchAssociative(
+            'SELECT COUNT(*) FILTER (WHERE (t.due_at >= :now AND t.due_at < :until) OR (t.due_at IS NULL AND t.due_date = :today)) AS soon,
+                    MIN(t.due_at) FILTER (WHERE t.due_at >= :until) AS next
+               FROM task t
+               JOIN task_list l ON l.id = t.task_list_id
+              WHERE l.usr_id = :user
+                AND t.status <> :done',
+            [
+                'user'  => $user->id,
+                'now'   => $now->format('Y-m-d H:i:s'),
+                'until' => $until->format('Y-m-d H:i:s'),
+                'today' => $today,
+                'done'  => TaskStatus::Completed->value,
+            ],
+        );
+
+        return [
+            'soon' => (int) ($row['soon'] ?? 0),
+            'next' => is_string($row['next'] ?? null) ? new DateTimeImmutable($row['next'], new \DateTimeZone('UTC')) : null,
+        ];
+    }
 }

@@ -96,7 +96,28 @@ export default class extends Controller {
         cookie: String,
         page: String,
         strings: Object,
+        newsUrl: String,
+        news: Object,
+        newsNext: Number,
+        sidebarUrl: String,
+        redrawUrl: String,
+        groups: Object,
     };
+
+    /** How long a redraw fetched ahead (a tab hovered) is kept for its click. */
+    static REDRAW_KEPT = 15000;
+
+    /** The narrowest a workspace tab may get before the strip folds (#783). */
+    static TAB_MIN = 72;
+
+    /** The search field's smallest width, which the strip does not take. */
+    static SEARCH_MIN = 120;
+
+    /** The events that can change the other workspaces' "new" counts (#783). */
+    static NEWS_EVENTS = ["core--mercure:mail-changed", "core--mercure:calendar-sync-finished"];
+
+    /** How long a burst of nudges is gathered into one ask. */
+    static NEWS_SETTLE = 1500;
 
     /** The width of a divider, which a split has to leave room for. Matches app.css. */
     static DIVIDER = 8;
@@ -133,7 +154,49 @@ export default class extends Controller {
         this.popoverAnchor = null;
         this.shapePick = null;
         this.doc = structuredClone(this.documentValue);
+        this.news = this.newsValue ?? {};
         this.device = this.#readCookie();
+
+
+        // A search result in an account this workspace does not show opens in
+        // the workspace that does (#783, mail--search).
+        this._onOpenMail = (event) => this.#openMailFor(event);
+        window.addEventListener("layout:open-mail", this._onOpenMail);
+
+        // The other workspaces' "new" counts (WorkspaceNews), asked for only
+        // when something can have changed them: a Mercure nudge that mail or
+        // a calendar changed, the page coming back into view, and the moment
+        // the server named for the next event or task to come within the
+        // hour. Each ask also tells the server this workspace is being looked
+        // at, which keeps its own count at zero.
+        if ("" === this.pageValue && this.hasNewsUrlValue && "" !== this.newsUrlValue) {
+            this._onNudge = () => {
+                // What was fetched ahead for a tab is out of date now.
+                this._redraws?.clear();
+                clearTimeout(this._newsSettle);
+                this._newsSettle = window.setTimeout(() => this.#pollNews(), this.constructor.NEWS_SETTLE);
+            };
+            this._onVisible = () => {
+                if (false === document.hidden) {
+                    this.#pollNews();
+                }
+            };
+            this.constructor.NEWS_EVENTS.forEach((name) => document.addEventListener(name, this._onNudge));
+            document.addEventListener("visibilitychange", this._onVisible);
+            this.#scheduleNews(this.newsNextValue);
+        }
+        // The tab strip folds when its tabs would get too narrow (#783).
+        if (this.hasWorkspaceTabsTarget && this.workspaceTabsTarget.parentElement) {
+            this._fit = new ResizeObserver(() => this.#fitTabs());
+            this._fit.observe(this.workspaceTabsTarget.parentElement);
+            this._closeMore = (event) => {
+                if (false === this.workspaceTabsTarget.contains(event.target)) {
+                    this.workspaceTabsTarget.querySelector("[data-workspace-more-list]")?.setAttribute("hidden", "");
+                }
+            };
+            document.addEventListener("click", this._closeMore);
+        }
+
         this.slots = new Map();
         this.element.querySelectorAll("[data-layout-pane]").forEach((slot) => this.slots.set(slot.dataset.layoutPane, slot));
 
@@ -212,7 +275,8 @@ export default class extends Controller {
         });
 
         this._onViewPick = (event) => {
-            if (event.target.closest?.("[data-calendar-views] a")) {
+            // The row of views, or the menu it folds into (#783).
+            if (event.target.closest?.("[data-calendar-views] a, [data-calendar-views-fold] a")) {
                 this._viewPicked = event.target.closest("[data-layout-pane]")?.dataset.layoutPane ?? null;
             }
         };
@@ -223,6 +287,11 @@ export default class extends Controller {
         this._onLeave = () => {
             this.#snapshotPaneStates();
             this.#flush();
+
+            // Looked at until now (#783): what arrives after this is news.
+            if (this.hasNewsUrlValue && "" !== this.newsUrlValue && "" === this.pageValue) {
+                fetch(this.newsUrlValue, { method: "POST", keepalive: true, headers: { "X-CSRF-Token": this.tokenValue, "X-Requested-With": "fetch" } }).catch(() => {});
+            }
         };
         window.addEventListener("pagehide", this._onLeave);
 
@@ -236,9 +305,25 @@ export default class extends Controller {
         if (mailWasAskedFor() && "" === this.pageValue) {
             this.#bringListForward();
         }
+
+        // A calendar or task list from a sidebar row that switched workspace,
+        // when the switch reloaded the page (#783, openFromSidebar).
+        if ("" === this.pageValue) {
+            this.#openAfterSwitch();
+        }
     }
 
     disconnect() {
+        window.removeEventListener("layout:open-mail", this._onOpenMail);
+        clearTimeout(this._newsTimer);
+        clearTimeout(this._newsSettle);
+        this._fit?.disconnect();
+        document.removeEventListener("click", this._closeMore);
+
+        if (this._onNudge) {
+            this.constructor.NEWS_EVENTS.forEach((name) => document.removeEventListener(name, this._onNudge));
+            document.removeEventListener("visibilitychange", this._onVisible);
+        }
         window.removeEventListener("pagehide", this._onLeave);
         this.element.removeEventListener("click", this._onViewPick, true);
         this.narrow.removeEventListener("change", this._onNarrow);
@@ -516,6 +601,29 @@ export default class extends Controller {
         this.#switchTo(Number(index));
     }
 
+    /**
+     * A tab the pointer rests on (or the keyboard reaches) has its redraw
+     * fetched ahead (#783), so a click on it usually finds the answer there.
+     * Only for a switch that redraws, and after a short rest, so sweeping
+     * across the strip asks for nothing.
+     */
+    prefetch({ params: { index } }) {
+        const to = this.doc.workspaces[Number(index)];
+
+        window.clearTimeout(this._prefetchTimer);
+
+        if (!to || Number(index) === this.doc.active || this.editing || "" !== this.pageValue || false === this.#redraws(this.#workspace(), to)) {
+            return;
+        }
+
+        this._prefetchTimer = window.setTimeout(() => this.#redrawStream(to, this.#redrawTargets(to)).catch(() => {}), 120);
+    }
+
+    cancelPrefetch() {
+        window.clearTimeout(this._prefetchTimer);
+    }
+
+
     layoutMenu(event) {
         const button = event.currentTarget;
 
@@ -632,6 +740,30 @@ export default class extends Controller {
         this.nameInputTarget.focus({ preventScroll: true });
     }
 
+    // ── The edit draft, for the settings dialog (#783) ────────────────────
+    //
+    // The two methods layout--workspace-settings calls through its outlet:
+    // the dialog reads the workspace being edited and hands its choices back.
+    // Public, because that is what an outlet reaches; nothing else calls them.
+
+    /** A copy of the workspace being edited, or null outside edit mode. */
+    draft() {
+        return null === this.editing ? null : structuredClone(this.#workspace());
+    }
+
+    /**
+     * The dialog's choices — groups, sidebar, targets, missing — into the
+     * draft. Save workspace keeps them, Cancel drops them with the rest.
+     */
+    applySettings({ groups, sidebar, targets, missing }) {
+        if (null === this.editing) {
+            return;
+        }
+
+        Object.assign(this.#workspace(), { groups, sidebar, targets, missing });
+        this.#drawWorkspaceTabs();
+    }
+
     rename() {
         const name = this.nameInputTarget.value.trim();
 
@@ -654,14 +786,24 @@ export default class extends Controller {
         // What the workspace looks like now becomes what a new device starts
         // from: this is the one place the user is deliberately arranging it.
         this.#adoptDeviceSizes(this.#workspace().layout);
+
+        // Other account groups or another sidebar (#783) are the server's to
+        // draw: the page is drawn again once the save is in.
+        const before = this.editing.snapshot;
+        const redraw = this.#redraws(before, this.#workspace());
+
         this.#leaveEdit();
         this.#commit();
 
         // Asked for in so many words, so sent now rather than after the pause
         // a burst of menu changes waits for: a reload straight after Save drew
         // the workspace from before it, because the save had not gone yet.
-        this.#post();
+        const saved = this.#post();
         this.#toast(this.stringsValue.saved.replace("%name%", this.#workspace().name));
+
+        if (redraw) {
+            saved.finally(() => this.#redrawScoped());
+        }
     }
 
     cancelEdit() {
@@ -809,7 +951,20 @@ export default class extends Controller {
             return;
         }
 
-        if (false === event.altKey || event.metaKey || event.ctrlKey || this.narrow.matches) {
+        if (false === event.altKey || event.metaKey || event.ctrlKey) {
+            return;
+        }
+
+        // Switching workspace works at every width (#783); the rest of the
+        // pane keys are for the side-by-side layout above lg.
+        if (/^Digit[1-9]$/.test(event.code) && null === event.target.closest?.("input, textarea, select, [contenteditable]:not([contenteditable='false'])")) {
+            event.preventDefault();
+            this.#switchTo(Number(event.code.slice(5)) - 1);
+
+            return;
+        }
+
+        if (this.narrow.matches) {
             return;
         }
 
@@ -1667,12 +1822,536 @@ export default class extends Controller {
             return;
         }
 
+        // Other account groups or another sidebar (#783): what the server
+        // narrows — the sidebar, the list, the counts, the calendars — is
+        // drawn again from one stream, which does not wait for the save. The panes
+        // themselves switch here as for any workspace, without a reload.
+        const from = this.doc.workspaces[this.doc.active];
+        const to = this.doc.workspaces[index];
+        const redraw = this.#redraws(from, to);
+
+        // What the new workspace shows, named before its panes are placed —
+        // and its frames held, so none of them loads on its own with the old
+        // scope while the one stream for all of them is on its way.
+        const targets = redraw ? this.#redrawTargets(to) : [];
+        const stream = redraw ? this.#redrawStream(to, targets, true) : null;
+        const held = redraw ? this.#holdFrames(targets) : [];
+
+        // The latest switch owns the frames it holds; an earlier one still
+        // waiting for its stream sees it was overtaken (#applyRedraw).
+        this._switches = (this._switches ?? 0) + 1;
+        this._heldNow = held;
+
         this.doc.active = index;
         this.maxKind = this.#deviceMax();
         this.focusKind = this.#kinds()[0];
         this.tabKind = this.#kinds().includes("list") ? "list" : this.focusKind;
         this.#closePopover();
         this.#commit();
+
+        if (redraw) {
+            this._lastRedraw = this._switches;
+            this.#applyRedraw(to, targets, stream, held, this.#post(), this._switches);
+        } else {
+            window.setTimeout(() => this.#pollNews(), 400);
+        }
+    }
+
+    /** Whether going from one workspace to the other changes what the server narrows (#783). */
+    #redraws(from, to) {
+        return JSON.stringify(from.groups ?? null) !== JSON.stringify(to.groups ?? null) || sidebarOf(from) !== sidebarOf(to);
+    }
+
+    /**
+     * The frames a switch to `workspace` draws again, each with where it will
+     * point (#783): both sidebar frames, the mail list where the page is on a
+     * list, and its calendar and tasks panes — where each was left in that
+     * workspace (#paneState), else where it is, else where it starts. The
+     * same answer before the switch (a hovered tab) as during it, so what was
+     * fetched ahead is what the click asks for.
+     *
+     * @return {Array<[string, string]>} frame id and path
+     */
+    #redrawTargets(workspace) {
+        const targets = [];
+        const path = (url) => {
+            const parsed = new URL(url, window.location.href);
+
+            return parsed.pathname + parsed.search;
+        };
+
+        if (this.hasSidebarUrlValue) {
+            [["workspace-sidebar", "0"], ["workspace-sidebar-drawer", "1"]].forEach(([id, drawer]) => {
+                if (document.getElementById(id)) {
+                    targets.push([id, `${this.sidebarUrlValue}?drawer=${drawer}`]);
+                }
+            });
+        }
+
+        if (document.getElementById("inbox-list-frame") && /^\/mail\/(?!message\/|thread\/)/.test(window.location.pathname)) {
+            targets.push(["inbox-list-frame", window.location.pathname + window.location.search]);
+        }
+
+        const states = this.#paneStates()[workspace.id] ?? {};
+
+        for (const key of leaves(workspace.layout)) {
+            if (false === ["calendar", "tasks"].includes(kindOf(key))) {
+                continue;
+            }
+
+            const slot = this.slots.get(key);
+            const frame = slot?.querySelector("turbo-frame");
+            const placed = frame && false === frame.hasAttribute("data-layout-lazy") ? frame.getAttribute("src") : null;
+            const url = (this.constructor.STATE_KINDS.includes(key) ? states[key] : null) ?? placed ?? slot?.dataset.layoutSrc;
+
+            if (frame?.id && url) {
+                targets.push([frame.id, path(url)]);
+            }
+        }
+
+        return targets;
+    }
+
+    /**
+     * The one stream that fills those frames (WorkspaceRedrawController),
+     * asked for once: a hovered tab's ask is kept a little while for its
+     * click, and `take` is the click, which uses it up.
+     */
+    #redrawStream(workspace, targets, take = false) {
+        const query = targets.map(([id, url]) => `f[]=${encodeURIComponent(`${id} ${url}`)}`).join("&");
+        const key = `${workspace.id}?${query}`;
+
+        this._redraws ??= new Map();
+
+        const kept = this._redraws.get(key);
+        let stream = kept && Date.now() - kept.at < this.constructor.REDRAW_KEPT ? kept.stream : null;
+
+        if (null === stream) {
+            stream = fetch(`${this.redrawUrlValue.replace("__ID__", encodeURIComponent(workspace.id))}?${query}`, {
+                headers: { Accept: "text/vnd.turbo-stream.html" },
+                credentials: "same-origin",
+            }).then((response) => {
+                // A redirect to the sign-in page answers 200 with a page, not
+                // a stream: as failed as an error, and drawn the slow way.
+                const streamed = String(response.headers.get("Content-Type")).includes("turbo-stream");
+
+                return response.ok && streamed ? response.text() : Promise.reject(new Error(String(response.status)));
+            });
+
+            this._redraws.set(key, { at: Date.now(), stream });
+            stream.catch(() => this._redraws?.delete(key));
+        }
+
+        if (take) {
+            this._redraws.delete(key);
+        }
+
+        return stream;
+    }
+
+    /**
+     * Hold the panes a stream will fill: disabled, a frame loads nothing and
+     * drops a load under way, so no answer for the old scope lands over the
+     * new one. The sidebar and the list do not load by themselves on a switch.
+     */
+    #holdFrames(targets) {
+        return targets
+            .map(([id, url]) => [document.getElementById(id), url])
+            .filter(([frame]) => frame && frame.closest("[data-layout-pane]") && "inbox-list-frame" !== frame.id)
+            .map(([frame, url]) => {
+                frame.disabled = true;
+
+                // Pointed where the stream draws it from, which a disabled
+                // frame does not load: a frame drawn by a stream otherwise has
+                // no address to be loaded again from.
+                frame.src = url;
+
+                return frame;
+            });
+    }
+
+    /**
+     * Put the new workspace's frames on screen at once (#783). The scoped
+     * parts go faint straight away, so nothing old reads as the new
+     * workspace's; the stream is rendered by Turbo in one go; then the held
+     * panes are let go as loaded. What the stream does not bring — it failed,
+     * a frame's answer was left out, the list moved on meanwhile — is loaded
+     * again the slow way, once the switch is saved.
+     *
+     * `saved` is the switch's save, `ticket` which switch this is: one
+     * overtaken by a later switch draws nothing.
+     */
+    async #applyRedraw(workspace, targets, stream, held, saved, ticket) {
+        const release = (frames) => frames.forEach((frame) => { frame.disabled = false; });
+
+        // Let go without loading (complete), for a reload to load once.
+        const settle = (frames) => {
+            frames.forEach((frame) => frame.setAttribute("complete", ""));
+            release(frames);
+        };
+        const listAt = window.location.pathname + window.location.search;
+
+        this.#markStale(true);
+
+        let html = null;
+
+        try {
+            html = await stream;
+        } catch {
+            html = null;
+        }
+
+        // Switched again meanwhile. The later switch holds and draws its own
+        // frames; the ones only this switch held are let go and loaded again
+        // once the later choice is saved, which is what they will read.
+        if (ticket !== this._switches) {
+            // By one that draws nothing itself (same scope as this one's
+            // target): everything is loaded again the slow way.
+            if (ticket === this._lastRedraw) {
+                await this.#post();
+                settle(held);
+                this.#markStale(false);
+                this.#redrawScoped();
+
+                return;
+            }
+
+            const mine = held.filter((frame) => false === (this._heldNow ?? []).includes(frame));
+
+            await this.#post();
+            settle(mine);
+            mine.forEach((frame) => redrawFrame(frame));
+
+            return;
+        }
+
+        const template = document.createElement("template");
+        template.innerHTML = html ?? "";
+
+        // The list clicked away from while the stream was on its way keeps
+        // where it went; it is loaded again below rather than put back.
+        const listMoved = listAt !== window.location.pathname + window.location.search;
+        const elements = [...template.content.querySelectorAll("turbo-stream")]
+            .filter((element) => false === (listMoved && "inbox-list-frame" === element.getAttribute("target")));
+
+        if (0 === elements.length && false === listMoved) {
+            await saved;
+            settle(held);
+            this.#markStale(false);
+            this.#redrawScoped();
+
+            return;
+        }
+
+        document.documentElement.append(...elements);
+        await Promise.all(elements.map((element) => element.render?.().catch(() => {})));
+
+        // The rail comes or goes with its new contents, in the same frame.
+        this.#showRail(workspace);
+
+        const drawn = new Set(elements.map((element) => element.getAttribute("target")));
+        const missing = targets.map(([id]) => id).filter((id) => false === drawn.has(id));
+
+        // Filled, so Turbo should not load them again for being shown: marked
+        // complete, and eager, since a lazy frame Turbo never loaded itself
+        // would otherwise ignore the next link clicked inside it.
+        held.filter((frame) => drawn.has(frame.id)).forEach((frame) => {
+            frame.setAttribute("complete", "");
+            frame.setAttribute("loading", "eager");
+        });
+        release(held.filter((frame) => drawn.has(frame.id)));
+
+        // Calendars and task lists parked by this workspace, drawn for the
+        // last one: loaded again, as before.
+        this.element.querySelectorAll("[data-layout-pane] turbo-frame[complete]").forEach((frame) => {
+            if (false === drawn.has(frame.id) && false === missing.includes(frame.id) && (frame.id.startsWith("calendar-pane-frame") || "tasks-pane-frame" === frame.id)) {
+                frame.reload();
+            }
+        });
+
+        // What a frame load would have done: a calendar widens for its view.
+        held.filter((frame) => drawn.has(frame.id)).forEach((frame) => this.frameLoaded({ target: frame }));
+
+        document.getElementById("search-shell")?.setAttribute("data-mail--search-space-value", null == workspace.groups ? "" : workspace.name);
+        this.#markStale(false);
+
+        // Left out of the stream: loaded once the switch is saved, which is
+        // what they read; a held pane is let go only then.
+        if (missing.length > 0) {
+            saved.finally(() => {
+                settle(held.filter((frame) => missing.includes(frame.id)));
+                this.#reloadFrames(missing);
+            });
+        }
+
+        this.#pollNews();
+    }
+
+    /** Frames by id loaded again where they point: a sidebar from its own URL, the list from the page's. */
+    #reloadFrames(ids) {
+        ids.forEach((id) => {
+            const frame = document.getElementById(id);
+
+            if (null === frame) {
+                return;
+            }
+
+            if (id.startsWith("workspace-sidebar") && this.hasSidebarUrlValue) {
+                frame.src = `${this.sidebarUrlValue}?drawer=${"workspace-sidebar-drawer" === id ? 1 : 0}&_=${Date.now()}`;
+            } else if ("inbox-list-frame" === id && !frame.src) {
+                frame.src = window.location.pathname + window.location.search;
+            } else if (frame.src) {
+                frame.reload();
+            }
+        });
+    }
+
+    /**
+     * The sidebar's rail and the burger, there or not as the workspace has a
+     * sidebar or none (#783). The panes take the room the rail leaves or give
+     * it back, so they are told the row changed, as after any rearrangement.
+     */
+    #showRail(workspace) {
+        const none = null === sidebarOf(workspace);
+        const rails = [...document.querySelectorAll(".sidebar-boundary")];
+        const changed = rails.some((rail) => rail.hasAttribute("data-no-sidebar") !== none);
+
+        rails.forEach((rail) => rail.toggleAttribute("data-no-sidebar", none));
+
+        const burger = document.querySelector("[data-ui--sidebar-drawer-target='burger']");
+        burger?.classList.toggle("invisible", none);
+        burger?.toggleAttribute("aria-hidden", none);
+
+        if (changed) {
+            document.dispatchEvent(new CustomEvent("layout:changed"));
+            window.dispatchEvent(new CustomEvent("side-pane:changed"));
+            window.dispatchEvent(new Event("resize"));
+        }
+    }
+
+    /** The scoped parts faint while the new workspace's are on their way. */
+    #markStale(stale) {
+        document.documentElement.toggleAttribute("data-workspace-redrawing", stale);
+    }
+
+    /**
+     * Draw again what the workspace's groups and sidebar decide (#783), in
+     * place: the sidebar's frames (rail and drawer), the mail list, every
+     * pane frame that has loaded, and what the top bar knows of the scope.
+     * Called once the workspace on screen is saved, which is what the server
+     * reads to narrow them.
+     */
+    #redrawScoped() {
+        const workspace = this.#workspace();
+
+        this.#showRail(workspace);
+
+        [["workspace-sidebar", "0"], ["workspace-sidebar-drawer", "1"]].forEach(([id, drawer]) => {
+            const frame = document.getElementById(id);
+
+            if (frame && this.hasSidebarUrlValue) {
+                frame.src = `${this.sidebarUrlValue}?drawer=${drawer}&_=${Date.now()}`;
+            }
+        });
+
+        const list = document.getElementById("inbox-list-frame");
+
+        if (list && !list.src) {
+            list.src = window.location.pathname + window.location.search;
+        }
+
+        this.element.querySelectorAll("[data-layout-pane] turbo-frame[src]").forEach((frame) => redrawFrame(frame));
+
+        document.getElementById("search-shell")?.setAttribute("data-mail--search-space-value", null == workspace.groups ? "" : workspace.name);
+
+        this.#pollNews();
+    }
+
+    /**
+     * A row of a sidebar of the user's own that opens a pane, not the mail
+     * list (#783): a calendar or a task list. It opens in the workspace's
+     * target for that kind, else the first pane of it. A workspace with none
+     * either switches to one that has one — whose accounts include the row's,
+     * when one does — or adds the pane at the right-hand edge, as it says.
+     */
+    openFromSidebar({ params: { kind, src, account, calendar, home } }) {
+        src = src || undefined;
+        const workspace = this.#workspace();
+        const keys = this.#kinds().filter((key) => kindOf(key) === kind);
+
+        if (0 === keys.length) {
+            if ("edge" === (workspace.missing ?? "switch")) {
+                this.#openByName(kind, src);
+
+                return;
+            }
+
+            const owner = Number(account) || null;
+            const has = (other) => other !== workspace && JSON.stringify(other.layout).includes(`"${kind}`);
+            // A local calendar fits the workspace it was placed in (#783).
+            const fits = (other) => (home ? other.id === home : null === owner || this.#shows(other, owner));
+            const index = this.doc.workspaces.findIndex((other) => has(other) && fits(other));
+            const fallback = this.doc.workspaces.findIndex((other) => has(other));
+            const chosen = -1 !== index ? index : fallback;
+
+            if (-1 === chosen) {
+                this.#openByName(kind, src);
+
+                return;
+            }
+
+            sessionStorage.setItem("plmail.openAfterSwitch", JSON.stringify({ kind, src }));
+            this._switchedBy = "spark";
+            this.#switchTo(chosen);
+            this.#openAfterSwitch();
+
+            return;
+        }
+
+        const wanted = workspace.targets?.[kind];
+        const key = keys.includes(wanted) ? wanted : keys[0];
+        const frame = this.#slot(key)?.querySelector("turbo-frame");
+
+        // A calendar row narrows the pane to that calendar; the same row again,
+        // on a pane already narrowed to it, shows them all (#783). The pane's
+        // own address is its key's: the first is bare, the others say ?pane=.
+        if ("calendar" === kind && calendar && src) {
+            const url = new URL(src, location.href);
+            const paneId = key.includes("~") ? key.split("~")[1] : null;
+            const shown = frame?.querySelector(`[data-pane-only="${calendar}"]`);
+
+            if (null !== paneId) {
+                url.searchParams.set("pane", paneId);
+            }
+
+            url.searchParams.set("only", shown ? "all" : String(calendar));
+            src = url.pathname + url.search;
+        }
+
+        if (null !== this.maxKind && key !== this.maxKind) {
+            this.#setMax(null);
+        }
+
+        if (frame && src) {
+            if (new URL(src, location.href).href === frame.src) {
+                frame.reload();
+            } else {
+                frame.src = src;
+            }
+        }
+
+        this.focusKind = key;
+        this.#flagFocus(key);
+    }
+
+    /**
+     * What a sidebar row asked for before its workspace switch, opened once
+     * the workspace it switched to is on screen — now, or after the reload a
+     * switch to other accounts makes (connect() calls this too).
+     */
+    #openAfterSwitch() {
+        const pending = sessionStorage.getItem("plmail.openAfterSwitch");
+
+        if (null === pending) {
+            return;
+        }
+
+        const { kind, src } = JSON.parse(pending);
+
+        if (false === this.#kinds().some((key) => kindOf(key) === kind)) {
+            return;
+        }
+
+        sessionStorage.removeItem("plmail.openAfterSwitch");
+        this.#openByName(kind, src);
+    }
+
+    /**
+     * Where a conversation from a search result opens (#783): here, when this
+     * workspace has a mail list and shows its account; otherwise the first
+     * workspace with a list that names the account, else the first with a
+     * list over every account. The choice is saved and the conversation
+     * visited — a whole page, since the accounts change what everything shows.
+     */
+    #openMailFor(event) {
+        const { url, account } = event.detail;
+        const hasList = (workspace) => JSON.stringify(workspace.layout).includes('"kind":"list"');
+        const shows = (workspace) => this.#shows(workspace, account);
+
+        if (this.editing || "" !== this.pageValue || (hasList(this.#workspace()) && shows(this.#workspace()))) {
+            return;
+        }
+
+        const named = this.doc.workspaces.findIndex((workspace) => hasList(workspace) && null != workspace.groups && this.#shows(workspace, account));
+        const index = -1 !== named ? named : this.doc.workspaces.findIndex((workspace) => hasList(workspace) && null == workspace.groups);
+
+        if (-1 === index || index === this.doc.active) {
+            return;
+        }
+
+        event.preventDefault();
+        this.#snapshotPaneStates();
+        this.doc.active = index;
+        this._switchedBy = "spark";
+        this.#drawWorkspaceTabs();
+        this.#post().finally(() => Turbo.visit(url));
+    }
+
+    /**
+     * Whether a workspace shows an account: every workspace over all
+     * accounts does, a scoped one when one of its groups holds it (#783).
+     * The groups' accounts come from the server (groupsValue).
+     */
+    #shows(workspace, account) {
+        if (null == workspace.groups) {
+            return true;
+        }
+
+        return workspace.groups.some((group) => (this.groupsValue?.[group] ?? []).includes(account));
+    }
+
+    /**
+     * Ask again at the moment the server named (unix seconds): the next event
+     * or task coming within the hour, or midnight. Capped, because a timer
+     * set days ahead does not survive a laptop's sleep reliably — waking
+     * brings the page back into view, which asks anyway.
+     */
+    #scheduleNews(next) {
+        clearTimeout(this._newsTimer);
+
+        if (!next) {
+            return;
+        }
+
+        const wait = Math.min(Math.max(next * 1000 - Date.now(), 1000), 6 * 60 * 60 * 1000);
+        this._newsTimer = window.setTimeout(() => this.#pollNews(), wait);
+    }
+
+    /** The other workspaces' "new" counts and the Happening soon dot (#783). */
+    async #pollNews() {
+        if (false === this.hasNewsUrlValue || "" === this.newsUrlValue || document.hidden) {
+            return;
+        }
+
+        try {
+            const response = await fetch(this.newsUrlValue, {
+                method: "POST",
+                headers: { "X-CSRF-Token": this.tokenValue, "X-Requested-With": "fetch" },
+            });
+
+            if (false === response.ok) {
+                return;
+            }
+
+            const { tabs, soon, next } = await response.json();
+
+            this.news = tabs;
+            this.#scheduleNews(next);
+            this.#drawWorkspaceTabs();
+            document.querySelectorAll("[data-layout-soon]").forEach((dot) => { dot.hidden = !soon; });
+        } catch {
+            // The next poll tries again; a count is not worth a toast.
+        }
     }
 
     #newName() {
@@ -1917,12 +2596,28 @@ export default class extends Controller {
             const name = document.createElement("span");
             button.type = "button";
             button.className = "workspace-tab";
-            button.dataset.action = "layout--workspace#switch";
+            button.dataset.action = "layout--workspace#switch pointerenter->layout--workspace#prefetch focus->layout--workspace#prefetch pointerleave->layout--workspace#cancelPrefetch";
             button.setAttribute("data-layout--workspace-index-param", String(index));
             button.setAttribute("aria-pressed", index === this.doc.active ? "true" : "false");
             name.className = "truncate";
             name.textContent = workspace.name;
             button.append(name);
+
+            // Its "new" count, or a dot for something about to happen (#783).
+            const news = index === this.doc.active ? null : (this.news?.[workspace.id] ?? null);
+
+            if (news && news.count > 0) {
+                const pill = document.createElement("span");
+                pill.className = "workspace-new";
+                pill.textContent = news.count > 99 ? "99+" : String(news.count);
+                pill.title = (this.stringsValue.newCount ?? "%count%").replace("%count%", String(news.count));
+                button.append(pill);
+            } else if (news && news.soon) {
+                const dot = document.createElement("span");
+                dot.className = "workspace-soon";
+                dot.title = this.stringsValue.soon ?? "";
+                button.append(dot);
+            }
 
             return button;
         }));
@@ -1938,6 +2633,101 @@ export default class extends Controller {
         }
 
         this._switchedBy = null;
+        this.#fitTabs();
+    }
+
+    /**
+     * The tabs as long as they fit (#783): every tab at least TAB_MIN wide.
+     * Below that the strip folds to the active tab and a "more" tab of the
+     * same look, which opens the others as a list and carries their new
+     * counts. Measured against the room the bar leaves the strip — the bar's
+     * width less its fixed controls and the search field's smallest size —
+     * so folding does not itself make room and unfold it again.
+     */
+    #fitTabs() {
+        if (false === this.hasWorkspaceTabsTarget) {
+            return;
+        }
+
+        const nav = this.workspaceTabsTarget;
+        const bar = nav.parentElement;
+        const count = this.doc.workspaces.length;
+
+        if (null === bar || count < 2) {
+            nav.removeAttribute("data-folded");
+
+            return;
+        }
+
+        const style = getComputedStyle(bar);
+        const gap = parseFloat(style.columnGap) || 0;
+        let fixed = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+
+        [...bar.children].forEach((child) => {
+            if (child === nav || child.offsetParent === null || "absolute" === getComputedStyle(child).position) {
+                return;
+            }
+
+            const grows = parseFloat(getComputedStyle(child).flexGrow) > 0;
+            fixed += (grows ? this.constructor.SEARCH_MIN : child.offsetWidth) + gap;
+        });
+
+        const room = bar.clientWidth - fixed;
+        const folded = room < count * this.constructor.TAB_MIN + 6 + (count - 1) * 2;
+
+        nav.toggleAttribute("data-folded", folded);
+        this.#drawFoldedMenu(folded);
+    }
+
+    /** The "more" tab and its list, when the strip is folded. */
+    #drawFoldedMenu(folded) {
+        const nav = this.workspaceTabsTarget;
+
+        nav.querySelector("[data-workspace-more]")?.remove();
+        nav.querySelector("[data-workspace-more-list]")?.remove();
+
+        if (false === folded) {
+            return;
+        }
+
+        const more = document.createElement("button");
+        more.type = "button";
+        more.className = "workspace-tab workspace-more";
+        more.setAttribute("data-workspace-more", "");
+        more.setAttribute("aria-haspopup", "true");
+        more.setAttribute("aria-expanded", "false");
+        more.setAttribute("aria-label", this.stringsValue.moreWorkspaces ?? "");
+        more.innerHTML = '<i class="fa-solid fa-chevron-down text-[10px]" aria-hidden="true"></i>';
+
+        const waiting = this.doc.workspaces.reduce((sum, workspace, index) => sum + (index === this.doc.active ? 0 : (this.news?.[workspace.id]?.count ?? 0)), 0);
+        const soon = this.doc.workspaces.some((workspace, index) => index !== this.doc.active && this.news?.[workspace.id]?.soon);
+
+        if (waiting > 0 || soon) {
+            const mark = document.createElement("span");
+            mark.className = waiting > 0 ? "workspace-new" : "workspace-soon";
+            mark.textContent = waiting > 0 ? (waiting > 99 ? "99+" : String(waiting)) : "";
+            more.append(mark);
+        }
+
+        const list = document.createElement("div");
+        list.className = "workspace-more-list";
+        list.setAttribute("data-workspace-more-list", "");
+        list.hidden = true;
+
+        nav.querySelectorAll(".workspace-tab:not([data-workspace-more])").forEach((tab) => {
+            const copy = tab.cloneNode(true);
+            copy.classList.add("workspace-tab-listed");
+            copy.addEventListener("click", () => { list.hidden = true; more.setAttribute("aria-expanded", "false"); });
+            list.append(copy);
+        });
+
+        more.addEventListener("click", (event) => {
+            event.stopPropagation();
+            list.hidden = !list.hidden;
+            more.setAttribute("aria-expanded", list.hidden ? "false" : "true");
+        });
+
+        nav.append(more, list);
     }
 
     /**
@@ -2515,6 +3305,31 @@ function samePlace(a, b) {
 }
 
 /** What the pane of a key shows. */
+/**
+ * Load a frame again for a new scope (#783), without cutting off a load
+ * already under way: a pane the switch has just drawn is fetching for the
+ * first time, and reload() then aborts that fetch and leaves the frame empty
+ * with its spinner. That fetch may have left before the switch was saved, so
+ * it is reloaded once it is in. A frame that has not started (a lazy one off
+ * screen) is left alone: it will read the new scope when it does.
+ */
+function redrawFrame(frame) {
+    if (frame.hasAttribute("busy")) {
+        frame.addEventListener("turbo:frame-load", () => frame.reload(), { once: true });
+    } else if (frame.complete) {
+        frame.reload();
+    }
+}
+
+/**
+ * A workspace's sidebar (#783): its id, "mail" for the built-in one, null for
+ * none. A workspace saved before sidebars existed has no key and means "mail";
+ * null is a choice and stays null.
+ */
+function sidebarOf(workspace) {
+    return undefined === workspace.sidebar ? "mail" : workspace.sidebar;
+}
+
 function kindOf(key) {
     return String(key ?? "").split("~")[0];
 }

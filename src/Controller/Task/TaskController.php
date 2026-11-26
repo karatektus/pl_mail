@@ -24,6 +24,7 @@ use App\Repository\Task\TaskRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\CalendarTimeResolver;
 use App\Service\Demo\DemoMode;
+use App\Service\Layout\WorkspaceScope;
 use App\Service\Task\TaskAttachmentStorage;
 use App\Service\Task\TaskEditorSave;
 use App\Service\Task\TaskListProvisioner;
@@ -74,6 +75,7 @@ final class TaskController extends AbstractController
         private readonly DemoMode               $demo,
         private readonly TaskListTransfer       $transfer,
         private readonly TaskEditorSave         $editor,
+        private readonly WorkspaceScope         $workspaceScope,
     ) {}
 
     /**
@@ -91,7 +93,17 @@ final class TaskController extends AbstractController
         $this->provisioner->defaultFor($this->currentUser());
         $this->em->flush();
 
-        $pane = $this->reader->read($this->currentUser(), TaskPaneQuery::fromParameters($request->query->all()));
+        $user = $this->currentUser();
+
+        // The pane's Workspace / + Others / All switch (#783), kept.
+        $asked = $request->query->getString('scope');
+
+        if (in_array($asked, User::CALENDAR_PANE_SCOPES, true)) {
+            $user->setTasksPaneScope($asked);
+            $this->em->flush();
+        }
+
+        $pane = $this->reader->read($user, TaskPaneQuery::fromParameters($request->query->all()), null, $this->workspaceScope->taskListIds($user), $user->tasksPaneScope());
 
         $frameOnly = 'tasks-pane-frame' === $request->headers->get('Turbo-Frame')
             || true === $request->attributes->getBoolean('_tasks_pane');
@@ -107,7 +119,8 @@ final class TaskController extends AbstractController
     public function completed(Request $request): Response
     {
         $query = TaskPaneQuery::fromParameters($request->query->all());
-        $page  = $this->reader->completedPage($this->currentUser(), $query, $request->query->getInt('offset'));
+        $user  = $this->currentUser();
+        $page  = $this->reader->completedPage($user, $query, $request->query->getInt('offset'), null, $this->workspaceScope->taskListIds($user), $user->tasksPaneScope());
 
         return $this->render('tasks/_completed_page.html.twig', [
             'pane'   => $page['pane'],
@@ -468,6 +481,12 @@ final class TaskController extends AbstractController
 
         $this->em->flush();
 
+        // A list without an account belongs to one workspace (#783).
+        if ($request->request->has('workspace')) {
+            $this->workspaceScope->place($this->currentUser(), $list, $request->request->getString('workspace'));
+            $this->em->flush();
+        }
+
         return $this->renderLists($query, 'tasks.lists.saved');
     }
 
@@ -744,8 +763,12 @@ final class TaskController extends AbstractController
 
     private function renderListEditor(?TaskList $list, TaskPaneQuery $query, ?string $error = null): Response
     {
+        $places = $this->workspaceScope->placeChoices($this->currentUser(), $list ?? new TaskList());
+
         return $this->render('tasks/_list_editor.html.twig', [
-            'list'   => $list,
+            'list'       => $list,
+            'workspaces' => $places['workspaces'],
+            'workspace'  => $places['workspace'] ?? (string) (array_values($places['workspaces'])[0] ?? ''),
             'query'  => $query,
             'error'  => $error,
             'colors' => Calendar::COLORS,

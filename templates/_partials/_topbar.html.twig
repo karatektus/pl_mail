@@ -11,12 +11,17 @@
     {# Burger — opens the drawer on mobile, collapses to the icon rail on md+.
        aria-expanded is kept in step by ui--sidebar-drawer: the drawer's state
        on a phone, the sidebar's (not railed) above md. #}
+    {# Kept in place but not drawn in a workspace without a sidebar (#783):
+       there is nothing to open or rail, and a gap where it was keeps the bar
+       from shifting on every switch. #}
+    {% set _noSidebar = (workspaceShell ?? false) and app.user and layout.sidebar is null %}
     <button
         type="button"
         data-ui--sidebar-drawer-target="burger"
         aria-controls="sidebar-drawer"
         aria-expanded="false"
-        class="flex items-center justify-center w-9 h-9 max-sm:w-8 max-sm:h-8 rounded-lg
+        {% if _noSidebar %}tabindex="-1" aria-hidden="true"{% endif %}
+        class="{{ _noSidebar ? 'invisible ' : '' }}flex items-center justify-center w-9 h-9 max-sm:w-8 max-sm:h-8 rounded-lg
                text-ink-muted
                hover:bg-hover
                transition-colors flex-shrink-0"
@@ -179,9 +184,30 @@
         data-mail--search-suggest-url-value="{{ path('app_mail_search_suggest') }}"
         data-mail--search-recents-title-value="{{ 'header.search.recents.title'|trans }}"
         data-mail--search-operators-title-value="{{ 'header.search.suggestions.title'|trans }}"
+        {# Search over every account unless it says space:<workspace> (#783);
+           with autoscope on, the box starts with the workspace on screen as
+           that chip — only when the workspace is narrowed to some groups. #}
+        {% if app.user %}
+            data-mail--search-autoscope-value="{{ app.user.searchAutoscope ? 'true' : 'false' }}"
+            data-mail--search-space-value="{{ layout.active.groups is not null ? layout.active.name : '' }}"
+            data-mail--search-spaces-value="{{ layout.workspaces.all|map(w => w.name)|json_encode }}"
+            data-mail--search-chip-remove-value="{{ 'header.search.chip_remove'|trans({ '%token%': '%token%' }) }}"
+        {% endif %}
     >
         <div class="relative">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-sm pointer-events-none" aria-hidden="true"></i>
+            {# The finished operators of the query as chips (#783); the input
+               starts after them. mail--search fills it. #}
+            <div class="search-chips" data-mail--search-target="chips"></div>
+            {# Our own clear (#783), in place of the browser's: that one empties
+               only the typed text — not the chips, not the results — and is
+               drawn in the browser's colours rather than the theme's. #}
+            <button type="button" class="search-clear" hidden
+                    data-mail--search-target="clear"
+                    data-action="mousedown->mail--search#keepFocus click->mail--search#clear"
+                    aria-label="{{ 'header.search.clear'|trans }}" title="{{ 'header.search.clear'|trans }}">
+                <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+            </button>
             <input
                 type="search"
                 name="q"
@@ -246,11 +272,16 @@
            `data-enter` on anything inside it.
 
            No exit either: this closes on Escape, on a pick and on a click
-           elsewhere, and all three are somebody saying "go away". #}
+           elsewhere, and all three are somebody saying "go away".
+
+           From md up it keeps a width of its own (#783): the field shrinks
+           when the top bar fills up — workspace tabs, their counts — and
+           results squeezed to the field's width were unreadable. It is at
+           least as wide as the field, and never wider than the window. #}
         <div
             data-mail--search-target="dropdown"
             data-enter="slide-down"
-            class="hidden absolute left-0 right-0 top-full mt-1 z-50
+            class="hidden absolute left-0 right-0 md:right-auto md:w-[max(100%,36rem)] md:max-w-[calc(100vw-2rem)] top-full mt-1 z-50
                    bg-surface
                    border border-line
                    rounded-pane shadow-xl overflow-hidden"
@@ -350,7 +381,7 @@
             data-ui--modal-src-value="{{ path('app_calendar_soon') }}"
             data-ui--modal-title-value="{{ 'calendar.soon.title'|trans }}"
             data-ui--modal-size-value="wide"
-            class="flex cursor-pointer items-center h-9 max-sm:h-8 rounded-lg
+            class="relative flex cursor-pointer items-center h-9 max-sm:h-8 rounded-lg
                    transition-colors flex-shrink-0
                    text-ink-muted hover:bg-hover
                    {{ clockOnSoon
@@ -362,6 +393,11 @@
                 : 'calendar.soon.title'|trans }}"
         >
             <i class="{{ soonest ? soonest.icon : 'fa-regular fa-clock' }} text-base" aria-hidden="true"></i>
+            {# Something starts or falls due within the hour, in any account
+               (#783). layout--workspace keeps it current with the tabs' counts. #}
+            {% if (workspaceShell ?? false) and app.user %}
+                <span class="soon-dot" data-layout-soon {{ layout.soon ? '' : 'hidden' }} aria-hidden="true"></span>
+            {% endif %}
             {% if clockOnSoon %}
                 <span {{ clockui.attrs() }}
                       data-clock-placement="topbar"
@@ -389,7 +425,7 @@
        markup here is the first paint of the same thing. #}
     {% if (workspaceShell ?? false) and app.user %}
         {% set workspaces = layout.workspaces %}
-        <nav class="max-lg:hidden workspace-tabs" aria-label="{{ 'layout.workspace.tabs_label'|trans }}"
+        <nav class="workspace-tabs" aria-label="{{ 'layout.workspace.tabs_label'|trans }}"
              data-layout--workspace-target="workspaceTabs">
             {# The highlight under the active tab, its own element so it can
                slide from tab to tab (layout--workspace places it). #}
@@ -406,13 +442,23 @@
                     <span class="workspace-glow-bloom"></span>
                 </span>
             </span>
+            {# Each other workspace's "new" count, and a dot when something in
+               it is about to happen (#783, WorkspaceNews). layout--workspace
+               draws the same from its poll. #}
+            {% set _news = layout.news %}
             {% for space in workspaces.all %}
+                {% set _n = _news[space.id] ?? null %}
                 <button type="button"
                         class="workspace-tab"
                         data-action="layout--workspace#switch"
                         data-layout--workspace-index-param="{{ loop.index0 }}"
                         aria-pressed="{{ loop.index0 == workspaces.activeIndex ? 'true' : 'false' }}">
                     <span class="truncate">{{ space.name }}</span>
+                    {% if _n and _n.count > 0 %}
+                        <span class="workspace-new" title="{{ 'layout.workspace.new'|trans({ '%count%': _n.count }) }}">{{ _n.count > 99 ? '99+' : _n.count }}</span>
+                    {% elseif _n and _n.soon %}
+                        <span class="workspace-soon" title="{{ 'layout.workspace.soon'|trans }}" aria-hidden="true"></span>
+                    {% endif %}
                 </button>
             {% endfor %}
         </nav>

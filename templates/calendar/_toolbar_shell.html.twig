@@ -94,7 +94,9 @@ Blocks:
     agenda: 'fa-list-ul',
 } %}
 
-<div class="@container/toolbar border-b border-line shrink-0">
+{#- Over the grid's sticky day header (z-20, later in the page), so a menu
+    folded out of this row opens on top of it (#783). -#}
+<div class="@container/toolbar relative z-40 border-b border-line shrink-0">
 <div class="pane-header flex items-center gap-2 px-3 @max-[37rem]/toolbar:gap-1 @max-[37rem]/toolbar:px-2 @max-[22rem]/toolbar:px-1">
     <div class="flex items-center gap-0.5 shrink-0">
         {% if prevUrl is not null %}
@@ -271,7 +273,29 @@ Blocks:
             {% endif %}
         {% endfor %}
 
-        <div class="flex items-center rounded-lg border border-line overflow-hidden" data-calendar-views>
+        {# In the docked pane, short of room, the views fold into a menu like
+           the workspace strip's on a phone (#783). #}
+        {% if compact %}
+            {% import '_partials/_pane_switch.html.twig' as paneSwitch %}
+            {% set folded = [] %}
+            {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarView').cases() %}
+                {% if viewUrls[candidate.value] is defined %}
+                    {% set folded = folded|merge([{
+                        href:    viewUrls[candidate.value],
+                        icon:    viewIcons[candidate.value],
+                        label:   (labelKeys[candidate.value] ?? ('calendar.view.' ~ candidate.value))|trans,
+                        current: candidate == view,
+                    }]) %}
+                {% endif %}
+            {% endfor %}
+            {# Marked, so a view picked here widens the pane as one picked
+               from the row does (layout--workspace, _onViewPick). #}
+            <div class="contents" data-calendar-views-fold>
+                {{ paneSwitch.menu(folded, 'calendar.view.label'|trans, frame, 'hidden @max-[36rem]/toolbar:block') }}
+            </div>
+        {% endif %}
+
+        <div class="flex items-center rounded-lg border border-line overflow-hidden {{ compact ? '@max-[36rem]/toolbar:hidden' : '' }}" data-calendar-views>
             {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarView').cases() %}
                 {% if viewUrls[candidate.value] is defined %}
                     {% set label = (labelKeys[candidate.value] ?? ('calendar.view.' ~ candidate.value))|trans %}

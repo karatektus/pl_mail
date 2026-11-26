@@ -120,7 +120,7 @@ final readonly class Workspaces
                 return new LayoutPane(PaneKind::Calendar, $id);
             });
 
-            return $root === $workspace->root ? $workspace : new Workspace($workspace->id, $workspace->name, $root);
+            return $root === $workspace->root ? $workspace : $workspace->withRoot($root);
         }, $all);
     }
 

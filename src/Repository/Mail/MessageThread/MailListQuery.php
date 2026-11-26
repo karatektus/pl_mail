@@ -14,6 +14,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -49,7 +50,17 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final readonly class MailListQuery
 {
-    public function __construct(private EntityManagerInterface $em)
+    /**
+     * @param list<int>|null $scope the workspace's accounts (#783): every list
+     *                              that spans the reader's accounts is narrowed
+     *                              to them. Null is every account, which is what
+     *                              anything that is not drawing a workspace
+     *                              (JMAP, the workers) means.
+     */
+    public function __construct(
+        private EntityManagerInterface $em,
+        private ?array                 $scope = null,
+    )
     {
     }
 
@@ -139,6 +150,11 @@ final readonly class MailListQuery
 
         if (null !== $account) {
             $this->inAccount($qb, $level, $account);
+        } elseif (null !== $this->scope) {
+            // A label spans every account it is bound to; in a workspace, only
+            // the workspace's. One account asked for by name is shown as asked.
+            $qb->join(self::root($level) . '.account', 'sa');
+            $this->inScope($qb, 'sa');
         }
 
         if (LabelRole::Trash !== $label->role) {
@@ -311,6 +327,29 @@ final readonly class MailListQuery
             ->andWhere('a.usr = :user')
             ->andWhere('a.mailEnabled = true')
             ->setParameter('user', $user);
+
+        $this->inScope($qb, 'a');
+    }
+
+    /**
+     * Narrowed to the workspace's accounts (#783), on the account joined as
+     * $alias. Its own parameter name, because a unified inbox narrows the same
+     * join by its accounts as well and both conditions have to hold.
+     */
+    private function inScope(QueryBuilder $qb, string $alias): void
+    {
+        if (null === $this->scope) {
+            return;
+        }
+
+        if ([] === $this->scope) {
+            $qb->andWhere('1 = 0');
+
+            return;
+        }
+
+        $qb->andWhere($alias . '.id IN (:workspaceAccounts)')
+            ->setParameter('workspaceAccounts', $this->scope, ArrayParameterType::INTEGER);
     }
 
     private function inAccount(QueryBuilder $qb, ListLevel $level, Account $account): void

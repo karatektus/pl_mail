@@ -18,8 +18,15 @@ than a list of names nobody recognises. A popover rather than a dropdown inside
 the row, because the card clips what overflows it. The radio group is part of
 the row's form; settings--inbox-icon only shows the pick and closes the set.
 
+EACH GROUP HOLDS ITS ACCOUNTS (#783): chips with an × under the name, and an
+"Add account" picker of the ones it does not hold yet. An account may be in
+any number of groups; taken out of its last one it goes to Other, and out of
+Other it cannot go while that is its only group, so its × is not drawn.
+
 Accepts:
-  inboxes  UnifiedInbox[]  every inbox of the reader's, Other included, in order
+  inboxes   UnifiedInbox[]          every group of the reader's, Other included, in order
+  accounts  Account[]               every account, in the reader's order
+  groupsOf  array<int, list<int>>   account id => the ids of its groups
 #}
 {% set icons = enum('App\\Domain\\Enum\\Mail\\UnifiedInboxIcon').cases() %}
 {% set moveButton = 'w-5 h-4 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed' %}
@@ -89,17 +96,22 @@ Accepts:
                     </button>
                 </div>
 
+                <div class="flex min-w-0 flex-1 flex-col gap-2">
                 <form method="post" action="{{ path('app_settings_inboxes_update', { id: inbox.id }) }}"
-                      class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                      class="flex min-w-0 flex-wrap items-center gap-2">
                     <input type="hidden" name="_token" value="{{ csrf_token('settings-inboxes') }}">
                     {{ picker.icon_picker('icon', inbox.iconCase, icons, 'settings.unified_inboxes.icon_label'|trans({ '%inbox%': label }), 'inbox-' ~ inbox.id ~ '-icon') }}
                     <div class="min-w-0 flex-1">
-                        <input type="text" name="name" value="{{ inbox.name }}" maxlength="40"
-                               placeholder="{{ (inbox.isOther ? 'sidebar.nav.inbox_other' : 'sidebar.nav.inbox')|trans }}"
-                               aria-label="{{ 'settings.unified_inboxes.name_label'|trans }}"
-                               class="w-full h-8 rounded-pane border border-line bg-surface px-2 text-sm text-ink">
+                        {# Other is the rest (#783): its own name, nothing put in it by hand. #}
                         {% if inbox.isOther %}
+                            <input type="hidden" name="name" value="">
+                            <p class="h-8 flex items-center px-2 text-sm text-ink">{{ 'sidebar.nav.inbox_other'|trans }}</p>
                             <p class="mt-1 text-[11px] text-ink-faint">{{ 'settings.unified_inboxes.other_hint'|trans }}</p>
+                        {% else %}
+                            <input type="text" name="name" value="{{ inbox.name }}" maxlength="40"
+                                   placeholder="{{ 'sidebar.nav.inbox'|trans }}"
+                                   aria-label="{{ 'settings.unified_inboxes.name_label'|trans }}"
+                                   class="w-full h-8 rounded-pane border border-line bg-surface px-2 text-sm text-ink">
                         {% endif %}
                     </div>
                     <button type="submit"
@@ -108,6 +120,51 @@ Accepts:
                     </button>
                 </form>
 
+                {# The group's accounts. #}
+                {% set _held = accounts|filter(a => inbox.id in (groupsOf[a.id] ?? [])) %}
+                {% set _free = accounts|filter(a => inbox.id not in (groupsOf[a.id] ?? [])) %}
+                <div class="flex flex-wrap items-center gap-1.5 pl-10" data-group-accounts="{{ inbox.id }}">
+                    {% for account in _held %}
+                        {% set _only = (groupsOf[account.id] ?? [])|length <= 1 %}
+                        <span class="filter-chip {{ account.mailEnabled ? '' : 'opacity-60' }}" data-group-account="{{ account.id }}"
+                              {% if not account.mailEnabled %}title="{{ 'settings.unified_inboxes.account_off'|trans }}"{% endif %}>
+                            <span class="truncate max-w-[16rem]">{{ account.displayAddress }}</span>
+                            {% if not inbox.isOther %}
+                                <form method="post" action="{{ path('app_settings_inboxes_account', { id: inbox.id }) }}" class="contents">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('settings-inboxes') }}">
+                                    <input type="hidden" name="account" value="{{ account.id }}">
+                                    <input type="hidden" name="do" value="remove">
+                                    <button type="submit" class="filter-chip-remove cursor-pointer"
+                                            title="{{ (_only ? 'settings.unified_inboxes.remove_to_other' : 'settings.unified_inboxes.remove_account')|trans({ '%account%': account.displayAddress, '%group%': label }) }}"
+                                            aria-label="{{ 'settings.unified_inboxes.remove_account'|trans({ '%account%': account.displayAddress, '%group%': label }) }}">
+                                        <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            {% else %}
+                                <span class="w-1" aria-hidden="true"></span>
+                            {% endif %}
+                        </span>
+                    {% else %}
+                        <span class="text-[11px] text-ink-faint">{{ 'settings.unified_inboxes.no_accounts_in_group'|trans }}</span>
+                    {% endfor %}
+                    {% if _free is not empty and not inbox.isOther %}
+                        <form method="post" action="{{ path('app_settings_inboxes_account', { id: inbox.id }) }}"
+                              data-controller="ui--auto-submit" class="contents">
+                            <input type="hidden" name="_token" value="{{ csrf_token('settings-inboxes') }}">
+                            <input type="hidden" name="do" value="add">
+                            <select name="account"
+                                    data-action="change->ui--auto-submit#submit"
+                                    aria-label="{{ 'settings.unified_inboxes.add_account'|trans({ '%group%': label }) }}"
+                                    class="h-7 max-w-[14rem] rounded-full border border-dashed border-line bg-transparent px-2.5 text-xs text-ink-muted hover:text-ink cursor-pointer">
+                                <option value="">+ {{ 'settings.unified_inboxes.add_account_short'|trans }}</option>
+                                {% for account in _free %}
+                                    <option value="{{ account.id }}">{{ account.displayAddress }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    {% endif %}
+                </div>
+                </div>
                 {% if not inbox.isOther and ownCount > 1 %}
                     <form method="post" action="{{ path('app_settings_inboxes_delete', { id: inbox.id }) }}"
                           class="shrink-0"

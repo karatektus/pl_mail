@@ -61,6 +61,7 @@ final class SettingsNavigation
         . '|region|appearance|layout|notifications|whats-new'
         . '|accounts|aliases|health'
         . '|inboxes|message-list|categories|labels|filters|disposal'
+        . '|mail-search'
         . '|reading|compose|signature|templates'
         . '|calendars|sharing|contacts'
         . '|ai|insights'
@@ -146,7 +147,6 @@ final class SettingsNavigation
         'inbox' => ['fa-solid fa-inbox', [
             'inboxes' => [
                 ['card-unified-inboxes', 'settings.unified_inboxes.heading', null],
-                ['card-unified-inbox-accounts', 'settings.unified_inboxes.accounts_heading', null],
             ],
             'message-list' => [
                 ['card-list-preview', 'settings.message_list.preview.heading', null],
@@ -170,6 +170,16 @@ final class SettingsNavigation
             ],
             'disposal' => [
                 ['card-disposal', 'settings.disposal.heading', 'settings.search.keywords.disposal'],
+            ],
+        ]],
+        // Everything about searching mail in one place (#783): where it starts,
+        // and whether it also finds what was meant (AiFeature::Search, whose
+        // switch the Assistant card has as well).
+        'search' => ['fa-solid fa-magnifying-glass', [
+            // Not "search": /settings/search is the settings search itself.
+            'mail-search' => [
+                ['card-search-scope', 'settings.search_scope.heading', 'settings.search.keywords.search_scope'],
+                ['card-search-meaning', 'settings.search_meaning.heading', 'settings.search.keywords.search_meaning'],
             ],
         ]],
         'reading_writing' => ['fa-solid fa-pen', [

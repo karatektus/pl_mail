@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Repository\Mail\Account\AccountRepository;
 use App\Controller\ChecksCsrf;
 use App\Domain\Exception\InvalidUnifiedInboxException;
 use App\Entity\Mail\Account;
@@ -42,6 +43,7 @@ final class UnifiedInboxController extends AbstractController
     public function __construct(
         private readonly UnifiedInboxes $inboxes,
         private readonly TranslatorInterface $translator,
+        private readonly AccountRepository $accounts,
     ) {
     }
 
@@ -136,19 +138,31 @@ final class UnifiedInboxController extends AbstractController
     }
 
     /**
-     * Which inbox an account's mail is listed in. Other is one of the choices:
-     * picking it is how an account is taken out of the reader's own inboxes.
+     * Put an account in a group, or take it out of one (#783): an account may
+     * be in any number of groups, so a group lists its accounts and each has
+     * an add and a remove. Out of its last group an account goes to Other.
      */
-    #[Route('/account/{account}', name: 'assign', methods: ['POST'], requirements: ['account' => '\d+'])]
-    public function assign(Request $request, Account $account): Response
+    #[Route('/{id}/accounts', name: 'account', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function account(Request $request, int $id): Response
     {
-        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
         $this->assertCsrf($request, self::CSRF);
 
-        $user = $this->user();
+        $user    = $this->user();
+        $inbox   = $this->inbox($user, $id);
+        $account = $this->accounts->find($request->request->getInt('account'));
+
+        if (null === $account) {
+            throw $this->createNotFoundException();
+        }
+
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         try {
-            $this->inboxes->assign($user, $account, $this->inbox($user, $request->request->getInt('inbox')));
+            if ('remove' === $request->request->getString('do')) {
+                $this->inboxes->removeAccount($user, $account, $inbox);
+            } else {
+                $this->inboxes->addAccount($user, $account, $inbox);
+            }
         } catch (InvalidUnifiedInboxException $e) {
             return $this->refused($e);
         }

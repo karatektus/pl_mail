@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Entity\Mail\Account;
+use App\Entity\User\User;
+use App\Service\Layout\WorkspaceScope;
 use App\Service\Mail\UserAccounts;
 use ArrayIterator;
 use Countable;
@@ -43,9 +45,28 @@ class AccountsGlobal implements IteratorAggregate, Countable, ResetInterface
     private ?array $accounts = null;
 
     public function __construct(
-        private readonly UserAccounts $userAccounts,
-        private readonly Security     $security,
+        private readonly UserAccounts   $userAccounts,
+        private readonly Security       $security,
+        private readonly WorkspaceScope $workspaceScope,
     ) {}
+
+    /**
+     * The accounts the workspace on screen shows (#783), for the sidebar's
+     * account list. Not what `accounts` itself answers: Compose and Settings
+     * iterate it too, and those still offer every account.
+     *
+     * @return list<Account>
+     */
+    public function inWorkspace(): array
+    {
+        $user = $this->security->getUser();
+
+        if (false === $user instanceof User) {
+            return $this->all();
+        }
+
+        return array_values(array_filter($this->all(), fn (Account $account): bool => $this->workspaceScope->includes($user, $account)));
+    }
 
     public function getIterator(): Traversable
     {

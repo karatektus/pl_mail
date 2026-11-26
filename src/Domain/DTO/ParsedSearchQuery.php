@@ -26,6 +26,17 @@ final class ParsedSearchQuery
     public ?\DateTimeImmutable $after  = null;
     public ?\DateTimeImmutable $before = null;
 
+    /**
+     * `space:<workspace>` (#783): the workspace's name as typed, and the
+     * accounts it resolves to — set by the caller, who knows the user's
+     * workspaces. Null accounts is every account; an empty list is a name
+     * that is no workspace, which finds nothing.
+     */
+    public ?string $space = null;
+
+    /** @var list<int>|null */
+    public ?array $accountIds = null;
+
     public function isEmpty(): bool
     {
         return $this->freeText === ''

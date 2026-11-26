@@ -1,0 +1,25 @@
+{#
+The workspace's sidebar as a frame of its own (#783), so a switch to a
+workspace with other account groups or another sidebar redraws it alone —
+layout--workspace sets its src to app_layout_sidebar — rather than the page.
+The desktop rail and the phone's drawer each have one.
+
+Its links go where they went before it was a frame: to the page, unless a
+link names a frame of its own (the mail list) — hence target="_top".
+
+Accepts:
+  drawer  true for the drawer's copy
+#}
+{% set _drawer = drawer ?? false %}
+{% set _which = app.user ? layout.sidebar : 'mail' %}
+{% set _which = _which is not null and _which is not same as('mail') ? 'own' : _which %}
+<turbo-frame id="{{ _drawer ? 'workspace-sidebar-drawer' : 'workspace-sidebar' }}"
+             target="_top"
+             class="flex min-w-0 w-full h-full"
+             data-workspace-sidebar="{{ _which ?? 'none' }}">
+    {% if _which == 'mail' %}
+        {% include '_partials/_sidebar.html.twig' with { _drawerMode: _drawer } %}
+    {% elseif _which == 'own' %}
+        {% include '_partials/_sidebar_custom.html.twig' with { _drawerMode: _drawer } %}
+    {% endif %}
+</turbo-frame>

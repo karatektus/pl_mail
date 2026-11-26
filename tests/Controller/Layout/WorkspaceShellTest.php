@@ -55,7 +55,7 @@ final class WorkspaceShellTest extends WebTestCase
         $this->post($client, self::LIST_AND_MESSAGE, $this->token($client));
 
         self::assertSame(200, $client->getResponse()->getStatusCode());
-        self::assertSame(self::LIST_AND_MESSAGE, $this->stored());
+        self::assertEquals(self::saved(self::LIST_AND_MESSAGE), $this->stored());
     }
 
     public function testWithoutATokenNothingIsWritten(): void
@@ -81,7 +81,7 @@ final class WorkspaceShellTest extends WebTestCase
         $this->post($client, $twice, $token);
 
         self::assertSame(422, $client->getResponse()->getStatusCode());
-        self::assertSame(self::LIST_AND_MESSAGE, $this->stored());
+        self::assertEquals(self::saved(self::LIST_AND_MESSAGE), $this->stored());
     }
 
     public function testTheActiveWorkspaceIsDrawnAsATreeAndTheRestAreParked(): void
@@ -284,6 +284,25 @@ final class WorkspaceShellTest extends WebTestCase
      *
      * @return array<string, mixed>|null
      */
+    /**
+     * A posted document as it is kept: each workspace with the #783 keys it
+     * did not send, at their "as before" values — every account, the Mail
+     * sidebar, no targets.
+     *
+     * @param array{workspaces: list<array<string, mixed>>, active: int} $document
+     *
+     * @return array<string, mixed>
+     */
+    private static function saved(array $document): array
+    {
+        $document['workspaces'] = array_map(
+            static fn (array $workspace): array => $workspace + ['groups' => null, 'sidebar' => 'mail', 'targets' => new \stdClass(), 'missing' => 'switch'],
+            $document['workspaces'],
+        );
+
+        return $document;
+    }
+
     private function stored(): ?array
     {
         return Workspaces::fromArray($this->reread()->getSetting(User::SETTING_WORKSPACES))?->toArray();

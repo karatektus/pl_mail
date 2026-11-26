@@ -35,7 +35,43 @@ final class WorkspacesTest extends TestCase
         $workspaces = Workspaces::fromArray($document);
 
         self::assertNotNull($workspaces);
-        self::assertSame($document, $workspaces->toArray());
+        self::assertEquals($document, $workspaces->toArray());
+    }
+
+    public function testADocumentFromBeforeSidebarsReadsAsBefore(): void
+    {
+        $workspace = Workspaces::fromArray(['workspaces' => [['id' => 'w1', 'name' => 'Mail', 'layout' => self::pane('list')]], 'active' => 0])?->active();
+
+        self::assertNotNull($workspace);
+        self::assertNull($workspace->groups, 'every account');
+        self::assertSame('mail', $workspace->sidebar);
+        self::assertSame([], $workspace->targets);
+        self::assertSame('switch', $workspace->missing);
+    }
+
+    public function testTheWorkspaceKeysAreReadLeniently(): void
+    {
+        $document = self::document([
+            ['id' => 'w1', 'name' => 'Work', 'layout' => self::row('s1', [self::pane('list'), self::pane('calendar')], [0.5, 0.5]),
+             'groups' => [3, 3, 'x', 5], 'sidebar' => 'sb1', 'targets' => ['calendar' => 'calendar', 'tasks' => 'tasks', 'nope' => 'list'], 'missing' => 'edge'],
+            ['id' => 'w2', 'name' => 'Rest', 'layout' => self::pane('list'), 'groups' => [], 'sidebar' => null, 'missing' => 'sideways'],
+            ['id' => 'w3', 'name' => 'Odd', 'layout' => self::pane('message'), 'groups' => 'all', 'sidebar' => '../etc'],
+        ]);
+
+        $all = Workspaces::fromArray($document)?->all;
+
+        self::assertNotNull($all);
+        self::assertSame([3, 5], $all[0]->groups, 'doubles and non-ids dropped');
+        self::assertSame('sb1', $all[0]->sidebar);
+        self::assertSame(['calendar' => 'calendar'], $all[0]->targets, 'only a pane of this workspace, of a known kind');
+        self::assertSame('edge', $all[0]->missing);
+
+        self::assertNull($all[1]->groups, 'no groups is every account');
+        self::assertNull($all[1]->sidebar, 'none is a choice');
+        self::assertSame('switch', $all[1]->missing);
+
+        self::assertNull($all[2]->groups);
+        self::assertSame('mail', $all[2]->sidebar, 'an id that is no id is the Mail sidebar');
     }
 
     /** @return iterable<string, array{mixed}> */
@@ -108,7 +144,7 @@ final class WorkspacesTest extends TestCase
         self::assertSame($planning, $second->all[1]->root->keys()[0]);
 
         // And it round-trips: the stored document then names it.
-        self::assertSame($first->toArray(), Workspaces::fromArray($first->toArray())?->toArray());
+        self::assertEquals($first->toArray(), Workspaces::fromArray($first->toArray())?->toArray());
     }
 
     public function testASplitOfOneIsThatOne(): void
@@ -194,7 +230,9 @@ final class WorkspacesTest extends TestCase
      */
     private static function workspace(string $id, string $name, array $layout): array
     {
-        return ['id' => $id, 'name' => $name, 'layout' => $layout];
+        // With #783's keys at their "as before" values, which a document
+        // always comes back with: testADocumentFromBeforeSidebarsReadsAsBefore.
+        return ['id' => $id, 'name' => $name, 'layout' => $layout, 'groups' => null, 'sidebar' => 'mail', 'targets' => new \stdClass(), 'missing' => 'switch'];
     }
 
     /** @return array<string, string> a calendar after the first */

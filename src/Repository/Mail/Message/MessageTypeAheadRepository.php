@@ -121,7 +121,7 @@ final readonly class MessageTypeAheadRepository
 
         foreach ($branches as $predicate) {
             $selects[] = <<<SQL
-                (SELECT m.thread_id, m.subject, m.from_name, m.from_address, m.received_at
+                (SELECT m.thread_id, m.account_id, m.subject, m.from_name, m.from_address, m.received_at
                  FROM message m
                  WHERE m.account_id IN (:accounts) AND {$predicate}
                  ORDER BY m.received_at DESC NULLS LAST
@@ -132,7 +132,7 @@ final readonly class MessageTypeAheadRepository
         $union = implode(' UNION ALL ', $selects);
 
         return <<<SQL
-            SELECT hits.thread_id, hits.subject, hits.from_name, hits.from_address, hits.received_at
+            SELECT hits.thread_id, hits.account_id, hits.subject, hits.from_name, hits.from_address, hits.received_at
             FROM ({$union}) hits
             ORDER BY hits.received_at DESC NULLS LAST
             LIMIT :candidates

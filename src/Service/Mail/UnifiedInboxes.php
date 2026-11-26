@@ -55,7 +55,7 @@ final class UnifiedInboxes implements ResetInterface
     /** @var array<int, list<Account>> user id => their accounts, settings order */
     private array $accounts = [];
 
-    /** @var array<int, array<int, int>> user id => (account id => inbox id) */
+    /** @var array<int, array<int, list<int>>> user id => (account id => group ids) */
     private array $membership = [];
 
     /** @var array<int, array<int, bool>> user id => (account id => switched on) */
@@ -185,10 +185,12 @@ final class UnifiedInboxes implements ResetInterface
     }
 
     /**
-     * Where each of the reader's accounts is listed: account id => inbox id,
-     * every account included, switched off or not.
+     * Which groups each of the reader's accounts is in: account id => group
+     * ids, every account included, switched off or not (#783: an account may
+     * be in several). An account that was never put anywhere is in the first
+     * group, which is what a new account still does.
      *
-     * @return array<int, int>
+     * @return array<int, list<int>>
      */
     public function membership(User $user): array
     {
@@ -199,17 +201,24 @@ final class UnifiedInboxes implements ResetInterface
         }
 
         $first  = (int) $this->first($user)->id;
+        $other  = (int) $this->other($user)->id;
         $known  = array_map(static fn (UnifiedInbox $inbox): int => (int) $inbox->id, $this->all($user));
         $map    = [];
         $active = [];
 
         foreach ($this->assignments->inboxesByAccount($user) as $accountId => $row) {
-            $inboxId = $row['inbox'] ?? $first;
-
-            // An assignment to an inbox that is gone cannot happen through the
+            // A row naming a group that is gone cannot happen through the
             // foreign key, but a memo older than a delete in the same request
-            // can: the first inbox is the safe reading.
-            $map[$accountId]    = true === in_array($inboxId, $known, true) ? $inboxId : $first;
+            // can; what is left, or the first group, is the safe reading.
+            $groups = array_values(array_intersect($row['inboxes'], $known));
+
+            // Other is the rest: an account in one of the reader's own groups
+            // is not in it, whatever an older row says.
+            if (\count($groups) > 1) {
+                $groups = array_values(array_diff($groups, [$other])) ?: $groups;
+            }
+
+            $map[$accountId]    = [] === $groups ? [$first] : $groups;
             $active[$accountId] = $row['active'];
         }
 
@@ -218,17 +227,20 @@ final class UnifiedInboxes implements ResetInterface
         return $this->membership[$key] = $map;
     }
 
-    /** The inbox an account's mail is listed in. */
-    public function inboxOf(User $user, Account $account): UnifiedInbox
+    /**
+     * The groups one account is in.
+     *
+     * @return list<UnifiedInbox>
+     */
+    public function groupsOf(User $user, Account $account): array
     {
-        $id = $this->membership($user)[(int) $account->id] ?? null;
+        $ids = $this->membership($user)[(int) $account->id] ?? [(int) $this->first($user)->id];
 
-        return (null === $id ? null : $this->find($user, $id)) ?? $this->first($user);
+        return array_values(array_filter($this->all($user), static fn (UnifiedInbox $inbox): bool => in_array((int) $inbox->id, $ids, true)));
     }
 
     /**
-     * The ids of every account an inbox lists, switched off ones included —
-     * the queries leave those out themselves, as they always have.
+     * The ids of the accounts a group lists.
      *
      * @return list<int>
      */
@@ -236,7 +248,7 @@ final class UnifiedInboxes implements ResetInterface
     {
         return array_keys(array_filter(
             $this->membership($user),
-            static fn (int $inboxId): bool => $inboxId === $inbox->id,
+            static fn (array $groups): bool => in_array((int) $inbox->id, $groups, true),
         ));
     }
 
@@ -271,29 +283,150 @@ final class UnifiedInboxes implements ResetInterface
     }
 
     /**
-     * Put an account's mail in an inbox. Other included: that is how an
-     * account is taken out of the reader's own inboxes.
+     * Where a new account goes (#783): the groups ticked when it was added.
+     * None ticked is a choice too — in none of the reader's own groups, so
+     * Other. Ids that are not the reader's groups are ignored.
+     *
+     * @param list<int|string> $groupIds
+     */
+    public function placeNew(User $user, Account $account, array $groupIds): void
+    {
+        $wanted = array_values(array_filter(
+            $this->all($user),
+            static fn (UnifiedInbox $inbox): bool => in_array((int) $inbox->id, array_map(intval(...), $groupIds), true),
+        ));
+
+        if ([] === $wanted) {
+            $this->assign($user, $account, $this->other($user));
+
+            return;
+        }
+
+        $this->assign($user, $account, $wanted[0]);
+
+        foreach (array_slice($wanted, 1) as $inbox) {
+            $this->addAccount($user, $account, $inbox);
+        }
+    }
+
+    /**
+     * Put an account in exactly this group and no other — the one-group move
+     * #265 had, still what JMAP and a restore mean by an assignment. Other is
+     * a group like the rest here: moving an account there is how it leaves
+     * all of the reader's own.
      */
     public function assign(User $user, Account $account, UnifiedInbox $inbox): void
     {
         $this->assertOwn($user, $inbox);
+        $this->assertOwnAccount($user, $account);
 
-        if ($account->usr?->id !== $user->id) {
-            throw new InvalidUnifiedInboxException('settings.unified_inboxes.not_found');
+        $changed = array_map(static fn (UnifiedInbox $each): int => (int) $each->id, $this->groupsOf($user, $account));
+
+        foreach ($this->assignments->findBy(['account' => $account]) as $row) {
+            $this->em->remove($row);
         }
 
-        $row  = $this->assignments->findOneBy(['account' => $account]);
-        $from = $this->inboxOf($user, $account);
+        $this->em->flush();
+        $this->em->persist(new UnifiedInboxAccount($inbox, $account));
+        $this->changes->updated($user, array_values(array_unique([...$changed, (int) $inbox->id])));
+        $this->em->flush();
+        $this->forget($user);
+    }
 
-        if (null === $row) {
-            $this->em->persist(new UnifiedInboxAccount($inbox, $account));
-        } else {
-            $row->inbox = $inbox;
+    /**
+     * Put an account in a group as well as the ones it is in (#783).
+     *
+     * An account that was never put anywhere is in the first group by rule;
+     * it gets that row too, so adding it to "Work" does not take it out of
+     * the first group behind the reader's back. Other is the rest, not a
+     * group to put anything in: an account added to a group of the reader's
+     * own leaves it.
+     */
+    public function addAccount(User $user, Account $account, UnifiedInbox $inbox): void
+    {
+        $this->assertOwn($user, $inbox);
+        $this->assertOwnAccount($user, $account);
+
+        if (true === $inbox->isOther) {
+            throw new InvalidUnifiedInboxException('settings.unified_inboxes.other_is_the_rest');
         }
 
-        // Both lists of accounts changed: the one it left and the one it is in.
-        $this->changes->updated($user, [(int) $from->id, (int) $inbox->id]);
+        $rows    = $this->assignments->findBy(['account' => $account]);
+        $changed = [(int) $inbox->id];
 
+        foreach ($rows as $row) {
+            if ($row->inbox->id === $inbox->id) {
+                return;
+            }
+        }
+
+        if ([] === $rows) {
+            $first = $this->first($user);
+
+            if ($first->id !== $inbox->id) {
+                $this->em->persist(new UnifiedInboxAccount($first, $account));
+            }
+        }
+
+        foreach ($rows as $row) {
+            if (true === $row->inbox->isOther) {
+                $this->em->remove($row);
+                $changed[] = (int) $row->inbox->id;
+            }
+        }
+
+        $this->em->persist(new UnifiedInboxAccount($inbox, $account));
+        $this->changes->updated($user, $changed);
+        $this->em->flush();
+        $this->forget($user);
+    }
+
+    /**
+     * Take an account out of a group. Out of its last one it goes to Other,
+     * which is what Other is for. Nothing is taken out of Other: an account
+     * leaves it by being put in a group of the reader's own.
+     */
+    public function removeAccount(User $user, Account $account, UnifiedInbox $inbox): void
+    {
+        $this->assertOwn($user, $inbox);
+        $this->assertOwnAccount($user, $account);
+
+        if (true === $inbox->isOther) {
+            throw new InvalidUnifiedInboxException('settings.unified_inboxes.other_is_the_rest');
+        }
+
+        $groups = $this->groupsOf($user, $account);
+        $left   = array_values(array_filter($groups, static fn (UnifiedInbox $each): bool => $each->id !== $inbox->id));
+
+        if (\count($left) === \count($groups)) {
+            return;
+        }
+
+        $rows = $this->assignments->findBy(['account' => $account]);
+
+        // In the first group by rule, with no rows: what it is in is written
+        // down before one of them is taken away.
+        if ([] === $rows) {
+            foreach ($left as $each) {
+                $this->em->persist(new UnifiedInboxAccount($each, $account));
+            }
+        }
+
+        foreach ($rows as $row) {
+            if ($row->inbox->id === $inbox->id) {
+                $this->em->remove($row);
+            }
+        }
+
+        $changed = [(int) $inbox->id];
+
+        if ([] === $left) {
+            $other = $this->other($user);
+            $this->em->persist(new UnifiedInboxAccount($other, $account));
+            $changed[] = (int) $other->id;
+        }
+
+        $this->changes->updated($user, $changed);
         $this->em->flush();
         $this->forget($user);
     }
@@ -334,13 +467,14 @@ final class UnifiedInboxes implements ResetInterface
 
     /**
      * Rename an inbox and change its icon in one write. An empty name puts
-     * plMail's own word back ("Inbox", "Other"), in the reader's language.
+     * plMail's own word back ("Inbox"), in the reader's language. Other keeps
+     * its name (#783): it is the rest, and says so.
      */
     public function update(User $user, UnifiedInbox $inbox, string $name, string $icon): void
     {
         $this->assertOwn($user, $inbox);
 
-        $inbox->name = $this->validName($name, true);
+        $inbox->name = true === $inbox->isOther ? null : $this->validName($name, true);
         $inbox->icon = $this->validIcon($icon);
 
         $this->changes->updated($user, [(int) $inbox->id]);
@@ -425,16 +559,16 @@ final class UnifiedInboxes implements ResetInterface
 
         $other = $this->other($user);
 
-        // Accounts that were in it by default — never assigned, and this was
-        // the first inbox — get a row now, or they would quietly move to
-        // whichever inbox becomes first instead of to Other.
+        // Accounts with no other group go to Other; an account in this group
+        // and another just stays in the other. Accounts that were in it by
+        // default — never put anywhere, and this was the first group — get a
+        // row now, or they would quietly move to whichever group becomes
+        // first instead of to Other.
         foreach ($this->accountsIn($user, $inbox) as $account) {
-            $row = $this->assignments->findOneBy(['account' => $account]);
+            $elsewhere = array_filter($this->groupsOf($user, $account), static fn (UnifiedInbox $each): bool => $each->id !== $inbox->id);
 
-            if (null === $row) {
+            if ([] === $elsewhere) {
                 $this->em->persist(new UnifiedInboxAccount($other, $account));
-            } else {
-                $row->inbox = $other;
             }
         }
 
@@ -545,6 +679,13 @@ final class UnifiedInboxes implements ResetInterface
     private function validIcon(string $icon): string
     {
         return UnifiedInboxIcon::of($icon)->value;
+    }
+
+    private function assertOwnAccount(User $user, Account $account): void
+    {
+        if ($account->usr?->id !== $user->id) {
+            throw new InvalidUnifiedInboxException('settings.unified_inboxes.not_found');
+        }
     }
 
     private function assertOwn(User $user, UnifiedInbox $inbox): void

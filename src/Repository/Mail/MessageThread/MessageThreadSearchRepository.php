@@ -799,6 +799,11 @@ class MessageThreadSearchRepository extends ServiceEntityRepository
             // tsvector index: 126ms.
             $accountIds = $this->activeAccountIdsFor((int) $params['userId']);
 
+            // `space:<workspace>` (#783): only that workspace's accounts.
+            if (null !== $query->accountIds) {
+                $accountIds = array_values(array_intersect($accountIds, $query->accountIds));
+            }
+
             // No accounts, no mail — and `IN ()` is not valid SQL. Answered as
             // a false predicate inside the normal statement rather than by
             // returning a different one: the callers append ORDER BY and LIMIT

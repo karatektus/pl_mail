@@ -67,11 +67,16 @@ final class ClockController extends AbstractController
 
         $placement = ClockPlacement::tryFrom((string) $request->request->get('placement'));
 
-        if (null === $placement) {
+        // The sidebar is no longer a place to choose (#783): the Mail sidebar
+        // has its own clock switch, and a sidebar of one's own a Clock row.
+        if (null === $placement || ClockPlacement::Sidebar === $placement) {
             throw $this->createNotFoundException('Unknown clock placement.');
         }
 
-        $user->clockPlacement = $placement;
+        // Whoever had the clock in the sidebar keeps it there: the switch it
+        // was read from is written down before the placement moves on.
+        $user->mailSidebarClock = $user->mailSidebarClock;
+        $user->clockPlacement   = $placement;
 
         $em->flush();
 

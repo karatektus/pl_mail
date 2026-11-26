@@ -106,7 +106,14 @@ final class ThreadListQueryBudgetTest extends WebTestCase
     // and the administrator's lookup switch — three reads per PAGE, made once
     // for every sender on it (SenderPictures::preload() from ThreadRows). A
     // fourth, the looked-up pictures, is made only while lookups are on.
-    private const int BUDGET = 34;
+    //
+    // 36 since the page knows what is about to happen (#783): the dot on
+    // Happening soon and the moment the workspace tabs' "new" counts can
+    // change by the clock alone — one read over the calendars and one over
+    // the tasks, each answering both (WorkspaceNews::pulse()). The other
+    // workspaces' counts add nothing for somebody with one workspace, which
+    // the fixture user is.
+    private const int BUDGET = 36;
 
     /**
      * The ceiling for the INBOX alone: one above BUDGET, and the one read that
@@ -123,10 +130,10 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * the ceiling they had: a shared ceiling raised for one view would let each
      * of the others regress by a query and still pass.
      *
-     * Raised with BUDGET, by the same two reads, for #265, and by the same
-     * three for #639.
+     * Raised with BUDGET, by the same two reads, for #265, by the same
+     * three for #639, and by the same two for #783.
      */
-    private const int INBOX_BUDGET = 35;
+    private const int INBOX_BUDGET = 37;
 
     /**
      * The ceiling for the same list NAVIGATED rather than visited.

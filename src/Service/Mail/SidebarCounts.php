@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Service\Layout\WorkspaceScope;
+
 use App\Repository\Jmap\ChangeLog\ChangeLogRepository;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\SidebarRow;
@@ -135,7 +137,19 @@ class SidebarCounts implements ResetInterface
         private readonly UnifiedInboxes          $inboxes,
         private readonly MailLists               $lists,
         private readonly MessageListBadgeRepository $emailBadges,
+        private readonly WorkspaceScope          $workspaceScope,
     ) {}
+
+    /**
+     * The workspace's accounts (#783): every count that spans accounts is
+     * narrowed to them, so a badge agrees with the list it opens.
+     *
+     * @return list<int>|null
+     */
+    private function scope(UserInterface $user): ?array
+    {
+        return $user instanceof User ? $this->workspaceScope->accountIds($user) : null;
+    }
 
     /**
      * Where the unread badges are counted: in conversations, or in emails
@@ -160,7 +174,29 @@ class SidebarCounts implements ResetInterface
     {
         $user = $this->security->getUser();
 
-        return $user instanceof User ? $this->inboxes->shown($user) : [];
+        if (false === $user instanceof User) {
+            return [];
+        }
+
+        // In a workspace of some groups (#783), those groups' rows only.
+        $groups = $this->workspaceScope->groupIds($user);
+
+        return array_values(array_filter(
+            $this->inboxes->shown($user),
+            static fn (UnifiedInbox $inbox): bool => null === $groups || in_array((int) $inbox->id, $groups, true),
+        ));
+    }
+
+    /**
+     * Whether the workspace shows exactly one account group (#783): then the
+     * group IS the inbox, and the sidebar draws one plain Inbox row rather
+     * than a row named after the group.
+     */
+    public function isSingleGroup(): bool
+    {
+        $user = $this->security->getUser();
+
+        return $user instanceof User && 1 === \count($this->workspaceScope->groupIds($user) ?? []);
     }
 
     /**
@@ -192,7 +228,7 @@ class SidebarCounts implements ResetInterface
         // Every account in it — one inbox over everything, as before #265:
         // the Inbox badge's own number, from the grouped read the other rows'
         // badges come from anyway.
-        if (null === $this->inboxes->scopeOf($user, $inbox)) {
+        if (null === $this->inboxes->scopeOf($user, $inbox) && null === $this->scope($user)) {
             return $this->forRole(LabelRole::Inbox);
         }
 
@@ -200,7 +236,13 @@ class SidebarCounts implements ResetInterface
 
         $count = 0;
 
+        $scope = $this->scope($user);
+
         foreach ($this->inboxes->accountIdsOf($user, $inbox) as $accountId) {
+            if (null !== $scope && false === in_array($accountId, $scope, true)) {
+                continue;
+            }
+
             $count += $this->inboxUnread[$accountId] ?? 0;
         }
 
@@ -516,7 +558,7 @@ class SidebarCounts implements ResetInterface
 
             $this->roleTotals[$key] = null === $user
                 ? 0
-                : $this->lists->for($user)->countForRole($user, $role);
+                : $this->lists->for($user, $this->scope($user))->countForRole($user, $role);
         }
 
         return $this->roleTotals[$key];
@@ -530,7 +572,7 @@ class SidebarCounts implements ResetInterface
             if (null === $user) {
                 $this->roleCounts = [];
             } else {
-                $this->roleCounts = $this->badgeCounts($user)->countUnreadPerRole($user);
+                $this->roleCounts = $this->badgeCounts($user)->countUnreadPerRole($user, $this->scope($user));
             }
         }
 
@@ -579,7 +621,7 @@ class SidebarCounts implements ResetInterface
 
             $this->labelsUnread = null === $user || ($user instanceof User && true === $user->labelsByAccount)
                 ? 0
-                : $this->badgeCounts($user)->countUnreadInUserLabels($user);
+                : $this->badgeCounts($user)->countUnreadInUserLabels($user, $this->scope($user));
         }
 
         return $this->labelsUnread;
@@ -611,7 +653,7 @@ class SidebarCounts implements ResetInterface
             if (null === $user) {
                 $this->starredCount = 0;
             } else {
-                $this->starredCount = $this->badgeCounts($user)->countUnreadForStarred($user);
+                $this->starredCount = $this->badgeCounts($user)->countUnreadForStarred($user, $this->scope($user));
             }
         }
 
@@ -629,7 +671,7 @@ class SidebarCounts implements ResetInterface
 
             $this->unreadCount = null === $user
                 ? 0
-                : $this->lists->for($user)->countForUnread($user);
+                : $this->lists->for($user, $this->scope($user))->countForUnread($user);
         }
 
         return $this->unreadCount;
@@ -951,7 +993,7 @@ class SidebarCounts implements ResetInterface
         if (null === $user) {
             $this->labelCounts = [];
         } else {
-            $this->labelCounts = $this->badgeCounts($user)->countUnreadPerUserLabel($user);
+            $this->labelCounts = $this->badgeCounts($user)->countUnreadPerUserLabel($user, null, $this->scope($user));
         }
     }
 

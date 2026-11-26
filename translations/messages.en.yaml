@@ -49,6 +49,9 @@ account:
             username: Sending username
             username_help: 'Leave blank to send as the username above.'
         username: Username
+    groups:
+        help: "Where its mail is listed, and which workspaces show it. None ticked puts it in the catch-all group."
+        legend: "Account groups"
     mail_purge_queued: 'Removing this account’s mail from plMail. The server keeps its copy.'
     oauth:
         calendar_declined: The account is connected, but calendar access was not granted — so its calendars will not sync. Reconnect it and tick calendar access on Google's consent screen.
@@ -1559,6 +1562,15 @@ attachment:
         zoom_out: Zoom out
 calendar:
     # plMail's date-and-time picker; see calendar--when.
+    pane:
+        scope_all: "All"
+        scope_all_hint: "Every calendar alike"
+        scope_label: "Which calendars"
+        scope_overlay: "+ Others"
+        scope_overlay_hint: "This workspace’s calendars, and the others faint"
+        scope_workspace: "Workspace"
+        scope_workspace_hint: "Only the calendars of this workspace’s accounts"
+        show_all: "Show every calendar"
     when:
         previous_month: 'Previous month'
         next_month: 'Next month'
@@ -1821,6 +1833,8 @@ calendar:
             The zone a new event on this calendar is written in. Follow plMail uses
             your own, currently %zone%. Events always show at the time they
             happen on your clock.
+        workspace: "Workspace"
+        workspace_help: "A calendar without an account has no account group to follow, so it shows in this workspace. Workspaces over every account show it too."
     grid:
         all_day: All day
         continues_after: Carries on into the next day
@@ -2080,6 +2094,7 @@ calendar:
         range_short: '%start%–%end%'
         range_short_month: '%month% %start%–%end%'
     view:
+        label: "View"
         agenda: Agenda
         day: Day
         monday_week: Week
@@ -2890,6 +2905,8 @@ discarded:
         restore: Move to inbox
 header:
     search:
+        chip_remove: "Remove %token%"
+        clear: "Clear search"
         close: Close search
         live:
             status: '%count% matching conversations'
@@ -3076,7 +3093,6 @@ label:
         red: Red
         teal: Teal
         violet: Violet
-    empty: No conversations with this label.
     created: Label created.
     delete:
         already_running: '"%name%" is already being deleted.'
@@ -3096,8 +3112,10 @@ label:
     delete_confirm: 'Delete the label "%name%"? It goes from every account. Messages keep their other labels and are not deleted.'
     delete_confirm_children: 'Delete "%name%" and its %count% nested label(s)? They go from every account. Messages are not deleted.'
     deleted: Label deleted.
+    empty: No conversations with this label.
     error:
         duplicate: A label with this name already exists here. Capitals do not make it a different name.
+    filters: "Filters"
     form:
         account_note:
             new: 'Made on %account% only.'
@@ -3137,6 +3155,7 @@ label:
     menu:
         create: Create new
         empty: No labels yet.
+    remove_filter: "Remove the filter “%name%”"
     updated: Label updated.
     visibility:
         hidden: Label is now hidden.
@@ -3213,6 +3232,59 @@ layout:
         shapes: "Start from a shape"
         slots: "What goes where"
         workspaces: "Workspaces"
+    settings:
+        all_accounts: "All accounts"
+        built_in: "Mail (built in)"
+        delete_sidebar: "Delete this sidebar"
+        duplicate_mail: "Copy of the Mail sidebar…"
+        edit_groups: "Edit account groups"
+        gone: "(no longer there)"
+        group:
+            blocks: "Grows by itself"
+            calendars: "Calendars"
+            labels: "Labels"
+            mail: "Mail"
+            other: "Other"
+            tasks: "Task lists"
+        groups: "Account groups"
+        groups_help: "What this workspace shows: the mail list, Starred and Unread, the sidebar and its counts, and the new count on its tab."
+        heading: "Heading"
+        heading_prompt: "Text of the heading"
+        intro: "Settings of the workspace “%name%”."
+        live: "live"
+        mail_clock: "Show the clock at the bottom"
+        missing: "When this workspace has no pane for a link"
+        missing_edge: "Add the pane at the right-hand edge"
+        missing_switch: "Switch to a workspace that has one"
+        missing_switch_help: "Preferably one that shows the account the calendar or list belongs to."
+        move_down: "Move down"
+        move_up: "Move up"
+        new_name: "Sidebar %n%"
+        new_sidebar: "New sidebar…"
+        'off': "Off"
+        'on': "On"
+        open: "Groups & sidebar"
+        remove: "Remove"
+        save_failed: "The settings could not be saved. Nothing changed."
+        sidebar: "Sidebar"
+        sidebar_help: "Sidebars are shared: changing one changes it in every workspace that uses it."
+        sidebar_none: "No sidebar"
+        target_calendar: "Calendar"
+        target_default: "default"
+        target_nth: "%kind% %n%"
+        targets: "Sidebar links open in"
+        targets_help: "This workspace has more than one calendar. Without a choice, links open in the first."
+        title: "Workspace settings"
+        used_by: "Also shown in %names%: a change here changes it there too."
+    sidebar:
+        block:
+            accounts: "Accounts and their folders"
+            calendars: "All calendars"
+            inboxes: "Inboxes"
+            labels: "All labels"
+            tasklists: "All task lists"
+        clock: "Clock"
+        empty: "This sidebar is empty. Add rows in the workspace settings."
     tabs:
         label: "Panes"
     toast:
@@ -3228,7 +3300,10 @@ layout:
         saved: "Saved “%name%”."
     workspace:
         first_name: "Mail"
+        more: "Other workspaces"
+        new: "%count% new since you were last here"
         new_name: "Workspace %n%"
+        soon: "Something here starts within the hour"
         tabs_label: "Workspaces"
 list:
     conversation_view: 'Conversation view'
@@ -5216,6 +5291,16 @@ settings:
         'off': 'Off'
         'on': 'On'
         subheading: Whether pictures that mail loads from elsewhere wait to be asked for.
+    search_meaning:
+        heading: "Search by meaning"
+        subheading: "Besides the words you typed, also find mail about what you meant. Your administrator decides whether it is available."
+    search_scope:
+        heading: "Search"
+        hint: "Adds the workspace as a filter (space:Name) when you start typing. One backspace takes it off."
+        label: "Start search in the workspace"
+        'off': "Off"
+        'on': "On"
+        subheading: "Whether search covers every account or starts with the workspace on screen."
     sender_pictures:
         admin_off: 'Your administrator has not allowed this server to look pictures up on the internet, so these switches do nothing for now. Your choice is kept for when they do.'
         bimi: 'Company logos'
@@ -5246,17 +5331,16 @@ settings:
             label: Swipe right
         subheading: What a swipe across a row does on a phone.
     unified_inboxes:
-        account_label: 'Unified inbox for %account%'
         account_off: 'Mail switched off — none of its mail is listed here until you switch it back on.'
-        accounts_heading: 'Accounts'
-        accounts_subheading: 'Which inbox each account''s mail is listed in. A new account goes into your first inbox.'
         add: 'Add'
+        add_account: "Add an account to %group%"
+        add_account_short: "Add account"
         created: 'Created "%name%".'
         delete: 'Delete %inbox%'
-        delete_confirm: 'Delete "%name%"? Its accounts move to %other%. No mail is deleted.'
-        deleted: 'Inbox deleted. Its accounts are listed in the catch-all inbox now.'
-        heading: 'Unified inboxes'
-        hint: 'Each inbox shows the mail of the accounts you put in it as one list, with its own tabs. Leave a name empty to use the standard one.'
+        delete_confirm: "Delete \"%name%\"? Accounts in no other group move to %other%. No mail is deleted."
+        deleted: "Group deleted. Accounts that were only in it are in the catch-all group now."
+        heading: "Account groups"
+        hint: "A group lists the mail of its accounts as one inbox, with its own tabs. An account can be in several groups; a new account goes into your first. Leave a name empty to use the standard one."
         icon_label: 'Icon for %inbox%'
         icon_new: 'Icon for the new inbox'
         last_stays: 'Keep at least one inbox of your own.'
@@ -5265,16 +5349,18 @@ settings:
         name_label: 'Name'
         name_required: 'An inbox needs a name.'
         name_too_long: 'That name is too long (40 characters at most).'
-        no_accounts: 'No mail accounts yet.'
+        no_accounts_in_group: "No accounts yet."
         not_found: 'That inbox does not exist any more.'
-        other_hint: 'Collects every account you take out of your own inboxes. It stays out of the sidebar while it holds none.'
-        other_option: 'catch-all'
+        other_is_the_rest: "Other holds the rest: put an account in one of your own groups instead."
+        other_hint: "Holds every account you take out of its last group. It stays out of the sidebar while it holds none."
         other_stays: 'The catch-all inbox cannot be deleted: accounts that are in none of your own inboxes are listed there.'
         placeholder: 'e.g. Work'
+        remove_account: "Take %account% out of %group%"
+        remove_to_other: "Take %account% out of %group%; it is in no other group, so it moves to the catch-all one"
         reorder: 'Drag to reorder'
         save: 'Save'
         saved: 'Saved.'
-        subheading: 'Name them, give them an icon and drag them into the order the sidebar shows them in.'
+        subheading: "Each group is an inbox in the sidebar and something a workspace can show. Name them, give them an icon, put accounts in them and drag them into order."
     whats_new:
         heading: 'What''s new'
         'off': 'Off'
@@ -5297,6 +5383,7 @@ settings:
             integrations: "Integrations"
             mail_accounts: "Mail accounts"
             reading_writing: "Reading & writing"
+            search: "Search"
         calendar_behaviour: "Calendar behaviour"
         calendars: Calendars
         categories: "Categories & sorting"
@@ -5307,11 +5394,12 @@ settings:
         filters: Filters
         health: 'Account health'
         health_banner: "Something needs your attention — see Account health."
-        inboxes: 'Unified inboxes'
+        inboxes: "Account groups"
         insights: Insights
         integrations: Integrations
         labels: Labels
         layout: "Layout & controls"
+        mail_search: "Search"
         message_list: 'Message list'
         notifications: Notifications
         profile: Profile
@@ -5360,6 +5448,8 @@ settings:
             pinning: 'pin pinned thumbtack sticky top reminder'
             profile: "name avatar photo picture"
             read_receipts: "mdn receipt confirmation bcc copy backup always"
+            search_meaning: "semantic meaning ai search similar"
+            search_scope: "search scope workspace space filter"
             sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender'
             sharing: "link public booking"
             shortcuts: "keyboard hotkeys keys"
@@ -6423,6 +6513,11 @@ contacts:
         use_as: 'Use as…'
         you_placed: 'You placed this line'
 tasks:
+    pane:
+        scope_label: "Which lists"
+        scope_workspace_hint: "Only this workspace’s task lists"
+        scope_overlay_hint: "This workspace’s lists, and the others faint"
+        scope_all_hint: "Every list alike"
     occurrence_undone: 'Tick undone.'
     added: 'Task added.'
     completed: 'Task completed.'
@@ -6515,6 +6610,8 @@ tasks:
         delete_confirm: 'Delete “%name%” and every task on it?'
         default_hint: 'New tasks land here when nothing else was picked, so this list can''t be deleted.'
         synced_hint: 'This list is synced, so its name comes from the server. The colour is yours.'
+        workspace: "Workspace"
+        workspace_help: "A list without an account has no account group to follow, so it shows in this workspace. Workspaces over every account show it too."
         transferred: '%count% task moved to “%name%”.|%count% tasks moved to “%name%”.'
     transfer:
         title: 'Transfer to a local list'
