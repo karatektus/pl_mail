@@ -1938,6 +1938,11 @@ export default class extends Controller {
                 return response.ok && streamed ? response.text() : Promise.reject(new Error(String(response.status)));
             });
 
+            // Whether it has landed, which #applyRedraw reads: an answer
+            // fetched ahead is drawn at once, with nothing dimmed first.
+            stream.settled = false;
+            stream.then(() => { stream.settled = true; }, () => { stream.settled = true; });
+
             this._redraws.set(key, { at: Date.now(), stream });
             stream.catch(() => this._redraws?.delete(key));
         }
@@ -1991,7 +1996,13 @@ export default class extends Controller {
         };
         const listAt = window.location.pathname + window.location.search;
 
-        this.#markStale(true);
+        // Dimmed in the same frame the new layout is drawn in (#switchTo
+        // commits it just before), so the old content never shows at full
+        // strength in the new arrangement. Not for an answer already here
+        // (a hovered tab's): that is drawn before the next frame anyway.
+        if (true !== stream.settled) {
+            this.#markStale(true);
+        }
 
         let html = null;
 
@@ -2591,7 +2602,17 @@ export default class extends Controller {
         // switch ever slid.
         const before = this.workspaceTabsTarget.querySelector("[aria-pressed='true']")?.getAttribute("data-layout--workspace-index-param") ?? undefined;
 
-        this.workspaceTabsTarget.replaceChildren(...(thumb ? [thumb] : []), ...this.doc.workspaces.map((workspace, index) => {
+        // Everything but the highlight goes. The highlight stays in place: it
+        // carries the switch's glow, and taking it out and back in restarts a
+        // running animation — a "new" count landing just after a switch drew
+        // the tabs again and played the glow twice.
+        [...this.workspaceTabsTarget.children].forEach((child) => {
+            if (child !== thumb) {
+                child.remove();
+            }
+        });
+
+        this.workspaceTabsTarget.append(...this.doc.workspaces.map((workspace, index) => {
             const button = document.createElement("button");
             const name = document.createElement("span");
             button.type = "button";
