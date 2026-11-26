@@ -27,6 +27,15 @@ const STRIP = "nav:has(> [data-category-tab])";
 const TABS = `${STRIP} a[data-category-tab-link]`;
 const CURRENT = `${TABS}[aria-current="page"]`;
 const SOCIAL = `${TABS}[href*='tab=social']`;
+
+/**
+ * Tap a tab the way a thumb does: on the tab's box, by its glyph. On a phone a
+ * tab that is not the open one shows no label, so its link has no box of its
+ * own to click — the tap lands on the link's `::after`, stretched over the tab.
+ */
+async function tapTab(page: Page, tab: string): Promise<void> {
+    await page.locator(`${STRIP} > [data-category-tab='${tab}']`).click({ position: { x: 12, y: 12 } });
+}
 const BACK_BUTTON = "Back";
 
 /** The header the list refresh sends; see FRAGMENT_HEADER in mail_pane_controller.js. */
@@ -60,7 +69,7 @@ test("on a phone, switching tabs does not add a history entry", async ({ page })
 
     const before = await historyLength(page);
 
-    await page.locator(SOCIAL).click();
+    await tapTab(page, "social");
     await expect(page.locator(CURRENT)).toHaveAttribute("href", /tab=social/);
 
     expect(new URL(page.url()).search).toContain("tab=social");
@@ -77,7 +86,7 @@ test.describe("on a desktop window", () => {
 
         const before = await historyLength(page);
 
-        await page.locator(SOCIAL).click();
+        await tapTab(page, "social");
         await expect(page.locator(CURRENT)).toHaveAttribute("href", /tab=social/);
 
         expect(new URL(page.url()).search).toContain("tab=social");
@@ -109,7 +118,7 @@ test("after a switch, Back from an opened row lands on the switched-to tab", asy
     const social = page.locator(SOCIAL);
     const tabUrl = new URL((await social.getAttribute("href"))!, page.url()).href;
 
-    await social.click();
+    await tapTab(page, "social");
     await expect(page.locator(CURRENT)).toHaveAttribute("href", /tab=social/);
 
     await expect(mailRow(page, INBOX_SUBJECTS.star)).toBeVisible();
@@ -157,7 +166,7 @@ test("the switch still replaces the entry after a list refresh has morphed the t
 
     const before = await historyLength(page);
 
-    await page.locator(SOCIAL).click();
+    await tapTab(page, "social");
     await expect(page.locator(CURRENT)).toHaveAttribute("href", /tab=social/);
 
     expect(await historyLength(page)).toBe(before);
