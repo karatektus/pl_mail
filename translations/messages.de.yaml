@@ -2,8 +2,6 @@ account:
     add_title: Konto hinzufügen
     added: Konto wurde hinzugefügt
     colour_set: Kontofarbe geändert
-    disabled: Konto deaktiviert
-    enabled: Konto aktiviert
     form:
         email: E-Mail-Adresse
         encryption: Verschlüsselung
@@ -46,16 +44,36 @@ account:
             heading: Ausgehend — SMTP
             host: Server
             password: Passwort zum Senden
-            same: Zum Senden dasselbe Passwort verwenden
-            separate: Zum Senden ein anderes Passwort verwenden
+            same: Zum Senden dieselbe Anmeldung verwenden
+            separate: Zum Senden einen anderen Benutzernamen oder ein anderes Passwort verwenden
+            username: Benutzername zum Senden
+            username_help: 'Leer lassen, um mit dem Benutzernamen oben zu senden.'
         username: Benutzername
+    mail_purge_queued: 'Die E-Mails dieses Kontos werden aus plMail entfernt. Auf dem Server bleiben sie.'
     oauth:
         calendar_declined: Das Konto ist verbunden, aber der Kalenderzugriff wurde nicht erteilt — seine Kalender werden also nicht synchronisiert. Verbinde es neu und hak auf Googles Zustimmungsseite den Kalenderzugriff an.
         google: Weiter mit Google
         info: Melde dich bei deinem Anbieter an — es wird kein Passwort gespeichert.
         microsoft: Weiter mit Microsoft
+        services:
+            help: 'Auf der nächsten Seite wird nur das angefragt, was du ankreuzt. Ändern kannst du es später unter Einstellungen → Konten.'
+            legend: 'Konto verwenden für'
     primary_set: Primäres Konto geändert
+    removal_started: 'Das Konto wird entfernt. Seine E-Mails werden im Hintergrund gelöscht; auf dem Server bleiben sie.'
     removed: Konto entfernt
+    service:
+        calendar:
+            off: 'Kalender ausgeschaltet'
+            on: 'Kalender eingeschaltet'
+        contacts:
+            off: 'Kontakte ausgeschaltet'
+            on: 'Kontakte eingeschaltet'
+        mail:
+            off: 'Empfangen ausgeschaltet. Was schon da ist, bleibt.'
+            on: 'Empfangen eingeschaltet'
+        send:
+            off: 'Senden ausgeschaltet'
+            on: 'Senden eingeschaltet'
     sync_interval_set: Abrufintervall geändert
     tabs:
         imap: IMAP / SMTP
@@ -73,13 +91,14 @@ account:
             failed: 'Die Verbindung hat nicht geklappt. Prüf Host, Port und Verschlüsselung.'
             host_invalid: 'Gib nur einen Hostnamen oder eine IP-Adresse ein — ohne Schrägstriche, Fragezeichen oder @.'
             imap_ok: 'Verbunden — %count% Ordner sichtbar.'
+            incoming_none: 'Kein Posteingangsserver eingetragen — dieses Konto sendet nur.'
             jmap_no_mail: 'Der Server spricht JMAP, bietet für dieses Konto aber keine Mail an.'
             jmap_ok: 'Verbunden — %count% Postfächer sichtbar.'
             jmap_submission: 'Gesendet wird über den JMAP-Server.'
-            missing_fields: 'Gib zuerst mindestens eine E-Mail-Adresse und einen IMAP-Host ein.'
+            missing_fields: 'Gib zuerst eine E-Mail-Adresse und mindestens einen Server ein.'
             missing_password: 'Kein Passwort zum Testen. Gib oben eins ein — beim Bearbeiten behält ein leeres Feld das gespeicherte Passwort, und das kann der Test erst nutzen, wenn das Konto gespeichert ist.'
             pop3_ok: 'Verbunden — %count% Nachrichten im Postfach.'
-            private_network: 'Dieser Server liegt in einem privaten Netz. Eine Administratorin oder ein Administrator muss seinen Host erst in INTEGRATIONS_ALLOWED_HOSTS freigeben, bevor plMail sich verbinden darf.'
+            private_network: 'Dieser Server liegt in einem privaten Netz. Eine Administratorin oder ein Administrator muss ihn erst unter Admin → Integrationen → Server in privaten Netzen erlauben, bevor plMail sich verbinden darf.'
             smtp_none: 'Kein SMTP-Host eingetragen — Senden ist für dieses Konto aus.'
             smtp_ok: 'Verbunden und angemeldet.'
             timeout: 'Der Server hat nicht rechtzeitig geantwortet. Prüf Host und Port und ob eine Firewall dazwischen ist.'
@@ -360,6 +379,172 @@ admin:
             timeout: 'Der Host hat nach vier Minuten immer noch geladen, plMail hat aufgehört zu warten. Gut möglich, dass er fertig wird — vermutlich ist das Modell aber zu groß für seinen Speicher.'
             unexpected: 'Etwas ist schiefgegangen, bevor der Host antworten konnte. (%error%)'
             unreachable: 'Unter der Adresse hat nichts geantwortet. (%error%)'
+    backfills:
+        active:
+            queued: 'In der Warteschlange — wartet auf den Wartungs-Worker.'
+            running: 'Läuft. Die Ausgabe steht unter Letzte Läufe.'
+        added: 'Hinzugefügt am %date%'
+        console: 'Dasselbe auf der Konsole'
+        count:
+            button: 'Erst zählen'
+            none: 'Nichts zu tun — auf dieser Installation gibt es für diese Reparatur keine Arbeit.'
+            some: 'Sie sieht sich %count% Nachrichten an. Manche Aufgaben lesen jeden Kandidaten und ändern nur die mit dem Fehler.'
+            unavailable: 'Diese Aufgabe kann vorher nicht zählen.'
+        heading: 'Nachträge'
+        kind:
+            repairs: 'Repariert gespeicherte Daten'
+            rereads: 'Liest Mail neu'
+        last_run: 'Zuletzt von dieser Seite gestartet am %date%'
+        list_label: 'Nachträge, neueste zuerst'
+        never_run: 'Noch nie von dieser Seite gestartet'
+        new: 'Neu'
+        none: 'Es sind keine Nachträge registriert.'
+        order_hint: 'Neueste zuerst. Braucht ein Update einen, steht das in den Versionshinweisen, und meist ist es der neueste.'
+        repeat:
+            careful: 'Vor einem zweiten Lauf nachdenken'
+            safe: 'Mehrfach ausführbar'
+        run: '%task% starten'
+        run_hint: 'Wird für den Wartungs-Worker eingereiht, nicht in dieser Seite ausgeführt. Du kannst sie verlassen; der Lauf geht weiter.'
+        runs:
+            empty: 'Von dieser Seite wurde noch nichts gestartet.'
+            everything: 'Alles'
+            heading: 'Letzte Läufe'
+            removed_user: 'eine entfernte Person'
+            show_output: 'Ausgabe zeigen'
+            state:
+                done: 'Fertig'
+                failed: 'Fehlgeschlagen'
+                queued: 'Eingereiht'
+                quiet: 'Seit 30 Minuten still'
+                running: 'Läuft'
+        task:
+            addresses:
+                explanation: >-
+                    Mail, die gespeichert wurde, bevor Adressen beim Eingang bereinigt wurden, behielt die Namen genau so, wie der Server sie schickte. Manche Absender erscheinen deshalb als "Doe, John" in Anführungszeichen, und ein Name mit Komma konnte zu zwei Adressen werden.
+
+                    Das schreibt die gespeicherten Namen und Adressen jeder Nachricht in die Form um, die neue Mail bekommt. Kontakte, deren Adresse sich ändern würde, werden gezählt statt zusammengeführt, damit du siehst, ob du welche von Hand zusammenführen musst.
+                summary: 'Namen in Anführungszeichen bei Absendern und Empfängern bereinigen'
+            attachment_content_type_names:
+                explanation: >-
+                    Manche Anhänge, die ihren Dateinamen nur im Content-Type nannten, wurden unter einer Prüfsumme wie "57d5c7cb" gespeichert, ohne Endung, mit der man sie öffnen könnte.
+
+                    Das liest das gespeicherte Original jeder betroffenen Nachricht und gibt dem Anhang seinen echten Namen zurück, wo das Original ihn eindeutig nennt. Läuft nach einem Update auch von selbst.
+                summary: 'Anhängen ihren Namen statt einer Prüfsumme zurückgeben'
+            calendars:
+                explanation: >-
+                    Jede neue Person bekommt einen persönlichen Kalender und einen für jedes Mailkonto. Das gibt dieselben Kalender allen, die schon vorher da waren. Es füllt nur Lücken, ein zweiter Lauf nach neuen Konten schadet also nicht.
+                summary: 'Standardkalender für bestehende Personen anlegen'
+            category:
+                explanation: >-
+                    Bestimmt den Posteingangs-Tab jeder Nachricht neu — Allgemein, Benachrichtigungen, Werbung und so weiter — aus dem, was gespeichert ist, ohne den Mailserver zu fragen.
+
+                    Von dieser Seite gestartet berechnet es jede Nachricht neu, auch die, die schon einen Tab haben. Das willst du, wenn ein Update geändert hat, wie Mail sortiert wird.
+                summary: 'Jede Nachricht neu in ihren Posteingangs-Tab sortieren'
+            contacts:
+                explanation: >-
+                    Kontakte werden gelernt, während Mail ankommt. Das lernt sie aus jeder bereits gespeicherten Nachricht, für Konten, die vorher synchronisiert wurden, oder nachdem sich geändert hat, was als Adresse zählt. Es liest alle Mail jedes Kontos, ein Konto nach dem anderen.
+                repeat_warning: 'Jeder Lauf zählt jede gespeicherte Adresse erneut, sodass Leute aus älterer Mail in den Adressvorschlägen vor die rücken, denen du jetzt schreibst. Starte es einmal nach der Änderung, die es verlangt.'
+                summary: 'Kontakte aus aller gespeicherten Mail neu aufbauen'
+            events:
+                explanation: >-
+                    Liest gespeicherte Mail erneut nach Buchungen und Einladungen — Flüge, Hotels, Tickets, Kalendereinladungen — und trägt sie in den Kalender ein. Nutze es, nachdem ein Update das Lesen verbessert hat.
+
+                    Gelesen wird nur Mail, die einen Termin enthalten kann, und nur so weit zurück, wie der Zeitraum sagt. Termine, die du bearbeitet oder entfernt hast, bleiben, wie du sie gelassen hast.
+                summary: 'Gespeicherte Mail erneut nach Terminen lesen'
+            gmailify_placement:
+                explanation: >-
+                    Bei einem IMAP-Konto, dessen Mail ein Gmail-Konto ebenfalls abholt, hat plMail früher Gmails Ablage auf die IMAP-Kopie übertragen: Mail, die Gmail archiviert oder gelöscht hatte, landete hier im Archiv oder Papierkorb, obwohl der IMAP-Server sie noch im Posteingang hatte.
+
+                    Das legt jede solche Nachricht dorthin zurück, wo ihr IMAP-Ordner sagt. Starte es, wenn gerade niemand Mail verschiebt, sonst springt eine Verschiebung, die den Server noch nicht erreicht hat, kurz zurück.
+                summary: 'Von Gmail abgeholte IMAP-Mail zurück in ihren Ordner legen'
+            headers:
+                explanation: >-
+                    Mail, die gespeichert wurde, bevor Header-Namen vereinheitlicht wurden, behielt die Schreibweise des jeweiligen Anbieters ("List-Id", "list_id"). Filter, die einen Header prüfen, trafen diese Nachrichten nicht. Das schreibt die gespeicherten Header-Namen in eine Form um; Werte bleiben unverändert.
+                summary: 'Gespeicherte Header-Namen vereinheitlichen'
+            html_body_text:
+                explanation: >-
+                    Nach dem Update, das den Suchindex neu aufgebaut hat, wartet jede Nachricht darauf, wieder indexiert zu werden, und der Zeitplan arbeitet sie nach und nach ab, neueste zuerst. Das erledigt den Rest in einem Zug, damit ältere Mail jetzt wieder in der Suche ist und nicht erst im Lauf eines Abends.
+
+                    Außerdem speichert es die Wörter von Mail, die nur als HTML verschickt wurde, damit Suche, Embeddings und Zusammenfassungen ihren Text lesen. Beides gleichzeitig ist in Ordnung; sie teilen sich die Arbeit.
+                summary: 'Alle Mail wieder vollständig in die Suche bringen'
+            insights:
+                explanation: >-
+                    Liest gespeicherte Mail erneut nach Paketen, Flügen, Tickets und Code-Reviews — den Karten auf dem Radar. Nutze es, nachdem ein Update einen neuen Absender oder ein besseres Lesen gelernt hat.
+
+                    Gelesen wird nur gespeicherte Mail; kein Anbieter wird gefragt. Eine weggeklickte Karte bleibt weg.
+                summary: 'Gespeicherte Mail erneut nach Paketen, Flügen und Tickets lesen'
+            message_arrival:
+                explanation: >-
+                    Admin → Leistung zeigt, wie spät Mail ankommt, gemessen ab dem Moment, in dem der Anbieter sie angenommen hat. Mail, die gespeichert wurde, bevor dieser Zeitpunkt erfasst wurde, hat keinen. Das liest ihn für die Mail der letzten Woche aus den Headern — so weit schaut die Anzeige zurück. Läuft nach einem Update auch von selbst.
+                summary: 'Ankunftszeiten der letzten Woche für Leistung ermitteln'
+            misfiled_bodies_v2:
+                explanation: >-
+                    Manche Nachrichten wurden mit ihrem Text als Anhang mit einem Namen wie "09704cea" gespeichert und öffnen sich deshalb leer mit einem einzigen Chip.
+
+                    Der Text war die ganze Zeit gespeichert; das legt ihn dorthin zurück, wo er hingehört, und entfernt den Chip. Läuft nach einem Update auch von selbst.
+                summary: 'Als Anhang gespeicherte Nachrichtentexte wiederherstellen'
+            proposals:
+                explanation: >-
+                    Liest gespeicherte Mail in Allgemein erneut nach Terminen, die in Sätzen stehen — "treffen wir uns Donnerstag um drei" — und schlägt sie für den Kalender vor. Eine Nachricht, die schon einen Vorschlag hat oder deren Vorschlag du verworfen hast, bleibt unberührt.
+                summary: 'Gespeicherte Mail erneut nach Terminvorschlägen lesen'
+            recipients:
+                explanation: >-
+                    Über IMAP synchronisierte Mail hat vor einer Korrektur keine An- und Cc-Listen gespeichert, obwohl die Header erhalten blieben. Das füllt die leeren Listen aus diesen Headern. Vorhandene Empfänger bleiben, wie sie sind.
+                summary: 'Fehlende An- und Cc-Listen ergänzen'
+            repeated_headers:
+                explanation: >-
+                    Manche IMAP-Server haben den Header-Block oben im Nachrichtentext wiederholt. Diese Nachrichten beginnen deshalb mit "Delivered-To: …" über dem Text, und ihr Original enthält die Header zweimal.
+
+                    Das liest das gespeicherte Original jeder IMAP-Nachricht und entfernt die Wiederholung, wo es eine findet. Das ist ein Dateizugriff pro Nachricht, deshalb läuft es nicht automatisch.
+                summary: 'Wiederholte Header-Blöcke oben in IMAP-Mail entfernen'
+            rethread:
+                explanation: >-
+                    Verwirft alle Unterhaltungen und baut sie aus den gespeicherten Nachrichten neu auf, mit den jetzt geltenden Regeln.
+
+                    Sterne, Zurückstellungen, Tabs und Labels einer Unterhaltung werden übernommen. Gespeicherte KI-Zusammenfassungen nicht; sie müssen neu angefordert werden. Von dieser Seite gestartet ist der Klick auf Starten die Bestätigung, nach der die Konsole fragt.
+                repeat_warning: 'Jeder Lauf verwirft die Unterhaltungen erneut, und KI-Zusammenfassungen seit dem letzten Lauf gehen mit. Starte es einmal nach der Änderung, die es verlangt.'
+                summary: 'Alle Unterhaltungen von Grund auf neu aufbauen'
+            safe_html:
+                explanation: >-
+                    Jede HTML-Nachricht wird aus einer bereinigten Kopie angezeigt. Das legt diese Kopie für Nachrichten an, die noch keine haben.
+                summary: 'Fehlende sichere Kopie von HTML-Mail anlegen'
+            safe_html_absolute_position:
+                explanation: >-
+                    Manche HTML-Mail behielt Elemente, die über der Seite liegen, sodass ein Banner den Text darunter verdecken konnte. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Banner, die Text in HTML-Mail verdecken, beheben'
+            safe_html_charset:
+                explanation: >-
+                    HTML-Mail, die ihren eigenen Zeichensatz angab, konnte verstümmelte Zeichen wie "Ã¤" statt "ä" zeigen. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Verstümmelte Zeichen in HTML-Mail reparieren'
+            safe_html_conditional_comments:
+                explanation: >-
+                    Für Outlook geschriebene Mail konnte verirrten Text wie "<![endif]-->" zeigen. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Als Text angezeigtes Outlook-Markup entfernen'
+            safe_html_hidden_cards:
+                explanation: >-
+                    HTML-Mail mit einem Formular oder bestimmten Stilen konnte einen Teil ihres Inhalts verlieren oder verstecken. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Versteckten Inhalt in HTML-Mail wiederherstellen'
+            safe_html_table_links:
+                explanation: >-
+                    In HTML-Mail, in der eine ganze Tabelle ein Link war, konnte der Link leer herauskommen. Das bereinigt die Anzeigekopie dieser Nachrichten erneut mit den korrigierten Regeln.
+                summary: 'Links um Tabellen in HTML-Mail wiederherstellen'
+            safe_html_unknown_elements:
+                explanation: >-
+                    HTML-Mail mit Elementen, die die Bereinigung nicht kannte — etwa manche Buchungsbestätigungen —, konnte mit leerem Text angezeigt werden. Das liest jede HTML-Nachricht und bereinigt die Anzeigekopie erneut für die, die ein solches Element enthalten.
+                summary: 'Wegen unbekannter Elemente leere HTML-Mail wiederherstellen'
+            spam_in_archive:
+                explanation: >-
+                    Bis zu einer Korrektur hat ein Filter "Als Spam markieren" Mail hier als Spam markiert, sie auf dem Server aber archiviert. Die nächste Synchronisation fand sie im Archiv, und dort lag sie ungelesen.
+
+                    Das verschiebt jede solche Nachricht in den Spam, so wie du es von Hand tun würdest: Auf dem Server wandert sie vom Archiv in den Junk-Ordner. IMAP-Konten ohne Junk-Ordner werden übersprungen und gezählt.
+                summary: 'Von einem Filter archivierten Spam in den Spam verschieben'
+        what_it_does: 'Was es tut'
+        window:
+            24h: 'Letzte 24 Stunden'
+            4w: '4 Wochen'
+            7d: '7 Tage'
+            all: 'Alle Mail'
+            label: 'Erneut zu lesende Mail'
     client_errors:
         browser: 'Browser'
         clear: 'Leeren'
@@ -614,7 +799,7 @@ admin:
         base_url_per_user: 'Jede Person gibt ihre eigene Serveradresse ein.'
         base_url_pinned: 'für alle festgelegt'
         calendar:
-            connected_warning: 'Bereits verbunden: %count%. Eine geänderte oder entfernte Adresse gilt für jede dieser Verbindungen, sobald ihre Kalender das nächste Mal gesucht werden. Wer mit einem anderen Server verbunden ist, etwa iCloud, wird dann mit dem eigenen Passwort bei diesem angefragt. Bereits gespiegelte Kalender behalten die Adresse, unter der sie gefunden wurden; lag eine entfernte Adresse in einem privaten Netz, synchronisieren sie nicht mehr, bis ihr Host in INTEGRATIONS_ALLOWED_HOSTS steht.'
+            connected_warning: 'Bereits verbunden: %count%. Eine geänderte oder entfernte Adresse gilt für jede dieser Verbindungen, sobald ihre Kalender das nächste Mal gesucht werden. Wer mit einem anderen Server verbunden ist, etwa iCloud, wird dann mit dem eigenen Passwort bei diesem angefragt. Bereits gespiegelte Kalender behalten die Adresse, unter der sie gefunden wurden; lag eine entfernte Adresse in einem privaten Netz, synchronisieren sie nicht mehr, bis er unten unter Server in privaten Netzen erlaubt ist.'
             heading: 'Kalender'
             intro: 'Server und Feeds, aus denen unter Einstellungen → Kalender Kalender gespiegelt werden. Beide stehen allen zur Verfügung; hier lässt sich eine Serveradresse für alle festlegen. Nextcloud wird oben bei den Dateidiensten eingerichtet, seine Kalender kommen mit.'
         clear_secret: 'Gespeichertes Client-Secret entfernen'
@@ -692,6 +877,25 @@ admin:
             enabled: 'Aktiviert'
             incomplete: 'Zugangsdaten fehlen'
             unimplemented: 'Noch nicht verfügbar'
+        trusted:
+            add: 'Server erlauben'
+            allow: 'Erlauben'
+            allow_http: 'Unverschlüsseltes http erlauben'
+            empty: 'Noch keiner. Ein Server, der auf eine private Adresse zeigt, wird abgelehnt, bis er hier steht.'
+            field:
+                allow_http: 'Dieser Server hat kein Zertifikat: unverschlüsseltes http erlauben'
+                allow_http_help: 'Nur für einen Server in deinem eigenen Netz. App-Passwörter gehen dann unverschlüsselt durch dieses Netz.'
+                host: 'Server'
+                host_help: 'Sein Hostname oder seine IP-Adresse, wie in der Adresse, die eingetippt wird: dav.home.example.com, 192.168.1.20. Eine ganze Adresse geht auch; nur ihr Host wird übernommen.'
+            form_intro: 'Angemeldete Nutzerinnen und Nutzer können plMail dann mit diesem Server verbinden, obwohl er auf eine private Adresse zeigt. Jede und jeder von ihnen kann plMail an jeden Server hier Anfragen schicken lassen. Trag also die Server ein, die wirklich genutzt werden, nicht jeden Rechner im Netz.'
+            heading: 'Server in privaten Netzen'
+            http_allowed: 'Unverschlüsseltes http erlaubt'
+            intro: 'plMail lehnt eine Serveradresse ab, die in ein privates Netz zeigt, damit niemand darüber diesen Rechner oder andere daneben erreicht. Die Server hier sind trotzdem erlaubt: ein CalDAV-, CardDAV- oder Dateiserver zu Hause, ein Kalender-Feed im LAN.'
+            remove: '%host% nicht mehr erlauben'
+            remove_confirm: '%host% nicht mehr erlauben? Verbindungen dorthin funktionieren ab ihrer nächsten Synchronisierung nicht mehr.'
+            removed: 'Server entfernt'
+            require_https: 'https verlangen'
+            saved: 'Server erlaubt'
         tutorial:
             caldav:
                 intro: 'CalDAV meldet sich mit einem App-Passwort pro Person am eigenen Server an — hier ist nichts zu registrieren.'
@@ -760,8 +964,41 @@ admin:
                 step_base_url: 'Optional die Serveradresse festlegen, etwa https://paperless.example.com.'
                 step_enable: 'Oben „Diesen Dienst anbieten“ einschalten.'
                 step_token: 'Jede Person kopiert ihr API-Token in Paperless unter My Profile → API Auth Token und trägt es in ihren eigenen Integrationseinstellungen ein.'
+            webdav:
+                intro: "WebDAV deckt jeden Dateiserver ab, der es spricht — FileBrowser Quantum, ein Synology-NAS, rclone serve webdav, Apache mod_dav. Jede Person verbindet sich mit eigenem Passwort oder Token, hier ist also nichts zu registrieren."
+                no_links: "WebDAV kennt keine öffentlichen Links, keine Vorschauen und keine Suche. Dateien über der Anhangsgrenze lassen sich nicht anhängen, und die Auswahl zeigt ein Datei-Symbol statt eines Vorschaubilds."
+                security: "Ein Server in einem privaten Netz, etwa ein NAS zu Hause, wird erst erreicht, wenn er unten unter Server in privaten Netzen steht."
+                step_base_url: "Optional die Adresse festlegen, etwa https://files.example.com/dav/files/. Gemeint ist die volle Adresse des Ordners samt Pfad: bei FileBrowser Quantum /dav/ und dahinter der Name der Quelle."
+                step_enable: 'Oben „Diesen Dienst anbieten“ einschalten.'
+                step_user: "Jede Person trägt diese Adresse ein, einen Benutzernamen, falls der Server einen will, und ein Passwort oder API-Token. FileBrowser Quantum nimmt ein API-Token als Passwort und ignoriert den Benutzernamen."
         tutorial_heading: 'Einrichtung'
         unimplemented_notice: 'plMail kann diesen Dienst noch nicht ansprechen. Die Zugangsdaten können jetzt hinterlegt werden — sie greifen, sobald die Unterstützung erscheint.'
+    libravatar:
+        check_dns: 'DNS prüfen'
+        heading: 'Libravatar'
+        intro: 'Lässt Mailprogramme überall das Profilbild zeigen, das deine Benutzer hier ausgesucht haben. Programme mit Libravatar-Unterstützung (Thunderbird-Add-ons, Forges wie Forgejo, andere plMail-Server) fragen das DNS der Domain einer Adresse, welcher Server das Bild hat. Schalte das hier ein und richte das DNS auf diesen Server, dann antwortet plMail für seine eigenen Benutzer.'
+        need_own_dns: 'Eine Domain, deren DNS du verwaltest. Adressen bei Gmail, Outlook.com und anderen Anbietern können nicht hierher zeigen; deren Benutzer bekommen ihr Bild stattdessen von Gravatar oder Libravatar.'
+        need_reachable: '%url% aus dem Internet erreichbar, nicht nur aus deinem Netz. Steht plMail hinter einem Reverse Proxy, muss der /avatar/ durchreichen.'
+        need_tls: 'Ein gültiges TLS-Zertifikat für %host%, wie Browser es akzeptieren. Ein selbst signiertes lehnen die Programme stillschweigend ab.'
+        needs_heading: 'Was es außer DNS braucht'
+        no_address: 'Es ist keine öffentliche Adresse eingestellt. Stelle zuerst eine unter Admin → Adresse ein: Die DNS-Einträge müssen den Host nennen, unter dem plMail von außen erreichbar ist.'
+        no_domains: 'Noch kein Benutzer hat eine Adresse.'
+        no_own_domains: 'Noch kein Benutzer hat eine Adresse unter einer eigenen Domain, nur bei Mailanbietern.'
+        not_https: 'Die öffentliche Adresse ist %url%, also kein https. Libravatar-Programme laden nur über https, stelle deshalb unter Admin → Adresse eine https-Adresse ein.'
+        provider_domains: 'Für %domains% gibt es nichts anzulegen: Das sind Domains von Mailanbietern, und nur der Anbieter kann dort Einträge anlegen. Benutzer mit Adressen dort bekommen ihr Bild stattdessen von Gravatar oder Libravatar.'
+        records_heading: 'DNS-Einträge'
+        records_intro: 'Lege bei deinem DNS-Anbieter für jede Domain, unter der deine Benutzer Adressen haben, einen SRV-Eintrag genau wie gezeigt an. Prüfe sie dann hier; DNS kann eine Weile brauchen.'
+        saved_off: 'Libravatar ist aus. Es wird für niemanden ein Bild ausgeliefert.'
+        saved_on: 'Libravatar ist an. Benutzer können ihr Bild jetzt unter Einstellungen → Profil teilen.'
+        serve: 'Bilder der Benutzer dieses Servers ausliefern (Libravatar)'
+        serve_hint: 'Aus, bis du es einschaltest. Auch dann wird ein Bild nur für Benutzer ausgeliefert, die das selbst unter Einstellungen → Profil einschalten; für alle anderen antwortet der Server, als kenne er die Adresse nicht.'
+        status:
+            elsewhere: 'Zeigt auf %found%'
+            missing: 'Noch kein Eintrag'
+            not_yours: 'Domain eines Mailanbieters'
+            ok: 'OK'
+            wrong_port: 'Falscher Port: %found%'
+        users_opt_in: 'Die Benutzer entscheiden selbst: Jeder legt unter Einstellungen → Profil fest, ob sein Bild geteilt wird. Eine Konfigurationssicherung enthält diesen Schalter und ihre Entscheidungen.'
     loading: 'Wird geladen…'
     maintenance:
         heading: Wartung
@@ -811,6 +1048,7 @@ admin:
     nav:
         address: Adresse
         ai: KI
+        backfills: 'Nachträge'
         backup: Sicherung
         database: Datenbank
         demo_stats: 'Demo-Besucher'
@@ -820,6 +1058,7 @@ admin:
         performance: Leistung
         push: Push
         reset: Zurücksetzen
+        sender_pictures: 'Absenderbilder'
         sso: 'SSO'
         system: System
         updates: Aktualisierungen
@@ -913,9 +1152,13 @@ admin:
                 running_for: 'Seit'
                 waiting: 'Wartend'
                 worker: 'Worker'
+            concurrency:
+                default: 'Standard (%count%)'
+                hint: 'worker-ingest führt die Jobs jedes Mailkontos in eigenen Prozessen aus, so viele nebeneinander. So kann ein Anbieter, der nicht mehr antwortet, die anderen Konten nicht aufhalten. Die Jobs desselben Kontos laufen weiter nacheinander. Jeder laufende Job braucht etwa 50 MB.'
+                label: 'Mail-Jobs gleichzeitig'
             footnote: 'Ein Stand von diesem Moment, nicht vom Zeitraum oben: Wie lange ein Job gewartet hat, wird nicht aufbewahrt, sobald er erledigt ist. Ein Worker mit zwei Warteschlangen arbeitet die erste ab, bevor er in die zweite schaut.'
             heading: 'Was bei jedem Worker wartet'
-            lead: 'Welcher Prozess im Rückstand ist, und um wie viel. Jeder Worker nimmt einen Job nach dem anderen.'
+            lead: 'Welcher Prozess im Rückstand ist, und um wie viel. worker-ingest führt mehrere Mail-Jobs gleichzeitig aus, einen pro Konto; jeder andere Worker nimmt einen Job nach dem anderen.'
             refresh: 'Aktualisieren'
     processes:
         empty: 'Noch keine Heartbeats — Prozesse melden sich hier nach ihrem ersten Lebenszeichen.'
@@ -1007,6 +1250,16 @@ admin:
         running_for: 'seit %duration%'
         waiting_since: 'Wartet seit'
     refresh_hint: 'Live-Bereiche aktualisieren sich alle 10 s'
+    sender_pictures:
+        always_local: 'Fotos an den Kontakten der Benutzer und ihre eigenen Profilbilder werden in jedem Fall gezeigt: Sie liegen schon auf diesem Server.'
+        heading: 'Absenderbilder'
+        intro: 'Ist das an, schlägt plMail Bilder für die Leute nach, die deinen Benutzern schreiben: Firmenlogos (BIMI) und Website-Symbole von der Domain des Absenders, und Gravatar oder Libravatar für Benutzer, die das möchten. Das läuft im Hintergrund auf dem Maintenance-Worker; kein Browser eines Benutzers spricht mit diesen Diensten. Jeder Benutzer wählt selbst, welche davon er möchte.'
+        lookups: 'Absenderbilder im Internet nachschlagen'
+        lookups_hint: 'Aus, bis du es einschaltest. Beim Einschalten werden die Leute nachgeschlagen, die jedem Benutzer in den letzten 90 Tagen geschrieben haben.'
+        'off': 'Aus'
+        'on': 'An'
+        saved_off: 'Nachschlagen ist aus. Bereits gefundene Bilder werden nicht mehr gezeigt.'
+        saved_on: 'Nachschlagen ist an. Bilder für die letzten Absender werden jetzt nachgeschlagen.'
     sso:
         clear_secret: 'Gespeichertes Client-Secret vergessen'
         clear_secret_help: 'Leere dazu auch den Issuer und die Client-ID. Die Anmeldung fällt dann auf die OIDC_*-Variablen der Umgebung zurück oder schaltet sich aus, wenn es keine gibt.'
@@ -1470,6 +1723,58 @@ calendar:
         all_day: Ganztägig
         calendar: Kalender
         cancel: Abbrechen
+        color:
+            all: Alle Farben
+            button: 'Farbe: %color%'
+            calendar: Kalenderfarbe
+            custom: Eigene
+            dialog: Terminfarbe
+            names:
+                cadetblue: Kadettblau
+                chocolate: Schokoladenbraun
+                coral: Koralle
+                cornflowerblue: Kornblumenblau
+                crimson: Karmesinrot
+                darkgoldenrod: Dunkle Goldrute
+                darkkhaki: Dunkles Khaki
+                darkmagenta: Dunkelmagenta
+                darkorange: Dunkelorange
+                darkturquoise: Dunkeltürkis
+                dimgray: Dunkelgrau
+                dodgerblue: Dodgerblau
+                firebrick: Ziegelrot
+                forestgreen: Waldgrün
+                gold: Gold
+                goldenrod: Goldrute
+                hotpink: Pink
+                indigo: Indigo
+                lightseagreen: Helles Seegrün
+                limegreen: Limettengrün
+                mediumpurple: Mittleres Lila
+                mediumseagreen: Mittleres Seegrün
+                mediumvioletred: Mittleres Violettrot
+                midnightblue: Mitternachtsblau
+                olivedrab: Olivgrün
+                orchid: Orchidee
+                palevioletred: Blasses Violettrot
+                peru: Peru
+                rosybrown: Altrosa
+                royalblue: Königsblau
+                saddlebrown: Sattelbraun
+                seagreen: Seegrün
+                sienna: Siena
+                slateblue: Schieferblau
+                slategray: Schiefergrau
+                steelblue: Stahlblau
+                teal: Petrol
+                tomato: Tomatenrot
+                turquoise: Türkis
+                yellowgreen: Gelbgrün
+            nearest: 'Am nächsten an %hex%'
+            none: Keine Farbe heißt so.
+            often: Oft verwendet
+            results: Passende Farben
+            search: Farben suchen
         copies:
             help: >-
                 Angehakte Kalender bekommen diesen Termin und jede Änderung, die
@@ -1542,6 +1847,7 @@ calendar:
         until: bis %when%
     ics:
         error:
+            import_gone: 'Der Kalender oder die hochgeladene Datei war beim Start des Imports nicht mehr da. Lade die Datei noch einmal hoch.'
             no_calendar: Wähle einen Kalender für die Termine.
             no_file: >-
                 Wähle eine .ics-Datei. Falls du eine gewählt hast, ist
@@ -1600,6 +1906,7 @@ calendar:
             import_nothing_new: >-
                 Nichts hinzuzufügen — jeder Termin aus dieser Datei steht schon
                 in deinen Kalendern.
+            import_started: 'Die Datei wird importiert — das läuft im Hintergrund. Du erfährst, was hinzugekommen ist.'
             imported: '%added% hinzugefügt, %updated% aktualisiert, %skipped% übersprungen.'
             subscribed: >-
                 Abonniert — der Kalender füllt sich binnen einer Minute.
@@ -1658,6 +1965,7 @@ calendar:
         previous: Zurück
     open_day: 'Alles am %date%'
     pane:
+        close: 'Kalender schließen'
         mode:
             calendar: Kalender in voller Breite zeigen
             mail: Mail zeigen
@@ -2002,6 +2310,15 @@ compose:
         no_own_certificate: "Du hast kein S/MIME-Zertifikat für diese Absenderadresse, deshalb lässt sich diese Nachricht nicht mit S/MIME signieren oder verschlüsseln."
         failed: "Die Nachricht ließ sich nicht verschlüsseln. Es wurde nichts gesendet."
         sealed_attachment: "Verschlüsselt: Bis die Nachricht gesendet ist, kannst nur du sie öffnen."
+        policy:
+            auto: 'Auto'
+            failed: "Diese Auswahl konnte nicht gespeichert werden."
+            heading: "Verschlüsselung für diese Adressen"
+            hint: "Gilt auch für künftige Mails. Auto verschlüsselt, sobald plMail einen Schlüssel hat."
+            label: "Verschlüsselung für %email%"
+            no_key: "Kein Schlüssel – unverschlüsselt"
+            off: 'Aus'
+            on: 'An'
     seal:
         refused: "Die verschlüsselte Nachricht kam nicht vollständig an. Es wurde nichts gesendet; versuch es noch einmal."
         keys_changed: "Der Schlüssel eines Empfängers hat sich beim Schreiben geändert. Es wurde nichts gesendet; sende sie noch einmal."
@@ -2010,6 +2327,8 @@ compose:
     formatting: Formatierung
     forward: Weiterleiten
     from: Von
+    from_pick: Wähle eine Absenderadresse
+    from_via: '%label% · über %account%'
     image: Bild einfügen
     image_edit:
         crop: Zuschneiden
@@ -2154,6 +2473,8 @@ contact_keys:
     removed: "Schlüssel entfernt."
     preferences_saved: "Gespeichert."
     not_found: "Diesen Schlüssel gibt es nicht mehr."
+    policy:
+        no_key: "plMail hat keinen Schlüssel für diese Adresse, Mails dorthin gehen sowieso unverschlüsselt raus."
     signer_unknown: "plMail hat den Schlüssel nicht, mit dem signiert wurde. Suche oder importiere ihn zuerst."
     certificates:
         heading: "S/MIME-Zertifikate deiner Kontakte"
@@ -2305,6 +2626,7 @@ demo:
         source: 'plMail ist freie Software unter der AGPL-3.0:'
 dnd:
     dragging: '%count% Unterhaltungen'
+    dragging_emails: '%count% E-Mails'
 
 drafts:
     empty: Keine Entwürfe.
@@ -2738,6 +3060,10 @@ jobs:
         purge: Endgültig löschen
         reclassify: Sortiert neueste Mail neu
         delete_label: Löscht ein Label
+        delete_account: Konto wird entfernt
+        import_contacts: Kontakte werden importiert
+        import_calendar: Kalenderdatei wird importiert
+        resort_removed_category: Mail eines gelöschten Tabs wird neu einsortiert
     state:
         done: '%count% erledigt'
         failed: fehlgeschlagen
@@ -2777,6 +3103,9 @@ label:
     error:
         duplicate: Hier gibt es bereits ein Label mit diesem Namen. Groß- und Kleinschreibung macht daraus keinen anderen.
     form:
+        account_note:
+            new: 'Wird nur auf %account% angelegt.'
+            rename: 'Wenn du es hier umbenennst, gilt das nur für %account%. %others% behalten „%name%“.'
         color: Farbe
         delete: Label löschen
         delete_hint: 'Beim Löschen verschwindet das Label aus allen Konten, zusammen mit allen darunter eingeordneten Labels. Nachrichten damit behalten ihre übrigen Labels und werden nicht gelöscht.'
@@ -2818,6 +3147,7 @@ label:
         shown: Label ist jetzt sichtbar.
 
 list:
+    conversation_view: 'Konversationsansicht'
     sort:
         newest: Neueste zuerst
         oldest: Älteste zuerst
@@ -3166,6 +3496,12 @@ password_required:
     submitting: Wird gespeichert…
     tagline: Noch ein Schritt
 
+pin:
+    reminder:
+        confirm: 'Trotzdem anheften'
+        question: '{1} Du hast schon eine angeheftete Konversation. Trotzdem noch eine anheften?|]1,Inf[ Du hast schon %count% angeheftete Konversationen. Trotzdem noch eine anheften?'
+        settings: 'Ändern, ab wann diese Erinnerung kommt'
+
 profile:
     avatar_current: Aktuelles Bild
     avatar_from:
@@ -3181,7 +3517,7 @@ profile:
         name_first: Vorname
         name_last: Nachname
 
-# The reading pane beside the message list (Settings → Reading pane turns it on).
+# The reading pane beside the message list (Settings → Reading & writing → Reading turns it on).
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
@@ -3369,6 +3705,17 @@ settings:
             title: 'Outlook-Kategorien folgen'
         colour:
             change: 'Farbe von %account% ändern'
+            contrast_current: 'Aktuell'
+            contrast_dark: 'Dunkel'
+            contrast_light: 'Hell'
+            contrast_low: 'Blass in diesem Theme'
+            contrast_ok: 'Gut erkennbar'
+            custom: 'Eigene Farbe'
+            custom_format: 'Sechs Hex-Ziffern, z. B. #0072b2.'
+            custom_heading: 'Eigene'
+            custom_hex: 'Hex-Farbcode'
+            custom_pick: 'Farbe wählen'
+            presets: 'Vorgaben'
             swatch:
                 '0': Orange
                 '1': Grün
@@ -3380,10 +3727,8 @@ settings:
                 '7': Oliv
         delete: Konto entfernen
         delete_confirm: '%account% entfernen? Dadurch werden alle synchronisierten Nachrichten dieses Kontos endgültig gelöscht. Das lässt sich nicht rückgängig machen.'
-        disable: Konto deaktivieren
         edit: Konto bearbeiten
         empty: Noch keine Konten. Füge eines hinzu, um E-Mails zu synchronisieren.
-        enable: Konto aktivieren
         folders:
             always_synced: Der Posteingang wird immer synchronisiert
             button: Ordner
@@ -3426,6 +3771,7 @@ settings:
             placeholder: 'Ein Platzhalter, der nur andere Ordner zusammenfasst — darin gibt es nichts zu synchronisieren'
             refused:
                 has_children: 'In diesem Ordner liegen weitere Ordner. Lösche oder verschiebe sie zuerst.'
+                mail_off: 'Für dieses Konto ist E-Mail ausgeschaltet, deshalb lassen sich seine Ordner auf dem Server nicht ändern. Schalte E-Mail zuerst ein.'
                 not_empty: 'In diesem Ordner liegen noch Nachrichten (%count%). Verschiebe sie zuerst; einen Ordner zu löschen löscht seine Nachrichten.'
                 server: 'Der Mailserver hat abgelehnt: %reason%'
                 special_use: 'Posteingang, Gesendet, Entwürfe, Papierkorb, Spam und Archiv werden in plMail nie umbenannt oder gelöscht: Andere Mailprogramme und plMail selbst verlassen sich auf sie.'
@@ -3507,7 +3853,32 @@ settings:
                 jmap: 'Änderungen kommen sofort an: Der JMAP-Server schickt sie an plMail – per Webhook, wenn er diesen Server erreicht, sonst über eine offen gehaltene Verbindung.'
                 microsoft: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
             title: Sofortige Zustellung
+        removing: 'Wird entfernt …'
+        removing_progress: '%done% von %total% Nachrichten entfernt'
         reorder: Zum Umsortieren ziehen
+        services:
+            allow: 'Erlauben…'
+            allow_explained: 'Für %service% braucht plMail eine Berechtigung, die %provider% noch nicht erteilt hat. Öffnet %provider%, um sie anzufragen.'
+            calendar: 'Kalender'
+            calendar_help: 'Seine Kalender, in beide Richtungen abgeglichen'
+            change: 'E-Mail, Kalender und Kontakte für %account%'
+            close: 'Fertig'
+            contacts: 'Kontakte'
+            contacts_help: 'Seine Adressbücher, in beide Richtungen abgeglichen'
+            intro: 'Schalte aus, wofür du dieses Konto nicht verwendest. plMail spricht dann mit dem Server nicht mehr darüber und behält, was schon da ist.'
+            mail: 'E-Mail empfangen'
+            mail_help: 'Seine E-Mails synchronisieren und jede Änderung, die du daran machst'
+            none: 'Alles ausgeschaltet'
+            purge: 'Synchronisierte E-Mails aus plMail entfernen'
+            purge_confirm: 'Alle E-Mails, die plMail für %account% synchronisiert hat, entfernen? Auf dem Server bleiben sie. Schaltest du E-Mail wieder ein, lädt plMail sie neu herunter.'
+            purge_help: 'Nur die Kopie in plMail wird entfernt. Auf dem Server wird nichts gelöscht.'
+            send: 'E-Mail senden'
+            send_help: 'Beim Schreiben als Absender angeboten; E-Mails, geplante Sendungen und Lesebestätigungen gehen darüber hinaus'
+            setup: 'Einrichten…'
+            setup_explained: '%service% braucht einen Server, den dieses Konto noch nicht hat. Öffnet das Kontoformular, um ihn einzutragen.'
+            turn_off: '%service% für %account% ausschalten'
+            turn_on: '%service% für %account% einschalten'
+            used_for: 'Verwendet für %services%'
         status:
             active: Aktiv
             disabled: Deaktiviert
@@ -3562,6 +3933,13 @@ settings:
                 brand: 'Unter dem plMail-Namen'
                 sidebar: 'Unten in der Seitenleiste'
                 'off': 'Nirgends'
+    conversation_view:
+        conversations: 'Konversationen'
+        emails: 'Einzelne E-Mails'
+        heading: 'Konversationsansicht'
+        hint: 'Auch im Sortiermenü jeder Liste und auf der Taste t.'
+        label: 'Listen zeigen'
+        subheading: 'Fasse die E-Mails einer Konversation in einer Zeile zusammen oder zeige jede E-Mail einzeln.'
     device_pairing:
         pair_device: "Gerät koppeln"
         scan_title: "Mit der plMail-App scannen"
@@ -3570,6 +3948,109 @@ settings:
         with_keys: "Deine Schlüssel kommen mit: Verschlüsselte Mails öffnen sich in der App sofort."
         expires: "Läuft um %time% ab."
         open_in_app: "In der App öffnen"
+    libravatar:
+        heading: 'Libravatar'
+        no_picture: 'Du hast noch kein Profilbild; füge oben eins hinzu, damit hier etwas erscheint.'
+        publish: 'Mein Bild über Libravatar teilen'
+        publish_hint: 'Lässt Mailprogramme und Websites, die Libravatar nutzen, das Bild oben neben deinen Adressen zeigen. Wer eine deiner Adressen kennt, kann das Bild dann abrufen. Aus, bis du es einschaltest.'
+        subheading: 'Ob andere Mailprogramme dein Profilbild zeigen dürfen.'
+    message_list:
+        always: 'Immer'
+        attachments:
+            chips: 'Chips'
+            hint: 'Chips nennen bis zu drei Dateien unter der Vorschau und öffnen eine direkt aus der Liste.'
+            icon: 'Büroklammer'
+            label: 'Anhänge'
+        avatars:
+            hint: Der farbige Kreis mit der Initiale des Absenders. Ausgeschaltet wird daraus ein schlichter Kreis, statt zu verschwinden — er ist zugleich das Auswahlkästchen der Zeile.
+            label: Absenderkreise
+        content:
+            heading: 'Inhalt'
+            subheading: 'Was jede Zeile über ihre Unterhaltung sagt.'
+        corner:
+            hint: Das farbige Dreieck in der Ecke einer Zeile, das zeigt, über welches Konto sie eingegangen ist. Wird nur in Listen gezeichnet, die mehrere Konten mischen.
+            label: Konto-Ecke
+        count:
+            hint: 'Die Zahl hinter dem Betreff einer Unterhaltung.'
+            label: 'Anzahl der Nachrichten'
+        date:
+            full: 'Datum und Uhrzeit'
+            hint: 'Intelligent zeigt heute die Uhrzeit, in diesem Jahr den Tag und davor das ganze Datum.'
+            label: 'Datum'
+            smart: 'Intelligent'
+        hidden: 'Ausgeblendet'
+        labels:
+            dots: 'Punkte'
+            hint: 'Vor dem Betreff, als Chips oder als Punkte in der Farbe des Labels, oder in einer eigenen Zeile.'
+            inline: 'Vor dem Betreff'
+            label: 'Labels'
+            line: 'Eigene Zeile'
+        layout:
+            fit: 'Sobald sie passt'
+            heading: 'Aufbau'
+            hint: 'Eine breite Liste zeigt Absender, Betreff und Vorschau in einer Zeile. Schmaler wird die Zeile gestapelt.'
+            label: 'Einzeilige Darstellung'
+            stacked: 'Nie'
+            subheading: 'Wann eine Zeile einzeilig wird und wie viel von der Nachricht sie zeigt.'
+            wide: 'Nur bei breiten Listen'
+        markers:
+            heading: 'Markierungen'
+            subheading: 'Die Zeichen in jeder Zeile.'
+        on_hover: 'Beim Überfahren'
+        preview:
+            heading: 'Vorschau'
+            subheading: 'Erfundene Mails, so gezeichnet, wie deine Liste sie zeichnet. Wähle eine Breite, um zu sehen, wie eine Zeile ihre Form ändert.'
+            width: 'Breite der Vorschau'
+            widths:
+                narrow: 'Schmal'
+                phone: 'Telefon'
+                wide: 'Breit'
+        preview_lines:
+            hint: 'Wie viel von der Nachricht eine gestapelte Zeile zeigt. Eine einzeilige Zeile zeigt sie immer hinter dem Betreff.'
+            inline: 'Hinter dem Betreff'
+            label: 'Vorschau'
+            none: 'Keine'
+            one: 'Eine Zeile'
+            two: 'Zwei Zeilen'
+        replied:
+            hint: 'Ein Pfeil vor dem Betreff, wenn die neueste Mail der Unterhaltung beantwortet ist.'
+            label: 'Pfeil für Beantwortet'
+        sample:
+            contract:
+                body: 'Hier die letzte Runde Änderungen. Kannst du bis Freitag unterschreiben, damit wir zum Ersten anfangen können?'
+                subject: 'Vertragsentwurf – endgültige Fassung'
+            digest:
+                body: 'Fünf lesenswerte Dinge dieser Woche, eine neue Folge und die Termine in deiner Nähe.'
+                subject: 'Dein Wochenrückblick'
+            flights:
+                body: 'Ich habe zwei Möglichkeiten für Dienstagmorgen gefunden. Die frühere ist günstiger, landet aber eine Stunde vor der Keynote.'
+                subject: 'Flüge zur Konferenz'
+            label:
+                travel: 'Reisen'
+                work: 'Arbeit'
+            offsite:
+                body: 'Das Haus am See ist in der zweiten Aprilwoche frei. Der Ort in der Stadt braucht bis Montag eine Antwort.'
+                subject: 'Planung des Frühjahrs-Offsites: Orte und Termine'
+        sender:
+            everyone: 'Alle'
+            hint: 'In Gesendet und Entwürfe nennt die Zeile so oder so die Empfänger.'
+            label: 'Absender'
+            latest: 'Zuletzt'
+        shown: 'Angezeigt'
+        star:
+            hint: 'Für eine Unterhaltung ohne Stern. Eine markierte zeigt ihren Stern immer.'
+            label: 'Stern'
+        tab_counts:
+            heading: 'Zähler auf den Tabs'
+            hint: 'Die Zahl neben dem Namen jedes Tabs: in wie vielen Unterhaltungen dieser Kategorie Ungelesenes liegt. Zusammen ergeben die Tabs den Posteingangs-Badge der Seitenleiste. Das Fähnchen „3 neu“ ist davon getrennt und bleibt.'
+            label: 'Ungelesen-Zahl auf den Posteingangs-Tabs'
+            subheading: 'Die Zahlen auf den Posteingangs-Tabs.'
+        unread:
+            hint: 'Wie stark eine ungelesene Zeile getönt ist. Fett bleibt bei jeder Einstellung.'
+            label: Ungelesene Zeilen
+            standard: Standard
+            strong: Stark
+            subtle: Dezent
     native_apps:
         android_hint: "Danach koppelst du sie mit dem Button unten. Der Kauf der App bei Google Play ist im Moment der wichtigste Weg, wie sich dieses Projekt trägt."
         android_title: "Installiere zuerst plMail für Android"
@@ -3608,6 +4089,12 @@ settings:
             solid: Einfarbig
             theme: Theme-Standard
             upload: Bild hochladen
+        buttons:
+            both: 'Symbole und Text'
+            hint: 'Was die Schaltflächen über einer Konversation oder Auswahl zeigen.'
+            icons: 'Symbole'
+            label: 'Aktionsschaltflächen'
+            text: 'Text'
         density:
             comfortable: Komfortabel
             compact: Kompakt
@@ -3644,30 +4131,6 @@ settings:
             flat: Flach
             heading: Layout
             subheading: Wie die Oberfläche gerahmt ist. „Kacheln“ zeigt jede Fläche als eigene Karte; „Flach“ setzt Kopf- und Seitenleiste direkt auf den Hintergrund und lässt nur den Hauptbereich als Karte stehen.
-        list:
-            accountCorner: Konto-Ecke
-            accountCornerHint: Das farbige Dreieck in der Ecke einer Zeile, das zeigt, über welches Konto sie eingegangen ist. Wird nur in Listen gezeichnet, die mehrere Konten mischen.
-            actionButton:
-                both: 'Symbole und Text'
-                icons: 'Symbole'
-                text: 'Text'
-            actionButtons: 'Aktionsschaltflächen'
-            actionButtonsHint: 'Was die Schaltflächen über einer Konversation oder Auswahl zeigen.'
-            heading: Nachrichtenliste
-            listAvatars: Absenderkreise
-            listAvatarsHint: Der farbige Kreis mit der Initiale des Absenders. Ausgeschaltet wird daraus ein schlichter Kreis, statt zu verschwinden — er ist zugleich das Auswahlkästchen der Zeile.
-            tabUnreadCount: 'Ungelesen-Zahl auf den Posteingangs-Tabs'
-            tabUnreadCountHint: 'Die Zahl neben dem Namen jedes Tabs: in wie vielen Unterhaltungen dieser Kategorie Ungelesenes liegt. Zusammen ergeben die Tabs den Posteingangs-Badge der Seitenleiste. Das Fähnchen „3 neu“ ist davon getrennt und bleibt.'
-            previewLines: Vorschauzeilen
-            previewLines0: Keine
-            previewLines1: Eine Zeile
-            previewLines2: Zwei Zeilen
-            subheading: Was jede Zeile der Liste zeigt.
-            unread:
-                standard: Standard
-                strong: Stark
-                subtle: Dezent
-            unreadEmphasis: Ungelesene Zeilen
         logo:
             colour: 'Farbe'
             custom:
@@ -3737,50 +4200,11 @@ settings:
             matchGlass: An Glas-Deckkraft angleichen
             subheading: Farbton und Deckkraft des Hauptbereichs, unabhängig von der Seitenleiste.
             tint: Hintergrundfarbton
-        preview:
-            body: Eine kurze Nachricht, damit der Lesebereich etwas zu zeigen hat. Nichts davon ist echte Post — die Vorschau lädt keine.
-            heading: Vorschau
-            hide: Vorschau ausblenden
-            resize: Vorschau in der Breite ändern
-            compose_body: Eine halb geschriebene Antwort, damit im Fenster etwas steht. Hier wird nichts verschickt.
-            compose_heading: Neue Nachricht
-            compose_send: Senden
-            compose_subject: 'Re: Notizen zur Analytical Engine'
-            compose_to: ada@plmail.test
-            field_date: Datum
-            field_from: Von
-            field_subject: Betreff
-            field_to: An
-            reply: Antworten
-            sender1: Ada Lovelace
-            sender2: Grace Hopper
-            sender3: Kathleen Booth
-            sender4: Margaret Hamilton
-            sender5: Barbara Liskov
-            sender6: Karen Spärck Jones
-            sender7: Radia Perlman
-            sender8: Frances Allen
-            show: Vorschau anzeigen
-            snippet: So sieht eine Vorschauzeile aus, und so viel davon passt hinein, bevor der Platz in der Zeile ausgeht.
-            subheading: Deine Einstellungen an einer Beispielliste. Hier wird nichts aus deinen Nachrichten geladen.
-            to: an dich
-            value_from: Ada Lovelace <ada@plmail.test>
-            value_to: du@plmail.test
-            subject1: Notizen zur Analytical Engine
-            subject2: 'Re: Entwurf des Compilers'
-            subject3: Assembler-Notizen, wie versprochen
-            subject4: Steuerungssoftware — die Prioritätenliste
-            subject5: 'Re: Abstraktion und die Typhierarchie'
-            subject6: Termgewichtung, und warum sie zählt
-            subject7: Entwurf für den Spanning Tree
-            subject8: 'Die innere Schleife optimieren: Ergebnisse'
         reset: Auf Standard zurücksetzen
         subheading: Farbschema, Dichte, Schrift und Hintergrund — das ganze Erscheinungsbild der App an einem Ort.
         seg:
             custom: 'Eigene'
             default: 'Theme-Vorgabe'
-            hidden: 'Ausgeblendet'
-            shown: 'Sichtbar'
         text:
             autoDerive: Automatisch ableiten
             color: Textfarbe
@@ -3811,6 +4235,29 @@ settings:
             scaleHint: Gilt für die gesamte Oberfläche. Das Verfassen-Fenster behält seine eigene Schrift und Größe — die gehen mit der Nachricht hinaus.
             subheading: Schriftart und Größe, in der die Oberfläche gezeichnet wird.
     compose_defaults:
+        bcc:
+            chips:
+                create: '%s hinzufügen'
+                no_results: 'Kein Kontakt passt. Tipp die ganze Adresse.'
+            for_alias: 'Immer Bcc an für %alias%'
+            hint: 'Jede Nachricht geht unsichtbar auch an diese Adressen: als Sicherungskopie oder als Beleg, dass sie raus ist. Sie stehen beim Schreiben schon im Bcc, und du kannst eine für einzelne Nachrichten herausnehmen.'
+            invalid: '„%address%“ ist keine gültige E-Mail-Adresse.'
+            label: 'Immer Bcc an'
+            per_address:
+                account_list: 'Wie das Konto: %addresses%'
+                account_none: 'Wie das Konto: kein Bcc'
+                inherit: 'Wie das Konto'
+                nobody: 'Niemand, diese Adresse schickt keine Kopie'
+                override: 'Eigene Liste'
+            placeholder: 'Adresse hinzufügen…'
+            save: 'Speichern'
+            too_many: 'Höchstens %max% Adressen.'
+        exceptions:
+            add: 'Ausnahme hinzufügen für…'
+            edit: 'Bearbeiten'
+            heading: 'Adressen, die abweichen'
+            remove: 'Ausnahme entfernen'
+            remove_for: 'für %alias%'
         heading: 'Standards fürs Verfassen'
         invalid: 'Diese Einstellung konnte nicht gespeichert werden.'
         read_receipt:
@@ -3823,7 +4270,14 @@ settings:
                 ask: 'Jedes Mal fragen'
                 never: 'Nie senden'
         saved: 'Gespeichert.'
-        subheading: 'Was jede deiner Adressen beim Senden und Empfangen standardmäßig tut.'
+        subheading: 'Was jedes Konto beim Senden und Empfangen standardmäßig tut, und welche Adressen davon abweichen.'
+        summary:
+            bcc: 'Bcc an %addresses%'
+            bcc_nobody: 'Bcc an niemanden'
+            exceptions: 'Ausnahmen: %number%'
+            no_bcc: 'Kein Bcc'
+            receipts: 'Lesebestätigungen: %mode%'
+            same_as_account: 'Wie das Konto'
     filters:
         account: Account
         action:
@@ -4100,6 +4554,25 @@ settings:
                     Mailserver — er lehnt ab oder ist nicht erreichbar. Prüf, ob
                     er läuft und ob sich an Host, Port oder Passwort etwas
                     geändert hat.
+                body_oauth: >-
+                    Mehrere Versuche hintereinander sind fehlgeschlagen — für
+                    dieses Konto kommt also keine neue Mail an, und alles, was
+                    davon abhängt, steht still: Filter, die beim Empfang laufen,
+                    und die Ungelesen-Zähler. Die Mail, die schon da ist, bleibt
+                    unverändert. Die Anmeldung ist in Ordnung, es liegt also an
+                    deinem Anbieter — er lehnt ab oder antwortet nicht. Das gibt
+                    sich meist von selbst, plMail versucht es weiter; hält es an,
+                    schau auf die Statusseite deines Anbieters.
+                body_provider_down: >-
+                    Für dieses Konto kommt keine neue Mail an, weil die Server
+                    deines Anbieters auf ihrer Seite Fehler liefern — die
+                    technischen Details unten sind deren Antwort, kein Problem mit
+                    diesem Konto. Was von neuer Mail abhängt, etwa Filter beim
+                    Empfang und die Ungelesen-Zähler, steht bis dahin still. Die
+                    Mail, die schon da ist, bleibt unverändert, und du musst
+                    nichts ändern: plMail versucht es weiter und holt alles nach,
+                    sobald der Anbieter wieder läuft. Wann das sein dürfte, steht
+                    auf seiner Statusseite.
                 title: '%account% scheitert immer wieder beim Abgleich'
             server_alert:
                 body: >-
@@ -4278,6 +4751,17 @@ settings:
         send_optimistic: Schließen
         send_hold: Offen lassen
         heading: 'Verfassen'
+        mailto: 'E-Mail-Links'
+        mailto_app_linux: 'plMail läuft als installierte App. Links aus anderen Programmen kommen hier an, sobald es das Standard-Mailprogramm deines Desktops ist: Wähle plMail in den Einstellungen deines Desktops unter Standard-Anwendungen, oder führe xdg-settings set default-url-scheme-handler mailto mit der .desktop-Datei von plMail aus ~/.local/share/applications aus.'
+        mailto_app_macos: 'plMail läuft als installierte App. Links aus anderen Programmen kommen hier an, sobald es das Standard-Mailprogramm deines Macs ist: Öffne in Mail Einstellungen → Allgemein → Standard-E-Mail-Programm und wähle plMail. Steht es nicht in der Liste, wähle Auswählen… und such plMail in deinem Benutzerordner unter Programme → Chrome Apps.'
+        mailto_app_other: 'plMail läuft als installierte App. Links aus anderen Programmen kommen hier an, sobald es in den Einstellungen deines Systems das Standard-Mailprogramm ist.'
+        mailto_app_windows: 'plMail läuft als installierte App. Links aus anderen Programmen kommen hier an, sobald es dein Standard-Mailprogramm ist: Öffne Einstellungen → Apps → Standard-Apps, such nach MAILTO und wähle plMail.'
+        mailto_asked: 'Dein Browser fragt an der Adresszeile nach — wähle dort Zulassen, dann ist plMail auch gleich der Standard. Keine Nachfrage, und Links kommen trotzdem nicht an? Dann ist plMail eingetragen, aber nicht der Standard: Öffne in Chrome chrome://settings/handlers und wähle im ⋮-Menü von plMail „Als Standard festlegen“.'
+        mailto_button: 'plMail verwenden'
+        mailto_failed: 'Dieser Browser hat die Anfrage abgelehnt.'
+        mailto_hint: 'mailto:-Links von anderen Seiten in plMail öffnen, in diesem Browser. Jeder Browser und jedes Gerät entscheidet für sich. Als App installiert öffnet plMail sie im Fenster, das schon offen ist.'
+        mailto_insecure: 'Browser erlauben das nur über HTTPS, und plMail läuft hier über einfaches HTTP.'
+        mailto_unsupported: 'Dieser Browser kann E-Mail-Links nicht an eine Web-App geben. Die plMail-Apps für Android und iOS können das.'
         open: 'Ausgeklappt'
         subheading: 'Wie sich das Verfassen-Fenster für dich verhält, über alle Konten.'
     insights:
@@ -4343,6 +4827,8 @@ settings:
         field:
             base_url: 'Serveradresse'
             base_url_fixed: 'Verbindung zu %url%, von der Administration festgelegt.'
+            base_url_help:
+                webdav: "Die volle Adresse des Ordners samt Pfad — bei FileBrowser Quantum https://host/dav/<quelle>/."
             name: Name
             name_help: 'Nur für dich sichtbar, um zwei Verbindungen auseinanderzuhalten.'
             permissions:
@@ -4358,6 +4844,7 @@ settings:
                 oneDrive: 'Zugriffstoken'
                 openCloud: 'App-Token'
                 paperless: 'API-Token'
+                webdav: "Passwort oder Token"
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -4367,6 +4854,7 @@ settings:
                 oneDrive: ''
                 openCloud: 'Erstelle eines in OpenCloud unter Kontoeinstellungen → App-Tokens und wähl eine lange Laufzeit: Ein abgelaufenes Token funktioniert nicht mehr. Mit Single Sign-on ist der Benutzername eventuell die ID unter Einstellungen.'
                 paperless: 'In Paperless unter My Profile → API Auth Token kopieren.'
+                webdav: "Bei FileBrowser Quantum ein API-Token anlegen und hier einfügen; den Benutzernamen kannst du leer lassen. Ein abgelaufenes Token funktioniert nicht mehr."
             secret_unchanged: 'Leer lassen, um die gespeicherten Zugangsdaten zu behalten'
             username: Benutzername
         heading: Integrationen
@@ -4569,19 +5057,47 @@ settings:
         sync_now_title: Jetzt abgleichen
         zone_follows: Folgt plMail
     labels:
+        by_account:
+            hint: 'Zeigt die Labels jedes Kontos in der Seitenleiste unter diesem Konto, neben seinen Ordnern. Der Bereich Labels behält dann nur Labels, die noch auf keinem Konto sind, und ein Label, das du unter einem Konto umbenennst, wird nur für dieses Konto umbenannt.'
+            title: 'Labels nach Konto'
         count: '%count% Labels'
         delete: Label "%name%" löschen
         edit: Label "%name%" bearbeiten
         empty: Noch keine Labels — erstelle eines, oder sie erscheinen nach der ersten Synchronisierung.
         folders_in_labels:
-            off_hint: 'Aus: Ordner stehen unter ihrem Konto, und der Bereich Labels enthält die Labels, die du auf Mails setzt.'
-            on_hint: 'An: Der Bereich Labels in der Seitenleiste listet auch Ordner, zusätzlich zu ihrem Platz unter jedem Konto.'
+            hint: 'Zeigt Ordner auch im gemeinsamen Bereich Labels, zusätzlich zu ihrem Platz unter jedem Konto. Nur für die gemeinsame Liste: Nach Konto steht ohnehin alles unter seinem Konto.'
             title: 'Ordner unter Labels'
         heading: Labels
         hide: Label ausblenden
+        seg:
+            off: 'Aus'
+            on: 'An'
         show: Label anzeigen
         subheading: Labels erstellen, umbenennen und ordnen — und wählen, welche in der Seitenleiste erscheinen.
         system: System
+        view:
+            heading: 'Labels in der Seitenleiste'
+            subheading: 'Wähle, ob die Seitenleiste deine Labels einmal für alle Konten zeigt oder unter jedem Konto.'
+    pinning:
+        duration:
+            custom: 'Eine Zahl von Tagen'
+            custom_days: 'Tage'
+            forever: 'Für immer'
+            hint: 'Eine Änderung gilt für Anheftungen, die du ab jetzt machst.'
+            label: 'Anheften gilt'
+            one_day: '1 Tag'
+            one_week: '1 Woche'
+            thirty_days: '30 Tage'
+            three_days: '3 Tage'
+            two_weeks: '2 Wochen'
+        heading: 'Angeheftete Konversationen'
+        keep_on_move:
+            hint: 'Archivieren zählt als Verschieben. Papierkorb und Spam lösen die Anheftung immer.'
+            label: 'Angeheftet lassen, wenn eine Konversation verschoben wird'
+        reminder:
+            hint: 'Willst du mehr Konversationen anheften, wirst du vorher gefragt. Verweigert wird nie. 0 schaltet die Erinnerung ab.'
+            label: 'Erinnern ab'
+        subheading: 'Was du anheftest, bleibt oben in jeder Liste, in der es steht.'
     profile:
         heading: Dein Profil
         save: Profil speichern
@@ -4610,6 +5126,17 @@ settings:
         'off': Aus
         'on': An
         subheading: Ob Bilder, die eine Mail von anderswo lädt, erst auf Nachfrage geladen werden.
+    sender_pictures:
+        admin_off: 'Deine Administration hat diesem Server nicht erlaubt, Bilder im Internet nachzuschlagen, deshalb bewirken diese Schalter gerade nichts. Deine Wahl bleibt für später gespeichert.'
+        bimi: 'Firmenlogos'
+        bimi_hint: 'Das Logo, das eine Firma für ihre Mails veröffentlicht (BIMI). Es kommt von der Domain der Firma selbst und erscheint nur an Mails, die nachweislich von dieser Domain stammen.'
+        hashed: 'Gravatar und Libravatar'
+        hashed_hint: 'Das Bild, das jemand bei Gravatar oder auf dem Libravatar-Server der eigenen Domain hinterlegt hat. Jede Adresse, von der du Mail bekommst, geht dafür als Hash an diesen Dienst. Aus, bis du es einschaltest.'
+        heading: 'Absenderbilder'
+        intro: 'Fotos deiner Kontakte und die Profilbilder der Leute auf diesem Server werden immer gezeigt. Hier geht es um die Bilder, die plMail für alle anderen im Hintergrund nachschlagen kann — beim Öffnen einer Mail wird nie etwas geladen.'
+        subheading: 'Welche Bilder neben einem Absender im Internet nachgeschlagen werden dürfen.'
+        website: 'Website-Symbole'
+        website_hint: 'Das Symbol, das die Website eines Absenders für sich angibt. Nie für Adressen bei Mailanbietern wie Gmail, deren Symbol nichts über die Person sagt.'
     swipe_actions:
         heading: Wischgesten
         hint: >-
@@ -4623,6 +5150,7 @@ settings:
         option:
             archive: Archivieren
             none: Nichts
+            pin: 'Anheften'
             read_unread: Gelesen / ungelesen
             star: Stern
             trash: Löschen
@@ -4631,7 +5159,7 @@ settings:
         subheading: Was eine Wischbewegung über eine Zeile auf dem Telefon bewirkt.
     unified_inboxes:
         account_label: 'Sammel-Posteingang für %account%'
-        account_off: 'Ausgeschaltet — nichts davon wird angezeigt, bis du es wieder einschaltest.'
+        account_off: 'E-Mail ausgeschaltet — nichts davon wird hier angezeigt, bis du sie wieder einschaltest.'
         accounts_heading: 'Konten'
         accounts_subheading: 'In welchem Posteingang die Mail jedes Kontos erscheint. Ein neues Konto landet in deinem ersten Posteingang.'
         add: 'Hinzufügen'
@@ -4667,41 +5195,98 @@ settings:
         show_hint: 'Aus: Nach einem Update öffnet sich nichts, und das ? oben zeigt keinen Punkt. Die Hinweise findest du weiter unter ? → Was ist neu.'
         subheading: 'Was plMail dir zeigt, nachdem es aktualisiert wurde.'
     nav:
-        accounts: E-Mail-Konten
+        accounts: "Konten"
         ai: 'Assistent'
         aliases: Aliase
         app_passwords: App-Passwörter
         appearance: Darstellung
-        calendar_behaviour: Verhalten
+        area:
+            account: "Konto"
+            assistant: "Assistent & Automatik"
+            calendar_contacts: "Kalender & Kontakte"
+            general: "Allgemein"
+            inbox: "Posteingang"
+            integrations: "Integrationen"
+            mail_accounts: "E-Mail-Konten"
+            reading_writing: "Lesen & Schreiben"
+        calendar_behaviour: "Kalenderverhalten"
         calendars: Kalender
-        categories: "Kategorien"
+        categories: "Kategorien & Sortierung"
+        compose: "Verfassen"
         contacts: Kontakte
         disposal: Entsorgen
         encryption: "Verschlüsselung"
         filters: Filter
-        general: Allgemein
-        group:
-            access: Zugriff
-            calendar: Kalender
-            features: Funktionen
-            mail: E-Mail
-            personal: Persönlich
         health: 'Zustand der Konten'
-        images: Bilder
+        health_banner: "Etwas braucht deine Aufmerksamkeit — siehe Zustand der Konten."
         inboxes: 'Sammel-Posteingänge'
         insights: Insights
         integrations: Integrationen
         labels: Labels
+        layout: "Layout & Bedienung"
+        message_list: 'Nachrichtenliste'
         notifications: Benachrichtigungen
         profile: Profil
-        read_receipts: Lesebestätigungen
-        reading_pane: Lesebereich
+        reading: "Lesen"
+        region: "Sprache & Region"
         security: Sicherheit
         sharing: Teilen
-        shortcuts: Tastenkürzel
         signature: Signaturen
-        swipe_actions: Wischgesten
         templates: 'Vorlagen'
+        whats_new: "Neuigkeiten"
+    search:
+        count: "Treffer: %count%"
+        empty: "Nichts gefunden. Die Suche durchsucht Seitennamen, Kartenüberschriften und Stichwörter."
+        failed: "Die Einstellungssuche konnte nicht geladen werden. Schließe sie und versuche es noch einmal."
+        hint_move: "auswählen"
+        hint_open: "öffnen"
+        keyword: "Stichwort"
+        keywords:
+            accent: "farbe akzent hervorhebung color"
+            accounts: "imap smtp pop3 jmap server hinzufügen postfach"
+            ai: "ki künstliche intelligenz zusammenfassung schreibhilfe modell ai"
+            aliases: "alias identität absender von adresse"
+            app_passwords: "imap smtp programm thunderbird token api jmap"
+            calendars: "caldav ics abonnieren feed"
+            clock: "12 24 stunden uhrzeit format am pm"
+            compose_behaviour: "mailto e-mail-links standard-mailprogramm weiterleiten zitat senden"
+            contacts: "carddav adressbuch"
+            conversation_view: 'Threads Konversationen einzelne E-Mails gruppieren flache Liste'
+            disposal: "löschen papierkorb endgültig leeren"
+            encryption: "pgp openpgp gpg schlüssel"
+            filters: "regeln sieve automatisch verschieben weiterleiten"
+            handwriting: "unterschreiben pdf zeichnen"
+            images: "tracking pixel extern laden blockieren"
+            inbox_tabs: "tabs werbung sozial benachrichtigungen foren"
+            insights: "paket sendungsverfolgung rechnung flug"
+            integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            label_view: "nach konto gruppiert gemeinsam ordner seitenleiste"
+            labels: "ordner tags ungelesen alle e-mails"
+            language: "sprache deutsch englisch französisch chinesisch"
+            libravatar: 'libravatar avatar bild foto teilen öffentlich profil'
+            list_content: 'anhänge chips büroklammer dateien labels absender datum uhrzeit anzahl beantwortet'
+            list_layout: 'zeilen einzeilig kompakt dicht vorschau gestapelt breite'
+            list_markers: 'stern überfahren avatar kreis konto ecke ungelesen fett'
+            notifications: "push browser handy ton hinweis"
+            password: "kennwort anmeldung login"
+            pinning: 'anheften angeheftet reißzwecke oben erinnerung pin'
+            profile: "name avatar foto bild"
+            read_receipts: "mdn empfangsbestätigung bestätigung bcc kopie sicherung blindkopie"
+            reading_pane: "vorschau geteilt rechts unten"
+            sender_pictures: 'avatar bild foto gravatar libravatar bimi logo symbol absender'
+            sharing: "link öffentlich buchung"
+            shortcuts: "tastatur tasten kürzel hotkeys"
+            sidebar: 'breite breit schmal größe ziehen lange namen abgeschnitten darüberfahren mehr ordner'
+            swipe_actions: "wischen geste handy archivieren"
+            templates: "textbausteine antworten vorlagen"
+            theme: "dunkel hell modus nacht farben dark"
+            two_factor: "2fa totp otp authenticator zwei faktor"
+            typography: "schrift schriftart text größe"
+            whats_new: "änderungen update version release"
+            wkd: "web key directory veröffentlichen"
+        kind_page: "Seite"
+        label: "Einstellungen durchsuchen"
+        placeholder: "Einstellungen durchsuchen"
     notifications:
         devices:
             empty: >-
@@ -4874,8 +5459,13 @@ settings:
         hide_note: Einen Ordner ganz auszublenden geht weiterhin unter Labels.
         hint: Angehakte Ordner stehen hinter „Mehr“. Die übrigen bleiben direkt in der Seitenleiste.
         label: Hinter „Mehr“
+        peek:
+            hint: 'Ist ein Name abgeschnitten, wird die Seitenleiste über der Mail breiter, solange der Zeiger darauf liegt. Dauerhaft breiter machst du sie, indem du ihren Rand ziehst.'
+            off: 'Aus'
+            on: 'An'
+            title: 'Lange Namen beim Darüberfahren zeigen'
         pinned: Der Posteingang bleibt immer, wo er ist.
-        subheading: Welche Ordner sich hinter „Mehr“ verstecken.
+        subheading: 'Wie lange Namen angezeigt werden und welche Ordner sich hinter „Mehr“ verstecken.'
     signature:
         for_alias: 'Signatur für %alias%'
         heading: Signaturen
@@ -4915,6 +5505,7 @@ settings:
         delete: Kategorie löschen
         delete_confirm: 'Kategorie „%name%“ löschen? Die dort abgelegte Mail kommt zurück in den Tab, in dem sie sonst wäre. Es wird keine Mail gelöscht.'
         deleted: 'Kategorie „%name%“ gelöscht.'
+        deleted_resorting: 'Kategorie „%name%“ gelöscht. Ihre Unterhaltungen kommen im Hintergrund zurück in ihre Tabs.'
         error:
             empty: 'Eine Kategorie braucht einen Namen.'
             reserved: 'Dieser Name gehört zu einem der eingebauten Tabs.'
@@ -5062,6 +5653,7 @@ shortcuts:
         archive: "Archivieren"
         back: "Zurück zur Liste"
         compose: "Neue Nachricht schreiben"
+        conversation_view: 'Zwischen Konversationen und einzelnen E-Mails wechseln'
         delete: "Löschen"
         forward: "Weiterleiten"
         go_archive: "Zum Archiv"
@@ -5077,6 +5669,7 @@ shortcuts:
         next: "Eine Unterhaltung nach unten"
         next_conversation: "Nächste Unterhaltung öffnen"
         open: "Hervorgehobene Unterhaltung öffnen"
+        pin: 'Anheften oder lösen'
         previous: "Eine Unterhaltung nach oben"
         previous_conversation: "Vorherige Unterhaltung öffnen"
         reply: "Antworten"
@@ -5093,19 +5686,22 @@ shortcuts:
         star: "Markieren oder Markierung entfernen"
         undo: "Letzte Aktion rückgängig machen"
     or: "oder"
-    switched_off: "Die Kürzel sind für dich ausgeschaltet. Schalte sie unter Einstellungen → Allgemein ein."
+    switched_off: "Die Kürzel sind für dich ausgeschaltet. Schalte sie unter Einstellungen → Allgemein → Layout & Bedienung ein."
     then: "dann"
     title: "Tastenkürzel"
 
 sidebar:
     accounts:
         add: Konto hinzufügen
+        collapse_all: 'Alle Konten zuklappen'
         colour: 'Farbmarkierung für %account%'
-        colour_disabled: 'Farbmarkierung für %account%, das deaktiviert ist'
+        colour_disabled: 'Farbmarkierung für %account%, bei dem E-Mail ausgeschaltet ist'
+        expand_all: 'Alle Konten aufklappen'
         folders: 'Ordner …'
         heading: Konten
         menu: 'Ordner von %account%'
         new_folder: 'Neuer Ordner …'
+        new_label: 'Neues Label…'
         none: Noch keine Konten
         open: '%account% öffnen'
         toggle: 'Ordner in %account% ein-/ausklappen'
@@ -5119,6 +5715,7 @@ sidebar:
         folder_on: 'Ordner auf %accounts%'
         heading: Labels
         none: Noch keine Labels
+        shared_with: 'Auch auf %accounts%'
     new_mail_here: 'Neue Nachrichten in %where%'
     new_mail_here_count: '%count% neu in %where%'
     nav:
@@ -5135,15 +5732,20 @@ sidebar:
         starred: Markiert
         trash: Papierkorb
         unread: Ungelesen
+    resize: 'Breite der Seitenleiste ändern'
+    resize_hint: 'Ziehen zum Ändern, Doppelklick setzt zurück'
     toggle: Seitenleiste ein-/ausblenden
 
 snooze:
+    confirm: Zurückstellen
     later_today: Später heute
     next_week: Nächste Woche
+    past: Dieser Zeitpunkt liegt bereits in der Vergangenheit.
     pick_date: Datum und Uhrzeit wählen
     this_weekend: Dieses Wochenende
     tomorrow: Morgen
     unsnooze: Zurückholen
+    until: Zurückstellen bis
 
 snoozed:
     empty: Nichts ist zurückgestellt.
@@ -5162,6 +5764,7 @@ tabs:
 
 thread:
     no_subject: (kein Betreff)
+    show_conversation: 'Ganze Konversation zeigen (%count% E-Mails)'
     summary:
         button: 'Gespräch zusammenfassen'
         disclaimer: 'Von einem Modell aus den Nachrichten unten geschrieben. Lies sie, wenn es darauf ankommt.'
@@ -5211,8 +5814,11 @@ thread_row:
     new_badge: Neu
     no_recipient: (kein Empfänger)
     no_subject: (kein Betreff)
+    pin: 'Oben anheften'
+    replied: 'Beantwortet'
     send_failed:
         failed: Nicht gesendet
+        mail_off: 'Nicht gesendet: Für dieses Konto ist Senden ausgeschaltet'
         may_have_sent: 'Vielleicht gesendet: schau unter Gesendet nach, bevor du sie noch einmal sendest'
         rate_limited: 'Nicht gesendet: dein Mailanbieter hat das Senden begrenzt'
         refused: 'Nicht gesendet: der Mailserver hat sie abgelehnt'
@@ -5225,6 +5831,7 @@ thread_row:
         select: Auswählen
     star: Diese Nachricht markieren
     to: 'An: %recipients%'
+    unpin: 'Lösen'
     unread: Ungelesen
     unstar: Markierung dieser Nachricht entfernen
 
@@ -5237,6 +5844,7 @@ toast:
     schedule_cancelled: Geplanter Versand abgebrochen.
     send_too_late: Zu spät — diese Nachricht wurde bereits gesendet.
     send_failed: 'Diese Nachricht konnte nicht gesendet werden: %subject%'
+    send_failed_mail_off: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Für ihr Konto ist Senden ausgeschaltet.'
     send_failed_may_have_sent: '%subject% wurde vielleicht gesendet, aber die Antwort ging verloren. Schau unter Gesendet nach, bevor du sie noch einmal sendest.'
     send_failed_rate_limited: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Dein Mailanbieter begrenzt gerade das Senden; versuch es in ein paar Minuten noch einmal.'
     send_failed_refused: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Der Mailserver hat sie abgelehnt.'
@@ -5264,10 +5872,12 @@ toolbar:
         more: Mehr
         move_to: Verschieben nach
         not_spam: 'Kein Spam'
+        pin: 'Anheften'
         purge: Endgültig löschen
         snooze: Zurückstellen
         spam: 'Als Spam markieren'
         star: Markieren
+        unpin: 'Lösen'
     # Asked before a selection in Spam is deleted for good. Two sentences rather
     # than one with a number swapped in, because the singular reads differently.
     purge_confirm:
@@ -5477,12 +6087,13 @@ contacts:
     import_bad_format: 'Nur .vcf/.vcard- und .csv-Dateien lassen sich importieren.'
     import_choose: 'Datei wählen'
     import_confirm: '%count% Kontakte importieren'
-    import_dedupe_note: 'Nach dem Import landest du auf der Seite mit den Doppelten, um doppelt Importiertes zusammenzuführen.'
+    import_dedupe_note: 'Ist der Import fertig, kannst du unter „Doppelte“ doppelt Importiertes zusammenführen.'
     import_expired: 'Der vorbereitete Import ist abgelaufen. Bitte lade die Datei erneut hoch.'
     import_formats: '.vcf, .vcard oder .csv'
     import_hint: 'Ein .vcf/.vcard-Adressbuchexport oder eine .csv-Datei. Doppelte werden nach dem Import geprüft.'
     import_no_file: 'Es wurde keine Datei hochgeladen.'
     import_preview_count: '%count% Kontakte in der %format%-Datei gefunden. Die ersten davon:'
+    import_started: '%count% Kontakte werden importiert — das läuft im Hintergrund. Du erfährst, wenn es fertig ist.'
     import_step1: 'Schritt 1 — Datei wählen'
     import_step2: 'Schritt 2 — Vorschau'
     import_upload: 'Hochladen & Vorschau'

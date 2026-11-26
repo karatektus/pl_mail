@@ -52,7 +52,7 @@ test.describe("background", () => {
     test.beforeEach(async ({ page }) => {
         const reset = await ajaxPost(page, "/settings/appearance/reset");
         expect(reset.ok()).toBe(true);
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
     });
 
     test.afterAll(async ({ browser }) => {

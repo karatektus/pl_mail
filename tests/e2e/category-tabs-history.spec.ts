@@ -23,9 +23,9 @@ import { INBOX_SUBJECTS, ajaxPost, mailRow, seed } from "./support/config";
  */
 test.use({ ...devices["Pixel 5"] });
 
-const STRIP = "nav:has(> a[href*='tab='])";
-const TABS = `${STRIP} > a[href*='tab=']`;
-const CURRENT = `${TABS}[data-ui--scroll-active-target="current"]`;
+const STRIP = "nav:has(> [data-category-tab])";
+const TABS = `${STRIP} a[data-category-tab-link]`;
+const CURRENT = `${TABS}[aria-current="page"]`;
 const SOCIAL = `${TABS}[href*='tab=social']`;
 const BACK_BUTTON = "Back";
 

@@ -6,7 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\Helper\ThrowableSeverity;
 use App\Infrastructure\Mercure\UserUpdate;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\Mercure\HubInterface;

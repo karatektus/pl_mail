@@ -9,7 +9,7 @@ use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Http\PrivateNetwork;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**

@@ -6,7 +6,7 @@ namespace App\Entity\Calendar;
 
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarBookingRepository;
+use App\Repository\Calendar\CalendarBooking\CalendarBookingRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;

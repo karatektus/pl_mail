@@ -11,8 +11,9 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\ImapClient\ImapLoop;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageLabelRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Label\LabelResolver;
 use App\Tests\Service\Imap\FakeFolderServer;
 use Doctrine\DBAL\Connection;
@@ -241,8 +242,10 @@ final class LabelMakeFolderTest extends WebTestCase
 
         $repository = static::getContainer()->get(MessageRepository::class);
 
-        self::assertSame(1, $repository->countToFileIntoFolder((int) $account->id, (int) $label->id));
-        self::assertSame([$inInbox->id], $repository->findIdsToFileIntoFolder((int) $account->id, (int) $label->id));
+        $messageLabelRepository = static::getContainer()->get(MessageLabelRepository::class);
+
+        self::assertSame(1, $messageLabelRepository->countToFileIntoFolder((int) $account->id, (int) $label->id));
+        self::assertSame([$inInbox->id], $messageLabelRepository->findIdsToFileIntoFolder((int) $account->id, (int) $label->id));
 
         $this->post($label, $account);
 
@@ -402,7 +405,7 @@ final class LabelMakeFolderTest extends WebTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
         $this->em->flush();
 

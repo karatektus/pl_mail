@@ -87,7 +87,11 @@ pane-wide token the ✕ needs.
                         data-insight-pane-dismiss
                         aria-label="{{ 'insights.pane.dismiss_all'|trans }}"
                         title="{{ 'insights.pane.dismiss_all'|trans }}"
-                        class="-mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full
+                        {# 28px rounded squares, the row's ⋮ as well: the
+                           narrow size of the app's icon-btn (#678). Pulled
+                           into the row's margin so the band, whose claim is
+                           that it costs little height, is no taller for it. #}
+                        class="-mr-1 -my-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg
                                text-ink-faint hover:bg-hover hover:text-ink transition-colors">
                     <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
                 </button>
@@ -205,7 +209,7 @@ pane-wide token the ✕ needs.
                                     data-action="click->ui--dropdown#toggle"
                                     aria-label="{{ 'insights.pane.more'|trans }}"
                                     title="{{ 'insights.pane.more'|trans }}"
-                                    class="flex h-7 w-7 items-center justify-center rounded-full
+                                    class="flex h-7 w-7 items-center justify-center rounded-lg
                                            text-ink-faint hover:bg-hover hover:text-ink transition-colors">
                                 <i class="fa-solid fa-ellipsis-vertical text-xs" aria-hidden="true"></i>
                             </button>

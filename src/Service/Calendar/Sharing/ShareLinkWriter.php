@@ -9,7 +9,7 @@ use App\Domain\Enum\Calendar\ShareWindow;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarShareLink;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 

@@ -8,7 +8,7 @@ use App\Domain\Enum\Calendar\CalendarRole;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventOccurrenceRepository;
+use App\Repository\Calendar\CalendarEventOccurrence\CalendarEventOccurrenceRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\RecurrenceMaterialiser;
 use DateTimeImmutable;

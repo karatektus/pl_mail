@@ -130,8 +130,9 @@ from a read-only address book cannot be merged.
 ## Import and export
 
 **Import** takes a `.vcf` (vCard, as every phone and address book exports) or a `.csv` file. You see
-a preview first. Imported contacts are plMail's own, and you land on the duplicates page afterwards
-to merge anything you already had.
+a preview first. Imported contacts are plMail's own. The import itself runs in the background once you
+confirm: **Background work** in the top bar counts the contacts in, and a message says how many arrived
+when it is done. Open **Duplicates** afterwards to merge anything you already had.
 
 **Export** downloads every contact as one `.vcf` file, photos included. A synced contact is exported
 as its server's card with your edits in it, so the file keeps what plMail has no field for. The CSV

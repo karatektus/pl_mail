@@ -37,7 +37,7 @@ use App\Service\Integration\IntegrationUrlValidator;
  * ── The SSRF check is not a second one ────────────────────────────────────
  *
  * IntegrationUrlValidator::assertAllowed() is called, never reimplemented. Its
- * blocked ranges, its allow-list, its INTEGRATIONS_ALLOW_HTTP flag and its
+ * blocked ranges, its allowed servers, their plain-http permission and its
  * refusal of credentials in the URL are exactly the rules a feed needs, for
  * exactly the reason it wrote them: this address comes from a user, and it is
  * fetched server-side on a schedule from a container that can reach Postgres,

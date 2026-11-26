@@ -281,7 +281,7 @@ final class HappeningSoonRenderTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         // A calendar for the events to sit on. They are persisted now — the

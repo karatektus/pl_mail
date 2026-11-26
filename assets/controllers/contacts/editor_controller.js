@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus"
 import { EMAIL_RE, emailLabel, joinName, looksMobile, NAME_PARTS, postForm, sameNumber, sameText, splitName } from "../../contacts/fields.js"
 

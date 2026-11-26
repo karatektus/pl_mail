@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Webhook;
 
 use App\Infrastructure\Messaging\Message\ConfirmJmapPushMessage;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\JmapClient\JmapPushFanout;
 use App\Service\JmapClient\JmapPushSubscriptionManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

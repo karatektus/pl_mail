@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Ai;
 
 use App\Entity\Ai\AiFeature;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\EmbeddingCatchUp;
 use Symfony\Component\Console\Attribute\AsCommand;

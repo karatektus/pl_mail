@@ -155,7 +155,7 @@ test.describe("tom select match mark", () => {
     }
 
     test("marks exactly what was typed, with no trailing space", async ({ page }) => {
-        await page.goto("/settings?section=general");
+        await page.goto("/settings/region");
         await search(page, "africa/a");
 
         const marks = await dropdown(page)
@@ -173,7 +173,7 @@ test.describe("tom select match mark", () => {
     });
 
     test("renders the mark in bold", async ({ page }) => {
-        await page.goto("/settings?section=general");
+        await page.goto("/settings/region");
         await search(page, "africa/a");
 
         const weight = await dropdown(page)
@@ -198,7 +198,7 @@ test.describe("tom select match mark", () => {
      * flex item of pure white space is not rendered at all.
      */
     test("lays options out as text, so a mark introduces no gap", async ({ page }) => {
-        await page.goto("/settings?section=general");
+        await page.goto("/settings/region");
         await search(page, "america argentina");
 
         const option = dropdown(page).locator(".option").first();
@@ -218,7 +218,7 @@ test.describe("tom select match mark", () => {
     test("matches case-insensitively and through umlauts without widening the mark", async ({
         page,
     }) => {
-        await page.goto("/settings?section=general");
+        await page.goto("/settings/region");
 
         await search(page, "EUROPE/z");
         expect(
@@ -247,7 +247,7 @@ test.describe("tom select match mark", () => {
      * about the contract changed.
      */
     test("keeps the combobox contract on the labelled control", async ({ page }) => {
-        await page.goto("/settings?section=general");
+        await page.goto("/settings/region");
 
         const form = page.locator('form[action="/settings/timezone"]');
         const labelFor = await form.locator("label").first().getAttribute("for");

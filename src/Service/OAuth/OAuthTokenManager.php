@@ -26,7 +26,7 @@ class OAuthTokenManager
      * Refresh this many seconds before the token actually expires, so a token
      * that is valid at check-time is still valid when the request lands.
      */
-    private const EXPIRY_BUFFER_SECONDS = 120;
+    private const int EXPIRY_BUFFER_SECONDS = 120;
 
     public function __construct(
         private readonly OAuthProviderFactory   $providerFactory,

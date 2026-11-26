@@ -118,6 +118,7 @@ final class SearchSuggestController extends AbstractController
                 continue;
             }
 
+            // Loose on purpose: a field can hold an array or a date, which compare by value here.
             if ($value != $none->$field) {
                 return true;
             }

@@ -13,6 +13,7 @@ use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\ApplyLabelStructureHandler;
 use App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage;
+use App\Repository\Mail\Message\MessageLabelRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GraphApiClient;
 use DateTimeImmutable;
@@ -171,9 +172,9 @@ final class GraphCategoryRenameTest extends KernelTestCase
         });
 
         return new ApplyLabelStructureHandler(
-            $container->get('App\Repository\Mail\AccountRepository'),
-            $container->get('App\Repository\Label\LabelRepository'),
-            $container->get('App\Repository\Mail\MessageRepository'),
+            $container->get('App\Repository\Mail\Account\AccountRepository'),
+            $container->get('App\Repository\Label\Label\LabelRepository'),
+            self::getContainer()->get(MessageLabelRepository::class),
             $container->get('messenger.default_bus'),
             $container->get('App\Service\Graph\GraphCategoryColorMapper'),
             $container->get('App\Service\Gmail\GmailLabelColorMapper'),
@@ -218,7 +219,7 @@ final class GraphCategoryRenameTest extends KernelTestCase
         $account->password         = 'x';
         $account->authType         = AuthType::OAuth2->value;
         $account->oauthProvider    = MailProvider::Microsoft->value;
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new DateTimeImmutable('+1 day');
         $this->em->persist($account);

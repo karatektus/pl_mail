@@ -16,9 +16,9 @@ use App\Infrastructure\ImapClient\Exception\ImapConnectionException;
 use App\Infrastructure\ImapClient\ImapFolder;
 use App\Infrastructure\ImapClient\ImapSession;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapFolderProvisioner;
 use Doctrine\ORM\EntityManagerInterface;
@@ -192,6 +192,13 @@ final class ApplyImapFlagsHandler
         foreach ($byAccount as $accountId => $byMailbox) {
             $firstMailboxId = array_key_first($byMailbox);
             $account        = $this->mailboxRepository->find($firstMailboxId)->account;
+
+            // Mail switched off (#575): the change stays here and nothing goes
+            // to the server. Per account, because one envelope can address
+            // folders of several — see AccountService for why that is final.
+            if (false === $account->mailEnabled) {
+                continue;
+            }
 
             try {
                 $session = $this->connector->session($account);

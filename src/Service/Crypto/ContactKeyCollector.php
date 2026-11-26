@@ -10,14 +10,12 @@ use App\Domain\Helper\MessageParser;
 use App\Entity\Crypto\ContactKey;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
-use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
-use App\Repository\Crypto\AddressKeyRepository;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\AddressKey\AddressKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 use App\Service\Mail\RawMessageResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;
-use Webklex\PHPIMAP\Config;
 
 /**
  * Picks up the keys an incoming message brings for its sender: an Autocrypt
@@ -249,10 +247,7 @@ final readonly class ContactKeyCollector
         }
 
         try {
-            $parsed = MessageParser::fromString(
-                (string) file_get_contents($path),
-                Config::make(['decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]]]),
-            );
+            $parsed = MessageParser::parse((string) file_get_contents($path));
         } catch (Throwable $exception) {
             $this->logger->info('Could not parse a message for attached keys: {error}', ['error' => $exception->getMessage(), 'messageId' => $message->id]);
 
@@ -261,14 +256,14 @@ final readonly class ContactKeyCollector
 
         $keys = [];
 
-        foreach ($parsed->getAttachments() as $attachment) {
-            $content = (string) $attachment->getContent();
-            $type    = (string) $attachment->getContentType();
+        foreach ($parsed->attachments as $attachment) {
+            $content = $attachment->content;
+            $type    = $attachment->contentType;
 
-            if (true === self::looksLikeKey($type, (string) $attachment->getName())
+            if (true === self::looksLikeKey($type, $attachment->filename)
                 && strlen($content) <= PublicKeyReader::MAX_BYTES
                 && (str_contains($content, '-----BEGIN PGP PUBLIC KEY BLOCK-----') || 'application/pgp-keys' === strtolower(trim(explode(';', $type)[0])))) {
-                $keys[self::partKey($type, (string) $attachment->getName())] = $content;
+                $keys[self::partKey($type, $attachment->filename)] = $content;
             }
         }
 

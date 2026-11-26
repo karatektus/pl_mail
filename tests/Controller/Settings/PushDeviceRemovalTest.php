@@ -9,8 +9,8 @@ use App\Domain\Enum\PushTransport;
 use App\Entity\Push\PushDelivery;
 use App\Entity\User\PushSubscription;
 use App\Entity\User\User;
-use App\Repository\User\PushSubscriptionRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\User\PushSubscription\PushSubscriptionRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -175,7 +175,7 @@ final class PushDeviceRemovalTest extends WebTestCase
      */
     private function csrfToken(int $id): string
     {
-        $this->client->request('GET', '/settings?section=notifications');
+        $this->client->request('GET', '/settings/notifications');
 
         $stack   = static::getContainer()->get('request_stack');
         $carrier = new Request();

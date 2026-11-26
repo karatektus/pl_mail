@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Ai;
 
-use App\Repository\Monitoring\MessengerQueueRepository;
+use App\Repository\Monitoring\MessengerQueue\MessengerQueueRepository;
 use App\Service\Mail\PostIngest\EnrichmentRouter;
 use Psr\Log\LoggerInterface;
 use Throwable;

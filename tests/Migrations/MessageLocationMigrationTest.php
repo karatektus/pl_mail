@@ -110,7 +110,7 @@ final class MessageLocationMigrationTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $em->persist($account);
 
         $mailbox                = new Mailbox();

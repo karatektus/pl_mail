@@ -64,6 +64,31 @@ final class EmailQueryMethodTest extends JmapTestCase
         self::assertArrayNotHasKey('total', $result);
     }
 
+    /**
+     * The `pinned` sort and the $pinned filter (#654): a pinned conversation
+     * pages first, as the web lists draw it, and an app can ask for the pinned
+     * ones alone.
+     */
+    public function testThePinnedSortPutsAPinnedConversationFirstAndTheFilterFindsIt(): void
+    {
+        $pinned = $this->messages[1]->thread;
+        self::assertNotNull($pinned);
+        $pinned->pinnedAt = new \DateTimeImmutable('-1 minute');
+        $this->em->flush();
+
+        $result = $this->query(['sort' => [
+            ['property' => 'pinned', 'isAscending' => false],
+            ['property' => 'receivedAt', 'isAscending' => false],
+        ]]);
+
+        self::assertSame($this->id(1), $result['ids'][0], 'the pinned conversation leads');
+        self::assertSame($this->id(3), $result['ids'][1], 'and the rest follow newest first');
+
+        $filtered = $this->query(['filter' => ['hasKeyword' => '$pinned']]);
+
+        self::assertSame([$this->id(1)], $filtered['ids']);
+    }
+
     private function id(int $index): string
     {
         return (string) $this->messages[$index]->id;

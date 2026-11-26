@@ -12,7 +12,7 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncJmapMessageBatchMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\JmapClient\JmapAccountSyncer;
 use App\Service\JmapClient\JmapEmailSyncer;
 use App\Service\JmapClient\JmapImporter;
@@ -71,7 +71,7 @@ final class JmapMailSyncTest extends KernelTestCase
         $account->imapPort         = 443;
         $account->imapEncryption   = 'ssl';
         $account->authType         = 'password';
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $user->addAccount($account);
         $this->em->flush();

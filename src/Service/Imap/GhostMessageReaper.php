@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Mail\MessageEraser;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -24,7 +24,7 @@ use Psr\Log\LoggerInterface;
  * that has none — every database, once this has run once — it is one indexed
  * query per sync that returns nothing.
  *
- * The predicate lives in MessageRepository::findEpochGhosts(), where its
+ * The predicate lives in MessageImapRepository::findEpochGhosts(), where its
  * conservatism is argued line by line. It is deliberately unable to match a
  * subjectless message, an undated message or an empty draft.
  */
@@ -38,10 +38,10 @@ readonly class GhostMessageReaper
     private const int REAP_BATCH = 100;
 
     public function __construct(
-        private MessageRepository      $messages,
+        private MessageImapRepository $messageImapRepository,
         private MessageEraser          $eraser,
         private EntityManagerInterface $em,
-        private LoggerInterface        $logger,
+        private LoggerInterface        $logger
     ) {}
 
     /**
@@ -50,22 +50,14 @@ readonly class GhostMessageReaper
     public function reap(): int
     {
         // Asked before the real query, and this is the only reason the reaper
-        // can afford to run on every mailbox sync. The full predicate is eight
-        // conditions over the largest table here; this is one probe of a partial
-        // index that is empty on any install that has already been cleaned —
-        // which is every install, after the first run. See
-        // Version20260811160000, and note the literal: a bound parameter cannot
-        // be proven to imply the index's condition, so the index would be built
-        // and then not used.
-        $suspects = $this->em->getConnection()->fetchOne(
-            "SELECT 1 FROM message WHERE received_at < TIMESTAMP '1971-01-01' LIMIT 1",
-        );
-
-        if (false === $suspects) {
+        // can afford to run on every mailbox sync: the full predicate is eight
+        // conditions over the largest table here, and this probe is one look at
+        // an index that is empty on every install already cleaned.
+        if (false === $this->messageImapRepository->hasEpochGhostSuspects()) {
             return 0;
         }
 
-        $ghosts = $this->messages->findEpochGhosts(self::REAP_BATCH);
+        $ghosts = $this->messageImapRepository->findEpochGhosts(self::REAP_BATCH);
 
         if ([] === $ghosts) {
             return 0;

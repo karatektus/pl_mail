@@ -7,9 +7,9 @@ namespace App\Jmap\Query;
 use App\Entity\User\User;
 use App\Jmap\Calendar\OccurrenceId;
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\Calendar\CalendarEventOccurrenceRepository;
-use App\Repository\Calendar\CalendarEventRepository;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarEventOccurrence\CalendarEventOccurrenceRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\RecurrenceMaterialiser;
 
 /**

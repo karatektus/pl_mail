@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus";
 import * as Turbo from "@hotwired/turbo";
 import { registerPane } from "../../panes.js";
@@ -248,10 +249,35 @@ export default class extends Controller {
         this._setMode("contacts");
     }
 
-    /** The pane's own × . */
+    /**
+     * The pane's own ↙, at full width: back beside the mail. On the /contacts
+     * page there is no mail behind it, so that is the Inbox with the pane
+     * docked, as the topbar button's step there is.
+     */
+    restore(event) {
+        event?.preventDefault();
+        this._moveTo("split");
+    }
+
+    /** The pane's own × . On the /contacts page, the Inbox. */
     close(event) {
         event?.preventDefault();
-        this._set(false);
+        this._moveTo("mail");
+    }
+
+    /**
+     * A position the pane's own controls asked for. The /contacts page has
+     * nothing behind it to come back to, so anything short of full width
+     * there is a visit — see toggle(), which has the same branch.
+     */
+    _moveTo(mode) {
+        if (this.pageValue) {
+            this._persist(mode, { thenVisit: true }).then(() => Turbo.visit(this.inboxUrlValue));
+
+            return;
+        }
+
+        this._setMode(mode);
     }
 
     /** The calendar moved — see ui--split's `mode` event. */

@@ -52,7 +52,7 @@ async function sidebarDots(page: Page): Promise<string[]> {
 
 /** Adds a password account through the settings modal, as account.spec.ts does. */
 async function addAccount(page: Page, label: string, stamp: number): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     await page
         .locator("section")
@@ -69,6 +69,9 @@ async function addAccount(page: Page, label: string, stamp: number): Promise<voi
     await imapHost.fill(`order-${stamp}.example.test`);
     await page.locator('input[name="account[imapPort]"]').fill("993");
     await page.locator('select[name="account[imapEncryption]"]').selectOption("ssl");
+    // It is made the sender below, and an account with no SMTP server only
+    // receives (#628) — it would not be offered as one.
+    await page.locator('input[name="account[smtpHost]"]').fill(`smtp-${stamp}.example.test`);
     await page.locator("#modal button[type=submit]").click();
 
     await expect(page.getByText("Account added successfully")).toBeVisible();
@@ -76,7 +79,7 @@ async function addAccount(page: Page, label: string, stamp: number): Promise<voi
 
 /** Drop it again — an account is durable, user-wide state the next spec sees. */
 async function removeAccount(page: Page, label: string): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     const row = page
         .locator("#settings-account-list li")
@@ -87,7 +90,9 @@ async function removeAccount(page: Page, label: string): Promise<void> {
     for (let remaining = await row.count(); remaining > 0; remaining -= 1) {
         await row.getByRole("button", { name: "Remove account" }).first().click();
         await acceptConfirm(page);
-        await expect(row).toHaveCount(remaining - 1);
+        // Removing runs on the bulk worker now (#672): the row greys out at once
+        // and goes when the job is done, which is a worker round-trip away.
+        await expect(row).toHaveCount(remaining - 1, { timeout: 20_000 });
     }
 }
 
@@ -109,7 +114,7 @@ test.describe("accounts + sidebar", () => {
      * app.css is selected by exactly that attribute.
      */
     test("every theme preset label is readable in every theme", async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await expect(page.locator(PANEL)).toBeVisible();
 
         const rows: string[] = [];
@@ -208,7 +213,7 @@ test.describe("accounts + sidebar", () => {
             // before, ordering being drag-only. Ours starts at the bottom and
             // goes up one step at a time until it is on top, because the top
             // is the position that used to decide the primary.
-            await page.goto("/settings?section=accounts");
+            await page.goto("/settings/accounts");
 
             do {
                 const requested = page.waitForResponse(
@@ -226,7 +231,7 @@ test.describe("accounts + sidebar", () => {
                 ).toBeTruthy();
             } while ((await rows.first().getAttribute("data-account-id")) !== ownId);
 
-            await page.goto("/settings?section=accounts");
+            await page.goto("/settings/accounts");
 
             const orderAfter = await rows.evaluateAll((els) =>
                 els.map((e) => (e as HTMLElement).dataset.accountId ?? ""),
@@ -255,7 +260,7 @@ test.describe("accounts + sidebar", () => {
 
             // Back to settings: sidebarDots() reads the mailbox shell, and the
             // locators below are scoped to #settings-account-list.
-            await page.goto("/settings?section=accounts");
+            await page.goto("/settings/accounts");
 
             // And the explicit control does what dragging used to do silently.
             // Ours again rather than the first row that is not primary: past
@@ -265,7 +270,7 @@ test.describe("accounts + sidebar", () => {
             await own.getByRole("button", { name: /primary/i }).click();
             await expect(page.getByText(/Primary account changed/i)).toBeVisible();
 
-            await page.goto("/settings?section=accounts");
+            await page.goto("/settings/accounts");
 
             expect(
                 await primaryRow.getAttribute("data-account-id"),

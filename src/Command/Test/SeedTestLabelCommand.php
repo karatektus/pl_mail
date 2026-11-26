@@ -6,9 +6,9 @@ namespace App\Command\Test;
 
 use App\Entity\Label\Label;
 use App\Entity\Mail\Mailbox;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -32,6 +32,10 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * sync would: for the folder tree under the account (#221). `--remove` takes
  * it away again, so a spec leaves the shared account's folder list as it found
  * it (account-folders.spec.ts expects it empty).
+ *
+ * With `--name=<name>` it seeds a plain label of that name instead — a tag, in
+ * the sidebar's Labels list rather than under the account — and `--remove`
+ * takes that away too. For a label whose name does not fit the sidebar (#699).
  *
  * Mirrors what LabelController::new persists: a Label with account + name
  * (+ colour), role left null (custom), everything else default. Fields are
@@ -66,7 +70,8 @@ final class SeedTestLabelCommand extends Command
         $this->configureUserOption();
         $this->addOption('folder', null, InputOption::VALUE_NONE, 'Seed "' . self::FOLDER_NAME . '", a folder on the account, instead');
         $this->addOption('path', null, InputOption::VALUE_REQUIRED, 'Seed a folder at this path ("/"-separated) instead');
-        $this->addOption('remove', null, InputOption::VALUE_NONE, 'With --path: take that folder and its label away again');
+        $this->addOption('name', null, InputOption::VALUE_REQUIRED, 'Seed a plain label with this name instead');
+        $this->addOption('remove', null, InputOption::VALUE_NONE, 'With --path or --name: take that folder or label away again');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -101,9 +106,11 @@ final class SeedTestLabelCommand extends Command
 
         $path     = $input->getOption('path');
         $path     = is_string($path) && '' !== $path ? $path : null;
+        $named    = $input->getOption('name');
+        $named    = is_string($named) && '' !== $named ? $named : null;
         $folder   = null !== $path || true === $input->getOption('folder');
         $segments = null !== $path ? explode('/', $path) : [];
-        $name     = null !== $path ? (string) end($segments) : ($folder ? self::FOLDER_NAME : self::LABEL_NAME);
+        $name     = null !== $path ? (string) end($segments) : ($named ?? ($folder ? self::FOLDER_NAME : self::LABEL_NAME));
         $parent   = count($segments) > 1
             ? $this->labelRepository->findOneBy(['usr' => $user, 'name' => $segments[count($segments) - 2]])
             : null;
@@ -112,7 +119,7 @@ final class SeedTestLabelCommand extends Command
             'name' => $name,
         ]);
 
-        if (null !== $path && true === $input->getOption('remove')) {
+        if ((null !== $path || null !== $named) && true === $input->getOption('remove')) {
             $mailbox = null !== $label ? $label->bindingFor($account)?->mailbox : null;
 
             if (null !== $mailbox) {
@@ -124,7 +131,7 @@ final class SeedTestLabelCommand extends Command
             }
 
             $this->entityManager->flush();
-            $io->success(sprintf('Removed folder "%s".', $path));
+            $io->success(sprintf('Removed "%s".', $path ?? $named));
 
             return Command::SUCCESS;
         }

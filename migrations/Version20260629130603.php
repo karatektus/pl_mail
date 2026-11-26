@@ -14,7 +14,7 @@ final class Version20260629130603 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Store a message\'s References as JSON';
     }
 
     public function up(Schema $schema): void

@@ -44,7 +44,8 @@ final class MailFixtures
         EntityManagerInterface $em,
         User $user,
         ?string $username = null,
-        bool $isActive = true,
+        bool $mailEnabled = true,
+        ?bool $sendEnabled = null,
     ): Account {
         $account = new Account();
         $account->usr = $user;
@@ -59,7 +60,10 @@ final class MailFixtures
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = $isActive;
+        $account->mailEnabled = $mailEnabled;
+        // Follows receiving unless told otherwise: a fixture switched off
+        // before #628 meant "mail off", and sending went with it then.
+        $account->sendEnabled = $sendEnabled ?? $mailEnabled;
 
         $em->persist($account);
         $em->flush();

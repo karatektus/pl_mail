@@ -1,4 +1,4 @@
-<!-- translated-from: providers/google.md sha1:b48c1f67e02a6658bb083369e5cd0a089c282cb2 -->
+<!-- translated-from: providers/google.md sha1:80c17a9000e38472801b16f4e8eb157b48fee9e3 -->
 
 # Google
 
@@ -319,6 +319,15 @@ und kann danach nicht mehr erneuern.
 **Der Kalenderzugriff kann auf einem Konto fehlen, dessen Mail einwandfrei läuft**, weil Googles
 Zustimmungsbildschirm das Abwählen erlaubt. Das Symptom ist ein Konto, das unter *Woher Kalender
 kommen* auftaucht, ohne Kalender daran. Verbinde es neu und lass das Häkchen gesetzt.
+
+**Signierte und verschlüsselte Mail geht über `smtp.gmail.com` raus, nicht über die Gmail-API.** Die
+API schreibt jede Nachricht neu, die sie verschickt, und für OpenPGP ist das fatal: Eine
+PGP/MIME-Nachricht kommt als gewöhnliche an, mit dem Geheimtext als Text, und das Programm auf der
+Empfangsseite kann sie nicht öffnen, während die Kopie unter Gesendet einwandfrei aussieht. Deshalb
+schickt plMail diese Nachrichten über Gmails SMTP-Server auf Port 465, angemeldet mit demselben
+OAuth-Token; alles andere geht weiter über die API. Ein Server, der Google nur über HTTPS erreichen
+darf, braucht zusätzlich den Weg nach `smtp.gmail.com:465`, sonst wartet signierte und
+verschlüsselte Mail von Gmail-Konten und schlägt dann fehl.
 
 **Die Calendar API zu aktivieren ist nicht dasselbe wie den Kalender-Scope hinzuzufügen**, und das
 eine ohne das andere scheitert auf zwei verschiedene Arten: der Scope ohne die API ist ein 403 bei

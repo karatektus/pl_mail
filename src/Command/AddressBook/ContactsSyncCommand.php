@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command\AddressBook;
 
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
-use App\Repository\AddressBook\AddressBookRepository;
+use App\Repository\AddressBook\AddressBook\AddressBookRepository;
 use App\Service\Demo\DemoMode;
 use DateTimeImmutable;
 use Symfony\Component\Console\Attribute\AsCommand;

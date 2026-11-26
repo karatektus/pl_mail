@@ -51,9 +51,10 @@ final class SmtpDsnFactory
         return sprintf(
             '%s://%s:%s@%s:%d',
             $scheme,
-            rawurlencode((string) $account->username),
-            // The sending password, which is the account's own unless it has
-            // been given a separate one. See Account::$sendingPassword.
+            // The sending username and password, which are the account's own
+            // unless it has been given separate ones (#660, #42). See
+            // Account::$sendingUsername and Account::$sendingPassword.
+            rawurlencode((string) $account->sendingUsername),
             rawurlencode((string) $account->sendingPassword),
             MailServerHost::forAuthority((string) $account->smtpHost),
             $port,

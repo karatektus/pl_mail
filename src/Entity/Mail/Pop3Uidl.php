@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Mail;
 
-use App\Repository\Mail\Pop3UidlRepository;
+use App\Repository\Mail\Pop3Uidl\Pop3UidlRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

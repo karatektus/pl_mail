@@ -12,7 +12,7 @@ use App\Entity\Mail\Account;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;

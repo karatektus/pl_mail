@@ -10,7 +10,7 @@ use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
-use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use App\Service\Integration\Driver\HttpLimits;
 use App\Service\Integration\IntegrationUrlValidator;
 use Psr\Log\LoggerInterface;

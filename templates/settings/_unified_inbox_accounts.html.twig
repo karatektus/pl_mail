@@ -23,8 +23,8 @@ Accepts:
     {% for account in accounts %}
         <li class="flex flex-wrap items-center gap-3 px-4 py-2.5" data-unified-inbox-account="{{ account.id }}">
             <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium {{ account.isActive ? 'text-ink' : 'text-ink-faint' }}">{{ account.displayAddress }}</p>
-                {% if not account.isActive %}
+                <p class="truncate text-sm font-medium {{ account.mailEnabled ? 'text-ink' : 'text-ink-faint' }}">{{ account.displayAddress }}</p>
+                {% if not account.mailEnabled %}
                     <p class="text-[11px] text-ink-faint">{{ 'settings.unified_inboxes.account_off'|trans }}</p>
                 {% endif %}
             </div>

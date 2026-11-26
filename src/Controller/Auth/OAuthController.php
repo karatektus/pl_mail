@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Controller\Auth;
 
+use App\Domain\Enum\Account\AccountService;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Exception\AccountIdentityMismatch;
+use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\OAuth\MicrosoftOAuthErrorTranslator;
 use App\Service\OAuth\OAuthAccountLinker;
@@ -53,20 +55,47 @@ class OAuthController extends AbstractController
      */
     private const string SESSION_RECONNECT = 'oauth2_reconnect_account';
 
+    /**
+     * The services the handshake is for (#575), kept beside the state for the
+     * reconnect id's reason: what comes back from the provider is the user's
+     * to edit, and the scopes asked for and the switches set afterwards have
+     * to be the same list.
+     */
+    private const string SESSION_SERVICES = 'oauth2_account_services';
+
     #[Route('/{provider}/connect', name: 'connect', methods: ['GET'])]
     public function connect(string $provider, Request $request): RedirectResponse
     {
         $mailProvider = $this->resolveProvider($provider);
         $client       = $this->providerFactory->create($mailProvider);
+        $reconnecting = $this->reconnectTarget($request);
+
+        // What the account is for: the ticks on the add-account panel, or the
+        // switch being turned on that needs a wider grant. A reconnect that
+        // names nothing keeps the account to what it already does — or, for
+        // one switched off entirely, to everything, which is what a reconnect
+        // meant before there was a choice.
+        $services = $request->query->all('services');
+
+        if ([] === $services && null !== $reconnecting && [] !== $reconnecting->services) {
+            $services = $reconnecting->services;
+        } else {
+            $services = AccountService::fromList($services);
+        }
 
         $options = array_merge(
-            ['scope' => $mailProvider->scopes()],
+            ['scope' => $mailProvider->scopesFor($services)],
             $mailProvider->authorizationUrlOptions(),
         );
 
         $authUrl = $client->getAuthorizationUrl($options);
 
         $this->stateStore->remember($request->getSession(), self::SESSION_NAMESPACE, $client->getState());
+
+        $request->getSession()->set(
+            self::SESSION_SERVICES,
+            array_map(static fn (AccountService $service): string => $service->value, $services),
+        );
 
         // Reconnect mode. The health page sends the account it wants repaired;
         // everything else omits it and gets the original find-or-create
@@ -79,18 +108,8 @@ class OAuthController extends AbstractController
         $session = $request->getSession();
         $session->remove(self::SESSION_RECONNECT);
 
-        $reconnect = $request->query->getInt('reconnect');
-
-        if (0 !== $reconnect) {
-            $account = $this->accounts->find($reconnect);
-
-            if (null === $account) {
-                throw $this->createAccessDeniedException();
-            }
-
-            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
-
-            $session->set(self::SESSION_RECONNECT, (int) $account->id);
+        if (null !== $reconnecting) {
+            $session->set(self::SESSION_RECONNECT, (int) $reconnecting->id);
         }
 
         return new RedirectResponse($authUrl);
@@ -183,15 +202,17 @@ class OAuthController extends AbstractController
 
         $session   = $request->getSession();
         $reconnect = $session->get(self::SESSION_RECONNECT);
+        $services  = AccountService::fromList((array) $session->get(self::SESSION_SERVICES, []));
 
         // Single-use, like the state itself: a repair intent left in the
         // session would be picked up by the next ordinary "add an account"
         // handshake and silently turn it into an overwrite.
         $session->remove(self::SESSION_RECONNECT);
+        $session->remove(self::SESSION_SERVICES);
 
         if (false === is_int($reconnect)) {
-            $this->accountLinker->link($user, $mailProvider, $email, $token);
-            $this->warnIfCalendarWasDeclined($mailProvider, $token);
+            $this->accountLinker->link($user, $mailProvider, $email, $token, $services);
+            $this->warnIfCalendarWasDeclined($mailProvider, $token, $services);
 
             return $this->redirectToRoute($this->landingRoute());
         }
@@ -203,7 +224,7 @@ class OAuthController extends AbstractController
         }
 
         try {
-            $this->accountLinker->relink($account, $mailProvider, $email, $token);
+            $this->accountLinker->relink($account, $mailProvider, $email, $token, $services);
         } catch (AccountIdentityMismatch $e) {
             // Refused, not resolved. Falling back to link() here would create a
             // second account for the address they actually signed in as, which
@@ -219,19 +240,42 @@ class OAuthController extends AbstractController
                 '%actual%'   => $e->actual,
             ]));
 
-            return $this->redirectToRoute('app_settings_index', ['section' => 'health']);
+            return $this->redirectToRoute('app_settings_page', ['page' => 'health']);
         }
 
         $this->addFlash('success', $this->translator->trans('settings.health.reconnect.done', [
             '%account%' => $account->email,
         ]));
 
-        $this->warnIfCalendarWasDeclined($mailProvider, $token);
+        $this->warnIfCalendarWasDeclined($mailProvider, $token, $services);
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'health']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'health']);
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The account a reconnect names, ownership proven, or null for an
+     * ordinary connect.
+     */
+    private function reconnectTarget(Request $request): ?Account
+    {
+        $reconnect = $request->query->getInt('reconnect');
+
+        if (0 === $reconnect) {
+            return null;
+        }
+
+        $account = $this->accounts->find($reconnect);
+
+        if (null === $account) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
+        return $account;
+    }
 
     /**
      * Say so NOW when the calendar permission was asked for and not given.
@@ -263,9 +307,19 @@ class OAuthController extends AbstractController
      * MailProvider::scopes(), which says so — and its token response spells
      * scopes differently enough that comparing them would invent a warning
      * where there is no problem.
+     *
+     * Only when the calendar was asked for (#575): an account connected for
+     * mail alone was never meant to get it, and telling its owner the
+     * calendar was "declined" would be telling them off for their own choice.
+     *
+     * @param list<AccountService> $services
      */
-    private function warnIfCalendarWasDeclined(MailProvider $provider, AccessTokenInterface $token): void
+    private function warnIfCalendarWasDeclined(MailProvider $provider, AccessTokenInterface $token, array $services): void
     {
+        if (false === in_array(AccountService::Calendar, $services, true)) {
+            return;
+        }
+
         $granted = $token->getValues()['scope'] ?? null;
 
         if (false !== $provider->grantsCalendarAccess(is_string($granted) ? $granted : null)) {

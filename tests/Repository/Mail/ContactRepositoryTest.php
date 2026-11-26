@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Repository\Mail;
 
 use App\Entity\User\User;
-use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\Contact\ContactRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

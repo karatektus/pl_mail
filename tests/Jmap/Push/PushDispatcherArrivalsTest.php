@@ -13,8 +13,8 @@ use App\Entity\User\User;
 use App\Jmap\Protocol\StateChangeBuilder;
 use App\Jmap\Push\PushDispatcher;
 use App\Jmap\Push\PushSenderRegistry;
-use App\Repository\User\PushSubscriptionRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\User\PushSubscription\PushSubscriptionRepository;
+use App\Repository\User\User\UserRepository;
 use App\Tests\Jmap\JmapTestCase;
 use Psr\Log\NullLogger;
 
@@ -240,7 +240,7 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
         $this->em->flush();
 

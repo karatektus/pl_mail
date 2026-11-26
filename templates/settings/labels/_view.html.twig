@@ -1,0 +1,48 @@
+{#
+settings/labels/_view.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The body of the "Labels in the sidebar" card: how the sidebar lists labels. Two
+On/Off switches posted by settings--toggle (LabelSettingsController), each
+with a sentence saying what On does.
+
+They used to be two icon buttons in the label list's header, a control found
+nowhere else in Settings, with a tooltip as their only explanation. Folders in
+Labels stays on screen while By account is on rather than disappearing: its
+sentence says it is about the merged list, and a setting that vanishes when
+another one is switched is a setting people think they have lost.
+
+Accepts nothing: reads the signed-in user.
+#}
+{% import '_partials/_segmented.html.twig' as seg %}
+
+<div class="px-4 py-3 space-y-3"
+     data-controller="settings--toggle"
+     data-settings--toggle-url-value="{{ path('settings_labels_view_toggle') }}"
+     data-settings--toggle-token-value="{{ csrf_token('labels_view_toggle') }}">
+
+    {% for row in [
+        { key: 'by_account',        icon: 'fa-solid fa-at',     on: app.user.labelsByAccount },
+        { key: 'folders_in_labels', icon: 'fa-solid fa-folder', on: app.user.foldersInLabels },
+    ] %}
+        {% set name = ('settings.labels.' ~ row.key ~ '.title')|trans %}
+        <div class="flex items-start justify-between gap-3" data-label-view="{{ row.key }}">
+            <span class="flex items-start gap-3 min-w-0">
+                <i class="{{ row.icon }} w-4 text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                <span class="min-w-0">
+                    <span class="block text-xs font-medium text-ink-muted">{{ name }}</span>
+                    <span class="block text-[11px] text-ink-faint mt-0.5">{{ ('settings.labels.' ~ row.key ~ '.hint')|trans }}</span>
+                </span>
+            </span>
+
+            {{ seg.control('labels-' ~ row.key, [
+                { value: '1', label: 'settings.labels.seg.on'|trans },
+                { value: '0', label: 'settings.labels.seg.off'|trans },
+            ], row.on ? '1' : '0', {
+                label:  name,
+                width:  'w-28 shrink-0',
+                action: 'change->settings--toggle#toggle',
+                data:   { key: row.key },
+            }) }}
+        </div>
+    {% endfor %}
+</div>

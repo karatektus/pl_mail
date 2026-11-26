@@ -38,6 +38,9 @@ Nothing about it is hidden from the person sending it.
 
         <fieldset class="space-y-2">
             <legend class="mb-2 text-xs font-medium text-ink-muted">{{ 'whats_new.feedback.rating.label'|trans }}</legend>
+            {# Separate pills that wrap, not _partials/_segmented.html.twig's
+               strip: a question in a dialog, answered on a phone as often as
+               not, wants 44px targets and room for a sentence-long answer. #}
             <div class="flex flex-wrap gap-2">
                 {% for value in ['better', 'same', 'worse'] %}
                     <label>

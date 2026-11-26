@@ -8,7 +8,7 @@ use App\Domain\Enum\Crypto\AddressKeyOrigin;
 use App\Domain\Enum\Crypto\AddressKeyStatus;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Crypto\AddressKeyRepository;
+use App\Repository\Crypto\AddressKey\AddressKeyRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;

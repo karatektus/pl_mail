@@ -11,6 +11,8 @@ use App\Domain\Enum\Template\TemplateVariable;
 use App\Entity\Template\MailTemplate;
 use App\Entity\Template\TemplateFolder;
 use App\Entity\User\User;
+use App\Repository\Template\MailTemplate\MailTemplateRepository;
+use App\Repository\Template\TemplateFolder\TemplateFolderRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\ComposeWindow;
 use App\Service\Mail\MailBodySanitizer;
@@ -68,6 +70,8 @@ final class TemplateController extends AbstractController
         private readonly ComposeWindow          $window,
         private readonly EntityManagerInterface $em,
         private readonly TranslatorInterface    $translator,
+        private readonly MailTemplateRepository $mailTemplateRepository,
+        private readonly TemplateFolderRepository $templateFolderRepository,
     ) {
     }
 
@@ -109,7 +113,7 @@ final class TemplateController extends AbstractController
 
         $user     = $this->currentUser();
         $id       = (string) $request->request->get('id', '');
-        $template = '' === $id ? new MailTemplate() : $this->em->find(MailTemplate::class, (int) $id);
+        $template = '' === $id ? new MailTemplate() : $this->mailTemplateRepository->find((int) $id);
 
         if (null === $template) {
             throw $this->createNotFoundException();
@@ -282,7 +286,7 @@ final class TemplateController extends AbstractController
         $user   = $this->currentUser();
         $id     = (string) $request->request->get('id', '');
         $name   = $this->line($request->request->get('name'));
-        $folder = '' === $id ? null : $this->em->find(TemplateFolder::class, (int) $id);
+        $folder = '' === $id ? null : $this->templateFolderRepository->find((int) $id);
 
         if ('' !== $id) {
             if (null === $folder) {

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Monitoring;
 
 use App\Entity\Monitoring\ClientError;
-use App\Repository\Monitoring\ClientErrorRepository;
+use App\Repository\Monitoring\ClientError\ClientErrorRepository;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 

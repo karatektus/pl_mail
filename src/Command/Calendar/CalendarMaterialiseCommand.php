@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Calendar;
 
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use App\Service\Calendar\RecurrenceMaterialiser;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;

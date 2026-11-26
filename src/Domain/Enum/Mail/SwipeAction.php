@@ -41,6 +41,12 @@ enum SwipeAction: string
     case Star = 'star';
 
     /**
+     * Pin or unpin the conversation (#654). Leaves the row in the list — it
+     * moves to the top, or back among the rest — so it is a toggle like Star.
+     */
+    case Pin = 'pin';
+
+    /**
      * Move the row to the bin. Its Undo toast is the server's, as archive's is.
      * Never purge: a swipe must not end in the one action nothing undoes.
      */
@@ -59,6 +65,7 @@ enum SwipeAction: string
             self::ReadUnread => 'app_status_mark_read',
             self::Archive    => 'app_status_archive',
             self::Star       => 'app_status_star',
+            self::Pin        => 'app_status_pin',
             self::Trash      => 'app_status_trash',
             self::None       => null,
         };
@@ -87,6 +94,7 @@ enum SwipeAction: string
         return match ($this) {
             self::ReadUnread => true,
             self::Star       => true,
+            self::Pin        => true,
             self::Archive    => false,
             self::Trash      => false,
             self::None       => false,
@@ -98,12 +106,13 @@ enum SwipeAction: string
      * read label names what pressing it will do, which is the opposite of what
      * the row is, and the star label does the same, so both take the state.
      */
-    public function labelKey(bool $unread, bool $starred): ?string
+    public function labelKey(bool $unread, bool $starred, bool $pinned = false): ?string
     {
         return match ($this) {
             self::ReadUnread => $unread ? 'thread_row.actions.mark_read' : 'thread_row.actions.mark_unread',
             self::Archive    => 'thread_row.actions.archive',
             self::Star       => $starred ? 'thread_row.unstar' : 'thread_row.star',
+            self::Pin        => $pinned ? 'thread_row.unpin' : 'thread_row.pin',
             self::Trash      => 'thread_row.actions.delete',
             self::None       => null,
         };
@@ -114,12 +123,13 @@ enum SwipeAction: string
      * strip draws the same action: an open envelope to mark read, a closed one
      * to mark unread, and a solid star only once starred.
      */
-    public function icon(bool $unread, bool $starred): ?string
+    public function icon(bool $unread, bool $starred, bool $pinned = false): ?string
     {
         return match ($this) {
             self::ReadUnread => $unread ? 'fa-solid fa-envelope-open' : 'fa-solid fa-envelope',
             self::Archive    => 'fa-solid fa-box-archive',
             self::Star       => $starred ? 'fa-solid fa-star' : 'fa-regular fa-star',
+            self::Pin        => 'fa-solid fa-thumbtack',
             self::Trash      => 'fa-solid fa-trash',
             self::None       => null,
         };
@@ -137,6 +147,10 @@ enum SwipeAction: string
             self::ReadUnread => true,
             self::Archive    => true,
             self::Trash      => true,
+            // Not in the bin or spam, which take pins off (#654). The row's
+            // own thumbtack is offered in the archive too; the swipe keeps to
+            // the ordinary place like Archive beside it.
+            self::Pin        => true,
             self::Star       => false,
             self::None       => false,
         };
@@ -152,6 +166,8 @@ enum SwipeAction: string
         return match ($this) {
             self::ReadUnread => true,
             self::Archive    => true,
+            // A draft is not a conversation anybody reads from the top of a list.
+            self::Pin        => true,
             self::Trash      => false,
             self::Star       => false,
             self::None       => false,
@@ -170,6 +186,7 @@ enum SwipeAction: string
             self::ReadUnread => ['read' => $unread],
             self::Archive    => [],
             self::Star       => [],
+            self::Pin        => [],
             self::Trash      => [],
             self::None       => [],
         };

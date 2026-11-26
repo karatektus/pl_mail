@@ -7,7 +7,7 @@ namespace App\Tests\Controller\Calendar;
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Entity\Calendar\Calendar;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\DBAL\Connection;
@@ -80,7 +80,7 @@ final class CalendarZoneFollowTest extends WebTestCase
     {
         $client = $this->signIn();
 
-        $crawler = $client->request('GET', '/settings?section=calendars');
+        $crawler = $client->request('GET', '/settings/calendars');
 
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('Follows plMail', $crawler->filter('body')->text());

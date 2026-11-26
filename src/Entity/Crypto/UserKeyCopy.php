@@ -6,7 +6,7 @@ namespace App\Entity\Crypto;
 
 use App\Domain\Enum\Crypto\UserKeyCopyKind;
 use App\Domain\Trait\TimestampableTrait;
-use App\Repository\Crypto\UserKeyCopyRepository;
+use App\Repository\Crypto\UserKeyCopy\UserKeyCopyRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

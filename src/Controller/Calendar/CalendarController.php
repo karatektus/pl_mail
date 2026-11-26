@@ -11,12 +11,15 @@ use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Helper\DefaultEventStart;
+use App\Domain\Helper\EventColor;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\EventSourceLink;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
+use App\Repository\Calendar\EventSourceLink\EventSourceLinkRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\CalendarEventWriter;
@@ -40,7 +43,6 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
-use App\Repository\Calendar\EventSourceLinkRepository;
 
 /**
  * The calendar, in its two shapes.
@@ -111,6 +113,7 @@ final class CalendarController extends AbstractController
         private readonly TranslatorInterface    $translator,
         private readonly EntityManagerInterface $em,
         private readonly EventSourceLinkRepository $sourceLinks,
+        private readonly CalendarEventRepository $calendarEventRepository,
     ) {
     }
 
@@ -498,6 +501,9 @@ final class CalendarController extends AbstractController
             AlertAction::fromJsCalendar($request->request->getString('alertCustomAction') ?: null),
         );
 
+        // One answer for every copy, like the alerts: the picker is one control.
+        $color = $this->postedColor($request, $event);
+
         // What the meeting said before this save, taken once from the event the
         // editor was opened on. Null for a brand-new event, which has nothing
         // to have been corrected — see where this is read, below the write.
@@ -555,6 +561,12 @@ final class CalendarController extends AbstractController
                 // A per-instance edit is always a real edit: there is no way to
                 // reach this branch except by moving or renaming one occurrence.
                 $this->writer->markUserEdited($copy);
+
+                // The colour is the series', whichever scope was chosen — see
+                // CalendarEventWriter::recolor().
+                if (null !== $color) {
+                    $this->writer->recolor($copy, $color);
+                }
 
                 $this->instances->edit(
                     $copy,
@@ -618,6 +630,7 @@ final class CalendarController extends AbstractController
                 // from not asking, and a reminder could be set but never
                 // cleared.
                 alerts:         $alerts,
+                color:          $color,
             );
 
             // Only where the save actually changed the meeting.
@@ -1071,6 +1084,10 @@ final class CalendarController extends AbstractController
      * reach — and a strict comparison of the two would call every save an
      * edit, which is the behaviour this replaced.
      *
+     * Nor its colour (#616). Colouring an invitation is filing it, not
+     * correcting it, and marking it edited would stop the organiser's next
+     * update from being applied.
+     *
      * Also not included: the calendar a copy is on, its sync state, its remote
      * id. Those are what a save legitimately changes when somebody ticks
      * another box, and treating them as content is the mistake itself.
@@ -1102,9 +1119,43 @@ final class CalendarController extends AbstractController
         ];
     }
 
+    /**
+     * The colour a save means, as CalendarEventWriter takes it.
+     *
+     * The picker posts one of three things. '' is "Calendar colour", which
+     * clears the event's own. A CSS name is a pick. Anything else is the stored
+     * value coming back untouched — a hex or an unknown name some other client
+     * wrote, which the picker cannot offer and must not lose — and it is kept
+     * verbatim, so a copy this save creates on another calendar gets it too. A
+     * value that is none of those (a crafted post) is no opinion: null, and
+     * every copy keeps what it has.
+     */
+    private function postedColor(Request $request, ?CalendarEvent $event): ?string
+    {
+        if (false === $request->request->has('color')) {
+            return null;
+        }
+
+        $posted = trim($request->request->getString('color'));
+
+        if ('' === $posted) {
+            return CalendarEventWriter::NO_COLOR;
+        }
+
+        $name = EventColor::nameOf($posted);
+
+        if (null !== $name) {
+            return $name;
+        }
+
+        $stored = $event?->jscalendar['color'] ?? null;
+
+        return true === is_string($stored) && trim($stored) === $posted ? $posted : null;
+    }
+
     private function ownedEvent(int $id): CalendarEvent
     {
-        $event = $this->em->getRepository(CalendarEvent::class)->find($id);
+        $event = $this->calendarEventRepository->find($id);
 
         if (null === $event) {
             throw $this->createNotFoundException();
@@ -1222,6 +1273,7 @@ final class CalendarController extends AbstractController
             'description'  => $request->request->getString('description'),
             'isAllDay'     => $request->request->getBoolean('isAllDay'),
             'repeat'       => $request->request->getString('repeat'),
+            'color'        => $request->request->getString('color'),
             'scope'        => $request->request->getString('scope'),
             'timeZone'     => $zoneName,
             // The clock the two fields are printed on. The values above were

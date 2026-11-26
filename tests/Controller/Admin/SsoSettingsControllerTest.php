@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Admin;
 
 use App\Entity\User\User;
-use App\Repository\Oidc\OidcConfigRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Oidc\OidcConfig\OidcConfigRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;

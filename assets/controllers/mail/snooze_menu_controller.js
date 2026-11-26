@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
-import { snoozeOptions } from "../../snooze_options.js";
+import { fromWallClock, snoozeOptions, toWallClock } from "../../snooze_options.js";
 import { prefersHour12 } from "../../clock_format.js";
 
 /**
@@ -16,6 +16,14 @@ import { prefersHour12 } from "../../clock_format.js";
  *
  * Options are recomputed on every open rather than once on connect. A list left
  * open across midnight would otherwise offer a "tomorrow" that is today.
+ *
+ * "Pick a date and time" (#342) is the same arrangement with the user choosing
+ * the instant: it unfolds calendar--when — the picker compose's "send later"
+ * and the event editor draw — and its confirm button carries the chosen moment
+ * as the same `until` param a preset does, so it posts through the very same
+ * handler on every surface. The one thing added on top is the refusal of a
+ * moment already gone, which runs as the button's first action and stops the
+ * surface's own from running at all.
  */
 /**
  * One formatter per shape, kept: `toLocaleString` with options builds a new
@@ -45,7 +53,13 @@ function formatter(withDate) {
 }
 
 export default class extends Controller {
-    static targets = ["option"];
+    static targets = ["option", "toggle", "custom", "input", "confirm", "error"];
+
+    static values = {
+        // Translated server-side, as every string this app writes from
+        // JavaScript is.
+        past: { type: String, default: "That time has already passed." },
+    };
 
     // No connect(). It used to refresh here as well as on every open, and the
     // menu is never seen until it is opened — every surface opens it through
@@ -71,21 +85,7 @@ export default class extends Controller {
             }
 
             element.hidden = false;
-
-            // setAttribute, not dataset: the identifiers contain a double dash
-            // ("mail--message-row"), which has no faithful camelCase form and
-            // so cannot be round-tripped through the dataset API.
-            //
-            // All are set unconditionally. Only one has a controller listening
-            // on any given surface, and the unused attribute is inert — cheaper
-            // than teaching this controller which surface it is on. The last one
-            // but one is the long-press sheet's, which posts its own captured
-            // URL, and the last is the list rows' shared menu (mail--row-menus).
-            element.setAttribute("data-mail--message-row-until-param", at.toISOString());
-            element.setAttribute("data-mail--list-toolbar-until-param", at.toISOString());
-            element.setAttribute("data-mail--message-actions-until-param", at.toISOString());
-            element.setAttribute("data-mail--action-sheet-until-param", at.toISOString());
-            element.setAttribute("data-mail--row-menus-until-param", at.toISOString());
+            this.#until(element, at);
 
             const when = element.querySelector("[data-snooze-when]");
 
@@ -93,9 +93,145 @@ export default class extends Controller {
                 when.textContent = this.#format(at);
             }
         }
+
+        this.#fold();
+    }
+
+    /**
+     * "Pick a date and time": unfold the picker in place. The menu stays open —
+     * the toggle carries none of the surface's actions, so neither the dropdown
+     * nor the shared row menu closes on it.
+     */
+    showCustom(event) {
+        event?.preventDefault();
+
+        if (false === this.hasCustomTarget) {
+            return;
+        }
+
+        this.#bound();
+
+        // Seeded with "Tomorrow" — 08:00, the hour every preset that lands on
+        // a later day uses — so choosing only a day is one tap: the strip keeps
+        // the time of day when the day changes.
+        if (null === fromWallClock(this.inputTarget.value)) {
+            const tomorrow = snoozeOptions().find(({ key }) => "tomorrow" === key);
+
+            this.inputTarget.value = toWallClock(tomorrow.at);
+        }
+
+        this.customTarget.hidden = false;
+        this.toggleTarget.hidden = true;
+        // The presets step aside while the picker is up (the menu's
+        // `[data-picking]` rule in _snooze_menu.html.twig).
+        this.element.setAttribute("data-picking", "");
+        this.#clearError();
+        this.changed();
+
+        // The shared row menu is placed by its host from its size, which just
+        // grew; the lifted dropdowns already measure with this part unfolded
+        // (data-place-reserve).
+        this.dispatch("expanded");
+
+        this.inputTarget.focus();
+    }
+
+    /**
+     * The picker moved: the confirm button now means that moment, and a
+     * refusal of the last one no longer applies to it.
+     */
+    changed() {
+        this.#clearError();
+
+        const at = fromWallClock(this.inputTarget.value);
+
+        if (null !== at) {
+            this.#until(this.confirmTarget, at);
+        }
+    }
+
+    /**
+     * First of the confirm button's actions. A moment already gone is refused
+     * here and the surface's own action never runs — stopImmediatePropagation
+     * is how Stimulus is told to skip the rest of an element's actions.
+     *
+     * Not a rule the server needs: a past instant only means the next sweep
+     * wakes it (ThreadSnoozeService::snooze). It is refused because nobody
+     * means it — it is a picker left on a time that has since passed.
+     */
+    confirm(event) {
+        const at = fromWallClock(this.inputTarget.value);
+
+        if (null === at || at <= new Date()) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            this.errorTarget.textContent = this.pastValue;
+            this.errorTarget.hidden = false;
+
+            return;
+        }
+
+        this.#until(this.confirmTarget, at);
     }
 
     // ── Private ───────────────────────────────────────────────────────────
+
+    /**
+     * The wake time as every surface's param.
+     *
+     * setAttribute, not dataset: the identifiers contain a double dash
+     * ("mail--message-row"), which has no faithful camelCase form and so cannot
+     * be round-tripped through the dataset API.
+     *
+     * All are set unconditionally. Only one has a controller listening on any
+     * given surface, and the unused attribute is inert — cheaper than teaching
+     * this controller which surface it is on. The last one but one is the
+     * long-press sheet's, which posts its own captured URL, and the last is the
+     * list rows' shared menu (mail--row-menus).
+     */
+    #until(element, at) {
+        const iso = at.toISOString();
+
+        element.setAttribute("data-mail--message-row-until-param", iso);
+        element.setAttribute("data-mail--list-toolbar-until-param", iso);
+        element.setAttribute("data-mail--message-actions-until-param", iso);
+        element.setAttribute("data-mail--action-sheet-until-param", iso);
+        element.setAttribute("data-mail--row-menus-until-param", iso);
+    }
+
+    /**
+     * Every open starts from the presets again, the picker folded and empty.
+     * A menu reopened for another conversation must not offer the moment chosen
+     * for the last one, nor its refusal.
+     */
+    #fold() {
+        if (false === this.hasCustomTarget) {
+            return;
+        }
+
+        this.customTarget.hidden = true;
+        this.toggleTarget.hidden = false;
+        this.element.removeAttribute("data-picking");
+        this.inputTarget.value = "";
+        this.#clearError();
+    }
+
+    /**
+     * Nothing before now. calendar--when greys out what lies below `min`, and
+     * moves a pick that would land there to the next five minutes. Set on every
+     * unfold, because "now" is the one bound that moves while the menu is open.
+     */
+    #bound() {
+        this.inputTarget.min = toWallClock(new Date());
+    }
+
+    #clearError() {
+        if (true === this.hasErrorTarget) {
+            this.errorTarget.textContent = "";
+            this.errorTarget.hidden = true;
+        }
+    }
 
     /**
      * Put the options on screen in the order they will actually happen.

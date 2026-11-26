@@ -7,9 +7,11 @@ namespace App\Service\Mail;
 use App\Domain\Exception\GmailApiException;
 use App\Domain\Exception\GmailPermanentException;
 use App\Domain\Exception\GmailThrottledException;
+use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\OAuth\OAuthTokenManager;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -25,7 +27,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 final class GmailApiClient
 {
     private const BASE  = 'https://gmail.googleapis.com/gmail/v1/users/me';
-    private const BATCH = 'https://www.googleapis.com/batch/gmail/v1';
+    private const string BATCH = 'https://www.googleapis.com/batch/gmail/v1';
 
     /**
      * Gmail reports quota rejections as 403, not 429 — the status alone cannot
@@ -65,6 +67,7 @@ final class GmailApiClient
     ];
 
     public function __construct(
+        #[Target('gmail.client')]
         private readonly HttpClientInterface $httpClient,
         private readonly OAuthTokenManager  $tokenManager,
         private readonly GmailQuotaPacer    $pacer,
@@ -83,17 +86,71 @@ final class GmailApiClient
      *
      * A network failure is left as the HttpClient's TransportException, for
      * GmailApiSender to tell "never left" from "answer lost".
+     *
+     * $threadId puts the mail in that Gmail thread. Gmail does not work it out
+     * from In-Reply-To and References for a send the way it does for mail it
+     * receives: without the id a reply starts a thread of its own, and the
+     * other side's answer follows it there (#676).
+     *
+     * Answers the Gmail id of the sent message, or null if Gmail named none.
      */
-    public function sendRaw(Account $account, string $raw): void
+    public function sendRaw(Account $account, string $raw, ?string $threadId = null): ?string
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
+        $body = ['raw' => $raw];
+
+        if (null !== $threadId && '' !== $threadId) {
+            $body['threadId'] = $threadId;
+        }
+
         $response = $this->httpClient->request('POST', self::BASE . '/messages/send', [
             'auth_bearer' => $token,
-            'json'        => ['raw' => $raw],
+            'json'        => $body,
         ]);
 
         $this->assertSuccess($account, $response, 'messages.send');
+
+        // The mail has left. An answer that will not decode is a missing id,
+        // not a failure: thrown from here it would be taken for a send that
+        // did not go, and the mail sent again.
+        try {
+            $id = $response->toArray(false)['id'] ?? null;
+        } catch (HttpException) {
+            return null;
+        }
+
+        return true === is_string($id) && '' !== $id ? $id : null;
+    }
+
+    /**
+     * The Message-ID header of one message, as Gmail holds it: bare, or null
+     * when it has none.
+     *
+     * For a message plMail has just sent (#702): Gmail replaces the
+     * Message-ID of mail sent through messages.send, and the send's answer
+     * carries only the Gmail id, so the header is read back with this.
+     * format=metadata with the one header asked for, the smallest answer
+     * messages.get gives.
+     */
+    public function getMessageIdHeader(Account $account, string $gmailId): ?string
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        $response = $this->httpClient->request('GET', self::BASE . '/messages/' . urlencode($gmailId), [
+            'auth_bearer' => $token,
+            'query'       => ['format' => 'metadata', 'metadataHeaders' => 'Message-ID'],
+        ]);
+
+        foreach ($this->decode($account, $response, 'messages.get')['payload']['headers'] ?? [] as $header) {
+            if (true === is_array($header) && 'message-id' === strtolower((string) ($header['name'] ?? ''))) {
+                $value = MessageIdHelper::normalise((string) ($header['value'] ?? ''));
+
+                return '' !== $value ? $value : null;
+            }
+        }
+
+        return null;
     }
 
     /**

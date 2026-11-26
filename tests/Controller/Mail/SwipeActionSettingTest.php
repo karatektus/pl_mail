@@ -18,7 +18,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  * Two selects, one per direction, each saved on its own. The claims worth
  * pinning: a POST changes only the direction it names; a value that is not a
  * choice, purge among them, is refused and changes nothing, not even the valid
- * direction posted beside it; and the page offers exactly the five choices.
+ * direction posted beside it; and the page offers exactly the six choices.
  *
  * Every refusal has its companion in the same test: the same request with a
  * valid value changes the stored choice. An empty answer alone cannot tell a
@@ -149,9 +149,9 @@ final class SwipeActionSettingTest extends WebTestCase
         self::assertSame(SwipeAction::ReadUnread, $this->storedUser()->swipeRightAction, 'the other direction is untouched');
     }
 
-    public function testEachSelectOffersExactlyTheFiveChoicesAndNoPurge(): void
+    public function testEachSelectOffersExactlyTheSixChoicesAndNoPurge(): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=swipe-actions');
+        $crawler = $this->client->request('GET', '/settings/layout');
 
         self::assertResponseIsSuccessful();
 
@@ -159,7 +159,7 @@ final class SwipeActionSettingTest extends WebTestCase
             $values = $crawler->filter(sprintf('select[name="%s"] option', $name))
                 ->each(static fn ($option): string => (string) $option->attr('value'));
 
-            self::assertSame(['read_unread', 'archive', 'star', 'trash', 'none'], $values, sprintf('%s offers exactly the five choices', $name));
+            self::assertSame(['read_unread', 'archive', 'star', 'pin', 'trash', 'none'], $values, sprintf('%s offers exactly the six choices', $name));
         }
     }
 
@@ -167,7 +167,7 @@ final class SwipeActionSettingTest extends WebTestCase
     {
         $this->storeChoices(SwipeAction::Star, SwipeAction::None);
 
-        $crawler = $this->client->request('GET', '/settings?section=swipe-actions');
+        $crawler = $this->client->request('GET', '/settings/layout');
 
         self::assertSame('star', $crawler->filter('select[name="swipeRight"] option[selected]')->attr('value'));
         self::assertSame('none', $crawler->filter('select[name="swipeLeft"] option[selected]')->attr('value'));
@@ -175,18 +175,18 @@ final class SwipeActionSettingTest extends WebTestCase
 
     public function testTheNavigationListsSwipeActionsUnderMail(): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=swipe-actions');
+        $crawler = $this->client->request('GET', '/settings/layout');
 
         self::assertSame(
             1,
-            $crawler->filter('a[href*="section=swipe-actions"][aria-current="page"]')->count(),
+            $crawler->filter('a[href$="/settings/layout"][aria-current="page"]')->count(),
             'Swipe actions is a section of its own, and is the one marked as current',
         );
     }
 
     private function tokenFromPage(): string
     {
-        $crawler = $this->client->request('GET', '/settings?section=swipe-actions');
+        $crawler = $this->client->request('GET', '/settings/layout');
 
         return (string) $crawler->filter('form[action="/settings/swipe-actions"] input[name="_token"]')->first()->attr('value');
     }

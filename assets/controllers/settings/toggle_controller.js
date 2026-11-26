@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus";
 import { requestFailed } from "../../request_errors.js";
 
@@ -21,6 +22,11 @@ import { requestFailed } from "../../request_errors.js";
  * rows can happen for a real reason rather than a broken network: an
  * administrator switching a feature off while somebody has the page open makes
  * the server answer 409 to a request to switch it on.
+ *
+ * An endpoint that answers with Turbo Streams has them applied, so a switch
+ * whose effect is elsewhere on the page shows it at once: the label view
+ * switches redraw the sidebar (LabelSettingsController). Any other answer is
+ * only read for success, as before.
  *
  * Values:
  *   url    — where to POST
@@ -57,6 +63,12 @@ export default class extends Controller {
             // reason; the toast says why.
             if (requestFailed(response)) {
                 this.revert(segment);
+
+                return;
+            }
+
+            if ((response.headers.get("Content-Type") ?? "").includes("text/vnd.turbo-stream.html")) {
+                window.Turbo.renderStreamMessage(await response.text());
             }
         } catch (e) {
             requestFailed(null);

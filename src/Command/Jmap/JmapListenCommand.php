@@ -9,7 +9,7 @@ use App\Entity\Mail\Account;
 use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\JmapClient\JmapEventStream;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\JmapClient\JmapPushFanout;
 use App\Service\Monitoring\ProcessHeartbeatService;
 use App\Service\Monitoring\WorkerRestartSignal;

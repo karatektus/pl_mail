@@ -154,8 +154,12 @@ final readonly class ConfigBackupEnvironment
         'MICROSOFT_OAUTH_CLIENT_ID',
         'MICROSOFT_OAUTH_CLIENT_SECRET',
         'MICROSOFT_OAUTH_TENANT',
-        'INTEGRATIONS_ALLOW_HTTP',
-        'INTEGRATIONS_ALLOWED_HOSTS',
+        // INTEGRATIONS_ALLOW_HTTP and INTEGRATIONS_ALLOWED_HOSTS are gone from
+        // here because plMail no longer reads them: the servers it may reach
+        // on a private network are rows now, Admin → Integrations, and travel
+        // in the database section as trustedHosts (#564). An OLD backup that
+        // still carries them imports them into the secrets file like any
+        // unknown name, where they are inert.
         // TRUSTED_PROXIES is deliberately NOT here either, for DATABASE_URL's
         // reason: it describes what sits in front of this container, which is
         // the target machine's topology and not the installation's. It names

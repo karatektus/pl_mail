@@ -7,7 +7,7 @@ namespace App\Entity\Crypto;
 use App\Domain\Enum\Crypto\UserKeyStatus;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Crypto\UserKeyRepository;
+use App\Repository\Crypto\UserKey\UserKeyRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

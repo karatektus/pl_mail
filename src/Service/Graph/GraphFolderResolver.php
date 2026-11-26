@@ -6,7 +6,7 @@ namespace App\Service\Graph;
 
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Label\Label\LabelRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -51,7 +51,7 @@ final class GraphFolderResolver
                 return null;
             }
 
-            return $this->em->find(Label::class, $cachedId);
+            return $this->labelRepository->find($cachedId);
         }
 
         $label = $this->labelRepository->findOneByGraphFolderId($graphFolderId, $account);
@@ -100,7 +100,7 @@ final class GraphFolderResolver
                     continue;
                 }
 
-                $label = $this->em->find(Label::class, $cachedId);
+                $label = $this->labelRepository->find($cachedId);
 
                 if (null !== $label) {
                     $labels[] = $label;

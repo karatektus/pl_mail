@@ -118,7 +118,7 @@ final class AccountInboxTabsTest extends WebTestCase
         $this->thread(self::PRIMARY, MessageCategory::Primary);
         $this->thread(self::PROMOTION, MessageCategory::Promotions);
 
-        $links = $this->crawl()->filter('nav a[href*="/mail/account/"][href*="tab="]');
+        $links = $this->crawl()->filter('nav a[data-category-tab-link][href*="/mail/account/"]');
 
         self::assertGreaterThan(1, $links->count());
         self::assertSame(
@@ -243,6 +243,62 @@ final class AccountInboxTabsTest extends WebTestCase
         self::assertStringNotContainsString('data-count-key="senders:category:', $html);
     }
 
+    /**
+     * The unread count on a tab is THIS account's, and a link into that tab's
+     * unread mail (#670), as on the unified strip.
+     *
+     * Fixture: Promotions here holds one unread and one read conversation,
+     * Primary one unread; another account of the same reader holds two more
+     * unread promotions. The tab says 1, not 3 — the every-account figure is
+     * exactly what this strip must not show — and the link opens the one.
+     */
+    public function testEachTabCountsThisAccountsUnreadAndLinksToIt(): void
+    {
+        $this->thread(self::PRIMARY, MessageCategory::Primary, unread: 1);
+        $this->thread(self::PROMOTION, MessageCategory::Promotions, unread: 2);
+        $this->thread('Schon gelesen', MessageCategory::Promotions);
+
+        $here          = $this->account;
+        $this->account = $this->seedAccount();
+        $this->thread('Anderes Konto eins', MessageCategory::Promotions, unread: 1);
+        $this->thread('Anderes Konto zwei', MessageCategory::Promotions, unread: 1);
+        $this->account = $here;
+
+        $count = $this->crawl()->filter('[data-category-tab="promotions"] a[data-tab-unread]');
+
+        self::assertCount(1, $count, 'no count on the Promotions tab');
+        self::assertSame('1', trim($count->text()), 'conversations holding unread, in this account only');
+        self::assertNull($count->attr('data-count-key'), 'a key would let a sync write the every-account figure over it');
+
+        $href = (string) $count->attr('href');
+        parse_str((string) parse_url($href, PHP_URL_QUERY), $query);
+
+        self::assertStringStartsWith('/mail/account/' . $this->account->id, $href);
+        self::assertSame(['tab' => 'promotions', 'unread' => '1'], $query);
+
+        $opened = $this->accountHtml('?tab=promotions&unread=1');
+
+        self::assertStringContainsString(self::PROMOTION, $opened);
+        self::assertStringNotContainsString('Schon gelesen', $opened, 'the read one is not unread');
+        self::assertStringNotContainsString(self::PRIMARY, $opened, 'another tab');
+        self::assertStringNotContainsString('Anderes Konto', $opened, 'another account');
+    }
+
+    /**
+     * The count is a link of its own BESIDE the tab's link, not inside it: an
+     * <a> in an <a> is not markup a browser keeps.
+     */
+    public function testTheCountIsNotNestedInTheTabLink(): void
+    {
+        $this->thread(self::PRIMARY, MessageCategory::Primary, unread: 1);
+        $this->thread(self::PROMOTION, MessageCategory::Promotions, unread: 1);
+
+        $crawler = $this->crawl();
+
+        self::assertGreaterThan(0, $crawler->filter('[data-category-tab] a[data-tab-unread]')->count(), 'presence companion');
+        self::assertCount(0, $crawler->filter('a a'));
+    }
+
     // ── the reader's own categories ──────────────────────────────────────────
     //
     // The account page was taught the five built-in tabs and never the ones a
@@ -265,7 +321,7 @@ final class AccountInboxTabsTest extends WebTestCase
         self::assertStringContainsString(self::PRIMARY, $primary, 'presence companion: Primary lists its own mail');
         self::assertStringNotContainsString('Zahlung geaendert', $primary, 'a filed thread is listed under Primary too');
         self::assertContains('tab=c' . $payments->id, $this->tabQueries($this->crawl()), 'no tab for the category');
-        self::assertStringContainsString('Payments', $this->crawl()->filter('nav a[href*="tab=c' . $payments->id . '"]')->text());
+        self::assertStringContainsString('Payments', $this->crawl()->filter('nav a[data-category-tab-link][href*="tab=c' . $payments->id . '"]')->text());
 
         $own = $this->accountHtml('?tab=c' . $payments->id);
 
@@ -464,7 +520,7 @@ final class AccountInboxTabsTest extends WebTestCase
     private function tabQueries(Crawler $crawler): array
     {
         return $crawler
-            ->filter('nav a[href*="/mail/account/"]')
+            ->filter('nav a[data-category-tab-link][href*="/mail/account/"]')
             ->each(static fn (Crawler $node): string => (string) parse_url((string) $node->attr('href'), PHP_URL_QUERY));
     }
 

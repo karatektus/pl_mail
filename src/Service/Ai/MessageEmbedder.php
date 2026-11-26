@@ -9,7 +9,7 @@ use App\Domain\Helper\ReadableBody;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Crypto\DecryptedMailPolicy;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -51,7 +51,7 @@ final readonly class MessageEmbedder
      * ONE PERSON'S, BY CONSTRUCTION AND BY SIGNATURE
      * ──────────────────────────────────────────────
      * Both callers derive their ids from a per-user query
-     * (MessageRepository::unembeddedIdsForUser and ::idsForUserAfter), so the
+     * (MessageAiRepository::unembeddedIdsForUser and ::idsForUserAfter), so the
      * batch already belongs to one mailbox. The parameter makes that invariant
      * something a caller has to state rather than something a reader has to
      * discover — and it is what carries the per-user switch in, since this is

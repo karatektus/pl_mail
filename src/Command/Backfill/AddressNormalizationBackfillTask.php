@@ -6,8 +6,10 @@ namespace App\Command\Backfill;
 
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\ContactRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Contact\ContactRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
@@ -35,6 +37,7 @@ final readonly class AddressNormalizationBackfillTask implements BackfillTaskInt
 
     public function __construct(
         private MessageRepository      $messageRepository,
+        private MessageBackfillRepository $messageBackfillRepository,
         private ContactRepository      $contactRepository,
         private EntityManagerInterface $em,
     ) {}
@@ -47,6 +50,16 @@ final readonly class AddressNormalizationBackfillTask implements BackfillTaskInt
     public function getDescription(): string
     {
         return 'Strip RFC 5322 quoting from stored sender/recipient names and canonicalise addresses';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-07-30');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
     }
 
     public function run(SymfonyStyle $io): int
@@ -66,7 +79,7 @@ final readonly class AddressNormalizationBackfillTask implements BackfillTaskInt
         $changed = 0;
 
         while (true) {
-            $ids = $this->messageRepository->findIdsAfter($afterId, self::BATCH_SIZE);
+            $ids = $this->messageBackfillRepository->findIdsAfter($afterId, self::BATCH_SIZE);
 
             if (0 === count($ids)) {
                 break;

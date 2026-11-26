@@ -14,9 +14,11 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Label\LabelBindingRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Mail\Message\MessageJmapRepository;
 use App\Service\Mail\ReplyFromResolver;
+use App\Service\Mail\SenderPicture\SenderPictures;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
  * "Email/get" (RFC 8621 §4.2).
@@ -51,6 +53,19 @@ use App\Service\Mail\ReplyFromResolver;
  * something it does not read. A server that predates the property ignores the
  * name, as it ignores any it does not know, so a client asks unconditionally
  * and treats absent as null.
+ *
+ * A SECOND ONE: `senderPicture` (#639)
+ *
+ * The picture the web shows beside this Email's sender, as a path on this
+ * server under `/jmap/sender-picture/`, fetched with the same token as every
+ * other JMAP request — or null for initials. The same choice the web makes,
+ * from the same service (SenderPictures): another user's profile picture, a
+ * contact's photo, then what the background lookups found and this user
+ * allows. The path changes whenever the picture does, so a client may cache
+ * the bytes by path for as long as it likes.
+ *
+ * Only when asked for by name, like `replyFrom`: it costs a query per source
+ * per call, and a client that does not draw it should not pay for it.
  */
 final class EmailGetMethod implements JmapMethod
 {
@@ -62,13 +77,18 @@ final class EmailGetMethod implements JmapMethod
     /** The property name; see the class docblock. */
     private const string REPLY_FROM = 'replyFrom';
 
+    /** The property name; see the class docblock. */
+    private const string SENDER_PICTURE = 'senderPicture';
+
     public function __construct(
         private readonly AccountResolver $accountResolver,
-        private readonly MessageRepository $messageRepository,
+        private readonly MessageJmapRepository $messageJmapRepository,
         private readonly EmailMapper $mapper,
         private readonly StateManager $stateManager,
         private readonly LabelBindingRepository $bindingRepository,
         private readonly IdentityResolver $identityResolver,
+        private readonly SenderPictures $senderPictures,
+        private readonly UrlGeneratorInterface $urls,
         private readonly ReplyFromResolver $replyFrom = new ReplyFromResolver(),
     ) {
     }
@@ -116,7 +136,7 @@ final class EmailGetMethod implements JmapMethod
             $requestedIds,
         ));
 
-        $messages = $this->messageRepository->findByAccountAndIds(
+        $messages = $this->messageJmapRepository->findByAccountAndIds(
             $accountId,
             array_map('intval', $requestedIds),
         );
@@ -127,6 +147,11 @@ final class EmailGetMethod implements JmapMethod
         $bindingIdByLabelId = $this->bindingRepository->bindingIdsByLabelId($accountId);
 
         $withReplyFrom = null !== $properties && true === in_array(self::REPLY_FROM, $properties, true);
+        $withPicture   = null !== $properties && true === in_array(self::SENDER_PICTURE, $properties, true);
+
+        if (true === $withPicture) {
+            $this->senderPictures->preload(array_map(static fn (Message $message): ?string => $message->fromAddress, $messages));
+        }
 
         $list = [];
         $found = [];
@@ -144,6 +169,14 @@ final class EmailGetMethod implements JmapMethod
 
             if (true === $withReplyFrom) {
                 $email[self::REPLY_FROM] = $this->replyFromFor($message, $account);
+            }
+
+            if (true === $withPicture) {
+                $picture = $this->senderPictures->for($message->fromAddress, true === $message->senderVerified);
+
+                $email[self::SENDER_PICTURE] = null === $picture
+                    ? null
+                    : $this->urls->generate('app_jmap_sender_picture', ['reference' => $picture->reference]);
             }
 
             $list[] = $email;

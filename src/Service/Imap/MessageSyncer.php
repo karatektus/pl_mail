@@ -1,16 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service\Imap;
 
 use App\Domain\DTO\Mail\IngestedMessage;
+use App\Domain\DTO\Mail\ParsedAddress;
+use App\Domain\DTO\Mail\ParsedMessage;
+use App\Domain\DTO\Mail\ParsedPart;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\MessagePriority;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
-use App\Domain\Helper\CharsetHelper;
 use App\Domain\DTO\Mail\ImapCopyIdentity;
 use App\Domain\Helper\MessageIdHelper;
-use App\Domain\Helper\MimeHeaderHelper;
+use App\Domain\Helper\MessageParser;
 use App\Domain\Helper\RepeatedHeaderHelper;
 use App\Entity\Mail\Account;
 use App\Infrastructure\ImapClient\Exception\ImapCommandException;
@@ -18,22 +22,18 @@ use App\Infrastructure\ImapClient\ImapSession;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Label\KeywordLabels;
 use App\Service\Mail\InlineAttachmentDetector;
-use App\Service\Mail\MisfiledBodyDetector;
-use App\Service\Mail\MisfiledBodyUnpacker;
 use App\Service\Mail\PostIngestPipeline;
 use App\Service\Monitoring\ProcessHeartbeatService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
-use Webklex\PHPIMAP\Attribute;
-use Webklex\PHPIMAP\Message as ImapMessage;
-use Webklex\PHPIMAP\Support\AttachmentCollection;
 use App\Service\Mail\HeaderNormalizer;
 
 class MessageSyncer
@@ -52,9 +52,8 @@ class MessageSyncer
         private readonly EntityManagerInterface  $em,
         private readonly LoggerInterface         $logger,
         private readonly MessageRepository       $messageRepository,
+        private readonly MessageImapRepository $messageImapRepository,
         private readonly InlineAttachmentDetector $inlineDetector,
-        private readonly MisfiledBodyDetector    $misfiledBody,
-        private readonly MisfiledBodyUnpacker    $bodyUnpacker,
         private readonly PostIngestPipeline      $postIngest,
         private readonly HeaderNormalizer $headerNormalizer,
         private readonly SentCopyReconciler $sentCopies,
@@ -93,14 +92,13 @@ class MessageSyncer
     private array $identities = [];
 
     /**
-     * The instant an RFC 2822 `Date:` header names, in UTC.
+     * An instant, in UTC.
      *
-     * Both halves of this are needed. webklex parses the header with a bare
-     * `Carbon::parse()` (vendor/webklex/php-imap/src/Header.php), which keeps
-     * the offset the sender wrote — a `+0200` header yields a 15:58:46 object
-     * for a 13:58:46 UTC instant. Doctrine's DateTimeImmutableType then formats
-     * in whatever zone the object carries, and the column is TIMESTAMP WITHOUT
-     * TIME ZONE, so the sender's wall clock is what lands in Postgres.
+     * Both halves of this are needed. A parsed date keeps the offset the
+     * sender wrote — a `+0200` header yields a 15:58:46 object for a 13:58:46
+     * UTC instant. Doctrine's DateTimeImmutableType then formats in whatever
+     * zone the object carries, and the column is TIMESTAMP WITHOUT TIME ZONE,
+     * so the sender's wall clock is what lands in Postgres.
      *
      * Gmail and Graph both normalise to UTC before persisting. Without this,
      * IMAP alone stored something else, and the rows were only ever readable by
@@ -158,7 +156,7 @@ class MessageSyncer
         // lower, and processBatch() treats anything at or below the mark as
         // handled. array_flip turns [123, 456, …] into [123 => 0, 456 => 1, …].
         $syncedUids = array_flip(
-            $this->messageRepository->findSyncedUids($mailbox, $lastSeenUid)
+            $this->messageImapRepository->findSyncedUids($mailbox, $lastSeenUid)
         );
 
         // Mail deleted forever here, whose deletion the server has not
@@ -272,7 +270,7 @@ class MessageSyncer
      * and a message that will not store is reported back rather than counted
      * on the mailbox.
      *
-     * @param iterable<ImapMessage>  $batch
+     * @param iterable<ParsedMessage>  $batch
      * @param array<int, \Throwable>        $unreadable as for processBatch()
      * @param array<int, ImapCopyIdentity> $identities what the index pass said about the page's UIDs
      *
@@ -380,7 +378,7 @@ class MessageSyncer
             $mailboxNow = $this->mailboxRepository->find($mailboxId);
 
             if (null !== $mailboxNow) {
-                foreach ($this->messageRepository->findSyncedUids($mailboxNow, $lastSeenUid) as $heldUid) {
+                foreach ($this->messageImapRepository->findSyncedUids($mailboxNow, $lastSeenUid) as $heldUid) {
                     $syncedUids[(int) $heldUid] = true;
                 }
             }
@@ -469,22 +467,18 @@ class MessageSyncer
         $rawBodies = [];
         $maxUid   = 0;
 
-        // The page in UID order, with the messages the library could not
-        // build standing where they would have stood. The order is not
+        // The page in UID order, with the messages that could not be read
+        // standing where they would have stood. The order is not
         // tidiness: holdForRetry() counts the LOWEST failure of a run, and
         // decides which that is by the order it is told of them. Handed the
         // unreadable ones before or after the rest, two poison messages would
         // take the counter from each other on every sync and neither would
         // ever reach the attempt that lets it go.
-        /** @var array<int, ImapMessage|\Throwable> $page */
+        /** @var array<int, ParsedMessage|\Throwable> $page */
         $page = $unreadable;
 
         foreach ($batch as $fetched) {
-            // Cast because webklex only declares it in a docblock
-            // (`@method integer getUid()`), which static analysis cannot read
-            // as an int. The value always is one: holdForRetry() takes it as
-            // one and would have thrown.
-            $page[(int) $fetched->getUid()] = $fetched;
+            $page[(int) $fetched->uid] = $fetched;
         }
 
         ksort($page);
@@ -547,7 +541,7 @@ class MessageSyncer
             // second time, and IMAP operations work on it normally from here.
             // See SentCopyReconciler, which owns the matching rules and the
             // reason each of them is scoped the way it is.
-            $rfcMessageId = MessageIdHelper::normalise((string) $imapMessage->getMessageId());
+            $rfcMessageId = MessageIdHelper::normalise($imapMessage->messageId);
             $claimed      = $this->sentCopies->claim($mailbox, $rfcMessageId, $uid, $presence);
 
             // Mail with no Message-ID has nothing for claim() to match, so a
@@ -583,10 +577,10 @@ class MessageSyncer
             try {
                 // Before anything reads the body, so the columns, the parts and
                 // the stored .eml all come from the same bytes.
-                $this->dropRepeatedHeader($imapMessage, $uid, $mailbox->fullPath);
+                $imapMessage = $this->dropRepeatedHeader($imapMessage, $uid, $mailbox->fullPath);
 
                 $message = $this->buildMessageFromParsed($imapMessage, $mailbox, $accountId);
-                $raw     = $this->rawOf($imapMessage);
+                $raw     = $imapMessage->raw;
 
                 // What the next copy of this email is recognised by. The
                 // server's count where the index gave one; otherwise the bytes
@@ -701,15 +695,15 @@ class MessageSyncer
     }
 
     /**
-     * A message the library could not build from what the server sent: held
+     * A message that could not be read from what the server sent: held
      * for a retry like one that would not store, and let go on the same count.
      *
-     * These never used to get here. The library threw while it was fetching
+     * These never used to get here. webklex threw while it was fetching
      * the page, the page never arrived, and the retry-then-skip below was
      * never told there was anything to count — which is how one message with
      * a header the parser disliked stopped a folder for good (#45).
      *
-     * A UID this folder already holds is not a failure, whatever the library
+     * A UID this folder already holds is not a failure, whatever the parser
      * made of it this time: `lastSeenUid+1:*` re-delivers the newest message
      * on every run, and a message that is stored was once read.
      *
@@ -803,59 +797,34 @@ class MessageSyncer
     }
 
     /**
-     * Parse the body again without the header block a server repeated at the
-     * top of it.
+     * The message again without the header block a server repeated at the
+     * top of its body.
      *
      * Some messages on a Stalwart server answer RFC822.TEXT with the whole
-     * message, headers included, while RFC822.HEADER is right (#173). webklex
-     * builds its parts from whatever the TEXT literal held, so a single-part
-     * HTML mail was stored with its own `Delivered-To: …` block as the first
-     * lines of body_html, and rawOf() wrote the headers into the .eml twice.
+     * message, headers included, while RFC822.HEADER is right (#173). Parsed
+     * as it came, a single-part HTML mail was stored with its own
+     * `Delivered-To: …` block as the first lines of body_html, and the .eml
+     * carried the headers twice. That is the server's mistake, not a parser's,
+     * so it is repaired on the bytes, before they are read: the columns, the
+     * parts and the stored original then all come from the same repaired copy.
      * See RepeatedHeaderHelper for how a repeat is recognised.
-     *
-     * Read from the structure, not getRawBody(): getRawBody() keeps the first
-     * answer it gives, so asking it here would pin the doubled bytes for
-     * rawOf() below. parseRawBody() appends to the bodies and attachments an
-     * earlier parse left behind, which is why both are emptied first.
      */
-    private function dropRepeatedHeader(ImapMessage $imapMessage, int $uid, string $mailboxPath): void
+    private function dropRepeatedHeader(ParsedMessage $parsed, int $uid, string $mailboxPath): ParsedMessage
     {
-        $header    = $imapMessage->getHeader();
-        $structure = $imapMessage->getStructure();
-
-        if (null === $header || null === $structure) {
-            return;
-        }
-
-        $body = RepeatedHeaderHelper::strip($header->raw, $structure->raw);
+        $header = $parsed->rawHeader();
+        $body   = RepeatedHeaderHelper::strip($header, $parsed->rawBody());
 
         if (null === $body) {
-            return;
+            return $parsed;
         }
-
-        $imapMessage->bodies = [];
-        $imapMessage->setAttachments(AttachmentCollection::make());
-        $imapMessage->parseRawBody($body);
 
         $this->logger->info('Dropped a header block the server repeated at the top of the body', [
             'uid'     => $uid,
             'mailbox' => $mailboxPath,
         ]);
-    }
 
-    /**
-     * Reassemble the message as it arrived: raw headers, blank line, raw body.
-     * webklex keeps both around after parsing, so nothing is re-fetched.
-     */
-    private function rawOf(ImapMessage $imapMessage): string
-    {
-        $header = $imapMessage->getHeader();
-
-        if (null === $header || '' === $header->raw) {
-            return '';
-        }
-
-        return rtrim($header->raw, "\r\n") . "\r\n\r\n" . $imapMessage->getRawBody();
+        return MessageParser::parse(rtrim($header, "\r\n") . "\r\n\r\n" . $body)
+            ->withEnvelope($uid, $parsed->flags);
     }
 
     /**
@@ -863,14 +832,12 @@ class MessageSyncer
      *
      * A FETCH can come back with an empty header block — the connection
      * hiccuped mid-response, the server answered NIL, the MIME was malformed
-     * enough that the parser produced nothing. None of that throws: webklex
-     * hands back an empty Attribute for every field, and an empty Attribute
-     * answers '' for a string and `false` for an address. buildMessage() would
-     * then happily assemble a Message with no sender, no subject and no body —
-     * and, because Attribute::toDate() runs the empty value through
-     * Carbon::parse(false), a receivedAt of 1970-01-01. That is the ghost:
-     * indistinguishable from mail in the schema, counted as unread because
-     * nothing set seenAt, and visible only as a blank row with a "?" avatar.
+     * enough that the parser produced nothing. None of that throws: the
+     * parser hands back a message with no sender, no subject and no body, and
+     * buildMessage() would happily store it — with a receivedAt of now, which
+     * makes it look like new mail. That is the ghost: indistinguishable from
+     * mail in the schema, counted as unread because nothing set seenAt, and
+     * visible only as a blank row with a "?" avatar.
      *
      * The test is deliberately generous about what counts as a message: any
      * ONE of a Date, a Message-ID or a From is enough. Real mail always has at
@@ -880,32 +847,20 @@ class MessageSyncer
      * nothing whatsoever, which is not a message that happens to be empty but
      * an answer that failed to arrive.
      */
-    private function isUsableFetch(ImapMessage $imapMessage): bool
+    private function isUsableFetch(ParsedMessage $parsed): bool
     {
-        $from = $imapMessage->getFrom()->first();
-
-        // `first()` on an empty Attribute is `false`, not null — the same trap
-        // buildMessage() fell into below.
-        $fromAddress = (false !== $from && null !== $from)
-            ? (string) ($from->mail ?? '')
-            : '';
-
         return self::describesAMessage(
-            (string) MessageIdHelper::normalise((string) $imapMessage->getMessageId()),
-            $fromAddress,
-            $this->hasDateHeader($imapMessage),
+            MessageIdHelper::normalise($parsed->messageId),
+            (string) $parsed->from?->address,
+            $parsed->hasDateHeader,
         );
     }
 
     /**
      * The decision itself, over the three values it actually turns on.
      *
-     * Split out from isUsableFetch() so it can be tested: a webklex Message
-     * cannot be constructed without a live IMAP connection (Message::make()
-     * reaches through setClient() to openFolder()), so a test that wanted to
-     * exercise the predicate through the real object would have to stand up a
-     * server to ask a question about three strings. The adapter above is the
-     * part that reads webklex; this is the part that decides.
+     * Split out from isUsableFetch() so the rule can be tested as the three
+     * values it is, without a parsed message to carry them.
      */
     public static function describesAMessage(
         string $messageId,
@@ -918,25 +873,6 @@ class MessageSyncer
     }
 
     /**
-     * Whether the fetch carried a Date header with a value in it.
-     *
-     * Asked as "does the attribute hold anything" rather than by parsing:
-     * an unparseable Date arrives as webklex's fallback (the epoch) or throws
-     * out of toDate(), and either way the header was there. Only an absent
-     * one can mean a ghost. See dateFromHeader().
-     */
-    private function hasDateHeader(ImapMessage $imapMessage): bool
-    {
-        $date = $imapMessage->getDate();
-
-        if (null === $date) {
-            return false;
-        }
-
-        return [] !== $date->toArray();
-    }
-
-    /**
      * When the message arrived, or now — never the epoch.
      *
      * A message with a sender and a Message-ID but no Date header is real mail
@@ -945,41 +881,29 @@ class MessageSyncer
      * Ingest time is the honest approximation, and it is what Gmail's builder
      * already falls back to.
      */
-    private function receivedAtOf(ImapMessage $imapMessage): DateTimeImmutable
+    private function receivedAtOf(ParsedMessage $parsed): DateTimeImmutable
     {
-        if (false === $this->hasDateHeader($imapMessage)) {
-            return new DateTimeImmutable();
-        }
-
-        return self::dateFromHeader($imapMessage->getDate(), new DateTimeImmutable());
+        return self::dateFromHeader($parsed->date, new DateTimeImmutable());
     }
 
     /**
-     * The instant a parsed `Date:` attribute names, or $fallback when it names
+     * The instant a parsed `Date:` header names, or $fallback when it names
      * nothing usable.
      *
-     * A Date header that is present but unparseable used to be fatal twice
-     * over. webklex throws InvalidMessageDateException while it builds the
-     * message unless a fallback date is configured, which failed the whole
-     * fetch — so MessageParser::config() configures one, the epoch. And a value
-     * that did survive into the attribute could still throw here out of
-     * Carbon::parse(). Both now land on the fallback: webklex's epoch is read
-     * as "no date" rather than stored as 1970, and a throw is caught.
+     * Absent and unreadable are the same answer here: MessageParser reads a
+     * Date it cannot parse as no date, and a message is never dated by a
+     * header that said nothing. Nor by one that said 1970 or before: a date at
+     * or below the epoch is a mailer's zero, not when the mail was written.
      *
-     * Public and static so the rule can be tested against a real parsed
-     * header without a live IMAP message.
+     * Public and static so the rule can be tested on its own.
      */
-    public static function dateFromHeader(?Attribute $date, DateTimeImmutable $fallback): DateTimeImmutable
+    public static function dateFromHeader(?\DateTimeInterface $date, DateTimeImmutable $fallback): DateTimeImmutable
     {
-        if (null === $date || [] === $date->toArray()) {
+        if (null === $date) {
             return $fallback;
         }
 
-        try {
-            $parsed = self::toUtc($date->toDate());
-        } catch (\Throwable) {
-            return $fallback;
-        }
+        $parsed = self::toUtc($date);
 
         if ($parsed->getTimestamp() <= 0) {
             return $fallback;
@@ -993,9 +917,8 @@ class MessageSyncer
      * outgoing mail. Null when the sender stated none, which is not the same
      * as Normal — see MessagePriority.
      *
-     * Read from the normalised header bag rather than from webklex's synthetic
-     * `priority` attribute, which turns an absent X-Priority into 0 and knows
-     * nothing of Importance. Public so a test can hand it a real parsed header.
+     * Read from the normalised header bag, which carries both X-Priority and
+     * Importance. Public so a test can hand it a real parsed header.
      *
      * @param array<string, string|list<string>>|null $headers
      */
@@ -1015,30 +938,28 @@ class MessageSyncer
      * protocol delivered them.
      *
      * Null when the message has a Message-ID (that is the identity to use)
-     * and when it has no Date header: the row's time is then the moment it
-     * was fetched, which no second fetch reproduces.
+     * and when it has no usable Date header: the row's time is then the
+     * moment it was fetched, which no second fetch reproduces.
      *
      * Used only where a row is known to have lost its server address — after
      * a protocol switch (#289) — never to decide whether new mail is new.
      *
      * @return array{from: string, subject: string, date: DateTimeImmutable}|null
      */
-    public function fingerprintOf(ImapMessage $imapMessage): ?array
+    public function fingerprintOf(ParsedMessage $parsed): ?array
     {
-        if ('' !== MessageIdHelper::normalise((string) $imapMessage->getMessageId())) {
+        if ('' !== MessageIdHelper::normalise($parsed->messageId)) {
             return null;
         }
 
-        if (false === $this->hasDateHeader($imapMessage)) {
+        if (null === $parsed->date) {
             return null;
         }
-
-        $from = $imapMessage->getFrom()->first();
 
         return [
-            'from'    => false !== $from && null !== $from ? AddressHelper::email($from->mail ?? '') : '',
-            'subject' => $this->decodeMimeHeader((string) $imapMessage->getSubject()),
-            'date'    => $this->receivedAtOf($imapMessage),
+            'from'    => AddressHelper::email((string) $parsed->from?->address),
+            'subject' => $parsed->subject,
+            'date'    => $this->receivedAtOf($parsed),
         ];
     }
 
@@ -1046,22 +967,20 @@ class MessageSyncer
      * Turn one parsed message into a Message row, attached to a mailbox.
      *
      * The single place a row is built from an RFC 822 message, whichever
-     * protocol delivered it. IMAP hands it one the library fetched; POP3 hands
-     * it one the library built with Message::fromString() from a RETR answer.
-     * Nothing below this line knows which — the parser is the shared part, and
-     * that is the reason the two protocols produce identical rows for
-     * identical bytes.
+     * protocol delivered it. IMAP hands it one parsed from a FETCH, POP3 one
+     * parsed from a RETR answer. Nothing below this line knows which — the
+     * parser is the shared part, and that is the reason the two protocols
+     * produce identical rows for identical bytes.
      *
-     * Does NOT set imapUid and does NOT persist. An IMAP caller sets the UID
-     * after calling this (see storeMessages()); a POP3 caller leaves it null,
-     * because a POP3 message has no UID to give it — see Pop3AccountSyncer.
+     * Does NOT persist. The UID is the one the message was fetched under,
+     * which a POP3 message does not have — see Pop3AccountSyncer.
      *
      * Public since POP3 was added. It was private while IMAP was the only
      * caller and the file was the interface.
      */
-    public function buildMessageFromParsed(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
+    public function buildMessageFromParsed(ParsedMessage $parsed, Mailbox $mailbox, int $accountId): Message
     {
-        return $this->buildFromParsed($imapMessage, $mailbox->account, $mailbox);
+        return $this->buildFromParsed($parsed, $mailbox->account, $mailbox);
     }
 
     /**
@@ -1074,7 +993,7 @@ class MessageSyncer
      * labels, as a Gmail message's is, and the caller applies them; there is
      * no folder label to add here and no folder to point the row at.
      */
-    public function buildFromParsed(ImapMessage $imapMessage, Account $account, ?Mailbox $mailbox): Message
+    public function buildFromParsed(ParsedMessage $parsed, Account $account, ?Mailbox $mailbox): Message
     {
         $message = new Message();
         $message->account = $account;
@@ -1088,27 +1007,20 @@ class MessageSyncer
             $message->addLabel($mailboxLabel);
         }
 
-        $message->imapUid = $imapMessage->getUid();
-        $message->messageId = MessageIdHelper::normalise((string) $imapMessage->getMessageId());
-        $message->subject = $this->decodeMimeHeader((string) $imapMessage->getSubject());
+        $message->imapUid   = $parsed->uid;
+        $message->messageId = MessageIdHelper::normalise($parsed->messageId);
+        $message->subject   = $parsed->subject;
 
-        // From. `first()` answers `false` on an empty Attribute, so the old
-        // `null !== $from` let a missing sender through and then read `->mail`
-        // off a boolean.
-        $from = $imapMessage->getFrom()->first();
-        if (false !== $from && null !== $from) {
-            $message->fromAddress = AddressHelper::email($from->mail ?? '');
-            $message->fromName = AddressHelper::name($from->personal ?? '');
+        if (null !== $parsed->from) {
+            $message->fromAddress = AddressHelper::email($parsed->from->address);
+            $message->fromName    = AddressHelper::name($parsed->from->name);
         }
 
-        // Recipients
-        $message->toAddresses = self::addressesOf($imapMessage->getTo());
-        $message->ccAddresses = self::addressesOf($imapMessage->getCc());
-        $message->bccAddresses = self::addressesOf($imapMessage->getBcc());
+        $message->toAddresses  = self::addressesOf($parsed->to);
+        $message->ccAddresses  = self::addressesOf($parsed->cc);
+        $message->bccAddresses = self::addressesOf($parsed->bcc);
 
-        // Flags
-        $flagNames = array_values($imapMessage->getFlags()->toArray());
-        $message->flags = $flagNames;
+        $message->flags = $parsed->flags;
 
         // Keywords that are labels, where the account keeps labels as keywords
         // (#221 step 2): the mail arrives wearing them. Off, and they stay in
@@ -1117,7 +1029,7 @@ class MessageSyncer
         $owner = $account->usr;
 
         if (null !== $mailbox && true === $account->labelsAsKeywords && null !== $owner) {
-            foreach (KeywordLabels::namesIn($flagNames) as $name) {
+            foreach (KeywordLabels::namesIn($parsed->flags) as $name) {
                 $label = $this->keywordLabels->label($name, $owner, true);
 
                 if (null !== $label) {
@@ -1129,7 +1041,7 @@ class MessageSyncer
         // Dates. A draft has not been sent, whatever its Date header says (see
         // Message::$sentAt). Decided by the same test the rest of the app uses
         // on the stored flags, so a row is never "not a draft, never sent".
-        $receivedAt = $this->receivedAtOf($imapMessage);
+        $receivedAt = $this->receivedAtOf($parsed);
 
         $message->sentAt = true === $message->isDraft() ? null : $receivedAt;
         $message->receivedAt = $receivedAt;
@@ -1139,36 +1051,16 @@ class MessageSyncer
         }
 
         // Threading headers
-        $inReplyTo  = $imapMessage->getInReplyTo();
-        $references = $imapMessage->getReferences();
+        $message->inReplyTo  = '' !== $parsed->inReplyTo ? MessageIdHelper::normaliseList($parsed->inReplyTo) : [];
+        $message->references = '' !== $parsed->references ? MessageIdHelper::normaliseList($parsed->references) : [];
 
-        $message->inReplyTo  = $inReplyTo->exist() ? MessageIdHelper::normaliseList((string) $inReplyTo) : [];
-        $message->references = $references->exist() ? MessageIdHelper::normaliseList((string) $references) : [];
-
-        // Headers
-        $rawHeaders = [];
-
-        foreach ($imapMessage->getHeader()->getAttributes() as $name => $attribute) {
-            $values = $attribute->toArray();
-
-            $rawHeaders[(string) $name] = count($values) === 1
-                ? (string) reset($values)
-                : array_map(static fn($v): string => (string) $v, $values);
-        }
-
-        $message->headers = $this->headerNormalizer->normalize($rawHeaders);
-
+        $message->headers  = $this->headerNormalizer->normalize($parsed->headers);
         $message->priority = $this->priorityOf($message->headers);
 
-        // Body. Past the guard although Utf8AwareMessageDecoder already ends
-        // in it, because the decoder is not always asked: webklex skips
-        // convertEncoding() for a part labelled us-ascii, on the reasoning
-        // that ASCII is UTF-8 already. The label is the sender's claim and not
-        // a fact — "charset=us-ascii" over 8-bit German text is what a mailer
-        // writes when nobody configured it — so a raw 0xFC went to the column
-        // as it came and the INSERT was refused (#81).
-        $message->bodyText = CharsetHelper::ensureUtf8($imapMessage->getTextBody() ?? '');
-        $message->bodyHtml = CharsetHelper::ensureUtf8($imapMessage->getHTMLBody() ?? '');
+        // UTF-8 already: MessageParser takes each body as bytes and converts
+        // it by CharsetHelper's rule, whatever the part claimed (#81).
+        $message->bodyText = $parsed->textBody;
+        $message->bodyHtml = $parsed->htmlBody;
 
         // OpenPGP or S/MIME, decided from the top-level Content-Type and the
         // body — before anything is written, because an encrypted message's
@@ -1182,35 +1074,20 @@ class MessageSyncer
         );
         $this->cryptoDetector->seal($message, $crypto);
 
-        // Attachments — without the parts that are only the wrapping: the
-        // signature, the ciphertext. The raw source keeps them for whoever
-        // checks or decrypts.
-        $attachments = array_values(array_filter(
-            iterator_to_array($imapMessage->getAttachments()),
-            fn (mixed $attachment): bool => null === $crypto
-                || false === $this->cryptoDetector->isWrapping($crypto, $attachment->getContentType(), $attachment->getFilename()),
-        ));
         $message->syncedAt = new DateTimeImmutable();
 
+        // Attachments — without the parts that are only the wrapping: the
+        // signature, the ciphertext. The raw source keeps them for whoever
+        // checks or decrypts. After the body is set, because whether an image
+        // is embedded or attached is decided by whether the HTML names it.
         $hasAttachments = false;
 
-        // TWO PASSES, and the order is the point. A body reclaimed by
-        // MisfiledBodyDetector goes into $message->bodyHtml, and bodyHtml is
-        // what InlineAttachmentDetector reads to decide whether the image
-        // beside it is embedded or attached. One pass would settle that
-        // question against an empty body for every part the reclaim had not
-        // reached yet — so a multipart/related newsletter would put its own
-        // layout images on screen as attachments.
-        $remaining = [];
-
-        foreach ($attachments as $attachment) {
-            if (false === $this->reclaimBodyPart($attachment, $message)) {
-                $remaining[] = $attachment;
+        foreach ($parsed->attachments as $part) {
+            if (null !== $crypto && true === $this->cryptoDetector->isWrapping($crypto, $part->contentType, $part->filename)) {
+                continue;
             }
-        }
 
-        foreach ($remaining as $attachment) {
-            if (false === $this->persistAttachment($attachment, $message, (int) $account->id)) {
+            if (false === $this->persistAttachment($part, $message, (int) $account->id)) {
                 $hasAttachments = true;
             }
         }
@@ -1221,143 +1098,12 @@ class MessageSyncer
     }
 
     /**
-     * Put a body that webklex reported as an attachment back where it belongs.
-     *
-     * See MisfiledBodyDetector for which parts these are and why they arrive
-     * this way. Two things here are worth more than the dispatch itself.
-     *
-     * THE CHARSET, because this is the one path into a body column that has
-     * never been converted. Message::fetchPart() converts a body to UTF-8 and
-     * hands an attachment straight to Attachment::__construct(), which undoes
-     * the transfer encoding and nothing else — so the bytes in hand are still
-     * in whatever the part declared. A German body labelled ISO-8859-1 reaches
-     * here with a raw 0xFC in it, and Postgres does not coerce: that is a
-     * rejected INSERT taking its whole batch with it, which is the failure
-     * CharsetHelper exists for and exactly the one GmailMessageBuilder::toUtf8()
-     * describes on the other side. Note that Utf8AwareMessageDecoder does NOT
-     * cover this: it overrides convertEncoding(), which only the body branch
-     * calls.
-     *
-     * THE OCCUPIED-SLOT CHECK, because reclaiming is a repair and not a
-     * preference. If webklex already found a real body of this type then it
-     * read the tree correctly and this part is something else — an actual
-     * nameless text attachment, rare but real. Leave it alone and let it
-     * persist as one.
-     */
-    private function reclaimBodyPart(mixed $attachment, Message $message): bool
-    {
-        $contentType = (string) $attachment->getContentType();
-
-        $isBody = $this->misfiledBody->isBody(
-            $contentType,
-            $attachment->getFilename(),
-            $attachment->getHash(),
-        );
-
-        if (false === $isBody) {
-            return false;
-        }
-
-        // A CONTAINER TAKES A DIFFERENT ROUTE. What webklex handed over is a
-        // MIME block, not text, so it is opened rather than decoded — and the
-        // re-parse is what gets the charset right, because inside a message of
-        // its own the HTML is a body part again. See MisfiledBodyUnpacker.
-        if (true === $this->misfiledBody->isContainer($contentType)) {
-            return $this->reclaimContainer($attachment, $message, $contentType);
-        }
-
-        $isHtml = 'html' === $this->misfiledBody->slotFor($contentType);
-
-        if ('' !== ($isHtml ? (string) $message->bodyHtml : (string) $message->bodyText)) {
-            return false;
-        }
-
-        $content = CharsetHelper::toUtf8(
-            (string) $attachment->getContent(),
-            $this->charsetOf($attachment),
-        );
-
-        if (true === $isHtml) {
-            $message->bodyHtml = $content;
-        } else {
-            $message->bodyText = $content;
-        }
-
-        $this->logger->info('Reclaimed a body part webklex reported as an attachment', [
-            'messageId'   => $message->messageId,
-            'contentType' => $contentType,
-        ]);
-
-        return true;
-    }
-
-    /**
-     * Open a MIME container webklex reported as one attachment, and take the
-     * body out of it.
-     *
-     * Both slots have to be empty, not just the one: a container can yield an
-     * HTML part and a plain-text part together, and filling a slot that already
-     * held something parsed correctly would be a repair overwriting a fact.
-     */
-    private function reclaimContainer(mixed $attachment, Message $message, string $contentType): bool
-    {
-        if ('' !== (string) $message->bodyHtml || '' !== (string) $message->bodyText) {
-            return false;
-        }
-
-        $opened = $this->bodyUnpacker->unpack($contentType, (string) $attachment->getContent());
-
-        if (null === $opened) {
-            return false;
-        }
-
-        $message->bodyHtml = $opened['html'];
-        $message->bodyText = $opened['text'];
-
-        $this->logger->info('Opened a MIME container webklex reported as an attachment', [
-            'messageId'   => $message->messageId,
-            'contentType' => $contentType,
-        ]);
-
-        return true;
-    }
-
-    /**
-     * The part's declared charset, or null when it declared none.
-     *
-     * Attachment merges its part's header attributes into its own, so the
-     * charset is reachable — as an Attribute, which stringifies to its first
-     * value. Null and "" are not the same answer here: CharsetHelper treats an
-     * undeclared charset differently from a declared one, deliberately.
-     */
-    private function charsetOf(mixed $attachment): ?string
-    {
-        $charset = $attachment->charset ?? null;
-
-        if (null === $charset) {
-            return null;
-        }
-
-        $charset = trim((string) $charset);
-
-        return '' !== $charset ? $charset : null;
-    }
-
-    /**
      * @return bool  true if the part is inline (embedded in the HTML body)
      */
-    private function persistAttachment(mixed $attachment, Message $message, int $accountId): bool
+    private function persistAttachment(ParsedPart $attachment, Message $message, int $accountId): bool
     {
-        // Decoded here, as GmailMessageBuilder does, so the name written to
-        // disk and the name written to the row are the same one. webklex hands
-        // a raw 8-bit name over as it arrived, and a Windows client's
-        // "Erklärung.pdf" in latin-1 is invalid UTF-8: the row's INSERT was
-        // refused ("invalid byte sequence for encoding UTF8: 0xe4 0x72 0x75")
-        // and took its whole batch with it. AttachmentStorageHelper decoded
-        // its copy for the disk; only the row kept the raw bytes.
-        $raw      = $attachment->getFilename();
-        $filename = null === $raw ? 'attachment_' . uniqid() : MimeHeaderHelper::decode($raw);
-        $content  = $attachment->getContent();
+        $filename = $attachment->filename ?? AttachmentStorageHelper::fallbackName($attachment->contentType);
+        $content  = $attachment->content;
 
         // Zero for the folder and the uid of a message that has neither — a
         // JMAP one, see buildFromParsed(). The path only has to be somewhere
@@ -1374,23 +1120,17 @@ class MessageSyncer
 
         $part = new MessagePart();
         $part->message     = $message;
-        // Both of these are tokens a mailer writes and neither is decoded by
-        // anything on the way here, so a raw 8-bit byte in one refused the
-        // part's INSERT, and the message with it (#81). The id is repaired
-        // before it is compared with the body, which went through the same
-        // repair, so a `cid:` reference still finds its part.
-        $part->contentType = CharsetHelper::ensureUtf8($attachment->getContentType() ?? 'application/octet-stream');
+        $part->contentType = '' !== $attachment->contentType ? $attachment->contentType : 'application/octet-stream';
         $part->filename    = $filename;
         $part->size        = strlen($content);
         $part->storagePath = $storagePath;
 
-        // getId() falls back to a content hash when the part has no Content-ID,
-        // so it only counts as a cid when the HTML body actually references it.
-        $normalizedCid = $this->inlineDetector->normalizeContentId(
-            CharsetHelper::ensureUtf8((string) $attachment->getId()),
-        );
+        // The id is compared with the body to decide whether the part is
+        // embedded; both went through the same UTF-8 repair, so a `cid:`
+        // reference with a raw byte in it still finds its part (#81).
+        $normalizedCid = $this->inlineDetector->normalizeContentId($attachment->contentId);
         $isInline      = $this->inlineDetector->isInline(
-            $attachment->getDisposition(),
+            $attachment->disposition,
             $normalizedCid,
             $message->bodyHtml,
         );
@@ -1407,64 +1147,33 @@ class MessageSyncer
     }
 
     /**
-     * The addresses behind a `to`/`cc`/`bcc` header attribute.
-     *
-     * webklex hands these over as an Attribute, which implements ArrayAccess
-     * and *only* ArrayAccess — it is not Traversable. `foreach` over one is
-     * therefore not an error and not an iteration either: PHP falls back to
-     * walking the object's public properties, and Attribute has none, so the
-     * loop this replaces ran zero times and returned an empty list for every
-     * message ever synced over IMAP. Nothing failed loudly; to/cc/bcc were
-     * simply always empty, which is why the message header had no "to" line,
-     * reply-all had nobody to reply to, and no contact was ever harvested from
-     * a recipient. ->toArray() is the accessor that actually yields the values.
+     * The addresses of a `to`/`cc`/`bcc` header, as a row stores them.
      *
      * Entries whose addr-spec is empty are dropped, matching the Gmail and
-     * Graph builders: a group syntax like `undisclosed-recipients:;` parses to
-     * a name with no address, and a recipient we cannot name is worse than a
-     * list that honestly has none in it.
+     * Graph builders: a recipient we cannot name is worse than a list that
+     * honestly has none in it.
      *
-     * Static and public for the same reason toUtc() above is: it is the whole
-     * of a rule that was wrong for the life of the IMAP path, and a test
-     * should be able to hand it a real webklex Attribute without standing up
-     * a syncer and eleven collaborators to do it.
+     * @param list<ParsedAddress> $addresses
      *
      * @return list<array{name: string, address: string}>
      */
-    public static function addressesOf(mixed $attribute): array
+    public static function addressesOf(array $addresses): array
     {
-        $values = match (true) {
-            $attribute instanceof Attribute => $attribute->toArray(),
-            is_iterable($attribute)         => $attribute,
-            default                         => [],
-        };
-
         $result = [];
 
-        foreach ($values as $address) {
-            // Address objects on every real sync; the string form is what a
-            // header webklex could not split into parts leaves behind.
-            [$name, $email] = true === is_object($address)
-                ? [$address->personal ?? '', $address->mail ?? '']
-                : ['', (string) $address];
-
-            $email = AddressHelper::email(true === is_string($email) ? $email : '');
+        foreach ($addresses as $address) {
+            $email = AddressHelper::email($address->address);
 
             if ('' === $email) {
                 continue;
             }
 
             $result[] = [
-                'name'    => AddressHelper::name(true === is_string($name) ? $name : ''),
+                'name'    => AddressHelper::name($address->name),
                 'address' => $email,
             ];
         }
 
         return $result;
-    }
-
-    private function decodeMimeHeader(string $value): string
-    {
-        return MimeHeaderHelper::decode($value);
     }
 }

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Infrastructure\Messaging;
 
+use App\Domain\Exception\GraphApiException;
+use App\Domain\Exception\GraphUnavailableException;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
+use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
 use App\Infrastructure\Messaging\Middleware\WaitOutConnectionFailures;
 use App\Infrastructure\Messaging\Stamp\ConnectionWaitStamp;
 use App\Infrastructure\Messaging\Stamp\ThrottleDeferralStamp;
@@ -130,6 +133,38 @@ final class WaitOutConnectionFailuresTest extends TestCase
         $this->expectException(HandlerFailedException::class);
 
         $this->handle($this->received(new SyncGmailMessageBatchMessage(7, ['a'])), $this->couldNotConnect());
+    }
+
+    /**
+     * Microsoft answering 502 "UnknownError" is the same statement as not
+     * answering at all, one hop further in, and is waited out the same way
+     * (#610): an info line, not a WARNING with stack traces per attempt.
+     */
+    public function testAGraphOutageIsWaitedOutLikeAConnectionFailure(): void
+    {
+        $envelope = $this->received(new SyncAccountMessage(7));
+
+        $returned = $this->handle($envelope, new GraphUnavailableException('Graph request failed with 502: {"error":{"code":"UnknownError","message":""}}', 502));
+
+        self::assertSame($envelope, $returned);
+        self::assertCount(1, $this->ingest->getSent());
+        self::assertSame([['info', 'Sync put back: the mail provider could not be reached']], $this->logged());
+    }
+
+    /** A batch meeting the outage keeps the ladder, as it does for a connection failure. */
+    public function testAGraphOutageOnABatchIsLeftToTheRetryLadder(): void
+    {
+        $this->expectException(HandlerFailedException::class);
+
+        $this->handle($this->received(new SyncGraphMessageBatchMessage(7, ['a'])), new GraphUnavailableException('Graph request failed with 502', 502));
+    }
+
+    /** Any other Graph error is a real one: a 400 is about the request, not about Microsoft. */
+    public function testAnotherGraphErrorIsStillAFailure(): void
+    {
+        $this->expectException(HandlerFailedException::class);
+
+        $this->handle($this->received(new SyncAccountMessage(7)), new GraphApiException('Graph request failed with 400', 400));
     }
 
     public function testAnyOtherFailureIsStillAFailure(): void

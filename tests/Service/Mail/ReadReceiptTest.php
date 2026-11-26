@@ -23,9 +23,9 @@ use App\Infrastructure\Messaging\Handler\ProcessReadReceiptsHandler;
 use App\Infrastructure\Messaging\Handler\SendReadReceiptHandler;
 use App\Infrastructure\Messaging\Message\ProcessReadReceiptsMessage;
 use App\Infrastructure\Messaging\Message\SendReadReceiptMessage;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Crypto\AutocryptHeader;
 use App\Service\Crypto\SealedDrafts;
 use App\Service\Crypto\SealGuard;
@@ -886,7 +886,7 @@ final class ReadReceiptTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $this->em->flush();

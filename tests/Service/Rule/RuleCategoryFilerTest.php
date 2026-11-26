@@ -14,7 +14,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
-use App\Repository\Mail\InboxCategoryRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
 use App\Service\Rule\RuleCategoryFiler;
 use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
 use PHPUnit\Framework\TestCase;

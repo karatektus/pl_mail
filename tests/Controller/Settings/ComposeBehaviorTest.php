@@ -7,7 +7,7 @@ namespace App\Tests\Controller\Settings;
 use App\Tests\Support\Mail\OpensComposeWindow;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -102,7 +102,7 @@ final class ComposeBehaviorTest extends WebTestCase
         $this->account->imapPort       = 993;
         $this->account->imapEncryption = 'ssl';
         $this->account->authType       = 'password';
-        $this->account->isActive       = true;
+        $this->account->mailEnabled    = true;
         $em->persist($this->account);
         $em->flush();
 
@@ -134,7 +134,7 @@ final class ComposeBehaviorTest extends WebTestCase
 
     private function token(KernelBrowser $client): string
     {
-        $crawler = $client->request('GET', '/settings?section=general');
+        $crawler = $client->request('GET', '/settings/compose');
 
         return (string) $crawler
             ->filter('form[action$="/settings/compose-behavior"] input[name="_token"]')

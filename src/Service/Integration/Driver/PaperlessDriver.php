@@ -14,7 +14,7 @@ use App\Domain\Interface\IntegrationDriverInterface;
 use App\Domain\Interface\OriginalFileDriverInterface;
 use App\Domain\Interface\SearchableDriverInterface;
 use App\Entity\Integration\Integration;
-use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationUrlValidator;
 use DateTimeImmutable;
 use Symfony\Component\Mime\MimeTypes;

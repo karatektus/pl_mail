@@ -51,30 +51,45 @@
                     <p>{{ 'account.oauth.info'|trans }}</p>
                 </div>
 
-                <div class="space-y-2.5">
-                    <a
-                        href="{{ path('app_oauth_connect', { provider: 'google' }) }}"
-                        data-turbo="false"
-                        class="flex items-center gap-3 mb-3 w-full px-4 py-2.5 rounded-xl
-                        border border-line
-                        text-sm font-medium text-ink-soft
-                        hover:bg-hover transition-colors"
-                        >
-                        <i class="fa-brands fa-google shrink-0" aria-hidden="true"></i>
-                        {{ 'account.oauth.google'|trans }}
-                    </a>
+                {# What the account is for (#575). Asked here, before the
+                   provider's consent screen, because the answer decides what
+                   that screen asks for: a Google account wanted for its
+                   calendar never sees a request to read every message. The
+                   ticks are carried onto the links by settings--oauth-services;
+                   see that controller for why they are not a form. #}
+                <div data-controller="settings--oauth-services" class="space-y-4">
+                    <fieldset class="space-y-1.5">
+                        <legend class="mb-1.5 text-sm font-medium text-ink">{{ 'account.oauth.services.legend'|trans }}</legend>
+                        {% for service in account_services() %}
+                            <label class="flex items-center gap-2.5 text-sm text-ink-soft cursor-pointer">
+                                <input type="checkbox" value="{{ service.value }}" checked
+                                       data-settings--oauth-services-target="service"
+                                       data-action="settings--oauth-services#update"
+                                       class="rounded border-field-border">
+                                <i class="{{ service.icon }} w-4 text-center text-ink-faint" aria-hidden="true"></i>
+                                {{ service.labelKey|trans }}
+                            </label>
+                        {% endfor %}
+                        <p class="pt-1 text-xs text-ink-faint">{{ 'account.oauth.services.help'|trans }}</p>
+                    </fieldset>
 
-                    <a
-                        href="{{ path('app_oauth_connect', { provider: 'microsoft' }) }}"
-                        data-turbo="false"
-                        class="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl
-                        border border-line
-                        text-sm font-medium text-ink-soft
-                        hover:bg-hover transition-colors"
-                        >
-                        <i class="fa-brands fa-microsoft shrink-0" aria-hidden="true"></i>
-                        {{ 'account.oauth.microsoft'|trans }}
-                    </a>
+                    <div class="space-y-2.5">
+                        {% for provider in [{ key: 'google', icon: 'fa-brands fa-google', label: 'account.oauth.google' }, { key: 'microsoft', icon: 'fa-brands fa-microsoft', label: 'account.oauth.microsoft' }] %}
+                            <a
+                                href="{{ path('app_oauth_connect', { provider: provider.key }) }}"
+                                data-base-href="{{ path('app_oauth_connect', { provider: provider.key }) }}"
+                                data-settings--oauth-services-target="link"
+                                data-turbo="false"
+                                class="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl
+                                border border-line
+                                text-sm font-medium text-ink-soft
+                                hover:bg-hover transition-colors"
+                                >
+                                <i class="{{ provider.icon }} shrink-0" aria-hidden="true"></i>
+                                {{ provider.label|trans }}
+                            </a>
+                        {% endfor %}
+                    </div>
                 </div>
 
             </div>

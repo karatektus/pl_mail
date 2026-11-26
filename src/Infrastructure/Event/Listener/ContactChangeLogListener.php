@@ -10,6 +10,7 @@ use App\Entity\Contacts\Contact;
 use App\Entity\Contacts\ContactAddress;
 use App\Entity\Contacts\ContactEmail;
 use App\Entity\Contacts\ContactPhone;
+use App\Repository\Contacts\ContactChangeLog\ContactChangeLogAppendRepository;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Event\OnFlushEventArgs;
@@ -47,6 +48,11 @@ use Doctrine\ORM\Events;
 #[AsDoctrineListener(event: Events::postFlush)]
 final class ContactChangeLogListener
 {
+    public function __construct(
+        private readonly ContactChangeLogAppendRepository $changeLog,
+    ) {
+    }
+
     /** Fields no client can observe moving. */
     private const array IGNORED = [
         'createdAt',
@@ -150,8 +156,6 @@ final class ContactChangeLogListener
 
         $rows          = $this->pending;
         $this->pending = [];
-
-        $connection = $args->getObjectManager()->getConnection();
         $now        = (new DateTimeImmutable())->format('Y-m-d H:i:s');
 
         foreach ($rows as $row) {
@@ -164,7 +168,7 @@ final class ContactChangeLogListener
                 continue;
             }
 
-            $connection->insert('contact_change_log', [
+            $this->changeLog->append([
                 'user_id'         => $row['user'],
                 'contact_id'      => $contactId,
                 'address_book_id' => null === $contactId ? $bookId : null,

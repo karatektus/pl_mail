@@ -7,7 +7,7 @@ namespace App\Entity\Calendar;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
-use App\Repository\Calendar\EventSourceLinkRepository;
+use App\Repository\Calendar\EventSourceLink\EventSourceLinkRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 

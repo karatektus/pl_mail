@@ -10,6 +10,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\PurgedCopy;
 use App\Infrastructure\ImapClient\Exception\ImapCommandException;
 use App\Infrastructure\ImapClient\ImapSession;
+use App\Repository\Mail\PurgedCopy\PurgedCopyRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -35,6 +36,7 @@ final readonly class PurgedCopies
     public function __construct(
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
+        private PurgedCopyRepository $purgedCopyRepository,
     ) {
     }
 
@@ -80,15 +82,7 @@ final readonly class PurgedCopies
             return;
         }
 
-        $this->em->createQueryBuilder()
-            ->delete(PurgedCopy::class, 'p')
-            ->where('p.imapUid IN (:uids)')
-            ->andWhere('p.mailbox IN (SELECT mb.id FROM ' . Mailbox::class . ' mb WHERE mb.account = :account AND mb.fullPath = :path)')
-            ->setParameter('uids', $uids)
-            ->setParameter('account', $account)
-            ->setParameter('path', $path)
-            ->getQuery()
-            ->execute();
+        $this->purgedCopyRepository->deleteConfirmed($account, $path, $uids);
     }
 
     /**
@@ -98,13 +92,7 @@ final readonly class PurgedCopies
      */
     public function uidsIn(Mailbox $mailbox): array
     {
-        return array_map(intval(...), $this->em->createQueryBuilder()
-            ->select('p.imapUid')
-            ->from(PurgedCopy::class, 'p')
-            ->where('p.mailbox = :mailbox')
-            ->setParameter('mailbox', $mailbox)
-            ->getQuery()
-            ->getSingleColumnResult());
+        return $this->purgedCopyRepository->uidsIn($mailbox);
     }
 
     /**
@@ -120,15 +108,7 @@ final readonly class PurgedCopies
     public function settle(Mailbox $mailbox, ImapSession $session, ?DateTimeImmutable $now = null): void
     {
         /** @var list<PurgedCopy> $stale */
-        $stale = $this->em->createQueryBuilder()
-            ->select('p')
-            ->from(PurgedCopy::class, 'p')
-            ->where('p.mailbox = :mailbox')
-            ->andWhere('p.purgedAt < :before')
-            ->setParameter('mailbox', $mailbox)
-            ->setParameter('before', ($now ?? new DateTimeImmutable())->modify(self::RETRY_AFTER))
-            ->getQuery()
-            ->getResult();
+        $stale = $this->purgedCopyRepository->findPurgedBefore($mailbox, ($now ?? new DateTimeImmutable())->modify(self::RETRY_AFTER));
 
         if ([] === $stale) {
             return;

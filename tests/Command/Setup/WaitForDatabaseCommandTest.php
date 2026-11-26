@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Command\Setup;
 
 use App\Command\Setup\WaitForDatabaseCommand;
-use App\Repository\Monitoring\PostgresStatusRepository;
+use App\Repository\Monitoring\PostgresStatus\PostgresStatusRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Driver\PDO\Exception as PdoException;
 use Doctrine\DBAL\Driver\Result as DriverResult;

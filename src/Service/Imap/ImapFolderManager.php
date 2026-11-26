@@ -13,9 +13,9 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Label\LabelNotifier;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MailChangeRecorder;
@@ -68,11 +68,14 @@ final readonly class ImapFolderManager
      * Make a folder called $name inside $parent, or at the top of the
      * account's personal namespace when $parent is null.
      *
+     * @throws FolderActionRefusedException when the account's mail is switched off
      * @throws InvalidFolderNameException  before the server is asked
      * @throws ImapFolderRefusedException  with the server's reason
      */
     public function create(Account $account, ?Mailbox $parent, string $name): Mailbox
     {
+        $this->refuseMailOff($account);
+
         // Checked before connecting, so a name that cannot be a folder costs
         // no round trip. The top level is checked again below against the
         // namespace's own separator, which only the server can say.
@@ -127,6 +130,7 @@ final readonly class ImapFolderManager
      */
     public function rename(Account $account, Mailbox $mailbox, string $name): Mailbox
     {
+        $this->refuseMailOff($account);
         $this->refuseSpecialUse($mailbox);
 
         $separator = $this->separatorOf($mailbox, $account);
@@ -197,6 +201,7 @@ final readonly class ImapFolderManager
      */
     public function delete(Account $account, Mailbox $mailbox): void
     {
+        $this->refuseMailOff($account);
         $this->refuseSpecialUse($mailbox);
 
         if ([] !== $this->descendantsOf($account, $mailbox)) {
@@ -390,6 +395,19 @@ final readonly class ImapFolderManager
         try {
             $session->logout();
         } catch (Throwable) {
+        }
+    }
+
+    /**
+     * Every folder change is a write to the server, and an account whose mail
+     * is switched off makes none (#575). Here, in the one class every folder
+     * change goes through, so the settings page, the sidebar's New folder and
+     * a label becoming a folder all meet the same refusal.
+     */
+    private function refuseMailOff(Account $account): void
+    {
+        if (false === $account->mailEnabled) {
+            throw new FolderActionRefusedException(FolderActionRefusedException::MAIL_OFF);
         }
     }
 }

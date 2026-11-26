@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Settings → Mail → Images: whether remote images in mail wait to be asked
+ * Settings → Reading & writing → Reading: whether remote images in mail wait to be asked
  * for (#124).
  *
  * One switch, off until somebody turns it on. MessageRenderer is what reads
@@ -50,6 +50,6 @@ final class ImageSettingsController extends AbstractController
 
         $em->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'images']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'reading']);
     }
 }

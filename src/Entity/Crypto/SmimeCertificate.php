@@ -7,7 +7,7 @@ namespace App\Entity\Crypto;
 use App\Domain\Enum\Crypto\SmimeCertificateStatus;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Crypto\SmimeCertificateRepository;
+use App\Repository\Crypto\SmimeCertificate\SmimeCertificateRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

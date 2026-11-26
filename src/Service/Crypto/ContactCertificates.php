@@ -10,8 +10,8 @@ use App\Domain\Enum\Crypto\SignatureState;
 use App\Domain\Exception\ContactKeyRefused;
 use App\Entity\Crypto\ContactCertificate;
 use App\Entity\User\User;
-use App\Repository\Crypto\ContactCertificateRepository;
-use App\Repository\Crypto\SmimeCertificateRepository;
+use App\Repository\Crypto\ContactCertificate\ContactCertificateRepository;
+use App\Repository\Crypto\SmimeCertificate\SmimeCertificateRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
 

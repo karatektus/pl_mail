@@ -10,6 +10,46 @@ use PHPUnit\Framework\TestCase;
 
 final class MimeHeaderHelperTest extends TestCase
 {
+    #[DataProvider('continuationCases')]
+    public function testJoinContinuations(string $raw, string $expected): void
+    {
+        self::assertSame($expected, MimeHeaderHelper::joinContinuations($raw));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function continuationCases(): iterable
+    {
+        yield 'a plain name is left alone' => ['Rechnung.pdf', 'Rechnung.pdf'];
+        yield 'a semicolon alone is no continuation' => ['Notes; draft 2.pdf', 'Notes; draft 2.pdf'];
+
+        // #674, the shape Gmail hands over: the first piece's value, then the
+        // rest of the header, ending inside the last piece's quotes.
+        yield 'as Gmail leaves it' => [
+            "Regulamin \";\n    filename*1=\" swiadczony\";\n    filename*2=\" przez.pdf",
+            'Regulamin  swiadczony przez.pdf',
+        ];
+
+        yield 'with the closing quote' => ['A";filename*1="B";filename*2="C.pdf"', 'ABC.pdf'];
+        yield 'in the order the numbers give' => ['A"; filename*2="C.pdf"; filename*1="B', 'ABC.pdf'];
+
+        yield 'percent-encoded pieces in the charset the first names' => [
+            "UTF-8''%C3%9Cbersicht%20; filename*1*=der%20Geb%C3%BChren.pdf",
+            'Übersicht der Gebühren.pdf',
+        ];
+
+        yield 'latin-1 pieces converted' => [
+            "ISO-8859-1''Gr%FC%DFe; filename*1*=.txt",
+            'Grüße.txt',
+        ];
+
+        yield 'apostrophes in a plain quoted name are not a charset' => [
+            "Paul's 'notes'\"; filename*1=\".pdf",
+            "Paul's 'notes'.pdf",
+        ];
+    }
+
     #[DataProvider('headerCases')]
     public function testDecode(string $raw, string $expected): void
     {
@@ -34,6 +74,10 @@ final class MimeHeaderHelperTest extends TestCase
         yield 'quoted-printable' => ['=?UTF-8?Q?Gr=C3=BC=C3=9Fe?=', 'Grüße'];
         yield 'base64'           => ['=?UTF-8?B?R3LDvMOfZQ==?=', 'Grüße'];
         yield 'iso-8859-1'       => ['=?ISO-8859-1?Q?J=F6rg?=', 'Jörg'];
+
+        // A Hebrew sender's name from Outlook. mbstring does not know
+        // ISO-8859-8-I, and the name was read as cp1252: "éùøàì éùøàìé" (#714).
+        yield 'hebrew, iso-8859-8-i' => ['=?iso-8859-8-i?B?6fn44Owg6fn44Ozp?=', 'ישראל ישראלי'];
 
         // Adjacent encoded words: the whitespace between them is a separator
         // (RFC 2047 §6.2), so decoding them as one run is what joins the word.

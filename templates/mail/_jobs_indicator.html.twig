@@ -231,6 +231,13 @@ the record and a missed nudge costs one stale render, never a wrong answer.
                                 </p>
                             {% endif %}
 
+                            {# Which account a removal is for (#672). Kept on the
+                               job, because once the last batch is through the
+                               account is no longer there to be named. #}
+                            {% if job.view.accountAddress is defined %}
+                                <p class="mt-1 text-[11px] text-ink-faint truncate">{{ job.view.accountAddress }}</p>
+                            {% endif %}
+
                             {% if job.failureReason %}
                                 <p class="mt-1 text-[11px] text-danger break-words">{{ job.failureReason }}</p>
                             {% endif %}

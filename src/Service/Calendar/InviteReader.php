@@ -13,7 +13,7 @@ use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\EventSourceLink;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Calendar\EventSourceLinkRepository;
+use App\Repository\Calendar\EventSourceLink\EventSourceLinkRepository;
 use App\Service\Calendar\Extraction\IcsEventExtractor;
 use Symfony\Contracts\Service\ResetInterface;
 

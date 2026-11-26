@@ -1,0 +1,60 @@
+{#
+The heading row of a collapsible sidebar section — LABELS and ACCOUNTS — as
+the <summary> of the section's <details class="group/section">.
+
+One template, embedded by both, so the two headings are the same HTML and
+cannot drift apart. They had: two hand-kept copies, and the ACCOUNTS one,
+with a second button in it, ran out of room first as the sidebar was dragged
+narrower. Its chevron had no shrink-0, so flexbox squeezed the icon instead
+and the heading slid sideways under the drag. Here the chevron keeps its
+width, and the actions are small enough that the row fits (see below).
+
+A .nav-item, like every row under it and the More summary above: the same
+pill off the sidebar's edge on hover, and the same inline padding, which
+puts the chevron exactly where px-3 did. It used to be a rounded-lg box of
+its own, a different shape from every row it heads.
+
+  heading    the visible heading, also the summary's accessible name
+  collapsed  whether the section is rendered shut
+
+Blocks:
+  badge      anything between the heading and the actions (LABELS' roll-up)
+  actions    the heading's buttons
+
+Named explicitly (aria-label), because a summary takes its accessible name
+from its contents, and these contain a badge and buttons — unnamed, LABELS
+read as "Labels 3 unread Create label". The same string as the visible
+heading, so a voice user asking for "Labels" still gets this.
+
+The buttons are quiet until the heading row is hovered (`group/head`, the
+summary, not the section: a row further down must not light them up). Two
+exits from that, both needed: keyboard focus shows a button, or one reached
+with Tab would be invisible while it holds focus; and it is only hidden where
+there is a hover to reveal it with — `[@media(hover:hover)]` — or a phone
+could neither create a label nor add an account. `transition` rather than
+`transition-colors`, so the fade is one.
+
+Plain icons, not square buttons: a padded 26px square each was what pushed
+the ACCOUNTS heading out of its row as the sidebar narrowed (chevron, word,
+two squares and their gaps were 156px of the 140px a 180px sidebar has). The
+icons are sized by font size, 11px like the account row's ⋯, because Font
+Awesome fixes an icon's width at 1.25em and a w-* class does nothing to it:
+13.75px each, and the row fits at the narrowest width, so the heading's
+truncate is a guard that does not fire. The ring stands in for
+the hover square when a button has keyboard focus.
+
+Callers put `section_action_class` on each button, set here so all of them
+are the same control.
+#}
+{% set section_action_class = 'shrink-0 flex items-center justify-center rounded-sm text-gray-400 hover:text-ink-soft transition cursor-pointer
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent
+    [@media(hover:hover)]:opacity-0 group-hover/head:opacity-100 focus-visible:opacity-100' %}
+<summary class="nav-item group/head py-1 flex items-center gap-2 cursor-pointer list-none transition-colors hover:bg-hover"
+         aria-label="{{ heading }}"
+         aria-expanded="{{ collapsed ? 'false' : 'true' }}"
+         data-ui--sidebar-target="collapseSummary">
+    <i class="fa-solid fa-chevron-right w-3 shrink-0 text-[9px] text-ink-faint transition-transform group-open/section:rotate-90" aria-hidden="true"></i>
+    <span class="flex-1 min-w-0 truncate text-xs font-semibold text-ink-faint uppercase tracking-wider">{{ heading }}</span>
+    {%- block badge %}{% endblock -%}
+    {%- block actions %}{% endblock -%}
+</summary>

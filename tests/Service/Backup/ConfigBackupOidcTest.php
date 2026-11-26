@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Backup;
 
 use App\Entity\Oidc\OidcConfig;
-use App\Repository\Oidc\OidcConfigRepository;
+use App\Repository\Oidc\OidcConfig\OidcConfigRepository;
 use App\Service\Backup\ConfigBackupDatabase;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

@@ -1,8 +1,13 @@
 # Symfony be translatin' validation messages in the `validators` domain.
 account.host_invalid: A host name or IP address only, sailor — no slashes, question marks nor @.
+account.incoming_required: 'Name the incomin’ server — this account receives letters.'
+account.port_required: 'Name the port.'
+account.services_none: 'Raise receivin’, sendin’, or both.'
+account.smtp_required: 'Name the SMTP server — this account sends letters.'
 admin.ai.keep_alive_invalid: "Give a spell like 5m, 30m or 4h, a plain count o' seconds, or -1 to keep it aboard for good — leave it empty an' the host's own word stands."
 admin.integrations.client_id_missing: Name th' client ID that goes with this secret.
 admin.integrations.secret_missing: Enter th' client secret an' all — an ID alone signs nobody aboard.
+admin.integrations.trusted.host_invalid: 'Name a host or IP address, like dav.home.example.com or 192.168.1.20, or a whole bearin'' with one in it.'
 admin.sso.error.client_id_missing: 'A client ID be needed with th'' issuer an'' th'' secret. All three, or none o'' them.'
 admin.sso.error.issuer_missing: 'An issuer be needed with th'' client ID an'' th'' secret. All three, or none o'' them.'
 admin.sso.error.issuer_not_https: 'Th'' issuer must begin with https://. plMail trusts th'' fleet by th'' TLS line t'' it.'
@@ -21,6 +26,7 @@ carddav.username_required: Give the name yer CardDAV port knows ye by.
 contacts.invalid_email: '"%email%" be no parrot address.'
 contacts.name_or_email_required: Give the hand a name or at least one parrot address.
 calendar.name_required: Name the almanac, else ye'll not tell it from the rest.
+compose.from_required: Pick the colours ye sail under afore ye cast off.
 compose.recipient_invalid: "“{{ address }}” be no proper address, matey."
 compose.recipient_required: Name at least one soul afore ye cast off.
 integration.name_taken: Ye already have a line to this port named {{ value }}. Christen this one somethin' else — home an' work, say.

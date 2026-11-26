@@ -2,8 +2,6 @@ account:
     add_title: Ajouter un compte
     added: Compte ajouté
     colour_set: Couleur du compte modifiée
-    disabled: Compte désactivé
-    enabled: Compte activé
     form:
         email: Adresse e-mail
         encryption: Chiffrement
@@ -46,16 +44,36 @@ account:
             heading: Envoi — SMTP
             host: Serveur
             password: Mot de passe d’envoi
-            same: Utiliser le même mot de passe pour l’envoi
-            separate: Utiliser un autre mot de passe pour l’envoi
+            same: Utiliser les mêmes identifiants pour l’envoi
+            separate: Utiliser un autre nom d’utilisateur ou mot de passe pour l’envoi
+            username: Nom d’utilisateur d’envoi
+            username_help: 'Laissez vide pour envoyer avec le nom d’utilisateur ci-dessus.'
         username: Nom d’utilisateur
+    mail_purge_queued: 'Suppression du courrier de ce compte dans plMail. Le serveur garde sa copie.'
     oauth:
         calendar_declined: Le compte est connecté, mais l’accès à l’agenda n’a pas été accordé — ses agendas ne seront donc pas synchronisés. Reconnectez-le et cochez l’accès à l’agenda sur l’écran de consentement de Google.
         google: Continuer avec Google
         info: Connectez-vous chez votre fournisseur — aucun mot de passe n’est stocké.
         microsoft: Continuer avec Microsoft
+        services:
+            help: 'L’écran suivant ne demande que ce que vous cochez. Vous pourrez le changer plus tard dans Paramètres → Comptes.'
+            legend: 'Utiliser ce compte pour'
     primary_set: Compte principal modifié
+    removal_started: 'Suppression du compte. Son courrier est supprimé en arrière-plan ; le serveur garde sa copie.'
     removed: Compte supprimé
+    service:
+        calendar:
+            off: 'Agenda désactivé'
+            on: 'Agenda activé'
+        contacts:
+            off: 'Contacts désactivés'
+            on: 'Contacts activés'
+        mail:
+            off: 'Réception désactivée. Ce qui est déjà là reste.'
+            on: 'Réception activée'
+        send:
+            off: 'Envoi désactivé'
+            on: 'Envoi activé'
     sync_interval_set: Intervalle de synchronisation modifié
     tabs:
         imap: IMAP / SMTP
@@ -73,13 +91,14 @@ account:
             failed: 'La connexion n’a pas fonctionné. Vérifiez le serveur, le port et le chiffrement.'
             host_invalid: 'Saisissez uniquement un nom d’hôte ou une adresse IP — sans barre oblique, point d’interrogation ni @.'
             imap_ok: 'Connecté — %count% dossiers visibles.'
+            incoming_none: 'Aucun serveur entrant configuré — ce compte ne fait qu’envoyer.'
             jmap_no_mail: 'Le serveur parle JMAP mais ne propose aucun courrier pour ce compte.'
             jmap_ok: 'Connecté — %count% boîtes visibles.'
             jmap_submission: 'L''envoi passe par le serveur JMAP.'
-            missing_fields: 'Saisissez d’abord au moins une adresse e-mail et un serveur IMAP.'
+            missing_fields: 'Saisissez d’abord une adresse e-mail et au moins un serveur.'
             missing_password: 'Aucun mot de passe pour le test. Saisissez-en un ci-dessus — dans le formulaire de modification, un champ vide conserve le mot de passe enregistré, que le test ne peut utiliser qu’une fois le compte enregistré.'
             pop3_ok: 'Connecté — %count% messages dans la boîte.'
-            private_network: 'Ce serveur se trouve sur un réseau privé. Un administrateur doit d''abord autoriser son hôte dans INTEGRATIONS_ALLOWED_HOSTS avant que plMail puisse s''y connecter.'
+            private_network: 'Ce serveur se trouve sur un réseau privé. Un administrateur doit d''abord l''autoriser dans Admin → Intégrations → Serveurs sur un réseau privé avant que plMail puisse s''y connecter.'
             smtp_none: 'Aucun serveur SMTP configuré — l’envoi est désactivé pour ce compte.'
             smtp_ok: 'Connecté et authentifié.'
             timeout: 'Le serveur n’a pas répondu à temps. Vérifiez le serveur et le port, et qu’aucun pare-feu ne bloque.'
@@ -357,6 +376,172 @@ admin:
             timeout: 'L’hôte chargeait encore après quatre minutes et plMail a cessé d’attendre. Il finira peut-être ; le modèle est très probablement trop gros pour la mémoire disponible.'
             unexpected: 'Un problème est survenu avant que l’hôte puisse répondre. (%error%)'
             unreachable: 'Rien n’a répondu à cette adresse. (%error%)'
+    backfills:
+        active:
+            queued: 'En file d’attente — attend le worker de maintenance.'
+            running: 'En cours. Sa sortie est sous Exécutions récentes.'
+        added: 'Ajouté le %date%'
+        console: 'La même chose en console'
+        count:
+            button: 'Compter d’abord'
+            none: 'Rien à examiner — cette réparation n’a rien à faire sur cette installation.'
+            some: 'Elle examinera %count% messages. Certaines tâches lisent chaque candidat et ne modifient que ceux qui ont le défaut.'
+            unavailable: 'Celle-ci ne peut pas compter à l’avance.'
+        heading: 'Rattrapages'
+        kind:
+            repairs: 'Répare les données stockées'
+            rereads: 'Relit le courrier'
+        last_run: 'Dernière exécution depuis cette page le %date%'
+        list_label: 'Rattrapages, du plus récent au plus ancien'
+        never_run: 'Jamais lancé depuis cette page'
+        new: 'Nouveau'
+        none: 'Aucun rattrapage n’est enregistré.'
+        order_hint: 'Les plus récents d’abord. Une mise à jour qui en demande un le dit dans ses notes de version, et c’est en général le plus récent.'
+        repeat:
+            careful: 'Réfléchir avant de le relancer'
+            safe: 'Peut être relancé sans risque'
+        run: 'Lancer %task%'
+        run_hint: 'Mis en file pour le worker de maintenance, pas exécuté dans cette page. Vous pouvez la quitter ; l’exécution continue.'
+        runs:
+            empty: 'Rien n’a encore été lancé depuis cette page.'
+            everything: 'Tout'
+            heading: 'Exécutions récentes'
+            removed_user: 'un utilisateur supprimé'
+            show_output: 'Afficher la sortie'
+            state:
+                done: 'Terminé'
+                failed: 'Échec'
+                queued: 'En file'
+                quiet: 'Silencieux depuis 30 minutes'
+                running: 'En cours'
+        task:
+            addresses:
+                explanation: >-
+                    Le courrier stocké avant que les adresses soient nettoyées à l’arrivée a gardé les noms tels que le serveur les envoyait : certains expéditeurs apparaissent comme "Doe, John" entre guillemets, et un nom avec une virgule pouvait devenir deux adresses.
+
+                    Ceci réécrit les noms et adresses stockés de chaque message dans la forme que reçoit le nouveau courrier. Les contacts dont l’adresse changerait sont comptés plutôt que fusionnés, pour que vous voyiez s’il faut en fusionner à la main.
+                summary: 'Nettoyer les noms entre guillemets des expéditeurs et destinataires'
+            attachment_content_type_names:
+                explanation: >-
+                    Certaines pièces jointes qui ne donnaient leur nom que dans leur type de contenu ont été stockées sous une somme de contrôle comme "57d5c7cb", sans extension pour les ouvrir.
+
+                    Ceci lit l’original stocké de chaque message concerné et rend à la pièce jointe son vrai nom, quand l’original le donne sans ambiguïté. S’exécute aussi tout seul après une mise à jour.
+                summary: 'Rendre leur nom aux pièces jointes stockées sous une somme de contrôle'
+            calendars:
+                explanation: >-
+                    Chaque nouvel utilisateur reçoit un agenda personnel et un par compte de messagerie. Ceci donne les mêmes agendas aux utilisateurs qui étaient là avant. Il ne fait que combler les manques ; le relancer après avoir ajouté des comptes ne pose pas de problème.
+                summary: 'Créer les agendas par défaut des utilisateurs existants'
+            category:
+                explanation: >-
+                    Détermine à nouveau l’onglet de chaque message — Principal, Notifications, Promotions, etc. — à partir de ce qui est stocké, sans interroger le serveur.
+
+                    Lancé depuis cette page, il recalcule chaque message, y compris ceux qui ont déjà un onglet, ce qu’on veut après une mise à jour qui a changé le tri du courrier.
+                summary: 'Trier à nouveau chaque message dans son onglet'
+            contacts:
+                explanation: >-
+                    Les contacts sont appris à l’arrivée du courrier. Ceci les apprend de chaque message déjà stocké, pour les comptes synchronisés avant, ou après un changement de ce qui compte comme adresse. Il lit tout le courrier de chaque compte, un compte après l’autre.
+                repeat_warning: 'Chaque exécution compte à nouveau chaque adresse stockée : dans les suggestions d’adresses, les personnes du courrier ancien passent devant celles à qui vous écrivez maintenant. Lancez-le une fois après le changement qui le demande.'
+                summary: 'Reconstruire les contacts à partir de tout le courrier stocké'
+            events:
+                explanation: >-
+                    Relit le courrier stocké à la recherche de réservations et d’invitations — vols, hôtels, billets, invitations d’agenda — et les place dans l’agenda. À utiliser après une mise à jour qui a amélioré leur lecture.
+
+                    Seul le courrier susceptible de contenir un événement est lu, et seulement aussi loin que la période l’indique. Les événements que vous avez modifiés ou supprimés restent tels quels.
+                summary: 'Relire le courrier stocké pour les événements'
+            gmailify_placement:
+                explanation: >-
+                    Pour un compte IMAP dont un compte Gmail relève aussi le courrier, plMail recopiait le classement de Gmail sur la copie IMAP : le courrier que Gmail avait archivé ou supprimé allait ici dans Archives ou Corbeille alors que le serveur IMAP l’avait encore dans la boîte de réception.
+
+                    Ceci remet chaque message de ce type là où son dossier IMAP l’indique. Lancez-le quand personne ne déplace de courrier, sinon un déplacement pas encore arrivé au serveur peut revenir un instant.
+                summary: 'Remettre le courrier IMAP relevé par Gmail dans son dossier'
+            headers:
+                explanation: >-
+                    Le courrier stocké avant l’uniformisation des noms d’en-têtes les a gardés tels que chaque fournisseur les écrivait ("List-Id", "list_id"). Les filtres qui testent un en-tête ne trouvaient pas ces messages. Ceci réécrit les noms d’en-têtes stockés sous une seule forme ; les valeurs ne changent pas.
+                summary: 'Uniformiser les noms d’en-têtes stockés'
+            html_body_text:
+                explanation: >-
+                    Après la mise à jour qui a reconstruit l’index de recherche, chaque message attend d’être indexé à nouveau, et le planificateur les traite petit à petit, les plus récents d’abord. Ceci fait le reste d’un coup, pour que le courrier plus ancien revienne dans la recherche maintenant plutôt qu’au fil d’une soirée.
+
+                    Il stocke aussi les mots du courrier envoyé uniquement en HTML, pour que la recherche, les embeddings et les résumés lisent son corps. Les deux en même temps ne posent pas de problème ; ils se partagent le travail.
+                summary: 'Remettre tout le courrier dans la recherche'
+            insights:
+                explanation: >-
+                    Relit le courrier stocké à la recherche de colis, vols, billets et revues de code — les cartes du radar. À utiliser après une mise à jour qui lui a appris un nouvel expéditeur ou une meilleure lecture.
+
+                    Seul le courrier stocké est lu ; aucun fournisseur n’est interrogé. Une carte écartée reste écartée.
+                summary: 'Relire le courrier stocké pour colis, vols et billets'
+            message_arrival:
+                explanation: >-
+                    Admin → Performances montre le retard du courrier, mesuré à partir du moment où le fournisseur l’a accepté. Le courrier stocké avant que ce moment soit enregistré n’en a pas. Ceci le lit dans les en-têtes pour le courrier de la dernière semaine, aussi loin que regarde le panneau. S’exécute aussi tout seul après une mise à jour.
+                summary: 'Retrouver les heures d’arrivée de la dernière semaine pour Performances'
+            misfiled_bodies_v2:
+                explanation: >-
+                    Certains messages ont été stockés avec leur corps en pièce jointe, sous un nom comme "09704cea" ; ils s’ouvrent vides avec une seule puce.
+
+                    Le corps a toujours été conservé ; ceci le remet à sa place et retire la puce. S’exécute aussi tout seul après une mise à jour.
+                summary: 'Restaurer les corps stockés en pièce jointe'
+            proposals:
+                explanation: >-
+                    Relit le courrier stocké dans Principal à la recherche de dates écrites en phrases — « voyons-nous jeudi à 15 h » — et les propose pour l’agenda. Un message qui a déjà une proposition, ou dont vous avez rejeté la proposition, n’est pas touché.
+                summary: 'Relire le courrier stocké pour proposer des dates'
+            recipients:
+                explanation: >-
+                    Le courrier synchronisé en IMAP avant une correction n’a stocké aucune liste À et Cc, bien que les en-têtes aient été conservés. Ceci remplit les listes vides à partir de ces en-têtes. Les destinataires déjà présents restent tels quels.
+                summary: 'Compléter les listes À et Cc manquantes'
+            repeated_headers:
+                explanation: >-
+                    Certains serveurs IMAP répétaient le bloc d’en-têtes en haut du corps du message : ces messages commencent par "Delivered-To: …" au-dessus du texte, et leur original contient les en-têtes deux fois.
+
+                    Ceci lit l’original stocké de chaque message IMAP et retire la répétition quand il en trouve une. Cela fait une lecture de fichier par message, c’est pourquoi il ne s’exécute pas automatiquement.
+                summary: 'Retirer les blocs d’en-têtes répétés en haut du courrier IMAP'
+            rethread:
+                explanation: >-
+                    Jette toutes les conversations et les reconstruit à partir des messages stockés, avec les règles actuelles.
+
+                    Les étoiles, rappels, onglets et libellés d’une conversation sont conservés. Les résumés IA stockés ne le sont pas et doivent être redemandés. Depuis cette page, appuyer sur Lancer est la confirmation que demande la console.
+                repeat_warning: 'Chaque exécution jette à nouveau les conversations, et les résumés IA faits depuis la dernière exécution disparaissent avec elles. Lancez-le une fois après le changement qui le demande.'
+                summary: 'Reconstruire toutes les conversations depuis zéro'
+            safe_html:
+                explanation: >-
+                    Chaque message HTML est affiché à partir d’une copie nettoyée. Ceci crée cette copie pour les messages qui n’en ont pas encore.
+                summary: 'Créer la copie sûre du courrier HTML qui n’en a pas'
+            safe_html_absolute_position:
+                explanation: >-
+                    Certains courriers HTML gardaient des éléments positionnés par-dessus la page, si bien qu’une bannière pouvait couvrir le texte en dessous. Ceci nettoie à nouveau la copie d’affichage de ces messages avec les règles corrigées.
+                summary: 'Empêcher les bannières de couvrir le texte du courrier HTML'
+            safe_html_charset:
+                explanation: >-
+                    Le courrier HTML qui déclarait son propre jeu de caractères pouvait afficher des caractères brouillés comme "Ã©" pour "é". Ceci nettoie à nouveau la copie d’affichage de ces messages avec les règles corrigées.
+                summary: 'Réparer les caractères brouillés du courrier HTML'
+            safe_html_conditional_comments:
+                explanation: >-
+                    Le courrier écrit pour Outlook pouvait afficher du texte parasite comme "<![endif]-->". Ceci nettoie à nouveau la copie d’affichage de ces messages avec les règles corrigées.
+                summary: 'Retirer le balisage Outlook affiché comme texte'
+            safe_html_hidden_cards:
+                explanation: >-
+                    Le courrier HTML avec un formulaire, ou certains styles, pouvait perdre ou cacher une partie de son contenu. Ceci nettoie à nouveau la copie d’affichage de ces messages avec les règles corrigées.
+                summary: 'Restaurer le contenu caché du courrier HTML'
+            safe_html_table_links:
+                explanation: >-
+                    Dans le courrier HTML où un tableau entier était un lien, le lien pouvait ressortir vide. Ceci nettoie à nouveau la copie d’affichage de ces messages avec les règles corrigées.
+                summary: 'Restaurer les liens autour des tableaux du courrier HTML'
+            safe_html_unknown_elements:
+                explanation: >-
+                    Le courrier HTML utilisant des éléments que le nettoyage ne connaissait pas — certaines confirmations de réservation, par exemple — pouvait s’afficher avec un corps vide. Ceci lit chaque message HTML et nettoie à nouveau la copie d’affichage de ceux qui contiennent un tel élément.
+                summary: 'Restaurer le courrier HTML affiché vide à cause d’éléments inconnus'
+            spam_in_archive:
+                explanation: >-
+                    Jusqu’à une correction, un filtre « Marquer comme spam » étiquetait le courrier Spam ici mais l’archivait sur le serveur ; la synchronisation suivante le retrouvait dans les archives, où il restait non lu.
+
+                    Ceci déplace chaque message de ce type dans Spam comme vous le feriez à la main : sur le serveur, il passe des Archives aux Indésirables. Les comptes IMAP sans dossier Indésirables sont ignorés et comptés.
+                summary: 'Déplacer dans Spam le spam qu’un filtre a archivé'
+        what_it_does: 'Ce que ça fait'
+        window:
+            24h: '24 dernières heures'
+            4w: '4 semaines'
+            7d: '7 jours'
+            all: 'Tout le courrier'
+            label: 'Courrier à relire'
     client_errors:
         browser: 'Navigateur'
         clear: 'Effacer'
@@ -608,7 +793,7 @@ admin:
         base_url_per_user: 'Chaque utilisateur saisit l’adresse de son propre serveur.'
         base_url_pinned: 'imposée à tous les utilisateurs'
         calendar:
-            connected_warning: 'Connexions déjà établies : %count%. Une adresse modifiée ou effacée s’applique à chacune d’elles la prochaine fois que ses calendriers sont recherchés : une personne connectée à un autre serveur, iCloud par exemple, est alors interrogée sur celui-ci avec son propre mot de passe. Les calendriers déjà reflétés gardent l’adresse où ils ont été trouvés ; si une adresse effacée était dans un réseau privé, ils ne se synchronisent plus tant que son hôte n’est pas dans INTEGRATIONS_ALLOWED_HOSTS.'
+            connected_warning: 'Connexions déjà établies : %count%. Une adresse modifiée ou effacée s’applique à chacune d’elles la prochaine fois que ses calendriers sont recherchés : une personne connectée à un autre serveur, iCloud par exemple, est alors interrogée sur celui-ci avec son propre mot de passe. Les calendriers déjà reflétés gardent l’adresse où ils ont été trouvés ; si une adresse effacée était dans un réseau privé, ils ne se synchronisent plus tant qu’il n’est pas autorisé sous Serveurs sur un réseau privé, plus bas.'
             heading: 'Calendriers'
             intro: 'Les serveurs et flux depuis lesquels les utilisateurs reflètent des calendriers, dans Réglages → Calendriers. Les deux sont proposés à tous ; on peut définir ici une adresse de serveur pour tout le monde. Nextcloud se configure avec les services de fichiers ci-dessus, et ses calendriers l’accompagnent.'
         clear_secret: 'Supprimer le secret client enregistré'
@@ -688,6 +873,25 @@ admin:
             enabled: 'Activé'
             incomplete: 'Identifiants manquants'
             unimplemented: 'Pas encore disponible'
+        trusted:
+            add: 'Autoriser un serveur'
+            allow: 'Autoriser'
+            allow_http: 'Autoriser le http non chiffré'
+            empty: 'Aucun pour l’instant. Un serveur dont l’adresse est privée est refusé tant qu’il ne figure pas ici.'
+            field:
+                allow_http: 'Ce serveur n’a pas de certificat : autoriser le http non chiffré'
+                allow_http_help: 'Uniquement pour un serveur de votre propre réseau. Les mots de passe d’application envoyés le traversent alors en clair.'
+                host: 'Serveur'
+                host_help: 'Son nom d’hôte ou son adresse IP, tels qu’ils figurent dans l’adresse saisie : dav.home.example.com, 192.168.1.20. Une adresse complète convient aussi ; seul son hôte est conservé.'
+            form_intro: 'Les utilisateurs connectés pourront alors relier plMail à ce serveur bien que son adresse soit privée. Chacun d’eux peut faire envoyer par plMail des requêtes à tous les serveurs listés ici : listez ceux qui sont réellement utilisés, pas toutes les machines du réseau.'
+            heading: 'Serveurs sur un réseau privé'
+            http_allowed: 'http non chiffré autorisé'
+            intro: 'plMail refuse une adresse de serveur qui pointe vers un réseau privé, afin que personne ne puisse s’en servir pour atteindre cette machine ou ses voisines. Les serveurs listés ici sont autorisés malgré tout : un serveur CalDAV, CardDAV ou de fichiers à la maison, un flux de calendrier sur votre réseau local.'
+            remove: 'Ne plus autoriser %host%'
+            remove_confirm: 'Ne plus autoriser %host% ? Les connexions vers ce serveur cesseront de fonctionner à leur prochaine synchronisation.'
+            removed: 'Serveur retiré'
+            require_https: 'Exiger https'
+            saved: 'Serveur autorisé'
         tutorial:
             caldav:
                 intro: 'CalDAV s’authentifie avec un mot de passe d’application propre à chaque utilisateur, sur son propre serveur : il n’y a rien à enregistrer ici.'
@@ -756,8 +960,41 @@ admin:
                 step_base_url: 'Facultatif : imposez l’adresse du serveur, par exemple https://paperless.example.com.'
                 step_enable: 'Activez « Proposer ce service aux utilisateurs » ci-dessus.'
                 step_token: 'Chaque utilisateur copie son jeton d’API depuis Paperless sous Mon profil → Jeton d’authentification API et le colle dans ses propres réglages d’intégration.'
+            webdav:
+                intro: "WebDAV couvre tout serveur de fichiers qui le parle — FileBrowser Quantum, un NAS Synology, rclone serve webdav, Apache mod_dav. Chaque utilisateur se connecte avec son propre mot de passe ou jeton : il n’y a rien à enregistrer ici."
+                no_links: "WebDAV n’offre ni liens publics, ni aperçus, ni recherche. Les fichiers au-delà de la taille maximale des pièces jointes ne peuvent pas être joints, et le sélecteur affiche une icône de fichier au lieu d’une miniature."
+                security: "Un serveur sur un réseau privé, comme un NAS à la maison, n’est joignable qu’une fois ajouté sous Serveurs sur un réseau privé, plus bas."
+                step_base_url: "Facultatif : imposez l’adresse, par exemple https://files.example.com/dav/files/. C’est l’adresse complète du dossier à ouvrir, chemin compris : sur FileBrowser Quantum, /dav/ suivi du nom de la source."
+                step_enable: 'Activez « Proposer ce service aux utilisateurs » ci-dessus.'
+                step_user: "Chaque utilisateur saisit cette adresse, un nom d’utilisateur si le serveur en demande un, et un mot de passe ou un jeton d’API. FileBrowser Quantum prend un jeton d’API comme mot de passe et ignore le nom d’utilisateur."
         tutorial_heading: 'Configuration'
         unimplemented_notice: 'plMail ne sait pas encore communiquer avec ce service. Vous pouvez enregistrer les identifiants dès maintenant — ils seront utilisés dès que la prise en charge arrivera.'
+    libravatar:
+        check_dns: 'Vérifier le DNS'
+        heading: 'Libravatar'
+        intro: 'Permet aux clients de messagerie du monde entier d''afficher la photo de profil que vos utilisateurs ont choisie ici. Les programmes compatibles Libravatar (modules Thunderbird, forges comme Forgejo, autres serveurs plMail) demandent au DNS du domaine d''une adresse quel serveur détient l''image. Activez ceci, faites pointer ce DNS ici, et plMail répond pour ses propres utilisateurs.'
+        need_own_dns: 'Un domaine dont vous gérez le DNS. Les adresses chez Gmail, Outlook.com et autres fournisseurs ne peuvent pas pointer ici ; leurs utilisateurs obtiennent leur image de Gravatar ou Libravatar.'
+        need_reachable: '%url% joignable depuis Internet, pas seulement depuis votre réseau. Si plMail est derrière un reverse proxy, celui-ci doit laisser passer /avatar/.'
+        need_tls: 'Un certificat TLS valide pour %host%, du type accepté par les navigateurs. Les clients refusent en silence un certificat auto-signé.'
+        needs_heading: 'Ce qu''il faut en plus du DNS'
+        no_address: 'Aucune adresse publique n''est définie. Définissez-en une d''abord dans Admin → Adresse : les enregistrements DNS doivent nommer l''hôte par lequel plMail est joignable de l''extérieur.'
+        no_domains: 'Aucun utilisateur n''a encore d''adresse.'
+        no_own_domains: 'Aucun utilisateur n''a encore d''adresse sur un domaine qui vous appartient, seulement chez des fournisseurs de messagerie.'
+        not_https: 'L''adresse publique est %url%, qui n''est pas en https. Les clients Libravatar ne récupèrent qu''en https ; définissez une adresse https dans Admin → Adresse.'
+        provider_domains: 'Rien à ajouter pour %domains% : ce sont des domaines de fournisseurs de messagerie, et seul le fournisseur peut y publier des enregistrements. Les utilisateurs qui y ont une adresse obtiennent leur image de Gravatar ou Libravatar.'
+        records_heading: 'Enregistrements DNS'
+        records_intro: 'Ajoutez chez votre fournisseur DNS un enregistrement SRV par domaine où vos utilisateurs ont des adresses, exactement comme indiqué. Vérifiez-les ensuite ici ; le DNS peut mettre un moment à se mettre à jour.'
+        saved_off: 'Libravatar est désactivé. Aucune image n''est servie, pour personne.'
+        saved_on: 'Libravatar est activé. Les utilisateurs peuvent maintenant partager leur image dans Réglages → Profil.'
+        serve: 'Servir les images des utilisateurs de ce serveur (Libravatar)'
+        serve_hint: 'Désactivé jusqu''à ce que vous l''activiez. Même alors, une image n''est servie que pour les utilisateurs qui l''activent eux-mêmes dans Réglages → Profil ; pour tous les autres, ce serveur répond comme s''il ne connaissait pas l''adresse.'
+        status:
+            elsewhere: 'Pointe vers %found%'
+            missing: 'Pas encore d''enregistrement'
+            not_yours: 'Domaine d''un fournisseur de messagerie'
+            ok: 'OK'
+            wrong_port: 'Mauvais port : %found%'
+        users_opt_in: 'Les utilisateurs choisissent eux-mêmes : chacun décide dans Réglages → Profil si son image est partagée. Une sauvegarde de configuration contient ce réglage et leurs choix.'
     loading: 'Chargement…'
     maintenance:
         heading: Maintenance
@@ -807,6 +1044,7 @@ admin:
     nav:
         address: Adresse
         ai: IA
+        backfills: 'Rattrapages'
         backup: Sauvegarde
         database: Base de données
         demo_stats: 'Visiteurs de la démo'
@@ -816,6 +1054,7 @@ admin:
         performance: Performances
         push: Push
         reset: Réinitialisation
+        sender_pictures: 'Images des expéditeurs'
         sso: 'SSO'
         system: Système
         updates: Mises à jour
@@ -909,9 +1148,13 @@ admin:
                 running_for: 'Depuis'
                 waiting: 'En attente'
                 worker: 'Worker'
+            concurrency:
+                default: 'Par défaut (%count%)'
+                hint: 'worker-ingest exécute les tâches de chaque compte de messagerie dans des processus à part, autant en parallèle, pour qu’un fournisseur qui ne répond plus ne bloque pas les autres comptes. Les tâches d’un même compte s’exécutent toujours l’une après l’autre. Chaque tâche en cours occupe environ 50 Mo.'
+                label: 'Tâches de messagerie simultanées'
             footnote: 'Une lecture de cet instant, pas de la période ci-dessus : le temps d’attente d’une tâche n’est pas conservé une fois traitée. Un worker avec deux files termine la première avant de regarder la seconde.'
             heading: 'Ce que chaque worker a en attente'
-            lead: 'Quel processus est en retard, et de combien. Chaque worker traite une tâche à la fois.'
+            lead: 'Quel processus est en retard, et de combien. worker-ingest traite plusieurs tâches de messagerie à la fois, une par compte ; chaque autre worker traite une tâche à la fois.'
             refresh: 'Actualiser'
     processes:
         empty: 'Aucun signal de vie pour l’instant — les processus apparaissent ici après leur premier signal.'
@@ -1002,6 +1245,16 @@ admin:
         running_for: 'depuis %duration%'
         waiting_since: 'En attente depuis'
     refresh_hint: 'Les panneaux en direct s’actualisent toutes les 10 s'
+    sender_pictures:
+        always_local: 'Les photos des contacts des utilisateurs et leurs propres photos de profil sont affichées dans tous les cas : elles sont déjà sur ce serveur.'
+        heading: 'Images des expéditeurs'
+        intro: 'Une fois activé, plMail recherche des images pour les personnes qui écrivent à vos utilisateurs : logos d''entreprise (BIMI) et icônes de site depuis le domaine de l''expéditeur, et Gravatar ou Libravatar pour les utilisateurs qui le demandent. Les recherches s''exécutent en arrière-plan sur le worker de maintenance ; aucun navigateur d''utilisateur ne contacte ces services. Chaque utilisateur choisit lesquelles il souhaite.'
+        lookups: 'Rechercher les images des expéditeurs sur Internet'
+        lookups_hint: 'Désactivé jusqu''à ce que vous l''activiez. L''activer lance la recherche pour les personnes ayant écrit à chaque utilisateur ces 90 derniers jours.'
+        'off': 'Désactivé'
+        'on': 'Activé'
+        saved_off: 'Les recherches sont désactivées. Les images déjà trouvées ne sont plus affichées.'
+        saved_on: 'Les recherches sont activées. Les images des expéditeurs récents sont en cours de recherche.'
     # Shown in a card's header while it is collapsed — short enough to read at
     # a glance, specific enough to be worth expanding for.
     sso:
@@ -1461,6 +1714,58 @@ calendar:
         all_day: Toute la journée
         calendar: Agenda
         cancel: Annuler
+        color:
+            all: Toutes les couleurs
+            button: 'Couleur : %color%'
+            calendar: Couleur de l’agenda
+            custom: Personnalisée
+            dialog: Couleur de l’événement
+            names:
+                cadetblue: Bleu cadet
+                chocolate: Chocolat
+                coral: Corail
+                cornflowerblue: Bleuet
+                crimson: Cramoisi
+                darkgoldenrod: Verge d’or foncé
+                darkkhaki: Kaki foncé
+                darkmagenta: Magenta foncé
+                darkorange: Orange foncé
+                darkturquoise: Turquoise foncé
+                dimgray: Gris foncé
+                dodgerblue: Bleu Dodger
+                firebrick: Rouge brique
+                forestgreen: Vert forêt
+                gold: Or
+                goldenrod: Verge d’or
+                hotpink: Rose vif
+                indigo: Indigo
+                lightseagreen: Vert marin clair
+                limegreen: Vert citron
+                mediumpurple: Violet moyen
+                mediumseagreen: Vert marin moyen
+                mediumvioletred: Rouge violet moyen
+                midnightblue: Bleu nuit
+                olivedrab: Vert olive terne
+                orchid: Orchidée
+                palevioletred: Rouge violet pâle
+                peru: Pérou
+                rosybrown: Vieux rose
+                royalblue: Bleu roi
+                saddlebrown: Brun cuir
+                seagreen: Vert marin
+                sienna: Terre de Sienne
+                slateblue: Bleu ardoise
+                slategray: Gris ardoise
+                steelblue: Bleu acier
+                teal: Sarcelle
+                tomato: Tomate
+                turquoise: Turquoise
+                yellowgreen: Vert jaune
+            nearest: 'La plus proche de %hex%'
+            none: Aucune couleur ne porte ce nom.
+            often: Souvent utilisées
+            results: Couleurs correspondantes
+            search: Rechercher une couleur
         copies:
             help: >-
                 Les agendas cochés reçoivent cet événement et chaque modification que
@@ -1530,6 +1835,7 @@ calendar:
         until: jusqu’à %when%
     ics:
         error:
+            import_gone: 'Le calendrier ou le fichier envoyé avait disparu au début de l’import. Envoyez le fichier à nouveau.'
             no_calendar: Choisissez un agenda où placer les événements.
             no_file: >-
                 Choisissez un fichier .ics. Si vous en avez choisi un, il est peut-être
@@ -1583,6 +1889,7 @@ calendar:
             import_nothing_new: >-
                 Rien à ajouter — chaque événement de ce fichier est déjà dans vos
                 agendas.
+            import_started: 'Import du fichier — il se fait en arrière-plan. Vous saurez ce qu’il a ajouté.'
             imported: '%added% ajoutés, %updated% mis à jour, %skipped% ignorés.'
             subscribed: >-
                 Abonné — l’agenda se remplira d’ici une minute.
@@ -1641,6 +1948,7 @@ calendar:
         previous: Précédent
     open_day: 'Tout le %date%'
     pane:
+        close: 'Fermer le calendrier'
         mode:
             calendar: Afficher l’agenda en pleine largeur
             mail: Afficher le courrier
@@ -2001,6 +2309,15 @@ compose:
         no_own_certificate: 'Vous n’avez pas de certificat S/MIME pour cette adresse d’expédition : ce message ne peut pas être signé ni chiffré avec S/MIME.'
         failed: Le message n’a pas pu être chiffré. Rien n’a été envoyé.
         sealed_attachment: 'Chiffré : jusqu’à l’envoi du message, vous seul pouvez l’ouvrir.'
+        policy:
+            auto: 'Auto'
+            failed: 'Ce choix n’a pas pu être enregistré.'
+            heading: 'Chiffrement pour ces adresses'
+            hint: 'Retenu aussi pour les prochains messages. Auto chiffre dès que plMail a une clé.'
+            label: 'Chiffrement pour %email%'
+            no_key: 'Pas de clé — non chiffré'
+            off: 'Désactivé'
+            on: 'Activé'
     seal:
         refused: Le message chiffré n’est pas arrivé intact. Rien n’a été envoyé ; réessayez.
         keys_changed: La clé d’un destinataire a changé pendant que vous écriviez. Rien n’a été envoyé ; renvoyez le message.
@@ -2012,6 +2329,8 @@ compose:
     formatting: Options de mise en forme
     forward: Transférer
     from: De
+    from_pick: Choisissez une adresse d’expédition
+    from_via: '%label% · via %account%'
     image: Insérer une image
     image_edit:
         crop: Recadrer
@@ -2161,6 +2480,8 @@ contact_keys:
     removed: Clé supprimée.
     preferences_saved: Enregistré.
     not_found: Cette clé n’existe plus.
+    policy:
+        no_key: 'plMail n’a pas de clé pour cette adresse : les messages y partent de toute façon non chiffrés.'
     signer_unknown: plMail n’a pas la clé qui a fait cette signature. Recherchez-la ou importez-la d’abord.
     certificates:
         heading: Certificats S/MIME de vos contacts
@@ -2316,6 +2637,7 @@ dnd:
     # in the translated string — see _layout/_mailbox.html.twig. Always
     # plural: a single conversation drags a picture of its own row instead.
     dragging: '%count% conversations'
+    dragging_emails: '%count% e-mails'
 
 drafts:
     empty: Aucun brouillon.
@@ -2751,6 +3073,10 @@ jobs:
         purge: Suppression définitive
         reclassify: Nouveau tri du courrier récent
         delete_label: Suppression d’un libellé
+        delete_account: Suppression d’un compte
+        import_contacts: Import de contacts
+        import_calendar: Import d’un fichier de calendrier
+        resort_removed_category: Retri du courrier d’un onglet supprimé
     state:
         done: '%count% terminés'
         failed: échec
@@ -2790,6 +3116,9 @@ label:
     error:
         duplicate: Un libellé de ce nom existe déjà ici. Les majuscules n’en font pas un nom différent.
     form:
+        account_note:
+            new: 'Créé sur %account% uniquement.'
+            rename: 'Le renommer ici ne le renomme que sur %account%. %others% gardent « %name% ».'
         color: Couleur
         delete: Supprimer le libellé
         delete_hint: 'La suppression retire le libellé de tous les comptes, ainsi que les libellés imbriqués dessous. Le courrier qui le porte garde ses autres libellés et n’est pas supprimé.'
@@ -2831,6 +3160,7 @@ label:
         shown: Le libellé est maintenant visible.
 
 list:
+    conversation_view: 'Vue par conversation'
     sort:
         newest: Plus récents d’abord
         oldest: Plus anciens d’abord
@@ -3196,6 +3526,12 @@ password_required:
     submitting: Enregistrement…
     tagline: Encore une étape
 
+pin:
+    reminder:
+        confirm: 'Épingler quand même'
+        question: '{1} Vous avez déjà une conversation épinglée. En épingler une autre quand même ?|]1,Inf[ Vous avez déjà %count% conversations épinglées. En épingler une autre quand même ?'
+        settings: 'Modifier le seuil de ce rappel'
+
 profile:
     avatar_current: Image actuelle
     avatar_from:
@@ -3211,7 +3547,7 @@ profile:
         name_first: Prénom
         name_last: Nom
 
-# The reading pane beside the message list (Settings → Reading pane turns it on).
+# The reading pane beside the message list (Settings → Reading & writing → Reading turns it on).
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
@@ -3405,6 +3741,17 @@ settings:
             title: 'Suivre les catégories Outlook'
         colour:
             change: 'Changer la couleur de %account%'
+            contrast_current: 'Actuel'
+            contrast_dark: 'Sombre'
+            contrast_light: 'Clair'
+            contrast_low: 'Peu visible sur ce thème'
+            contrast_ok: 'Bien visible'
+            custom: 'Couleur personnalisée'
+            custom_format: 'Six chiffres hexadécimaux, comme #0072b2.'
+            custom_heading: 'Personnalisée'
+            custom_hex: 'Code couleur hexadécimal'
+            custom_pick: 'Choisir une couleur'
+            presets: 'Prédéfinies'
             swatch:
                 '0': Orange
                 '1': Vert
@@ -3416,10 +3763,8 @@ settings:
                 '7': Olive
         delete: Supprimer le compte
         delete_confirm: 'Supprimer %account% ? Tous les messages synchronisés de ce compte seront définitivement supprimés, sans retour possible.'
-        disable: Désactiver le compte
         edit: Modifier le compte
         empty: Aucun compte pour l’instant. Ajoutez-en un pour commencer à synchroniser du courrier.
-        enable: Activer le compte
         folders:
             always_synced: La boîte de réception est toujours synchronisée
             button: Dossiers
@@ -3461,6 +3806,7 @@ settings:
             placeholder: 'Un dossier qui ne fait que regrouper d’autres dossiers — il n’y a rien à synchroniser dedans'
             refused:
                 has_children: 'Ce dossier contient d’autres dossiers. Supprimez-les ou déplacez-les d’abord.'
+                mail_off: 'Le courrier est désactivé pour ce compte : ses dossiers ne peuvent pas être modifiés sur le serveur. Activez d’abord le courrier.'
                 not_empty: 'Ce dossier contient encore du courrier (%count%). Déplacez-le d’abord ; supprimer un dossier supprimerait son courrier.'
                 server: 'Le serveur de messagerie a refusé : %reason%'
                 special_use: 'La boîte de réception, Envoyés, Brouillons, Corbeille, Indésirables et Archives ne sont jamais renommés ni supprimés depuis plMail : les autres applications et plMail lui-même en dépendent.'
@@ -3537,7 +3883,32 @@ settings:
                 jmap: 'Les changements arrivent immédiatement : le serveur JMAP les envoie à plMail, par webhook quand il peut joindre ce serveur, sinon par une connexion maintenue ouverte.'
                 microsoft: Le nouveau courrier arrive immédiatement via les notifications push de Microsoft.
             title: Livraison instantanée
+        removing: 'Suppression en cours…'
+        removing_progress: '%done% messages supprimés sur %total%'
         reorder: Faites glisser pour réorganiser
+        services:
+            allow: 'Autoriser…'
+            allow_explained: 'Activer %service% demande une autorisation que %provider% n’a pas encore donnée à plMail. Ouvre %provider% pour la demander.'
+            calendar: 'Agenda'
+            calendar_help: 'Ses agendas, tenus à jour dans les deux sens'
+            change: 'Courrier, agenda et contacts pour %account%'
+            close: 'Terminé'
+            contacts: 'Contacts'
+            contacts_help: 'Ses carnets d’adresses, tenus à jour dans les deux sens'
+            intro: 'Désactivez ce pour quoi vous n’utilisez pas ce compte. plMail cesse alors d’en parler au serveur et garde ce qui est déjà là.'
+            mail: 'Recevoir le courrier'
+            mail_help: 'Synchronisation de son courrier et chaque modification que vous y faites'
+            none: 'Tout est désactivé'
+            purge: 'Supprimer de plMail le courrier synchronisé'
+            purge_confirm: 'Supprimer tout le courrier que plMail a synchronisé pour %account% ? Il reste sur le serveur. Si vous réactivez le courrier, plMail le télécharge à nouveau.'
+            purge_help: 'Seule la copie de plMail est supprimée. Rien n’est effacé sur le serveur.'
+            send: 'Envoyer du courrier'
+            send_help: 'Proposé comme expéditeur quand vous écrivez ; le courrier, les envois programmés et les accusés de lecture partent par lui'
+            setup: 'Configurer…'
+            setup_explained: '%service% a besoin d’un serveur que ce compte n’a pas encore. Ouvre le formulaire du compte pour l’ajouter.'
+            turn_off: 'Désactiver %service% pour %account%'
+            turn_on: 'Activer %service% pour %account%'
+            used_for: 'Utilisé pour %services%'
         status:
             active: Actif
             disabled: Désactivé
@@ -3585,6 +3956,7 @@ settings:
         delete: "Supprimer la catégorie"
         delete_confirm: "Supprimer « %name% » ? Le courrier qui y est classé retourne dans l’onglet où il serait sinon. Aucun courrier n’est supprimé."
         deleted: "Catégorie « %name% » supprimée."
+        deleted_resorting: "Catégorie « %name% » supprimée. Ses conversations retournent dans leurs onglets en arrière-plan."
         error:
             empty: "Une catégorie a besoin d’un nom."
             reserved: "Ce nom appartient à l’un des onglets intégrés."
@@ -3619,6 +3991,13 @@ settings:
                 brand: 'Sous le nom plMail'
                 sidebar: 'En bas de la barre latérale'
                 'off': 'Nulle part'
+    conversation_view:
+        conversations: 'Conversations'
+        emails: 'E-mails individuels'
+        heading: 'Vue par conversation'
+        hint: 'Aussi dans le menu de tri de chaque liste, et avec la touche t.'
+        label: 'Les listes affichent'
+        subheading: 'Regroupez les e-mails d''une conversation sur une seule ligne, ou affichez chaque e-mail séparément.'
     device_pairing:
         pair_device: "Associer un appareil"
         scan_title: "Scannez ceci avec l’application plMail"
@@ -3627,6 +4006,109 @@ settings:
         with_keys: 'Vos clés vous accompagnent : le courrier chiffré s’ouvre tout de suite dans l’application.'
         expires: "Expire à %time%."
         open_in_app: "Ouvrir dans l’application"
+    libravatar:
+        heading: 'Libravatar'
+        no_picture: 'Vous n''avez pas encore de photo de profil ; ajoutez-en une ci-dessus pour que ceci affiche quelque chose.'
+        publish: 'Partager mon image via Libravatar'
+        publish_hint: 'Permet aux programmes et sites qui utilisent Libravatar d''afficher l''image ci-dessus à côté de vos adresses. Toute personne connaissant l''une de vos adresses peut alors récupérer l''image. Désactivé jusqu''à ce que vous l''activiez.'
+        subheading: 'Si d''autres programmes de messagerie peuvent afficher votre photo de profil.'
+    message_list:
+        always: 'Toujours'
+        attachments:
+            chips: 'Puces'
+            hint: 'Les puces nomment jusqu’à trois fichiers sous l’aperçu et en ouvrent un directement depuis la liste.'
+            icon: 'Trombone'
+            label: 'Pièces jointes'
+        avatars:
+            hint: Le cercle coloré portant l’initiale de l’expéditeur. Désactivé, il devient un simple cercle au lieu de disparaître — c’est aussi la case à cocher de la ligne.
+            label: Pastilles d’expéditeur
+        content:
+            heading: 'Contenu'
+            subheading: 'Ce que chaque ligne dit de sa conversation.'
+        corner:
+            hint: Le triangle coloré dans le coin d’une ligne, qui indique sur quel compte elle est arrivée. Seulement dessiné dans une liste qui mélange les comptes.
+            label: Coin du compte
+        count:
+            hint: 'Le nombre après l’objet d’une conversation.'
+            label: 'Nombre de messages'
+        date:
+            full: 'Date et heure'
+            hint: 'Intelligente affiche l’heure aujourd’hui, le jour cette année, puis la date complète.'
+            label: 'Date'
+            smart: 'Intelligente'
+        hidden: 'Masqué'
+        labels:
+            dots: 'Points'
+            hint: 'Devant l’objet, en puces ou en points de la couleur du libellé, ou sur une ligne à part.'
+            inline: 'Avant l’objet'
+            label: 'Libellés'
+            line: 'Ligne à part'
+        layout:
+            fit: 'Dès que ça tient'
+            heading: 'Disposition'
+            hint: 'Une liste large met l’expéditeur, l’objet et l’aperçu sur une ligne. Plus étroite, la ligne s’empile.'
+            label: 'Affichage sur une ligne'
+            stacked: 'Jamais'
+            subheading: 'Quand une ligne passe sur une seule ligne, et ce qu’elle montre du message.'
+            wide: 'Listes larges seulement'
+        markers:
+            heading: 'Marques'
+            subheading: 'Les marques de chaque ligne.'
+        on_hover: 'Au survol'
+        preview:
+            heading: 'Aperçu'
+            subheading: 'Des messages inventés, dessinés comme votre liste les dessine. Choisissez une largeur pour voir une ligne changer de forme.'
+            width: 'Largeur de l’aperçu'
+            widths:
+                narrow: 'Étroite'
+                phone: 'Téléphone'
+                wide: 'Large'
+        preview_lines:
+            hint: 'Ce qu’une ligne empilée montre du message. Une ligne simple le montre toujours après l’objet.'
+            inline: 'Après l’objet'
+            label: 'Aperçu du message'
+            none: 'Aucun'
+            one: 'Une ligne'
+            two: 'Deux lignes'
+        replied:
+            hint: 'Une flèche devant l’objet quand le dernier message de la conversation a reçu une réponse.'
+            label: 'Flèche de réponse'
+        sample:
+            contract:
+                body: 'Voici la dernière série de modifications. Pourriez-vous signer d’ici vendredi pour que nous commencions le premier du mois ?'
+                subject: 'Projet de contrat – version finale'
+            digest:
+                body: 'Cinq choses à lire cette semaine, un nouvel épisode et les événements près de chez vous.'
+                subject: 'Votre résumé de la semaine'
+            flights:
+                body: 'J’ai trouvé deux options pour mardi matin. La première est moins chère mais atterrit une heure avant la conférence d’ouverture.'
+                subject: 'Vols pour la conférence'
+            label:
+                travel: 'Voyages'
+                work: 'Travail'
+            offsite:
+                body: 'La maison du lac est libre la deuxième semaine d’avril. Le lieu en ville attend une réponse d’ici lundi.'
+                subject: 'Séminaire de printemps : lieux et dates'
+        sender:
+            everyone: 'Tous'
+            hint: 'Dans Envoyés et Brouillons, la ligne nomme les destinataires dans les deux cas.'
+            label: 'Expéditeur'
+            latest: 'Le dernier'
+        shown: 'Affiché'
+        star:
+            hint: 'Pour une conversation sans étoile. Une conversation suivie montre toujours son étoile.'
+            label: 'Étoile'
+        tab_counts:
+            heading: 'Compteurs des onglets'
+            hint: 'Le nombre à côté du nom de chaque onglet : combien de conversations de cette catégorie contiennent du courrier non lu. Les onglets s’additionnent pour donner le badge de la boîte de réception dans la barre latérale. La pastille « 3 nouveaux » est distincte et reste.'
+            label: 'Nombre de non-lus sur les onglets'
+            subheading: 'Les nombres sur les onglets de la boîte de réception.'
+        unread:
+            hint: 'L’intensité de la teinte d’une ligne non lue. Le gras reste à chaque réglage.'
+            label: Lignes non lues
+            standard: Standard
+            strong: Marqué
+            subtle: Discret
     native_apps:
         android_hint: "Associez-la ensuite avec le bouton ci-dessous. Acheter l’application sur Google Play est, pour l’instant, le principal moyen de soutenir ce projet."
         android_title: "Installez d’abord plMail pour Android"
@@ -3664,6 +4146,12 @@ settings:
             solid: Couleur unie
             theme: Défaut du thème
             upload: Envoyer une image
+        buttons:
+            both: 'Icônes et texte'
+            hint: "Ce qu'affichent les boutons au-dessus d'une conversation ou d'une sélection."
+            icons: 'Icônes'
+            label: "Boutons d'action"
+            text: 'Texte'
         density:
             comfortable: Confortable
             compact: Compacte
@@ -3700,30 +4188,6 @@ settings:
             flat: À plat
             heading: Disposition
             subheading: Comment l’interface est encadrée. Encadrée fait flotter chaque panneau comme une carte ; à plat pose la barre du haut et la barre latérale directement sur l’arrière-plan et n’encadre que le volet principal.
-        list:
-            accountCorner: Coin du compte
-            accountCornerHint: Le triangle coloré dans le coin d’une ligne, qui indique sur quel compte elle est arrivée. Seulement dessiné dans une liste qui mélange les comptes.
-            actionButton:
-                both: 'Icônes et texte'
-                icons: 'Icônes'
-                text: 'Texte'
-            actionButtons: "Boutons d'action"
-            actionButtonsHint: "Ce qu'affichent les boutons au-dessus d'une conversation ou d'une sélection."
-            heading: Liste des messages
-            listAvatars: Pastilles d’expéditeur
-            listAvatarsHint: Le cercle coloré portant l’initiale de l’expéditeur. Désactivé, il devient un simple cercle au lieu de disparaître — c’est aussi la case à cocher de la ligne.
-            tabUnreadCount: 'Nombre de non-lus sur les onglets'
-            tabUnreadCountHint: 'Le nombre à côté du nom de chaque onglet : combien de conversations de cette catégorie contiennent du courrier non lu. Les onglets s’additionnent pour donner le badge de la boîte de réception dans la barre latérale. La pastille « 3 nouveaux » est distincte et reste.'
-            previewLines: Lignes d’aperçu
-            previewLines0: Aucune
-            previewLines1: Une ligne
-            previewLines2: Deux lignes
-            subheading: Ce qu’affiche chaque ligne de la liste.
-            unread:
-                standard: Standard
-                strong: Marqué
-                subtle: Discret
-            unreadEmphasis: Lignes non lues
         logo:
             colour: 'Couleur'
             custom:
@@ -3790,50 +4254,11 @@ settings:
             matchGlass: Suivre l’opacité du verre
             subheading: Teinte et opacité de la zone de contenu principale, indépendamment de la barre latérale.
             tint: Teinte d’arrière-plan
-        preview:
-            body: Un court message, pour que le volet de lecture ait quelque chose à montrer. Rien de tout cela n’est du vrai courrier — l’aperçu n’en charge jamais.
-            heading: Aperçu
-            hide: Masquer l’aperçu
-            resize: Redimensionner l’aperçu
-            compose_body: Une réponse à moitié écrite, pour que l’éditeur ait quelque chose dedans. Rien n’est envoyé.
-            compose_heading: Nouveau message
-            compose_send: Envoyer
-            compose_subject: 'Re : Notes sur la machine analytique'
-            compose_to: ada@plmail.test
-            field_date: Date
-            field_from: De
-            field_subject: Objet
-            field_to: À
-            reply: Répondre
-            sender1: Ada Lovelace
-            sender2: Grace Hopper
-            sender3: Kathleen Booth
-            sender4: Margaret Hamilton
-            sender5: Barbara Liskov
-            sender6: Karen Spärck Jones
-            sender7: Radia Perlman
-            sender8: Frances Allen
-            show: Afficher l’aperçu
-            snippet: Voici à quoi ressemble une ligne d’aperçu, et combien en tient avant que la ligne manque de place.
-            subheading: Vos réglages, sur une liste d’exemple. Rien ici n’est chargé depuis votre courrier.
-            to: à vous
-            value_from: Ada Lovelace <ada@plmail.test>
-            value_to: vous@plmail.test
-            subject1: Notes sur la machine analytique
-            subject2: 'Re : le brouillon du compilateur'
-            subject3: Notes d’assembleur, comme promis
-            subject4: Logiciel de guidage — la liste des priorités
-            subject5: 'Re : l’abstraction et la hiérarchie des types'
-            subject6: La pondération des termes, et pourquoi elle compte
-            subject7: Brouillon de l’arbre couvrant à relire
-            subject8: 'Optimiser la boucle interne : résultats'
         reset: Rétablir les valeurs par défaut
         subheading: Thème, densité, police et arrière-plan — toute l’apparence de l’application, au même endroit.
         seg:
             custom: 'Personnalisé'
             default: 'Défaut du thème'
-            hidden: 'Masqué'
-            shown: 'Affiché'
         text:
             autoDerive: Déduire automatiquement
             color: Couleur du texte
@@ -3864,6 +4289,29 @@ settings:
             scaleHint: S’applique à toute l’interface. La fenêtre de rédaction garde sa propre police et sa propre taille — celles-ci partent avec le message.
             subheading: La police et la taille dans lesquelles l’interface est dessinée.
     compose_defaults:
+        bcc:
+            chips:
+                create: 'Ajouter %s'
+                no_results: 'Aucun contact ne correspond. Tapez l’adresse complète.'
+            for_alias: 'Toujours en Cci pour %alias%'
+            hint: 'Chaque message part aussi, sans être vu, vers ces adresses : une copie de sauvegarde, ou la preuve qu’il est parti. Elles sont mises en Cci dès que vous commencez à écrire, et vous pouvez en retirer une pour un seul message.'
+            invalid: '« %address% » n’est pas une adresse e-mail valide.'
+            label: 'Toujours en Cci'
+            per_address:
+                account_list: 'Comme le compte : %addresses%'
+                account_none: 'Comme le compte : pas de Cci'
+                inherit: 'Comme le compte'
+                nobody: 'Personne, cette adresse n’envoie pas de copie'
+                override: 'Sa propre liste'
+            placeholder: 'Ajouter une adresse…'
+            save: 'Enregistrer'
+            too_many: '%max% adresses au maximum.'
+        exceptions:
+            add: 'Ajouter une exception pour…'
+            edit: 'Modifier'
+            heading: 'Adresses qui diffèrent'
+            remove: 'Supprimer l’exception'
+            remove_for: 'pour %alias%'
         heading: 'Valeurs par défaut de rédaction'
         invalid: 'Ce réglage n’a pas pu être enregistré.'
         read_receipt:
@@ -3876,7 +4324,14 @@ settings:
                 ask: 'Demander à chaque fois'
                 never: 'Ne jamais envoyer'
         saved: 'Enregistré.'
-        subheading: 'Ce que fait chacune de vos adresses par défaut quand elle envoie et reçoit.'
+        subheading: 'Ce que fait chaque compte par défaut quand il envoie et reçoit, et les adresses qui diffèrent.'
+        summary:
+            bcc: 'Cci %addresses%'
+            bcc_nobody: 'Cci à personne'
+            exceptions: 'Exceptions : %number%'
+            no_bcc: 'Pas de Cci'
+            receipts: 'Accusés : %mode%'
+            same_as_account: 'Comme le compte'
     filters:
         account: Compte
         action:
@@ -4154,6 +4609,23 @@ settings:
                     bonne, c’est donc le serveur de mail qui refuse ou est injoignable :
                     vérifiez qu’il fonctionne et que rien n’a changé côté serveur, port
                     ou mot de passe.
+                body_oauth: >-
+                    Plusieurs tentatives d’affilée ont échoué : le nouveau courrier
+                    n’arrive donc pas pour ce compte, et tout ce qui en dépend — filtres
+                    appliqués à la réception, compteurs de non-lus — est à l’arrêt. Le
+                    courrier déjà là est en sécurité et inchangé. La connexion est
+                    bonne, c’est donc votre fournisseur qui refuse ou ne répond pas. Cela
+                    se règle généralement tout seul et plMail continue d’essayer ; si
+                    cela dure, consultez la page d’état de votre fournisseur.
+                body_provider_down: >-
+                    Le nouveau courrier n’arrive pas pour ce compte parce que les
+                    serveurs de votre fournisseur sont en panne de leur côté — le détail
+                    technique ci-dessous est leur réponse, pas un problème de ce compte.
+                    Ce qui dépend du nouveau courrier, comme les filtres appliqués à la
+                    réception et les compteurs de non-lus, est à l’arrêt d’ici là. Le
+                    courrier déjà là est en sécurité et inchangé, et vous n’avez rien à
+                    modifier : plMail continue d’essayer et rattrape tout seul son retard
+                    une fois le fournisseur rétabli. Sa page d’état indique quand.
                 title: '%account% n’arrive plus à se synchroniser'
             server_alert:
                 body: >-
@@ -4316,6 +4788,17 @@ settings:
         send_optimistic: La fermer
         send_hold: La garder ouverte
         heading: 'Rédaction'
+        mailto: 'Liens e-mail'
+        mailto_app_linux: 'plMail fonctionne comme application installée. Les liens des autres programmes arrivent ici une fois qu''il est la messagerie par défaut de votre bureau : choisissez plMail sous Applications par défaut dans les réglages de votre bureau, ou lancez xdg-settings set default-url-scheme-handler mailto avec le fichier .desktop de plMail dans ~/.local/share/applications.'
+        mailto_app_macos: 'plMail fonctionne comme application installée. Les liens des autres programmes arrivent ici une fois qu''il est la messagerie par défaut de votre Mac : dans Mail, ouvrez Réglages → Général → Lecteur de courrier par défaut et choisissez plMail. S''il n''est pas dans la liste, choisissez Sélectionner… et trouvez plMail dans votre dossier personnel sous Applications → Chrome Apps.'
+        mailto_app_other: 'plMail fonctionne comme application installée. Les liens des autres programmes arrivent ici une fois qu''il est la messagerie par défaut dans les réglages de votre système.'
+        mailto_app_windows: 'plMail fonctionne comme application installée. Les liens des autres programmes arrivent ici une fois qu''il est votre messagerie par défaut : ouvrez Paramètres → Applications → Applications par défaut, cherchez MAILTO et choisissez plMail.'
+        mailto_asked: 'Votre navigateur demande près de la barre d''adresse — choisissez Autoriser, ce qui fait aussi de plMail le choix par défaut. Pas de demande, et les liens n''arrivent toujours pas ? plMail est alors enregistré sans être le choix par défaut : dans Chrome, ouvrez chrome://settings/handlers et choisissez « Définir par défaut » dans le menu ⋮ de plMail.'
+        mailto_button: 'Utiliser plMail'
+        mailto_failed: 'Ce navigateur a refusé la demande.'
+        mailto_hint: 'Ouvrir dans plMail les liens mailto: des autres sites, dans ce navigateur. Chaque navigateur et chaque appareil décide pour lui-même. Installé comme application, plMail les ouvre dans la fenêtre déjà ouverte.'
+        mailto_insecure: 'Les navigateurs ne l''autorisent qu''en HTTPS, et plMail est joint ici en HTTP simple.'
+        mailto_unsupported: 'Ce navigateur ne peut pas confier les liens e-mail à une application web. Les applications plMail pour Android et iOS le peuvent.'
         open: 'Ouvert'
         subheading: 'Le comportement de la fenêtre de rédaction pour vous, sur tous vos comptes.'
     insights:
@@ -4380,6 +4863,8 @@ settings:
         field:
             base_url: 'Adresse du serveur'
             base_url_fixed: 'Connexion à %url%, définie par votre administrateur.'
+            base_url_help:
+                webdav: "L’adresse complète du dossier à ouvrir, chemin compris — sur FileBrowser Quantum, https://hote/dav/<source>/."
             name: Nom
             name_help: 'Visible de vous seul, pour distinguer deux connexions.'
             permissions:
@@ -4395,6 +4880,7 @@ settings:
                 oneDrive: 'Jeton d’accès'
                 openCloud: 'Jeton d’application'
                 paperless: 'Jeton d’API'
+                webdav: "Mot de passe ou jeton"
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -4404,6 +4890,7 @@ settings:
                 oneDrive: ''
                 openCloud: 'Créez-en un dans OpenCloud sous Paramètres du compte → Jetons d’application et choisissez une longue durée : un jeton expiré ne fonctionne plus. Avec l’authentification unique, le nom d’utilisateur peut être l’identifiant affiché dans les préférences.'
                 paperless: 'Copiez-le depuis Paperless sous Mon profil → Jeton d’authentification API.'
+                webdav: "Pour FileBrowser Quantum, créez un jeton d’API et collez-le ici ; le nom d’utilisateur peut rester vide. Un jeton expiré cesse de fonctionner."
             secret_unchanged: 'Laissez vide pour conserver l’identifiant enregistré'
             username: Nom d’utilisateur
         heading: Intégrations
@@ -4605,19 +5092,47 @@ settings:
         sync_now_title: Synchroniser maintenant
         zone_follows: Suit plMail
     labels:
+        by_account:
+            hint: 'Liste les libellés de chaque compte sous ce compte dans la barre latérale, à côté de ses dossiers. La section Libellés ne garde alors que les libellés qui ne sont sur aucun compte, et un libellé renommé sous un compte n’est renommé que pour ce compte.'
+            title: 'Libellés par compte'
         count: '%count% libellés'
         delete: Supprimer le libellé « %name% »
         edit: Modifier le libellé « %name% »
         empty: Aucun libellé pour l’instant — créez-en un, ou ils apparaîtront après la première synchronisation.
         folders_in_labels:
-            off_hint: 'Désactivé : les dossiers sont listés sous leur compte, et la section Libellés contient les libellés posés sur les messages.'
-            on_hint: 'Activé : la section Libellés de la barre latérale liste aussi les dossiers, en plus de leur place sous chaque compte.'
+            hint: 'Liste aussi les dossiers dans la section Libellés commune, en plus de leur place sous chaque compte. Seulement pour la liste commune : par compte, tout est déjà sous son compte.'
             title: 'Dossiers dans Libellés'
         heading: Libellés
         hide: Masquer le libellé
+        seg:
+            off: 'Désactivé'
+            on: 'Activé'
         show: Afficher le libellé
         subheading: Créez, renommez et organisez vos libellés, et choisissez lesquels apparaissent dans la barre latérale.
         system: Système
+        view:
+            heading: 'Libellés dans la barre latérale'
+            subheading: 'Choisissez si la barre latérale liste vos libellés une seule fois pour tous les comptes, ou sous chaque compte.'
+    pinning:
+        duration:
+            custom: 'Un nombre de jours'
+            custom_days: 'jours'
+            forever: 'Pour toujours'
+            hint: 'Le changement s’applique aux épinglages faits à partir de maintenant.'
+            label: 'Durée d’un épinglage'
+            one_day: '1 jour'
+            one_week: '1 semaine'
+            thirty_days: '30 jours'
+            three_days: '3 jours'
+            two_weeks: '2 semaines'
+        heading: 'Conversations épinglées'
+        keep_on_move:
+            hint: 'L’archivage compte comme un déplacement. La corbeille et le spam retirent toujours l’épingle.'
+            label: 'Garder l’épingle quand une conversation est déplacée'
+        reminder:
+            hint: 'Au-delà de ce nombre, épingler demande d’abord confirmation, sans jamais refuser. 0 désactive le rappel.'
+            label: 'Me le rappeler à partir de'
+        subheading: 'Les conversations que vous épinglez restent en haut de chaque liste où elles apparaissent.'
     profile:
         heading: Votre profil
         save: Enregistrer le profil
@@ -4648,6 +5163,17 @@ settings:
         'off': 'Désactivé'
         'on': 'Activé'
         subheading: Si les images qu’un message charge depuis ailleurs attendent qu’on les demande.
+    sender_pictures:
+        admin_off: 'Votre administrateur n''a pas autorisé ce serveur à rechercher des images sur Internet, ces réglages n''ont donc aucun effet pour l''instant. Votre choix est conservé pour plus tard.'
+        bimi: 'Logos d''entreprise'
+        bimi_hint: 'Le logo qu''une entreprise publie pour ses e-mails (BIMI), récupéré sur le domaine de l''entreprise et affiché uniquement sur les messages dont ce domaine est l''expéditeur avéré.'
+        hashed: 'Gravatar et Libravatar'
+        hashed_hint: 'L''image qu''une personne a choisie sur Gravatar ou sur le serveur Libravatar de son domaine. Chaque adresse qui vous écrit est envoyée à ce service sous forme d''empreinte. Désactivé jusqu''à ce que vous l''activiez.'
+        heading: 'Images des expéditeurs'
+        intro: 'Les photos de vos contacts et les photos de profil des personnes de ce serveur sont toujours affichées. Il s''agit ici des images que plMail peut rechercher pour tous les autres, en arrière-plan — ouvrir un e-mail ne télécharge jamais rien.'
+        subheading: 'Quelles images à côté d''un expéditeur peuvent être recherchées sur Internet.'
+        website: 'Icônes de site web'
+        website_hint: 'L''icône que le site web d''un expéditeur déclare. Jamais pour les adresses chez des fournisseurs comme Gmail, dont l''icône ne dirait rien de la personne.'
     swipe_actions:
         heading: Balayage des lignes
         hint: >-
@@ -4660,6 +5186,7 @@ settings:
         option:
             archive: Archiver
             none: Aucune action
+            pin: 'Épingler'
             read_unread: Lu / non lu
             star: Étoile
             trash: Supprimer
@@ -4668,7 +5195,7 @@ settings:
         subheading: Ce que fait un balayage sur une ligne, sur téléphone.
     unified_inboxes:
         account_label: 'Boîte unifiée pour %account%'
-        account_off: 'Désactivé — aucun de ses messages n’est affiché tant que vous ne le réactivez pas.'
+        account_off: 'Courrier désactivé — aucun de ses messages n’est affiché ici tant que vous ne le réactivez pas.'
         accounts_heading: 'Comptes'
         accounts_subheading: 'La boîte dans laquelle s’affichent les messages de chaque compte. Un nouveau compte va dans votre première boîte.'
         add: 'Ajouter'
@@ -4704,41 +5231,98 @@ settings:
         show_hint: 'Désactivé : rien ne s’ouvre après une mise à jour, et le ? de la barre du haut n’affiche aucun point. Les notes restent sous ? → Nouveautés.'
         subheading: 'Ce que plMail vous montre après une mise à jour.'
     nav:
-        accounts: Comptes mail
+        accounts: "Comptes"
         ai: 'Assistant'
         aliases: Alias
         app_passwords: Mots de passe d’application
         appearance: Apparence
-        calendar_behaviour: Comportement
+        area:
+            account: "Compte"
+            assistant: "Assistant et automatisation"
+            calendar_contacts: "Agenda et contacts"
+            general: "Général"
+            inbox: "Boîte de réception"
+            integrations: "Intégrations"
+            mail_accounts: "Comptes mail"
+            reading_writing: "Lecture et rédaction"
+        calendar_behaviour: "Comportement de l’agenda"
         calendars: Agendas
-        categories: "Catégories"
+        categories: "Catégories et tri"
+        compose: "Rédaction"
         contacts: Contacts
         disposal: Suppression
         encryption: Chiffrement
         filters: Filtres
-        general: Général
-        group:
-            access: Accès
-            calendar: Agenda
-            features: Fonctions
-            mail: Courrier
-            personal: Personnel
         health: 'Santé des comptes'
-        images: Images
+        health_banner: "Quelque chose demande votre attention — voir Santé des comptes."
         inboxes: 'Boîtes de réception unifiées'
         insights: Aperçus
         integrations: Intégrations
         labels: Libellés
+        layout: "Disposition et commandes"
+        message_list: 'Liste des messages'
         notifications: Notifications
         profile: Profil
-        read_receipts: Accusés de lecture
-        reading_pane: Volet de lecture
+        reading: "Lecture"
+        region: "Langue et région"
         security: Sécurité
         sharing: Partage
-        shortcuts: Raccourcis clavier
         signature: Signatures
-        swipe_actions: Balayage des lignes
         templates: 'Modèles'
+        whats_new: "Nouveautés"
+    search:
+        count: "Résultats : %count%"
+        empty: "Aucun résultat. La recherche porte sur les noms de pages, les titres des cartes et les mots-clés."
+        failed: "La recherche dans les réglages n’a pas pu être chargée. Fermez-la et réessayez."
+        hint_move: "pour choisir"
+        hint_open: "pour ouvrir"
+        keyword: "Mot-clé"
+        keywords:
+            accent: "couleur accent surbrillance"
+            accounts: "imap smtp pop3 jmap serveur ajouter boîte"
+            ai: "ia intelligence artificielle résumé aide rédaction modèle ai"
+            aliases: "alias identité expéditeur adresse"
+            app_passwords: "imap smtp client thunderbird jeton api jmap"
+            calendars: "caldav ics abonner flux"
+            clock: "12 24 heures format am pm"
+            compose_behaviour: "mailto liens e-mail messagerie par défaut transférer citation envoyer"
+            contacts: "carddav carnet adresses"
+            conversation_view: 'fils conversations e-mails individuels regroupement liste simple'
+            disposal: "supprimer corbeille définitivement vider"
+            encryption: "pgp openpgp gpg clé"
+            filters: "règles sieve automatique déplacer transférer"
+            handwriting: "signer pdf dessiner"
+            images: "pistage pixel distant charger bloquer"
+            inbox_tabs: "onglets promotions réseaux notifications forums"
+            insights: "colis suivi facture vol"
+            integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
+            label_view: "par compte groupés commune dossiers barre latérale"
+            labels: "dossiers étiquettes non lus tous"
+            language: "langue anglais allemand français chinois"
+            libravatar: 'libravatar avatar image photo partager public profil'
+            list_content: 'pièces jointes puces trombone fichiers libellés expéditeur date heure nombre répondu'
+            list_layout: 'lignes une ligne compact dense aperçu empilé largeur'
+            list_markers: 'étoile survol avatar pastille compte coin non lu gras'
+            notifications: "push navigateur téléphone son alerte"
+            password: "connexion identifiant"
+            pinning: 'épingler épinglé punaise haut rappel pin'
+            profile: "nom avatar photo image"
+            read_receipts: "mdn accusé réception confirmation cci bcc copie sauvegarde"
+            reading_pane: "aperçu partagé droite bas"
+            sender_pictures: 'avatar image photo gravatar libravatar bimi logo icône expéditeur'
+            sharing: "lien public réservation"
+            shortcuts: "clavier touches raccourcis"
+            sidebar: 'largeur large étroit redimensionner glisser noms longs coupés survol plus dossiers'
+            swipe_actions: "balayer geste téléphone archiver"
+            templates: "réponses types extraits"
+            theme: "sombre clair mode nuit couleurs dark"
+            two_factor: "2fa totp otp authentificateur double facteur"
+            typography: "police texte taille"
+            whats_new: "changements mise à jour version"
+            wkd: "web key directory publier"
+        kind_page: "Page"
+        label: "Rechercher dans les réglages"
+        placeholder: "Rechercher dans les réglages"
     notifications:
         devices:
             empty: >-
@@ -4908,8 +5492,13 @@ settings:
         hide_note: Pour masquer complètement un dossier, désactivez-le dans Libellés.
         hint: Les dossiers cochés attendent derrière « Plus ». Les autres restent dans la barre latérale elle-même.
         label: Derrière « Plus »
+        peek:
+            hint: 'Quand un nom est coupé, la barre latérale s''élargit par-dessus le courrier tant que le pointeur la survole. Pour l''élargir durablement, faites glisser son bord.'
+            off: 'Désactivé'
+            on: 'Activé'
+            title: 'Afficher les noms longs au survol'
         pinned: La boîte de réception reste toujours à sa place.
-        subheading: Les dossiers qui attendent derrière « Plus ».
+        subheading: 'L''affichage des noms longs et les dossiers qui attendent derrière « Plus ».'
     signature:
         for_alias: 'Signature pour %alias%'
         heading: Signatures
@@ -5069,6 +5658,7 @@ shortcuts:
         archive: "Archiver"
         back: "Revenir à la liste"
         compose: "Écrire un nouveau message"
+        conversation_view: 'Basculer entre conversations et e-mails individuels'
         delete: "Supprimer"
         forward: "Transférer"
         go_archive: "Aller aux Archives"
@@ -5084,6 +5674,7 @@ shortcuts:
         next: "Descendre d’une conversation"
         next_conversation: "Ouvrir la conversation suivante"
         open: "Ouvrir la conversation en surbrillance"
+        pin: 'Épingler ou désépingler'
         previous: "Monter d’une conversation"
         previous_conversation: "Ouvrir la conversation précédente"
         reply: "Répondre"
@@ -5100,19 +5691,22 @@ shortcuts:
         star: "Suivre ou ne plus suivre"
         undo: "Annuler la dernière action"
     or: "ou"
-    switched_off: "Les raccourcis sont désactivés pour vous. Activez-les dans Réglages → Général."
+    switched_off: "Les raccourcis sont désactivés pour vous. Activez-les dans Réglages → Général → Disposition et commandes."
     then: "puis"
     title: "Raccourcis clavier"
 
 sidebar:
     accounts:
         add: Ajouter un compte
+        collapse_all: 'Replier tous les comptes'
         colour: 'Marquage de couleur de %account%'
-        colour_disabled: 'Marquage de couleur de %account%, qui est désactivé'
+        colour_disabled: 'Marquage de couleur de %account%, dont le courrier est désactivé'
+        expand_all: 'Déplier tous les comptes'
         folders: 'Dossiers…'
         heading: Comptes
         menu: 'Dossiers de %account%'
         new_folder: 'Nouveau dossier…'
+        new_label: 'Nouveau libellé…'
         none: Aucun compte pour l’instant
         open: 'Ouvrir %account%'
         toggle: 'Afficher ou masquer les dossiers de %account%'
@@ -5126,6 +5720,7 @@ sidebar:
         folder_on: 'Dossier sur %accounts%'
         heading: Libellés
         none: Aucun libellé pour l’instant
+        shared_with: 'Aussi sur %accounts%'
     new_mail_here: 'Nouveau courrier dans %where%'
     new_mail_here_count: '%count% nouveaux dans %where%'
     nav:
@@ -5142,15 +5737,20 @@ sidebar:
         starred: Suivis
         trash: Corbeille
         unread: Non lus
+    resize: 'Redimensionner la barre latérale'
+    resize_hint: 'Faites glisser pour redimensionner, double-cliquez pour rétablir'
     toggle: Afficher ou masquer la barre latérale
 
 snooze:
+    confirm: Mettre en attente
     later_today: Plus tard aujourd’hui
     next_week: La semaine prochaine
+    past: Cette heure est déjà passée.
     pick_date: Choisir une date et une heure
     this_weekend: Ce week-end
     tomorrow: Demain
     unsnooze: Sortir de l’attente
+    until: En attente jusqu’au
 
 snoozed:
     empty: Rien n’est en attente.
@@ -5169,6 +5769,7 @@ tabs:
 
 thread:
     no_subject: (sans objet)
+    show_conversation: 'Afficher toute la conversation (%count% e-mails)'
     summary:
         button: 'Résumer cette conversation'
         disclaimer: 'Écrit par un modèle à partir des messages ci-dessous. Lisez-les si c’est important.'
@@ -5221,8 +5822,11 @@ thread_row:
     new_badge: Nouveau
     no_recipient: (sans destinataire)
     no_subject: (sans objet)
+    pin: 'Épingler en haut'
+    replied: 'Répondu'
     send_failed:
         failed: Non envoyé
+        mail_off: 'Non envoyé : l’envoi est désactivé pour ce compte'
         may_have_sent: 'Peut-être envoyé : vérifiez Envoyés avant de le renvoyer'
         rate_limited: 'Non envoyé : votre fournisseur limitait les envois'
         refused: 'Non envoyé : le serveur de messagerie l’a refusé'
@@ -5235,6 +5839,7 @@ thread_row:
         select: Sélectionner
     star: Suivre ce message
     to: 'À : %recipients%'
+    unpin: 'Désépingler'
     unread: Non lu
     unstar: Ne plus suivre ce message
 
@@ -5263,6 +5868,7 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Trop tard — ce message avait déjà été envoyé.
     send_failed: 'Ce message n’a pas pu être envoyé : %subject%'
+    send_failed_mail_off: 'Ce message n’a pas pu être envoyé : %subject%. L’envoi est désactivé pour son compte.'
     send_failed_may_have_sent: '%subject% a peut-être été envoyé, mais la réponse s’est perdue. Vérifiez Envoyés avant de le renvoyer.'
     send_failed_rate_limited: 'Ce message n’a pas pu être envoyé : %subject%. Votre fournisseur limite les envois en ce moment ; réessayez dans quelques minutes.'
     send_failed_refused: 'Ce message n’a pas pu être envoyé : %subject%. Le serveur de messagerie l’a refusé.'
@@ -5295,10 +5901,12 @@ toolbar:
         more: Plus
         move_to: Déplacer vers
         not_spam: 'Pas un spam'
+        pin: 'Épingler'
         purge: Supprimer définitivement
         snooze: Mettre en attente
         spam: 'Marquer comme spam'
         star: Suivre
+        unpin: 'Désépingler'
     # Asked before a selection in Spam is deleted for good. Two sentences rather
     # than one with a number swapped in, because "1 conversations" is not English.
     purge_confirm:
@@ -5508,12 +6116,13 @@ contacts:
     import_bad_format: 'Seuls les fichiers .vcf/.vcard et .csv peuvent être importés.'
     import_choose: 'Choisir un fichier'
     import_confirm: 'Importer %count% contacts'
-    import_dedupe_note: 'Après l’import, la page des doublons permet de fusionner les éventuels doublons.'
+    import_dedupe_note: 'Une fois l’import terminé, ouvrez Doublons pour fusionner ce qui a été importé deux fois.'
     import_expired: 'L’import préparé a expiré. Veuillez renvoyer le fichier.'
     import_formats: '.vcf, .vcard ou .csv'
     import_hint: 'Un export de carnet d’adresses .vcf/.vcard ou un fichier .csv. Les doublons sont vérifiés après l’import.'
     import_no_file: 'Aucun fichier téléversé.'
     import_preview_count: '%count% contacts trouvés dans le fichier %format%. Premiers affichés :'
+    import_started: 'Import de %count% contacts — il se fait en arrière-plan. Vous serez prévenu à la fin.'
     import_step1: 'Étape 1 — choisir un fichier'
     import_step2: 'Étape 2 — aperçu'
     import_upload: 'Importer & aperçu'

@@ -58,7 +58,7 @@ provider doesn't.
   the calendar as you answer them, share and booking links. The time is always in view — on the Happening Soon button, under the name, or at
   the foot of the sidebar with the next thing coming up.
 - **Files where you keep them** — attach from and save to Drive, Photos, OneDrive, Dropbox,
-  Nextcloud, OpenCloud, Immich and Paperless-ngx.
+  Nextcloud, OpenCloud, Immich, Paperless-ngx and any WebDAV server.
 - **A language model, if you want one** — point plMail at an Ollama box on your own network, or at
   any OpenAI-compatible endpoint, and it can search by meaning, draft replies, summarise a thread
   and sort mail into tabs. A long thread is summarised from as much of it as fits, and says so; ask

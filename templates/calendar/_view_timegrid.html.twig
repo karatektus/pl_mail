@@ -102,7 +102,7 @@ stop, and a double-click is not a gesture a keyboard has.
         <div class="relative rounded-md chip-open block-tint ring-1 ring-line shadow-sm
                     hover:z-30 hover:shadow-lg hover:ring-accent/50
                     lit:z-30 lit:shadow-lg lit:ring-accent/50"
-             style="--block-tint: {{ entry.primary.event.calendar.color }}1a">
+             style="--block-tint: {{ entry.primary.event.displayColor }}1a">
             {# A timed bar is an entry of a day or more that left the hours, so it
                says what the hours no longer do: when it starts, on the day it
                starts, and when it ends. The end names its day, because the bar
@@ -160,7 +160,7 @@ stop, and a double-click is not a gesture a keyboard has.
                     chip-open hover:shadow-lg hover:ring-accent/50
                     lit:shadow-lg lit:ring-accent/50
                     {{ readOnly ? '' : 'cursor-grab' }}"
-             style="--block-tint: {{ occurrence.event.calendar.color }}1a">
+             style="--block-tint: {{ occurrence.event.displayColor }}1a">
 
             {# `stack: false` in Day view, where the column is the whole grid
                and a time and a title share one line comfortably. See the chip,
@@ -194,7 +194,7 @@ stop, and a double-click is not a gesture a keyboard has.
        rule across its real start and end. Hex plus alpha, as the block tint
        does it — a calendar colour is always six digits. #}
     {% block shaded_entry_style %}
-        {%- set color = entry.primary.event.calendar.color -%}
+        {%- set color = entry.primary.event.displayColor -%}
         --span-stripe: {{ color }}17; --span-stripe-lit: {{ color }}2b;
         --span-wash: {{ color }}0a; --span-edge: {{ color }}99;
     {%- endblock %}

@@ -14,7 +14,7 @@ final class Version20260705124616 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Let a message send be cancelled';
     }
 
     public function up(Schema $schema): void

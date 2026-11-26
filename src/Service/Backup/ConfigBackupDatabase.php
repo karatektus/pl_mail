@@ -4,26 +4,30 @@ declare(strict_types=1);
 
 namespace App\Service\Backup;
 
-use App\Domain\Enum\Account\MailProvider;
-use App\Domain\Enum\Integration\Provider;
-use App\Entity\Integration\IntegrationProviderConfig;
-use App\Entity\Integration\MailProviderConfig;
-use App\Entity\Oidc\OidcConfig;
-use App\Entity\Push\FcmConfig;
-use App\Repository\Integration\IntegrationProviderConfigRepository;
-use App\Repository\Integration\MailProviderConfigRepository;
-use App\Repository\Oidc\OidcConfigRepository;
-use App\Repository\Push\FcmConfigRepository;
 use App\Domain\Ai\ConnectionHeaders;
 use App\Domain\Ai\KeepAlive;
-use App\Entity\Ai\AiSettings;
-use App\Domain\Enum\System\UpdateChannel;
-use App\Entity\Monitoring\LogSettings;
-use App\Repository\Ai\AiSettingsRepository;
-use App\Repository\Monitoring\LogSettingsRepository;
-use App\Repository\System\UpdateCheckRepository;
+use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Ai\AiProvider;
 use App\Domain\Enum\Ai\PromptSlot;
+use App\Domain\Enum\Integration\Provider;
+use App\Domain\Enum\System\UpdateChannel;
+use App\Entity\Ai\AiSettings;
+use App\Entity\Integration\IntegrationProviderConfig;
+use App\Entity\Integration\MailProviderConfig;
+use App\Entity\Integration\TrustedHost;
+use App\Entity\Monitoring\LogSettings;
+use App\Entity\Oidc\OidcConfig;
+use App\Entity\Push\FcmConfig;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
+use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
+use App\Repository\Integration\MailProviderConfig\MailProviderConfigRepository;
+use App\Repository\Integration\TrustedHost\TrustedHostRepository;
+use App\Repository\Monitoring\LogSettings\LogSettingsRepository;
+use App\Repository\System\SenderPictureSettings\SenderPictureSettingsRepository;
+use App\Repository\System\WorkerSettings\WorkerSettingsRepository;
+use App\Repository\Oidc\OidcConfig\OidcConfigRepository;
+use App\Repository\Push\FcmConfig\FcmConfigRepository;
+use App\Repository\System\UpdateCheck\UpdateCheckRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -96,6 +100,24 @@ final readonly class ConfigBackupDatabase
     public const string OIDC_CONFIG = 'oidcConfig';
 
     /**
+     * The servers plMail may reach on a private network — Admin → Integrations
+     * (#564). Keyed by host like the providers by name, so a restore adds the
+     * hosts the file names and leaves any other this install allowed alone.
+     */
+    public const string TRUSTED_HOSTS = 'trustedHosts';
+
+    /** How many mail jobs run at once — Admin → Performance (#610). */
+    public const string WORKER_SETTINGS = 'workerSettings';
+
+    /**
+     * Whether sender pictures may be looked up on the internet, and whether
+     * this server answers Libravatar requests — Admin → Sender pictures (#639,
+     * #642). The switches only: the pictures themselves are a cache of public
+     * data, found again by the first refresh.
+     */
+    public const string SENDER_PICTURE_SETTINGS = 'senderPictureSettings';
+
+    /**
      * Every key the section carries.
      *
      * Exists so {@see \App\Tests\Service\Backup\ConfigBackupCompletenessTest}
@@ -112,6 +134,9 @@ final readonly class ConfigBackupDatabase
         self::LOG_SETTINGS,
         self::UPDATE_SETTINGS,
         self::OIDC_CONFIG,
+        self::TRUSTED_HOSTS,
+        self::WORKER_SETTINGS,
+        self::SENDER_PICTURE_SETTINGS,
     ];
 
     public function __construct(
@@ -122,6 +147,9 @@ final readonly class ConfigBackupDatabase
         private LogSettingsRepository               $logSettings,
         private UpdateCheckRepository               $updateChecks,
         private OidcConfigRepository                $oidcConfigs,
+        private TrustedHostRepository               $trustedHosts,
+        private WorkerSettingsRepository            $workerSettings,
+        private SenderPictureSettingsRepository     $senderPictureSettings,
         private EntityManagerInterface              $entityManager,
     ) {
     }
@@ -139,6 +167,9 @@ final readonly class ConfigBackupDatabase
             self::LOG_SETTINGS          => $this->exportLogSettings(),
             self::UPDATE_SETTINGS       => $this->exportUpdateSettings(),
             self::OIDC_CONFIG           => $this->exportOidcConfig(),
+            self::TRUSTED_HOSTS         => $this->exportTrustedHosts(),
+            self::WORKER_SETTINGS       => $this->exportWorkerSettings(),
+            self::SENDER_PICTURE_SETTINGS => $this->exportSenderPictureSettings(),
         ];
     }
 
@@ -437,6 +468,69 @@ final readonly class ConfigBackupDatabase
     }
 
     /**
+     * Null is exported as null for the reason exportLogSettings() gives: an
+     * install that follows the default keeps following it after a restore.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function exportWorkerSettings(): ?array
+    {
+        $settings = $this->workerSettings->current();
+
+        if (null === $settings) {
+            return null;
+        }
+
+        return ['mailConcurrency' => $settings->mailConcurrency];
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function restoreWorkerSettings(array $values): void
+    {
+        $settings = $this->workerSettings->currentOrNew();
+        $chosen   = $values['mailConcurrency'] ?? null;
+
+        // Clamped like the form clamps it: a file is the one writer that is
+        // not the form, and a number this build does not allow is the nearest
+        // one it does.
+        $settings->mailConcurrency = true === is_int($chosen) ? WorkerSettingsRepository::clamp($chosen) : null;
+
+        if (null === $settings->id) {
+            $this->entityManager->persist($settings);
+        }
+    }
+
+    /** @return array<string, mixed>|null */
+    private function exportSenderPictureSettings(): ?array
+    {
+        $settings = $this->senderPictureSettings->current();
+
+        return null === $settings ? null : [
+            'lookupsEnabled'    => $settings->lookupsEnabled,
+            'libravatarEnabled' => $settings->libravatarEnabled,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function restoreSenderPictureSettings(array $values): void
+    {
+        $settings = $this->senderPictureSettings->currentOrNew();
+
+        // Only a stored true is on: a restore must never be what starts this
+        // server making requests to strangers, unless the backup says it did.
+        $settings->lookupsEnabled    = true === ($values['lookupsEnabled'] ?? false);
+        $settings->libravatarEnabled = true === ($values['libravatarEnabled'] ?? false);
+
+        if (null === $settings->id) {
+            $this->entityManager->persist($settings);
+        }
+    }
+
+    /**
      * @param array<string, mixed> $values
      */
     public function restoreLogSettings(array $values): void
@@ -499,6 +593,35 @@ final readonly class ConfigBackupDatabase
         if (null === $config->id) {
             $this->entityManager->persist($config);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function restoreTrustedHost(string $host, array $values): void
+    {
+        $trusted = $this->trustedHosts->findOneByHost($host);
+
+        if (null === $trusted) {
+            $trusted = new TrustedHost($host);
+            $this->entityManager->persist($trusted);
+        }
+
+        $trusted->allowHttp = true === ($values['allowHttp'] ?? false);
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function exportTrustedHosts(): array
+    {
+        $rows = [];
+
+        foreach ($this->trustedHosts->findAllOrdered() as $trusted) {
+            $rows[$trusted->host] = ['allowHttp' => $trusted->allowHttp];
+        }
+
+        return $rows;
     }
 
     private function exportFcmConfig(): ?array

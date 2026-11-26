@@ -10,7 +10,7 @@ use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Domain\Enum\Crypto\SignatureState;
 use App\Entity\Crypto\ContactCertificate;
 use App\Entity\Mail\Account;
-use App\Repository\Crypto\ContactCertificateRepository;
+use App\Repository\Crypto\ContactCertificate\ContactCertificateRepository;
 use App\Service\Crypto\ContactCertificates;
 use App\Service\Crypto\SignatureVerifier;
 use App\Service\Mail\RawMessageResolver;

@@ -10,7 +10,7 @@ use App\Command\Test\SeedKeyServerCommand;
 use App\Entity\Crypto\UserKey;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Crypto\KeyFetcher;
 use App\Service\Crypto\Keyring;
 use App\Service\Crypto\PublicKeyReader;
@@ -84,7 +84,7 @@ final class WkdSettingsTest extends WebTestCase
 
     public function testTheCardShowsTheAddressItsStateAndItsDirectoryUrl(): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=encryption');
+        $crawler = $this->client->request('GET', '/settings/encryption');
         self::assertResponseIsSuccessful();
 
         $row = $crawler->filter(sprintf('[data-testid="wkd-address"][data-email="%s"]', $this->user->email));
@@ -104,7 +104,7 @@ final class WkdSettingsTest extends WebTestCase
         $this->publish(false);
         self::assertResponseRedirects();
         self::assertSame(404, $this->publicStatus());
-        self::assertStringContainsString('you switched it off', $this->client->request('GET', '/settings?section=encryption')->filter('[data-testid="wkd-state"]')->text());
+        self::assertStringContainsString('you switched it off', $this->client->request('GET', '/settings/encryption')->filter('[data-testid="wkd-state"]')->text());
 
         $this->publish(true);
         self::assertSame(200, $this->publicStatus());
@@ -319,7 +319,7 @@ final class WkdSettingsTest extends WebTestCase
 
     private function token(): string
     {
-        $crawler = $this->client->request('GET', '/settings?section=encryption');
+        $crawler = $this->client->request('GET', '/settings/encryption');
 
         return (string) $crawler->filter('form[action$="/settings/encryption/wkd/publish"] input[name="_token"]')->attr('value');
     }

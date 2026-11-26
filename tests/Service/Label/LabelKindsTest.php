@@ -12,7 +12,7 @@ use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Label\LabelKinds;
 use App\Service\Mail\SidebarCounts;
 use App\Service\Mail\UserAccounts;
@@ -43,6 +43,11 @@ final class LabelKindsTest extends TestCase
             $this->bindings,
             static fn (LabelBinding $binding): bool => $binding->label === $label && self::isFolder($binding),
         ));
+        $sidebar->method('isOnAnyAccount')->willReturnCallback(fn (Label $label): bool => [] !== array_filter(
+            $this->bindings,
+            static fn (LabelBinding $binding): bool => $binding->label === $label,
+        ));
+        $sidebar->method('visibleChildrenOf')->willReturnCallback(static fn (Label $label): array => $label->children->toArray());
         $sidebar->method('isTagInUseOn')->willReturnCallback(fn (Label $label, Account $account): bool => [] !== array_filter(
             $this->bindings,
             static fn (LabelBinding $binding): bool => $binding->label === $label && $binding->account === $account && false === self::isFolder($binding),
@@ -163,6 +168,32 @@ final class LabelKindsTest extends TestCase
         $folder                = $this->label('1_test', $this->account(user: $user), mailbox: true);
 
         self::assertTrue($this->kinds->inLabels($folder, $user));
+    }
+
+    /**
+     * Listed by account (#690), a label that is on an account is under that
+     * account, so LABELS keeps only what is on none — and the parent of one
+     * such, so it is not cut loose — or a label made in plMail and not used
+     * yet would be nowhere at all. Folders in Labels does not bring the rest
+     * back: it is a question about the merged list.
+     */
+    public function testListedByAccountLabelsHoldsOnlyWhatIsOnNoAccount(): void
+    {
+        $user                  = new User();
+        $user->email           = 'by-account@example.test';
+        $user->labelsByAccount = true;
+        $user->foldersInLabels = true;
+        $gmail                 = $this->account(MailProvider::Google, $user);
+
+        $onAccount = $this->label('Sports', $gmail);
+        $unused    = $this->label('Ideas');
+        $parent    = $this->label('Projects', $gmail);
+        $child     = $this->label('Someday');
+        $parent->addChild($child);
+
+        self::assertFalse($this->kinds->inLabels($onAccount, $user), 'listed under its account instead');
+        self::assertTrue($this->kinds->inLabels($unused, $user), 'on no account, so LABELS is the only place it can be');
+        self::assertTrue($this->kinds->inLabels($parent, $user), 'the parent of a label on no account');
     }
 
     private function account(?MailProvider $provider = null, ?User $user = null): Account

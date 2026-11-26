@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus";
 
 /**
@@ -71,15 +72,28 @@ export default class extends Controller {
             jmapTokenAuth: this.element.querySelector('[name$="[jmapTokenAuth]"]')?.checked === true,
         };
 
-        // A second password for sending, only while the form is asking for
-        // one — see settings--smtp-password. Sent as a flag and a value, like
-        // the form itself: a blank value with the flag set means "the stored
-        // one" on the edit form.
+        // A second sign-in for sending, only while the form is asking for
+        // one — see settings--smtp-password. Sent as a flag and values, like
+        // the form itself: a blank password with the flag set means "the
+        // stored one" on the edit form, a blank username the account's own.
         const separate = this.element.querySelector('[name$="[separateSmtpPassword]"]');
 
         if (null !== separate && true === separate.checked) {
             payload.separateSmtpPassword = true;
+            payload.smtpUsername = this._value("smtpUsername");
             payload.smtpPassword = this._value("smtpPassword");
+        }
+
+        // A half switched off on the form (#628) is not tested: its fields
+        // are folded away but still hold what was typed, and probing them
+        // would report on a server the account is not going to use. Blank is
+        // what the server reads as "not configured".
+        if (this._off("receiving")) {
+            payload.imapHost = "";
+        }
+
+        if (this._off("sending")) {
+            payload.smtpHost = "";
         }
 
         if (this.hasAccountIdValue === true) {
@@ -97,6 +111,12 @@ export default class extends Controller {
         }
 
         return field.value.trim();
+    }
+
+    _off(name) {
+        const field = this.element.querySelector(`[name$="[${name}]"]`);
+
+        return field !== null && field.checked === false;
     }
 
     _checked(name) {

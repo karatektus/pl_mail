@@ -16,6 +16,7 @@ find.
 <div class="space-y-4">
 
 {% embed 'settings/_card.html.twig' with {
+    id:         'card-profile',
     heading:    'settings.profile.heading'|trans,
     subheading: 'settings.profile.subheading'|trans,
     padded:     true,
@@ -51,6 +52,55 @@ find.
 {% endembed %}
 
 {#
+Share my picture through Libravatar (#642).
+
+Its own card and its own form, not a field on the profile form: it is a
+switch that saves on change, like the reading settings, and it must not ride
+along with a name change. Drawn only while the administrator runs the
+Libravatar route — a switch that does nothing would be a promise the server
+is not keeping. Off until the user turns it on, and the hint says plainly
+what turning it on does: anybody who knows one of their addresses can fetch
+the picture.
+#}
+{% if libravatar_serving() %}
+    {% embed 'settings/_card.html.twig' with {
+        id:         'card-libravatar',
+        heading:    'settings.libravatar.heading'|trans,
+        subheading: 'settings.libravatar.subheading'|trans,
+    } %}
+        {% block body %}
+            {% import '_partials/_segmented.html.twig' as seg %}
+            <div class="px-4 py-3 space-y-2">
+                <form method="post" action="{{ path('app_settings_profile_libravatar') }}" data-controller="ui--auto-submit">
+                    <input type="hidden" name="_token" value="{{ csrf_token('settings-libravatar') }}">
+
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="min-w-0">
+                            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.libravatar.publish'|trans }}</span>
+                            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.libravatar.publish_hint'|trans }}</span>
+                        </span>
+
+                        {{ seg.control('publish', [
+                            { value: '1', label: 'settings.images.on'|trans },
+                            { value: '0', label: 'settings.images.off'|trans },
+                        ], app.user.publishesLibravatar ? '1' : '0', {
+                            label:  'settings.libravatar.publish'|trans,
+                            action: 'change->ui--auto-submit#submit',
+                        }) }}
+                    </div>
+                </form>
+
+                {% if app.user.avatar is null %}
+                    <p class="text-[11px] text-ink-faint">
+                        <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>{{ 'settings.libravatar.no_picture'|trans }}
+                    </p>
+                {% endif %}
+            </div>
+        {% endblock %}
+    {% endembed %}
+{% endif %}
+
+{#
 The saved handwritten signature.
 
 A second card rather than a field on the form above, because it is not a form
@@ -62,6 +112,7 @@ of text appended to outgoing mail, and the two have nothing to do with each
 other. This lives beside the avatar, which is what it is: a picture of you.
 #}
 {% embed 'settings/_card.html.twig' with {
+    id:         'card-handwriting',
     heading:    'settings.handwriting.heading'|trans,
     subheading: 'settings.handwriting.subheading'|trans,
     padded:     true,

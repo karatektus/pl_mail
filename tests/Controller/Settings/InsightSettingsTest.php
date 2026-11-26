@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Settings;
 
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Insight\InsightExtractorInterface;
 use App\Service\Insight\InsightExtractorRegistry;
 use Doctrine\ORM\EntityManagerInterface;
@@ -27,7 +27,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  * The setting stores DISABLED keys (see User::SETTING_INSIGHTS_DISABLED), so
  * "toggle off persists the key" and "toggle on removes it" are the two halves
  * pinned, plus the guards: unknown keys bounce with a 400 before anything is
- * written, and the token rules follow AppearancePaneStateTest — a new
+ * written, and the token rules follow StateChangingPostsNeedCsrfTest — a new
  * state-changing POST carries a token, whatever its blast radius.
  */
 final class InsightSettingsTest extends WebTestCase
@@ -138,7 +138,7 @@ final class InsightSettingsTest extends WebTestCase
         [$client] = $this->signedIn();
 
         $extractors = $this->registry()->all();
-        $crawler = $client->request('GET', '/settings?section=insights');
+        $crawler = $client->request('GET', '/settings/insights');
 
         self::assertSame(200, $client->getResponse()->getStatusCode());
         self::assertCount(
@@ -197,7 +197,7 @@ final class InsightSettingsTest extends WebTestCase
      */
     private function token(KernelBrowser $client): string
     {
-        $crawler = $client->request('GET', '/settings?section=insights');
+        $crawler = $client->request('GET', '/settings/insights');
 
         return (string) $crawler
             ->filter('[data-settings--insights-token-value]')

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Infrastructure\Messaging\Message\FoldCopiesMessage;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Service\Imap\ImapCopyMerger;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 

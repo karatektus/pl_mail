@@ -8,8 +8,8 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
 use App\Infrastructure\ImapClient\ImapLoop;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapCopies;
 use App\Service\Imap\MailboxSyncer;
@@ -73,7 +73,7 @@ final class MailboxIdleDefaultTest extends KernelTestCase
             $this->em,
             $container->get(ImapConnector::class),
             $container->get(LabelResolver::class),
-            $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageImapRepository::class),
             $container->get(MessageEraser::class),
             $container->get(ImapCopies::class),
             new NullLogger(),
@@ -112,7 +112,7 @@ final class MailboxIdleDefaultTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
 
         $this->em->flush();

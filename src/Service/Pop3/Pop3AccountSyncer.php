@@ -17,10 +17,11 @@ use App\Entity\Mail\Pop3Uidl;
 use App\Infrastructure\Pop3\Pop3ConnectionFactory;
 use App\Infrastructure\Pop3\Pop3RefusedException;
 use App\Infrastructure\Pop3\Pop3Session;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\Pop3UidlRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Pop3Uidl\Pop3UidlRepository;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\PostIngestPipeline;
@@ -28,7 +29,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 use Throwable;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * Bringing a POP3 mailbox into plMail (#289).
@@ -41,7 +41,7 @@ use Webklex\PHPIMAP\Message as ImapMessage;
  * delete it. There are no folders, no flags, no UIDs and nothing to push back.
  *
  * What survives from the IMAP path is everything after the bytes are in hand:
- * webklex parses the message, MessageSyncer builds the row, PostIngestPipeline
+ * MessageParser reads the message, MessageSyncer builds the row, PostIngestPipeline
  * does the rest. That reuse is the reason this is a syncer and not a second
  * mail stack.
  *
@@ -113,6 +113,7 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
         private AccountRepository      $accountRepository,
         private MailboxRepository      $mailboxRepository,
         private MessageRepository      $messageRepository,
+        private MessageImapRepository $messageImapRepository,
         private Pop3UidlRepository     $uidls,
         private LabelResolver          $labelResolver,
         private PostIngestPipeline     $postIngest,
@@ -294,7 +295,7 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
 
             try {
                 $message = $this->messageSyncer->buildMessageFromParsed(
-                    MessageParser::fromString($raw, MessageParser::config()),
+                    MessageParser::parse($raw),
                     $mailbox,
                     $accountId,
                 );
@@ -424,17 +425,17 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
 
         if ('' === $messageId) {
             try {
-                $fingerprint = $this->messageSyncer->fingerprintOf(MessageParser::fromString($head, MessageParser::config()));
+                $fingerprint = $this->messageSyncer->fingerprintOf(MessageParser::parse($head));
             } catch (Throwable) {
-                // A header not even the repair makes readable cannot be
-                // recognised, and is fetched like any message that cannot be.
+                // A header the parser cannot read cannot be recognised, and
+                // is fetched like any message that cannot be.
                 // Letting it out would end the sync, and with the adoption pass
                 // unable to finish, every sync after it (#357).
                 return null;
             }
         }
 
-        $held = $this->messageRepository->findAdoptable($account, $messageId, $fingerprint, notInPop3Ledger: true);
+        $held = $this->messageImapRepository->findAdoptable($account, $messageId, $fingerprint, notInPop3Ledger: true);
 
         return null === $held ? null : (int) $held->id;
     }

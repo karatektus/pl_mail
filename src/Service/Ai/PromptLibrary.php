@@ -7,7 +7,7 @@ namespace App\Service\Ai;
 use App\Domain\Enum\Ai\PromptSlot;
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Embeddable\AiPrompts;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 
 /**
  * What each feature actually says to the model — the administrator's words

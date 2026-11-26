@@ -6,7 +6,7 @@ namespace App\Entity\User;
 
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Mail\Account;
-use App\Repository\User\ApiTokenRepository;
+use App\Repository\User\ApiToken\ApiTokenRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

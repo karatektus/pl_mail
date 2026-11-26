@@ -13,9 +13,9 @@ use App\Entity\User\User;
 use App\Domain\Exception\FolderActionRefusedException;
 use App\Entity\Label\Label;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Infrastructure\ImapClient\ImapLoop;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapFolderManager;
@@ -484,7 +484,7 @@ final class ImapFolderManagerTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
 
         $this->em->flush();

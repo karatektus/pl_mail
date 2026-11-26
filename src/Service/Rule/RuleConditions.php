@@ -8,7 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Rule\MailRule;
 use App\Jmap\Query\CompiledFilter;
 use App\Jmap\Query\EmailFilterCompiler;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Label\Label\LabelRepository;
 
 /**
  * What a filter matches, as SQL: its conditions, and — unless it says

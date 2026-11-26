@@ -7,7 +7,7 @@ namespace App\Entity\User;
 use App\Domain\Enum\PushTransport;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\User\PushSubscriptionRepository;
+use App\Repository\User\PushSubscription\PushSubscriptionRepository;
 use DateTimeImmutable;
 use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;

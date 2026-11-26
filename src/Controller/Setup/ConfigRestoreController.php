@@ -10,7 +10,7 @@ use App\Domain\Enum\AppLocale;
 use App\Domain\Enum\Backup\ConfigBackupFailure;
 use App\Domain\Exception\ConfigBackupException;
 use App\Domain\Exception\InvalidFirebaseCredentialsException;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Backup\ConfigBackupImporter;
 use App\Service\Setup\InstallGuard;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

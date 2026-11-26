@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Maintenance;
 
-use App\Repository\Maintenance\UpgradeTaskRunRepository;
+use App\Repository\Maintenance\UpgradeTaskRun\UpgradeTaskRunRepository;
 use App\Service\Maintenance\UpgradeTaskRunner;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

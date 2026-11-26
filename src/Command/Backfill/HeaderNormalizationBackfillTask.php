@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Mail\HeaderNormalizer;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
@@ -32,6 +34,7 @@ final readonly class HeaderNormalizationBackfillTask implements BackfillTaskInte
 
     public function __construct(
         private MessageRepository      $messageRepository,
+        private MessageBackfillRepository $messageBackfillRepository,
         private HeaderNormalizer       $normalizer,
         private EntityManagerInterface $em,
     ) {}
@@ -46,6 +49,16 @@ final readonly class HeaderNormalizationBackfillTask implements BackfillTaskInte
         return 'Fold stored header keys to the canonical lowercase, dash-separated form';
     }
 
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-07-29');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
     public function run(SymfonyStyle $io): int
     {
         $afterId = 0;
@@ -53,7 +66,7 @@ final readonly class HeaderNormalizationBackfillTask implements BackfillTaskInte
         $changed = 0;
 
         while (true) {
-            $ids = $this->messageRepository->findIdsWithHeaders($afterId, self::BATCH_SIZE);
+            $ids = $this->messageBackfillRepository->findIdsWithHeaders($afterId, self::BATCH_SIZE);
 
             if (0 === count($ids)) {
                 break;

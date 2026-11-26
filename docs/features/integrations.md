@@ -1,9 +1,10 @@
 # Files and integrations
 
 plMail can pull a file out of a service you already use and attach it to a message, and push an
-attachment the other way into that service. Eight services are supported: **Nextcloud**,
-**OpenCloud**, **Immich**, **Paperless-ngx**, **Google Drive**, **Google Photos**, **OneDrive** and
-**Dropbox**.
+attachment the other way into that service. Nine services are supported: **Nextcloud**,
+**OpenCloud**, **Immich**, **Paperless-ngx**, **Google Drive**, **Google Photos**, **OneDrive**,
+**Dropbox**, and any plain **WebDAV** server — FileBrowser Quantum, a Synology NAS, `rclone serve
+webdav`, Apache mod_dav.
 
 Connections belong to one user and are revocable one at a time. Which services are offered at all
 is an administrator's decision — see [Administration](admin.md).
@@ -27,6 +28,7 @@ How you connect depends on the service:
 | Google Photos | Sign-in | Nothing — the consent screen |
 | OneDrive | Sign-in | Nothing — the consent screen |
 | Dropbox | Sign-in | Nothing — the consent screen |
+| WebDAV | Password or token | Full folder address, username if the server wants one, password or token |
 
 The app-password services also take a **Name**, which is only shown to you and exists so two
 connections can be told apart. That is not decoration: you can legitimately have two Nextclouds,
@@ -39,7 +41,7 @@ For the self-hosted services, create a credential on the service rather than usi
 password. Nextcloud puts app passwords under **Settings → Security → Devices & sessions**; OpenCloud
 puts app tokens under your account settings → **App Tokens**; Immich
 puts API keys under **Account Settings → API Keys**; Paperless-ngx shows an API token under **My
-Profile → API Auth Token**. An app password or token is individually revocable and works alongside
+Profile → API Auth Token**; FileBrowser Quantum creates API tokens for WebDAV. An app password or token is individually revocable and works alongside
 two-factor authentication; a login password is neither.
 
 ### Connecting Nextcloud by approving in the browser
@@ -91,6 +93,7 @@ service name — so a service that gains or loses an ability changes in exactly 
 | Paperless-ngx | yes | yes | yes | — | yes | yes | — |
 | Immich | yes | yes | yes | — | yes | yes | yes |
 | Google Photos | yes | yes | yes | — | yes | — | — |
+| WebDAV | yes | yes | yes | — | — | — | — |
 
 ¹ Only when the OpenCloud administrator allows public links without a password; see below.
 
@@ -122,6 +125,22 @@ name, like Nextcloud's; searching inside a folder keeps to that folder.
 
 There are no calendars or contacts behind an OpenCloud connection. If your server has a calendar
 server beside it, connect that as CalDAV.
+
+## Plain WebDAV
+
+For a file server that is neither Nextcloud nor OpenCloud. The address is the **full address of the
+folder** plMail should open, path included, not just the host: on FileBrowser Quantum that is
+`/dav/` followed by the source name, for example `https://files.example.com:8080/dav/cargobay/`.
+plMail opens exactly that folder and everything below it, and nothing above.
+
+The username is optional. FileBrowser Quantum takes an API token as the password and ignores the
+username; other servers want both. Connecting checks the address straight away: a wrong path says
+so, and a refused password or token reads as expired or revoked, since that is the usual reason.
+
+WebDAV has no public links, previews or search, so the picker shows a file icon instead of a
+thumbnail, has no search box, and attaches copies only. Saving into a folder and making new folders
+work as on Nextcloud. Only the basic WebDAV methods are used — listing, downloading, uploading and
+making folders — so a server that refuses locking, as FileBrowser Quantum does, works as well.
 
 ## Paperless-ngx, which has no folders
 
@@ -187,19 +206,20 @@ A filter can do the same thing automatically with the **Save attachments to** ac
 **A private or loopback address is refused unless it is allow-listed.** Self-hosted services live on
 addresses an authenticated user could otherwise aim plMail's outbound HTTP client at — including
 `localhost:5432` and the cloud metadata endpoint at `169.254.169.254`. Loopback, link-local, RFC1918
-and carrier-grade NAT ranges are all blocked unless the host appears in `INTEGRATIONS_ALLOWED_HOSTS`.
-On a home LAN this is the setting that makes Nextcloud, OpenCloud, Immich and Paperless-ngx
-reachable at all.
+and carrier-grade NAT ranges are all blocked unless an administrator allowed the host under
+[Admin → Integrations → Servers on a private network](../features/admin.md#servers-on-a-private-network). On a home LAN that list is what makes Nextcloud, OpenCloud, Immich, Paperless-ngx
+and a WebDAV server reachable at all.
 
-**`http://` is refused unless `INTEGRATIONS_ALLOW_HTTP` is on.** Self-hosting on a LAN without TLS is
-an ordinary situation, so this flag will often be set — the point is that sending credentials in
-plaintext becomes a deliberate decision rather than a silent default.
+**`http://` is refused unless an administrator allowed it for that host.** Self-hosting on a LAN
+without TLS is an ordinary situation, so the tick will often be set for a server there — the point is
+that sending credentials in plaintext is a decision about one server rather than a silent default for
+all of them.
 
-**A file above the attachment ceiling cannot be attached from Immich, Google Photos or Paperless-ngx
-at all.** The photo libraries cannot mint a public URL for a single item without creating a shared
+**A file above the attachment ceiling cannot be attached from Immich, Google Photos, Paperless-ngx or
+WebDAV at all.** WebDAV has no public links in the first place. The photo libraries cannot mint a public URL for a single item without creating a shared
 album; Paperless can share a document, but only through a permissioned feature with its own expiry,
 and publishing a filed document is a heavier side effect than attaching a file should have. So there
-is no link fallback on any of the three: over 25 MB, the answer is no.
+is no link fallback on any of the four: over 25 MB, the answer is no.
 
 **OpenCloud refuses public links without a password unless its administrator allows them.** That is
 its default, and plMail does not invent a password the recipient would never see, so a file above

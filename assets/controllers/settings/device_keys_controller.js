@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus";
 import { keyring } from "../../crypto/keyring.js";
 import { sealForPairing } from "../../crypto/pairing.js";

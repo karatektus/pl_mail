@@ -1,0 +1,32 @@
+{#
+settings/_tab_counts.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The unread count beside each inbox tab's name, on or off (#608). On the
+Categories page because that is where the tabs are; saved with the message
+list settings, through the same controller as that page, because that is
+where it is stored (MessageList::$tabUnreadCount).
+
+Accepts nothing: reads message_list().
+#}
+{% import '_partials/_segmented.html.twig' as seg %}
+
+<div class="px-4 py-3"
+     data-controller="settings--message-list"
+     data-settings--message-list-url-value="{{ path('app_message_list_save') }}">
+    <div class="flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted" id="tab-counts-label">{{ 'settings.message_list.tab_counts.label'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.message_list.tab_counts.hint'|trans }}</span>
+        </span>
+
+        {{ seg.control('tabUnreadCount', [
+            { value: '1', label: 'settings.message_list.shown'|trans },
+            { value: '0', label: 'settings.message_list.hidden'|trans },
+        ], message_list().tabUnreadCount ? '1' : '0', {
+            labelledby: 'tab-counts-label',
+            label:      'settings.message_list.tab_counts.label'|trans,
+            prefix:     true,
+            action:     'change->settings--message-list#pick',
+        }) }}
+    </div>
+</div>

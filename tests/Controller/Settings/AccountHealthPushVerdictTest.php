@@ -9,7 +9,7 @@ use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -197,12 +197,12 @@ final class AccountHealthPushVerdictTest extends WebTestCase
         $account->gmailWatchExpiry = new DateTimeImmutable('-1 day');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame('warning', $this->pushCard($client, $account)->attr('data-health-severity'));
         self::assertGreaterThan(
             0,
-            $crawler->filter('nav a[href*="section=health"] span.rounded-full')->count(),
+            $crawler->filter('nav a[href$="/settings/health"] span.rounded-full')->count(),
             'a push that is certainly broken is worth interrupting somebody for',
         );
     }
@@ -286,7 +286,7 @@ final class AccountHealthPushVerdictTest extends WebTestCase
 
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         foreach ([$lapsed, $silent] as $account) {
             $card = $crawler->filter('[data-health-issue="push-' . $account->id . '"]');
@@ -306,7 +306,7 @@ final class AccountHealthPushVerdictTest extends WebTestCase
     /** @return \Symfony\Component\DomCrawler\Crawler */
     private function pushCard(KernelBrowser $client, Account $account)
     {
-        return $client->request('GET', '/settings?section=health')
+        return $client->request('GET', '/settings/health')
             ->filter('[data-health-issue="push-' . $account->id . '"]');
     }
 
@@ -349,7 +349,7 @@ final class AccountHealthPushVerdictTest extends WebTestCase
         $account->oauthProvider     = MailProvider::Google->value;
         $account->oauthAccessToken  = 'access-token';
         $account->oauthRefreshToken = 'refresh-token';
-        $account->isActive          = true;
+        $account->mailEnabled       = true;
 
         $this->em->persist($account);
         $this->em->flush();

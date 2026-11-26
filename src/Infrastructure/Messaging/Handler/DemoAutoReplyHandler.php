@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Infrastructure\Messaging\Message\DemoAutoReplyMessage;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Demo\DemoInbox;
 use App\Service\Demo\DemoMode;
 use App\Service\Demo\DemoScenario;

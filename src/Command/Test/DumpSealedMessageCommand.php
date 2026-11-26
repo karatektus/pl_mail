@@ -6,9 +6,9 @@ namespace App\Command\Test;
 
 use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\User\UserRepository;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\User\User\UserRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -34,10 +34,10 @@ final class DumpSealedMessageCommand extends Command
     public function __construct(
         private readonly UserRepository         $users,
         private readonly AccountRepository      $accounts,
-        private readonly EntityManagerInterface $entityManager,
         private readonly SealedMessageStorage   $storage,
         #[Autowire('%kernel.environment%')]
         private readonly string                 $environment,
+        private readonly MessageRepository $messageRepository
     ) {
         parent::__construct();
     }
@@ -61,10 +61,7 @@ final class DumpSealedMessageCommand extends Command
         $accounts = null === $user ? [] : $this->accounts->findBy(['usr' => $user]);
 
         /** @var Message|null $message */
-        $message = [] === $accounts ? null : $this->entityManager->getRepository(Message::class)->findOneBy(
-            ['account' => $accounts, 'subject' => (string) $input->getOption('subject')],
-            ['id' => 'DESC'],
-        );
+        $message = $this->messageRepository->findLatestBySubject($accounts, (string) $input->getOption('subject'));
 
         if (null === $message || null === $message->id) {
             $output->writeln('null');

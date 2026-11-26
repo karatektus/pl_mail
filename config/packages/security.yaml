@@ -175,6 +175,12 @@ security:
         # `client_error_report` limiter is the bound; see
         # App\Controller\Monitoring\ClientErrorController for what it keeps.
         - { path: ^/csp-report$, roles: PUBLIC_ACCESS }
+        # Libravatar (#642): a mail client anywhere asks for a picture by the
+        # hash of an address, and holds no session here. It answers only for
+        # users who opted in while the administrator has it on, and every
+        # other hash gets the same answer as an address that does not exist —
+        # see LibravatarController.
+        - { path: ^/avatar/, roles: PUBLIC_ACCESS }
         - { path: ^/gmail/push, roles: PUBLIC_ACCESS }
         # Covers /webhook/graph/notify and /webhook/graph/lifecycle for mail,
         # and /webhook/graph/calendar for a mirrored calendar's events. All

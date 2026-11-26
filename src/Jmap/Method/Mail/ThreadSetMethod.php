@@ -13,8 +13,9 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Label\LabelBindingRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Mail\MessageThread\MessageThreadJmapRepository;
+use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
 use App\Service\Mail\MoveToService;
 use App\Service\Mail\ThreadSnoozeService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -74,7 +75,8 @@ final class ThreadSetMethod implements JmapMethod
 
     public function __construct(
         private readonly AccountResolver $accountResolver,
-        private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageThreadBadgeRepository $messageThreadBadgeRepository,
+        private readonly MessageThreadJmapRepository $messageThreadJmapRepository,
         private readonly StateManager $stateManager,
         private readonly EntityManagerInterface $entityManager,
         private readonly ThreadSnoozeService $snoozeService,
@@ -82,7 +84,7 @@ final class ThreadSetMethod implements JmapMethod
         private readonly LabelBindingRepository $bindingRepository,
         private readonly \App\Service\Mail\InboxTabs $inboxTabs,
         private readonly \App\Service\Mail\ThreadStatusUpdater $status,
-        private readonly \App\Repository\Mail\InboxCategoryRepository $inboxCategories,
+        private readonly \App\Repository\Mail\InboxCategory\InboxCategoryRepository $inboxCategories
     ) {
     }
 
@@ -141,7 +143,7 @@ final class ThreadSetMethod implements JmapMethod
 
             // Scoped by account, so another user's thread id resolves to
             // nothing rather than being reachable by guessing an integer.
-            $threads = $this->threadRepository->findByAccountAndIds($accountId, [(int) $id]);
+            $threads = $this->messageThreadJmapRepository->findByAccountAndIds($accountId, [(int) $id]);
             $thread = $threads[0] ?? null;
 
             if (null === $thread) {
@@ -181,7 +183,7 @@ final class ThreadSetMethod implements JmapMethod
         // them needs told about urgently. The next ordinary Thread/get carries
         // the new value.
         if ([] !== $shown) {
-            $this->threadRepository->markListed(
+            $this->messageThreadBadgeRepository->markListed(
                 array_map(static fn (MessageThread $thread): int => (int) $thread->id, $shown),
                 new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
             );

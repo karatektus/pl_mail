@@ -46,6 +46,11 @@ doctrine:
         profiling_collect_backtrace: '%kernel.debug%'
     orm:
         validate_xml_mapping: true
+        # ORM 3.8 deprecates building schemas without DBAL's schema editor and
+        # makes it the only way in ORM 4. Opted in now so SchemaTool (and with
+        # it SchemaInSyncTest and doctrine:migrations:diff) already runs the
+        # way it will have to.
+        use_schema_editor_api: true
         naming_strategy: doctrine.orm.naming_strategy.underscore
         identity_generation_preferences:
             Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity

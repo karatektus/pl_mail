@@ -8,13 +8,21 @@ self-contained: no {% extends %}, no block dependencies.
 {% from '_partials/_list_toolbar.html.twig' import tbtn %}
 {% import 'mail/_thread_summary.html.twig' as thread_summary %}
 
+{# One email of the conversation, opened from the email list (#615): the pane
+   shows that email alone, and its toolbar acts on it rather than on the
+   conversation — as its row in the list does. Null for the conversation. #}
+{% set email = email|default(null) %}
+{% set subjectType = email ? 'message' : 'thread' %}
+{% set subjectId = email ? email.id : thread.id %}
+{% set subject = email ?? thread %}
+
 {% set threadLabelIds = [] %}
 {# The same, without the system labels — what the Move to picker leaves out.
    Built as a list here rather than filtered in place: `|filter|map` on a
    collection is an iterator with its original keys, and that reaches the
    Stimulus value as a JSON object instead of the array it declares. #}
 {% set threadOwnLabelIds = [] %}
-{% for label in thread.labels %}
+{% for label in subject.labels %}
     {% set threadLabelIds = threadLabelIds|merge([label.id]) %}
     {% if label.role is null %}
         {% set threadOwnLabelIds = threadOwnLabelIds|merge([label.id]) %}
@@ -43,7 +51,7 @@ self-contained: no {% extends %}, no block dependencies.
         data-action="click->mail--mail-pane#close"
         aria-label="{{ 'message.back'|trans }}"
         title="{{ 'message.back'|trans }}"
-        class="action-btn flex items-center justify-center h-8 rounded-full text-ink-muted hover:text-ink hover:bg-hover transition-colors"
+        class="action-btn flex items-center justify-center h-8 rounded-lg text-ink-muted hover:text-ink hover:bg-hover transition-colors"
     >
         <i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i>
         <span class="action-btn-label">{{ 'message.back'|trans }}</span>
@@ -52,8 +60,8 @@ self-contained: no {% extends %}, no block dependencies.
     <div
         class="flex flex-wrap items-center gap-1"
         data-controller="mail--message-actions"
-        data-mail--message-actions-entity-id-value="{{ thread.id }}"
-        data-mail--message-actions-entity-type-value="thread"
+        data-mail--message-actions-entity-id-value="{{ subjectId }}"
+        data-mail--message-actions-entity-type-value="{{ subjectType }}"
     >
         {# Archive and Delete are hidden where they would do nothing.
            Trashing something already in the trash adds a label it already
@@ -61,7 +69,7 @@ self-contained: no {% extends %}, no block dependencies.
            mail appeared to be deleted twice and was still there both times. And
            archiving out of the bin is not a thing anyone means. See
            App\Twig\MailPlacementExtension. #}
-        {% set placement = mail_placement(thread) %}
+        {% set placement = mail_placement(subject) %}
 
         {% if placement == 'normal' %}
             {{ tbtn('click->mail--message-actions#archive', 'fa-solid fa-box-archive', 'toolbar.actions.archive'|trans) }}
@@ -69,7 +77,7 @@ self-contained: no {% extends %}, no block dependencies.
         {% endif %}
 
         {# The bin's own two, as its row offers them: the way back, and the
-           way out for good for somebody who switched that on (Settings → Mail
+           way out for good for somebody who switched that on (Settings → Inbox
            → Disposal). The pane had neither, so mail opened from Trash could
            only be taken out of it from the list — and a thrown-away draft,
            which opens here and nowhere else, could not be at all. On the bin's
@@ -85,7 +93,7 @@ self-contained: no {% extends %}, no block dependencies.
                         data-mail--message-actions-purge-confirm-param="{{ 'discarded.actions.purge_confirm'|trans }}"
                         aria-label="{{ 'discarded.actions.purge'|trans }}"
                         title="{{ 'discarded.actions.purge'|trans }}"
-                        class="action-btn flex items-center justify-center h-8 rounded-full
+                        class="action-btn flex items-center justify-center h-8 rounded-lg
                                text-ink-muted hover:text-danger hover:bg-danger-soft
                                transition-colors duration-100 cursor-pointer">
                     <i class="fa-solid fa-fire text-[15px]" aria-hidden="true"></i>
@@ -98,11 +106,35 @@ self-contained: no {% extends %}, no block dependencies.
            destination. Offered from the archive too — spam that was archived
            by mistake is still spam — and not where the mail is already thrown
            away. A controller of its own inside this one: see _spam_menu. #}
-        {% if placement not in ['trash', 'spam'] %}
+        {# The spam menu reports a conversation; one email goes to Spam by
+           Move to (#615). #}
+        {% if placement not in ['trash', 'spam'] and email is null %}
             {% include '_partials/_spam_menu.html.twig' with { threadId: thread.id, variant: 'toolbar' } only %}
         {% endif %}
 
         {{ tbtn('click->mail--message-actions#markUnread', 'fa-regular fa-envelope', 'toolbar.actions.mark_unread'|trans) }}
+
+        {# Pin (#654), where the row offers it: not for mail in the bin or
+           spam, whose pins those places take off. A toggle that says which
+           way it is set, with both labels on it so the controller can swap
+           them without a round trip. `p` presses it — see ui--shortcuts. #}
+        {% if placement in ['normal', 'archive'] %}
+            {% set pinned = email ? email_pinned(email) : conversation_pinned(thread) %}
+            <button type="button"
+                    data-action="click->mail--message-actions#pin"
+                    data-mail--message-actions-target="pin"
+                    data-pin-label="{{ 'toolbar.actions.pin'|trans }}"
+                    data-unpin-label="{{ 'toolbar.actions.unpin'|trans }}"
+                    aria-pressed="{{ pinned ? 'true' : 'false' }}"
+                    aria-label="{{ pinned ? 'toolbar.actions.unpin'|trans : 'toolbar.actions.pin'|trans }}"
+                    title="{{ pinned ? 'toolbar.actions.unpin'|trans : 'toolbar.actions.pin'|trans }}"
+                    class="action-btn flex items-center justify-center h-8 rounded-lg
+                           text-ink-muted hover:text-ink hover:bg-hover
+                           transition-colors duration-100 cursor-pointer">
+                <i class="fa-solid fa-thumbtack text-[15px] {{ pinned ? 'text-accent' : 'rotate-45 pin-outline' }}" aria-hidden="true"></i>
+                <span class="action-btn-label">{{ pinned ? 'toolbar.actions.unpin'|trans : 'toolbar.actions.pin'|trans }}</span>
+            </button>
+        {% endif %}
 
         {# Snooze, which every row offered and the conversation itself did not:
            deciding "not now" is something done after reading a mail at least
@@ -120,7 +152,7 @@ self-contained: no {% extends %}, no block dependencies.
                         data-shortcut="snooze"
                         aria-label="{{ 'toolbar.actions.snooze'|trans }}"
                         title="{{ 'toolbar.actions.snooze'|trans }}"
-                        class="action-btn flex items-center justify-center h-8 rounded-full
+                        class="action-btn flex items-center justify-center h-8 rounded-lg
                                text-ink-muted hover:text-ink hover:bg-hover
                                transition-colors duration-100 cursor-pointer">
                     <i class="fa-solid fa-clock text-[15px]" aria-hidden="true"></i>
@@ -130,7 +162,7 @@ self-contained: no {% extends %}, no block dependencies.
                 {% include '_partials/_snooze_menu.html.twig' with {
                     controller: 'mail--message-actions',
                     method:     'snooze',
-                    snoozed:    thread.isSnoozed,
+                    snoozed:    email ? ((email.snoozedUntil is not null and email.snoozedUntil > date()) or thread.isSnoozed) : thread.isSnoozed,
                     align:      'left',
                 } only %}
             </div>
@@ -142,8 +174,8 @@ self-contained: no {% extends %}, no block dependencies.
        (LabelKinds). #}
     {% include '_partials/_label_menu.html.twig' with {
         labels:       tag_labels(sidebarCounts.flattenedUserLabels(), thread.account),
-        targetType:   'thread',
-        targetId:     thread.id,
+        targetType:   subjectType,
+        targetId:     subjectId,
         activeLabels: threadLabelIds,
     } only %}
 
@@ -155,9 +187,10 @@ self-contained: no {% extends %}, no block dependencies.
        from here. #}
     {% include '_partials/_move_menu.html.twig' with {
         labels:   move_labels(sidebarCounts.flattenedUserLabels(), thread.account),
-        targetId: thread.id,
+        targetId: subjectId,
+        targetType: subjectType,
         carried:  threadOwnLabelIds,
-        placement: mail_placement(thread),
+        placement: mail_placement(subject),
     } only %}
 </div>
 </div>{# /toolbar #}
@@ -165,14 +198,14 @@ self-contained: no {% extends %}, no block dependencies.
 {# ── Conversation ────────────────────────────────────────────────────────── #}
 <div class="flex-1 overflow-y-auto"
      data-controller="mail--thread-read"
-     data-mail--thread-read-mark-url-value="{{ path('app_status_mark_read', {'type': 'thread', 'id': thread.id}) }}"
-     data-mail--thread-read-id-value="{{ thread.id }}"
+     data-mail--thread-read-mark-url-value="{{ path('app_status_mark_read', {'type': subjectType, 'id': subjectId}) }}"
+     data-mail--thread-read-id-value="{{ subjectId }}"
      data-mail--thread-read-delay-value="0"
      {# Whether this conversation still counted towards a badge when the page
         was rendered, so the controller knows whether reading it moved a
         number. Re-opening mail you have already read must not fire a counts
         request per click. #}
-     data-mail--thread-read-was-unread-value="{{ thread.unreadCount > 0 ? 'true' : 'false' }}"
+     data-mail--thread-read-was-unread-value="{{ (email ? email.seenAt is null : thread.unreadCount > 0) ? 'true' : 'false' }}"
 >
     {# The summary controller lives HERE rather than on its own card, because
        its card is the one part of the feature that does not exist yet on a
@@ -187,7 +220,7 @@ self-contained: no {% extends %}, no block dependencies.
             {# data-thread-subject: mail--encrypted-message puts a subject it
                decrypted here when the outside only said "..." (RFC 9788). #}
             <h1 class="text-xl font-semibold text-ink min-w-0 break-words" data-thread-subject>
-                {{ thread.subject ?: ('thread.no_subject'|trans) }}
+                {{ subject.subject ?: ('thread.no_subject'|trans) }}
             </h1>
             {# The messages shown, not thread.messageCount: a conversation
                partly in the bin shows one side of itself (see below). #}
@@ -201,6 +234,19 @@ self-contained: no {% extends %}, no block dependencies.
                "Summary" claims a summary exists. #}
             {{ thread_summary.trigger(thread, summary|default(null)) }}
         </div>
+
+        {# One email of a longer conversation (#615): the way to the rest of
+           it, for the times the email needs what it answers. Opened in the
+           pane like a row, or as a page where there is no pane. #}
+        {% if email and thread.messageCount > 1 %}
+            <a href="{{ path('app_mail_thread', { id: thread.id }) }}"
+               data-action="click->mail--mail-pane#open"
+               data-show-conversation
+               class="inline-flex items-center gap-1.5 -mt-4 mb-5 text-xs text-ink-muted hover:text-accent transition-colors">
+                <i class="fa-solid fa-comments text-[11px]" aria-hidden="true"></i>
+                {{ 'thread.show_conversation'|trans({ '%count%': thread.messageCount }) }}
+            </a>
+        {% endif %}
 
         {# What plMail read out of this conversation, before the conversation. #}
         {% include 'mail/_insight_strip.html.twig' with { insights: insights|default([]) } only %}

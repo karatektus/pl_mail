@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Support\Mail;
 
-use App\Jmap\State\ChangeLogRepository;
+use App\Repository\Jmap\ChangeLog\ChangeLogRepository;
 use App\Jmap\State\StateManager;
-use App\Repository\Insight\MailInsightRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Insight\MailInsight\MailInsightRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Imap\ThreadMerger;
 use App\Service\Label\ThreadLabelSynchronizer;
@@ -30,7 +31,7 @@ trait BuildsThreaderWithoutDatabase
 {
     private function threaderWithoutDatabase(
         ?EntityManagerInterface  $entityManager = null,
-        ?MessageThreadRepository $threadRepository = null,
+        ?MessageThreadRebuildRepository $threadRepository = null,
     ): MessageThreader {
         $entityManager     ??= $this->createStub(EntityManagerInterface::class);
         $messageRepository = $this->createStub(MessageRepository::class);
@@ -38,7 +39,8 @@ trait BuildsThreaderWithoutDatabase
         return new MessageThreader(
             $entityManager,
             $messageRepository,
-            $threadRepository ?? $this->createStub(MessageThreadRepository::class),
+            $this->createStub(MessageThreadingRepository::class),
+            $threadRepository ?? $this->createStub(MessageThreadRebuildRepository::class),
             new ThreadMerger(
                 $entityManager,
                 $messageRepository,

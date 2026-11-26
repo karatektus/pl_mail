@@ -1,43 +1,45 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service\Imap;
 
-use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Crypto\PlaintextSource;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
-use App\Domain\Helper\AttachmentStorageHelper;
-use App\Domain\Helper\MessageIdHelper;
-use App\Entity\Mail\Account;
-use App\Entity\Mail\Message;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Service\Label\LabelResolver;
-use App\Service\Label\ThreadLabelSynchronizer;
-use App\Service\Crypto\AutocryptHeader;
-use App\Service\Crypto\SealedDrafts;
-use App\Service\Crypto\SealGuard;
-use App\Service\Crypto\SendingKey;
-use App\Service\Mail\AttachmentResolver;
-use App\Service\Mail\DraftAttachmentService;
-use App\Service\Mail\Mime\DataImageEmbedder;
-use App\Service\Mail\MailChangeRecorder;
-use App\Service\Mail\MailSenderRegistry;
-use App\Service\Mail\Mime\SealedEntityPart;
-use App\Service\Mail\RawMessageResolver;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Exception\SendFailureException;
 use App\Domain\Exception\SendOutcomeUnknownException;
 use App\Domain\Exception\SendRefusedException;
+use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Interface\MailDeliveryInterface;
 use App\Domain\Interface\MailSenderInterface;
 use App\Domain\Interface\SentCopyLookupInterface;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
-use Throwable;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Service\Crypto\AutocryptHeader;
+use App\Service\Crypto\SealGuard;
+use App\Service\Crypto\SealedDrafts;
+use App\Service\Crypto\SendingKey;
+use App\Service\Label\LabelResolver;
+use App\Service\Label\ThreadLabelSynchronizer;
+use App\Service\Mail\AttachmentResolver;
+use App\Service\Mail\DraftAttachmentService;
+use App\Service\Mail\MailChangeRecorder;
+use App\Service\Mail\MailSenderRegistry;
+use App\Service\Mail\Mime\DataImageEmbedder;
+use App\Service\Mail\Mime\SealedEntityPart;
+use App\Service\Mail\RawMessageResolver;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
+use Throwable;
 
 /**
  * Builds the outgoing MIME once, then dispatches it to the sender that handles
@@ -88,6 +90,17 @@ class MessageSendService
             return false;
         }
 
+        // Sending switched off means nothing leaves through this account
+        // (#575, #628). Refused rather than answered false, so a scheduled send
+        // that comes due afterwards is marked on the draft with the reason,
+        // instead of retried until the transport gives up. Here rather than in
+        // each sender: every send of a stored message comes through this
+        // method. Receiving is not asked — an SMTP relay with no mailbox
+        // behind it sends with receiving off, and that is the point of it.
+        if (false === $account->sendEnabled) {
+            throw new SendRefusedException('Sending is switched off for this account.', SendFailure::MailOff);
+        }
+
         // A message the browser built goes out as it was built or not at all:
         // the server holds no key to build it again. See SealGuard.
         $refusal = $this->sealGuard->refusal($message);
@@ -125,10 +138,12 @@ class MessageSendService
             $this->em->flush();
         }
 
+        $providerMessageId = null;
+
         if ($sender instanceof MailDeliveryInterface) {
             // Throws what kind of failure it was; the handler decides what
             // happens next. Nothing is recorded on the row here.
-            $sender->deliver($email, $account);
+            $providerMessageId = $sender->deliver($email, $account);
         } elseif (false === $sender->send($email, $account)) {
             // A sender that only says yes or no — the demo sender, a test
             // double. No reason to go on, so it is taken at its word as a
@@ -136,7 +151,7 @@ class MessageSendService
             throw new SendRefusedException('The sender refused the message.', SendFailure::Refused);
         }
 
-        return $this->recordSent($message, $account, $email, $sender);
+        return $this->recordSent($message, $account, $email, $sender, $providerMessageId);
     }
 
     /**
@@ -174,7 +189,7 @@ class MessageSendService
     /**
      * The provider has the mail: write that down first, then the rest.
      */
-    private function recordSent(Message $message, Account $account, Email $email, MailSenderInterface $sender): bool
+    private function recordSent(Message $message, Account $account, Email $email, MailSenderInterface $sender, ?string $providerMessageId = null): bool
     {
         // THE PROVIDER HAS THE MAIL. From this line on nothing may throw out of
         // this method, and the order below is what guarantees it.
@@ -187,6 +202,15 @@ class MessageSendService
         // committed first, on its own, which makes every later claimForSend()
         // refuse; the bookkeeping after it is best effort and only logged.
         $message->sentAt = new DateTimeImmutable();
+
+        // The id the mail actually left with, when the provider replaced the
+        // one stamped above (Gmail's API, #702): it is the one the Sent copy
+        // and the recipients have, so it is the one their answers and the
+        // sync's merge of the Sent copy look for. In this first flush, so the
+        // copy that syncs back a few seconds later already finds it.
+        if (null !== $providerMessageId && '' !== $providerMessageId) {
+            $message->messageId = $providerMessageId;
+        }
 
         // Whatever an earlier attempt left on the row is over: no warning, no
         // retry clock, nothing waiting to be checked.
@@ -412,6 +436,16 @@ class MessageSendService
         // and the Sent folder row an account switched from IMAP still holds
         // would only lead the connection factory to refuse it.
         if (true === $account->isJmap()) {
+            return;
+        }
+
+        // Receiving switched off is the promise that plMail does not talk to
+        // the incoming server (#628), and appending is talking to it. The
+        // copy stays here, under Sent, which is all an SMTP relay with no
+        // mailbox behind it can have; an account that used to receive keeps
+        // its Sent folder row, which is why this is asked and not left to the
+        // lookup below.
+        if (false === $account->mailEnabled) {
             return;
         }
 

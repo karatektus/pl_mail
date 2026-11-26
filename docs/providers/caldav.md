@@ -45,7 +45,7 @@ The address is changed or cleared in the same place, and the change applies the 
 are found on a connection. Calendars already mirrored keep the address they were found at, so after
 a server moves, find its calendars again. Clearing a pinned address in a private range takes its
 exemption with it: calendars mirrored from that host then stop syncing with *"Server address must not
-point at a private network"* until the host is listed in `INTEGRATIONS_ALLOWED_HOSTS`.
+point at a private network"* until the host is allowed under [Admin → Integrations → Servers on a private network](../features/admin.md#servers-on-a-private-network).
 
 ## Connecting a server
 
@@ -125,20 +125,21 @@ sits on the same network as its own database and workers. So the address goes th
 as every other user-supplied server address:
 
 - The scheme must be `http` or `https`.
-- `http://` is refused unless `INTEGRATIONS_ALLOW_HTTP` is on.
+- `http://` is refused unless an administrator allowed plain http for that host.
 - A username or password embedded in the URL is refused outright — it would be logged wherever the
   URL is, and would silently override the credentials on the connection.
-- Anything resolving into loopback, link-local or a private range is refused unless the host is
-  listed in `INTEGRATIONS_ALLOWED_HOSTS`, or is the host of a server address an administrator
-  pinned in **Admin → Integrations**.
+- Anything resolving into loopback, link-local or a private range is refused unless an
+  administrator allowed the host under [Admin → Integrations → Servers on a private network](../features/admin.md#servers-on-a-private-network), or it is the host of a server address an
+  administrator pinned there.
 
-That last rule is the one a self-hoster meets. A Nextcloud on your LAN at `192.168.1.10` or
-`nextcloud.lan` is refused until you allow it, and a Nextcloud with no certificate needs the http
-flag as well. Both are in the [configuration reference](../install/configuration.md), and both cost
-something: the private-range block is what stops a user pointing plMail at its own database
-container or at a cloud metadata endpoint, and allowing plain http means an app password crossing
-your network in the clear. Naming one host in `INTEGRATIONS_ALLOWED_HOSTS` is much narrower than
-turning the block off, which is why it is a list rather than a switch.
+That last rule is the one a self-hoster meets. A Baïkal or Nextcloud on your LAN at `192.168.1.10`
+or `dav.home.example.com` is refused until an administrator allows it, and one with no certificate
+needs plain http ticked for it as well. A public name counts if it resolves to a private address
+from where plMail runs, as it does with split DNS at home. Both cost something: the private-range
+block is what stops a user pointing plMail at its own database container or at a cloud metadata
+endpoint, and allowing plain http means an app password crossing your network in the clear. Allowing
+one host is much narrower than turning the block off, which is why it is a list rather than a
+switch.
 
 ## Sync, and what has actually been tested
 
@@ -186,9 +187,9 @@ looking at your calendar almost certainly does not. Use the address the server o
 treats it as "not here" and keeps looking. So "no calendar service answered" can mean a genuinely
 wrong path *or* a server that only serves CalDAV under a subpath you have not given it.
 
-**A LAN server is refused by default.** This is the SSRF guard doing its job, not a bug. Add the
-host to `INTEGRATIONS_ALLOWED_HOSTS`, and add `INTEGRATIONS_ALLOW_HTTP` only if the server really has
-no certificate.
+**A LAN server is refused by default.** This is the SSRF guard doing its job, not a bug. An
+administrator allows the host under [Admin → Integrations → Servers on a private network](../features/admin.md#servers-on-a-private-network), and ticks plain http only if the server
+really has no certificate.
 
 **Reusing a mail account's password sends it to an address you typed.** The tick box is off by
 default for that reason. If the server would accept an app password, use one.

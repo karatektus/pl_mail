@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\Mail;
 
-use App\Repository\Mail\MessagePartRepository;
+use App\Repository\Mail\MessagePart\MessagePartRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -18,13 +20,21 @@ class MessagePart
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     public ?Message $message = null;
 
-    #[ORM\Column(length: 255)]
+    /**
+     * The three a sender writes, so TEXT, not varchar(255) (#674). Nothing
+     * bounds them on the way in: a filename split into RFC 2231 continuations
+     * reached the column as the whole header and failed every INSERT of the
+     * Gmail batch it was in, hourly, for good. Clamping instead would have
+     * meant three places that each have to remember it, and a name cut off
+     * in the middle of its extension.
+     */
+    #[ORM\Column(type: Types::TEXT)]
     public ?string $contentType = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $filename = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $contentId = null;
 
     #[ORM\Column(length: 255)]

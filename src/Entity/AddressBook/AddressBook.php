@@ -9,7 +9,7 @@ use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\AddressBook\AddressBookRepository;
+use App\Repository\AddressBook\AddressBook\AddressBookRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -133,12 +133,12 @@ class AddressBook
 
     /**
      * Whether the thing behind it may be used: a connection switched off, or
-     * an account disabled, syncs nothing.
+     * an account whose contacts are switched off (#575), syncs nothing.
      */
     public function isActive(): bool
     {
         if (null !== $this->account) {
-            return false !== $this->account->isActive;
+            return true === $this->account->contactsEnabled;
         }
 
         return true === $this->integration?->isActive;

@@ -7,7 +7,7 @@ namespace App\Tests\Controller\Settings;
 use App\Domain\Enum\Account\AuthType;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -64,7 +64,7 @@ final class AccountCategoriesTest extends WebTestCase
         $account->graphDeltaLinks = ['AAMkAD-inbox' => 'https://graph.microsoft.com/v1.0/me/mailFolders/x/messages/delta?$deltatoken=old'];
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
         $button  = $crawler->filter('turbo-frame#account-categories-' . $account->id . ' button[data-account-categories]');
 
         self::assertSame('false', $button->attr('aria-pressed'), 'off by default');
@@ -95,11 +95,11 @@ final class AccountCategoriesTest extends WebTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
 
         self::assertCount(0, $crawler->filter('turbo-frame#account-categories-' . $account->id));
 
@@ -121,7 +121,7 @@ final class AccountCategoriesTest extends WebTestCase
         $account->oauthProvider    = 'microsoft';
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new DateTimeImmutable('+1 day');
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $this->em->flush();
 

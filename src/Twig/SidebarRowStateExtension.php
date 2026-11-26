@@ -45,10 +45,9 @@ use Twig\TwigFunction;
  * ── The comparison is ui--sidebar#_matches, and has to stay it ─────────────
  * A row this marks open and the controller then closes (or the reverse) is
  * the fade back again, one row at a time. So the rule is the controller's,
- * restated: the path is the link's path or lies under it — the prefix is what
- * keeps a parent label open while you are in a child, and the slash is what
- * keeps "Work" from claiming "Workshop" — and a link that names an account
- * matches only that account. The class lists are the controller's too; see
+ * restated: the path is the link's path exactly — not a prefix, which kept a
+ * parent label lit while you were in a child, two rows marked for one place
+ * (#699) — and a link that names an account matches only that account. The class lists are the controller's too; see
  * SidebarRowStateTest, which reads both files.
  *
  * The MAIN request, because that is the one whose URL the browser is showing.
@@ -112,7 +111,9 @@ final class SidebarRowStateExtension extends AbstractExtension
         // href, so the two compare like for like.
         $path = $request->getBaseUrl() . $request->getPathInfo();
 
-        if ($path !== $target['path'] && false === str_starts_with($path, $target['path'] . '/')) {
+        // Exact, as the controller matches: a parent label is not open while a
+        // child of it is (#699).
+        if ($path !== $target['path']) {
             return false;
         }
 

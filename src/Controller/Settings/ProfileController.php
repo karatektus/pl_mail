@@ -64,7 +64,7 @@ final class ProfileController extends AbstractController
             try {
                 $updater->apply($user, $form);
 
-                return $this->redirectToRoute('app_settings_index', ['section' => 'profile']);
+                return $this->redirectToRoute('app_settings_page', ['page' => 'profile']);
             } catch (AvatarRefusedException $refused) {
                 // A picture from a connected service that could not be kept:
                 // said beside the picture field, with the form as it was
@@ -78,7 +78,7 @@ final class ProfileController extends AbstractController
         // and the partial alone replaced the app with a bare card, no sidebar
         // and no way back but the browser's. Forwarded rather than rebuilt, so
         // the page is the one SettingsController draws, with this form in it.
-        $response = $this->forward(SettingsController::class . '::index', ['profileForm' => $form], ['section' => 'profile']);
+        $response = $this->forward(SettingsController::class . '::page', ['page' => 'profile', 'profileForm' => $form]);
         $response->setStatusCode(Response::HTTP_UNPROCESSABLE_ENTITY);
 
         return $response;
@@ -165,7 +165,7 @@ final class ProfileController extends AbstractController
 
         $entityManager->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'profile']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'profile']);
     }
 
     /** Forget it, and delete the file rather than only the pointer. */
@@ -183,7 +183,7 @@ final class ProfileController extends AbstractController
 
         $entityManager->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'profile']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'profile']);
     }
 
     /**

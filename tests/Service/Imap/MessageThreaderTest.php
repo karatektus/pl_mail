@@ -11,7 +11,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
 use App\Service\Imap\MessageThreader;
 use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
 use Doctrine\ORM\EntityManagerInterface;
@@ -111,7 +111,7 @@ final class MessageThreaderTest extends TestCase
     }
 
     /**
-     * Most-recent-wins, matching what MessageThreadRepository::recomputeCategoriesForAccount()
+     * Most-recent-wins, matching what MessageThreadCategoryRepository::recomputeCategoriesForAccount()
      * does in SQL: the newest message decides, an older one arriving late does not.
      */
     #[DataProvider('threadCategoryCases')]
@@ -490,7 +490,7 @@ final class MessageThreaderTest extends TestCase
      */
     private function threaderWithThreadLookup(?MessageThread $found, bool $managed = false): MessageThreader
     {
-        $threadRepository = $this->createStub(MessageThreadRepository::class);
+        $threadRepository = $this->createStub(MessageThreadRebuildRepository::class);
         $threadRepository->method('findOneByProviderThreadKeyForAccount')->willReturn($found);
 
         $entityManager = $this->createStub(EntityManagerInterface::class);

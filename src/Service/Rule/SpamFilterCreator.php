@@ -8,7 +8,7 @@ use App\Domain\DTO\Mail\SpamSender;
 use App\Domain\Filter\FilterAstValidator;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
-use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -79,6 +79,7 @@ final readonly class SpamFilterCreator
         $actions    = [['type' => RuleActionExecutor::MARK_SPAM]];
 
         foreach ($this->rules->findForUserOrdered($user) as $existing) {
+            // Loose on purpose: two rules are the same when their arrays hold the same pairs, in any key order.
             if ($existing->conditions == $conditions && $existing->actions == $actions && null === $existing->account) {
                 return [$existing, false];
             }

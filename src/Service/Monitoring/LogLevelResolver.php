@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Monitoring;
 
-use Doctrine\DBAL\Connection;
+use App\Repository\Monitoring\LogSettings\LogLevelRepository;
 use Monolog\Level;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Throwable;
@@ -60,7 +60,7 @@ final class LogLevelResolver
     private bool $resolving = false;
 
     public function __construct(
-        private readonly Connection $connection,
+        private readonly LogLevelRepository $levels,
         #[Autowire(env: 'APP_DB_LOG_LEVEL')]
         private readonly string $fallback = 'warning',
     ) {
@@ -101,9 +101,7 @@ final class LogLevelResolver
         $this->resolving = true;
 
         try {
-            $name = $this->connection->fetchOne(
-                'SELECT minimum_level FROM log_settings ORDER BY id ASC LIMIT 1',
-            );
+            $name = $this->levels->storedMinimumLevel();
 
             return false === is_string($name) ? null : self::parse($name);
         } catch (Throwable) {

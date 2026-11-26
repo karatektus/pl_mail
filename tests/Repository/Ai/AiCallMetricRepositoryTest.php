@@ -6,7 +6,7 @@ namespace App\Tests\Repository\Ai;
 
 use App\Domain\DTO\Ai\AiCallTiming;
 use App\Domain\Enum\Ai\AiCallFeature;
-use App\Repository\Ai\AiCallMetricRepository;
+use App\Repository\Ai\AiCallMetric\AiCallMetricRepository;
 use App\Service\Ai\AiCallRecorder;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -46,7 +46,7 @@ final class AiCallMetricRepositoryTest extends KernelTestCase
         // but the connection, and until a controller injects them the container
         // inlines them away.
         $this->repository = new AiCallMetricRepository($this->connection);
-        $this->recorder   = new AiCallRecorder($this->connection, new NullLogger());
+        $this->recorder   = new AiCallRecorder(new AiCallMetricRepository($this->connection), new NullLogger());
 
         $this->connection->beginTransaction();
 
@@ -194,7 +194,7 @@ final class AiCallMetricRepositoryTest extends KernelTestCase
         $connection = $this->createStub(Connection::class);
         $connection->method('executeStatement')->willThrowException(new \RuntimeException('no such table'));
 
-        $recorder = new AiCallRecorder($connection, new NullLogger());
+        $recorder = new AiCallRecorder(new AiCallMetricRepository($connection), new NullLogger());
 
         $recorder->record(AiCallFeature::SearchQuery, 'm', true, null, AiCallTiming::none());
 

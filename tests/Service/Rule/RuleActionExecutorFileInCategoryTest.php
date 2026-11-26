@@ -13,14 +13,14 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
-use App\Jmap\State\ChangeLogRepository;
+use App\Repository\Jmap\ChangeLog\ChangeLogRepository;
 use App\Jmap\State\StateManager;
-use App\Repository\Integration\IntegrationRepository;
-use App\Repository\Label\LabelBindingRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\InboxCategoryRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
@@ -138,7 +138,7 @@ final class RuleActionExecutorFileInCategoryTest extends TestCase
                 $this->createStub(LabelRepository::class),
                 new GraphLabelPolicy(),
                 new NullLogger(),
-                $this->createStub(MessageRepository::class),
+                $this->createStub(MessageImapRepository::class),
                 new LabelResolver(
                     $this->createStub(LabelRepository::class),
                     $this->createStub(LabelBindingRepository::class),

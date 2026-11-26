@@ -13,7 +13,7 @@ use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Embeddable\AiPrompts;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

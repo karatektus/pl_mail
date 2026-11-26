@@ -7,7 +7,7 @@ namespace App\Service\Calendar;
 use App\Domain\Enum\Calendar\ParticipationStatus;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\CalendarEventOccurrence;
-use App\Repository\Calendar\CalendarEventOccurrenceRepository;
+use App\Repository\Calendar\CalendarEventOccurrence\CalendarEventOccurrenceRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\ORM\EntityManagerInterface;
@@ -182,7 +182,7 @@ final readonly class RecurrenceMaterialiser
         $last    = max($keys);
 
         try {
-            $iterator = new RRuleIterator($rrule, \DateTime::createFromInterface($event->startsAt->setTimezone($zone)));
+            $iterator = new RRuleIterator($rrule, $event->startsAt->setTimezone($zone));
         } catch (\Throwable) {
             return [];
         }
@@ -262,7 +262,7 @@ final readonly class RecurrenceMaterialiser
         $previousId = null;
 
         try {
-            $iterator = new RRuleIterator($rrule, \DateTime::createFromInterface($seed));
+            $iterator = new RRuleIterator($rrule, $seed);
         } catch (\Throwable $e) {
             $this->logger->warning('Calendar: unusable recurrence rule', [
                 'eventId'   => $event->id,

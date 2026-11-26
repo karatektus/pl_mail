@@ -9,6 +9,8 @@ use App\Entity\Mail\Account;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GmailApiSender;
+use App\Repository\Mail\Message\MessageThreadingRepository;
+use App\Service\Mail\GmailSmtpDelivery;
 use App\Service\OAuth\OAuthTokenManager;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -32,6 +34,11 @@ final class ApiSenderBccTest extends TestCase
         $captured = null;
 
         $http = new MockHttpClient(function (string $method, string $url, array $options) use (&$captured): MockResponse {
+            // The send; the GET after it reads back Gmail's Message-ID (#702).
+            if ('POST' !== $method) {
+                return new MockResponse('{"id":"x","payload":{"headers":[]}}', ['http_code' => 200]);
+            }
+
             $captured = json_decode($options['body'], true)['raw'];
 
             return new MockResponse('{"id":"x"}', ['http_code' => 200]);
@@ -40,7 +47,7 @@ final class ApiSenderBccTest extends TestCase
         $tokens = $this->createStub(OAuthTokenManager::class);
         $tokens->method('getValidAccessToken')->willReturn('token');
 
-        $sender = new GmailApiSender(new GmailApiClient($http, $tokens, new GmailQuotaPacer(new MockClock())), new NullLogger());
+        $sender = new GmailApiSender(new GmailApiClient($http, $tokens, new GmailQuotaPacer(new MockClock())), $this->createStub(GmailSmtpDelivery::class), new NullLogger(), $this->createStub(MessageThreadingRepository::class));
 
         self::assertTrue($sender->send($this->email(), new Account()));
         self::assertIsString($captured);

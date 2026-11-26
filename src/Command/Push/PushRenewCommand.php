@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Push;
 
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Monitoring\ProcessHeartbeatService;
 use App\Service\Push\PushSubscriptionRegistry;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -71,7 +71,7 @@ final class PushRenewCommand extends Command
         $repair = true === $input->getOption('repair');
 
         $accounts = $this->accountRepository->findBy([
-            'isActive'    => true,
+            'mailEnabled'    => true,
             'pushEnabled' => true,
         ]);
 

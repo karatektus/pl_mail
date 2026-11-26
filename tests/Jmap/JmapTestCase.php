@@ -160,7 +160,7 @@ abstract class JmapTestCase extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
 
         $this->em->persist($account);
         $this->em->flush();
@@ -242,7 +242,7 @@ abstract class JmapTestCase extends KernelTestCase
         $this->account->smtpEncryption = 'starttls';
         $this->account->password = 'x';
         $this->account->authType = 'password';
-        $this->account->isActive = true;
+        $this->account->mailEnabled = true;
         $this->em->persist($this->account);
 
         $this->mailbox = new Mailbox();

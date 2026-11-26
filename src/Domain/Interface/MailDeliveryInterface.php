@@ -25,9 +25,17 @@ interface MailDeliveryInterface extends MailSenderInterface
     /**
      * Send a fully built MIME email, or throw what kind of failure it was.
      *
+     * Answers the Message-ID the provider put on the mail when that is not the
+     * one it was handed, so the row can carry the id the recipients and the
+     * provider's Sent copy have (#702). Gmail's API replaces it; every other
+     * sender answers null. Nothing after the mail left may throw: an answer
+     * that cannot be had is null, never a failed send.
+     *
+     * @return ?string the provider's Message-ID, bare (no angle brackets), or null
+     *
      * @throws SendDeferredException       the mail did not leave; a later attempt may work
      * @throws SendRefusedException        the mail did not leave; sending it unchanged will not work
      * @throws SendOutcomeUnknownException the request went out and the answer was lost
      */
-    public function deliver(Email $email, Account $account): void;
+    public function deliver(Email $email, Account $account): ?string;
 }

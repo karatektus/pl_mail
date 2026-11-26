@@ -8,7 +8,7 @@ use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
-use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use League\OAuth2\Client\Token\AccessTokenInterface;

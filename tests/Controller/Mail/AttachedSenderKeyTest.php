@@ -11,7 +11,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 use App\Service\Mail\RawMessageResolver;
 use App\Tests\Command\MailFixtures;
 use App\Tests\Support\Crypto\Gpg;

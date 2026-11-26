@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Calendar;
 
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use DateTimeImmutable;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

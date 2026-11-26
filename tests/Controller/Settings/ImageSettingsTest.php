@@ -62,21 +62,21 @@ final class ImageSettingsTest extends WebTestCase
     {
         self::assertFalse($this->reread()->alwaysShowImages);
 
-        $page = $this->client->request('GET', '/settings?section=images');
+        $page = $this->client->request('GET', '/settings/reading');
 
         self::assertResponseIsSuccessful();
         self::assertSame('0', $page->filter('input[name="alwaysShow"]:checked')->attr('value'));
-        self::assertCount(1, $page->filter('nav a[href="/settings?section=images"][aria-current="page"]'));
+        self::assertCount(1, $page->filter('nav a[href="/settings/reading"][aria-current="page"]'));
     }
 
     public function testSwitchedOnAndOffAgain(): void
     {
         $this->post(['alwaysShow' => '1']);
 
-        self::assertResponseRedirects('/settings?section=images');
+        self::assertResponseRedirects('/settings/reading');
         self::assertTrue($this->reread()->alwaysShowImages);
 
-        $page = $this->client->request('GET', '/settings?section=images');
+        $page = $this->client->request('GET', '/settings/reading');
 
         self::assertSame('1', $page->filter('input[name="alwaysShow"]:checked')->attr('value'));
 
@@ -107,7 +107,7 @@ final class ImageSettingsTest extends WebTestCase
     /** @param array<string, string> $fields */
     private function post(array $fields): void
     {
-        $page  = $this->client->request('GET', '/settings?section=images');
+        $page  = $this->client->request('GET', '/settings/reading');
         $token = (string) $page->filter('form[action="/settings/images"] input[name="_token"]')->attr('value');
 
         $this->client->request('POST', '/settings/images', $fields + ['_token' => $token]);

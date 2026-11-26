@@ -8,7 +8,7 @@ use App\Domain\Enum\Crypto\AddressKeyStatus;
 use App\Entity\Crypto\AddressKey;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Crypto\AddressKeyRepository;
+use App\Repository\Crypto\AddressKey\AddressKeyRepository;
 
 /**
  * Which of a person's own keys stands for the address a message is sent from.

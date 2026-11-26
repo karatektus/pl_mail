@@ -6,7 +6,7 @@ namespace App\Tests\Controller\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Mail\SidebarCounts;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;

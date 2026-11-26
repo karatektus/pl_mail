@@ -79,3 +79,42 @@ export function snoozeOptions(now = new Date()) {
 
     return options;
 }
+
+/**
+ * A moment as the picker spells it: "2026-08-13T08:00", on the browser's clock.
+ *
+ * The browser's, like every preset above — a snooze is a private reminder and
+ * follows the machine looking at it. Not the send menu's configured zone (see
+ * assets/schedule_options.js for why that one is different).
+ *
+ * @param {Date} date
+ */
+export function toWallClock(date) {
+    const pad = (value) => String(value).padStart(2, "0");
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+        + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/**
+ * The instant the picker's wall clock names, on the browser's clock.
+ *
+ * Built from its parts rather than parsed as a string: `new Date("…T08:00")`
+ * is local in some engines' history and UTC in others'. A wall clock the
+ * clock skips (the spring-forward hour) comes out shifted forward, which is
+ * where the browser's Date puts it and harmless for a reminder.
+ *
+ * @param {string} text "YYYY-MM-DDTHH:MM"
+ * @returns {Date|null} null for anything that is not that shape
+ */
+export function fromWallClock(text) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(text ?? ""));
+
+    if (null === match) {
+        return null;
+    }
+
+    const [, year, month, day, hour, minute] = match.map(Number);
+
+    return new Date(year, month - 1, day, hour, minute, 0, 0);
+}

@@ -6,7 +6,7 @@ namespace App\Tests\Controller\Mail;
 
 use App\Entity\User\User;
 use App\Infrastructure\Event\Listener\ContactSyncTracker;
-use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\Contact\ContactRepository;
 use App\Tests\Support\Contacts\ContactsKernelFixture;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

@@ -10,7 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ForgetDecryptedMailMessage;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Tests\Command\MailFixtures;
 use App\Tests\Support\Mail\SendsAjaxCsrf;
 use Doctrine\DBAL\Connection;
@@ -102,7 +102,7 @@ final class DecryptedMailControllerTest extends WebTestCase
         $user    = $this->boot($client);
         $account = $this->account($user, false);
 
-        $crawler = $client->request('GET', '/settings?section=encryption');
+        $crawler = $client->request('GET', '/settings/encryption');
         $token   = $crawler->filter('form[action="/settings/encryption/decrypted/' . $account->id . '"] input[name="_token"]')->attr('value');
 
         $client->request('POST', '/settings/encryption/decrypted/' . $account->id, ['_token' => $token, 'keep' => '1']);

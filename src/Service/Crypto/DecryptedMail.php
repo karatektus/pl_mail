@@ -8,18 +8,18 @@ use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Exception\DecryptedMailRefused;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\MessageParser;
-use App\Domain\Helper\MimeHeaderHelper;
 use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Ai\AiFeature;
-use App\Entity\Calendar\EventProposal;
-use App\Entity\Insight\MailInsight;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Infrastructure\Messaging\Message\ExtractEventsMessage;
 use App\Infrastructure\Messaging\Message\ExtractInsightsMessage;
 use App\Infrastructure\Messaging\Message\ProposeEventsMessage;
+use App\Repository\Ai\MessageEmbedding\MessageEmbeddingRepository;
+use App\Repository\Ai\ThreadSummary\ThreadSummaryRepository;
+use App\Repository\Calendar\EventProposal\EventProposalRepository;
+use App\Repository\Insight\MailInsight\MailInsightRepository;
 use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MailChangeRecorder;
@@ -28,7 +28,6 @@ use App\Service\Rule\MailRuleEngine;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Throwable;
-use Webklex\PHPIMAP\Config;
 
 /**
  * The decrypted text of end-to-end encrypted mail, for an account that keeps
@@ -63,6 +62,10 @@ final readonly class DecryptedMail
         private MessageBusInterface      $bus,
         private MailRuleEngine           $rules,
         private DecryptedMailPolicy      $policy,
+        private MessageEmbeddingRepository $embeddings,
+        private ThreadSummaryRepository $summaries,
+        private MailInsightRepository $mailInsightRepository,
+        private EventProposalRepository $eventProposalRepository,
     ) {
     }
 
@@ -94,21 +97,18 @@ final readonly class DecryptedMail
         }
 
         try {
-            $parsed = MessageParser::fromString(
-                $mime,
-                Config::make(['decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]]]),
-            );
+            $parsed = MessageParser::parse($mime);
         } catch (Throwable $exception) {
             throw new DecryptedMailRefused('not a MIME message: ' . $exception->getMessage());
         }
 
-        $message->bodyText = (string) $parsed->getTextBody();
-        $message->bodyHtml = (string) $parsed->getHTMLBody();
+        $message->bodyText = $parsed->textBody;
+        $message->bodyHtml = $parsed->htmlBody;
 
         // Header protection (RFC 9788): the outside said "...", and the real
         // subject is in here. Taken for the row — and the conversation, while
         // it is the placeholder too — so the list and search show it.
-        $innerSubject = trim(MimeHeaderHelper::decode((string) $parsed->getSubject()));
+        $innerSubject = trim($parsed->subject);
 
         if ('' !== $innerSubject && true === self::isPlaceholder($message->subject)) {
             $message->subject = $innerSubject;
@@ -118,10 +118,10 @@ final readonly class DecryptedMail
             }
         }
 
-        foreach ($parsed->getAttachments() as $attachment) {
+        foreach ($parsed->attachments as $attachment) {
             // A signature made inside the encryption is not an attachment
             // anybody wants, any more than one made outside it is.
-            if ('application/pgp-signature' === strtolower((string) $attachment->getContentType())) {
+            if ('application/pgp-signature' === $attachment->contentType) {
                 continue;
             }
 
@@ -174,17 +174,14 @@ final readonly class DecryptedMail
 
         $this->storage->delete($message->id, SealedMessageStorage::DECRYPTED);
 
-        $connection = $this->entityManager->getConnection();
-        $connection->executeStatement('DELETE FROM message_embedding WHERE message_id = ?', [$message->id]);
+        $this->embeddings->deleteForMessage((int) $message->id);
 
         if (null !== $message->thread?->id) {
-            $connection->executeStatement('DELETE FROM thread_summary WHERE thread_id = ?', [$message->thread->id]);
+            $this->summaries->deleteForThread($message->thread->id);
         }
 
-        $this->entityManager->createQuery('DELETE FROM ' . MailInsight::class . ' i WHERE i.message = :message')
-            ->setParameter('message', $message)->execute();
-        $this->entityManager->createQuery('DELETE FROM ' . EventProposal::class . ' p WHERE p.message = :message')
-            ->setParameter('message', $message)->execute();
+        $this->mailInsightRepository->deleteForMessage($message);
+        $this->eventProposalRepository->deleteForMessage($message);
 
         $this->changes->emailChanged((int) $message->account->id, (string) $message->id, false, $message->thread);
     }
@@ -207,17 +204,8 @@ final readonly class DecryptedMail
      */
     public function forgetModelOutput(Account $account): void
     {
-        $connection = $this->entityManager->getConnection();
-        $client     = PlaintextSource::Client->value;
-
-        $connection->executeStatement(
-            'DELETE FROM message_embedding WHERE message_id IN (SELECT id FROM message WHERE account_id = ? AND plaintext_source = ?)',
-            [$account->id, $client],
-        );
-        $connection->executeStatement(
-            'DELETE FROM thread_summary WHERE thread_id IN (SELECT thread_id FROM message WHERE account_id = ? AND plaintext_source = ? AND thread_id IS NOT NULL)',
-            [$account->id, $client],
-        );
+        $this->embeddings->deleteForPlaintextSource((int) $account->id, PlaintextSource::Client->value);
+        $this->summaries->deleteForPlaintextSource((int) $account->id, PlaintextSource::Client->value);
     }
 
     /**

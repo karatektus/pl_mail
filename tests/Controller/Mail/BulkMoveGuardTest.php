@@ -6,8 +6,8 @@ namespace App\Tests\Controller\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Label\Label;
-use App\Repository\Label\LabelRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;

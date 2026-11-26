@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Monitoring;
 
-use App\Repository\Monitoring\MessengerQueueRepository;
+use App\Repository\Monitoring\MessengerQueue\MessengerQueueRepository;
 use DateTimeInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Envelope;

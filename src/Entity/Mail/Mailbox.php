@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\Mail;
 
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use App\Domain\Trait\TimestampableTrait;
@@ -307,7 +309,7 @@ class Mailbox
 
     public function addMessage(Message $message): static
     {
-        if (!$this->messages->contains($message)) {
+        if (false === $this->messages->contains($message)) {
             $this->messages->add($message);
             $message->mailbox = $this;
         }

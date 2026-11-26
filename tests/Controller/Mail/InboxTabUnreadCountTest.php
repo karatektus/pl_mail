@@ -192,6 +192,40 @@ final class InboxTabUnreadCountTest extends WebTestCase
         self::assertSame('1', $this->badgeText($crawler, MessageCategory::Social));
     }
 
+    /**
+     * The count is a shortcut to what it counts (#670): Social's 1 opens Social
+     * with the unread filter on, as the sidebar's Inbox count opens the inbox's
+     * unread. A link of its own beside the tab's, which still opens the whole
+     * tab.
+     */
+    public function testTheCountOpensThatTabsUnreadMail(): void
+    {
+        $crawler = $this->client->request('GET', '/mail/inbox');
+
+        $count = $crawler->filter($this->badgeSelector(MessageCategory::Social));
+
+        self::assertSame('a', $count->nodeName());
+
+        parse_str((string) parse_url((string) $count->attr('href'), PHP_URL_QUERY), $query);
+
+        self::assertSame('social', $query['tab'] ?? null);
+        self::assertSame('1', $query['unread'] ?? null);
+        self::assertSame('replace', $count->attr('data-turbo-action'), 'a tab switch, so it takes the history entry as one');
+
+        $tab = $crawler->filter('[data-category-tab="social"] a[data-category-tab-link]');
+
+        self::assertCount(1, $tab);
+        self::assertStringNotContainsString('unread', (string) $tab->attr('href'), 'the rest of the tab still opens all of it');
+        self::assertCount(0, $crawler->filter('a a'), 'the count sits beside the tab link, not in it');
+
+        $this->client->request('GET', (string) $count->attr('href'));
+
+        self::assertResponseIsSuccessful();
+        $html = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('social unread', $html);
+        self::assertStringNotContainsString('primary unread one', $html);
+    }
+
     public function testNobodyWithTheTabsSwitchedOffGetsABadge(): void
     {
         // Presence first: the same user, the same mailbox, tabs on.

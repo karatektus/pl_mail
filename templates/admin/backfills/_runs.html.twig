@@ -1,0 +1,81 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+{#
+admin/backfills/_runs.html.twig — the Recent runs card on Admin → Backfills.
+
+Accepts:
+  runs — list<App\Entity\Maintenance\BackfillRun>, newest first
+  now  — the moment the page is drawn, for BackfillRun::isQuiet()
+
+A frame of its own, reloaded by admin--backfill-runs every few seconds while
+any run in it is queued or going — the controller looks for `data-active` —
+and left alone otherwise, so an output somebody has opened stays open.
+
+A going run shows the end of its output in the open: that is its progress,
+since the tasks report progress as text. A finished one keeps its output
+behind "Show output", because a page of finished runs each showing a dozen
+lines would bury the one that is going.
+
+A run silent for half an hour is shown as such instead of as running (see
+BackfillRun::isQuiet()). Amber, not red: the run may have done most of its
+work, and a task marked safe to run again can simply be started again.
+#}
+<turbo-frame id="admin-backfill-runs"
+             data-controller="admin--backfill-runs"
+             data-action="turbo:frame-load@document->admin--backfill-runs#refresh"
+             data-admin--backfill-runs-url-value="{{ path('app_admin_backfills_runs') }}"
+             class="block mt-3">
+    <section class="{{ chrome.shell() }}">
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-clock-rotate-left text-xs text-ink-faint" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.backfills.runs.heading'|trans }}</h2>
+        </div>
+
+        {% if runs is empty %}
+            <p class="{{ chrome.body() }} text-sm text-ink-muted">{{ 'admin.backfills.runs.empty'|trans }}</p>
+        {% else %}
+            <ul class="divide-y divide-line">
+                {% for run in runs %}
+                    {% set quiet = run.isQuiet(now) %}
+                    <li class="px-4 py-3 space-y-2" {% if run.active %}data-active{% endif %}>
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                            <span class="font-mono text-[13px] text-ink">{{ run.taskName }}</span>
+                            <span class="text-xs text-ink-muted">
+                                {{ run.queuedAt|intl_date('dMMM') }} {{ run.queuedAt|date(clock.time) }}
+                                · {{ run.requestedBy ? run.requestedBy.email : 'admin.backfills.runs.removed_user'|trans }}
+                                · {{ run.window ? ('admin.backfills.window.' ~ run.window)|trans : 'admin.backfills.runs.everything'|trans }}
+                            </span>
+                            <span class="ml-auto">
+                                {% if quiet %}
+                                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-warning-soft text-warning">{{ 'admin.backfills.runs.state.quiet'|trans }}</span>
+                                {% elseif run.state.value == 'queued' %}
+                                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">{{ 'admin.backfills.runs.state.queued'|trans }}</span>
+                                {% elseif run.state.value == 'running' %}
+                                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-accent-soft text-accent">{{ 'admin.backfills.runs.state.running'|trans }}</span>
+                                {% elseif run.state.value == 'done' %}
+                                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-success">{{ 'admin.backfills.runs.state.done'|trans }}</span>
+                                {% else %}
+                                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-danger-soft text-danger">{{ 'admin.backfills.runs.state.failed'|trans }}</span>
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        {% if run.failureReason %}
+                            <p class="text-xs text-ink-soft">{{ run.failureReason }}</p>
+                        {% endif %}
+
+                        {% if run.active %}
+                            {% if run.output %}
+                                <pre class="px-3 py-2 rounded-lg bg-sunken text-xs text-ink-soft leading-relaxed whitespace-pre-wrap break-words">{{ run.tail }}</pre>
+                            {% endif %}
+                        {% elseif run.output %}
+                            <details class="text-xs">
+                                <summary class="cursor-pointer text-ink-muted hover:text-ink">{{ 'admin.backfills.runs.show_output'|trans }}</summary>
+                                <pre class="mt-2 px-3 py-2 rounded-lg bg-sunken text-ink-soft leading-relaxed whitespace-pre-wrap break-words max-h-96 overflow-y-auto">{{ run.output }}</pre>
+                            </details>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+</turbo-frame>

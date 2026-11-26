@@ -8,7 +8,7 @@ use App\Domain\Enum\Account\IncomingProtocol;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\JmapClient\JmapAccountSyncer;
 use App\Service\JmapClient\JmapImporter;
 use App\Service\JmapClient\JmapImportStep;
@@ -57,7 +57,7 @@ trait SyncsAgainstFakeJmapServer
         $account->imapPort         = 443;
         $account->imapEncryption   = 'ssl';
         $account->authType         = 'password';
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
         $this->em->persist($account);
         $user->addAccount($account);
         $this->em->flush();

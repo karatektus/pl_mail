@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Monitoring;
 
-use App\Repository\Monitoring\ClientErrorRepository;
+use App\Repository\Monitoring\ClientError\ClientErrorRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;

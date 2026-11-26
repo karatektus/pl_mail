@@ -12,7 +12,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\MailChangeRecorder;
 use Doctrine\ORM\EntityManagerInterface;
@@ -91,12 +91,12 @@ final readonly class SentCopyReconciler
     public const int COPIES_RECHECK_DAYS = 30;
 
     public function __construct(
-        private MessageRepository       $messages,
+        private MessageImapRepository $messageImapRepository,
         private StateManager            $stateManager,
         private MailChangeRecorder      $changes,
         private EntityManagerInterface  $em,
         private LoggerInterface         $logger,
-        private ThreadLabelSynchronizer $threadLabels,
+        private ThreadLabelSynchronizer $threadLabels
     ) {
     }
 
@@ -151,7 +151,7 @@ final readonly class SentCopyReconciler
         // together would be this class quietly deciding what counts as the
         // same incoming mail, which is not its job.
         if (MailboxSpecialUse::SENT === $mailbox->specialUse) {
-            $sameFolder = $this->messages->findInMailboxByMessageId($mailbox, $rfcMessageId);
+            $sameFolder = $this->messageImapRepository->findInMailboxByMessageId($mailbox, $rfcMessageId);
 
             if (null !== $sameFolder) {
                 return $sameFolder;
@@ -161,7 +161,7 @@ final readonly class SentCopyReconciler
         // A row the send path filed and is waiting for its Sent copy is only
         // the Sent folder's to claim. Elsewhere the same Message-ID is the
         // copy you Cc'd to yourself, which is a message of its own.
-        $claimable = $this->messages->findUnlocatedByMessageId(
+        $claimable = $this->messageImapRepository->findUnlocatedByMessageId(
             $account,
             $rfcMessageId,
             MailboxSpecialUse::SENT === $mailbox->specialUse,
@@ -195,7 +195,7 @@ final readonly class SentCopyReconciler
             return null;
         }
 
-        $claimable = $this->messages->findAdoptable($account, '', $fingerprint, notInPop3Ledger: false);
+        $claimable = $this->messageImapRepository->findAdoptable($account, '', $fingerprint, notInPop3Ledger: false);
 
         if (null === $claimable) {
             return null;
@@ -276,7 +276,7 @@ final readonly class SentCopyReconciler
             return null;
         }
 
-        $elsewhere = $this->messages->findLocatedByMessageIdElsewhere($account, $rfcMessageId, $mailbox);
+        $elsewhere = $this->messageImapRepository->findLocatedByMessageIdElsewhere($account, $rfcMessageId, $mailbox);
 
         foreach ($elsewhere as $candidate) {
             $source = $candidate->mailbox;
@@ -391,7 +391,7 @@ final readonly class SentCopyReconciler
         }
 
         $now        = new \DateTimeImmutable();
-        $duplicated = $this->messages->findMessageIdsAlsoFiledElsewhere(
+        $duplicated = $this->messageImapRepository->findMessageIdsAlsoFiledElsewhere(
             $mailbox,
             self::REPAIR_BATCH,
             $now->modify('-' . self::COPIES_RECHECK_DAYS . ' days'),
@@ -435,7 +435,7 @@ final readonly class SentCopyReconciler
         \DateTimeImmutable $now,
         int                &$confirmed,
     ): int {
-        $rows = $this->messages->findLocatedByMessageId($account, $rfcMessageId);
+        $rows = $this->messageImapRepository->findLocatedByMessageId($account, $rfcMessageId);
 
         if (count($rows) < 2) {
             return 0;
@@ -526,7 +526,7 @@ final readonly class SentCopyReconciler
             return 0;
         }
 
-        $ghosts = $this->messages->findIdentitylessSentRows($mailbox);
+        $ghosts = $this->messageImapRepository->findIdentitylessSentRows($mailbox);
 
         if (0 === count($ghosts)) {
             return 0;
@@ -539,7 +539,7 @@ final readonly class SentCopyReconciler
         foreach ($ghosts as $ghost) {
             $twin = null;
 
-            foreach ($this->messages->findImportedTwinsOf($ghost) as $candidate) {
+            foreach ($this->messageImapRepository->findImportedTwinsOf($ghost) as $candidate) {
                 if (true === isset($consumed[(int) $candidate->id])) {
                     continue;
                 }

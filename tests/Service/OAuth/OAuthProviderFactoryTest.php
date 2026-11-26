@@ -6,7 +6,7 @@ namespace App\Tests\Service\OAuth;
 
 use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Integration\MailProviderConfig;
-use App\Repository\Integration\MailProviderConfigRepository;
+use App\Repository\Integration\MailProviderConfig\MailProviderConfigRepository;
 use App\Service\OAuth\OAuthProviderFactory;
 use League\OAuth2\Client\Provider\Google;
 use PHPUnit\Framework\TestCase;

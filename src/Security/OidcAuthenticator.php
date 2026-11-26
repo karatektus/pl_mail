@@ -10,7 +10,7 @@ use App\Service\Oidc\OidcIdentity;
 use App\Service\Oidc\OidcLoginFailed;
 use App\Service\Oidc\OidcSettings;
 use App\Service\Oidc\OidcUserResolver;
-use DateTime;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -124,7 +124,7 @@ final class OidcAuthenticator extends AbstractAuthenticator
         $user = $token->getUser();
 
         if ($user instanceof User) {
-            $user->lastLogin = new DateTime();
+            $user->lastLogin = new DateTimeImmutable();
             $this->entityManager->flush();
         }
 

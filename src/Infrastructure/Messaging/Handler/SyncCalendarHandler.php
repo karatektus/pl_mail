@@ -8,7 +8,7 @@ use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarSyncService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -51,6 +51,15 @@ final readonly class SyncCalendarHandler
         if (false === $calendar->isSynced()) {
             // Unsubscribed rather than deleted — the calendar is still there,
             // the remote binding is not. Same answer, different route to it.
+            return;
+        }
+
+        if (null !== $calendar->account && false === $calendar->account->calendarEnabled) {
+            // The account's calendars are switched off (#575). Here rather than
+            // only in the sweep, because webhooks, a save, the subscribe screen
+            // and a JMAP push all queue this too. Nothing is lost by stopping:
+            // a local edit stays pending, and the push that opens the next
+            // sync after switching back on sends it.
             return;
         }
 

@@ -1,0 +1,26 @@
+{#
+admin/integrations/_trusted_host_form.html.twig — allow one server on a private
+network.
+
+Variables:
+  form   FormView   TrustedHostType
+
+The same modal shell as the provider forms. The paragraph above the fields is
+the cost of the decision, said where it is made: every host listed is one any
+signed-in user can make plMail send requests to.
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    {% embed '_partials/_modal_form.html.twig' with {
+        form: form,
+        title: 'admin.integrations.trusted.add'|trans,
+        submit_label: 'admin.integrations.trusted.allow'|trans,
+    } only %}
+        {% block before_fields %}
+            <p class="text-xs text-ink-muted leading-relaxed">
+                {{ 'admin.integrations.trusted.form_intro'|trans }}
+            </p>
+        {% endblock %}
+    {% endembed %}
+{% endblock %}

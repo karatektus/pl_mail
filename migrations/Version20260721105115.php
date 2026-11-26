@@ -14,7 +14,7 @@ final class Version20260721105115 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Store a sanitised copy of the HTML body';
     }
 
     public function up(Schema $schema): void

@@ -19,8 +19,24 @@ namespace App\Domain\Helper;
  * previous file goes when a new one arrives, because only the current one is
  * ever linked.
  *
- * Next to app-icons/ rather than under uploads/, which the weekly blob prune
- * sweeps for files no row names (#214).
+ * WHY UNDER uploads/
+ * ──────────────────
+ * Under uploads/ with the avatars and the signature images, because that is
+ * the tree every install keeps: compose.yaml gives it a volume, and the NAS
+ * templates keep the whole storage directory. These used to live next to
+ * app-icons/, in var/custom-logos/, which compose.yaml has no volume for, so
+ * the file lived in the container and went with it at the next upgrade (#600).
+ * The row kept the hash and AppearanceExtension, finding no file, quietly put
+ * the motif back. Adding a volume instead would only have reached people who
+ * fetch compose.yaml again; moving the files reaches everyone who pulls the
+ * image.
+ *
+ * The weekly blob prune (#214) does not touch these: it only ever deletes
+ * files laid out as `<account>/<32 hex>.blob`, which a logo never is.
+ *
+ * A logo still in the old place (an install whose old directory survived: the
+ * NAS templates, the dev stack, or a container not yet recreated) is moved
+ * across the first time anything looks for it.
  */
 readonly class CustomLogoStorage
 {
@@ -78,6 +94,8 @@ readonly class CustomLogoStorage
             return null;
         }
 
+        $this->moveLegacy($key);
+
         $path = $this->directory($key) . '/' . $hash . '.svg';
 
         return true === is_file($path) ? $path : null;
@@ -85,16 +103,60 @@ readonly class CustomLogoStorage
 
     public function deleteAllFor(string $userId): void
     {
-        $directory = $this->directory($this->appIcons->keyFor($userId));
+        $key = $this->appIcons->keyFor($userId);
 
-        foreach (glob($directory . '/*.svg') ?: [] as $file) {
+        foreach ([$this->directory($key), $this->legacyDirectory($key)] as $directory) {
+            foreach (glob($directory . '/*.svg') ?: [] as $file) {
+                @unlink($file);
+            }
+
+            @rmdir($directory);
+        }
+    }
+
+    /**
+     * Bring a logo kept before #600 into uploads/. Only when the new place has
+     * none, so a logo uploaded since is never overwritten by an older one; the
+     * old directory goes either way, since nothing reads it after this.
+     */
+    private function moveLegacy(string $key): void
+    {
+        $legacy = $this->legacyDirectory($key);
+
+        if (false === is_dir($legacy)) {
+            return;
+        }
+
+        $directory = $this->directory($key);
+        $files     = glob($legacy . '/*.svg') ?: [];
+
+        if ([] !== $files && [] === (glob($directory . '/*.svg') ?: [])) {
+            if (false === is_dir($directory) && false === mkdir($directory, 0755, true) && false === is_dir($directory)) {
+                return;
+            }
+
+            foreach ($files as $file) {
+                // rename() copies when the two are on different filesystems,
+                // which they are wherever uploads/ is a volume and this is not.
+                @rename($file, $directory . '/' . basename($file));
+            }
+        }
+
+        foreach (glob($legacy . '/*.svg') ?: [] as $file) {
             @unlink($file);
         }
 
-        @rmdir($directory);
+        @rmdir($legacy);
+        @rmdir(dirname($legacy));
     }
 
     private function directory(string $key): string
+    {
+        return $this->projectDir . '/' . $this->storageDir . '/uploads/custom-logos/' . $key;
+    }
+
+    /** Where logos were kept before #600, which compose.yaml did not keep. */
+    private function legacyDirectory(string $key): string
     {
         return $this->projectDir . '/' . $this->storageDir . '/custom-logos/' . $key;
     }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Label\Label\LabelRepository;
 use Symfony\Component\HttpFoundation\Exception\JsonException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;

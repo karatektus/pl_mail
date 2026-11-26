@@ -181,6 +181,6 @@ final class UnifiedInboxController extends AbstractController
 
     private function back(): Response
     {
-        return $this->redirectToRoute('app_settings_index', ['section' => 'inboxes']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'inboxes']);
     }
 }

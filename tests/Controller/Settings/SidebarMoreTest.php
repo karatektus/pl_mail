@@ -391,6 +391,11 @@ final class SidebarMoreTest extends WebTestCase
                 self::assertSame($href, $badge->attr('href'), $where);
                 self::assertSame($quiet, str_contains((string) $badge->attr('class'), 'bg-ink-faint/20'), $where . ': quiet');
             }
+
+            // Unread's number is part of the row's own link: its unread view
+            // IS the row, and a span beside the link was a dead spot a click
+            // on the number fell through.
+            self::assertCount(1, $page->filter('#sidebar a[data-sidebar-row="unread"] [data-count-key="unread"]'), count($behind) . ' rows behind More: the Unread count is outside its link');
         }
     }
 
@@ -546,7 +551,7 @@ final class SidebarMoreTest extends WebTestCase
 
     private function settings(): Crawler
     {
-        return $this->client->request('GET', '/settings?section=general');
+        return $this->client->request('GET', '/settings/layout');
     }
 
     private function reread(): User

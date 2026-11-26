@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Settings;
 
+use App\Domain\Enum\MessageList\RowPreview;
 use App\Domain\Enum\Theme\ActionButtonStyle;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
@@ -250,6 +251,39 @@ final class AppearanceSetMethod implements JmapMethod
         if (true === array_key_exists('inboxTabs', $patch)) {
             $user->categorySorting->tabs = (bool) $patch['inboxTabs'];
             unset($patch['inboxTabs']);
+        }
+
+        // Not appearance fields either since #608: the five list settings the
+        // apps were written against, stored on MessageList where the web's
+        // Message list page writes them. validate() has checked their types.
+        // `previewLines` sets the preview and nothing else — the one-line
+        // width it used to decide as a side effect is the layout setting now,
+        // which is the web's, and an app that knows only the count should not
+        // move it.
+        $list = $user->messageList;
+
+        foreach (['accountCorner' => 'accountCorner', 'listAvatars' => 'avatars', 'tabUnreadCount' => 'tabUnreadCount'] as $property => $field) {
+            if (true === array_key_exists($property, $patch)) {
+                $list->{$field} = (bool) $patch[$property];
+                unset($patch[$property]);
+            }
+        }
+
+        // The same count is not a change. Inline preview reads back as 1, and
+        // an app doing get → edit something else → set sends that 1 back; taken
+        // as an instruction it would turn the web's inline preview into a line
+        // of its own from an edit that never mentioned it.
+        if (true === array_key_exists('previewLines', $patch)) {
+            if ((int) $patch['previewLines'] !== $list->preview->lines()) {
+                $list->preview = RowPreview::fromLines((int) $patch['previewLines']);
+            }
+
+            unset($patch['previewLines']);
+        }
+
+        if (true === array_key_exists('unreadEmphasis', $patch)) {
+            $list->unreadEmphasis = UnreadEmphasis::from((string) $patch['unreadEmphasis']);
+            unset($patch['unreadEmphasis']);
         }
 
         // Layout first, and through applyLayout() rather than a plain

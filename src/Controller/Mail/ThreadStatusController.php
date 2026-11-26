@@ -10,15 +10,18 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\AllMailView;
+use App\Service\Mail\DiscardedView;
+use App\Service\Mail\DraftsView;
 use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
 use App\Service\Mail\StatusUndoService;
+use App\Service\Mail\ThreadPinService;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -26,9 +29,10 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
- * The mail list's status buttons: star, archive, trash, label, snooze, read.
+ * The mail list's status buttons: star, pin, archive, trash, label, snooze, read.
  *
  * Each action resolves and authorises a set of messages, hands it to
  * ThreadStatusUpdater — which owns what these mutations mean — and renders the
@@ -53,6 +57,10 @@ class ThreadStatusController extends AbstractController
         private readonly MailPlacement          $placement,
         private readonly StatusUndoService      $undo,
         private readonly AllMailView            $allMail,
+        private readonly DraftsView             $draftsView,
+        private readonly DiscardedView          $discardedView,
+        private readonly ThreadPinService       $pins,
+        private readonly TranslatorInterface    $translator,
     ) {}
 
     #[Route('/star', name: 'star', methods: ['POST'])]
@@ -66,6 +74,69 @@ class ThreadStatusController extends AbstractController
         return $this->renderTurboStream('thread/status/_star.stream.html.twig', [
             $type => 'message' === $type ? $message : $message->thread,
         ]);
+    }
+
+    /**
+     * Pin or unpin the conversation, one click (#654).
+     *
+     * Pinning past the owner's reminder count answers 409 with the question
+     * to ask instead of pinning: the reminder nags, it does not refuse, so the
+     * client asks "pin anyway?" and posts again with `confirmed`. Asked here
+     * rather than in the browser because the count is across every account,
+     * which no page has on it.
+     *
+     * A message row pins that email (#615): the email list's rows, and a
+     * search hit. Each list reads both levels, so it shows in the other view
+     * as well — see ThreadPinService.
+     *
+     * The answer redraws the row where it stands and says in X-Pinned which
+     * way it went; moving the row into the pinned group is the client's (see
+     * assets/pin.js), so the rest of the list stays where it is.
+     */
+    #[Route('/pin', name: 'pin', methods: ['POST'])]
+    public function pin(Request $request, string $type, int $id): Response
+    {
+        $messages = $this->resolveMessages($request, $type, $id);
+        $email    = $messages[0];
+        $thread   = $email->thread ?? throw $this->createNotFoundException();
+
+        /** @var User $user */
+        $user      = $this->getUser();
+        $body      = json_decode($request->getContent(), true);
+        $confirmed = true === (is_array($body) ? ($body['confirmed'] ?? false) : false);
+        $pinnedNow = 'message' === $type ? ThreadPinService::emailPinned($email) : ThreadPinService::conversationPinned($thread);
+
+        if (false === $pinnedNow && false === $confirmed && true === $this->pins->wouldPassReminder($user)) {
+            return $this->json(
+                self::pinReminder($this->translator, $this->generateUrl('app_settings_page', ['page' => 'message-list']), $user->pinReminderAt),
+                Response::HTTP_CONFLICT,
+            );
+        }
+
+        $pinned = 'message' === $type ? $this->pins->toggleEmail($email) : $this->pins->toggle($thread);
+
+        $response = $this->renderTurboStream('thread/status/_pin.stream.html.twig', [
+            $type => 'message' === $type ? $messages[0] : $thread,
+        ]);
+        $response->headers->set('X-Pinned', $pinned ? 'true' : 'false');
+
+        return $response;
+    }
+
+    /**
+     * The "pin anyway?" question, shared with the selection toolbar's Pin
+     * (BulkStatusController) so the two ask it in the same words.
+     *
+     * @return array{reminder: string, confirm: string, settings: string, settingsUrl: string}
+     */
+    public static function pinReminder(TranslatorInterface $translator, string $settingsUrl, int $reminderAt): array
+    {
+        return [
+            'reminder'    => $translator->trans('pin.reminder.question', ['%count%' => $reminderAt]),
+            'confirm'     => $translator->trans('pin.reminder.confirm'),
+            'settings'    => $translator->trans('pin.reminder.settings'),
+            'settingsUrl' => $settingsUrl . '#card-pinning',
+        ];
     }
 
     #[Route('/archive', name: 'archive', methods: ['POST'])]
@@ -91,6 +162,22 @@ class ThreadStatusController extends AbstractController
     public function trash(Request $request, string $type, int $id): Response
     {
         $messages = $this->resolveMessages($request, $type, $id);
+        $subject  = 'message' === $type ? $messages[0] : $messages[0]->thread;
+
+        // In a Drafts list the row is a draft, and Delete takes the draft —
+        // not the conversation it answers. See DraftsView.
+        if ('thread' === $type && true === $this->inDraftsList($request)) {
+            $messages = DraftsView::draftsAmong($messages);
+
+            // Nothing in it is a draft any more (sent or discarded from another
+            // tab since the list was drawn), so nothing here is the user's to
+            // delete: the row goes, the conversation stays.
+            if ([] === $messages) {
+                return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
+                    $type => $subject,
+                ]);
+            }
+        }
 
         // Trash answers with an Undo, as archive does, and for the same reason:
         // the row is gone either way, and since #527 a swipe can do this with no
@@ -101,7 +188,7 @@ class ThreadStatusController extends AbstractController
         $this->status->trash($messages);
 
         return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
-            $type       => 'message' === $type ? $messages[0] : $messages[0]->thread,
+            $type       => $subject,
             'undoToken' => $undoToken,
             'undoToast' => 'toast.trashed',
         ]);
@@ -119,11 +206,24 @@ class ThreadStatusController extends AbstractController
     public function restore(Request $request, string $type, int $id): Response
     {
         $messages = $this->resolveMessages($request, $type, $id);
+        $subject  = 'message' === $type ? $messages[0] : $messages[0]->thread;
 
-        $this->status->restore($messages);
+        // From the bin or Spam, only what is in there comes back — the row
+        // showed nothing else (DiscardedView).
+        $body = $request->getPayload()->all();
+
+        if ('thread' === $type && true === $this->discardedView->names((string) ($body['scope'] ?? ''), (string) ($body['value'] ?? ''))) {
+            $messages = DiscardedView::discardedAmong($messages);
+        }
+
+        // Empty when it was restored from another tab since the list was
+        // drawn: nothing left to bring back, and the row goes either way.
+        if ([] !== $messages) {
+            $this->status->restore($messages);
+        }
 
         return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
-            $type => 'message' === $type ? $messages[0] : $messages[0]->thread,
+            $type => $subject,
         ]);
     }
 
@@ -150,14 +250,14 @@ class ThreadStatusController extends AbstractController
     #[Route('/purge', name: 'purge', methods: ['POST'])]
     public function purge(Request $request, string $type, int $id): Response
     {
-        // The user's switch (Settings → Mail → Disposal), enforced here and not
+        // The user's switch (Settings → Inbox → Disposal), enforced here and not
         // only by the templates that draw the button: a switch that merely hid
         // the flame would leave this route answering a hand-made POST.
         /** @var User $user */
         $user = $this->getUser();
 
         if (false === $user->deleteNowButtons) {
-            throw $this->createAccessDeniedException('Deleting for good is switched off in Settings → Mail → Disposal.');
+            throw $this->createAccessDeniedException('Deleting for good is switched off in Settings → Inbox → Disposal.');
         }
 
         $messages  = $this->resolveMessages($request, $type, $id);
@@ -251,7 +351,14 @@ class ThreadStatusController extends AbstractController
         // reason. The one deliberate difference is above: a form post gets the
         // "in 1 day" fallback on an unparseable date, where the JMAP method
         // refuses it — see ThreadSetMethod::snoozeDate().
-        if (null === $until) {
+        //
+        // An email row snoozes that email alone (#615), and waking it wakes
+        // whatever put it away, its conversation included when that was it.
+        if ('message' === $type) {
+            null === $until
+                ? $this->snoozeService->wakeEmails($messages)
+                : $this->snoozeService->snoozeEmails($messages, $until);
+        } elseif (null === $until) {
             $this->snoozeService->wake($thread);
         } else {
             $this->snoozeService->snooze($thread, $until);
@@ -270,6 +377,7 @@ class ThreadStatusController extends AbstractController
 
         return $this->renderTurboStream('thread/status/_snooze.stream.html.twig', [
             'thread' => $thread,
+            'row'    => 'message' === $type ? $messages[0] : $thread,
             'woken'  => null === $until && LabelRole::Snoozed->value === $view,
             ...$this->allMailRow($request, $thread),
         ]);
@@ -370,6 +478,17 @@ class ThreadStatusController extends AbstractController
         foreach ($messages as $message) {
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
         }
+    }
+
+    /**
+     * Whether the request came from a Drafts list (DraftsView). The list names
+     * itself in the body, as it does for All Mail below.
+     */
+    private function inDraftsList(Request $request): bool
+    {
+        $body = $request->getPayload()->all();
+
+        return $this->draftsView->names((string) ($body['scope'] ?? ''), (string) ($body['value'] ?? ''));
     }
 
     /**

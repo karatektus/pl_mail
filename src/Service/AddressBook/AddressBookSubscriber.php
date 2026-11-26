@@ -11,7 +11,7 @@ use App\Entity\AddressBook\AddressBook;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
-use App\Repository\AddressBook\AddressBookRepository;
+use App\Repository\AddressBook\AddressBook\AddressBookRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 

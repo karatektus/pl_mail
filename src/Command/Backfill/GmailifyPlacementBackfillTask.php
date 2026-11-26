@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Gmail\GmailifyLinks;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -37,14 +38,14 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * Idempotent: a row whose labels agree with its folder is left alone.
  */
-final readonly class GmailifyPlacementBackfillTask implements BackfillTaskInterface
+final readonly class GmailifyPlacementBackfillTask implements CountableBackfillTaskInterface
 {
     private const int BATCH_SIZE = 200;
 
     public function __construct(
-        private MessageRepository      $messages,
+        private MessageImapRepository $messageImapRepository,
         private GmailifyLinks          $links,
-        private EntityManagerInterface $em,
+        private EntityManagerInterface $em
     ) {}
 
     public function getName(): string
@@ -57,9 +58,25 @@ final readonly class GmailifyPlacementBackfillTask implements BackfillTaskInterf
         return 'Put IMAP mail a Gmail account also collects back in the Inbox, Trash or folder its IMAP folder says, where Gmail\'s copy had moved it.';
     }
 
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-10-23');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    /** A table repair walks everything, so it has no window to count within. */
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageImapRepository->countImapCopiesCarried(null);
+    }
+
     public function run(SymfonyStyle $io): int
     {
-        $total = $this->messages->countImapCopiesCarried(null);
+        $total = $this->messageImapRepository->countImapCopiesCarried(null);
 
         if (0 === $total) {
             $io->success('Nothing to repair — no Gmail account collects mail another account syncs over IMAP.');
@@ -73,7 +90,7 @@ final readonly class GmailifyPlacementBackfillTask implements BackfillTaskInterf
         $repaired = 0;
 
         while (true) {
-            $rows = $this->messages->findImapCopiesCarried(null, $lastId, self::BATCH_SIZE);
+            $rows = $this->messageImapRepository->findImapCopiesCarried(null, $lastId, self::BATCH_SIZE);
 
             if (0 === count($rows)) {
                 break;

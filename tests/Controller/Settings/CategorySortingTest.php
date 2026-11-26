@@ -131,7 +131,7 @@ final class CategorySortingTest extends WebTestCase
 
         self::assertFalse($this->reread()->accountInboxTabs);
 
-        $card = $client->request('GET', '/settings?section=categories');
+        $card = $client->request('GET', '/settings/categories');
         self::assertSame('0', $card->filter('input[name="accountTabs"]:checked')->attr('value'));
 
         $this->post($client, ['accountTabs' => '1']);
@@ -144,7 +144,7 @@ final class CategorySortingTest extends WebTestCase
         $this->post($client, ['tabs' => '0']);
 
         self::assertTrue($this->reread()->accountInboxTabs);
-        self::assertCount(0, $client->request('GET', '/settings?section=categories')->filter('input[name="accountTabs"]'));
+        self::assertCount(0, $client->request('GET', '/settings/categories')->filter('input[name="accountTabs"]'));
 
         $this->post($client, ['tabs' => '1']);
         $this->post($client, ['accountTabs' => '0']);
@@ -171,7 +171,7 @@ final class CategorySortingTest extends WebTestCase
         $this->em->persist($settings);
         $this->em->flush();
 
-        $warning = fn (): int => $client->request('GET', '/settings?section=categories')
+        $warning = fn (): int => $client->request('GET', '/settings/categories')
             ->filter('[data-sorting-tabs-warning]')
             ->count();
 
@@ -335,7 +335,7 @@ final class CategorySortingTest extends WebTestCase
 
     private function token(KernelBrowser $client): string
     {
-        $crawler = $client->request('GET', '/settings?section=categories');
+        $crawler = $client->request('GET', '/settings/categories');
 
         return (string) $crawler
             ->filter('form[action="/settings/sorting"] input[name="_token"]')

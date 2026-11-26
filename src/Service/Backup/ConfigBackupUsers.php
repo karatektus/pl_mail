@@ -14,26 +14,26 @@ use App\Entity\Mail\EmailAlias;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
-use App\Repository\Calendar\BookingPageRepository;
-use App\Repository\Calendar\CalendarRepository;
-use App\Repository\Calendar\CalendarShareLinkRepository;
-use App\Repository\Integration\IntegrationRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\InboxCategoryRepository;
-use App\Repository\Mail\UnifiedInboxAccountRepository;
-use App\Repository\Mail\UnifiedInboxRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Rule\MailRuleRepository;
-use App\Repository\User\ApiTokenRepository;
-use App\Repository\Crypto\AddressKeyRepository;
-use App\Repository\Crypto\ContactCertificateRepository;
+use App\Repository\Calendar\BookingPage\BookingPageRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarShareLink\CalendarShareLinkRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\UnifiedInboxAccount\UnifiedInboxAccountRepository;
+use App\Repository\Mail\UnifiedInbox\UnifiedInboxRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
+use App\Repository\User\ApiToken\ApiTokenRepository;
+use App\Repository\Crypto\AddressKey\AddressKeyRepository;
+use App\Repository\Crypto\ContactCertificate\ContactCertificateRepository;
 use App\Entity\Crypto\KeyPublication;
-use App\Repository\Crypto\ContactKeyRepository;
-use App\Repository\Crypto\KeyPublicationRepository;
-use App\Repository\Crypto\SmimeCertificateRepository;
-use App\Repository\Crypto\UserKeyCopyRepository;
-use App\Repository\Crypto\UserKeyRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
+use App\Repository\Crypto\KeyPublication\KeyPublicationRepository;
+use App\Repository\Crypto\SmimeCertificate\SmimeCertificateRepository;
+use App\Repository\Crypto\UserKeyCopy\UserKeyCopyRepository;
+use App\Repository\Crypto\UserKey\UserKeyRepository;
+use App\Repository\User\User\UserRepository;
 use DateTimeInterface;
 use Throwable;
 
@@ -114,8 +114,8 @@ final readonly class ConfigBackupUsers
      *
      * Curated rather than copied wholesale, and the two that are missing are
      * the point of curating: `admin.logs_seen_at` is a read marker against log
-     * rows that do not travel, and `sidebar.expanded_account` holds an account
-     * **id** from the source database, which on the target is either nothing or
+     * rows that do not travel, and `sidebar.expanded_account` holds account
+     * **ids** from the source database, which on the target is either nothing or
      * somebody else's mailbox. The onboarding keys very much do travel — a
      * restored user who is walked back through the setup wizard has been told
      * their restore did not work.
@@ -166,6 +166,11 @@ final readonly class ConfigBackupUsers
         // quietly switched it back on would be telling key servers whom
         // somebody writes to after they had decided not to.
         User::SETTING_CRYPTO_KEY_SERVERS,
+        // Whether mail to one's own addresses is encrypted (#703). By
+        // address, so it means the same on the target; a restore that
+        // dropped it would have mail to a Gmail account read in Gmail's own
+        // app going out encrypted again, unreadable there.
+        User::SETTING_CRYPTO_OWN_ENCRYPT,
         // Whether any of the person's accounts keeps decrypted mail: carried
         // with the accounts' own switches above, which it summarises.
         User::SETTING_KEEPS_DECRYPTED_ANY,
@@ -178,6 +183,9 @@ final readonly class ConfigBackupUsers
         // Whether LABELS lists folders too (#221 step 3): how the person
         // wants the sidebar, and nothing in it is particular to one host.
         User::SETTING_FOLDERS_IN_LABELS,
+        // Merged or by account (#690): the same kind of preference, and as
+        // portable.
+        User::SETTING_LABELS_BY_ACCOUNT,
         // Row names, no ids, and the same on any install — and an empty list
         // is a choice that has to survive ("nothing behind More"), which is
         // why this is carried even though most bags never hold it.
@@ -186,13 +194,12 @@ final readonly class ConfigBackupUsers
         User::SETTING_ONBOARDING_STEP,
         User::SETTING_ONBOARDING_SKIPPED,
         User::SETTING_ONBOARDING_DONE_STEPS,
-        // All five shipped after this list was written and none of them was
+        // All four shipped after this list was written and none of them was
         // added to it, which is what the completeness test below now prevents
         // rather than what this comment apologises for. Every one is a choice
         // somebody made about their own screen, holds no id, and means the same
         // thing on any install — so there was never an argument for leaving
         // them out, only an absence of one.
-        User::SETTING_APPEARANCE_PREVIEW_WIDTH,
         // Whether the open message sits beside the list, and how much of the mail
         // card it takes. In the backup for the reason the calendar pane's mode
         // and width are: it is a preference somebody set about their own screen,
@@ -202,6 +209,14 @@ final readonly class ConfigBackupUsers
         // Neither holds an id, and a percentage means the same on any install.
         User::SETTING_READING_PANE_MODE,
         User::SETTING_READING_PANE_WIDTH,
+        // How wide the sidebar is, and whether a clipped row may lean out over
+        // the mail (#699). In the backup for the reasons the two above are: a
+        // choice about one's own screen, no id, and a number of pixels and a
+        // boolean mean the same on any install. A restore handing back a
+        // default-width sidebar to somebody who widened theirs to read a nested
+        // label tree would undo the very thing they set it for.
+        User::SETTING_SIDEBAR_WIDTH,
+        User::SETTING_SIDEBAR_PEEK,
         // What a dragged row does, one key per direction. In the backup for the
         // reason the reading pane's keys are: a choice about one's own screen,
         // a short string with no id, and the same meaning on any install. A
@@ -223,10 +238,28 @@ final readonly class ConfigBackupUsers
         // choice about irreversible deletion. A boolean, no id, means the same
         // on any install.
         User::SETTING_DISPOSAL_DELETE_NOW,
+        // Pinned conversations (#654): when pinning asks "pin anyway?", how
+        // long a pin lasts, and whether a move keeps it. Numbers and a
+        // boolean, no ids, so they mean the same on any install. The pins
+        // themselves are columns on the conversations, which a config backup
+        // does not carry.
+        User::SETTING_PIN_REMINDER_AT,
+        User::SETTING_PIN_DURATION_DAYS,
+        User::SETTING_PIN_KEEP_ON_MOVE,
+        // Conversations or single emails in the lists (#615). A boolean.
+        User::SETTING_CONVERSATION_VIEW,
         // Whether remote images load without being asked for. A choice about
         // what senders may learn of one's reading, so a restore must not
         // quietly undo it in either direction. A boolean, no id.
         User::SETTING_IMAGES_ALWAYS_SHOW,
+        // Which looked-up sender pictures the user wants (#639) — beside the
+        // images switch, for the same reason: a choice about what may be
+        // fetched on their behalf, and Gravatar's is a privacy one.
+        User::SETTING_SENDER_PICTURES,
+        // Whether the user lets this server serve their picture to the
+        // internet (#642). Their consent to publishing their face; a restore
+        // must carry it, and must never invent it. A boolean, no id.
+        User::SETTING_LIBRAVATAR_PUBLISH,
         // Which tabs and labels notify, and whether a browser skips mail
         // already read (#369). Choices about how one wants to be interrupted,
         // which a restore must not quietly undo: back to Primary alone is
@@ -274,6 +307,9 @@ final readonly class ConfigBackupUsers
         // allowlist silently stops carrying anything that ships after it.
         Account::SETTING_SIGNATURE,
         Account::SETTING_READ_RECEIPT_DEFAULT,
+        // The addresses every mail is Bcc'd to (#692): a choice the person
+        // made, naming mailboxes that are theirs wherever plMail runs.
+        Account::SETTING_DEFAULT_BCC,
         // Whether this account keeps decrypted mail, and lets the models read
         // it. The person's choice, carried like any other; the decrypted text
         // itself is not in the backup, and a browser decrypts it anew on the
@@ -337,7 +373,7 @@ final readonly class ConfigBackupUsers
     public const array EXCLUDED_USER_SETTINGS = [
         User::SETTING_LOGS_SEEN_AT => 'a read marker against log rows, which do not travel',
         User::SETTING_WHATS_NEW_SEEN => 'a read marker like admin.logs_seen_at, against the release the source install ran: restored onto another version it would either hide notes this person has not read or repeat ones they have',
-        User::SETTING_SIDEBAR_ACCOUNT => 'an account id from the source database — on the target that is nothing, or somebody else',
+        User::SETTING_SIDEBAR_ACCOUNT => 'account ids from the source database — on the target they are nothing, or somebody else',
         User::SETTING_INSIGHT_PANE_DISMISSED_AT => 'a read marker like admin.logs_seen_at: it says when this person last waved the strip away, not what they chose',
     ];
 
@@ -505,6 +541,10 @@ final readonly class ConfigBackupUsers
             // provider, and whether there are tabs at all. Carried the way the
             // two above are, so the next decision added to it travels too.
             'categorySorting' => $user->categorySorting->toArray(),
+            // What a list row shows (#608). Five of these were in
+            // `appearance` before; the restorer still reads them from there
+            // for a document written before this key existed.
+            'messageList' => $user->messageList->toArray(),
             'settings'   => $this->settingsOf($user),
             'createdAt'  => $user->createdAt->format(DateTimeInterface::ATOM),
             // Carried for the reason export() gives about deletedAt: being
@@ -748,7 +788,7 @@ final readonly class ConfigBackupUsers
      * The mailboxes, with the credentials that open them and nothing about what
      * was ever in them.
      *
-     * Everything below `isActive` on the entity is sync state and is absent by
+     * Everything below the service switches on the entity is sync state and is absent by
      * design — see the class docblock. What is here is exactly what the
      * "Add mail account" form asks for, plus the OAuth tokens a provider handed
      * back, which are worth more than the form's answers: a restored refresh
@@ -778,6 +818,9 @@ final readonly class ConfigBackupUsers
                 // keeps the mark the user recognises it by; leave it out and
                 // they all come back sharing colour 0.
                 'colorIndex'        => $account->colorIndex,
+                // The user's own colour, when they picked one (#638). Absent
+                // from older files, which restore with the palette entry above.
+                'customColor'       => $account->customColor,
                 'imapHost'          => $account->imapHost,
                 'imapPort'          => $account->imapPort,
                 'imapEncryption'    => $account->imapEncryption,
@@ -787,6 +830,7 @@ final readonly class ConfigBackupUsers
                 'username'          => $account->username,
                 'password'          => $account->password,
                 'smtpPassword'      => $account->smtpPassword,
+                'smtpUsername'      => $account->smtpUsername,
                 'authType'          => $account->authType,
                 'oauthProvider'     => $account->oauthProvider,
                 'oauthAccessToken'  => $account->oauthAccessToken,
@@ -799,7 +843,14 @@ final readonly class ConfigBackupUsers
                 // again and the health card built on it goes quiet for
                 // connections that are working fine.
                 'oauthGrantedScopes' => $account->oauthGrantedScopes,
-                'isActive'          => $account->isActive,
+                // Three switches since #575, four since #628. The old single
+                // `isActive` is not written any more; the restorer still reads
+                // it from files made before, as what it governed — mail and
+                // contacts.
+                'mailEnabled'       => $account->mailEnabled,
+                'sendEnabled'       => $account->sendEnabled,
+                'calendarEnabled'   => $account->calendarEnabled,
+                'contactsEnabled'   => $account->contactsEnabled,
                 'pushEnabled'       => $account->pushEnabled,
                 'settings'          => $this->settingsOfAccount($account),
                 'aliases'           => $this->exportAliases($account),
@@ -841,6 +892,7 @@ final readonly class ConfigBackupUsers
                 // is the same post-flush remap `calendar.target_id` gets.
                 'signature'          => $account->getSetting(Account::signatureAliasSetting($alias->id ?? 0)),
                 'readReceiptDefault' => $account->getSetting(Account::readReceiptAliasSetting($alias->id ?? 0)),
+                'defaultBcc'         => $account->getSetting(Account::defaultBccAliasSetting($alias->id ?? 0)),
             ];
         }
 

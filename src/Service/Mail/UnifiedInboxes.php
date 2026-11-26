@@ -10,9 +10,9 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\UnifiedInbox;
 use App\Entity\Mail\UnifiedInboxAccount;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\UnifiedInboxAccountRepository;
-use App\Repository\Mail\UnifiedInboxRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\UnifiedInboxAccount\UnifiedInboxAccountRepository;
+use App\Repository\Mail\UnifiedInbox\UnifiedInboxRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\Service\ResetInterface;
 

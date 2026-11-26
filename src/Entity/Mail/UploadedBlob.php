@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Mail;
 
-use App\Repository\Mail\UploadedBlobRepository;
+use App\Repository\Mail\UploadedBlob\UploadedBlobRepository;
 use DateTimeImmutable;
 use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;

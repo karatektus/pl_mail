@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Twig;
 
 use App\Entity\Mail\Account;
@@ -12,13 +14,14 @@ use Symfony\Contracts\Service\ResetInterface;
 use Traversable;
 
 /**
- * The user's active accounts, as a Twig global.
+ * The accounts the mail sidebar lists, as a Twig global — see
+ * UserAccounts::inMail() for which those are.
  *
  * Memoised, and that is the whole of the change: getIterator() used to run the
  * query every time anything touched `accounts`, and the thread row touches it
  * once per row — `accounts|length > 1` decides whether the account corner
  * wedge is drawn at all. A fifty-row list therefore issued fifty-odd identical
- * `SELECT … FROM account WHERE usr_id = ? AND is_active = true` statements,
+ * `SELECT … FROM account WHERE usr_id = ? AND mail_enabled = true` statements,
  * which was the larger half of the list view's query count and looked in a
  * profile exactly like a lazy association, because that is what it behaves
  * like. It is not one: nothing here is mapped lazy, the object simply had no
@@ -79,7 +82,7 @@ class AccountsGlobal implements IteratorAggregate, Countable, ResetInterface
         // of it: this one is what stops `accounts|length` in the thread row
         // rebuilding the filtered list fifty times a page, which is a PHP cost
         // rather than a query cost and so invisible to the query budget.
-        return $this->accounts = $this->userAccounts->active($user);
+        return $this->accounts = $this->userAccounts->inMail($user);
     }
 
     public function reset(): void

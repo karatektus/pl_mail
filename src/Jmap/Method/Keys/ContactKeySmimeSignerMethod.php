@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace App\Jmap\Method\Keys;
 
 use App\Domain\Enum\Crypto\MessageCrypto;
-use App\Entity\Mail\Message;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Crypto\ContactCertificates;
 use App\Service\Demo\DemoMode;
-use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * "ContactKey/smimeSigner" — plMail extension, `urn:plmail:params:jmap:keys`
@@ -46,8 +45,8 @@ final class ContactKeySmimeSignerMethod implements JmapMethod
     public function __construct(
         private readonly AccountResolver        $accounts,
         private readonly ContactCertificates    $certificates,
-        private readonly EntityManagerInterface $entityManager,
         private readonly DemoMode               $demoMode,
+        private readonly MessageRepository $messageRepository
     ) {
     }
 
@@ -71,7 +70,7 @@ final class ContactKeySmimeSignerMethod implements JmapMethod
             throw new MethodException('invalidArguments', '"chain" must be PEM-encoded certificates, or left out.');
         }
 
-        $message = ctype_digit($emailId) ? $this->entityManager->find(Message::class, (int) $emailId) : null;
+        $message = ctype_digit($emailId) ? $this->messageRepository->find((int) $emailId) : null;
 
         // Another account's message, or another person's, is not found rather
         // than forbidden: whether an id exists is not this caller's business.

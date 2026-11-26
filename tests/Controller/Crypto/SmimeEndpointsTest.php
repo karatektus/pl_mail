@@ -230,7 +230,7 @@ final class SmimeEndpointsTest extends WebTestCase
 
     private function keyringCsrf(): string
     {
-        $crawler = $this->client->request('GET', '/settings?section=encryption');
+        $crawler = $this->client->request('GET', '/settings/encryption');
 
         return (string) $crawler->filter('[data-crypto--keyring-csrf-value]')->attr('data-crypto--keyring-csrf-value');
     }
@@ -315,7 +315,7 @@ final class SmimeEndpointsTest extends WebTestCase
         $account->email    = $address;
         $account->username = $address;
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $account->imapHost = 'imap.example.test';
         $this->em->persist($account);
 

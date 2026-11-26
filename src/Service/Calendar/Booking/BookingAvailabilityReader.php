@@ -7,8 +7,8 @@ namespace App\Service\Calendar\Booking;
 use App\Domain\DTO\Calendar\BookableSlot;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Entity\Calendar\BookingPage;
-use App\Repository\Calendar\CalendarBookingRepository;
-use App\Repository\Calendar\CalendarEventOccurrenceRepository;
+use App\Repository\Calendar\CalendarBooking\CalendarBookingRepository;
+use App\Repository\Calendar\CalendarEventOccurrence\CalendarEventOccurrenceRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 

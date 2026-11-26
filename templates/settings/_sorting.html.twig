@@ -20,11 +20,7 @@ Accepts:
                     hiding a setting is how somebody concludes the feature does
                     not exist; it is disabled and says why instead.
 #}
-{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                  peer-checked:bg-accent peer-checked:text-accent-ink
-                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                  peer-disabled:opacity-50 peer-disabled:cursor-not-allowed
-                  transition-colors cursor-pointer' %}
+{% import '_partials/_segmented.html.twig' as seg %}
 
 <div class="px-4 py-3">
 
@@ -44,20 +40,13 @@ Accepts:
             <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.sorting.tabs.hint'|trans }}</span>
         </span>
 
-        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
-             role="radiogroup" aria-label="{{ 'settings.sorting.tabs.label'|trans }}">
-            {% for shown in [true, false] %}
-                <label>
-                    <input type="radio" name="tabs" class="peer sr-only"
-                           value="{{ shown ? '1' : '0' }}"
-                           data-action="change->ui--auto-submit#submit"
-                           {{ tabs == shown ? 'checked' : '' }}>
-                    <span class="{{ segText }}">
-                        {{ (shown ? 'settings.sorting.tabs.on' : 'settings.sorting.tabs.off')|trans }}
-                    </span>
-                </label>
-            {% endfor %}
-        </div>
+        {{ seg.control('tabs', [
+            { value: '1', label: 'settings.sorting.tabs.on'|trans },
+            { value: '0', label: 'settings.sorting.tabs.off'|trans },
+        ], tabs ? '1' : '0', {
+            label:  'settings.sorting.tabs.label'|trans,
+            action: 'change->ui--auto-submit#submit',
+        }) }}
     </div>
 
     {# The one combination worth interrupting somebody for. With the tabs off
@@ -92,20 +81,13 @@ Accepts:
             <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.sorting.account_tabs.hint'|trans }}</span>
         </span>
 
-        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
-             role="radiogroup" aria-label="{{ 'settings.sorting.account_tabs.label'|trans }}">
-            {% for shown in [true, false] %}
-                <label>
-                    <input type="radio" name="accountTabs" class="peer sr-only"
-                           value="{{ shown ? '1' : '0' }}"
-                           data-action="change->ui--auto-submit#submit"
-                           {{ accountTabs == shown ? 'checked' : '' }}>
-                    <span class="{{ segText }}">
-                        {{ (shown ? 'settings.sorting.account_tabs.on' : 'settings.sorting.account_tabs.off')|trans }}
-                    </span>
-                </label>
-            {% endfor %}
-        </div>
+        {{ seg.control('accountTabs', [
+            { value: '1', label: 'settings.sorting.account_tabs.on'|trans },
+            { value: '0', label: 'settings.sorting.account_tabs.off'|trans },
+        ], accountTabs ? '1' : '0', {
+            label:  'settings.sorting.account_tabs.label'|trans,
+            action: 'change->ui--auto-submit#submit',
+        }) }}
     </div>
 </form>
 {% endif %}
@@ -121,26 +103,17 @@ Accepts:
             </span>
         </span>
 
-        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
-             role="radiogroup" aria-label="{{ 'settings.sorting.source.label'|trans }}">
-            {% for option in ['rules', 'assistant'] %}
-                <label>
-                    {# The assistant option is refused rather than hidden when
-                       categorisation is not available: an administrator has to
-                       switch it on for the installation and the reader has to
-                       not have switched it off for themselves, and a control
-                       that vanished would leave somebody wondering which. #}
-                    <input type="radio" name="source" class="peer sr-only"
-                           value="{{ option }}"
-                           data-action="change->ui--auto-submit#submit"
-                           {{ 'assistant' == option and not assistantOffered ? 'disabled' : '' }}
-                           {{ source == option ? 'checked' : '' }}>
-                    <span class="{{ segText }}">
-                        {{ ('settings.sorting.source.' ~ option)|trans }}
-                    </span>
-                </label>
-            {% endfor %}
-        </div>
+        {# The assistant option is refused rather than hidden when categorisation is
+           not available: an administrator has to switch it on for the installation
+           and the reader has to not have switched it off for themselves, and a
+           control that vanished would leave somebody wondering which. #}
+        {{ seg.control('source', [
+            { value: 'rules',     label: 'settings.sorting.source.rules'|trans },
+            { value: 'assistant', label: 'settings.sorting.source.assistant'|trans, disabled: not assistantOffered },
+        ], source, {
+            label:  'settings.sorting.source.label'|trans,
+            action: 'change->ui--auto-submit#submit',
+        }) }}
     </div>
 
     {% if not assistantOffered %}
@@ -157,20 +130,13 @@ Accepts:
             <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.sorting.override.hint'|trans }}</span>
         </span>
 
-        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
-             role="radiogroup" aria-label="{{ 'settings.sorting.override.label'|trans }}">
-            {% for override in [false, true] %}
-                <label>
-                    <input type="radio" name="overrideProvider" class="peer sr-only"
-                           value="{{ override ? '1' : '0' }}"
-                           data-action="change->ui--auto-submit#submit"
-                           {{ overrideProvider == override ? 'checked' : '' }}>
-                    <span class="{{ segText }}">
-                        {{ (override ? 'settings.sorting.override.plmail' : 'settings.sorting.override.provider')|trans }}
-                    </span>
-                </label>
-            {% endfor %}
-        </div>
+        {{ seg.control('overrideProvider', [
+            { value: '0', label: 'settings.sorting.override.provider'|trans },
+            { value: '1', label: 'settings.sorting.override.plmail'|trans },
+        ], overrideProvider ? '1' : '0', {
+            label:  'settings.sorting.override.label'|trans,
+            action: 'change->ui--auto-submit#submit',
+        }) }}
     </div>
 </form>
 

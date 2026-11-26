@@ -9,7 +9,7 @@ use App\Domain\DTO\Push\ServiceAccount;
 use App\Domain\Exception\InvalidFirebaseCredentialsException;
 use App\Domain\Trait\TimestampableTrait;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\Push\FcmConfigRepository;
+use App\Repository\Push\FcmConfig\FcmConfigRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

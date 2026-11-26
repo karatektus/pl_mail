@@ -9,7 +9,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\User\User;
 use App\Jmap\Query\EmailFilterCompiler;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageFilterRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -33,7 +33,7 @@ final class EmailFilterCompilerTest extends KernelTestCase
 {
     private EntityManagerInterface $em;
     private Connection $connection;
-    private MessageRepository $messages;
+    private MessageFilterRepository $messageFilterRepository;
     private EmailFilterCompiler $compiler;
 
     /** @var list<Message> */
@@ -46,7 +46,7 @@ final class EmailFilterCompilerTest extends KernelTestCase
         $container = self::getContainer();
         $this->em = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
-        $this->messages = $container->get(MessageRepository::class);
+        $this->messageFilterRepository = $container->get(MessageFilterRepository::class);
         $this->compiler = new EmailFilterCompiler();
 
         // Never committed, so the suite leaves nothing behind and can be run
@@ -147,7 +147,7 @@ final class EmailFilterCompilerTest extends KernelTestCase
         $expected = array_map(fn (int $i): int => (int) $this->corpus[$i]->id, $expectedIndexes);
         sort($expected);
 
-        $actual = $this->messages->matchingIds($this->corpusIds(), $this->compiler->compile($ast));
+        $actual = $this->messageFilterRepository->matchingIds($this->corpusIds(), $this->compiler->compile($ast));
         sort($actual);
 
         self::assertSame($expected, $actual);
@@ -176,7 +176,7 @@ final class EmailFilterCompilerTest extends KernelTestCase
      */
     private function match(array $ast): array
     {
-        return $this->messages->matchingIds($this->corpusIds(), $this->compiler->compile($ast));
+        return $this->messageFilterRepository->matchingIds($this->corpusIds(), $this->compiler->compile($ast));
     }
 
     /**
@@ -209,7 +209,7 @@ final class EmailFilterCompilerTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
 
         $this->corpus = [

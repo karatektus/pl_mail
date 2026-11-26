@@ -14,6 +14,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
 use App\Service\Graph\GraphApiSyncer;
 use App\Service\Mail\GraphApiClient;
 use App\Tests\Support\Mercure\RecordingHub;
@@ -166,7 +167,8 @@ final class GraphDraftSentElsewhereTest extends KernelTestCase
             ),
             $container->get('App\Service\Graph\GraphFolderResolver'),
             $container->get('App\Service\Graph\GraphLabelPolicy'),
-            $container->get('App\Repository\Mail\MessageRepository'),
+            $container->get('App\Repository\Mail\Message\MessageRepository'),
+            self::getContainer()->get(MessageProviderIdRepository::class),
             $this->em,
             $container->get('App\Jmap\State\StateManager'),
             $container->get('messenger.default_bus'),
@@ -258,7 +260,7 @@ final class GraphDraftSentElsewhereTest extends KernelTestCase
         $account->oauthProvider    = 'microsoft';
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new DateTimeImmutable('+1 day');
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
 
         $this->em->persist($account);
         $this->em->flush();

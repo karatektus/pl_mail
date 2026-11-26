@@ -6,7 +6,7 @@ namespace App\Tests\Repository\Mail;
 
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Service\Imap\VanishedMessageReconciler;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -104,7 +104,7 @@ final class MailboxSweepDueTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
 
         $this->em->flush();

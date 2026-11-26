@@ -7,11 +7,13 @@ namespace App\Tests\Infrastructure\Messaging;
 use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Domain\Exception\GmailThrottledException;
 use App\Domain\Exception\GraphThrottledException;
+use App\Domain\Exception\GraphUnavailableException;
 use App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage;
 use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
+use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
 use App\Infrastructure\Messaging\Middleware\GiveUpQuietlyOnThrottling;
 use App\Infrastructure\Messaging\Stamp\ThrottleDeferralStamp;
 use PHPUnit\Framework\TestCase;
@@ -168,6 +170,48 @@ final class GiveUpQuietlyOnThrottlingTest extends TestCase
         }
     }
 
+    /**
+     * #603: Exchange Online was down for most of a day, and every sync of an
+     * Outlook account answered 502 five times and was parked at CRITICAL.
+     * The next scheduled sync resumes from the same cursor, so the given-up
+     * one is dropped like a throttled one.
+     */
+    public function testAnAccountSyncMicrosoftNeverAnsweredIsDroppedOnItsLastAttempt(): void
+    {
+        $envelope = $this->received(new SyncAccountMessage(7), retries: 5);
+
+        self::assertSame($envelope, $this->handle($envelope, $this->microsoftDown()));
+        self::assertSame([], $this->ingest->getSent());
+    }
+
+    /**
+     * And a batch of messages nothing will list again is put back to wait,
+     * not lost and not parked.
+     */
+    public function testAGraphFetchBatchCaughtInAnOutageIsPutBackToWait(): void
+    {
+        $message = new SyncGraphMessageBatchMessage(7, ['a', 'b']);
+
+        $this->handle($this->received($message, retries: 5), $this->microsoftDown());
+
+        $sent = $this->ingest->getSent();
+
+        self::assertCount(1, $sent);
+        self::assertSame($message, $sent[0]->getMessage());
+        self::assertSame(1, $sent[0]->last(ThrottleDeferralStamp::class)?->count);
+    }
+
+    /**
+     * An outage has no Retry-After to wait for: before the last attempt it is
+     * the ladder's, like any other failure.
+     */
+    public function testAnOutageBeforeTheLastAttemptIsLeftToTheRetryLadder(): void
+    {
+        $this->expectException(HandlerFailedException::class);
+
+        $this->handle($this->received(new SyncAccountMessage(7), retries: 4), $this->microsoftDown());
+    }
+
     public function testAQuotaThatNeverClearsIsAFailureInTheEnd(): void
     {
         $envelope = (new Envelope(new ApplyGmailLabelsMessage(7, ['m1'], ['STARRED'], []), [new ReceivedStamp('export')]))
@@ -266,6 +310,11 @@ final class GiveUpQuietlyOnThrottlingTest extends TestCase
     private function throttled(): GraphThrottledException
     {
         return new GraphThrottledException('Graph answered 429 (TooManyRequests)');
+    }
+
+    private function microsoftDown(): GraphUnavailableException
+    {
+        return new GraphUnavailableException('Graph request failed with 502: {"error":{"code":"UnknownError","message":""}}', 502);
     }
 
     private function refusedByGoogle(): CalendarSyncThrottledException

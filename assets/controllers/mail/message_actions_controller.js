@@ -4,6 +4,7 @@ import { listView } from "../../list_view.js";
 import { announceWrite } from "../../mail_writes.js";
 import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
+import { postPin, redrawAndPlace, swingTack } from "../../pin.js";
 
 /**
  * Status actions for the reading pane: the per-message overflow menu and the
@@ -16,7 +17,7 @@ import { requestFailed } from "../../request_errors.js";
  * "this message left the view" (archive, trash, mark unread) close the pane.
  */
 export default class extends Controller {
-    static targets = ["panel", "starIcon", "starLabel"];
+    static targets = ["panel", "starIcon", "starLabel", "pin"];
 
     static values = {
         entityId: Number,
@@ -66,6 +67,48 @@ export default class extends Controller {
         }
 
         this.starredValue = !this.starredValue;
+    }
+
+    /**
+     * Pin or unpin the open conversation (#654). The conversation stays open
+     * — a pin moves its row in the list, not the reader — so the button is
+     * updated here, and the list's row is moved the way the row's own button
+     * moves it.
+     */
+    async pin(event) {
+        event.stopPropagation();
+
+        const response = await postPin(this._url("pin"));
+
+        if (null === response) {
+            return;
+        }
+
+        const pinned = "true" === response.headers.get("X-Pinned");
+
+        if (this.hasPinTarget) {
+            const icon = this.pinTarget.querySelector("i");
+
+            icon?.classList.toggle("text-accent", pinned);
+            await swingTack(icon, pinned);
+
+            this.pinTarget.setAttribute("aria-pressed", pinned ? "true" : "false");
+
+            const label = pinned ? this.pinTarget.dataset.unpinLabel : this.pinTarget.dataset.pinLabel;
+
+            this.pinTarget.setAttribute("aria-label", label);
+            this.pinTarget.setAttribute("title", label);
+
+            const text = this.pinTarget.querySelector(".action-btn-label");
+
+            if (text) {
+                text.textContent = label;
+            }
+        }
+
+        await redrawAndPlace(`thread_${this.entityIdValue}`, await response.text(), pinned);
+
+        announceWrite();
     }
 
     async markUnread(event) {

@@ -9,7 +9,7 @@ use App\Domain\Enum\Calendar\CalendarRole;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarChangeLogRepository;
+use App\Repository\Calendar\CalendarChangeLog\CalendarChangeLogRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;

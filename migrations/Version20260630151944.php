@@ -14,7 +14,7 @@ final class Version20260630151944 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Count attachments per thread';
     }
 
     public function up(Schema $schema): void

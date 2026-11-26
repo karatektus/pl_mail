@@ -45,7 +45,7 @@ function accountBlock(page: import("@playwright/test").Page) {
 async function addAlias(page: import("@playwright/test").Page): Promise<string> {
     const address = `sig-${Date.now()}@example.test`;
 
-    await page.goto("/settings?section=aliases");
+    await page.goto("/settings/aliases");
 
     const account = page.locator("#settings-alias-list > div > div").first();
     await account.getByPlaceholder(/Add another address/i).fill(address);
@@ -60,7 +60,7 @@ async function removeAlias(
     page: import("@playwright/test").Page,
     address: string,
 ): Promise<void> {
-    await page.goto("/settings?section=aliases");
+    await page.goto("/settings/aliases");
 
     // Scoped to the alias list itself: the address also appears in the
     // read-receipt rows further down the same page, so an unscoped lookup
@@ -86,7 +86,7 @@ async function removeAlias(
  * whenever the two happened to share a worker.
  */
 async function clearSignature(page: import("@playwright/test").Page): Promise<void> {
-    await page.goto("/settings?section=signature");
+    await page.goto("/settings/signature");
 
     const block = accountBlock(page);
     const source = block.getByRole("textbox", { name: /as HTML/ }).first();
@@ -103,11 +103,21 @@ test.describe("signature settings", () => {
     });
 
     test("is its own section, reachable from the nav", async ({ page }) => {
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
 
-        await page.getByRole("link", { name: "Signatures" }).click();
+        // Through the tree as a reader goes: the tree opens only the area of
+        // the page you are on (#570), so from Mail accounts the Signatures row
+        // sits inside a folded Reading & writing. Clicking the row straight
+        // away is clicking something not on screen, which is what this test
+        // did until the tree arrived — and then timed out.
+        const tree = page.locator("#settings-tree");
+        const signatures = tree.getByRole("link", { name: "Signatures" });
 
-        await expect(page).toHaveURL(/section=signature/);
+        await expect(signatures).toBeHidden();
+        await tree.locator("summary", { hasText: "Reading & writing" }).click();
+        await signatures.click();
+
+        await expect(page).toHaveURL(/\/settings\/signature/);
         await expect(
             page.getByRole("heading", { name: "Signatures" }),
         ).toBeVisible();
@@ -125,7 +135,7 @@ test.describe("signature settings", () => {
         const address = await addAlias(page);
 
         try {
-            await page.goto("/settings?section=signature");
+            await page.goto("/settings/signature");
 
             // One editor on this account — its own, and none for the alias.
             await expect(accountBlock(page).locator(EDITOR)).toHaveCount(1);
@@ -170,7 +180,7 @@ test.describe("signature settings", () => {
     test("HTML pasted as source is rendered as it will be saved", async ({
         page,
     }) => {
-        await page.goto("/settings?section=signature");
+        await page.goto("/settings/signature");
 
         const block = accountBlock(page);
         const editor = block.locator(EDITOR).first();
@@ -208,7 +218,7 @@ test.describe("signature settings", () => {
 
         await expect(page.getByText("Saved.")).toBeVisible();
 
-        await page.goto("/settings?section=signature");
+        await page.goto("/settings/signature");
         await expect(accountBlock(page).locator(EDITOR).first().locator("i")).toHaveText(stamp);
         await expect(accountBlock(page).locator(EDITOR).first().locator("script")).toHaveCount(0);
     });
@@ -223,7 +233,7 @@ test.describe("signature settings", () => {
         const address = await addAlias(page);
 
         try {
-            await page.goto("/settings?section=signature");
+            await page.goto("/settings/signature");
 
             const details = page.locator("#settings-signature details").first();
             await details.locator("summary").click();
@@ -259,7 +269,7 @@ test.describe("signature settings", () => {
             await expect(page.getByText("Saved.")).toBeVisible();
 
             // The disclosure now starts OPEN, because configuration exists.
-            await page.goto("/settings?section=signature");
+            await page.goto("/settings/signature");
             await expect(
                 page.locator("#settings-signature details").first(),
             ).toHaveAttribute("open", /.*/);

@@ -140,7 +140,7 @@ crashed.
 | `imap-listener` | `app:imap:listen` | Holds IMAP IDLE on every IDLE-enabled folder, all in this one process, so standard IMAP mail arrives the moment it lands |
 | `jmap-listener` | `app:jmap:listen` | Holds the push connection for every JMAP account |
 | `worker-export` | `messenger:consume export` | Anything leaving plMail, and the only queue somebody is watching. On its own process so a send is never behind a sync |
-| `worker-ingest` | `messenger:consume ingest` | Fetching mail that is arriving now, and only that |
+| `worker-ingest` | `app:messenger:consume-isolated ingest` | Fetching mail that is arriving now, and only that. Each job runs in a process of its own, several accounts at once (Admin → Performance), so one provider that stops answering cannot hold up the others |
 | `worker-backlog` | `messenger:consume ingest_backlog` | A mailbox's history on first import, a page at a time. On its own process so mail arriving now is never behind it |
 | `worker-live` | `messenger:consume enrich_live` | What follows mail that has just arrived — sorting, event extraction, insight cards, receipts. On its own process so new mail is never behind an import |
 | `worker-release` | `messenger:consume release` | Shows mail that was held for the assistant once its wait is over. Idle nearly always, and on its own process so that nothing is ever in front of it |
@@ -182,7 +182,7 @@ The compose file declares ten named volumes:
 | Volume | Holds |
 |---|---|
 | `app_secrets` | `generated.env`, `postgres_password`, the JWT keypair. Mounted by **every** app service, and read-only into `database` |
-| `app_attachments`, `app_raw`, `app_uploads` | Attachments, raw message sources, and staged JMAP uploads. Mounted by every app service, because the workers write them and the web container serves them |
+| `app_attachments`, `app_raw`, `app_uploads` | Attachments, raw message sources, staged JMAP uploads, and what users upload: profile pictures, signature images, backgrounds and their own logos. Mounted by every app service, because the workers write them and the web container serves them |
 | `database_data` | The PostgreSQL cluster |
 | `caddy_data`, `caddy_config` | Caddy's TLS material and state |
 | `mercure_data`, `mercure_config` | Hub state, mounted by the worker |

@@ -7,8 +7,8 @@ namespace App\Jmap\Push;
 use App\Entity\User\PushSubscription;
 use App\Entity\User\User;
 use App\Jmap\Protocol\StateChangeBuilder;
-use App\Repository\User\PushSubscriptionRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\User\PushSubscription\PushSubscriptionRepository;
+use App\Repository\User\User\UserRepository;
 use Psr\Log\LoggerInterface;
 
 /**

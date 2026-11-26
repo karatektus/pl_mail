@@ -14,6 +14,7 @@ use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\ConfigBackupException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use App\Infrastructure\Backup\ConfigBackupCipher;
+use App\Service\Integration\TrustedHostList;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -292,6 +293,8 @@ final readonly class ConfigBackupImporter
         ConfigBackupDatabase::LOG_SETTINGS,
         ConfigBackupDatabase::UPDATE_SETTINGS,
         ConfigBackupDatabase::OIDC_CONFIG,
+        ConfigBackupDatabase::WORKER_SETTINGS,
+        ConfigBackupDatabase::SENDER_PICTURE_SETTINGS,
     ];
 
     private function databaseItems(array $database): array
@@ -331,7 +334,7 @@ final readonly class ConfigBackupImporter
         // understands instead of failing whole. It is skipped SILENTLY only
         // because the review lists what will happen — an unlisted provider is
         // visibly not in the plan.
-        foreach ([ConfigBackupDatabase::MAIL_PROVIDERS, ConfigBackupDatabase::INTEGRATION_PROVIDERS] as $table) {
+        foreach ([ConfigBackupDatabase::MAIL_PROVIDERS, ConfigBackupDatabase::INTEGRATION_PROVIDERS, ConfigBackupDatabase::TRUSTED_HOSTS] as $table) {
             $live = $this->providerNames($current, $table);
 
             foreach ($this->providerNames($database, $table) as $key => $values) {
@@ -446,6 +449,8 @@ final readonly class ConfigBackupImporter
                     ConfigBackupDatabase::LOG_SETTINGS    => $this->database->restoreLogSettings($values),
                     ConfigBackupDatabase::UPDATE_SETTINGS => $this->database->restoreUpdateSettings($values),
                     ConfigBackupDatabase::OIDC_CONFIG     => $this->database->restoreOidcConfig($values),
+                    ConfigBackupDatabase::WORKER_SETTINGS => $this->database->restoreWorkerSettings($values),
+                    ConfigBackupDatabase::SENDER_PICTURE_SETTINGS => $this->database->restoreSenderPictureSettings($values),
                 };
 
                 continue;
@@ -459,6 +464,10 @@ final readonly class ConfigBackupImporter
 
             if (ConfigBackupDatabase::INTEGRATION_PROVIDERS === $table && null !== $integration = Provider::tryFrom((string) $key)) {
                 $this->database->restoreIntegrationProvider($integration, $values);
+            }
+
+            if (ConfigBackupDatabase::TRUSTED_HOSTS === $table && null !== $host = TrustedHostList::normalise((string) $key)) {
+                $this->database->restoreTrustedHost($host, $values);
             }
         }
     }
@@ -529,6 +538,10 @@ final readonly class ConfigBackupImporter
         return match ($table) {
             ConfigBackupDatabase::MAIL_PROVIDERS        => null !== MailProvider::tryFrom($key),
             ConfigBackupDatabase::INTEGRATION_PROVIDERS => null !== Provider::tryFrom($key),
+            // Not a provider, but the same question: is this a key the target
+            // can write. A host that does not read as one is skipped, not a
+            // row the admin page could never match.
+            ConfigBackupDatabase::TRUSTED_HOSTS         => null !== TrustedHostList::normalise($key),
             default                                     => false,
         };
     }

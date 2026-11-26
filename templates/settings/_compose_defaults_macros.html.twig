@@ -1,0 +1,42 @@
+{#
+settings/_compose_defaults_macros.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The one-line summaries on the Compose defaults card: what an account does, and
+how an exception differs from it. Macros because two templates draw them — the
+card itself and the Bcc stream, which swaps only these lines after a chip
+(ComposeDefaultsController::bccResponse()) — and two copies of a summary are
+two summaries that eventually disagree.
+#}
+
+{# "Receipts: never send · Bcc: a@x, b@y · 2 exceptions" #}
+{% macro account_summary(account) %}
+    {%- set mode = account.getSetting('compose.read_receipt.default')|default('never') -%}
+    {%- set bcc = account.getSetting('compose.bcc')|default([]) -%}
+    {%- set exceptions = compose_default_exceptions(account) -%}
+    {%- set parts = [
+        'settings.compose_defaults.summary.receipts'|trans({ '%mode%': ('settings.compose_defaults.read_receipt.mode.' ~ mode)|trans|lower }),
+        bcc is empty
+            ? 'settings.compose_defaults.summary.no_bcc'|trans
+            : 'settings.compose_defaults.summary.bcc'|trans({ '%addresses%': bcc|join(', ') }),
+    ] -%}
+    {%- if exceptions|length -%}
+        {%- set parts = parts|merge(['settings.compose_defaults.summary.exceptions'|trans({ '%number%': exceptions|length })]) -%}
+    {%- endif -%}
+    {{- parts|join(' · ') -}}
+{% endmacro %}
+
+{# What one exception changes: only the settings it overrides. #}
+{% macro alias_summary(account, alias) %}
+    {%- set mode = account.getSetting('compose.read_receipt.alias.' ~ alias.id) -%}
+    {%- set bcc = account.getSetting('compose.bcc.alias.' ~ alias.id) -%}
+    {%- set parts = [] -%}
+    {%- if mode is not null -%}
+        {%- set parts = parts|merge(['settings.compose_defaults.summary.receipts'|trans({ '%mode%': ('settings.compose_defaults.read_receipt.mode.' ~ mode)|trans|lower })]) -%}
+    {%- endif -%}
+    {%- if bcc is not null -%}
+        {%- set parts = parts|merge([bcc is empty
+            ? 'settings.compose_defaults.summary.bcc_nobody'|trans
+            : 'settings.compose_defaults.summary.bcc'|trans({ '%addresses%': bcc|join(', ') })]) -%}
+    {%- endif -%}
+    {{- parts is empty ? 'settings.compose_defaults.summary.same_as_account'|trans : parts|join(' · ') -}}
+{% endmacro %}

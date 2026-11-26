@@ -12,6 +12,7 @@ use App\Entity\User\User;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Blob\BlobId;
 use App\Jmap\Protocol\Exception\MethodException;
+use App\Repository\Contacts\Contact\ContactRepository;
 use App\Service\Contacts\ContactPhotoStore;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -53,6 +54,7 @@ final class JmapContactPhotoController extends AbstractController
         private readonly ContactPhotoStore $photos,
         private readonly UploadStorage $storage,
         private readonly EntityManagerInterface $entityManager,
+        private readonly ContactRepository $contactRepository,
     ) {
     }
 
@@ -107,7 +109,7 @@ final class JmapContactPhotoController extends AbstractController
         #[CurrentUser] User $user,
     ): Response {
         $contact = true === ctype_digit($contactId)
-            ? $this->entityManager->find(Contact::class, (int) $contactId)
+            ? $this->contactRepository->find((int) $contactId)
             : null;
 
         if (null === $contact || $contact->usr->id !== $user->id || null === $contact->photoPath || '' === $contact->photoPath) {

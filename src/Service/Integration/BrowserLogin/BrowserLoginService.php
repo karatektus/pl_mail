@@ -10,7 +10,7 @@ use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
 use App\Infrastructure\Encryption\Encryptor;
-use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
 use App\Service\Integration\IntegrationConnector;
 use App\Service\Integration\IntegrationUrlValidator;
 use Psr\Cache\CacheItemPoolInterface;

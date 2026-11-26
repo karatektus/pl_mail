@@ -122,6 +122,19 @@ final readonly class GoogleEventMapper
     /** Google's `status`, which is also JSCalendar's, minus the one that means "gone". */
     private const string CANCELLED = 'cancelled';
 
+    /**
+     * Where Google's `eventType` is kept on the row, for the types whose writes
+     * Google restricts — see allowedFor(). Namespaced like
+     * GoogleRecurrenceMapper::PRESERVED_LINES, for the same reason.
+     */
+    public const string EVENT_TYPE = 'plmail:googleEventType';
+
+    private const string DEFAULT_EVENT_TYPE = 'default';
+
+    private const string BIRTHDAY = 'birthday';
+
+    private const string FROM_GMAIL = 'fromGmail';
+
     /** Google's attendee `responseStatus` to JSCalendar participationStatus (RFC 8984 §4.4.6). */
     private const array PARTICIPATION_STATUS = [
         'needsAction' => 'needs-action',
@@ -295,6 +308,76 @@ final readonly class GoogleEventMapper
             $payload['reminders'] = ['useDefault' => false, 'overrides' => $reminders];
         }
 
+        return $this->allowedFor($this->eventTypeOf($event), $payload);
+    }
+
+    /**
+     * Whether the instances of this series may be written one by one.
+     *
+     * Not for a birthday: Google will not move one occurrence of it, and a
+     * refused instance write is a warning in the log on every push of the
+     * series for good.
+     */
+    public function acceptsInstanceWrites(CalendarEvent $event): bool
+    {
+        return self::BIRTHDAY !== $this->eventTypeOf($event);
+    }
+
+    /**
+     * Google's `eventType` as the last pull recorded it; null for an ordinary
+     * event, and for a row pulled before the type was kept at all.
+     */
+    private function eventTypeOf(CalendarEvent $event): ?string
+    {
+        return $this->stringOrNull($event->jscalendar[self::EVENT_TYPE] ?? null);
+    }
+
+    /**
+     * The part of a write body Google accepts for this event type (#622).
+     *
+     * Google restricts what a write may say about the events it makes itself,
+     * and refuses the whole request (400 eventTypeRestriction) over one field
+     * it will not take. The rules, from Google's event-types guide:
+     *
+     *   - **birthday**: title and reminders only. Visibility must be
+     *     `private`, so it is stated as that rather than left out. The date is
+     *     deliberately not sent: Google refuses it for a birthday linked to a
+     *     contact, plMail cannot tell which ones are, and the contact is where
+     *     a wrong birthday is fixed anyway.
+     *   - **fromGmail** (a flight, a booking read from a mail): no title,
+     *     times, description or place; visibility and reminders are allowed.
+     *   - **focusTime, outOfOffice, workingLocation**: the ordinary body, but
+     *     without `visibility`. Working location must stay public and the other
+     *     two have their own settings in Google's interface; a PATCH that does
+     *     not name it leaves it as Google has it.
+     *
+     * A type Google adds later is treated like the last group: the ordinary
+     * body minus the one field all of them are known to be particular about,
+     * rather than a guess at a whitelist.
+     *
+     * @param array<string,mixed> $payload
+     *
+     * @return array<string,mixed>
+     */
+    private function allowedFor(?string $eventType, array $payload): array
+    {
+        if (null === $eventType) {
+            return $payload;
+        }
+
+        if (self::BIRTHDAY === $eventType) {
+            return [
+                ...array_intersect_key($payload, array_flip(['summary', 'reminders'])),
+                'visibility' => 'private',
+            ];
+        }
+
+        if (self::FROM_GMAIL === $eventType) {
+            return array_intersect_key($payload, array_flip(['visibility', 'reminders']));
+        }
+
+        unset($payload['visibility']);
+
         return $payload;
     }
 
@@ -397,10 +480,25 @@ final readonly class GoogleEventMapper
             $jscalendar['locations'] = ['1' => ['@type' => 'Location', 'name' => $location]];
         }
 
-        $privacy = self::PRIVACY[(string) $this->stringOrNull($item['visibility'] ?? null)] ?? null;
+        $privacy   = self::PRIVACY[(string) $this->stringOrNull($item['visibility'] ?? null)] ?? null;
+        $eventType = $this->stringOrNull($item['eventType'] ?? null);
+
+        // A birthday is private whatever Google's visibility says: Google
+        // insists on it for every write, and older birthdays come back with
+        // `default`, which would leave the row public here and make the first
+        // edit carry a visibility Google refuses (#622).
+        if (self::BIRTHDAY === $eventType) {
+            $privacy = 'private';
+        }
 
         if (null !== $privacy) {
             $jscalendar['privacy'] = $privacy;
+        }
+
+        // Only the restricted types are recorded. `default` is what every
+        // ordinary event is, and an absent key already means it.
+        if (null !== $eventType && self::DEFAULT_EVENT_TYPE !== $eventType) {
+            $jscalendar[self::EVENT_TYPE] = $eventType;
         }
 
         $sequence = $item['sequence'] ?? null;

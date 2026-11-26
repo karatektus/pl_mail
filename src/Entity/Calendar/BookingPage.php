@@ -6,7 +6,7 @@ namespace App\Entity\Calendar;
 
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Calendar\BookingPageRepository;
+use App\Repository\Calendar\BookingPage\BookingPageRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;

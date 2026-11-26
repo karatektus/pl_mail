@@ -1,0 +1,152 @@
+{#
+The event's own colour (#616): a dot inside the title field that opens a
+popover — search, "Calendar colour", "Often used", the swatch grid — and the
+hidden field the choice is posted in.
+
+Embedded by the editor around its title input (`{% block field %}`), which
+gets `pl-11` so the dot sits in the field's left padding. The colour belongs to the event the way
+its title does, and the title is the one field every save has; a separate
+"Colour" row would cost a line of a dialog that already scrolls, for a setting
+most events never change.
+
+The popover is a native one (`popover`, opened by the dot's `popovertarget`)
+for the reason settings/inbox_icon gives: the editor's body scrolls and clips,
+and the top layer is the only place nothing clips. calendar--event-color puts
+it under the dot and runs the search; without JavaScript the dot still opens
+it and the swatches still post, only without search.
+
+Accepts:
+  event          CalendarEvent or null
+  posted         the colour a failed save posted, or null
+  calendar_hex   the colour the event is drawn in when it has none of its own:
+                 the first ticked calendar's
+
+`color` posts '' for "Calendar colour", a CSS name for a pick, and the stored
+value verbatim when it was not touched — CalendarController::postedColor()
+reads those three.
+#}
+{% set picker = calendar_event_color(event, posted|default(null)) %}
+{% set dot_hex = picker.hex ?? calendar_hex %}
+
+<div class="relative"
+     data-controller="calendar--event-color"
+     data-calendar--event-color-named-value="{{ picker.named|json_encode }}"
+     data-calendar--event-color-often-value="{{ picker.often|map(s => s.value)|json_encode }}"
+     data-calendar--event-color-calendar-hex-value="{{ calendar_hex }}"
+     data-calendar--event-color-labels-value="{{ {
+         calendar: 'calendar.event.color.calendar'|trans,
+         button:   'calendar.event.color.button'|trans({'%color%': '%color%'}),
+         nearest:  'calendar.event.color.nearest'|trans({'%hex%': '%hex%'}),
+         none:     'calendar.event.color.none'|trans,
+     }|json_encode }}">
+
+<input type="hidden" name="color" value="{{ picker.value }}" data-calendar--event-color-target="input">
+
+<button type="button"
+        popovertarget="event-color-panel"
+        data-calendar--event-color-target="dot"
+        aria-label="{{ 'calendar.event.color.button'|trans({'%color%': picker.label}) }}"
+        title="{{ 'calendar.event.color.button'|trans({'%color%': picker.label}) }}"
+        style="background-color: {{ dot_hex }}"
+        class="absolute left-1.5 top-1/2 -translate-y-1/2 size-7 rounded-full flex items-center justify-center
+               ring-1 ring-inset ring-line cursor-pointer
+               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
+    <i class="fa-solid fa-chevron-down text-[9px]" data-calendar--event-color-target="chevron"
+       style="color: {{ dot_hex|calendar_on_color }}" aria-hidden="true"></i>
+</button>
+
+{% block field %}{% endblock %}
+
+<div id="event-color-panel" popover
+     role="dialog"
+     aria-label="{{ 'calendar.event.color.dialog'|trans }}"
+     data-calendar--event-color-target="panel"
+     data-enter="slide-down"
+     class="popover m-0 w-[18.5rem] max-w-[calc(100vw-1rem)] p-2 text-ink">
+
+    <div class="relative">
+        <label for="event-color-query" class="sr-only">{{ 'calendar.event.color.search'|trans }}</label>
+        <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-ink-faint" aria-hidden="true"></i>
+        <input id="event-color-query" type="search" autocomplete="off" spellcheck="false"
+               placeholder="{{ 'calendar.event.color.search'|trans }}"
+               data-calendar--event-color-target="query"
+               data-action="input->calendar--event-color#search keydown->calendar--event-color#key"
+               role="combobox" aria-expanded="false" aria-controls="event-color-results" aria-autocomplete="list"
+               class="w-full rounded-lg border border-line bg-sunken py-1.5 pl-8 pr-2.5 text-sm text-ink
+                      placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent">
+    </div>
+
+    <button type="button"
+            data-calendar--event-color-target="calendarRow"
+            data-action="calendar--event-color#pick mouseenter->calendar--event-color#peek focus->calendar--event-color#peek"
+            data-calendar--event-color-value-param=""
+            data-value=""
+            aria-pressed="{{ picker.value is empty or picker.hex is null ? 'true' : 'false' }}"
+            class="mt-2 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm cursor-pointer
+                   hover:bg-hover aria-pressed:bg-accent-soft aria-pressed:font-medium
+                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+        <span class="size-5 shrink-0 rounded-full ring-1 ring-inset ring-line"
+              data-calendar--event-color-target="calendarDot"
+              style="background-color: {{ calendar_hex }}" aria-hidden="true"></span>
+        <span class="flex-1">{{ 'calendar.event.color.calendar'|trans }}</span>
+    </button>
+
+    <div data-calendar--event-color-target="browse">
+        <div class="mx-1 my-2 h-px bg-line"></div>
+
+        <div class="flex flex-col gap-2 px-1.5">
+            {% set often = (picker.custom ? [picker.custom] : [])|merge(picker.often) %}
+            {% if often is not empty %}
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">{{ 'calendar.event.color.often'|trans }}</span>
+                <div class="flex flex-wrap gap-2.5">
+                    {% for swatch in often %}
+                        {{ _self.swatch(swatch, picker.value) }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <span class="mt-1 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">{{ 'calendar.event.color.all'|trans }}</span>
+            <div class="grid grid-cols-5 justify-items-start gap-x-3.5 gap-y-2.5">
+                {% for swatch in picker.grid %}
+                    {{ _self.swatch(swatch, picker.value) }}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {# Filled by the controller from `named` while something is typed. #}
+    <div id="event-color-results" role="listbox" hidden
+         aria-label="{{ 'calendar.event.color.results'|trans }}"
+         data-calendar--event-color-target="results"
+         class="mt-1 flex max-h-60 flex-col gap-px overflow-y-auto"></div>
+
+    <div class="mt-2 flex min-h-5 items-center gap-2 border-t border-line px-1.5 pt-2 text-xs">
+        <span class="size-3 rounded-full" data-calendar--event-color-target="peekDot"
+              style="background-color: {{ dot_hex }}" aria-hidden="true"></span>
+        <span class="font-medium text-ink" data-calendar--event-color-target="peekName">{{ picker.label }}</span>
+    </div>
+</div>
+
+</div>
+
+{% macro swatch(swatch, current) %}
+    <button type="button"
+            data-action="calendar--event-color#pick mouseenter->calendar--event-color#peek focus->calendar--event-color#peek"
+            data-calendar--event-color-value-param="{{ swatch.value }}"
+            data-value="{{ swatch.value }}"
+            data-hex="{{ swatch.hex }}"
+            data-label="{{ swatch.label }}"
+            aria-label="{{ swatch.label }}"
+            title="{{ swatch.label }}"
+            aria-pressed="{{ swatch.value|lower == current|lower|trim ? 'true' : 'false' }}"
+            style="background-color: {{ swatch.hex }}"
+            class="group size-8 rounded-full flex items-center justify-center cursor-pointer ring-1 ring-inset ring-line
+                   aria-pressed:outline-2 aria-pressed:outline-offset-2 aria-pressed:outline-ink
+                   focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+        {# The tick's visibility on a wrapper: Font Awesome's own display rule is
+           unlayered and outranks Tailwind's `hidden` on the <i> itself. #}
+        <span class="hidden group-aria-pressed:flex" aria-hidden="true">
+            <i class="fa-solid fa-check text-xs" style="color: {{ swatch.ink }}"></i>
+        </span>
+    </button>
+{% endmacro %}

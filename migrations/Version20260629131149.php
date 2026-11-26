@@ -14,7 +14,7 @@ final class Version20260629131149 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Rename message.references to thread_references';
     }
 
     public function up(Schema $schema): void

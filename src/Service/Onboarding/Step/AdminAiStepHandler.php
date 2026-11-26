@@ -7,7 +7,7 @@ namespace App\Service\Onboarding\Step;
 use App\Domain\Enum\Onboarding\OnboardingStep;
 use App\Entity\User\User;
 use App\Form\Admin\AiSettingsType;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Onboarding\OnboardingStepHandlerInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Form\FormFactoryInterface;

@@ -7,6 +7,7 @@ namespace App\Tests\Command\Backfill;
 use App\Command\Backfill\BackfillCommand;
 use App\Command\Backfill\BackfillTaskInterface;
 use App\Command\Backfill\WindowedBackfillTaskInterface;
+use App\Service\Maintenance\Backfill\BackfillTasks;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\Clock;
@@ -94,8 +95,8 @@ final class BackfillCommandTest extends TestCase
 
     public function testThePickerRunsTheTaskTheOperatorChose(): void
     {
-        // Registration order is deliberately not alphabetical, because the
-        // command ksorts and the answer is matched against the task key rather
+        // Registration order is deliberately not the listing order, because
+        // the list sorts and the answer is matched against the task key rather
         // than the position it was constructed in.
         $beta  = $this->task('beta');
         $alpha = $this->task('alpha');
@@ -127,6 +128,27 @@ final class BackfillCommandTest extends TestCase
         self::assertSame(1, $task->runs);
     }
 
+    /**
+     * The picker lists the newest task first, not the first letter. The task
+     * an update asks for is nearly always the newest, and the listing used to
+     * put it wherever its name sorted.
+     */
+    public function testThePickerListsTheNewestTaskFirst(): void
+    {
+        $tester = $this->tester(
+            $this->task('addresses', addedOn: '2026-07-30'),
+            $this->task('spam-in-archive', addedOn: '2026-11-08'),
+            $this->task('recipients', addedOn: '2026-08-11'),
+        );
+        $tester->setInputs(['spam-in-archive']);
+        $tester->execute([], ['interactive' => true]);
+
+        $display = $tester->getDisplay();
+
+        self::assertLessThan(strpos($display, 'recipients —'), strpos($display, 'spam-in-archive —'));
+        self::assertLessThan(strpos($display, 'addresses —'), strpos($display, 'recipients —'));
+    }
+
     public function testItSaysSoWhenNoTasksAreRegisteredAtAll(): void
     {
         $tester = $this->tester();
@@ -142,7 +164,7 @@ final class BackfillCommandTest extends TestCase
 
     private function tester(BackfillTaskInterface ...$tasks): CommandTester
     {
-        return new CommandTester(new BackfillCommand($tasks));
+        return new CommandTester(new BackfillCommand(new BackfillTasks($tasks)));
     }
 
     // ── --since ───────────────────────────────────────────────────────────
@@ -249,6 +271,16 @@ final class BackfillCommandTest extends TestCase
 
             public function __construct(private readonly string $name) {}
 
+            public function getAddedOn(): \DateTimeImmutable
+            {
+                return new \DateTimeImmutable('2026-08-01');
+            }
+
+            public function isSafeToRunAgain(): bool
+            {
+                return true;
+            }
+
             public function getName(): string
             {
                 return $this->name;
@@ -276,15 +308,26 @@ final class BackfillCommandTest extends TestCase
     /**
      * @return BackfillTaskInterface&object{runs: int}
      */
-    private function task(string $name, int $exitCode = Command::SUCCESS): object
+    private function task(string $name, int $exitCode = Command::SUCCESS, string $addedOn = '2026-08-01'): object
     {
-        return new class ($name, $exitCode) implements BackfillTaskInterface {
+        return new class ($name, $exitCode, $addedOn) implements BackfillTaskInterface {
             public int $runs = 0;
 
             public function __construct(
                 private readonly string $name,
                 private readonly int $exitCode,
+                private readonly string $addedOn,
             ) {}
+
+            public function getAddedOn(): \DateTimeImmutable
+            {
+                return new \DateTimeImmutable($this->addedOn);
+            }
+
+            public function isSafeToRunAgain(): bool
+            {
+                return true;
+            }
 
             public function getName(): string
             {

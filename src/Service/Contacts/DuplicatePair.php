@@ -12,12 +12,12 @@ use App\Entity\Contacts\Contact;
 final class DuplicatePair
 {
     public function __construct(
-        public Contact $a,
-        public Contact $b,
-        public int $confidence,
+        public readonly Contact $a,
+        public readonly Contact $b,
+        public readonly int $confidence,
         /** @var list<string> */
-        public array $reasons,
-        public bool $autoMergeable,
+        public readonly array $reasons,
+        public readonly bool $autoMergeable,
     ) {
     }
 }

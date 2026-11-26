@@ -12,6 +12,9 @@
     and landing on it after switching shows a slice with no relation to what was
     on screen. Every switch starts at the top.
 
+    Below the orders, the conversation view switch (#615): a form, because it
+    is a setting, posted to the whole page.
+
     Parameters:
       current  the option in force — any enum with .value and .transKey
       options  every option to offer, same enum
@@ -68,5 +71,30 @@
                 <span>{{ option.transKey|trans }}</span>
             </a>
         {% endfor %}
+
+        {# Conversations or single emails (#615), beside the order because
+           both are about how the list is laid out, and because it is switched
+           as often as the order is. A form and not a link: it changes a
+           setting, and the redirect brings back this very list, regrouped.
+           `_top`, as the sidebar's badges count in the new unit too. #}
+        {% if app.user %}
+            <div class="my-1 border-t border-line" role="separator"></div>
+            <form method="post" action="{{ path('app_settings_conversation_view') }}" data-turbo-frame="_top">
+                <input type="hidden" name="_token" value="{{ csrf_token('conversation-view') }}">
+                <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+                <button type="submit"
+                        role="menuitemcheckbox"
+                        aria-checked="{{ app.user.conversationView ? 'true' : 'false' }}"
+                        data-shortcut="conversation-view"
+                        data-conversation-view="{{ app.user.conversationView ? 'on' : 'off' }}"
+                        class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left cursor-pointer
+                               hover:bg-hover hover:text-ink transition-colors
+                               {{ app.user.conversationView ? 'text-accent' : 'text-ink-muted' }}">
+                    <i class="fa-solid fa-check w-3 text-center text-[11px] {{ app.user.conversationView ? '' : 'invisible' }}"
+                       aria-hidden="true"></i>
+                    <span>{{ 'list.conversation_view'|trans }}</span>
+                </button>
+            </form>
+        {% endif %}
     </div>
 </div>

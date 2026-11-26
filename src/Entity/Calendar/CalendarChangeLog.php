@@ -6,7 +6,7 @@ namespace App\Entity\Calendar;
 
 use App\Domain\Enum\Calendar\CalendarChangeKind;
 use App\Domain\Trait\TimestampableTrait;
-use App\Repository\Calendar\CalendarChangeLogRepository;
+use App\Repository\Calendar\CalendarChangeLog\CalendarChangeLogRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;

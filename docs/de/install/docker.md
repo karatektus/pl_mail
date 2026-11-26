@@ -1,4 +1,4 @@
-<!-- translated-from: install/docker.md sha1:9b6c9df44980e9f44118c66f4af839fe71f6880d -->
+<!-- translated-from: install/docker.md sha1:8c7d3437ba1e0371917ee6d5d2047be2de2b3781 -->
 # Installation mit Docker Compose
 
 Der unterstützte Weg, von Anfang bis Ende: was du brauchst, was `docker compose up` tatsächlich tut,
@@ -154,7 +154,7 @@ bis zu dreißig Sekunden, wenn er abgestürzt ist.
 | `imap-listener` | `app:imap:listen` | Hält IMAP IDLE auf allen IDLE-fähigen Ordnern, alle in diesem einen Prozess, damit gewöhnliche IMAP-Mail in dem Moment ankommt, in dem sie eintrifft |
 | `jmap-listener` | `app:jmap:listen` | Hält die Push-Verbindung für alle JMAP-Konten |
 | `worker-export` | `messenger:consume export` | Alles, was plMail verlässt, und die einzige Warteschlange, auf die jemand wartet. In einem eigenen Prozess, damit ein Versand nie hinter einem Abgleich steht |
-| `worker-ingest` | `messenger:consume ingest` | Mail abholen, die gerade ankommt, und nur das |
+| `worker-ingest` | `app:messenger:consume-isolated ingest` | Mail abholen, die gerade ankommt, und nur das. Jeder Job läuft in einem eigenen Prozess, mehrere Konten gleichzeitig (Admin → Performance), damit ein Anbieter, der nicht mehr antwortet, die anderen nicht aufhält |
 | `worker-backlog` | `messenger:consume ingest_backlog` | Die Vorgeschichte eines Postfachs beim ersten Import, Seite für Seite. In einem eigenen Prozess, damit gerade ankommende Mail nie dahinter steht |
 | `worker-live` | `messenger:consume enrich_live` | Was auf Mail folgt, die gerade eben angekommen ist — Einsortieren, Terminerkennung, Insight-Karten, Lesebestätigungen. Eigener Prozess, damit neue Mail nie hinter einem Import steht |
 | `worker-release` | `messenger:consume release` | Zeigt Mail an, die für den Assistenten zurückgehalten wurde, sobald ihre Wartezeit vorbei ist. Fast immer untätig, und in einem eigenen Prozess, damit nie etwas davor steht |
@@ -198,7 +198,7 @@ Die Compose-Datei deklariert zehn benannte Volumes:
 | Volume | Enthält |
 |---|---|
 | `app_secrets` | `generated.env`, `postgres_password`, das JWT-Schlüsselpaar. Von **jedem** App-Dienst eingehängt, in `database` nur lesend |
-| `app_attachments`, `app_raw`, `app_uploads` | Anhänge, Rohnachrichten und zwischengelagerte JMAP-Uploads. Von jedem App-Dienst eingehängt, denn die Worker schreiben sie und der Web-Container liefert sie aus |
+| `app_attachments`, `app_raw`, `app_uploads` | Anhänge, Rohnachrichten, zwischengelagerte JMAP-Uploads und was Nutzerinnen hochladen: Profilbilder, Signaturbilder, Hintergründe und eigene Logos. Von jedem App-Dienst eingehängt, denn die Worker schreiben sie und der Web-Container liefert sie aus |
 | `database_data` | Der PostgreSQL-Cluster |
 | `caddy_data`, `caddy_config` | Caddys TLS-Material und Zustand |
 | `mercure_data`, `mercure_config` | Zustand des Hubs, vom Worker eingehängt |

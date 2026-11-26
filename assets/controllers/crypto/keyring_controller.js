@@ -126,7 +126,14 @@ export default class extends Controller {
 
         const toast = showToast(message, { type });
 
-        if (null === toast || false === withLink || window.location.href.includes("section=encryption")) {
+        // No link while the Encryption page is already open. Compared by path
+        // against the URL the server gave us rather than by a fragment of it:
+        // this used to look for "section=encryption" in the address, which
+        // stopped matching anything the moment Settings pages got paths of
+        // their own (#569), and the toast would have linked to the page under it.
+        const onSettings = new URL(this.settingsUrlValue, window.location.href).pathname === window.location.pathname;
+
+        if (null === toast || false === withLink || true === onSettings) {
             return;
         }
 

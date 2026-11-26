@@ -10,8 +10,8 @@ use App\Domain\Exception\OAuthGrantRevokedException;
 use App\Domain\Interface\AccountSyncerInterface;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Service\Imap\ImapDeadline;
 use App\Service\Mail\MailImporter;
 use App\Service\Mail\SyncNotifier;
@@ -60,7 +60,7 @@ final readonly class SyncAccountMessageHandler
             return;
         }
 
-        if (true !== $account->isActive) {
+        if (true !== $account->mailEnabled) {
             $this->logger->info('Account inactive', ['accountId' => $message->accountId]);
             return;
         }

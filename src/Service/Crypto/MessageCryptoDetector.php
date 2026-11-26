@@ -24,10 +24,10 @@ use App\Entity\Mail\Message;
  * wrapping — the signature, the ciphertext, the "Version: 1" control part —
  * are left out instead of shown as attachments.
  *
- * The parameters are parsed here rather than read from webklex's extension
- * attributes: those are first-come across every header of the message (a DKIM
- * or ARC header can claim `protocol` first), and the lookup turns `-` into `_`,
- * so `smime-type` is never found under its own name.
+ * The parameters are parsed here, off the stored Content-Type, rather than
+ * asked of a parser: webklex's extension attributes were first-come across
+ * every header of the message (a DKIM or ARC header could claim `protocol`
+ * first), and one rule over the stored header serves every provider.
  */
 final readonly class MessageCryptoDetector
 {

@@ -19,8 +19,10 @@ use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Messaging\Message\SyncJmapMessageBatchMessage;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
+use App\Repository\Mail\Message\MessageJmapRepository;
 use App\Service\HarvestContactsService;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Label\ThreadLabelSynchronizer;
@@ -102,6 +104,8 @@ final readonly class JmapEmailSyncer
         private JmapLabelPolicy         $policy,
         private MessageSyncer           $builder,
         private MessageRepository       $messages,
+        private MessageThreadingRepository $messageThreadingRepository,
+        private MessageJmapRepository $messageJmapRepository,
         private AccountRepository       $accounts,
         private PostIngestPipeline      $postIngest,
         private ThreadStatusUpdater     $status,
@@ -255,7 +259,7 @@ final readonly class JmapEmailSyncer
 
         $accountId = $this->mailboxes->mailAccountId($account);
         $ownId     = (int) $account->id;
-        $known     = array_flip($this->messages->findStoredJmapIdsForAccount($account, $emailIds));
+        $known     = array_flip($this->messageJmapRepository->findStoredJmapIdsForAccount($account, $emailIds));
         $fresh     = array_values(array_filter($emailIds, static fn (string $id): bool => false === isset($known[$id])));
 
         if ([] !== $known) {
@@ -405,7 +409,7 @@ final readonly class JmapEmailSyncer
 
         $rows = [];
 
-        foreach ($this->messages->findByJmapIdsForAccount($account, $emailIds) as $row) {
+        foreach ($this->messageJmapRepository->findByJmapIdsForAccount($account, $emailIds) as $row) {
             $rows[(string) $row->jmapId] = $row;
         }
 
@@ -450,7 +454,7 @@ final readonly class JmapEmailSyncer
 
         try {
             $raw    = $this->jmap->download($account, $accountId, $blobId, 'message/rfc822', 'message.eml');
-            $parsed = MessageParser::fromString($raw, MessageParser::config());
+            $parsed = MessageParser::parse($raw);
 
             // Already here under another name: a copy this account sent, or
             // a row the IMAP sync stored before the account switched to JMAP.
@@ -459,14 +463,24 @@ final readonly class JmapEmailSyncer
             // id yet: one that has one is a different Email on this server —
             // the copy in Sent and the copy that came back to the sender are
             // two Emails with one Message-ID — and stays its own row.
-            $rfcId = MessageIdHelper::normalise((string) $parsed->getMessageId());
+            $rfcId = MessageIdHelper::normalise($parsed->messageId);
 
             if ('' !== $rfcId) {
-                $existing = $this->messages->findOneForAccountByMessageId($account, $rfcId);
+                $existing = $this->messageThreadingRepository->findOneForAccountByMessageId($account, $rfcId);
 
                 if (null !== $existing && null === $existing->jmapId) {
                     $existing->jmapId = $emailId;
                     $existing->providerThreadKey ??= is_string($email['threadId'] ?? null) ? $email['threadId'] : null;
+
+                    // Kept in the conversation it is in when the server's
+                    // thread is another, as the Gmail sync does (#676).
+                    if (
+                        null !== $existing->providerThreadKey
+                        && null !== $existing->thread
+                        && $existing->providerThreadKey !== $existing->thread->providerThreadKey
+                    ) {
+                        $existing->placedByHeaders = true;
+                    }
 
                     $this->apply($existing, $email, $account);
                     $this->em->flush();
@@ -567,7 +581,7 @@ final readonly class JmapEmailSyncer
             return;
         }
 
-        $rows = $this->messages->findByJmapIdsForAccount($account, $emailIds);
+        $rows = $this->messageJmapRepository->findByJmapIdsForAccount($account, $emailIds);
 
         if ([] === $rows) {
             return;
@@ -605,7 +619,7 @@ final readonly class JmapEmailSyncer
             return [];
         }
 
-        $known = array_flip($this->messages->findStoredJmapIdsForAccount($account, $emailIds));
+        $known = array_flip($this->messageJmapRepository->findStoredJmapIdsForAccount($account, $emailIds));
 
         return array_values(array_filter($emailIds, static fn (string $id): bool => false === isset($known[$id])));
     }

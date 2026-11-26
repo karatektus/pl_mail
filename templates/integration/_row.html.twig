@@ -112,7 +112,9 @@ like it needed a decision.
                 {{ (notAnImage ? 'integration.picker.not_an_image' : 'integration.picker.too_big')|trans }}
             </span>
         {% elseif canLink %}
-            {# Above the row label, so the chip wins the click it is under. #}
+            {# Above the row label, so the chip wins the click it is under.
+               One radio of the row's pair, the other being the whole row, so
+               not _partials/_segmented.html.twig: there is no strip to draw. #}
             <label class="relative shrink-0 cursor-pointer
                           {{ knownTooBig ? '' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100' }}
                           transition-opacity">

@@ -10,7 +10,7 @@ use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use App\Service\Calendar\Ics\IcsExporter;
 use App\Service\Calendar\Ics\IcsImporter;
 use DateTimeImmutable;

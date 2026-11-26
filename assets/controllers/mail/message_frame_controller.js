@@ -13,6 +13,7 @@ import { Controller } from "@hotwired/stimulus";
  *   frame → here   "height"  the content measured itself; resize to fit
  *   frame → here   "link"    a link is under the cursor; show/hide the preview
  *   frame → here   "key"     a key was pressed in the message; see ui--shortcuts
+ *   frame → here   "mailto"  a mailto: link was clicked; open it in the dock
  *   here  → frame  "theme"   the live mail-sheet colours, which CSS custom
  *                            properties cannot carry across a document boundary
  *   here  → frame  "show-images"  the reader clicked the bar
@@ -65,6 +66,10 @@ export default class extends Controller {
             this.showLink(data.href);
         }
 
+        if (data.plmail === "mailto") {
+            this.openMailto(data.href);
+        }
+
         // A key pressed inside the message, for ui--shortcuts. Re-announced as
         // an event of our own rather than as a synthetic keydown: nothing else
         // listening for keys should mistake this for the keyboard, and the
@@ -101,6 +106,37 @@ export default class extends Controller {
 
         this.statusTarget.textContent = String(href).slice(0, 300);
         this.statusTarget.classList.remove("hidden");
+    }
+
+    /**
+     * A mailto: from the message, opened in plMail's own composer.
+     *
+     * The href is the sender's text, so it is checked to be a mailto: here and
+     * goes no further than a query parameter — the server parses it
+     * (MailtoLink) and keeps only the fields a link may set. The dock is filled
+     * the way every compose link fills it; on a page without one, the same URL
+     * as a page visit is redirected into the mailbox's dock by the server.
+     */
+    openMailto(href) {
+        if (typeof href !== "string" || !/^mailto:/i.test(href)) return;
+
+        const url  = `/compose/new?mailto=${encodeURIComponent(href)}`;
+        const dock = document.querySelector("turbo-frame#compose_dock");
+
+        if (null === dock) {
+            window.location.assign(url);
+            return;
+        }
+
+        // The same link a second time — after the first window was sent or
+        // closed — leaves `src` as it was, and a frame told to load the URL
+        // it already has does not fetch it again. The click did nothing.
+        if (dock.getAttribute("src") === url) {
+            dock.reload();
+            return;
+        }
+
+        dock.src = url;
     }
 
     /** Called by the images bar (see remote_images_controller). */

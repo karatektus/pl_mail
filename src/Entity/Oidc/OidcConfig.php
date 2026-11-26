@@ -6,7 +6,7 @@ namespace App\Entity\Oidc;
 
 use App\Domain\Trait\TimestampableTrait;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\Oidc\OidcConfigRepository;
+use App\Repository\Oidc\OidcConfig\OidcConfigRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

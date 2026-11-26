@@ -12,7 +12,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use DateTimeImmutable;
@@ -67,7 +67,7 @@ final class ThreadBinnedTest extends KernelTestCase
         $this->account->username = uniqid('binned-', true);
         $this->account->imapHost = 'imap.example.test';
         $this->account->authType = AuthType::Password->value;
-        $this->account->isActive = true;
+        $this->account->mailEnabled = true;
         $this->em->persist($this->account);
         $this->em->flush();
 
@@ -140,6 +140,35 @@ final class ThreadBinnedTest extends KernelTestCase
         $this->em->flush();
 
         self::assertTrue($this->binned($thread));
+    }
+
+    /**
+     * One DELETE reaching into several conversations settles every one of them
+     * (#672). The trigger fires once for the statement now, not once per row,
+     * so it has to find each thread the removed messages were in — the bulk
+     * deletes (emptying the bin, removing an account) are exactly this shape.
+     */
+    public function testOneStatementDeletingFromSeveralConversationsSettlesEachOfThem(): void
+    {
+        $first  = $this->thread(2);
+        $second = $this->thread(2);
+
+        [$firstDeleted, $firstLive]   = $this->messagesOf($first);
+        [$secondDeleted, $secondLive] = $this->messagesOf($second);
+
+        $this->moveToTrash($firstDeleted);
+        $this->moveToTrash($secondDeleted);
+
+        self::assertFalse($this->binned($first));
+        self::assertFalse($this->binned($second));
+
+        $this->connection->executeStatement(
+            'DELETE FROM message WHERE id IN (?, ?)',
+            [$firstLive->id, $secondLive->id],
+        );
+
+        self::assertTrue($this->binned($first));
+        self::assertTrue($this->binned($second));
     }
 
     /** What the lists see: a deleted conversation is out of the Inbox, a live one in it. */

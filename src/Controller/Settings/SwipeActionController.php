@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Settings → Mail → Swipe actions: what a swipe to the right and a swipe to the
+ * Settings → General → Layout & controls: what a swipe to the right and a swipe to the
  * left does on a row.
  *
  * One select per direction, each posting only its own field. The choice is a
@@ -51,7 +51,7 @@ final class SwipeActionController extends AbstractController
 
         $em->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'swipe-actions']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'layout']);
     }
 
     /**

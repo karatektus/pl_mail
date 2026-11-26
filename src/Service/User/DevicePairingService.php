@@ -6,6 +6,7 @@ namespace App\Service\User;
 
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 
@@ -59,6 +60,7 @@ final readonly class DevicePairingService
     public function __construct(
         private CacheItemPoolInterface $cache,
         private EntityManagerInterface $entityManager,
+        private UserRepository $userRepository,
     ) {
     }
 
@@ -122,7 +124,7 @@ final readonly class DevicePairingService
         $keys   = is_array($stored) ? $stored['keys'] : null;
         $this->cache->deleteItem($key);
 
-        $user = $this->entityManager->find(User::class, $userId);
+        $user = $this->userRepository->find($userId);
 
         if (null === $user) {
             return null;

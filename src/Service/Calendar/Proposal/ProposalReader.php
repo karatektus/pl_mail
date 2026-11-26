@@ -7,7 +7,7 @@ namespace App\Service\Calendar\Proposal;
 use App\Entity\Calendar\EventProposal;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Calendar\EventProposalRepository;
+use App\Repository\Calendar\EventProposal\EventProposalRepository;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**

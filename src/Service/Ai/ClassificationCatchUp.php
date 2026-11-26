@@ -7,10 +7,10 @@ namespace App\Service\Ai;
 use App\Entity\Ai\AiFeature;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
-use App\Repository\Ai\AiSettingsRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Monitoring\MessengerQueueRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
+use App\Repository\Monitoring\MessengerQueue\MessengerQueueRepository;
 use App\Service\Mail\InitialImportState;
 use App\Service\Mail\PostIngest\EnrichmentRouter;
 use Psr\Log\LoggerInterface;
@@ -55,7 +55,7 @@ use Throwable;
 final readonly class ClassificationCatchUp
 {
     public function __construct(
-        private MessageRepository        $messages,
+        private MessageAiRepository $messageAiRepository,
         private AccountRepository        $accounts,
         private AiPermissions            $permissions,
         private InitialImportState       $importState,
@@ -64,7 +64,7 @@ final readonly class ClassificationCatchUp
         private MessengerQueueRepository $queues,
         private AiSettingsRepository     $settings,
         private MessageBusInterface      $bus,
-        private LoggerInterface          $logger,
+        private LoggerInterface          $logger
     ) {
     }
 
@@ -129,14 +129,14 @@ final readonly class ClassificationCatchUp
         // one inbox to them and one queue to the model, and starting on the
         // finished account's history while another is still importing would
         // put old mail in front of that import's recent mail.
-        $accounts = $this->accounts->findBy(['usr' => $user, 'isActive' => true]);
+        $accounts = $this->accounts->findBy(['usr' => $user, 'mailEnabled' => true]);
 
         if (false === $this->importState->allComplete($accounts)) {
             return 0;
         }
 
         $since = true === $anyAge ? null : $this->settings->currentOrDefault()->bulkSortCutoff();
-        $ids   = $this->messages->unclassifiedIdsForUser($userId, $limit, $since);
+        $ids   = $this->messageAiRepository->unclassifiedIdsForUser($userId, $limit, $since);
 
         if ([] === $ids) {
             return 0;

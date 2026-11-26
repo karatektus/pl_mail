@@ -7,7 +7,7 @@ namespace App\Tests\Controller\Calendar;
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Entity\Calendar\Calendar;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\DBAL\Connection;

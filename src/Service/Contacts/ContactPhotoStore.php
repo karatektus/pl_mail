@@ -34,9 +34,9 @@ final class ContactPhotoStore
 
     public function __construct(
         #[Autowire('%kernel.project_dir%')]
-        private string $projectDir,
+        private readonly string $projectDir,
         #[Autowire('%env(APP_STORAGE_DIR)%')]
-        private string $storageDir = 'var',
+        private readonly string $storageDir = 'var',
     ) {
     }
 

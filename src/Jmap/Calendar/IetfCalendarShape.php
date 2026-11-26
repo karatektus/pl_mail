@@ -74,7 +74,6 @@ final class IetfCalendarShape
         'localizations'           => null,
         'replyTo'                 => null,
         'locale'                  => null,
-        'color'                   => null,
         'mayInviteSelf'           => false,
         'mayInviteOthers'         => false,
         'hideAttendees'           => false,

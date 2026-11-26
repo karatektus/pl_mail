@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Backfill;
 
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Insight\InsightHarvester;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,14 +32,14 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * writes into mail_insight and never touches `message`, so the set it pages
  * over cannot shift under it.
  */
-final readonly class InsightsBackfillTask implements WindowedBackfillTaskInterface
+final readonly class InsightsBackfillTask implements WindowedBackfillTaskInterface, CountableBackfillTaskInterface
 {
     private const int BATCH_SIZE = 200;
 
     public function __construct(
-        private MessageRepository $messages,
+        private MessageBackfillRepository $messageBackfillRepository,
         private InsightHarvester $harvester,
-        private EntityManagerInterface $em,
+        private EntityManagerInterface $em
     ) {
     }
 
@@ -53,6 +53,21 @@ final readonly class InsightsBackfillTask implements WindowedBackfillTaskInterfa
         return 'Re-read stored mail for parcels, flights, tickets and code review — the cards on the radar.';
     }
 
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-08-17');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageBackfillRepository->countReceivedSince($since);
+    }
+
     public function run(SymfonyStyle $io): int
     {
         return $this->runSince($io, null);
@@ -60,7 +75,7 @@ final readonly class InsightsBackfillTask implements WindowedBackfillTaskInterfa
 
     public function runSince(SymfonyStyle $io, ?DateTimeImmutable $since): int
     {
-        $total = $this->messages->countReceivedSince($since);
+        $total = $this->messageBackfillRepository->countReceivedSince($since);
 
         if (0 === $total) {
             $io->success('No mail to read.');
@@ -75,7 +90,7 @@ final readonly class InsightsBackfillTask implements WindowedBackfillTaskInterfa
 
         while (true) {
             /** @var list<Message> $batch */
-            $batch = $this->messages->receivedSince($since, $lastId, self::BATCH_SIZE);
+            $batch = $this->messageBackfillRepository->receivedSince($since, $lastId, self::BATCH_SIZE);
 
             if (0 === count($batch)) {
                 break;

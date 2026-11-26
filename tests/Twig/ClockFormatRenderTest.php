@@ -94,6 +94,34 @@ final class ClockFormatRenderTest extends WebTestCase
         self::assertStringNotContainsString('>23:00<', $html);
     }
 
+    /**
+     * A changed setting reaches the very next page (#716).
+     *
+     * FrankenPHP serves every request from one kernel that stays up, and
+     * disableReboot() keeps it up here the same way. ClockGlobal memoised the
+     * format and was not reset between requests, so after the switch the
+     * Settings card read "24-hour" while the page around it, the topbar clock
+     * and every time its scripts print included, stayed on the twelve-hour
+     * clock the kernel had resolved first. Saved through the real form, as a
+     * user does it.
+     */
+    public function testASwitchedClockReachesTheNextPage(): void
+    {
+        $client = $this->signIn('12');
+
+        $crawler = $client->request('GET', '/settings/region');
+
+        self::assertStringContainsString('data-clock-hour12="true"', (string) $client->getResponse()->getContent());
+
+        $client->submit($crawler->filter('form[action="/settings/clock"]')->form(['clock' => '24']));
+        $client->followRedirect();
+
+        $html = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString('<option value="24" selected', $html, 'the setting was not saved');
+        self::assertStringContainsString('data-clock-hour12="false"', $html, 'the page kept the format it had before the switch');
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /** 14:30 UTC, which is 2:30 pm — a time the two formats cannot both print. */

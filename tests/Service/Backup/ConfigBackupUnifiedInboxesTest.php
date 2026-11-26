@@ -9,8 +9,8 @@ use App\Entity\Mail\UnifiedInbox;
 use App\Entity\User\User;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Infrastructure\Encryption\Encryptor;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Backup\ConfigBackupExporter;
 use App\Service\Backup\ConfigBackupImporter;
 use App\Service\Mail\UnifiedInboxes;
@@ -170,7 +170,7 @@ final class ConfigBackupUnifiedInboxesTest extends KernelTestCase
             $account->imapPort       = 993;
             $account->imapEncryption = 'ssl';
             $account->authType       = 'password';
-            $account->isActive       = true;
+            $account->mailEnabled    = true;
             $this->entityManager->persist($account);
 
             $made[$email] = $account;

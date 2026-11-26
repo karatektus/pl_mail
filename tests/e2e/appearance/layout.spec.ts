@@ -14,7 +14,7 @@ import { ajaxPost } from "../support/config";
  * fixture in support/test.ts.
  */
 
-const APPEARANCE = "/settings?section=appearance";
+const APPEARANCE = "/settings/appearance";
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
 
 /**

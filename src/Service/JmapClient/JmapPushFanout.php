@@ -9,8 +9,8 @@ use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
-use App\Repository\AddressBook\AddressBookRepository;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\AddressBook\AddressBook\AddressBookRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**

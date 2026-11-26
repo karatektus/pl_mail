@@ -11,7 +11,7 @@ use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
 use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
-use App\Repository\Label\LabelBindingRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;

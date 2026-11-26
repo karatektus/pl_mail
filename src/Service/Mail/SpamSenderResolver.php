@@ -8,7 +8,7 @@ use App\Domain\DTO\Mail\SpamSender;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 
 /**
  * Works out who a conversation is from when somebody calls it spam.

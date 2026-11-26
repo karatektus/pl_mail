@@ -1,0 +1,55 @@
+{#
+settings/_sender_pictures.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Which looked-up sender pictures this reader wants (#639): company logos
+(BIMI), Libravatar/Gravatar, and website icons.
+
+The same plain auto-submitting form as the images card beside it, one
+two-segment switch per source. Contact photos and other plMail users'
+pictures are not switches — they never leave the server — and the intro says
+so, so nobody goes looking for them.
+
+When the administrator has not allowed lookups the switches are still shown,
+dimmed, under a line saying why nothing will happen: the reader's choice is
+kept for when it does, and a card that vanished would leave them wondering
+where the setting went.
+
+Accepts:
+  choices         map of kind value => bool, for 'bimi', 'hashed', 'website'
+  lookupsEnabled  bool — whether the administrator allows lookups
+#}
+{% import '_partials/_segmented.html.twig' as seg %}
+
+<div class="px-4 py-3 space-y-3">
+
+<p class="text-[11px] text-ink-faint">{{ 'settings.sender_pictures.intro'|trans }}</p>
+
+{% if not lookupsEnabled %}
+    <p class="text-[11px] text-ink-faint">
+        <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>{{ 'settings.sender_pictures.admin_off'|trans }}
+    </p>
+{% endif %}
+
+<form method="post" action="{{ path('app_settings_sender_pictures_update') }}" data-controller="ui--auto-submit"
+      class="space-y-3 {{ lookupsEnabled ? '' : 'opacity-60' }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('settings-sender-pictures') }}">
+
+    {% for kind in ['bimi', 'hashed', 'website'] %}
+        <div class="flex items-start justify-between gap-3">
+            <span class="min-w-0">
+                <span class="block text-xs font-medium text-ink-muted">{{ ('settings.sender_pictures.' ~ kind)|trans }}</span>
+                <span class="block text-[11px] text-ink-faint mt-0.5">{{ ('settings.sender_pictures.' ~ kind ~ '_hint')|trans }}</span>
+            </span>
+
+            {{ seg.control(kind, [
+                { value: '1', label: 'settings.images.on'|trans },
+                { value: '0', label: 'settings.images.off'|trans },
+            ], choices[kind] ? '1' : '0', {
+                label:  ('settings.sender_pictures.' ~ kind)|trans,
+                action: 'change->ui--auto-submit#submit',
+            }) }}
+        </div>
+    {% endfor %}
+</form>
+
+</div>

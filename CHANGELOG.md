@@ -10,6 +10,623 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## v0.4.5 — 2026-11-24
+
+The sidebar can be dragged wider, labels can be listed under the account they belong to, every mail
+an account sends can be copied to a Bcc address of your choice, and the compose lock remembers per
+recipient whether mail to them is encrypted. Administrators can run repairs from Admin → Backfills
+instead of the console. Mail is now read by a maintained MIME parser, so attachments keep their
+names, and Hebrew mail from Outlook, search results acted on as a whole and drafts reopened with
+encryption switched off work as they should.
+
+<!-- highlight screenshot=thank-you -->
+**Thank you, all of you.** Thank you for every issue, pull request and comment, here on GitHub and
+on Reddit. plMail has had far more feedback than I ever expected, and much of what it can do today
+began as one of your ideas.
+
+Special thanks to my sponsors on GitHub: dz. (@dzonder), Dmitry Rude (@swell-d), Christoph Müller
+(@chris-jp), @tommyfao, and a few more who would rather not be named. You know who you are.
+
+And thank you to everyone who bought the Android app. I know it still needs work, and that work is
+on the roadmap. If you'd rather not buy it from the Play Store, it's free on
+[GitHub](https://github.com/karatektus/pl_mail_android/releases).
+
+<!-- highlight screenshot=sidebar-width -->
+**The sidebar can be made wider.** Drag the edge between the sidebar and the mail, or focus it and use
+the arrow keys; a double-click puts it back. The width is kept per user, on every device, and is the
+same on the mail, the calendar, Settings and the admin panel. It goes from 180 to 480 pixels and never
+squeezes the mail below a phone's width. A sidebar whose names are cut off widens over the mail
+while the pointer is on it, just far enough for the longest one, and the mail beside it does not
+move; **Show long names on hover** in Settings → General → Layout & controls → Sidebar switches that
+off. Only the row you are on is highlighted now: a parent label no longer lights up while one of
+its children is open. No schema change. [#699](https://github.com/karatektus/pl_mail/issues/699), requested by @PhunkyBob.
+
+<!-- highlight screenshot=labels-by-account -->
+**Labels can be listed under their account.** With **Labels by account** switched on in Settings → Labels,
+each account in the sidebar lists all of its labels beside its folders, nested the way the account
+nests them, and LABELS keeps only labels that are on no account yet, and disappears while there are none. Opening a label there shows that
+account's mail, and a label that is on other accounts too is marked, with the others named. Renaming
+it with the pencil there renames it for that account alone: "Sports" on a club account can become
+"Club sports" while a personal account keeps "Sports", and that account's mail, nested labels, the
+filters that only run on it and notifications go with it. Renamed back, it is one label again. **New label…** under an account makes a
+label on that account only. The merged list stays the default. No schema change.
+[#690](https://github.com/karatektus/pl_mail/issues/690), requested by @wbilger.
+
+**Several accounts can be open in the sidebar at once.** Opening an account used to close the one that
+was open; now each stays open until it is closed, and a button in the ACCOUNTS heading opens them all,
+or closes them all. The labels view switches moved from the label list's header into a card of their
+own in Settings → Labels, with the On/Off switches the rest of Settings uses.
+[#690](https://github.com/karatektus/pl_mail/issues/690).
+
+<!-- highlight screenshot=admin-backfills -->
+**Administrators can run backfills from the admin panel.** Admin → Backfills lists every repair
+`app:backfill` runs, newest first, because the newest is nearly always the one an update asks for.
+Choosing one explains in plain words what it does, when it was added, and whether it is safe to
+run twice; many can also count
+beforehand how many messages they would look at, and the ones that re-read mail take a window of a
+day, a week, four weeks or everything. Run queues it for the maintenance worker, and Recent runs
+shows who started what, its output while it goes, and how it ended. On the console, the task list
+`app:backfill` offers is now newest first too.
+[#726](https://github.com/karatektus/pl_mail/issues/726).
+
+**Migration:** adds the `backfill_run` table. No deployment change.
+
+<!-- highlight screenshot=always-bcc -->
+**Always Bcc (#692).** Each account can name addresses that every mail it sends is copied to, such
+as a backup mailbox or proof that a mail left. Any of its sending addresses can use a list of its
+own instead, or none. The addresses are filled into Bcc when the compose window opens (new message,
+reply, reply-all, forward). You can remove one for a single message, and changing From swaps them
+for the new address's. The JMAP identities publish the same list as `bcc`. Set it under **Settings →
+Reading & writing → Compose → Compose defaults**, where addresses are added as chips with contact
+suggestions. That card now folds each account into one summary line and lists only the addresses
+that differ from their account, instead of one row per address.
+
+<!-- highlight screenshot=encrypt-per-recipient -->
+**Remember encryption on or off per recipient.** Clicking the lock in the compose window, or
+*More options → Encrypt*, now also opens a small panel with On / Off / Auto for each recipient
+plMail has a key for: whether mail to that address is encrypted from now on. Leaving it alone
+changes nothing, and it closes on any click, focus or Escape elsewhere. Off for one of your own
+addresses keeps mail to an account you also read in the provider's app (Gmail, say) readable there.
+Own addresses keep the choice in your settings, carried by the config backup; contacts keep it on
+their key, as before. Native apps can set it with the new JMAP method `RecipientPolicy/set`.
+No schema change. [#703](https://github.com/karatektus/pl_mail/issues/703), requested by @wbilger.
+
+**A new message opens with the caret in To.** Compose put the caret in the body, under an empty
+recipient field, so the first thing typed went into the message. A window with nobody to send to
+now starts in To, as a forward already did; a reply, which comes addressed, still starts in the
+body. [#688](https://github.com/karatektus/pl_mail/issues/688), reported by @drdotnet22.
+
+**Mail sent from a Google account is listed once in Sent.** Gmail gives mail sent through its API a
+Message-ID of its own, so the copy it files in Sent did not match the row plMail wrote when it sent
+the mail: every message appeared twice, the second time in a conversation of its own, and answers
+named an id no row had. plMail now reads back the Message-ID Gmail gave the mail and keeps that one,
+so the Sent copy is merged into the row and answers find their conversation. Messages already listed
+twice stay that way. No schema change. [#702](https://github.com/karatektus/pl_mail/issues/702),
+reported by @wbilger.
+
+**Switching Encrypt or Sign off in a draft stays off when the draft is opened again.** A draft that
+was going to be encrypted when it was saved, such as mail to one of your own addresses, is kept
+encrypted on the server. Opened again from Drafts, it came back with Encrypt switched on, whatever
+had been chosen since, and went out encrypted with "..." as its subject. The Encrypt and Sign
+choices are now kept inside the encrypted draft and come back with it, and flipping either one
+saves the draft. No schema change. [#703](https://github.com/karatektus/pl_mail/issues/703),
+reported by @wbilger.
+
+**Compose no longer sends from the wrong account when two accounts share an address.** When two
+accounts could both send as one address under the same sender name, as Gmail's "Send mail as"
+often sets up, their From options read the same and one replaced the other. The window then opened
+with an empty From, and sending used the other account without saying so. Both options are now
+kept, and options that would read the same name the account they send through ("· via …"). A
+window whose From is not among the options no longer falls back to the first one: it asks for an
+address and refuses to send until one is picked. No schema change.
+[#704](https://github.com/karatektus/pl_mail/issues/704), reported by @wbilger.
+
+**"Select all" on search results acts on the results.** Searching, taking **Select all N** and
+pressing the bin (or archive, mark read, label) showed "Started moving to bin — this runs in the
+background" and then did nothing: the search page did not tell the server which list it was, so
+the background job looked for the conversations of no list, found none, and finished without an
+error. It now carries the search, and the job acts on every conversation the search's words found;
+ones listed only for a similar meaning are left out. A list the server cannot act on as a whole,
+such as one account's own inbox, no longer offers **Select all N**, and a request for one is
+refused instead of finishing as a job that did nothing. No schema change.
+[#711](https://github.com/karatektus/pl_mail/issues/711), reported by @qntxdev, cause found by
+@androidwannabe.
+
+**Hebrew mail from Outlook shows its text and its sender's name.** Outlook and Microsoft 365 label
+Hebrew mail ISO-8859-8-I, a name neither of plMail's charset converters knew: the message was stored
+with an empty body, and the sender's name came out as "éùøàì éùøàìé". The label is now read as the
+Hebrew charset it is. The text of mail in the other Hebrew and Arabic labels that name a text
+direction (ISO-8859-8-E, ISO-8859-6-I, ISO-8859-6-E) is read the same way. Mail that arrived before
+the update stays as it was stored. No schema change.
+[#714](https://github.com/karatektus/pl_mail/issues/714), by @swell-d.
+
+**Switching the clock between 12 and 24 hours takes effect at once.** The clock in the topbar, and
+the times written by the page's scripts, kept the old format after the setting was changed in
+Settings → General → Language & region, until plMail was restarted. They now change with it. No
+schema change. [#716](https://github.com/karatektus/pl_mail/issues/716), by @swell-d.
+
+**A mail wrapped in an element plMail does not know is no longer shown blank.** The sanitizer
+dropped any element missing from its allow-list together with everything inside it, and some
+senders wrap their whole letter in a non-standard element such as `<message>`, so the body came
+out empty. Unknown elements are now unwrapped and their content kept, as Gmail does; content that is
+never meant to be read (`<xml>`, `<template>`, `<noscript>`, `<noembed>`, `<noframes>`, `<style>`,
+`<title>`) is still removed. `app:backfill safe-html-unknown-elements` repairs the mail already
+stored: it checks every HTML body and sanitizes again only those with an element the allow-list does
+not name. No schema change.
+[#719](https://github.com/karatektus/pl_mail/issues/719), by @james-e-morrison (written with Claude).
+
+**Mail that arrives as bytes is read by a maintained MIME parser.** IMAP, POP3, JMAP import and
+decryption parsed mail with webklex/php-imap, which is no longer maintained, and most IMAP bugs of
+the last months were its parsing mistakes, each with a correction of its own. They now go through
+zbateson/mail-mime-parser behind plMail's own `MessageParser`, and the corrections are gone with
+the library. What a reader notices: an attachment named only in its `Content-Type` keeps its name
+instead of an eight-character checksum, so it downloads with its extension and a PDF gets its
+preview ([#718](https://github.com/karatektus/pl_mail/issues/718)); an attachment with no name at
+all is called after its type (`attachment.pdf`); and a message the old parser could not read at
+all, such as a multipart message without a boundary, is stored instead of retried. Attachments
+already stored under a checksum get their names back from each message's stored original, by
+`app:backfill attachment-content-type-names`, which also runs as an upgrade task. No schema change.
+[#82](https://github.com/karatektus/pl_mail/issues/82); the backfill after
+[#721](https://github.com/karatektus/pl_mail/pull/721) by @james-e-morrison (written with Claude).
+
+## v0.4.4 — 2026-11-19
+
+Senders have pictures, conversations can be pinned to the top of the list, a snooze can last
+until any date and time you pick, and calendar events can have a colour of their own. Conversation
+view can be switched off for one row per email, the message list has a settings page with a live
+preview, an account can only send or only receive, and plMail can serve your users' pictures as a
+Libravatar server. One mail provider that stops answering no longer holds up the others, and Gmail
+imports, replies and encrypted mail from Google accounts work as they should.
+
+<!-- highlight screenshot=snooze-pick-date -->
+**Snooze until a date and time you pick (#342).** Every snooze menu now ends with **Pick a date
+and time**, in the list row, the list toolbar, an open conversation and the long-press sheet on a
+phone. It opens the same picker that **Send later** uses. It starts at 08:00 tomorrow, so if you
+only need a day, you just choose the day. Times that have already passed cannot be chosen.
+
+<!-- highlight -->
+**Single emails instead of conversations (#615).** Conversation view can be switched off, and back,
+at any time: **Conversation view** in any list's sort menu, `t`, or **Settings → Inbox → Message
+list → Conversation view**. With it off every list has one row per email, filed by that email's own
+folders (your replies are in Sent, not in the Inbox), opening a row shows that email with a link to
+the whole conversation, and every action, pin and snooze acts on that email. Unread badges count
+emails. Pins and snoozes are kept where they were made and each view shows the other's: a pinned
+email pins its conversation, a pinned conversation puts its newest received email on top, and
+taking a pin or snooze off takes off everything that put the row there. The apps learn the choice
+from `urn:plmail:params:jmap:listview`. [#615](https://github.com/karatektus/pl_mail/issues/615).
+
+<!-- highlight screenshot=event-colours -->
+**Events can have a colour of their own (#616).** Every entry used to be drawn in its calendar's
+colour, while the same Radicale or Nextcloud calendar on a phone showed each entry in its own. plMail
+now reads the event colour phones write over CalDAV, draws it in every view, and writes it back. A
+coloured dot in the event editor's title field picks one: your most used colours first, a palette, and
+a search by name. Colours set on Google and Outlook calendars stay in plMail for now.
+
+<!-- highlight screenshot=sender-pictures -->
+**Senders have pictures (#639).** The circle beside a sender shows a picture where plMail has one,
+and the initial where it does not. A colleague on the same server shows their own profile picture,
+and a contact shows the photo on their card. If an administrator allows it under **Admin → Sender
+pictures**, plMail also looks up companies' BIMI logos and website icons and, for anyone who
+switches it on under **Settings → Reading & writing → Reading**, Gravatar and Libravatar. The
+lookups run in the background on the maintenance worker, and your browser never contacts these
+services. A company logo only appears on mail your server confirmed came from that company. Mail in Spam or Trash never starts a lookup. Pictures
+found later replace the initials on screen as they arrive, and the apps get them through JMAP
+(`senderPicture` on `Email/get`).
+
+**Migration:** adds the `sender_picture` and `sender_picture_settings` tables and a nullable
+`message.sender_verified` column, which Postgres adds without rewriting the message table. Lookups
+are off until an administrator turns them on. Pictures are stored under `uploads/sender-pictures`
+in the existing storage volume.
+
+<!-- highlight -->
+**plMail can be its users' Libravatar server (#642).** Turn it on under **Admin → Sender pictures**,
+point your domains' DNS at it, and mail programs, forges and websites that use Libravatar show the
+profile picture your users chose here. The card lists every domain your users have addresses at,
+with the exact SRV record each one needs, and a **Check DNS** button that says which are right. It
+also says what DNS cannot check: an https address with a real certificate, reachable from outside.
+Each user still decides for themselves under **Settings → Profile**; until they do, plMail answers
+as if it did not know their address.
+
+**Migration:** `sender_picture_settings` gains `libravatar_enabled`, off. `/avatar/` is a new public
+route; behind a reverse proxy, let it through if you turn this on.
+
+<!-- highlight screenshot=pin-conversations -->
+**Pin conversations to the top of the list (#654).** One click on the thumbtack beside a row's star,
+the same button in an open conversation, `p`, a swipe or **Pin** above a selection keeps a
+conversation at the top of every folder or label list it is in, above a thin line. The row moves up
+at once and the rest of the list stays where it was. **Settings → Inbox → Message list → Pinned
+conversations** sets when pinning asks "pin anyway?" (20 unless changed; it never refuses), how
+long a pin lasts (forever, or a number of days), and whether moving a conversation keeps its pin.
+The bin and spam always take a pin off. Pins belong to plMail and are not written to the mail
+server; the apps see them as the `$pinned` keyword (`urn:plmail:params:jmap:pins`).
+[#654](https://github.com/karatektus/pl_mail/issues/654).
+
+**A logo of your own survives an upgrade (#600).** On a Docker Compose install the uploaded logo was
+kept inside the container rather than on a volume, so the next upgrade recreated the container and
+the logo went back to the motif underneath. It is now kept with the other uploads, which every
+install keeps. A logo already lost this way has to be uploaded once more; one that is still there
+is moved across on its own.
+
+**A Microsoft outage no longer leaves Outlook sync jobs to be put back by hand.** Graph answering
+500, 502 or 504 is Microsoft's side failing, and is now treated like its throttling: a sync still
+failing on its last attempt is dropped with one warning, since the next scheduled sync resumes
+from the same point, and a batch of messages is put back to wait instead of being parked on the
+failed queue at CRITICAL. [#603](https://github.com/karatektus/pl_mail/issues/603).
+
+**The "keeps failing to sync" card gives advice that fits the account.** It told every account to
+check the host, the port and the password, including Outlook and Gmail accounts, which have none of
+the three. Those now get their own text, and when the provider's servers are the ones failing the
+card says so and that there is nothing to change. [#602](https://github.com/karatektus/pl_mail/issues/602).
+
+**The message list has a settings page of its own, with a preview (#608).** Settings → Inbox →
+Message list decides what each row shows: when a row goes to one line, a preview after the subject
+or on one or two lines below it, attachments as a paperclip or as chips naming the files (a chip
+opens the file from the list), labels before the subject, as coloured dots or on their own line,
+everybody in a conversation or only the latest sender, the date with or without the time, the
+message count, an arrow on answered conversations, and whether the star of an unstarred
+conversation is always there. Four made-up rows at the top of the page change as you pick, at a
+phone's, a narrow or a wide list's width. The account corner, sender discs and unread emphasis
+moved here from Appearance, and the unread count on the inbox tabs moved to Inbox → Categories.
+Your list looks the same after the upgrade; an exported theme no longer carries these settings, and
+the Android and iOS apps keep reading the five they knew.
+
+**A mail provider that stops answering no longer holds up every other account.** All mail
+fetching ran through one worker, one job at a time, so a job stuck on a provider that was down
+held up every account on the installation: during a Microsoft outage, Gmail and IMAP accounts
+stopped syncing too. `worker-ingest` now handles each job in a process of its own, several
+accounts at once. Jobs for the same account still run one after another, and a job that runs past
+six minutes is ended. How many run at once is set on **Admin → Performance** (four by default).
+Calls to Microsoft Graph and the Gmail API also have a time limit now, and an Outlook sync during
+a Microsoft outage waits quietly instead of logging a warning with stack traces on every attempt.
+[#610](https://github.com/karatektus/pl_mail/issues/610).
+
+**Drafts lists the draft you wrote last at the top, with the time you wrote it.** A reply drafted
+just now to a mail from last week was listed a week down the Drafts list and showed that mail's
+date, because Drafts was ordered by the conversation's last message, which a draft does not move.
+Drafts is now ordered and dated by when each draft was last saved; a draft written in another app
+keeps the date that app gave it. Every other list is unchanged. No schema change.
+
+**Editing a Google birthday event no longer gets refused.** Google only lets a write change some
+fields of the events it makes itself, and refused a birthday edit over the visibility plMail sent.
+plMail now keeps the type of those events and sends only what Google accepts: the title and
+reminders of a birthday (always as private), the visibility and reminders of an event Gmail made
+from a mail, and the ordinary edit without visibility for focus time, out of office and working
+location. Events synced before this update pick up their type the next time Google changes them or
+the calendar is read again in full. [#622](https://github.com/karatektus/pl_mail/issues/622).
+
+**A dismissed reminder no longer sends the event back to your calendar provider.** Calendar apps
+connected over CalDAV save an event again when you dismiss its reminder, and plMail pushed every
+such save to Google or Microsoft although nothing had changed. That is what made a Google birthday
+fail on the day itself. Saves over CalDAV and JMAP that change nothing are no longer pushed.
+[#622](https://github.com/karatektus/pl_mail/issues/622).
+
+**One Google event that Google refuses no longer stops the whole calendar syncing.** When Google
+answered an edit with 400 (a request it will never accept, such as a birthday event with the wrong
+visibility), the sync job failed, was retried against the same event, and ended up on the failed
+queue, so nothing else on that calendar synced either. That event is now given up on and logged,
+and the rest of the calendar carries on. [#623](https://github.com/karatektus/pl_mail/issues/623).
+
+**A mail whose header banner is absolutely positioned no longer covers its own text.** Mail laid
+out like a print page, such as the notices some insurers send through Scriptura, puts the banner in
+a `position: absolute` box, so the text started at the top of the message and ran underneath the
+picture. The reading pane now drops `position: absolute` as the composer already did, which is also
+what Gmail does. Mail already in the mailbox is repaired on request:
+`php bin/console app:backfill safe-html-absolute-position` writes the shown copy of every message
+that kept it again from the sender's original. No schema change.
+[#626](https://github.com/karatektus/pl_mail/issues/626), by @phdelodder.
+
+**An account can only send, or only receive (#628).** An SMTP relay such as SMTP2go has no mailbox
+to read, and adding one meant inventing an incoming server that then failed every sync. The account
+form now has a **Receive mail** switch on its Incoming heading and a **Send mail** switch on its
+Outgoing one; switch one off and its fields fold away. A send-only account is offered in **From**,
+keeps what you send under Sent in plMail, and never tries to sync; a receive-only one syncs and is
+not offered as a sender. The same two switches are in an account's settings, beside calendar and
+contacts, and Gmail and Outlook can be connected for either.
+
+**Migration:** the account table gains `send_enabled`. It is switched on wherever mail was, except on
+a password account with no SMTP server that does not use JMAP — those were offered as senders and
+every send from them failed, so they now start out as receive-only.
+
+**Hostinger is in the provider list (#632).** Choosing it on the account form fills in Hostinger's IMAP,
+POP3 and SMTP servers (`imap.hostinger.com`, `pop.hostinger.com`, `smtp.hostinger.com`, all over
+SSL/TLS); the username is the full address.
+
+**Account colours of your own (#638).** The colour menu on an account's row in Settings → Accounts
+has a ninth swatch for a custom colour: pick any colour, or type its hex code. While you choose, the
+menu shows the colour's contrast against your current theme and against plain light and dark ones,
+and says where it is faint. Choosing now previews the colour on the sidebar dot first, and Save keeps
+it. The sidebar dot and the corner mark on message rows wear it; picking a preset again goes back to
+the palette. Requested for colour blindness, where the presets were hard to tell apart.
+
+**Deleting a draft from Drafts no longer deletes the conversation it answers (#649).** Ticking a
+draft in Drafts (or in an account's Drafts folder) and pressing Delete put the whole conversation in
+the bin, the mail you were replying to included. Only the draft goes to the bin now.
+
+**Restoring one message from the bin or Spam no longer pulls the rest of its conversation into the
+inbox (#649).** When one reply of an archived conversation was in the bin or in Spam, Restore and
+Not spam brought back every message of it, including the archived ones and your own sent replies.
+Only what was in the bin or in Spam comes back now.
+
+**Encrypted and signed mail from a Gmail account opens again at the other end (#651).** Gmail's API
+rewrites every message it sends, and turned a PGP/MIME message into an ordinary one with the
+ciphertext as its text: the recipient's program could not open it, while the copy in Sent looked
+fine. plMail now sends signed and encrypted mail from Gmail accounts through Gmail's SMTP server,
+signed in with the same Google sign-in, which delivers the message as it was written. Other mail
+still goes through the API. An installation that may only reach Google over HTTPS needs
+`smtp.gmail.com:465` allowed as well.
+[#651](https://github.com/karatektus/pl_mail/issues/651).
+
+**Text from Help me write counts as your message in a body you have not typed in yet (#657).** In
+a reply you had not clicked into, the accepted text went into the quoted message, so Send asked
+"This message has no text. Send it anyway?" and the words you typed after it went there too. In a
+new message with a signature, it went below the signature and was marked as part of it. It now goes
+where you would have started typing: above the signature and the quote. No schema change.
+[#657](https://github.com/karatektus/pl_mail/issues/657), reported by @knowever.
+
+**Sending can sign in with a username of its own (#660).** An account that sends through a relay or
+smarthost with accounts of its own — a web host's mailbox sent out through a deliverability
+service, a self-hosted server through a smarthost — can now be given the relay's username as well
+as its password: **Use a different username or password for sending** under the SMTP fields shows
+both. Left blank, either is the account's own, so accounts that only had a second password carry
+on as they were.
+
+**Shift-click an avatar to select a run of conversations (#667).** Click one avatar, then
+shift-click another: both, and every conversation between them on the page, are selected. The run
+starts at the avatar you last clicked without Shift, so another shift-click makes it longer or
+shorter, and shift-clicking the same avatar again unticks the run. It works in either direction and
+leaves what you selected on other pages alone.
+
+**A category tab's unread count opens that tab's unread mail (#670).** Clicking the number on a tab,
+like Updates 3, opens Updates with only its unread conversations, as the sidebar's counts do for
+their folders; clicking anywhere else on the tab opens the whole tab as before. An account's own
+inbox, when it shows tabs, now carries that account's unread count on each tab and the same
+shortcut. The count in the sidebar's Unread row is now part of the row's link, so clicking the
+number opens Unread too.
+
+**Removing a large account no longer fails with "something went wrong" (#672).** Removing an
+account deleted all of its mail inside the page request, and on a big mailbox — a Gmail account of
+a few tens of thousands of messages — that took longer than the thirty seconds a request may last,
+so the removal was undone and only a misleading Gmail warning was left in the log. Removing now
+runs in the background: the account stops syncing and sending at once, its row stays greyed out
+with how many messages are gone so far, the same progress shows under Background work in the top
+bar, and the row disappears when the account is gone. Deleting many messages at once, such as
+emptying the bin, is also faster: the database now updates each conversation's bin state once per
+deletion rather than once per message. The migration only replaces a trigger and touches no rows.
+
+**Importing contacts or a calendar file no longer fails on a large file (#672).** Both imports ran
+inside the page request; a thousand contacts took over forty seconds, past the thirty a request may
+last, so a modest address book failed with "something went wrong" and nothing was imported. Both now
+run in the background after the file has been checked, with progress under Background work in the
+top bar and a message with the result when they are done. The contacts import is also much faster,
+because it no longer slows down with every contact already imported. After a contacts import you
+stay on the contacts list; open Duplicates to merge anything imported twice.
+
+**Deleting an inbox tab of your own answers at once, whatever it held (#672).** The tab goes
+straight away, and putting its conversations back into the tabs they belong in runs in the
+background instead of inside the request, where a tab of tens of thousands of conversations could
+run out of time.
+
+**A Gmail import no longer stops for good on one attachment with a long name (#674).** An
+attachment name longer than 255 characters was refused by the database, and the 49 other messages
+fetched with it were lost too. The same batch was then fetched again every hour, so the import
+stayed one batch short of finished. Attachment names, types and content IDs now have no length
+limit. A long name that Gmail passes on in pieces is joined back into one name. If the database
+refuses a batch for any other reason, its messages are retried one at a time. A message that is
+still refused on its own is listed by `app:gmail:skipped`, and the rest are stored.
+
+**A reply sent from a Google account stays in its conversation (#676).** plMail sent mail through
+the Gmail API without saying which conversation it belonged to, so Gmail started a new one for every
+reply, and the other side's answer followed it there. A three-message exchange became three
+conversations, in plMail and in Gmail alike. Each reply was also listed twice: once where it was
+written and once where Gmail filed its copy. Replies now go into the conversation they answer, and
+Gmail's copy of mail sent from plMail is merged onto the message plMail already has. An encrypted
+reply, whose subject goes out hidden as "...", is still filed in a new conversation by Gmail, which
+groups mail by subject; plMail keeps it and the answers that follow it in the conversation it was
+written in, and `app:backfill rethread` keeps it there too. Conversations that were split before stay
+split, as they are in Gmail; a reply listed twice there can be deleted by hand. One migration adds
+`message.placed_by_headers`.
+
+**Every header now lines up, and the calendar and contacts panes match (#678).** The line under the
+sidebar's Compose button now runs straight on under the mail list, the calendar, the address book,
+Settings and Admin, where it used to step down at each one. Every button in those headers is the
+same size and shape. The calendar pane gets the full-width and close buttons the address book
+already had, and at full width both panes show a button that puts them back beside the mail.
+Before, the only way back was the topbar button. Contacts' Import, Export and New are now icons
+like the calendar's, and its search moved to its own row under the header. The mail's round header
+buttons are now rounded squares like the rest. The compose window, dialogs and the insight strip
+use the same buttons too.
+
+**Connecting Google Drive, Google Photos, OneDrive or Dropbox from Settings → Integrations works.**
+The Connect button opened a dialog that tried to load the provider's sign-in page in the
+background, which the browser's security policy blocks, so nothing happened and the console showed
+"Failed to fetch". The button now goes straight to the provider's sign-in page. The setup wizard's
+Connect links go there directly too.
+
+## v0.4.3 — 2026-11-12
+
+Settings is now a tree with a search, `mailto:` links open in plMail's own composer — in a tab or
+in the installed app, which can also do without its title bar — and an account can be used for its
+mail, its calendar or its contacts on their own. WebDAV joins the file services, search answers a
+common word much faster, pages load sooner, and a server on your own network can be allowed from
+the admin page.
+
+<!-- highlight screenshot=settings-search -->
+**Settings is easier to find your way around, and it has a search.** The settings column was 29
+pages in five groups, sixteen of them under "Mail", and General held whatever had no better home.
+It is now a tree of eight areas — Account, General, Mail accounts, Inbox, Reading & writing,
+Calendar & contacts, Assistant & automation, Integrations — with at most five pages each; the
+area of the page you are on is open and the rest fold away. General's cards moved to where they
+belong (Language & region, Layout & controls, Compose, What's new), Reading pane and Images became
+one Reading page, and swipe actions and keyboard shortcuts sit with the sidebar under Layout &
+controls. A field above the tree filters it as you type and finds the cards on every page, by
+heading or by keyword ("dark" finds Theme, "2fa" finds two-factor), ignoring case and accents.
+⌘K or Ctrl+K opens the same search from anywhere in plMail, and a result opens its page with the
+card highlighted. On a phone the tree sits behind one button that names the page you are on.
+Each page has its own address now, `/settings/<page>`; an old `/settings?section=…` bookmark opens
+the first page. No schema change, no deployment change.
+[#569](https://github.com/karatektus/pl_mail/issues/569).
+
+<!-- highlight screenshot=mailto-links -->
+**Email links open in plMail.** A `mailto:` link in a mail you are reading now opens plMail's own
+compose window instead of your computer's mail program, with the recipients, subject and text the
+link carries. Links on other websites can come to plMail too: **Settings → Reading & writing →
+Compose → Email links → Use plMail** asks the browser to send them here (it needs HTTPS, and Safari cannot), and
+plMail installed as an app in Chrome or Edge offers itself on its own. A link cannot set the sender
+or the conversation it answers. Along the way, a draft opened with Cc or Bcc addresses already on it
+shows those rows instead of hiding recipients it will send to. No schema change.
+[#572](https://github.com/karatektus/pl_mail/issues/572).
+
+**Pages are ready sooner after the first visit, and the first visit loads less.** The browser was
+never told it could keep plMail's scripts, so every full page load asked again for each of about
+two hundred modules; on a NAS install the inbox HTML arrived after 0.6 seconds and the page was
+ready after 4.7. Compiled assets now carry a one-year `Cache-Control: immutable`: their file names
+change with their content, so an update still reaches the browser at once. The controllers of
+screens the mail list does not use (admin, calendar, contacts, settings, rules, sign-in, setup,
+onboarding, What's new) now load when such a screen opens rather than on every page. No schema
+change; the header is set by the image's own Caddy, so an install behind a reverse proxy gets it as
+long as the proxy passes it on.
+[#542](https://github.com/karatektus/pl_mail/issues/542).
+
+**Search answers a common word in a fraction of the time.** A search collects matching mail from
+several lookups (the words, word beginnings, the subject and the sender) and used to combine them
+in a way that made the database read every message one by one instead of using its search index,
+and it scored every match for relevance even when the results are sorted by date. Measured on
+200,000 messages, a word in one mail of twelve now takes 0.25 seconds instead of about one, and a
+word in nearly every mail 1.3 seconds instead of five. The results are the same; sorting by
+relevance still scores them. No schema change, no deployment change.
+[#544](https://github.com/karatektus/pl_mail/issues/544).
+
+**A message with megabytes of text is stored and searchable, and no longer stops the search index
+being rebuilt.** Postgres refuses a search index entry over 1 MB, and plMail fed it a message's
+whole body. Since v0.4.2 also indexes mail sent as HTML only, a message with several megabytes of
+HTML stopped the background rebuild after v0.4.2 at the first 500 messages, and such a message
+arriving new could not be stored at all: the sync tried it a few times and then skipped it. Search
+now reads the first 200,000 characters of a body (about 30,000 words; the rest of a body that long
+is not searchable), and a message the index still cannot take is logged and passed over instead of
+holding up the others. Mail the sync skipped this way before the update is fetched now: after the
+update every IMAP folder is looked through once in the background, and what the server holds and
+plMail does not is brought in (mail deleted in plMail is left out). `app:mail:fetch-missing` does
+the same on demand. The migrations replace the search function, including one patched by hand,
+and rewrite no table.
+[#546](https://github.com/karatektus/pl_mail/issues/546).
+
+**Attach from and save to any WebDAV server.** WebDAV joins the file services under Settings →
+Integrations, for a file server that is neither Nextcloud nor OpenCloud: FileBrowser Quantum, a
+Synology NAS, `rclone serve webdav`, Apache mod_dav. You give the full address of the folder to open,
+path included (on FileBrowser Quantum, `/dav/` and the source name), a username if the server wants
+one, and a password or API token. Browse, attach copies, save attachments and make folders; WebDAV
+has no links, previews or search. Administrators: a server on your own network has to be allowed
+under Admin → Integrations → Servers on a private network, as for the other self-hosted services. No
+schema change.
+[#547](https://github.com/karatektus/pl_mail/issues/547), requested by @laserhill.
+
+**On a Proton Mail account, All Mail in the sidebar lists all your mail instead of an old handful.**
+Since v0.4.1 plMail no longer fetches Proton's "All Mail" folder, which repeats every message, but
+the label that folder had filled stayed in the sidebar with the few messages no other folder held.
+It looked like the place to see everything and showed nothing recent, so mail seemed to be
+missing. That label and the one from Proton's "Starred" folder now leave the sidebar (they stay in
+Settings → Labels), and plMail's own All Mail, which lists every conversation from every folder,
+is switched on in their place. No schema change; a data migration has the next folder sync of each
+account do this, and folders you switched back on are left alone.
+[#548](https://github.com/karatektus/pl_mail/issues/548).
+
+**The "Indexing progress" link under a search opens the admin page, styled.** It pointed at the
+AI section's inner frame rather than the admin page, and from inside the mail list, so clicking
+it showed that fragment on its own with no layout or styles. It now opens Admin → AI. No schema
+change, no deployment change.
+[#551](https://github.com/karatektus/pl_mail/issues/551).
+
+**After walking the list with the arrow keys, archiving or moving a conversation no longer sends
+the cursor back to the top.** Only the keyboard shortcuts for archive and delete knew to move the
+cursor on; a conversation that left the list any other way (its own buttons, a swipe, moving,
+snoozing or reporting it as spam) took the cursor with it, and the next ↓ started from the first
+row. The cursor now lands on the conversation after the one that left. No schema change, no
+deployment change.
+[#553](https://github.com/karatektus/pl_mail/issues/553).
+
+**A CalDAV, CardDAV or file server on your own network can be allowed from the admin page.** plMail
+refuses a server address that resolves to a private address, so nobody signed in can aim it at the
+database or anything else on its network, and the way to make an exception was the
+`INTEGRATIONS_ALLOWED_HOSTS` variable. A Docker Compose install could not set it: `compose.yaml` never
+passed it into the containers, so a Baïkal at home stayed refused whatever was in `.env`. Admin →
+Integrations now has **Servers on a private network**, a list of hosts an administrator allows, each
+with its own tick for plain `http://`. The error a user sees names that page, a change applies at
+once, and the list travels in a config backup. Plain http is per host now instead of the
+install-wide `INTEGRATIONS_ALLOW_HTTP`. Neither variable is read any more; a migration creates the
+new table and copies what they held into it, and with `INTEGRATIONS_ALLOW_HTTP` on it also allows
+plain http for the host of every connection already saved with an `http://` address, so those keep
+working.
+[#564](https://github.com/karatektus/pl_mail/issues/564), reported by @sbach89.
+
+**An IMAP import on a slow connection finishes instead of retrying the same messages for ever.**
+Since v0.4.1 every IMAP command had to be over within thirty seconds, however steadily the server
+was answering. An import fetches fifty whole messages at a time, and on a slower line (a NAS at
+home, for example) fifty messages with their attachments take longer than that: the fetch was cut
+with "did not answer UID FETCH in time", nothing of it was stored, and every retry asked for the
+same fifty messages. The import of that folder never moved, and leaving the folder out only moved
+the problem to the next one. The thirty seconds are now how long a server may go quiet, as they
+were before v0.4.1, and the five-minute limit on a whole import step still stops a server that
+keeps a fetch alive by trickling. Large uploads, such as the copy of a sent message with its
+attachments, are measured the same way. An import that stopped this way starts again by itself
+with the account's next sync; the import steps already under Admin → Failed messages can be
+retried or deleted, and neither is needed. No schema change, no deployment change.
+[#565](https://github.com/karatektus/pl_mail/issues/565).
+
+**Settings → Appearance no longer has a preview card.** The sample mail list and message beside the
+controls, and the boundary that resized it, are gone. Since the new settings tree, a 1280-pixel
+window no longer had room for both cards, so the preview sat behind a **Show preview** button on
+most screens. Every control already changes the whole app as you use it, so the app is the preview
+now. The remembered preview width is no longer stored or carried in a backup; an older backup that
+holds one restores without it. No schema change.
+
+**Use an account for its mail, its calendar or its contacts — or any two of them.** Each account
+now has three switches in **Settings → Accounts**, in place of the single on/off toggle, which only
+ever stopped the mail. Switching one off stops plMail talking to the server about it and keeps
+what is already here: mail stays readable from the account's row in the sidebar, and calendar and
+contact edits made meanwhile go out when you switch them back on. When you add a Gmail or Outlook
+account you can tick what it is for, and the consent screen only asks for that — a Google account
+connected for its calendar is never asked for access to its mail. While mail is off, **Remove
+synced mail from plMail** deletes plMail's copy and nothing on the server.
+[#575](https://github.com/karatektus/pl_mail/issues/575).
+
+**Migration:** the account table's `is_active` column is renamed `mail_enabled`, and two columns,
+`calendar_enabled` and `contacts_enabled`, are added and filled from what the old switch did:
+calendars stay on everywhere, contacts follow the old switch. An account that was switched off now
+shows in the sidebar again, dimmed, while it still holds mail. No deployment change.
+
+**An empty IMAP inbox no longer logs an import warning every minute.** A folder whose history
+import had reached its lowest message asked the server for mail below UID 1. Dovecot refuses that
+search, and the refusal was logged as "the folder is not on the server" and asked again every
+minute, without end. Such a folder is now marked imported straight away, and the warning, when a
+server does refuse the search, says so instead of blaming a missing folder. No schema change.
+[#578](https://github.com/karatektus/pl_mail/pull/578).
+
+**The search box keeps a query you have not sent yet.** Typing in the search box, clicking
+elsewhere and letting the mail list refresh used to empty the box again. In Trash or Spam, clicking
+back into it then showed only `in:trash` or `in:spam`. The box now changes only when the address
+does: opening a folder or a conversation still clears it, as before. No schema change.
+[#580](https://github.com/karatektus/pl_mail/pull/580).
+
+**Email links reuse the open plMail app.** With plMail installed as an app in Chrome or Edge, a
+`mailto:` link from another program now opens in the plMail window that is already open, in its
+dock, instead of in a second window. The **Use plMail** button in settings now says to choose
+**Allow** at the address bar, and what to do when Chrome has plMail on its list but not as the
+default (no prompt appears, and links bring Chrome to the front and stop there). In a normal or
+pinned tab a link still opens a new tab: a website cannot bring another tab to the front.
+No schema change. [#585](https://github.com/karatektus/pl_mail/issues/585).
+
+**The installed app shows how to become your mail program.** Inside plMail installed as an app,
+**Settings → Reading & writing → Compose → Email links** now shows the steps for making it the
+system's default mail program on macOS, Windows or Linux, instead of a button that only covered
+links clicked inside the browser. A web app cannot ask the system for this itself.
+No schema change. [#587](https://github.com/karatektus/pl_mail/issues/587).
+
+**The installed app can drop the title bar.** plMail installed as an app in Chrome or Edge can hide
+the browser's title bar (the arrow button in it). plMail's top bar then runs along the window's top
+edge with the window buttons inside it, in its own colour, and moves the window when dragged; the
+margin around the panels goes, and the panels keep their shape. No schema change.
+[#589](https://github.com/karatektus/pl_mail/issues/589).
+
 ## v0.4.2 — 2026-11-09
 
 plMail can now keep several unified inboxes, send photos smaller, resize, crop and turn the pictures
@@ -1949,7 +2566,7 @@ only** goes between the mail and the calendar beside it. **All three** is the de
 behaves as before until you change it. Nothing is added to the database.
 [#80](https://github.com/karatektus/pl_mail/pull/80), by @Flouss.
 
-<!-- highlight screenshot=tab-unread-counts -->
+<!-- highlight -->
 **Unread counts on inbox tabs.** The number is the sidebar's
 Inbox badge split by category, so the tabs add up to it, and it appears on every tab, the one you
 are on included, and updates in place on sync. Before, an unread conversation in Promotions made
@@ -2030,7 +2647,7 @@ host without typing a token drops the stored one. No migration.
 percent signs of its own placeholder, so a refusal read "HTTP %403%" and the host's reason sat
 between two stray percent signs.
 
-<!-- highlight screenshot=permanent-delete -->
+<!-- highlight -->
 **Permanent delete is off until you turn it on.** Settings → Mail →
 **Disposal** has one switch, **Delete-now buttons**. It decides whether the **Delete forever**
 buttons exist at all: the flame on a row in Spam and the bin, which was always there, and now the
@@ -2119,7 +2736,7 @@ it is skipped with an error in the log naming the folder and the UID. A folder t
 way catches up by itself on the next poll after upgrading. No migration.
 [#45](https://github.com/karatektus/pl_mail/issues/45).
 
-<!-- highlight screenshot=reading-pane -->
+<!-- highlight -->
 **Reading pane.** Opening a message used to replace the list; Settings →
 Reading pane now offers **Right**, which puts the message beside the list on a screen
 that has room for both. The open row is marked, the back arrow closes the message and leaves the
@@ -2279,7 +2896,7 @@ name, so a filter for `a@x.de` also caught `ba@x.de`, and anybody could match it
 address in their display name. The spam button's filters use the new conditions. Existing filters
 are unchanged. JMAP clients get the same two as `fromAddress` and `fromDomain` in `Email/query`.
 
-<!-- highlight screenshot=templates -->
+<!-- highlight -->
 **Message templates.** Settings → Templates is a new section: write
 a message once, file it in a folder, and insert it from a new button in the compose window. The
 folder tree opens with one folder per mail account, and the account you are writing from has its

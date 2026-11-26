@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\State;
 
 use App\Domain\Trait\TimestampableTrait;
+use App\Repository\Jmap\ChangeLog\ChangeLogRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

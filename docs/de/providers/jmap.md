@@ -1,4 +1,4 @@
-<!-- translated-from: providers/jmap.md sha1:b6f564e93a149130ffe1f56231dfc32acac25296 -->
+<!-- translated-from: providers/jmap.md sha1:6ad3d2a7e2e3e915cea5437d426f1acffd1a04c0 -->
 
 # JMAP
 
@@ -82,8 +82,8 @@ bei jedem JMAP-Server. Die eigenen Kontakte des anderen plMail erscheinen als Ad
 
 **Ein JMAP-Server in deinem eigenen Netz wird abgewiesen, bis ein Admin ihn erlaubt.** JMAP ist
 HTTP, und plMail lässt eine in ein Formular getippte Adresse nicht ins private Netz, solange der Host
-nicht in `INTEGRATIONS_ALLOWED_HOSTS` steht — dieselbe Regel wie für einen CalDAV-Server im LAN,
-siehe [den SSRF-Schutz](../install/configuration.md#der-ssrf-schutz). Der Verbindungstest sagt das
+nicht unter [Admin → Integrationen → Server in privaten Netzen](../features/admin.md#server-in-privaten-netzen) erlaubt ist — dieselbe Regel wie für einen CalDAV-Server im LAN. Der
+Verbindungstest sagt das
 genau so. Für IMAP gibt es diese Regel nicht, weil sich über eine IMAP-Verbindung nichts anderes
 abrufen lässt.
 

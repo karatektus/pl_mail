@@ -13,12 +13,13 @@ use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
 use App\Jmap\Query\EmailFilterCompiler;
-use App\Repository\Integration\IntegrationRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\InboxCategoryRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\Message\MessageFilterRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Rule\FilterDescriber;
 use App\Service\Rule\RuleActionExecutor;
@@ -53,6 +54,7 @@ final class MailRuleController extends AbstractController
     public function __construct(
         private readonly MailRuleRepository     $ruleRepository,
         private readonly MessageRepository      $messageRepository,
+        private readonly MessageFilterRepository $messageFilterRepository,
         private readonly LabelRepository        $labelRepository,
         private readonly IntegrationRepository  $integrationRepository,
         private readonly AccountRepository      $accountRepository,
@@ -257,7 +259,7 @@ final class MailRuleController extends AbstractController
             // Scoped to the account the rule is being written for: it only
             // ever acts there, and counting every account would be most wrong
             // exactly where it matters most — a rule with no conditions.
-            $result = $this->messageRepository->countMatchingForUser(
+            $result = $this->messageFilterRepository->countMatchingForUser(
                 $this->getUser(),
                 $this->compiler->compile($conditions),
                 account: $account,

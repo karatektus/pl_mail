@@ -98,6 +98,32 @@
                 -Server
         }
 
+        # Compiled assets, kept for a year without asking again.
+        #
+        # AssetMapper puts a digest of the content in every file name it
+        # writes, so a changed file is a new URL and the old one never changes.
+        # Without this the browser had only Last-Modified to go on and asked
+        # again for every module on every full load: measured on a NAS install,
+        # 195 of 199 modules went back to the server and the inbox was ready at
+        # 4.7s with the HTML there at 0.6s.
+        #
+        # On a 304 too: that is how a browser holding a copy from before this
+        # header learns it, since a 304's headers replace the stored ones.
+        #
+        # Only on those. A URL that is not a file falls through to Symfony,
+        # which sends a Cache-Control of its own, and PHP adds to Caddy's
+        # rather than replacing it: a 404 went out with both, the year included.
+        # The JSON files are AssetMapper's own manifests, written without a
+        # digest; nothing in a browser asks for them.
+        @fingerprinted {
+                path /assets/*
+                not path *.json
+        }
+        header @fingerprinted {
+                Cache-Control "public, max-age=31536000, immutable"
+                match status 200 304
+        }
+
         # Mercure hub — proxied to the container that runs it. `mercure` is the
         # name plMail's own compose files give it; MERCURE_UPSTREAM is for a
         # stack that names its containers by rules of its own.

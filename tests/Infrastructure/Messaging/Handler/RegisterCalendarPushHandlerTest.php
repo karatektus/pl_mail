@@ -14,7 +14,7 @@ use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\RegisterCalendarPushHandler;
 use App\Infrastructure\Messaging\Message\RegisterCalendarPushMessage;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\Push\CalendarPushRegistry;
 use App\Service\Calendar\Push\GoogleCalendarPushManager;
 use App\Service\Calendar\Push\PushCallbackUrl;
@@ -319,7 +319,7 @@ final class RegisterCalendarPushHandlerTest extends KernelTestCase
         $this->account->username      = $this->user->email;
         $this->account->authType      = AuthType::OAuth2->value;
         $this->account->oauthProvider = MailProvider::Google->value;
-        $this->account->isActive      = true;
+        $this->account->mailEnabled   = true;
         $this->em->persist($this->account);
 
         $this->calendar           = new Calendar();

@@ -163,6 +163,43 @@ the database role was not allowed to create the extension, the panel says so and
 now**. Statistics start from the moment the extension is created, so queries from before it will
 never appear. **Reset stats** clears the collected numbers.
 
+## Backfills
+
+Some fixes can only change mail that arrives after the update. A **backfill** repairs what was
+stored before: it rewrites a column that was computed wrongly, or re-reads stored mail with a reader
+that has improved. The release notes say when one is worth running. This section runs them without
+a terminal, the same tasks `app:backfill` runs.
+
+The list is **newest first**, grouped by the month each task was added, because the newest is
+nearly always the one an update asks for. A task added in the last month that has not been run from
+this page carries a **New** mark. Choosing one shows what it does in plain words, when it was added
+and when it last ran here, and whether it is **safe to run again**. Most are: they pick out only the
+rows that still have the fault, or rebuild from the original, so a second run arrives where the
+first did. Two are not, and say why beside the explanation: `contacts` counts every address again
+each time, which moves the people in older mail ahead in address suggestions, and `rethread` throws
+away the AI summaries made since its last run.
+
+- **Count first** asks a task how many messages it would look at, without changing any. Some read
+  every candidate and change only those with the fault, so the number is what it will read, not
+  what it will change. Tasks that walk every message cannot count beforehand and say so.
+- Tasks that **re-read mail** (events, insights) take a window: the last 24 hours, 7 days, 4 weeks,
+  or all mail. The table repairs take none; a fault that is in every row is repaired in every row.
+- **Run** queues the task for the maintenance worker. It does not run in the page, so you can leave
+  it. A second click while it is queued or running shows the same run rather than starting another.
+- **Same on the console** shows the `app:backfill` line for the task and window, for running it from
+  a shell instead.
+
+**Recent runs** lists what was started here: when, by whom, over which window, and how it ended.
+While a run is going its last lines of output show under it and the card refreshes itself; a
+finished run keeps its output behind **Show output**. A run that has printed nothing for half an
+hour is shown as *No word for 30 minutes*: its worker was most likely restarted. A task marked safe
+to run again can simply be started again.
+
+Two tasks ask a question on the console, `rethread` ("Rebuild all threads now?") and `category`
+("Re-run messages that already have a category?"). Started from this page the answer is yes,
+because pressing Run after reading the explanation is that answer; the output records it. Runs
+from the console are not listed here.
+
 ## Logs
 
 A filterable browser over what plMail has written to the database: a minimum level — info, notice,
@@ -338,7 +375,8 @@ among the file services, and its calendars use that address.
   address counts again. A change applies the next time calendars are found on a connection.
   Calendars already mirrored keep the address they were found at, and clearing an address in a
   private range also ends its exemption from the private-network rule, so those calendars stop
-  syncing until the host is in `INTEGRATIONS_ALLOWED_HOSTS`. Once people have connected, the form
+  syncing until the host is listed under **Servers on a private network**. Once people have
+  connected, the form
   says how many connections a change reaches. See [CalDAV](../providers/caldav.md).
 - **Calendar feed** has no server to pin, because every feed is its own address, so its row has
   nothing to configure. Only an address the setup wizard stored before is shown, with a
@@ -361,6 +399,31 @@ credentials can be registered now and are used as soon as support ships.
 Per-provider setup steps are on [Google](../providers/google.md),
 [Microsoft](../providers/microsoft.md) and, for the calendar side,
 [CalDAV](../providers/caldav.md).
+
+### Servers on a private network
+
+plMail refuses a server address a user types when it resolves to a private, loopback or link-local
+address, so nobody signed in can make it reach the database container, the cloud metadata endpoint or
+anything else on its network ([why](../internals/security-model.md)). The section at the bottom of
+**Integrations** lists the servers allowed anyway: a Baïkal or Nextcloud at home, a NAS, a calendar
+feed on the LAN. A user who meets *"Server address must not point at a private network"* is sent
+here by the message itself.
+
+- **Allow a server** takes a host name or an IP address, or the whole address from the error — only
+  its host is kept, lowercased. One host per row and no wildcards: `*.lan` would let every user reach
+  every machine on the network, which is what the rule exists to stop.
+- **Allow plain http** is a separate tick per host, for a server without a certificate. App passwords
+  sent to it cross the network unencrypted, so tick it only for the server that needs it. A server
+  allowed without it still needs `https://`.
+- **Remove** takes effect on the next request: connections to that server stop syncing with the
+  private-network error, which is the point.
+
+A change applies at once, without a restart, and the list travels in a [config backup](#backup).
+The host of a server address pinned above is allowed on its own and need not be listed here, and an
+`http://` pin allows plain http to that host too.
+
+This replaced the `INTEGRATIONS_ALLOWED_HOSTS` and `INTEGRATIONS_ALLOW_HTTP` environment variables in
+v0.4.3. Neither is read any more; the upgrade copies what they held into this list, once.
 
 ## Push
 
@@ -721,6 +784,61 @@ pull the rest in.
 A mailbox that is a long way behind — the feature was switched on last week, or you changed the
 search model — is not what the nightly pass is for. It has a ceiling per mailbox on purpose. Run
 `app:ai:embed-mailbox` above, and watch **Admin → AI** for how far it has got.
+
+## Sender pictures
+
+Whether plMail may look up pictures for the people who mail your users: company logos (BIMI) and
+website icons from the sender's own domain, and Gravatar or Libravatar for users who ask for it. Off
+until you turn it on, because turning it on makes your server send requests it did not make before,
+to hosts chosen by whoever writes to your users.
+
+The lookups run on the maintenance worker, never while a page is drawn, and no user's browser
+contacts these services. Each address or domain is looked up once for the whole server. Turning the
+switch on looks up the people who wrote to each user in the last 90 days, at most a thousand per
+user; after that, new senders are looked up as their mail arrives. A daily round
+(`app:sender-pictures:refresh`) asks again about answers older than a month, forgets senders not seen
+for six months and deletes the files nothing uses. The pictures are kept under
+`uploads/sender-pictures` in the storage volume.
+
+Every request goes through the same rules as the image proxy: https only, never an address on a
+private network, at most three redirects, and a size limit. A picture is redrawn before it is kept,
+and an SVG logo is cut down to its drawing.
+
+Turning the switch off stops new lookups and takes every looked-up picture off every page at once.
+Contact photos and users' own profile pictures are shown either way: they are already on this
+server. Each user still chooses which kinds they want, under **Settings → Reading & writing →
+Reading**. A config backup carries this switch.
+
+### Serving your users' pictures (Libravatar)
+
+The second card on the same page turns the direction round: plMail answers other people's mail
+programs, forges and websites with the profile picture your users chose here, as a
+[Libravatar](https://www.libravatar.org) server. It is off until you turn it on, and even then it
+serves a user's picture only if they switch it on themselves under **Settings → Profile**. For
+everyone else, and with the switch off, plMail answers as if it did not know the address, so nobody
+can use it to find out who has an account here.
+
+A Libravatar client finds the server for an address by looking up one DNS record at the address's
+domain. The card lists every domain your users have addresses at, with the exact record each one
+needs, naming the host from **Admin → Address**:
+
+```
+_avatars-sec._tcp.example.com. 3600 IN SRV 0 0 443 mail.example.com.
+```
+
+**Check DNS** looks each one up and says what it found. **OK** means the record names this server on
+port 443. **No record yet** means it still needs adding. **Points to** names another server, which
+is either a typo or a domain that already has its own avatar server. **Wrong port** means the
+record names this server on a port other than 443. Domains at mail providers such as Gmail or
+Fastmail are named below the list with no record: only the provider can publish records there, and
+those users get their picture from Gravatar or Libravatar instead.
+
+DNS is not all it needs, and the card says so: the public address must be https, with a certificate
+browsers accept (clients refuse a self-signed one without saying why), and `/avatar/` on that host
+must be reachable from the internet. Behind a reverse proxy, let that path through. The route answers
+the spec's requests in full: a picture by MD5 or SHA-256 of an address, any size from 1 to 512
+pixels, and the client's `d=` default when there is no picture. Each client IP gets at most 600 requests per ten minutes. A
+config backup carries the switch and each user's choice.
 
 ## Users
 

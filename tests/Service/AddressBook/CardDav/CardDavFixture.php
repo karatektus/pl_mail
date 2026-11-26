@@ -9,7 +9,7 @@ use App\Entity\AddressBook\AddressBook;
 use App\Entity\Integration\Integration;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\User\User;
-use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use App\Service\AddressBook\CardDav\CardDavDriver;
 use App\Service\Calendar\Sync\CalDav\CalDavClient;
 use App\Service\Calendar\Sync\CalDav\CalDavDiscovery;

@@ -8,7 +8,7 @@ use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\MoveToService;
 use App\Service\Mail\SpamSenderResolver;

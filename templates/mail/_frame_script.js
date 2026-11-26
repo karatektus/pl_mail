@@ -91,6 +91,23 @@
         if (anchor) { send({ plmail: "link", href: null }); }
     });
 
+    // A mailto: link, handed to the parent to open in plMail's own composer.
+    // Left alone, the sanitizer's target=_blank and this frame's
+    // allow-popups sent it to whatever mail program the system has — away
+    // from the app the reader is writing mail in. Only a plain click: a
+    // modified one (new tab, new window, the context menu's choices) keeps
+    // meaning what the browser says it means. Only the href crosses, and the
+    // parent checks it is a mailto: before acting on it.
+    document.addEventListener("click", function (event) {
+        if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) { return; }
+
+        var anchor = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+        if (!anchor || !/^mailto:/i.test(anchor.href)) { return; }
+
+        event.preventDefault();
+        send({ plmail: "mailto", href: String(anchor.href).slice(0, 8192) });
+    });
+
     // Keys, handed to the parent. This document is a frame of its own, so a
     // key pressed after clicking into a message goes nowhere near the page
     // around it — and the keyboard shortcuts stopped working the moment a mail

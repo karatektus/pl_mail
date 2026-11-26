@@ -11,7 +11,7 @@ use App\Domain\Enum\Crypto\WkdCheckResult;
 use App\Domain\Enum\Crypto\WkdState;
 use App\Entity\Crypto\AddressKey;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;

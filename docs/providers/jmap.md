@@ -73,8 +73,7 @@ there)**, beside any it mirrors from elsewhere.
 
 **A JMAP server on your own network is refused until an administrator allows it.** JMAP is HTTP,
 and plMail does not let an address typed into a form reach the private network unless the host is
-named in `INTEGRATIONS_ALLOWED_HOSTS` — the same rule as for a CalDAV server on the LAN, see
-[the SSRF guard](../install/configuration.md#the-ssrf-guard). The
+allowed under [Admin → Integrations → Servers on a private network](../features/admin.md#servers-on-a-private-network) — the same rule as for a CalDAV server on the LAN. The
 connection test says so in as many words. IMAP has no such rule, because an IMAP connection cannot
 be used to fetch anything else.
 

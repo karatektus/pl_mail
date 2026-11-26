@@ -8,7 +8,7 @@ use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Insight\InsightReportRepository;
+use App\Repository\Insight\InsightReport\InsightReportRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;

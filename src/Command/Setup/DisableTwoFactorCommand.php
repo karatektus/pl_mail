@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Setup;
 
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\User\TwoFactor\TwoFactorEnrolment;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

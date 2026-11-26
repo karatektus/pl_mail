@@ -7,8 +7,8 @@ namespace App\Service\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\EventSuppression;
 use App\Entity\User\User;
-use App\Repository\Calendar\EventSourceLinkRepository;
-use App\Repository\Calendar\EventSuppressionRepository;
+use App\Repository\Calendar\EventSourceLink\EventSourceLinkRepository;
+use App\Repository\Calendar\EventSuppression\EventSuppressionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

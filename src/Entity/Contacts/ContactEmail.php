@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Entity\Contacts;
 
 use App\Domain\Trait\TimestampableTrait;
+use App\Repository\Contacts\ContactEmail\ContactEmailRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * An email address belonging to a Contact. Stored normalized lowercase.
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: ContactEmailRepository::class)]
 #[ORM\Table(name: 'contacts_contact_email')]
 #[ORM\UniqueConstraint(name: 'uniq_contacts_email_contact_email', columns: ['contact_id', 'email'])]
 #[ORM\HasLifecycleCallbacks]

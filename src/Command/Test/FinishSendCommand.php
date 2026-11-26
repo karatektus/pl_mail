@@ -7,8 +7,9 @@ namespace App\Command\Test;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Handler\SendMessageHandler;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -52,6 +53,7 @@ final class FinishSendCommand extends Command
         private readonly string                   $directory,
         #[Autowire('%kernel.environment%')]
         private readonly string                   $environment,
+        private readonly MessageRepository $messageRepository,
     ) {
         parent::__construct();
     }
@@ -81,10 +83,7 @@ final class FinishSendCommand extends Command
         $accounts = null === $user ? [] : $this->accounts->findBy(['usr' => $user]);
 
         /** @var Message|null $message */
-        $message = [] === $accounts ? null : $this->entityManager->getRepository(Message::class)->findOneBy(
-            ['account' => $accounts, 'subject' => (string) $input->getOption('subject'), 'sentAt' => null],
-            ['id' => 'DESC'],
-        );
+        $message = $this->messageRepository->findLatestBySubject($accounts, (string) $input->getOption('subject'), unsentOnly: true);
 
         if (null === $message || null === $message->id) {
             $output->writeln('No unsent message with that subject.');
@@ -101,7 +100,7 @@ final class FinishSendCommand extends Command
         ($this->handler)($send);
         $this->dispatcher->dispatch(new WorkerMessageHandledEvent(new Envelope($send), 'export'));
 
-        $sent = $this->entityManager->getRepository(Message::class)->find($id);
+        $sent = $this->messageRepository->find($id);
 
         if (null === $sent?->sentAt || null === $sent->messageId) {
             $output->writeln('The send job did not send it.');

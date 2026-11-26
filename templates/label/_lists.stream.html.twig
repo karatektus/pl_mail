@@ -20,6 +20,12 @@ Variables:
     {% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
 {% endif %}
 
+<turbo-stream action="replace" target="settings-label-count">
+    <template>
+        {% include 'settings/labels/_count.html.twig' with { labels: labels } %}
+    </template>
+</turbo-stream>
+
 <turbo-stream action="replace" target="settings-label-list">
     <template>
         <div id="settings-label-list">
@@ -29,7 +35,11 @@ Variables:
 </turbo-stream>
 
 {% import '_partials/_sidebar.html.twig' as sidebar %}
-{% set labelTree = sidebarCounts.userLabelTree() %}
+{# Filtered the way the sidebar filters its own render (in_labels). Without it
+   the first label change after a page load put back every folder-only label
+   that the sidebar had left under its account — and, listed by account (#690),
+   every label at all. #}
+{% set labelTree = sidebarCounts.userLabelTree()|filter(node => in_labels(node)) %}
 
 {% for target, drawerClose in { 'label-list': '', 'label-list-drawer': 'click->ui--sidebar-drawer#close' } %}
     <turbo-stream action="replace" target="{{ target }}">
@@ -48,14 +58,5 @@ Variables:
 {% endfor %}
 
 {% if refreshSidebar|default(false) %}
-    <turbo-stream action="replace" target="sidebar">
-        <template>
-            {% include '_partials/_sidebar.html.twig' only %}
-        </template>
-    </turbo-stream>
-    <turbo-stream action="replace" target="sidebar-drawer-inner">
-        <template>
-            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } only %}
-        </template>
-    </turbo-stream>
+    {% include '_partials/_sidebar.stream.html.twig' only %}
 {% endif %}

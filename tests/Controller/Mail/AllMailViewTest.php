@@ -70,7 +70,7 @@ final class AllMailViewTest extends WebTestCase
 
         // Opening label settings is what creates the label — hidden, bound to
         // no account — so it can be switched on there.
-        $this->client->request('GET', '/settings?section=labels');
+        $this->client->request('GET', '/settings/labels');
 
         $allMail = $this->allMailLabel();
 

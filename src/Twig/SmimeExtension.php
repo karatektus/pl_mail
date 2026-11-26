@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Entity\User\User;
-use App\Repository\Crypto\SmimeCertificateRepository;
+use App\Repository\Crypto\SmimeCertificate\SmimeCertificateRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;

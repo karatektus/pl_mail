@@ -1,4 +1,4 @@
-<!-- translated-from: features/encryption.md sha1:b6adb03ac38443fff02f21f6fcd385283757dd5d -->
+<!-- translated-from: features/encryption.md sha1:ec0731dd3c59e39c5a1918edb905629ddf534c1e -->
 
 # Verschlüsselung
 
@@ -257,6 +257,15 @@ von Anfang an verschlüsselt, mit dem Original so zitiert, wie du es gelesen has
 
 Das Schloss in der Werkzeugleiste und **Verschlüsseln** und **Signieren** unter *Weitere Optionen*
 entscheiden stattdessen für diese eine Nachricht.
+
+Das Schloss öffnet außerdem ein kleines Feld mit den Empfängern, für die plMail einen Schlüssel hat,
+jeweils mit **An**, **Aus** und **Auto**: ob Mails an diese Adresse ab jetzt verschlüsselt werden,
+nicht nur dieses eine Mal. Lässt du es in Ruhe, ändert sich nichts; klickst oder tabst du woanders
+hin oder drückst Escape, verschwindet es. Mit **Aus** für eine deiner eigenen Adressen bleiben Mails
+an ein Konto lesbar, das du auch in der App des Anbieters liest, etwa bei Gmail. **Auto** richtet
+sich wie oben nach den Schlüsseln; **An** verweigert außerdem, die Nachricht unverschlüsselt an diese
+Person zu senden, weil jemand anderes darauf keinen Schlüssel hat. Die Wahl für einen Kontakt ist
+dieselbe wie seine **Einstellungen für diesen Empfänger**.
 
 Eine verschlüsselte Nachricht kommt nie lesbar beim Server an, auch nicht als Entwurf: Dein Browser
 verschlüsselt den Entwurf vor jedem Speichern mit deinem eigenen Schlüssel, verschlüsselt Anhänge,

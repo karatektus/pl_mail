@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\User\TwoFactor;
 
 use App\Entity\User\User;
-use App\Repository\User\TrustedDeviceRepository;
+use App\Repository\User\TrustedDevice\TrustedDeviceRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Scheb\TwoFactorBundle\Security\TwoFactor\Provider\Totp\TotpAuthenticatorInterface;
 

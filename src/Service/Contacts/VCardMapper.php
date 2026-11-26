@@ -1017,6 +1017,7 @@ final readonly class VCardMapper
     private function writeLists(VCard $card, ParsedContact $before, Contact $contact): void
     {
         foreach (self::LIST_PROPERTIES as $list => $names) {
+            // Loose on purpose: lists of value objects compare by value; === would compare identity.
             if ($before->{$list} == $contact->{$list}) {
                 continue;
             }

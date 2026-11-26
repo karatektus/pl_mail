@@ -8,8 +8,8 @@ use App\Domain\DTO\Calendar\CalendarSource;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Integration\IntegrationRepository;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
+use App\Repository\Mail\Account\AccountRepository;
 
 /**
  * Everything a user could subscribe calendars from.

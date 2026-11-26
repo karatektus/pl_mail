@@ -8,10 +8,8 @@ namespace App\Service\Mail;
  * Decides whether a MIME part is an inline body asset or a real attachment.
  *
  * A Content-ID alone means nothing: Gmail's web composer stamps
- * "Content-ID: <f_xxxx>" on every attachment it uploads, and Webklex's
- * Attachment::getId() falls back to a content hash when the part carries no
- * Content-ID at all. Treating "has a cid" as "is inline" therefore hides
- * ordinary attachments from the UI.
+ * "Content-ID: <f_xxxx>" on every attachment it uploads. Treating "has a cid"
+ * as "is inline" therefore hides ordinary attachments from the UI.
  *
  * The body is the authority: a part is inline when the HTML actually
  * references its cid. Content-Disposition only decides the cases the body

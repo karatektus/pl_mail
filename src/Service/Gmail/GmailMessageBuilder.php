@@ -353,8 +353,8 @@ final class GmailMessageBuilder
      * not arrive looking wrong, it did not arrive. Nothing in the log named a
      * charset.
      *
-     * Gmail-only. The IMAP path has always honoured the declared part charset,
-     * inside webklex's MessageDecoder::getEncoding().
+     * Gmail-only. The IMAP path reads the declared part charset in
+     * MessageParser, by the same CharsetHelper rule.
      *
      * The mimeType field cannot be used for this — Gmail reports the bare type
      * there ("text/html") with the parameters left on the header.
@@ -400,7 +400,7 @@ final class GmailMessageBuilder
             // Decoded here rather than where $filename is assigned to the part,
             // so the name written to disk and the name written to the row are
             // the same one. See persistAttachmentStubs() for why it needs doing.
-            $filename = MimeHeaderHelper::decode((string)($part['filename'] ?? ''));
+            $filename = $this->filename($part, '');
 
             if ('' === $filename) {
                 $filename = 'invite.ics';
@@ -459,7 +459,7 @@ final class GmailMessageBuilder
             // filename — a Windows client's "Übersicht.pdf", unencoded — is
             // invalid UTF-8 reaching a UTF-8 column, and that is a rejected
             // INSERT rather than a cosmetic problem.
-            $filename = MimeHeaderHelper::decode((string)($part['filename'] ?? 'attachment'));
+            $filename = $this->filename($part, 'attachment');
             $contentType = (string)($part['mimeType'] ?? 'application/octet-stream');
             $attachmentId = (string)($part['body']['attachmentId'] ?? '');
             $size = (int)($part['body']['size'] ?? 0);
@@ -489,6 +489,18 @@ final class GmailMessageBuilder
         }
 
         return $hasAttachments;
+    }
+
+    /**
+     * The part's filename as a name: its RFC 2231 continuations joined, if
+     * Gmail left them in (#674), then its encoded words and raw 8-bit bytes
+     * dealt with — see persistAttachmentStubs().
+     *
+     * @param array<string,mixed> $part
+     */
+    private function filename(array $part, string $default): string
+    {
+        return MimeHeaderHelper::decode(MimeHeaderHelper::joinContinuations((string) ($part['filename'] ?? $default)));
     }
 
     private function decodeMimeHeader(string $value): string

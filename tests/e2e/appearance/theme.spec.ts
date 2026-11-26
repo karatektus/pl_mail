@@ -35,7 +35,7 @@ async function cssVar(page: Page, name: string): Promise<string> {
 }
 
 async function open(page: Page): Promise<void> {
-    await page.goto("/settings?section=appearance");
+    await page.goto("/settings/appearance");
     await expect(page.locator(PANEL)).toBeVisible();
 }
 

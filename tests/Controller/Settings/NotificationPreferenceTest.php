@@ -70,7 +70,7 @@ final class NotificationPreferenceTest extends WebTestCase
         self::assertSame([NotifyScope::PRIMARY], $this->user->notifyScopes);
         self::assertFalse($this->user->notifySkipsRead);
 
-        $page = $this->client->request('GET', '/settings?section=notifications');
+        $page = $this->client->request('GET', '/settings/notifications');
 
         self::assertResponseIsSuccessful();
         self::assertSame(
@@ -86,7 +86,7 @@ final class NotificationPreferenceTest extends WebTestCase
         $work = $this->seedLabel('Work');
         $this->seedLabel('Sent', LabelRole::Sent);
 
-        $offered = $this->client->request('GET', '/settings?section=notifications')
+        $offered = $this->client->request('GET', '/settings/notifications')
             ->filter('input[name="scopes[]"]')
             ->each(static fn ($box): string => (string) $box->attr('value'));
 
@@ -104,7 +104,7 @@ final class NotificationPreferenceTest extends WebTestCase
 
         $this->post(['scopesSent' => '1', 'scopes' => [NotifyScope::PRIMARY, 'category:social', 'label:' . $work->id]]);
 
-        self::assertResponseRedirects('/settings?section=notifications');
+        self::assertResponseRedirects('/settings/notifications');
         self::assertSame([NotifyScope::PRIMARY, 'category:social', 'label:' . $work->id], $this->reread()->notifyScopes);
 
         // A post that does not mention the boxes leaves them alone.
@@ -261,7 +261,7 @@ final class NotificationPreferenceTest extends WebTestCase
     /** @param array<string, string|list<string>> $fields */
     private function post(array $fields): void
     {
-        $page  = $this->client->request('GET', '/settings?section=notifications');
+        $page  = $this->client->request('GET', '/settings/notifications');
         $token = (string) $page->filter('form[action="/settings/notifications"] input[name="_token"]')->attr('value');
 
         $this->client->request('POST', '/settings/notifications', $fields + ['_token' => $token]);

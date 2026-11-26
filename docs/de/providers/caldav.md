@@ -1,4 +1,4 @@
-<!-- translated-from: providers/caldav.md sha1:a835199379cc0465712e3e763bf86d73bdc7a274 -->
+<!-- translated-from: providers/caldav.md sha1:d3a76d0a27331832b48d93eed59cb7a9c0271027 -->
 
 # CalDAV
 
@@ -52,7 +52,7 @@ Verbindung das nächste Mal Kalender gesucht werden. Bereits gespiegelte Kalende
 Adresse, unter der sie gefunden wurden; nach einem Serverumzug also die Kalender neu suchen. Wer eine
 festgelegte Adresse in einem privaten Netz leert, nimmt ihr auch die Ausnahme: Kalender von diesem
 Host synchronisieren dann nicht mehr und melden *„Server address must not point at a private
-network“*, bis der Host in `INTEGRATIONS_ALLOWED_HOSTS` steht.
+network“*, bis der Host unter [Admin → Integrationen → Server in privaten Netzen](../features/admin.md#server-in-privaten-netzen) erlaubt ist.
 
 ## Einen Server verbinden
 
@@ -139,23 +139,24 @@ Adresse geht deshalb durch denselben Wächter wie jede andere von Nutzerinnen un
 Serveradresse:
 
 - Das Schema muss `http` oder `https` sein.
-- `http://` wird abgelehnt, sofern `INTEGRATIONS_ALLOW_HTTP` nicht an ist.
+- `http://` wird abgelehnt, sofern eine Admin-Person unverschlüsseltes http für diesen Host nicht
+  erlaubt hat.
 - Ein in die URL eingebetteter Benutzername oder ein eingebettetes Passwort wird rundweg abgelehnt —
   es landete überall dort im Log, wo die URL landet, und würde stillschweigend die Zugangsdaten der
   Verbindung überschreiben.
-- Alles, was auf Loopback, Link-local oder einen privaten Bereich auflöst, wird abgelehnt, sofern der
-  Host nicht in `INTEGRATIONS_ALLOWED_HOSTS` steht oder der Host einer Serveradresse ist, die unter
-  **Admin → Integrationen** festgelegt wurde.
+- Alles, was auf Loopback, Link-local oder einen privaten Bereich auflöst, wird abgelehnt, sofern
+  eine Admin-Person den Host nicht unter [Admin → Integrationen → Server in privaten Netzen](../features/admin.md#server-in-privaten-netzen) erlaubt hat oder er der Host einer Serveradresse
+  ist, die dort festgelegt wurde.
 
-Die letzte Regel ist die, der Selbsthostende begegnen. Ein Nextcloud in deinem LAN unter
-`192.168.1.10` oder `nextcloud.lan` wird abgelehnt, bis du es erlaubst, und ein Nextcloud ohne
-Zertifikat braucht zusätzlich das HTTP-Flag. Beide stehen in der
-[Konfigurationsreferenz](../install/configuration.md), und beide kosten etwas: Die Sperre privater
-Bereiche ist das, was jemanden davon abhält, plMail auf den eigenen Datenbank-Container oder auf
-einen Cloud-Metadaten-Endpunkt zu richten, und einfaches HTTP zu erlauben heißt, dass ein
-App-Passwort im Klartext durch dein Netz geht. Einen einzelnen Host in `INTEGRATIONS_ALLOWED_HOSTS`
-zu benennen ist sehr viel enger, als die Sperre abzuschalten, und deshalb ist es eine Liste und kein
-Schalter.
+Die letzte Regel ist die, der Selbsthostende begegnen. Ein Baïkal oder Nextcloud in deinem LAN
+unter `192.168.1.10` oder `dav.home.example.com` wird abgelehnt, bis eine Admin-Person ihn erlaubt,
+und einer ohne Zertifikat braucht zusätzlich den Haken für unverschlüsseltes http. Ein öffentlicher
+Name zählt auch, wenn er von dort, wo plMail läuft, auf eine private Adresse auflöst, wie bei Split-DNS
+zu Hause. Beides kostet etwas: Die Sperre privater Bereiche ist das, was jemanden davon abhält,
+plMail auf den eigenen Datenbank-Container oder auf einen Cloud-Metadaten-Endpunkt zu richten, und
+einfaches HTTP zu erlauben heißt, dass ein App-Passwort im Klartext durch dein Netz geht. Einen
+einzelnen Host zu erlauben ist sehr viel enger, als die Sperre abzuschalten, und deshalb ist es eine
+Liste und kein Schalter.
 
 ## Synchronisation, und was tatsächlich getestet ist
 
@@ -210,8 +211,8 @@ also einen tatsächlich falschen Pfad bedeuten *oder* einen Server, der CalDAV n
 Unterpfad ausliefert, den du ihm nicht gegeben hast.
 
 **Ein Server im LAN wird standardmäßig abgelehnt.** Das ist der SSRF-Wächter bei der Arbeit und kein
-Fehler. Trag den Host in `INTEGRATIONS_ALLOWED_HOSTS` ein, und setz `INTEGRATIONS_ALLOW_HTTP` nur
-dann, wenn der Server wirklich kein Zertifikat hat.
+Fehler. Eine Admin-Person erlaubt den Host unter [Admin → Integrationen → Server in privaten Netzen](../features/admin.md#server-in-privaten-netzen) und setzt den Haken für
+unverschlüsseltes http nur dann, wenn der Server wirklich kein Zertifikat hat.
 
 **Das Passwort eines Mail-Kontos mitzubenutzen schickt es an eine Adresse, die du eingetippt hast.**
 Aus diesem Grund ist das Häkchen standardmäßig aus. Wenn der Server ein App-Passwort akzeptieren
