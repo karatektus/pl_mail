@@ -40,6 +40,17 @@ on their own keyboard.
            data-action="input->layout--workspace#rename">
     <span class="workspace-editbar-hint">{{ 'layout.edit.hint'|trans }}</span>
     <span class="flex-1"></span>
+    {# The workspace's account groups, sidebar and link targets (#783), part
+       of the draft like everything else here: Save keeps them, Cancel drops
+       them. #}
+    <button type="button" class="{{ btnSecondary }}"
+            data-controller="ui--modal"
+            data-action="click->ui--modal#open"
+            data-ui--modal-src-value="{{ path('app_layout_workspace_settings') }}"
+            data-ui--modal-title-value="{{ 'layout.settings.title'|trans }}">
+        <i class="fa-solid fa-sliders text-xs" aria-hidden="true"></i>
+        {{ 'layout.settings.open'|trans }}
+    </button>
     <button type="button" class="{{ btnGhost }} hover:text-danger" data-layout--workspace-target="deleteButton"
             data-action="layout--workspace#deleteWorkspace">{{ 'layout.edit.delete'|trans }}</button>
     <button type="button" class="{{ btnSecondary }}" data-action="layout--workspace#cancelEdit">{{ 'layout.edit.cancel'|trans }}</button>

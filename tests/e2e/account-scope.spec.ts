@@ -117,11 +117,12 @@ test.describe("account scoping", () => {
 
         await page.waitForURL(/\/mail\/label\/\d+\?account=/);
 
-        const header = page.locator("h2").first().locator("..");
-        await expect(header).toContainText("E2E Mailbox");
+        // The label and the account are filter chips over the list (#783).
+        const filters = page.getByRole("group", { name: "Filters" });
+        await expect(filters).toContainText("E2E Mailbox");
 
-        // Back to the label across every account.
-        const allAccounts = header.getByRole("link");
+        // Back to the label across every account: the account chip's ×.
+        const allAccounts = filters.getByRole("link", { name: "All accounts" });
         await expect(allAccounts).toBeVisible();
         await allAccounts.click();
 

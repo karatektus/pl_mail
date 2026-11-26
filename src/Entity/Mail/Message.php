@@ -75,6 +75,8 @@ use Doctrine\ORM\Mapping as ORM;
 // provider accepted it. They cannot use the index above, because they no
 // longer measure from received_at.
 #[ORM\Index(name: 'idx_message_account_accepted_at', columns: ['account_id', 'provider_accepted_at'])]
+// What arrived in an account since a workspace was last looked at (#783).
+#[ORM\Index(name: 'idx_message_account_created_at', columns: ['account_id', 'created_at'])]
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 // Partial, and declared so the mapping and the migrations agree. A where clause

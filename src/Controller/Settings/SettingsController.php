@@ -545,7 +545,8 @@ final class SettingsController extends AbstractController
     {
         $user = $this->getUser();
 
-        if ('ai' !== $section || false === $user instanceof User) {
+        // The Search page holds one of the features too: search by meaning.
+        if (false === in_array($section, ['ai', 'mail-search'], true) || false === $user instanceof User) {
             return [];
         }
 
@@ -619,7 +620,7 @@ final class SettingsController extends AbstractController
      * Settings → Unified inboxes (#265): the reader's inboxes in order, and
      * which one each account is listed in, keyed by account id.
      *
-     * @return array{unifiedInboxes: list<\App\Entity\Mail\UnifiedInbox>, inboxOfAccount: array<int, int>}
+     * @return array{unifiedInboxes: list<\App\Entity\Mail\UnifiedInbox>, inboxOfAccount: array<int, list<int>>}
      */
     private function inboxesSectionData(string $section, mixed $user): array
     {

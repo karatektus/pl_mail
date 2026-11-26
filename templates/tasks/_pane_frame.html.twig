@@ -29,16 +29,13 @@ Accepts: pane  TaskPane
     <div data-tasks-page class="@container flex flex-col flex-1 min-h-0 min-w-0">
         <header class="flex items-center gap-1 px-4 pt-3 pb-2 shrink-0">
             <h2 class="flex-1 min-w-0 truncate text-base font-semibold text-ink">{{ 'tasks.title'|trans }}</h2>
-            <button type="button"
-                    data-controller="ui--modal"
-                    data-action="click->ui--modal#open"
-                    data-ui--modal-src-value="{{ path('app_tasks_new', params) }}"
-                    data-ui--modal-title-value="{{ 'tasks.editor.new'|trans }}"
-                    class="{{ iconBtn }}"
-                    aria-label="{{ 'tasks.new'|trans }}"
-                    title="{{ 'tasks.new'|trans }}">
-                <i class="fa-solid fa-plus text-sm" aria-hidden="true"></i>
-            </button>
+            {# In a workspace of some account groups (#783): its lists only, those
+               with the rest faint, or every list alike. Folded into a menu when
+               the pane is narrow. #}
+            {% if pane.scope %}
+                {% import '_partials/_pane_switch.html.twig' as paneSwitch %}
+                {{ paneSwitch.scope(path('app_tasks_index', params), pane.scope, 'tasks-pane-frame', '@max-[22rem]:hidden', 'hidden @max-[22rem]:block', 'tasks.pane.scope_') }}
+            {% endif %}
             {# What changes the lists rather than what is on them. Syncing is offered
                only with something to sync from: see TaskSyncSources. #}
             <div class="relative" data-controller="ui--dropdown">
@@ -75,6 +72,17 @@ Accepts: pane  TaskPane
                     {% endif %}
                 </div>
             </div>
+            {# New task, last of the pane's own controls. #}
+            <button type="button"
+                    data-controller="ui--modal"
+                    data-action="click->ui--modal#open"
+                    data-ui--modal-src-value="{{ path('app_tasks_new', params) }}"
+                    data-ui--modal-title-value="{{ 'tasks.editor.new'|trans }}"
+                    class="{{ iconBtn }}"
+                    aria-label="{{ 'tasks.new'|trans }}"
+                    title="{{ 'tasks.new'|trans }}">
+                <i class="fa-solid fa-plus text-sm" aria-hidden="true"></i>
+            </button>
             {# The pane's menu (#755), as every pane in a workspace has it. #}
             {% include '_partials/_pane_controls.html.twig' only %}
         </header>
@@ -96,6 +104,7 @@ Accepts: pane  TaskPane
                 {% set current = not isMyDay and pane.list and pane.list.id == candidate.id %}
                 <a href="{{ path('app_tasks_index', query.withList(candidate.id).toParameters()) }}"
                    class="{{ current ? pillOn : pillOff }}"
+                   {% if candidate.id in pane.faded %}data-faint{% endif %}
                    {% if current %}aria-current="page"{% endif %}>
                     <span class="size-2 rounded-full shrink-0" style="background-color: {{ candidate.color }}" aria-hidden="true"></span>
                     {{ candidate.name }}

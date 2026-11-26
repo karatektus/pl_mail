@@ -21,10 +21,26 @@ final readonly class Workspace
     /** Long enough for "Morgens: Post und Kalender", short enough for a tab in the top bar. */
     public const int NAME_MAX_LENGTH = 40;
 
+    /** The sidebar every workspace had before #783, and still has unless it picks another. */
+    public const string SIDEBAR_MAIL = 'mail';
+
+    /** What a sidebar link does when the workspace has no pane for it (#783). */
+    public const string MISSING_SWITCH = 'switch';
+    public const string MISSING_EDGE   = 'edge';
+
+    /**
+     * @param list<int>|null        $groups   the account groups it shows (#783); null is every account
+     * @param string|null           $sidebar  a sidebar id, SIDEBAR_MAIL, or null for none
+     * @param array<string, string> $targets  pane kind => the key of the pane its sidebar links open in
+     */
     public function __construct(
         public string     $id,
         public string     $name,
         public LayoutNode $root,
+        public ?array     $groups = null,
+        public ?string    $sidebar = self::SIDEBAR_MAIL,
+        public array      $targets = [],
+        public string     $missing = self::MISSING_SWITCH,
     ) {
     }
 
@@ -64,13 +80,48 @@ final readonly class Workspace
             return null;
         }
 
-        return new self($id, $name, $root);
+        // #783's keys, each read leniently: a workspace saved before them has
+        // none, and has to come out exactly as it was — every account, the
+        // mail sidebar. Anything malformed falls back to that same answer.
+        $groups = $data['groups'] ?? null;
+        $groups = is_array($groups) && array_is_list($groups) && [] !== $groups
+            ? array_values(array_unique(array_filter($groups, 'is_int')))
+            : null;
+
+        $sidebar = array_key_exists('sidebar', $data) ? $data['sidebar'] : self::SIDEBAR_MAIL;
+        $sidebar = null === $sidebar || (is_string($sidebar) && 1 === preg_match(self::ID_PATTERN, $sidebar)) ? $sidebar : self::SIDEBAR_MAIL;
+
+        $targets = [];
+
+        foreach (is_array($data['targets'] ?? null) ? $data['targets'] : [] as $kind => $key) {
+            if (is_string($kind) && null !== PaneKind::tryFrom($kind) && is_string($key) && true === in_array($key, $keys, true)) {
+                $targets[$kind] = $key;
+            }
+        }
+
+        $missing = self::MISSING_EDGE === ($data['missing'] ?? null) ? self::MISSING_EDGE : self::MISSING_SWITCH;
+
+        return new self($id, $name, $root, [] === $groups ? null : $groups, $sidebar, $targets, $missing);
     }
 
-    /** @return array{id: string, name: string, layout: array<string, mixed>} */
+    /** @return array{id: string, name: string, layout: array<string, mixed>, groups: list<int>|null, sidebar: string|null, targets: object, missing: string} */
     public function toArray(): array
     {
-        return ['id' => $this->id, 'name' => $this->name, 'layout' => $this->root->toArray()];
+        return [
+            'id'       => $this->id,
+            'name'     => $this->name,
+            'layout'   => $this->root->toArray(),
+            'groups'   => $this->groups,
+            'sidebar'  => $this->sidebar,
+            'targets'  => (object) $this->targets,
+            'missing'  => $this->missing,
+        ];
+    }
+
+    /** The same workspace with another tree — the parts #783 added carried over. */
+    public function withRoot(LayoutNode $root): self
+    {
+        return new self($this->id, $this->name, $root, $this->groups, $this->sidebar, $this->targets, $this->missing);
     }
 
     /** Whether this workspace has the pane of that key (LayoutPane::key()). */

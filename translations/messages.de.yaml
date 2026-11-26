@@ -49,6 +49,9 @@ account:
             username: Benutzername zum Senden
             username_help: 'Leer lassen, um mit dem Benutzernamen oben zu senden.'
         username: Benutzername
+    groups:
+        help: "Wo seine Mail erscheint und welche Arbeitsbereiche es zeigen. Ohne Haken kommt es in die Sammelgruppe."
+        legend: "Kontogruppen"
     mail_purge_queued: 'Die E-Mails dieses Kontos werden aus plMail entfernt. Auf dem Server bleiben sie.'
     oauth:
         calendar_declined: Das Konto ist verbunden, aber der Kalenderzugriff wurde nicht erteilt — seine Kalender werden also nicht synchronisiert. Verbinde es neu und hak auf Googles Zustimmungsseite den Kalenderzugriff an.
@@ -1570,6 +1573,15 @@ attachment:
         zoom_out: Verkleinern
 calendar:
     # plMail's date-and-time picker; see calendar--when.
+    pane:
+        scope_all: "Alle"
+        scope_all_hint: "Alle Kalender gleich"
+        scope_label: "Welche Kalender"
+        scope_overlay: "+ Andere"
+        scope_overlay_hint: "Die Kalender dieses Arbeitsbereichs, die anderen blass"
+        scope_workspace: "Bereich"
+        scope_workspace_hint: "Nur die Kalender der Konten dieses Arbeitsbereichs"
+        show_all: "Alle Kalender anzeigen"
     when:
         previous_month: 'Vorheriger Monat'
         next_month: 'Nächster Monat'
@@ -1842,6 +1854,8 @@ calendar:
             Die Zone, in der ein neuer Termin in diesem Kalender angelegt wird.
             „plMail folgen“ nimmt deine eigene, gerade %zone%. Termine stehen
             immer zu der Uhrzeit da, zu der sie bei dir stattfinden.
+        workspace: "Arbeitsbereich"
+        workspace_help: "Ein Kalender ohne Konto gehört zu keiner Kontogruppe und erscheint deshalb in diesem Arbeitsbereich. Arbeitsbereiche über alle Konten zeigen ihn ebenfalls."
     grid:
         all_day: Ganztägig
         continues_after: Geht in den nächsten Tag hinein
@@ -2109,6 +2123,7 @@ calendar:
         range_short: '%start%–%end%'
         range_short_month: '%start%.–%end%. %month%'
     view:
+        label: "Ansicht"
         agenda: Agenda
         day: Tag
         monday_week: Woche
@@ -2894,6 +2909,8 @@ discarded:
         restore: In den Posteingang
 header:
     search:
+        chip_remove: "%token% entfernen"
+        clear: "Suche leeren"
         close: Suche schließen
         live:
             status: '%count% passende Unterhaltungen'
@@ -3080,7 +3097,6 @@ label:
         red: Rot
         teal: Petrol
         violet: Violett
-    empty: Keine Konversationen mit diesem Label.
     created: Label erstellt.
     delete:
         already_running: '"%name%" wird schon gelöscht.'
@@ -3100,8 +3116,10 @@ label:
     delete_confirm: 'Das Label "%name%" löschen? Es verschwindet aus allen Konten. Nachrichten behalten ihre übrigen Labels und werden nicht gelöscht.'
     delete_confirm_children: '"%name%" und die %count% untergeordneten Label(s) löschen? Sie verschwinden aus allen Konten. Nachrichten werden nicht gelöscht.'
     deleted: Label gelöscht.
+    empty: Keine Konversationen mit diesem Label.
     error:
         duplicate: Hier gibt es bereits ein Label mit diesem Namen. Groß- und Kleinschreibung macht daraus keinen anderen.
+    filters: "Filter"
     form:
         account_note:
             new: 'Wird nur auf %account% angelegt.'
@@ -3141,6 +3159,7 @@ label:
     menu:
         create: Neu erstellen
         empty: Noch keine Labels.
+    remove_filter: "Filter „%name%“ entfernen"
     updated: Label aktualisiert.
     visibility:
         hidden: Label ist jetzt ausgeblendet.
@@ -3217,6 +3236,59 @@ layout:
         shapes: "Mit einer Form beginnen"
         slots: "Was wohin kommt"
         workspaces: "Arbeitsbereiche"
+    settings:
+        all_accounts: "Alle Konten"
+        built_in: "Mail (eingebaut)"
+        delete_sidebar: "Diese Seitenleiste löschen"
+        duplicate_mail: "Kopie der Mail-Seitenleiste…"
+        edit_groups: "Kontogruppen bearbeiten"
+        gone: "(nicht mehr vorhanden)"
+        group:
+            blocks: "Wächst von selbst"
+            calendars: "Kalender"
+            labels: "Labels"
+            mail: "Mail"
+            other: "Sonstiges"
+            tasks: "Aufgabenlisten"
+        groups: "Kontogruppen"
+        groups_help: "Was dieser Arbeitsbereich zeigt: die Mailliste, Markiert und Ungelesen, die Seitenleiste mit ihren Zahlen und die Zahl neuer Einträge auf seinem Tab."
+        heading: "Überschrift"
+        heading_prompt: "Text der Überschrift"
+        intro: "Einstellungen des Arbeitsbereichs „%name%“."
+        live: "live"
+        mail_clock: "Uhr unten anzeigen"
+        missing: "Wenn dieser Arbeitsbereich keinen Bereich für einen Link hat"
+        missing_edge: "Den Bereich am rechten Rand hinzufügen"
+        missing_switch: "Zu einem Arbeitsbereich wechseln, der einen hat"
+        missing_switch_help: "Am liebsten zu einem, der das Konto des Kalenders oder der Liste zeigt."
+        move_down: "Nach unten"
+        move_up: "Nach oben"
+        new_name: "Seitenleiste %n%"
+        new_sidebar: "Neue Seitenleiste…"
+        'off': "Aus"
+        'on': "An"
+        open: "Gruppen & Seitenleiste"
+        remove: "Entfernen"
+        save_failed: "Die Einstellungen konnten nicht gespeichert werden. Nichts wurde geändert."
+        sidebar: "Seitenleiste"
+        sidebar_help: "Seitenleisten werden geteilt: Änderst du eine, ändert sie sich in jedem Arbeitsbereich, der sie nutzt."
+        sidebar_none: "Keine Seitenleiste"
+        target_calendar: "Kalender"
+        target_default: "Standard"
+        target_nth: "%kind% %n%"
+        targets: "Links der Seitenleiste öffnen in"
+        targets_help: "Dieser Arbeitsbereich hat mehr als einen Kalender. Ohne Auswahl öffnen Links im ersten."
+        title: "Einstellungen des Arbeitsbereichs"
+        used_by: "Auch in %names%: Eine Änderung hier ändert sie dort mit."
+    sidebar:
+        block:
+            accounts: "Konten und ihre Ordner"
+            calendars: "Alle Kalender"
+            inboxes: "Posteingänge"
+            labels: "Alle Labels"
+            tasklists: "Alle Aufgabenlisten"
+        clock: "Uhr"
+        empty: "Diese Seitenleiste ist leer. Füge in den Einstellungen des Arbeitsbereichs Zeilen hinzu."
     tabs:
         label: "Bereiche"
     toast:
@@ -3232,7 +3304,10 @@ layout:
         saved: "„%name%“ gespeichert."
     workspace:
         first_name: "Mail"
+        more: "Weitere Arbeitsbereiche"
+        new: "%count% neu, seit du zuletzt hier warst"
         new_name: "Arbeitsbereich %n%"
+        soon: "Hier beginnt etwas innerhalb der nächsten Stunde"
         tabs_label: "Arbeitsbereiche"
 list:
     conversation_view: 'Konversationsansicht'
@@ -5240,6 +5315,16 @@ settings:
         'off': Aus
         'on': An
         subheading: Ob Bilder, die eine Mail von anderswo lädt, erst auf Nachfrage geladen werden.
+    search_meaning:
+        heading: "Suche nach Bedeutung"
+        subheading: "Findet neben den getippten Wörtern auch Mail zu dem, was du gemeint hast. Ob es verfügbar ist, entscheidet deine Administration."
+    search_scope:
+        heading: "Suche"
+        hint: "Fügt den Arbeitsbereich als Filter (space:Name) hinzu, sobald du tippst. Einmal Rücktaste entfernt ihn."
+        label: "Suche im Arbeitsbereich beginnen"
+        'off': "Aus"
+        'on': "An"
+        subheading: "Ob die Suche alle Konten umfasst oder mit dem angezeigten Arbeitsbereich beginnt."
     sender_pictures:
         admin_off: 'Deine Administration hat diesem Server nicht erlaubt, Bilder im Internet nachzuschlagen, deshalb bewirken diese Schalter gerade nichts. Deine Wahl bleibt für später gespeichert.'
         bimi: 'Firmenlogos'
@@ -5272,17 +5357,16 @@ settings:
             label: Nach rechts wischen
         subheading: Was eine Wischbewegung über eine Zeile auf dem Telefon bewirkt.
     unified_inboxes:
-        account_label: 'Sammel-Posteingang für %account%'
         account_off: 'E-Mail ausgeschaltet — nichts davon wird hier angezeigt, bis du sie wieder einschaltest.'
-        accounts_heading: 'Konten'
-        accounts_subheading: 'In welchem Posteingang die Mail jedes Kontos erscheint. Ein neues Konto landet in deinem ersten Posteingang.'
         add: 'Hinzufügen'
+        add_account: "Konto zu %group% hinzufügen"
+        add_account_short: "Konto hinzufügen"
         created: '„%name%“ angelegt.'
         delete: '%inbox% löschen'
-        delete_confirm: '„%name%“ löschen? Seine Konten wandern nach %other%. Es wird keine Mail gelöscht.'
-        deleted: 'Posteingang gelöscht. Seine Konten stehen jetzt im Sammelbecken.'
-        heading: 'Sammel-Posteingänge'
-        hint: 'Jeder Posteingang zeigt die Mail der Konten, die du ihm zuordnest, als eine Liste mit eigenen Tabs. Lass den Namen leer, um den Standardnamen zu verwenden.'
+        delete_confirm: "„%name%“ löschen? Konten, die in keiner anderen Gruppe sind, wandern nach %other%. Es wird keine Mail gelöscht."
+        deleted: "Gruppe gelöscht. Konten, die nur in ihr waren, stehen jetzt in der Sammelgruppe."
+        heading: "Kontogruppen"
+        hint: "Eine Gruppe zeigt die Mail ihrer Konten als einen Posteingang mit eigenen Tabs. Ein Konto kann in mehreren Gruppen sein; ein neues Konto kommt in deine erste. Lass den Namen leer, um den Standardnamen zu verwenden."
         icon_label: 'Symbol für %inbox%'
         icon_new: 'Symbol für den neuen Posteingang'
         last_stays: 'Mindestens ein eigener Posteingang muss bleiben.'
@@ -5291,16 +5375,18 @@ settings:
         name_label: 'Name'
         name_required: 'Ein Posteingang braucht einen Namen.'
         name_too_long: 'Der Name ist zu lang (höchstens 40 Zeichen).'
-        no_accounts: 'Noch keine Mailkonten.'
+        no_accounts_in_group: "Noch keine Konten."
         not_found: 'Diesen Posteingang gibt es nicht mehr.'
-        other_hint: 'Sammelt jedes Konto, das du aus deinen eigenen Posteingängen nimmst. In der Seitenleiste erscheint er erst, wenn er eins enthält.'
-        other_option: 'Sammelbecken'
+        other_is_the_rest: "„Sonstige“ enthält den Rest: Leg das Konto stattdessen in eine deiner eigenen Gruppen."
+        other_hint: "Nimmt jedes Konto auf, das du aus seiner letzten Gruppe nimmst. In der Seitenleiste erscheint sie erst, wenn sie eins enthält."
         other_stays: 'Das Sammelbecken kann nicht gelöscht werden: Dort stehen die Konten, die in keinem deiner Posteingänge sind.'
         placeholder: 'z. B. Arbeit'
+        remove_account: "%account% aus %group% nehmen"
+        remove_to_other: "%account% aus %group% nehmen; es ist in keiner anderen Gruppe und wandert in die Sammelgruppe"
         reorder: 'Zum Sortieren ziehen'
         save: 'Speichern'
         saved: 'Gespeichert.'
-        subheading: 'Gib ihnen Namen und Symbole und zieh sie in die Reihenfolge, in der die Seitenleiste sie zeigt.'
+        subheading: "Jede Gruppe ist ein Posteingang in der Seitenleiste und etwas, das ein Arbeitsbereich zeigen kann. Gib ihnen Namen und Symbole, leg Konten hinein und zieh sie in die richtige Reihenfolge."
     whats_new:
         heading: 'Was ist neu'
         'off': 'Aus'
@@ -5323,6 +5409,7 @@ settings:
             integrations: "Integrationen"
             mail_accounts: "E-Mail-Konten"
             reading_writing: "Lesen & Schreiben"
+            search: "Suche"
         calendar_behaviour: "Kalenderverhalten"
         calendars: Kalender
         categories: "Kategorien & Sortierung"
@@ -5333,11 +5420,12 @@ settings:
         filters: Filter
         health: 'Zustand der Konten'
         health_banner: "Etwas braucht deine Aufmerksamkeit — siehe Zustand der Konten."
-        inboxes: 'Sammel-Posteingänge'
+        inboxes: "Kontogruppen"
         insights: Insights
         integrations: Integrationen
         labels: Labels
         layout: "Layout & Bedienung"
+        mail_search: "Suche"
         message_list: 'Nachrichtenliste'
         notifications: Benachrichtigungen
         profile: Profil
@@ -5386,6 +5474,8 @@ settings:
             pinning: 'anheften angeheftet reißzwecke oben erinnerung pin'
             profile: "name avatar foto bild"
             read_receipts: "mdn empfangsbestätigung bestätigung bcc kopie sicherung blindkopie"
+            search_meaning: "semantisch bedeutung ki suche ähnlich"
+            search_scope: "suche bereich arbeitsbereich space filter"
             sender_pictures: 'avatar bild foto gravatar libravatar bimi logo symbol absender'
             sharing: "link öffentlich buchung"
             shortcuts: "tastatur tasten kürzel hotkeys"
@@ -6430,6 +6520,11 @@ contacts:
         use_as: 'Verwenden als …'
         you_placed: 'Von dir zugeordnet'
 tasks:
+    pane:
+        scope_label: "Welche Listen"
+        scope_workspace_hint: "Nur die Aufgabenlisten dieses Arbeitsbereichs"
+        scope_overlay_hint: "Die Listen dieses Arbeitsbereichs, die übrigen blass"
+        scope_all_hint: "Alle Listen gleich"
     occurrence_undone: 'Abhaken rückgängig gemacht.'
     added: 'Aufgabe hinzugefügt.'
     completed: 'Aufgabe erledigt.'
@@ -6522,6 +6617,8 @@ tasks:
         delete_confirm: '„%name%“ und alle Aufgaben darin löschen?'
         default_hint: 'Neue Aufgaben landen hier, wenn nichts anderes gewählt wurde. Deshalb lässt sich diese Liste nicht löschen.'
         synced_hint: 'Diese Liste wird synchronisiert, ihr Name kommt vom Server. Die Farbe bestimmst du.'
+        workspace: "Arbeitsbereich"
+        workspace_help: "Eine Liste ohne Konto gehört zu keiner Kontogruppe und erscheint deshalb in diesem Arbeitsbereich. Arbeitsbereiche über alle Konten zeigen sie ebenfalls."
         transferred: '%count% Aufgabe nach „%name%“ verschoben.|%count% Aufgaben nach „%name%“ verschoben.'
     transfer:
         title: 'In eine lokale Liste übertragen'

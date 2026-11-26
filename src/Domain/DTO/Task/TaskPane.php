@@ -25,6 +25,7 @@ final readonly class TaskPane
     /**
      * @param array<string, list<Task>> $sections
      * @param list<TaskList>            $lists
+     * @param list<int>                 $faded lists outside the workspace, drawn faint ("+ Others")
      */
     public function __construct(
         public TaskPaneQuery     $query,
@@ -36,6 +37,10 @@ final readonly class TaskPane
         public DateTimeZone      $zone,
         public bool              $canSubscribe = false,
         public int               $completedLater = 0,
+        // workspace|overlay|all in a workspace narrowed to some groups (#783),
+        // null elsewhere: the pane's switch is drawn only where there is one.
+        public ?string           $scope = null,
+        public array             $faded = [],
     ) {}
 
     public function isEmpty(): bool

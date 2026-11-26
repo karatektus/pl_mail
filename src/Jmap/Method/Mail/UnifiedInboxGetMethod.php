@@ -27,9 +27,10 @@ use App\Service\Mail\UnifiedInboxes;
  *   isOther     the catch-all: accounts the reader took out of their own
  *               inboxes. The web leaves it out of the sidebar while none of
  *               its accounts is switched on
- *   accountIds  the JMAP accounts whose Inbox it lists. A LIST although an
- *               account is in one inbox today, so that several later is no
- *               change of format. An account in no list does not exist
+ *   accountIds  the JMAP accounts whose Inbox it lists. A list, and an
+ *               account can be in several (#783: account groups), but in
+ *               Other only when it is in none of the others. An account in
+ *               no list does not exist
  *
  * Every account of a user answers with the same inboxes; the accountId says
  * whose change log the state belongs to, as for InboxTab/get. Read through

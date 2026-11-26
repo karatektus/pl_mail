@@ -730,9 +730,47 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public const string SETTING_CLOCK_PLACEMENT = 'display.clock_placement';
 
-    /** Virtual, out of the settings bag — see SETTING_CLOCK_PLACEMENT. */
+    /**
+     * Whether search starts limited to the workspace on screen (#783): the
+     * search box opens with `space:<workspace>` as a chip, which one
+     * backspace takes off. Off, search covers every account.
+     */
+    public const string SETTING_SEARCH_AUTOSCOPE = 'search.autoscope';
+
+    /** Virtual, out of the settings bag — see SETTING_SEARCH_AUTOSCOPE. */
+    public bool $searchAutoscope {
+        get => true === $this->getSetting(self::SETTING_SEARCH_AUTOSCOPE);
+        set (bool $on) {
+            $this->setSetting(self::SETTING_SEARCH_AUTOSCOPE, $on);
+        }
+    }
+
+    /**
+     * Whether the built-in Mail sidebar shows the clock at its bottom (#783).
+     * A sidebar of one's own holds a Clock row instead. Absent, it follows
+     * the old placement: whoever had put the clock in the sidebar keeps it.
+     */
+    public const string SETTING_MAIL_SIDEBAR_CLOCK = 'layout.mail_sidebar_clock';
+
+    /** Virtual, out of the settings bag — see SETTING_MAIL_SIDEBAR_CLOCK. */
+    public bool $mailSidebarClock {
+        get => is_bool($this->getSetting(self::SETTING_MAIL_SIDEBAR_CLOCK))
+            ? $this->getSetting(self::SETTING_MAIL_SIDEBAR_CLOCK)
+            : ClockPlacement::Sidebar->value === $this->getSetting(self::SETTING_CLOCK_PLACEMENT);
+        set (bool $shown) {
+            $this->setSetting(self::SETTING_MAIL_SIDEBAR_CLOCK, $shown);
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CLOCK_PLACEMENT. A stored
+     * "sidebar" reads as Off (#783): that clock is the Mail sidebar's switch
+     * now (mailSidebarClock), and it is in neither of the places this names.
+     */
     public ClockPlacement $clockPlacement {
-        get => ClockPlacement::fromSetting($this->getSetting(self::SETTING_CLOCK_PLACEMENT));
+        get => ClockPlacement::Sidebar === ClockPlacement::fromSetting($this->getSetting(self::SETTING_CLOCK_PLACEMENT))
+            ? ClockPlacement::Off
+            : ClockPlacement::fromSetting($this->getSetting(self::SETTING_CLOCK_PLACEMENT));
         set (ClockPlacement $placement) {
             $this->setSetting(self::SETTING_CLOCK_PLACEMENT, $placement->value);
         }
@@ -853,6 +891,12 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public const string SETTING_LOGS_SEEN_AT = 'admin.logs_seen_at';
 
+    /** The user's own sidebars (#783), see SidebarStore. */
+    public const string SETTING_SIDEBARS = 'layout.sidebars';
+
+    /** When each workspace was last on screen (#783): workspace id => unix time, see WorkspaceNews. */
+    public const string SETTING_WORKSPACES_SEEN = 'layout.workspaces_seen';
+
     /**
      * The user's workspaces: which panes are on screen, how they are arranged,
      * and which arrangement is active (#755). One document, read and written
@@ -891,6 +935,13 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * handful of short strings, and a pane put back finds its view.
      */
     public const string SETTING_CALENDAR_PANE_VIEWS = 'calendar.pane_views';
+
+    /**
+     * The one calendar a calendar pane is narrowed to (#783), pane id => calendar
+     * id; '' is the first pane. Set from a sidebar's calendar row, cleared by
+     * the chip in the pane. A pane not listed shows every visible calendar.
+     */
+    public const string SETTING_CALENDAR_PANE_FILTERS = 'calendar.pane_filters';
 
     /**
      * How many further panes' views are kept. Past it some are dropped — not
@@ -1146,6 +1197,110 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         $view  = is_array($views) && is_string($views[$paneId] ?? null) ? CalendarView::tryFrom($views[$paneId]) : null;
 
         return $view ?? $this->calendarPaneView;
+    }
+
+    /**
+     * What a calendar pane shows of a workspace narrowed to some account
+     * groups (#783): 'workspace' its calendars only, 'overlay' those and the
+     * rest as faint blocks, 'all' every calendar alike. Pane id => mode, ''
+     * the first pane; a pane not listed shows all.
+     */
+    public const string SETTING_CALENDAR_PANE_SCOPES = 'calendar.pane_scopes';
+
+    public const array CALENDAR_PANE_SCOPES = ['workspace', 'overlay', 'all'];
+
+    public function calendarPaneScopeFor(?string $paneId): string
+    {
+        $scopes = $this->getSetting(self::SETTING_CALENDAR_PANE_SCOPES);
+        $scope  = is_array($scopes) ? ($scopes[$paneId ?? ''] ?? null) : null;
+
+        // "+ Others" until chosen: the workspace's calendars, and what else
+        // takes the time, faint.
+        return in_array($scope, self::CALENDAR_PANE_SCOPES, true) ? $scope : 'overlay';
+    }
+
+    public function setCalendarPaneScopeFor(?string $paneId, string $scope): void
+    {
+        $scopes = $this->getSetting(self::SETTING_CALENDAR_PANE_SCOPES);
+        $scopes = is_array($scopes) ? array_filter($scopes, 'is_string') : [];
+        $scopes[$paneId ?? ''] = in_array($scope, self::CALENDAR_PANE_SCOPES, true) ? $scope : 'overlay';
+
+        $this->setSetting(self::SETTING_CALENDAR_PANE_SCOPES, array_slice($scopes, -self::CALENDAR_PANE_VIEWS_KEPT, null, true));
+    }
+
+    /**
+     * Which workspace each calendar or task list without an account belongs
+     * to (#783), keyed "calendar:<id>" or "tasks:<id>": with no account for a
+     * workspace's groups to hold, it is placed in one. One not in here, or
+     * placed in a workspace since deleted, is in the first workspace
+     * (WorkspaceScope::homeOf()).
+     */
+    public const string SETTING_LOCAL_WORKSPACES = 'layout.local_workspaces';
+
+    /** The workspace id a calendar or task list without an account was placed in, or null for the first. */
+    public function localWorkspaceOf(string $kind, int $id): ?string
+    {
+        $placed = $this->getSetting(self::SETTING_LOCAL_WORKSPACES);
+        $found  = is_array($placed) ? ($placed[$kind . ':' . $id] ?? null) : null;
+
+        return is_string($found) ? $found : null;
+    }
+
+    /** Place a calendar or task list without an account in a workspace, or null for the first. */
+    public function setLocalWorkspaceOf(string $kind, int $id, ?string $workspaceId): void
+    {
+        $placed = $this->getSetting(self::SETTING_LOCAL_WORKSPACES);
+        $placed = is_array($placed) ? array_filter($placed, 'is_string') : [];
+
+        if (null === $workspaceId) {
+            unset($placed[$kind . ':' . $id]);
+        } else {
+            $placed[$kind . ':' . $id] = $workspaceId;
+        }
+
+        $this->setSetting(self::SETTING_LOCAL_WORKSPACES, $placed);
+    }
+
+    /**
+     * What the tasks pane shows of a workspace narrowed to some account
+     * groups (#783): the calendar pane's three, "+ Others" until chosen.
+     */
+    public const string SETTING_TASKS_PANE_SCOPE = 'tasks.pane_scope';
+
+    public function tasksPaneScope(): string
+    {
+        $scope = $this->getSetting(self::SETTING_TASKS_PANE_SCOPE);
+
+        return in_array($scope, self::CALENDAR_PANE_SCOPES, true) ? $scope : 'overlay';
+    }
+
+    public function setTasksPaneScope(string $scope): void
+    {
+        $this->setSetting(self::SETTING_TASKS_PANE_SCOPE, in_array($scope, self::CALENDAR_PANE_SCOPES, true) ? $scope : 'overlay');
+    }
+
+    /** The calendar the pane of that id is narrowed to, or null for all (#783). */
+    public function calendarPaneFilterFor(?string $paneId): ?int
+    {
+        $filters = $this->getSetting(self::SETTING_CALENDAR_PANE_FILTERS);
+        $id      = is_array($filters) ? ($filters[$paneId ?? ''] ?? null) : null;
+
+        return is_int($id) ? $id : null;
+    }
+
+    /** Narrow the pane of that id to one calendar, or null to show them all again. */
+    public function setCalendarPaneFilterFor(?string $paneId, ?int $calendarId): void
+    {
+        $filters = $this->getSetting(self::SETTING_CALENDAR_PANE_FILTERS);
+        $filters = is_array($filters) ? array_filter($filters, 'is_int') : [];
+
+        if (null === $calendarId) {
+            unset($filters[$paneId ?? '']);
+        } else {
+            $filters[$paneId ?? ''] = $calendarId;
+        }
+
+        $this->setSetting(self::SETTING_CALENDAR_PANE_FILTERS, array_slice($filters, -self::CALENDAR_PANE_VIEWS_KEPT, null, true));
     }
 
     /** Keep the view of the calendar pane of that id; null is the first pane. */

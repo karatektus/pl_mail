@@ -3,7 +3,7 @@
    partial into the same document, so every id below has to carry it. #}
 {% set _idSuffix = _idSuffix is defined ? _idSuffix : '' %}
 
-{% for account in accounts %}
+{% for account in (onlyInWorkspace ?? true) ? accounts.inWorkspace : accounts %}
     {% set expanded = app.user.isAccountExpanded(account.id) %}
     {% set frameId  = 'account-folders-' ~ account.id ~ _idSuffix %}
 

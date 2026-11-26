@@ -36,6 +36,7 @@ Accepts:
 {% set _surface = surface|default(false) %}
 
 <div class="sidebar-boundary hidden md:flex shrink-0"
+     {% if noSidebar ?? false %}data-no-sidebar{% endif %}
      {% if _surface %}data-surface="sidebar"{% endif %}
      {% if app.user %}
      {# In the first paint rather than restored by JavaScript: a sidebar that
@@ -67,7 +68,7 @@ Accepts:
        It is also the peek's trigger. The handle is NOT inside it, so reaching
        for the handle never opens the peek on the way. #}
     <div data-ui--sidebar-split-target="pane" class="sidebar-pane flex min-w-0">
-        {% include '_partials/_sidebar.html.twig' %}
+        {% include template|default('_partials/_sidebar.html.twig') %}
     </div>
 
     {% if app.user %}

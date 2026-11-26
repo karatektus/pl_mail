@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Service\Layout\WorkspaceScope;
 use App\Service\Ai\EmbeddingCatchUp;
 use App\Service\Ai\SemanticCoverage;
 use App\Service\Ai\SemanticQuery;
@@ -35,7 +36,8 @@ final class SearchController extends AbstractController
         private readonly SemanticCoverage        $coverage,
         private readonly EmbeddingCatchUp        $catchUp,
         private readonly SearchResultHighlights  $highlights,
-        private readonly ThreadRows              $threadRows
+        private readonly ThreadRows              $threadRows,
+        private readonly WorkspaceScope          $workspaceScope,
     ) {}
 
     #[Route('', name: '', methods: ['GET'])]
@@ -78,6 +80,12 @@ final class SearchController extends AbstractController
         }
 
         $user = $this->getUser();
+
+        // `space:<workspace>` (#783): that workspace's accounts only. Search
+        // is otherwise over every account, whatever the workspace on screen.
+        if (null !== $parsed->space && $user instanceof User) {
+            $parsed->accountIds = $this->workspaceScope->forSpace($user, $parsed->space);
+        }
 
         // The session lock goes back NOW, before any of the slow work below.
         //

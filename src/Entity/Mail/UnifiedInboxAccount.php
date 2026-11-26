@@ -23,8 +23,9 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: UnifiedInboxAccountRepository::class)]
 #[ORM\Table(name: 'unified_inbox_account')]
-#[ORM\UniqueConstraint(name: 'uniq_unified_inbox_account_account', columns: ['account_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_unified_inbox_account_pair', columns: ['inbox_id', 'account_id'])]
 #[ORM\Index(name: 'idx_unified_inbox_account_inbox', columns: ['inbox_id'])]
+#[ORM\Index(name: 'idx_unified_inbox_account_account', columns: ['account_id'])]
 class UnifiedInboxAccount
 {
     #[ORM\Id]

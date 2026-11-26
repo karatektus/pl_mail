@@ -83,11 +83,61 @@ button, and how much of the area it takes. Changes show as you make them:
 **Save workspace** keeps the arrangement. A pane that ended up narrower than it can be used at gets
 room from its neighbours when you save. **Cancel** puts back what was there when edit mode started.
 
+## Accounts, sidebar and what is new
+
+In edit mode, **Groups & sidebar** in the edit bar opens the workspace's settings. Its choices are
+saved with **Save workspace**, like the rest of the edit.
+
+- **Account groups** decide which accounts the workspace shows. Pick none and it shows every
+  account, as before. Pick one or more and the mail list, **Starred**, **Unread** and the other
+  lists, the sidebar's rows and counts, and Compose's first **From** keep to their accounts. A list
+  that names its account (one account's inbox, its All Mail) shows what it names. The groups are the
+  ones under **Settings → Inbox → Account groups**: one or more per workspace, and an account can be
+  in several groups.
+- **Sidebar** is **Mail (built in)** — the sidebar plMail always had — **No sidebar**, or one of your
+  own. **New sidebar…** starts an empty one and **Copy of the Mail sidebar…** one with the same rows.
+  A sidebar of your own is a list of rows: fixed links (a system row such as **Starred**, an
+  account's inbox, an account group, a label, a calendar, a task list), headings, the clock, and
+  rows that grow by themselves (**Inboxes**, **Accounts and their folders**, **All labels**, **All
+  calendars**, **All task lists**), which show what you have now, narrowed to the workspace's
+  accounts. Sidebars are shared: two workspaces can use one, and changing it changes it in both.
+- **Sidebar links open in** chooses which calendar a calendar or task list row opens in, when the
+  workspace has more than one. **When this workspace has no pane for a link** either switches to a
+  workspace that has one, preferably one showing that account, or adds the pane at the right-hand
+  edge.
+
+A calendar or task list without an account — a local one, a subscription — belongs to one
+workspace: the first, unless you choose another in its settings (**Workspace**).
+
+### The calendar and tasks in a workspace of some accounts
+
+The calendar and tasks panes have a three-way switch in their header: **Workspace** shows only the
+workspace's calendars or lists, **+ Others** (the default) shows the rest too, faint, so you see
+what else takes your time, and **All** shows everything alike. Each calendar pane keeps its own
+choice; the tasks pane has one. When a header is short of room, the switch and the calendar's views
+fold into menus.
+
+### New since you last looked
+
+A workspace tab shows how much is new in it since you last had it on screen: mail that arrived in
+its inbox, events added to its calendars, tasks added to its lists — each only if the workspace has
+that pane. It is not the unread count: mail read on your phone still counts, and opening the
+workspace clears it, read or not. Mail you sent does not count. A dot on the tab says something in
+it starts or falls due within the hour that had not yet when you last looked. The count is kept for
+your account, so a visit on one device clears it on the others.
+
+### Search
+
+`space:Work` limits a search to a workspace's accounts, by its name (quote a name with spaces).
+**Settings → Search → Start search in the workspace** starts every search that way, as a chip one
+backspace takes off.
+
 ## What is remembered where
 
-Your workspaces — their names, which panes they show and how they are arranged — belong to your
-account and are the same in every browser you sign in to. They are part of a
-[configuration backup](../install/config-backup.md).
+Your workspaces — their names, which panes they show and how they are arranged, their account
+groups and sidebars — belong to your account and are the same in every browser you sign in to. They
+are part of a [configuration backup](../install/config-backup.md); which calendar or task list
+without an account is in which workspace is not, and those go back to the first.
 
 Where you dragged the dividers, and which pane is at full width, belong to the device: a laptop and
 a large monitor can keep their own sizes of the same workspace. A new device starts from the
@@ -132,5 +182,9 @@ and their pages (`/contacts`, `/tasks`) show the pane at full width.
   passes through such states. Saving gives each such pane room from its neighbours where they have
   some to spare; on a small window there may not be enough, and a pane stays cramped until you close
   one.
+- **A workspace whose account groups are all deleted shows every account,** not none: an empty
+  workspace would read as lost mail.
+- **Switching between workspaces with different accounts or sidebars** draws the sidebar, the list
+  and the calendar and tasks panes again in one go; the old ones are dimmed for that moment.
 - **⌥ shortcuts do nothing while a field has the focus,** where ⌥ moves by word or types special
   characters. Click into the list or a pane first.

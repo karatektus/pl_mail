@@ -49,6 +49,9 @@ account:
             username: 发件用户名
             username_help: '留空则使用上方的用户名发件。'
         username: 用户名
+    groups:
+        help: "其邮件显示的位置，以及哪些工作区显示它。都不勾选则放入汇总组。"
+        legend: "账户组"
     mail_purge_queued: '正在从 plMail 中移除此账户的邮件。服务器上的副本会保留。'
     oauth:
         calendar_declined: '账户已连接，但未获授日历访问权限，因此不会同步该账户的日历。请重新连接，并在 Google 授权页面勾选日历访问权限。'
@@ -1414,6 +1417,15 @@ attachment:
         zoom_in: 放大
         zoom_out: 缩小
 calendar:
+    pane:
+        scope_all: "全部"
+        scope_all_hint: "所有日历同等显示"
+        scope_label: "显示哪些日历"
+        scope_overlay: "+ 其他"
+        scope_overlay_hint: "此工作区的日历，其他日历淡显"
+        scope_workspace: "工作区"
+        scope_workspace_hint: "仅显示此工作区账户的日历"
+        show_all: "显示所有日历"
     when:
         previous_month: 上个月
         next_month: 下个月
@@ -1648,6 +1660,8 @@ calendar:
         time_zone: 时区
         time_zone_follow: 跟随 plMail
         time_zone_help: 此日历中新日程使用的时区。“跟随 plMail”即使用你自己的时区（当前为 %zone%）。日程始终按你所在时区的实际时间显示。
+        workspace: "工作区"
+        workspace_help: "没有账户的日历不属于任何账户组，因此显示在此工作区中。涵盖所有账户的工作区也会显示它。"
     grid:
         all_day: 全天
         continues_after: 延续到次日
@@ -1853,6 +1867,7 @@ calendar:
         range_short: "%start%–%end%"
         range_short_month: "%month% %start%–%end%"
     view:
+        label: "视图"
         agenda: 日程列表
         day: 日
         monday_week: 周
@@ -2582,6 +2597,8 @@ discarded:
         restore: 移至收件箱
 header:
     search:
+        chip_remove: "移除 %token%"
+        clear: "清除搜索"
         close: 关闭搜索
         live:
             status: '%count% 个匹配会话'
@@ -2762,7 +2779,6 @@ label:
         red: '红色'
         teal: '青色'
         violet: '紫色'
-    empty: '没有带此标签的会话。'
     created: '标签已创建。'
     delete:
         already_running: '正在删除“%name%”。'
@@ -2782,8 +2798,10 @@ label:
     delete_confirm: '删除标签“%name%”？所有账户中的此标签都会移除。邮件会保留其他标签，不会被删除。'
     delete_confirm_children: '删除“%name%”及其下的 %count% 个嵌套标签？所有账户中的这些标签都会移除。邮件不会被删除。'
     deleted: '标签已删除。'
+    empty: '没有带此标签的会话。'
     error:
         duplicate: '此处已有同名标签。仅大小写不同也视为同名。'
+    filters: "筛选"
     form:
         account_note:
             new: '仅在 %account% 上创建。'
@@ -2823,6 +2841,7 @@ label:
     menu:
         create: '新建'
         empty: '暂无标签。'
+    remove_filter: "移除筛选“%name%”"
     updated: '标签已更新。'
     visibility:
         hidden: '标签已隐藏。'
@@ -2898,6 +2917,59 @@ layout:
         shapes: "从形状开始"
         slots: "各位置显示的内容"
         workspaces: "工作区"
+    settings:
+        all_accounts: "所有账户"
+        built_in: "邮件（内置）"
+        delete_sidebar: "删除此侧边栏"
+        duplicate_mail: "复制邮件侧边栏…"
+        edit_groups: "编辑账户组"
+        gone: "（已不存在）"
+        group:
+            blocks: "自动更新"
+            calendars: "日历"
+            labels: "标签"
+            mail: "邮件"
+            other: "其他"
+            tasks: "任务列表"
+        groups: "账户组"
+        groups_help: "此工作区显示的内容：邮件列表、星标和未读、侧边栏及其计数，以及标签页上的新内容数量。"
+        heading: "标题"
+        heading_prompt: "标题文字"
+        intro: "工作区“%name%”的设置。"
+        live: "自动"
+        mail_clock: "在底部显示时钟"
+        missing: "当此工作区没有链接对应的窗格时"
+        missing_edge: "在右侧边缘添加窗格"
+        missing_switch: "切换到有该窗格的工作区"
+        missing_switch_help: "优先选择显示该日历或列表所属账户的工作区。"
+        move_down: "下移"
+        move_up: "上移"
+        new_name: "侧边栏 %n%"
+        new_sidebar: "新建侧边栏…"
+        'off': "关"
+        'on': "开"
+        open: "组和侧边栏"
+        remove: "移除"
+        save_failed: "无法保存设置，未做任何更改。"
+        sidebar: "侧边栏"
+        sidebar_help: "侧边栏是共享的：修改一个会同时修改所有使用它的工作区。"
+        sidebar_none: "无侧边栏"
+        target_calendar: "日历"
+        target_default: "默认"
+        target_nth: "%kind% %n%"
+        targets: "侧边栏链接打开于"
+        targets_help: "此工作区有多个日历。未选择时，链接在第一个中打开。"
+        title: "工作区设置"
+        used_by: "也显示在 %names% 中：在此修改也会修改那里。"
+    sidebar:
+        block:
+            accounts: "账户及其文件夹"
+            calendars: "所有日历"
+            inboxes: "收件箱"
+            labels: "所有标签"
+            tasklists: "所有任务列表"
+        clock: "时钟"
+        empty: "此侧边栏为空。请在工作区设置中添加条目。"
     tabs:
         label: "窗格"
     toast:
@@ -2913,7 +2985,10 @@ layout:
         saved: "已保存“%name%”。"
     workspace:
         first_name: "邮件"
+        more: "其他工作区"
+        new: "自上次访问以来有 %count% 条新内容"
         new_name: "工作区 %n%"
+        soon: "此处有事项将在一小时内开始"
         tabs_label: "工作区"
 list:
     conversation_view: '会话视图'
@@ -4540,6 +4615,16 @@ settings:
         'off': '关闭'
         'on': '开启'
         subheading: '是否需要手动允许邮件加载远程图片。'
+    search_meaning:
+        heading: "按含义搜索"
+        subheading: "除了输入的词语，还会找到与你的意思相关的邮件。是否可用由管理员决定。"
+    search_scope:
+        heading: "搜索"
+        hint: "开始输入时将工作区添加为筛选（space:名称）。按一次退格键即可移除。"
+        label: "在工作区中开始搜索"
+        'off': "关"
+        'on': "开"
+        subheading: "搜索是覆盖所有账户，还是从当前工作区开始。"
     sender_pictures:
         admin_off: '管理员尚未允许此服务器在互联网上查找图片，因此这些开关暂时不起作用。你的选择会保留，待允许后生效。'
         bimi: '公司标志'
@@ -4567,17 +4652,16 @@ settings:
             label: "向右滑动"
         subheading: "在手机上滑动邮件行时执行的操作。"
     unified_inboxes:
-        account_label: '%account% 的统一收件箱'
         account_off: '邮件已关闭——重新开启前，其邮件不会在此显示。'
-        accounts_heading: '账户'
-        accounts_subheading: '每个账户的邮件显示在哪个收件箱。新账户会进入你的第一个收件箱。'
         add: '添加'
+        add_account: "向 %group% 添加账户"
+        add_account_short: "添加账户"
         created: '已创建“%name%”。'
         delete: '删除 %inbox%'
-        delete_confirm: '删除“%name%”？其账户将移至 %other%。不会删除任何邮件。'
-        deleted: '收件箱已删除。其账户现在显示在汇总收件箱中。'
-        heading: '统一收件箱'
-        hint: '每个收件箱将你放入的账户的邮件合并为一个列表，并有自己的标签页。名称留空则使用默认名称。'
+        delete_confirm: "删除“%name%”？不在其他组中的账户将移至 %other%。不会删除任何邮件。"
+        deleted: "组已删除。仅属于该组的账户现在位于汇总组中。"
+        heading: "账户组"
+        hint: "一个组将其账户的邮件显示为一个收件箱，并有自己的标签页。一个账户可以属于多个组；新账户会加入第一个组。名称留空则使用默认名称。"
         icon_label: '%inbox% 的图标'
         icon_new: '新收件箱的图标'
         last_stays: '至少保留一个你自己的收件箱。'
@@ -4586,16 +4670,18 @@ settings:
         name_label: '名称'
         name_required: '收件箱需要一个名称。'
         name_too_long: '名称太长（最多 40 个字符）。'
-        no_accounts: '还没有邮件账户。'
+        no_accounts_in_group: "还没有账户。"
         not_found: '该收件箱已不存在。'
-        other_hint: '汇集你从自己的收件箱中移出的所有账户。没有账户时不会显示在侧边栏中。'
-        other_option: '汇总'
+        other_is_the_rest: "“其他”收纳其余账户：请将账户放入你自己的某个组中。"
+        other_hint: "收纳从最后一个组中移出的所有账户。没有账户时不会显示在侧边栏中。"
         other_stays: '汇总收件箱无法删除：不属于你任何收件箱的账户都显示在这里。'
         placeholder: '例如：工作'
+        remove_account: "将 %account% 移出 %group%"
+        remove_to_other: "将 %account% 移出 %group%；它不在其他组中，将移至汇总组"
         reorder: '拖动以排序'
         save: '保存'
         saved: '已保存。'
-        subheading: '为它们命名、选择图标，并拖动排列成侧边栏中的顺序。'
+        subheading: "每个组是侧边栏中的一个收件箱，也是工作区可以显示的内容。为它们命名、选择图标、加入账户并拖动排序。"
     whats_new:
         heading: '更新内容'
         'off': '关闭'
@@ -4618,6 +4704,7 @@ settings:
             integrations: "集成"
             mail_accounts: "邮件账户"
             reading_writing: "阅读与撰写"
+            search: "搜索"
         calendar_behaviour: "日历行为"
         calendars: '日历'
         categories: "分类与排序"
@@ -4628,11 +4715,12 @@ settings:
         filters: '过滤器'
         health: '账户健康状况'
         health_banner: "有问题需要你处理：请查看账户健康状况。"
-        inboxes: '统一收件箱'
+        inboxes: "账户组"
         insights: '邮件要点'
         integrations: '集成'
         labels: '标签'
         layout: "布局与操作"
+        mail_search: "搜索"
         message_list: '邮件列表'
         notifications: '通知'
         profile: '个人资料'
@@ -4681,6 +4769,8 @@ settings:
             pinning: '置顶 固定 图钉 提醒 pin'
             profile: "姓名 头像 照片"
             read_receipts: "mdn 已读回执 确认 密送 bcc 副本 备份"
+            search_meaning: "语义 含义 AI 搜索 相似"
+            search_scope: "搜索 范围 工作区 space 筛选"
             sender_pictures: '头像 图片 照片 gravatar libravatar bimi 标志 图标 发件人'
             sharing: "链接 公开 预约"
             shortcuts: "键盘 按键 快捷键"
@@ -5651,6 +5741,11 @@ contacts:
         use_as: "用作…"
         you_placed: "此行由你归类"
 tasks:
+    pane:
+        scope_label: "哪些列表"
+        scope_workspace_hint: "仅此工作区的任务列表"
+        scope_overlay_hint: "此工作区的列表，其他列表淡化显示"
+        scope_all_hint: "所有列表一视同仁"
     occurrence_undone: '已撤销勾选。'
     added: '任务已添加。'
     completed: '任务已完成。'
@@ -5743,6 +5838,8 @@ tasks:
         delete_confirm: '删除“%name%”及其中的所有任务?'
         default_hint: '未选择其他列表时,新任务会进入此列表,因此无法删除。'
         synced_hint: '此列表已同步,其名称来自服务器。颜色由你决定。'
+        workspace: "工作区"
+        workspace_help: "没有账户的列表不属于任何账户组，因此显示在此工作区中。涵盖所有账户的工作区也会显示它。"
         transferred: '已将 %count% 个任务移至“%name%”。|已将 %count% 个任务移至“%name%”。'
     transfer:
         title: '转移到本地列表'

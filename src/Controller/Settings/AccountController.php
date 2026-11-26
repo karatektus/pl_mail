@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Service\Mail\UnifiedInboxes;
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\ConnectionTestResult;
 use App\Domain\Enum\Account\AccountService;
@@ -57,6 +58,7 @@ final class AccountController extends AbstractController
         private readonly AccountCreator $accountCreator,
         private readonly AccountRemoval $accountRemoval,
         private readonly AccountRemovalState $removalState,
+        private readonly UnifiedInboxes $unifiedInboxes,
     ) {
     }
 
@@ -71,12 +73,23 @@ final class AccountController extends AbstractController
         if (true === $form->isSubmitted() && true === $form->isValid()) {
             $this->accountCreator->create($account, $this->getUser());
 
+            // The groups ticked on the form (#783), when it showed them.
+            $user = $this->getUser();
+
+            if ($request->request->has('account_groups_shown') && $user instanceof User) {
+                $this->unifiedInboxes->placeNew($user, $account, $request->request->all('account_groups'));
+            }
+
             return $this->streamAccountList($request, 'account.added');
         }
 
+        $user = $this->getUser();
+
         return $this->render('account/_form_modal.html.twig', [
-            'title' => 'New Account',
-            'form'  => $form,
+            'title'      => 'New Account',
+            'form'       => $form,
+            'groups'     => $user instanceof User ? $this->unifiedInboxes->all($user) : [],
+            'firstGroup' => $user instanceof User ? $this->unifiedInboxes->first($user) : null,
         ]);
     }
 

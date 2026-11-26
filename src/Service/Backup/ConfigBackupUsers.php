@@ -139,6 +139,19 @@ final readonly class ConfigBackupUsers
         User::SETTING_CALENDAR_VIEW,
         User::SETTING_CALENDAR_PANE_VIEW,
         User::SETTING_CALENDAR_PANE_VIEWS,
+        // How each calendar pane and the tasks pane show a workspace of some
+        // account groups (#783): keyed by pane ids the browser made up, which
+        // mean the same anywhere.
+        User::SETTING_CALENDAR_PANE_SCOPES,
+        User::SETTING_TASKS_PANE_SCOPE,
+        // The user's own sidebars (#783). Their ids for accounts, labels,
+        // groups and calendars are rewritten on the way in, like a filter's
+        // (ConfigBackupUserRestorer::retargetSidebars()).
+        User::SETTING_SIDEBARS,
+        // Whether the Mail sidebar shows the clock, and whether search starts
+        // in the workspace on screen (#783): choices, with no id in them.
+        User::SETTING_MAIL_SIDEBAR_CLOCK,
+        User::SETTING_SEARCH_AUTOSCOPE,
         User::SETTING_SEARCH_SORT,
         // Whether single keys act on mail. Stored only as a false, by
         // somebody who decided they did not want that — and a restore that
@@ -359,6 +372,9 @@ final readonly class ConfigBackupUsers
         User::SETTING_SIDEBAR_ACCOUNT => 'account ids from the source database — on the target they are nothing, or somebody else',
         User::SETTING_TASKS_ADD_TO => 'a task list id from the source database, like sidebar.expanded_account; task lists do not travel, and without it new tasks land in the default list',
         User::SETTING_INSIGHT_PANE_DISMISSED_AT => 'a read marker like admin.logs_seen_at: it says when this person last waved the strip away, not what they chose',
+        User::SETTING_WORKSPACES_SEEN => 'a read marker like admin.logs_seen_at, per workspace: what counts as new is what reached the source install since, and a restore starts every workspace at nothing new',
+        User::SETTING_LOCAL_WORKSPACES => 'calendar and task list ids from the source database; task lists do not travel, and a calendar without an account lands in the first workspace, which is the default anyway',
+        User::SETTING_CALENDAR_PANE_FILTERS => 'calendar ids from the source database, like sidebar.expanded_account; without them a pane shows every calendar again, which one click narrows',
     ];
 
     /**
@@ -1009,6 +1025,9 @@ final readonly class ConfigBackupUsers
 
         foreach ($this->unifiedInboxes->findForUserOrdered($user) as $inbox) {
             $exported[] = [
+                // For the workspaces and sidebars that name it (#783), which
+                // the restore rewrites to the group it becomes.
+                'id'         => (int) $inbox->id,
                 'name'       => $inbox->name,
                 'icon'       => $inbox->icon,
                 'isOther'    => $inbox->isOther,

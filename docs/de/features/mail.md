@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:80e6c610ffe52faebc2a94cf3c95f24d6c9802e6 -->
+<!-- translated-from: features/mail.md sha1:137761179ce45630f08771d453e52a0472e6f3e9 -->
 
 # Mail
 
@@ -125,27 +125,28 @@ Werkzeugleiste blättern.
 ### Mehrere Posteingänge
 
 Ein **Posteingang** über alle Konten ist der Anfang für alle. Willst du Arbeit und Privates getrennt
-lesen, legt **Einstellungen → Sammel-Posteingänge** weitere an: einen hinzufügen, ihm Namen und
-Symbol geben und unter **Konten** wählen, in welchem Posteingang die Mail jedes Kontos erscheint.
-Jeder Posteingang ist eine eigene Zeile in der Seitenleiste, in der Reihenfolge, in die du sie
-ziehst, mit eigenem Ungelesen-Zähler, eigenem „Neu“-Punkt und eigenen Tabs — die Tabs eines
-Posteingangs zählen nur die Mail seiner Konten, und **Alle auswählen** reicht darin nicht weiter.
-Der erste Posteingang ist der, den die einfache **Posteingang**-Adresse öffnet, und ein neues Konto
-landet dort, bis du es verschiebst.
+lesen, legt **Einstellungen → Posteingang → Kontogruppen** weitere an: eine Gruppe hinzufügen, ihr
+Namen und Symbol geben und mit **+ Konto hinzufügen** Konten hineinlegen. Jede Gruppe ist eine eigene
+Posteingangszeile in der Seitenleiste, in der Reihenfolge, in die du sie ziehst, mit eigenem
+Ungelesen-Zähler, eigenem „Neu“-Punkt und eigenen Tabs — die Tabs einer Gruppe zählen nur die Mail
+ihrer Konten, und **Alle auswählen** reicht darin nicht weiter. Die erste Gruppe ist die, die die
+einfache **Posteingang**-Adresse öffnet, und ein neues Konto landet dort, es sei denn, du hakst beim
+Hinzufügen andere Gruppen an. Gruppen sind auch das, was ein [Arbeitsbereich](workspaces.md) zeigt.
 
-Ein Konto ist immer in genau einem Posteingang. Nimmst du eines aus all deinen heraus, landet es in
-**Sonstige**, einem Posteingang, den plMail genau dafür bereithält, damit es weiter nur einen Klick
-entfernt ist. Sonstige erscheint in der Seitenleiste nur, solange es ein eingeschaltetes Konto
-enthält; du kannst es umbenennen, ihm ein anderes Symbol geben und es verschieben wie die anderen,
-aber nicht löschen. Löschst du einen eigenen Posteingang, wandern seine Konten ebenfalls dorthin —
-in keinem Fall wird Mail gelöscht, ein Posteingang ist nur eine Art, sie aufzulisten. Lässt du den
-Namen leer, heißt der Posteingang in deiner Sprache **Posteingang** (oder **Sonstige**).
+Ein Konto kann in mehreren Gruppen sein. Nimmst du es aus seiner letzten heraus, landet es in
+**Sonstige**, dem Rest: den Konten, die in keiner deiner eigenen Gruppen sind. In Sonstige kannst du
+kein Konto legen und sie nicht umbenennen; legst du ein Konto in eine deiner Gruppen, verlässt es
+Sonstige. Sonstige erscheint in der Seitenleiste nur, solange sie ein eingeschaltetes Konto enthält;
+du kannst ihr ein anderes Symbol geben und sie verschieben, aber nicht löschen. Löschst du eine
+eigene Gruppe, wandern die Konten, die in keiner anderen Gruppe sind, nach Sonstige — in keinem Fall
+wird Mail gelöscht, eine Gruppe ist nur eine Art, sie aufzulisten. Lässt du den Namen leer, heißt die
+Gruppe in deiner Sprache **Posteingang**.
 
-**Ungelesen**, **Markiert**, **Zurückgestellt** und die übrigen Systemzeilen reichen weiterhin über
-alle Konten, und der Browser-Tab zählt den Posteingang, den du offen hast. Jedes Konto behält unter
-**Konten** seinen eigenen Posteingang. Eine Konfigurationssicherung enthält die Posteingänge und
-welches Konto in welchem liegt. Apps auf dem Telefon können sie über JMAP lesen (`UnifiedInbox/get`);
-angeordnet werden sie nur hier.
+**Ungelesen**, **Markiert**, **Zurückgestellt** und die übrigen Systemzeilen reichen über alle Konten,
+es sei denn, ein Arbeitsbereich beschränkt sie auf seine Gruppen, und der Browser-Tab zählt den
+Posteingang, den du offen hast. Jedes Konto behält unter **Konten** seinen eigenen Posteingang. Eine
+Konfigurationssicherung enthält die Gruppen und welche Konten in jeder sind. Apps auf dem Telefon
+können sie über JMAP lesen (`UnifiedInbox/get`); angeordnet werden sie nur hier.
 
 ## Tabs
 

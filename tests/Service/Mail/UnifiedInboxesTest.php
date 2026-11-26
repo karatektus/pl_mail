@@ -195,6 +195,76 @@ final class UnifiedInboxesTest extends KernelTestCase
         self::assertSame($work->id, $this->inboxes->first($this->user)->id);
     }
 
+    public function testAnAccountCanBeInSeveralGroupsAndKeepsTheFirstWhenAdded(): void
+    {
+        $first = $this->inboxes->first($this->user);
+        $work  = $this->inboxes->create($this->user, 'Work', 'briefcase');
+
+        // Never put anywhere, so in the first by rule: adding writes that down.
+        $this->inboxes->addAccount($this->user, $this->account, $work);
+        $this->inboxes->addAccount($this->user, $this->account, $work);
+
+        self::assertSame([$this->account->id], $this->inboxes->accountIdsOf($this->user, $work), 'once, however often added');
+        self::assertEqualsCanonicalizing([$this->account->id, $this->second->id], $this->inboxes->accountIdsOf($this->user, $first));
+        self::assertSame([(int) $first->id, (int) $work->id], array_map(static fn ($inbox): int => (int) $inbox->id, $this->inboxes->groupsOf($this->user, $this->account)));
+    }
+
+    public function testOutOfItsLastGroupAnAccountIsTheRest(): void
+    {
+        $first = $this->inboxes->first($this->user);
+
+        $this->inboxes->removeAccount($this->user, $this->second, $first);
+
+        self::assertSame([$this->second->id], $this->inboxes->accountIdsOf($this->user, $this->inboxes->other($this->user)));
+        self::assertSame([$this->account->id], $this->inboxes->accountIdsOf($this->user, $first));
+    }
+
+    public function testOtherIsTheRestAndNothingIsPutInOrTakenOutByHand(): void
+    {
+        $other = $this->inboxes->other($this->user);
+
+        foreach (['addAccount', 'removeAccount'] as $method) {
+            try {
+                $this->inboxes->{$method}($this->user, $this->account, $other);
+                self::fail($method . ' on Other');
+            } catch (InvalidUnifiedInboxException $e) {
+                self::assertSame('settings.unified_inboxes.other_is_the_rest', $e->translationKey);
+            }
+        }
+
+        // In Other, then put in a group of the reader's own: it leaves Other.
+        $this->inboxes->assign($this->user, $this->second, $other);
+        $work = $this->inboxes->create($this->user, 'Work', 'briefcase');
+        $this->inboxes->addAccount($this->user, $this->second, $work);
+
+        self::assertSame([], $this->inboxes->accountIdsOf($this->user, $other));
+        self::assertSame([$this->second->id], $this->inboxes->accountIdsOf($this->user, $work));
+    }
+
+    public function testOtherKeepsItsNameAndTheReaderPicksItsIcon(): void
+    {
+        $other = $this->inboxes->other($this->user);
+
+        $this->inboxes->update($this->user, $other, 'Leftovers', 'star');
+
+        self::assertNull($other->name);
+        self::assertSame(UnifiedInboxIcon::Star, $other->iconCase());
+    }
+
+    public function testANewAccountGoesWhereItWasTickedOrToTheRest(): void
+    {
+        $work  = $this->inboxes->create($this->user, 'Work', 'briefcase');
+        $home  = $this->inboxes->create($this->user, 'Home', 'house');
+        $other = $this->inboxes->other($this->user);
+
+        $this->inboxes->placeNew($this->user, $this->account, [(string) $work->id, (int) $home->id, 999_999]);
+        $this->inboxes->placeNew($this->user, $this->second, []);
+
+        self::assertSame([$this->account->id], $this->inboxes->accountIdsOf($this->user, $work));
+        self::assertSame([$this->account->id], $this->inboxes->accountIdsOf($this->user, $home));
+        self::assertSame([$this->second->id], $this->inboxes->accountIdsOf($this->user, $other), 'none ticked is a choice too');
+    }
+
     public function testTheListValueNamesTheInboxAndReadsAnOldOneAsTheFirst(): void
     {
         $first = $this->inboxes->first($this->user);

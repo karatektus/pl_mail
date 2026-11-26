@@ -52,8 +52,8 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
             ['id' => 'w1', 'name' => 'Triage', 'layout' => ['t' => 'split', 'id' => 's1', 'dir' => 'row', 'sizes' => [0.4, 0.6], 'children' => [
                 ['t' => 'pane', 'kind' => 'list'],
                 ['t' => 'pane', 'kind' => 'message'],
-            ]]],
-            ['id' => 'w2', 'name' => 'Planning', 'layout' => ['t' => 'pane', 'kind' => 'calendar']],
+            ]], 'groups' => null, 'sidebar' => 'mail', 'targets' => [], 'missing' => 'switch'],
+            ['id' => 'w2', 'name' => 'Planning', 'layout' => ['t' => 'pane', 'kind' => 'calendar'], 'groups' => null, 'sidebar' => null, 'targets' => [], 'missing' => 'edge'],
         ],
         'active' => 1,
     ];
@@ -255,7 +255,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         // back through the parser: the column is JSONB, which stores an
         // object's keys in an order of its own, and the order is not the
         // setting.
-        $this->check('setting layout.workspaces', self::WORKSPACES, Workspaces::fromArray($user->getSetting(User::SETTING_WORKSPACES))?->toArray());
+        $this->check('setting layout.workspaces', self::WORKSPACES, json_decode((string) json_encode(Workspaces::fromArray($user->getSetting(User::SETTING_WORKSPACES))?->toArray()), true));
         $this->check('setting sidebar.collapsed_sections', ['section:labels'], $user->getSetting(User::SETTING_SIDEBAR_COLLAPSED));
         $this->check('setting sidebar.more_rows', [], $user->getSetting(User::SETTING_SIDEBAR_MORE));
         $this->check('setting onboarding.completed_at', '2026-02-01T00:00:00+00:00', $user->getSetting(User::SETTING_ONBOARDING_COMPLETED_AT));

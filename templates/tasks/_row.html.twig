@@ -26,6 +26,8 @@ Accepts: task Task · pane TaskPane · params array, the pane's current address
 {% set showList = pane.query.view.value == 'my-day' or pane.list is null %}
 
 <li data-task-row="{{ task.id }}"
+    {#- A list outside the workspace, in a pane set to "+ Others" (#783). -#}
+    {% if task.taskList.id in pane.faded %}data-faint{% endif %}
     {% if steps is not empty %}data-controller="tasks--row" data-tasks--row-id-value="{{ task.id }}"{% endif %}>
     <div class="group relative flex items-start gap-2 rounded-lg px-3 py-1.5 hover:bg-hover">
         {# tasks--row first: it reads which way the tick goes before tasks--tick turns it. #}

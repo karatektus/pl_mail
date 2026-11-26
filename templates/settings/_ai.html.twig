@@ -61,6 +61,8 @@ Variables:
                  data-settings--toggle-url-value="{{ path('app_settings_ai_toggle') }}"
                  data-settings--toggle-token-value="{{ csrf_token('ai_preferences_toggle') }}">
 
+                {# Search by meaning is on the Search page too (#783): the same
+                   switch, so it is found from either side. #}
                 {% for feature in aiFeatures %}
                     {% set name = ('settings.ai.feature.' ~ feature.key)|trans %}
                     <div class="flex items-start justify-between gap-3"

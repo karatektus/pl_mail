@@ -110,24 +110,27 @@ Every list pages at fifty conversations. **Newer** and **Older** in the toolbar 
 ### Several inboxes
 
 One **Inbox** over every account is where everybody starts. If you would rather read work and private
-mail apart, **Settings → Unified inboxes** makes more of them: add one, give it a name and an icon,
-and under **Accounts** choose which inbox each account's mail is listed in. Every inbox is a row of
-its own in the sidebar, in the order you drag them into, with its own unread badge, its own "new"
-dot and its own tabs — the strip of an inbox only counts the mail of its accounts, and **Select all**
-in it reaches no further. The first inbox is the one the plain **Inbox** address opens, and a new
-account goes there until you move it.
+mail apart, **Settings → Inbox → Account groups** makes more of them: add a group, give it a name and
+an icon, and put accounts in it with **+ Add account**. Every group is an inbox row of its own in the
+sidebar, in the order you drag them into, with its own unread badge, its own "new" dot and its own
+tabs — the strip of a group only counts the mail of its accounts, and **Select all** in it reaches no
+further. The first group is the one the plain **Inbox** address opens, and a new account goes there
+unless you tick other groups when you add it. Groups are also what a [workspace](workspaces.md)
+shows.
 
-An account is in one inbox at a time. The one you take out of all of yours goes to **Other**, an inbox
-plMail keeps for exactly that, so it is still one click away; Other shows in the sidebar only while
-it holds a switched-on account, and you can rename it, change its icon and move it like the others,
-but not delete it. Deleting an inbox of your own moves its accounts there too — no mail is deleted
-either way, an inbox is only a way of listing it. Leave a name empty and the inbox is called
-**Inbox** (or **Other**) in your language.
+An account can be in several groups. Take it out of its last one and it goes to **Other**, the rest:
+the accounts in none of your own groups. You cannot put an account in Other or rename it; putting an
+account in one of your groups takes it out of Other. Other shows in the sidebar only while it holds
+a switched-on account; you can change its icon and move it, but not delete it. Deleting a group of
+your own moves the accounts that are in no other group to Other — no mail is deleted either way, a
+group is only a way of listing it. Leave a name empty and the group is called **Inbox** in your
+language.
 
-**Unread**, **Starred**, **Snoozed** and the rest of the system rows still span every account, and the
-browser tab counts the inbox you have open. Each account keeps its own inbox under **Accounts**. A
-configuration backup carries the inboxes and which account is in which. Phone apps can read them
-over JMAP (`UnifiedInbox/get`); they are arranged only here.
+**Unread**, **Starred**, **Snoozed** and the rest of the system rows span every account, unless a
+workspace limits them to its groups, and the browser tab counts the inbox you have open. Each
+account keeps its own inbox under **Accounts**. A configuration backup carries the groups and which
+accounts are in each. Phone apps can read them over JMAP (`UnifiedInbox/get`); they are arranged
+only here.
 
 ## Tabs
 

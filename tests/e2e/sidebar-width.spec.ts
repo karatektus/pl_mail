@@ -417,13 +417,14 @@ test.describe("the peek", () => {
     test("leans out for the next event only while the event is hovered", async ({ page }) => {
         const title = "Northwind Traders quarterly planning";
         const labels = (collapsed: boolean) => post(page, "/mail/sidebar/section-collapsed", { key: "section:labels", collapsed });
-        const placement = async (value: string) => {
-            await page.goto("/settings/region");
-            const token = await page
-                .locator('form[action$="/settings/clock/placement"] input[name="_token"]')
-                .inputValue();
-            const response = await page.request.post("/settings/clock/placement", {
-                form: { placement: value, _token: token },
+        // The Mail sidebar's own clock switch (#783), saved with the user's
+        // sidebars, of which this worker's user has none.
+        const sidebarClock = async (on: boolean) => {
+            await page.goto("/mail/inbox");
+            const token = await page.locator("[data-layout--workspace-token-value]").getAttribute("data-layout--workspace-token-value");
+            const response = await page.request.post("/layout/workspace/settings", {
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": String(token) },
+                data: { sidebars: [], mailClock: on },
             });
             expect(response.ok()).toBe(true);
         };
@@ -436,7 +437,7 @@ test.describe("the peek", () => {
         try {
             // The long label out of the way, so only the event is clipped.
             await labels(true);
-            await placement("sidebar");
+            await sidebarClock(true);
             await page.goto("/mail/inbox");
 
             const event = aside(page).locator("[data-sidebar-peek-own]");
@@ -487,7 +488,7 @@ test.describe("the peek", () => {
             }
             expect(Math.min(...samples), samples.join(", ")).toBeGreaterThan(224);
         } finally {
-            await placement("topbar");
+            await sidebarClock(false);
             await labels(false);
             seed(`seed-share-event --title='${title}' --clear`);
         }

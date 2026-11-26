@@ -102,6 +102,7 @@ stop, and a double-click is not a gesture a keyboard has.
         <div class="relative rounded-md chip-open block-tint ring-1 ring-line shadow-sm
                     hover:z-30 hover:shadow-lg hover:ring-accent/50
                     lit:z-30 lit:shadow-lg lit:ring-accent/50"
+             {% if entry.onlyOn(paneFaded ?? []) %}data-faint{% endif %}
              style="--block-tint: {{ entry.primary.event.displayColor }}1a">
             {# A timed bar is an entry of a day or more that left the hours, so it
                says what the hours no longer do: when it starts, on the day it
@@ -160,6 +161,7 @@ stop, and a double-click is not a gesture a keyboard has.
                     chip-open hover:shadow-lg hover:ring-accent/50
                     lit:shadow-lg lit:ring-accent/50
                     {{ readOnly ? '' : 'cursor-grab' }}"
+             {% if entry.onlyOn(paneFaded ?? []) %}data-faint{% endif %}
              style="--block-tint: {{ occurrence.event.displayColor }}1a">
 
             {# `stack: false` in Day view, where the column is the whole grid

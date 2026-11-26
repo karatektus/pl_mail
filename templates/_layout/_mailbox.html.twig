@@ -174,7 +174,9 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                    -translate-x-full transition-transform duration-200 ease-out"
             aria-label="{{ 'sidebar.nav.inbox'|trans }}"
         >
-            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } %}
+            {# The workspace's own sidebar, as on the desktop (#783); a workspace
+               without one has an empty drawer, and its burger is not drawn. #}
+            {% include '_layout/_sidebar_frame.html.twig' with { drawer: true } %}
         </div>
 
         {#
@@ -442,6 +444,12 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                 behind it (see the contacts and tasks page shells). #}
              data-layout--workspace-page-value="{{ fullPane ?? '' }}"
              data-layout--workspace-strings-value="{{ _self.strings()|trim }}"
+             data-layout--workspace-news-url-value="{{ path('app_layout_news') }}"
+             data-layout--workspace-news-value="{{ layout.news|json_encode(constant('JSON_FORCE_OBJECT')) }}"
+             data-layout--workspace-news-next-value="{{ layout.newsNext }}"
+             data-layout--workspace-sidebar-url-value="{{ path('app_layout_sidebar') }}"
+             data-layout--workspace-redraw-url-value="{{ path('app_layout_workspace_redraw', { id: '__ID__' }) }}"
+             data-layout--workspace-groups-value="{{ layout.groupAccounts is empty ? '{}' : layout.groupAccounts|json_encode }}"
              {# The calendar's frame reports which view it landed on, and a
                 week or a month needs more room than a day — see
                 CalendarView::minimumPaneWidth(). turbo:frame-load bubbles, so
@@ -456,16 +464,25 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                 {% include '_layout/_workspace_edit.html.twig' %}
             {% endif %}
 
-            {# Sidebar + workspace #}
-            <div class="flex flex-1 gap-gutter overflow-hidden">
+            {# Sidebar + workspace. data-workspace-row: where a workspace
+               without a sidebar takes its left gutter back (#783, app.css). #}
+            <div class="flex flex-1 gap-gutter overflow-hidden" data-workspace-row>
 
                 {# Sidebar — desktop only (hidden on mobile, shown in drawer),
                    with its drag handle (#699). It takes its room from the
                    workspace, so the clamp stops before squeezing the panes
                    below a phone's width. #}
+                {# The workspace's sidebar (#783): the Mail one, one of the
+                   user's own, or none — a workspace of calendars and tasks
+                   has no use for folders. Signed out there is no workspace,
+                   and the Mail sidebar is what it always was. #}
+                {# Always drawn, so a switch can bring a sidebar back without a
+                   reload; hidden (data-no-sidebar) while there is none. #}
                 {% include '_partials/_sidebar_pane.html.twig' with {
-                    room:    '[data-layout-root]',
-                    surface: true,
+                    room:      '[data-layout-root]',
+                    surface:   true,
+                    template:  '_layout/_sidebar_frame.html.twig',
+                    noSidebar: app.user and layout.sidebar is null,
                 } %}
 
                 <div class="layout-root"
@@ -680,5 +697,8 @@ which of the two is happening.
         drop_right:   'layout.drop.right'|trans,
         drop_top:     'layout.drop.top'|trans,
         drop_bottom:  'layout.drop.bottom'|trans,
+        newCount:     'layout.workspace.new'|trans({ '%count%': '%count%' }),
+        soon:         'layout.workspace.soon'|trans,
+        moreWorkspaces: 'layout.workspace.more'|trans,
     }|json_encode -}}
 {% endmacro %}

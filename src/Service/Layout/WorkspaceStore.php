@@ -52,12 +52,28 @@ final readonly class WorkspaceStore
 
     public function __construct(
         private TranslatorInterface $translator,
+        private WorkspacePin        $pin,
     ) {
     }
 
+    /**
+     * The user's workspaces, the active one being the pinned one when a
+     * request pinned one of theirs (WorkspacePin).
+     */
     public function load(User $user): Workspaces
     {
-        return Workspaces::fromArray($user->getSetting(User::SETTING_WORKSPACES)) ?? $this->initial($user);
+        $workspaces = Workspaces::fromArray($user->getSetting(User::SETTING_WORKSPACES)) ?? $this->initial($user);
+        $pinned     = $this->pin->pinned();
+
+        if (null !== $pinned) {
+            foreach ($workspaces->all as $index => $workspace) {
+                if ($workspace->id === $pinned) {
+                    return new Workspaces($workspaces->all, $index);
+                }
+            }
+        }
+
+        return $workspaces;
     }
 
     public function save(User $user, Workspaces $workspaces): void
