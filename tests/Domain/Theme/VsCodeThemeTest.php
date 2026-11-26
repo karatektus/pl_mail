@@ -125,7 +125,10 @@ final class VsCodeThemeTest extends TestCase
             }
         }
 
-        self::assertGreaterThanOrEqual(4.5, Oklab::contrast($c['ink'], $c['field']), 'ink in a field');
+        foreach (['ink', 'ink-soft', 'ink-muted', 'ink-faint'] as $ink) {
+            self::assertGreaterThanOrEqual(4.5, Oklab::contrast($c[$ink], $c['field']), $ink . ' in a field');
+        }
+
         self::assertGreaterThanOrEqual(4.5, Oklab::contrast($c['link'], $c['surface']), 'link on the sheet');
         self::assertGreaterThanOrEqual(3.0, Oklab::contrast($c['field-border'], $c['field']), 'field outline');
     }
@@ -150,9 +153,16 @@ final class VsCodeThemeTest extends TestCase
         self::assertEquals($palette, Palette::fromArray($palette->toArray()));
     }
 
-    public function testAFieldTheInkCannotBeReadOnFallsBack(): void
+    /** @return iterable<string, array{string}> */
+    public static function unreadableFields(): iterable
     {
-        $json = str_replace('"input.background": "#14141b"', '"input.background": "#c0caf5"', self::TOKYO_NIGHT);
+        yield 'the ink' => [str_replace('"input.background": "#14141b"', '"input.background": "#c0caf5"', self::TOKYO_NIGHT)];
+        yield 'only the fainter inks' => ['{"type": "light", "colors": {"editor.background": "#ffffff", "editor.foreground": "#000000", "input.background": "#777777"}}'];
+    }
+
+    #[DataProvider('unreadableFields')]
+    public function testAFieldTheTextCannotBeReadOnFallsBack(string $json): void
+    {
         $c = VsCodeTheme::fromJson($json)?->palette->colours ?? [];
 
         self::assertSame($c['sunken'], $c['field']);

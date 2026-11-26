@@ -181,8 +181,10 @@ final readonly class VsCodeTheme
 
         $field = $flat($pick('input.background')) ?? $sunken;
 
-        if (Oklab::contrast($ink, $field) < self::TEXT_CONTRAST) {
-            $field = $sunken;
+        foreach ([$ink, $soft, $muted, $faint] as $text) {
+            if (Oklab::contrast($text, $field) < self::TEXT_CONTRAST) {
+                $field = $sunken;
+            }
         }
         $fieldBorder = $flat($pick('input.border', 'dropdown.border'), $field) ?? $line;
         $fieldBorder = Oklab::lift($fieldBorder, $ink, [$surface, $sunken, $field, $page], self::FIELD_BORDER_CONTRAST);
