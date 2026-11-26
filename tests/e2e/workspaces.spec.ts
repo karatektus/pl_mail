@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 import { INBOX_LINK } from "./support/sidebar";
-import { col, only, pane, row, useWorkspace, useWorkspaces, type Kind } from "./support/workspace";
+import { calendar, col, only, pane, row, useWorkspace, useWorkspaces, type Kind } from "./support/workspace";
 
 /**
  * Workspaces (#755): panes arranged by the user, side by side and above and
@@ -132,15 +132,24 @@ test.describe("the pane menu", () => {
         expect(Math.abs(contacts.width - calendar.width)).toBeLessThan(2);
     });
 
-    test("a split offers only the panes the workspace does not show", async ({ page }) => {
-        await useWorkspace(page, row("list", "calendar"));
+    test("a split offers only the panes the workspace does not show, and calendars up to four", async ({ page }) => {
+        await useWorkspace(page, row("list", "contacts", "calendar"));
         await openMenu(page, "list");
 
         const group = menu(page).locator('[data-split-direction="row"]');
         await group.locator(":scope > button").hover();
 
-        await expect(group.getByRole("menuitem", { name: "Calendar" })).toBeHidden();
+        await expect(group.getByRole("menuitem", { name: "Contacts" })).toBeHidden();
         await expect(group.getByRole("menuitem", { name: "Tasks" })).toBeVisible();
+        // A calendar is offered beside one on screen: each keeps its own view.
+        await expect(group.getByRole("menuitem", { name: "Calendar" })).toBeVisible();
+
+        await page.keyboard.press("Escape");
+        await useWorkspace(page, row("list", "calendar", calendar("c2"), calendar("c3"), calendar("c4")));
+        await openMenu(page, "list");
+        await menu(page).locator('[data-split-direction="row"] > button').hover();
+
+        await expect(menu(page).locator('[data-split-direction="row"]').getByRole("menuitem", { name: "Calendar" })).toBeHidden();
     });
 
     test("show instead swaps two panes that are both on screen", async ({ page }) => {
@@ -408,6 +417,26 @@ test.describe("edit mode", () => {
         await expect(pane(page, "calendar")).toBeVisible();
     });
 
+    test("the tray offers a further calendar, and the picker keeps each card's", async ({ page }) => {
+        await page.setViewportSize({ width: 1900, height: 900 });
+        await useWorkspace(page, row("list", "calendar"));
+        await editWorkspace(page);
+
+        const tray = page.locator("[data-layout--workspace-target='tray']");
+        const calendars = page.locator("[data-layout--workspace-target='body'] [data-pane-kind='calendar']");
+
+        await expect(tray.locator("[data-tray-kind='calendar']")).toBeVisible();
+        await tray.locator("[data-tray-kind='calendar']").click();
+        await expect(calendars).toHaveCount(2);
+
+        // Each card names a calendar, and a third is still on offer.
+        await expect(calendars.nth(1).locator(":scope > .layout-edit-card select")).toHaveValue("calendar");
+        await expect(tray.locator("[data-tray-kind='calendar']")).toBeVisible();
+
+        await page.getByRole("button", { name: "Cancel" }).click();
+        await expect(calendars).toHaveCount(1);
+    });
+
     test("nothing a pane draws shows above its card", async ({ page }) => {
         await useWorkspace(page, row("list", "tasks"));
 
@@ -492,6 +521,53 @@ test.describe("the panes in a workspace", () => {
 
         await expect(pane(page, "message").locator("[data-mail--mail-pane-target='reading']")).toContainText(INBOX_SUBJECTS.read);
         await expect(reference).toBeVisible();
+    });
+
+    test("two calendars side by side keep a view each", async ({ page }) => {
+        await page.setViewportSize({ width: 1900, height: 900 });
+        await useWorkspace(page, row("list", "calendar", calendar("c2")));
+
+        const first = page.locator("turbo-frame#calendar-pane-frame");
+        const second = page.locator("turbo-frame#calendar-pane-frame-c2");
+        const current = (frame: typeof first) => frame.locator("[data-calendar-views] a[aria-current='page']");
+
+        await expect(first).toBeVisible();
+        await expect(second).toBeVisible();
+
+        await first.locator("[data-calendar-views] a[aria-label='Day']").click();
+        await expect(current(first)).toHaveAttribute("aria-label", "Day");
+        await second.locator("[data-calendar-views] a[aria-label='Agenda']").click();
+        await expect(current(second)).toHaveAttribute("aria-label", "Agenda");
+
+        // Each one's choice left the other alone, and both are kept.
+        await expect(current(first)).toHaveAttribute("aria-label", "Day");
+        await page.reload();
+        await expect(current(page.locator("turbo-frame#calendar-pane-frame"))).toHaveAttribute("aria-label", "Day");
+        await expect(current(page.locator("turbo-frame#calendar-pane-frame-c2"))).toHaveAttribute("aria-label", "Agenda");
+    });
+
+    test("a split can add another calendar beside one, up to four", async ({ page }) => {
+        await page.setViewportSize({ width: 1900, height: 900 });
+        await useWorkspace(page, row("list", "calendar"));
+
+        await openMenu(page, "calendar");
+        const group = menu(page).locator('[data-split-direction="col"]');
+        await group.locator(":scope > button").hover();
+
+        const saved = nextSave(page);
+
+        await group.getByRole("menuitem", { name: "Calendar" }).click();
+
+        const calendars = page.locator("[data-layout--workspace-target='body'] [data-pane-kind='calendar']");
+        await expect(calendars).toHaveCount(2);
+
+        // A pane of its own: a frame named by its id, which loads.
+        await expect(calendars.nth(1).locator("turbo-frame[id^='calendar-pane-frame-'] [data-calendar-views]")).toBeVisible();
+
+        // Saved, and drawn by the server on the next load.
+        expect((await saved).ok()).toBe(true);
+        await page.reload();
+        await expect(calendars).toHaveCount(2);
     });
 
     test("choosing seven days widens the calendar pane to fit them", async ({ page }) => {

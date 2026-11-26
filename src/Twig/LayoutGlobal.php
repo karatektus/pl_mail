@@ -83,12 +83,12 @@ class LayoutGlobal implements ResetInterface
         return $this->device()->sizes($this->getActive()->id, $split);
     }
 
-    /** The pane this device keeps at full width in the active workspace, if it is in it. */
-    public function getMaximized(): ?PaneKind
+    /** The key of the pane this device keeps at full width in the active workspace, if it is in it. */
+    public function getMaximized(): ?string
     {
-        $kind = $this->device()->maximized($this->getActive()->id);
+        $key = $this->device()->maximized($this->getActive()->id);
 
-        return null !== $kind && $this->getActive()->has($kind) ? $kind : null;
+        return null !== $key && $this->getActive()->hasKey($key) ? $key : null;
     }
 
     /** @return list<PaneKind> */

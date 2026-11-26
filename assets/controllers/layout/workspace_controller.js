@@ -71,8 +71,11 @@ export default class extends Controller {
     static targets = [
         "root", "body", "park", "paneTabs", "workspaceTabs",
         "editBar", "tray", "nameInput", "deleteButton", "drop",
-        "menuTemplate", "layoutTemplate", "slotTemplate", "overlayTemplate", "iconTemplate",
+        "menuTemplate", "layoutTemplate", "slotTemplate", "overlayTemplate", "iconTemplate", "calendarTemplate",
     ];
+
+    /** How many calendars a workspace may show (Workspace::MAX_CALENDARS). */
+    static MAX_CALENDARS = 4;
 
     static values = {
         document: Object,
@@ -163,21 +166,22 @@ export default class extends Controller {
             close: () => this.#close(kind),
         }));
 
-        // A view picked in the calendar's toolbar, for frameLoaded() to tell
-        // from a step to the next month. A calendar the server drew is shown
-        // already; a parked one gets room for its view on its first load.
-        const calendarSlot = this.slots.get("calendar");
-
-        if (calendarSlot?.querySelector("[data-pane-min-width]")) {
-            calendarSlot.setAttribute("data-calendar-shown", "");
-        }
+        // A view picked in a calendar's toolbar, for frameLoaded() to tell
+        // from a step to the next month: the key of the calendar it was picked
+        // in. A calendar the server drew is shown already; a parked one gets
+        // room for its view on its first load.
+        this.slots.forEach((slot) => {
+            if (slot.querySelector("[data-pane-min-width]")) {
+                slot.setAttribute("data-calendar-shown", "");
+            }
+        });
 
         this._onViewPick = (event) => {
             if (event.target.closest?.("[data-calendar-views] a")) {
-                this._viewPicked = true;
+                this._viewPicked = event.target.closest("[data-layout-pane]")?.dataset.layoutPane ?? null;
             }
         };
-        calendarSlot?.addEventListener("click", this._onViewPick, true);
+        this.element.addEventListener("click", this._onViewPick, true);
 
         // A change still waiting to be sent goes when the page does, not with
         // it. keepalive (#post) lets the request outlive the document.
@@ -190,7 +194,7 @@ export default class extends Controller {
 
     disconnect() {
         window.removeEventListener("pagehide", this._onLeave);
-        this.slots.get("calendar")?.removeEventListener("click", this._onViewPick, true);
+        this.element.removeEventListener("click", this._onViewPick, true);
         this.narrow.removeEventListener("change", this._onNarrow);
         this.rootTarget.removeEventListener("pointerdown", this._onFocus, true);
         this.rootTarget.removeEventListener("focusin", this._onFocus);
@@ -228,17 +232,18 @@ export default class extends Controller {
         const present = this.#kinds();
         const onPage = "" !== this.pageValue;
 
-        // Each pane is in a workspace once, so a split offers only what is not
-        // on screen yet. Nothing left: say so rather than show an empty menu.
+        // Each pane is in a workspace once — a calendar up to MAX_CALENDARS
+        // times — so a split offers only what can still be added. Nothing
+        // left: say so rather than show an empty menu.
         menu.querySelectorAll("[data-split-direction]").forEach((group) => {
             const offered = [...group.querySelectorAll("[data-menu-kind]")];
-            offered.forEach((item) => { item.hidden = present.includes(item.dataset.menuKind); });
+            offered.forEach((item) => { item.hidden = false === this.#canAdd(item.dataset.menuKind); });
             group.querySelector("[data-menu-all-shown]").hidden = offered.some((item) => false === item.hidden);
             group.hidden = onPage;
         });
 
         menu.querySelectorAll("[data-menu-show]").forEach((item) => {
-            const current = item.dataset.menuShow === kind;
+            const current = item.dataset.menuShow === kindOf(kind);
             item.setAttribute("aria-checked", current ? "true" : "false");
             item.classList.toggle("is-current", current);
         });
@@ -306,12 +311,12 @@ export default class extends Controller {
 
     splitFromMenu({ params: { direction, kind } }) {
         this.#closePopover();
-        this.#split(this.menuKind, direction, kind);
+        this.#split(this.menuKind, direction, this.#newKey(kind));
     }
 
     showFromMenu({ params: { kind } }) {
         this.#closePopover();
-        this.#show(this.menuKind, kind);
+        this.#show(this.menuKind, this.#keyFor(kind, this.menuKind));
     }
 
     moveFromMenu({ params: { direction } }) {
@@ -671,8 +676,10 @@ export default class extends Controller {
     changeKind(event) {
         const kind = event.currentTarget.closest("[data-layout-pane]")?.dataset.layoutPane;
 
-        this.#show(kind, event.currentTarget.value);
-        this.editing.selected = event.currentTarget.value;
+        const key = this.#keyFor(event.currentTarget.value, kind);
+
+        this.#show(kind, key);
+        this.editing.selected = key;
         this.#decorate();
     }
 
@@ -700,7 +707,7 @@ export default class extends Controller {
             return;
         }
 
-        if (this.#insertBeside(kind, { t: "pane", kind: next }, direction, false)) {
+        if (this.#insertBeside(kind, paneNode(next), direction, false)) {
             this.editing.selected = next;
             this.#render();
         }
@@ -713,10 +720,14 @@ export default class extends Controller {
             return;
         }
 
-        const kind = event.params.kind;
+        const kind = this.#newKey(event.params.kind);
         const target = this.editing?.selected ?? this.#kinds()[0];
 
-        if (this.#insertBeside(target, { t: "pane", kind }, "row", false) || this.#insertBeside(target, { t: "pane", kind }, "col", false, { quiet: true })) {
+        if (null === kind) {
+            return;
+        }
+
+        if (this.#insertBeside(target, paneNode(kind), "row", false) || this.#insertBeside(target, paneNode(kind), "col", false, { quiet: true })) {
             this.editing.selected = kind;
             this.#render();
         }
@@ -729,7 +740,13 @@ export default class extends Controller {
     }
 
     dragNew(event) {
-        this.#startDrag(event, { kind: event.params.kind, existing: false });
+        // A calendar dragged in beside another is a further one, with an id of
+        // its own; anything else on screen is not in the tray at all.
+        const kind = this.#newKey(event.params.kind);
+
+        if (null !== kind) {
+            this.#startDrag(event, { kind, existing: false });
+        }
     }
 
     // ── Keyboard ──────────────────────────────────────────────────────────
@@ -815,24 +832,30 @@ export default class extends Controller {
             return;
         }
 
-        if ("calendar-pane-frame" !== frame?.id) {
+        // Any calendar: the first's frame is `calendar-pane-frame`, a further
+        // one's adds its id.
+        if (false === (frame?.id ?? "").startsWith("calendar-pane-frame")) {
             return;
         }
 
         const wanted = Number(frame.querySelector("[data-pane-min-width]")?.dataset.paneMinWidth ?? 0);
-        const slot = this.slots.get("calendar");
+        const slot = frame.closest("[data-layout-pane]");
+        const key = slot?.dataset.layoutPane;
 
-        if (false === Number.isFinite(wanted) || 0 === wanted || undefined === slot) {
+        if (false === Number.isFinite(wanted) || 0 === wanted || null === slot || undefined === key) {
             return;
         }
 
-        const picked = true === this._viewPicked || false === slot.hasAttribute("data-calendar-shown");
+        const picked = key === this._viewPicked || false === slot.hasAttribute("data-calendar-shown");
 
-        this._viewPicked = false;
+        if (key === this._viewPicked) {
+            this._viewPicked = null;
+        }
+
         slot.setAttribute("data-calendar-shown", "");
 
         if (picked) {
-            this.#widen("calendar", wanted);
+            this.#widen(key, wanted);
         }
     }
 
@@ -851,15 +874,89 @@ export default class extends Controller {
         return leaves(this.#workspace().layout);
     }
 
-    /** The first kind the workspace does not show yet, in the order a split offers them. */
+    /**
+     * What a split adds when nothing was picked: the first kind the workspace
+     * does not show yet, in OFFER order, and with every kind on screen a
+     * further calendar while there is room for one. As a key.
+     */
     #offer() {
         const present = this.#kinds();
+        const absent = this.constructor.OFFER.find((kind) => false === present.includes(kind));
 
-        return this.constructor.OFFER.find((kind) => false === present.includes(kind)) ?? null;
+        return absent ?? this.#newKey("calendar");
     }
 
-    #split(kind, direction, newKind = null) {
-        const next = newKind ?? this.#offer();
+    /** Whether a pane of `kind` can still be added to the active workspace. */
+    #canAdd(kind) {
+        const present = this.#kinds();
+
+        return false === present.includes(kind)
+            || ("calendar" === kind && present.filter((key) => "calendar" === kindOf(key)).length < this.constructor.MAX_CALENDARS);
+    }
+
+    /**
+     * The key a new pane of `kind` gets: the kind itself when the workspace
+     * does not show it, a further calendar (`calendar~<id>`) when it is a
+     * calendar and there is room for another, else null — every other kind is
+     * in a workspace once.
+     */
+    #newKey(kind) {
+        if (false === this.#kinds().includes(kind)) {
+            return kind;
+        }
+
+        return this.#canAdd(kind) ? `${kind}~${newId("c")}` : null;
+    }
+
+    /**
+     * The key to put in the place of the pane `at` when `kind` is chosen for
+     * it (Show instead, an edit card's picker): a calendar picked for a pane
+     * that is not one is a further calendar while there is room, so the one
+     * already on screen stays; anything else is the pane of that kind, which
+     * swaps places if it is on screen elsewhere.
+     */
+    #keyFor(kind, at) {
+        if (kindOf(at) === kind) {
+            return at;
+        }
+
+        return "calendar" === kind ? (this.#newKey(kind) ?? kind) : kind;
+    }
+
+    /**
+     * The section of the pane of `key`. A further calendar this page did not
+     * draw is made here, from calendarTemplate, and parked; its frame is lazy
+     * until #arrange() places it.
+     */
+    #slot(key) {
+        if (this.slots.has(key) || "calendar" !== kindOf(key) || false === this.hasCalendarTemplateTarget) {
+            return this.slots.get(key);
+        }
+
+        const id = key.split("~")[1] ?? "";
+
+        if (false === /^[a-z0-9]{1,16}$/.test(id)) {
+            return undefined;
+        }
+
+        const html = this.calendarTemplateTarget.innerHTML.replaceAll("__KEY__", key).replaceAll("__ID__", id);
+        const holder = document.createElement("template");
+        holder.innerHTML = html.trim();
+
+        const slot = holder.content.firstElementChild;
+        this.parkTarget.append(slot);
+        this.slots.set(key, slot);
+
+        return slot;
+    }
+
+    /** What the pane of `key` is called: its kind's name. */
+    #name(key) {
+        return this.stringsValue.kinds[kindOf(key)] ?? key;
+    }
+
+    #split(kind, direction, newKind = undefined) {
+        const next = undefined === newKind ? this.#offer() : newKind;
 
         if (null === next) {
             this.#toast(this.stringsValue.allShown);
@@ -871,7 +968,7 @@ export default class extends Controller {
             return;
         }
 
-        if (this.#insertBeside(kind, { t: "pane", kind: next }, direction, false)) {
+        if (this.#insertBeside(kind, paneNode(next), direction, false)) {
             this.maxKind = null;
             this.focusKind = next;
             this.tabKind = next;
@@ -892,7 +989,7 @@ export default class extends Controller {
         const root = this.#workspace().layout;
         const found = findPane(root, kind);
 
-        if (null === found || false === this.#roomFor(kind, pane.kind, direction, quiet)) {
+        if (null === found || false === this.#roomFor(kind, keyOf(pane), direction, quiet)) {
             return false;
         }
 
@@ -947,7 +1044,7 @@ export default class extends Controller {
         }
 
         if (false === quiet) {
-            this.#toast(this.stringsValue.noRoom.replace("%pane%", this.stringsValue.kinds[kind] ?? kind));
+            this.#toast(this.stringsValue.noRoom.replace("%pane%", this.#name(kind)));
         }
 
         return false;
@@ -968,10 +1065,10 @@ export default class extends Controller {
         }
 
         if (null !== other) {
-            other.node.kind = at;
+            setKey(other.node, at);
         }
 
-        target.node.kind = kind;
+        setKey(target.node, kind);
 
         if (this.maxKind === at) {
             this.maxKind = kind;
@@ -1040,8 +1137,8 @@ export default class extends Controller {
         if (null !== neighbour) {
             const a = findPane(root, kind);
             const b = findPane(root, neighbour);
-            a.node.kind = neighbour;
-            b.node.kind = kind;
+            setKey(a.node, neighbour);
+            setKey(b.node, kind);
             this.focusKind = kind;
             this.#commit();
             this.#flagFocus(kind);
@@ -1052,14 +1149,14 @@ export default class extends Controller {
         const horizontal = "left" === direction || "right" === direction;
         const before = "left" === direction || "up" === direction;
 
-        if ("pane" === root.t || (root.dir === (horizontal ? "row" : "col") && root.children.some((child) => "pane" === child.t && child.kind === kind))) {
+        if ("pane" === root.t || (root.dir === (horizontal ? "row" : "col") && root.children.some((child) => "pane" === child.t && keyOf(child) === kind))) {
             this.#toast(this.stringsValue.atEdge);
 
             return;
         }
 
         this.#remove(kind);
-        const pane = { t: "pane", kind };
+        const pane = paneNode(kind);
         const rest = this.#workspace().layout;
         this.#workspace().layout = normalise(split(horizontal ? "row" : "col", before ? [pane, rest] : [rest, pane], before ? [0.3, 0.7] : [0.7, 0.3]));
         this.focusKind = kind;
@@ -1319,7 +1416,7 @@ export default class extends Controller {
     /** How small a subtree can get across `row` (width) or down (height), dividers included. */
     #minSize(node, row) {
         if ("pane" === node.t) {
-            return this.#slotMin(node.kind, row);
+            return this.#slotMin(keyOf(node), row);
         }
 
         const mins = node.children.map((child) => this.#minSize(child, row));
@@ -1329,7 +1426,7 @@ export default class extends Controller {
     }
 
     #slotMin(kind, row) {
-        const slot = this.slots.get(kind);
+        const slot = this.#slot(kind);
 
         return Number(row ? slot?.dataset.minW : slot?.dataset.minH) || 200;
     }
@@ -1411,7 +1508,7 @@ export default class extends Controller {
             const cell = document.createElement("div");
             cell.className = "layout-cell";
             cell.setAttribute("data-layout-borrowed", "");
-            cell.append(this.slots.get(this.maxKind));
+            cell.append(this.#slot(this.maxKind));
             this.bodyTarget.append(built, cell);
         } else {
             this.bodyTarget.append(built);
@@ -1449,7 +1546,7 @@ export default class extends Controller {
 
     #build(node) {
         if ("pane" === node.t) {
-            return this.slots.get(node.kind);
+            return this.#slot(keyOf(node));
         }
 
         const sizes = this.#sizesFor(node);
@@ -1573,7 +1670,7 @@ export default class extends Controller {
             button.dataset.action = "layout--workspace#tab";
             button.setAttribute("data-layout--workspace-kind-param", kind);
             button.setAttribute("aria-pressed", kind === current ? "true" : "false");
-            button.append(this.#icon(kind), document.createTextNode(this.stringsValue.kinds[kind] ?? kind));
+            button.append(this.#icon(kind), document.createTextNode(this.#name(kind)));
 
             return button;
         }));
@@ -1655,8 +1752,8 @@ export default class extends Controller {
         nav.setAttribute("data-thumb-ready", "");
     }
 
-    #icon(kind) {
-        return this.iconTemplateTarget.content.querySelector(`[data-icon-kind="${kind}"]`)?.cloneNode(true) ?? document.createTextNode("");
+    #icon(key) {
+        return this.iconTemplateTarget.content.querySelector(`[data-icon-kind="${kindOf(key)}"]`)?.cloneNode(true) ?? document.createTextNode("");
     }
 
     #fillLayoutMenu(menu) {
@@ -1804,16 +1901,18 @@ export default class extends Controller {
                 slot.append(card);
             }
 
-            card.querySelector("select").value = kind;
+            card.querySelector("select").value = kindOf(kind);
             const icon = this.#icon(kind);
             icon.setAttribute?.("data-edit-icon", "");
             card.querySelector("[data-edit-icon]")?.replaceWith(icon);
-            card.querySelector("[data-edit-name]").textContent = this.stringsValue.kinds[kind] ?? kind;
+            card.querySelector("[data-edit-name]").textContent = this.#name(kind);
             slot.toggleAttribute("data-edit-selected", kind === this.editing.selected);
         });
 
-        this.trayTarget.querySelectorAll("[data-tray-kind]").forEach((chip) => { chip.hidden = present.includes(chip.dataset.trayKind); });
-        this.trayTarget.querySelector("[data-tray-empty]").hidden = present.length < 5;
+        const chips = [...this.trayTarget.querySelectorAll("[data-tray-kind]")];
+
+        chips.forEach((chip) => { chip.hidden = false === this.#canAdd(chip.dataset.trayKind); });
+        this.trayTarget.querySelector("[data-tray-empty]").hidden = chips.some((chip) => false === chip.hidden);
         this.#updateEditSizes();
     }
 
@@ -1879,7 +1978,7 @@ export default class extends Controller {
                 document.body.classList.add("is-dragging-pane");
                 drag.ghost = document.createElement("div");
                 drag.ghost.className = "layout-ghost";
-                drag.ghost.append(this.#icon(source.kind), document.createTextNode(this.stringsValue.kinds[source.kind] ?? source.kind));
+                drag.ghost.append(this.#icon(source.kind), document.createTextNode(this.#name(source.kind)));
                 document.body.append(drag.ghost);
             }
 
@@ -1954,7 +2053,7 @@ export default class extends Controller {
         const label = "middle" === zone
             ? (drag.source.existing ? this.stringsValue.dropSwap : this.stringsValue.dropReplace)
             : this.stringsValue[`drop_${zone}`];
-        this.dropTarget.querySelector("[data-drop-label]").textContent = (label ?? "").replace("%pane%", this.stringsValue.kinds[kind] ?? kind);
+        this.dropTarget.querySelector("[data-drop-label]").textContent = (label ?? "").replace("%pane%", this.#name(kind));
         this.dropTarget.hidden = false;
     }
 
@@ -1984,7 +2083,7 @@ export default class extends Controller {
             this.#remove(source.kind);
         }
 
-        this.#insertBeside(target, { t: "pane", kind: source.kind }, direction, before, { quiet: true });
+        this.#insertBeside(target, paneNode(source.kind), direction, before, { quiet: true });
         this.editing.selected = source.kind;
         this.#render();
     }
@@ -2168,9 +2267,45 @@ function split(dir, children, sizes = null) {
     return { t: "split", id: newId("s"), dir, children, sizes: sizes ?? children.map(() => 1 / children.length) };
 }
 
-/** The pane kinds in a tree, in reading order. */
+/**
+ * A pane's key: its kind, or `calendar~<id>` for a calendar after the first
+ * (LayoutPane::key()). Everything here that names a pane — the slots, the
+ * focus, the full-width pane, the tree searches — names it by key, because a
+ * workspace can show several calendars; only drawing and naming one asks
+ * what it shows (kindOf()).
+ */
+function keyOf(node) {
+    return node.id ? `${node.kind}~${node.id}` : node.kind;
+}
+
+/** What the pane of a key shows. */
+function kindOf(key) {
+    return String(key ?? "").split("~")[0];
+}
+
+/** A pane node for a key. */
+function paneNode(key) {
+    const [kind, id] = String(key).split("~");
+
+    return id ? { t: "pane", kind, id } : { t: "pane", kind };
+}
+
+/** Make `node` the pane of `key` (a swap moves panes by rewriting their leaves). */
+function setKey(node, key) {
+    const next = paneNode(key);
+
+    node.kind = next.kind;
+
+    if (next.id) {
+        node.id = next.id;
+    } else {
+        delete node.id;
+    }
+}
+
+/** The pane keys in a tree, in reading order. */
 function leaves(node) {
-    return "pane" === node.t ? [node.kind] : node.children.flatMap(leaves);
+    return "pane" === node.t ? [keyOf(node)] : node.children.flatMap(leaves);
 }
 
 function splitIds(node, ids = new Set()) {
@@ -2182,14 +2317,14 @@ function splitIds(node, ids = new Set()) {
     return ids;
 }
 
-/** The pane of `kind`, with its parent split and its index there (parent null at the root). */
-function findPane(node, kind, parent = null, index = -1) {
+/** The pane of `key`, with its parent split and its index there (parent null at the root). */
+function findPane(node, key, parent = null, index = -1) {
     if ("pane" === node.t) {
-        return node.kind === kind ? { node, parent, index } : null;
+        return keyOf(node) === key ? { node, parent, index } : null;
     }
 
     for (let i = 0; i < node.children.length; i++) {
-        const found = findPane(node.children[i], kind, node, i);
+        const found = findPane(node.children[i], key, node, i);
 
         if (null !== found) {
             return found;

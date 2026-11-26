@@ -6,6 +6,7 @@ namespace App\Tests\Controller\Layout;
 
 use App\Domain\DTO\Layout\DeviceLayout;
 use App\Domain\DTO\Layout\Workspaces;
+use App\Domain\Enum\Calendar\CalendarView;
 use App\Entity\User\User;
 use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -163,6 +164,53 @@ final class WorkspaceShellTest extends WebTestCase
         self::assertSame('true', $tabs->first()->attr('aria-pressed'));
     }
 
+    public function testAFurtherCalendarIsDrawnInAFrameOfItsOwn(): void
+    {
+        [$client, $user] = $this->signedIn();
+        $this->store($user, ['workspaces' => [
+            ['id' => 'w1', 'name' => 'Planning', 'layout' => ['t' => 'split', 'id' => 's1', 'dir' => 'row', 'sizes' => [0.5, 0.25, 0.25], 'children' => [
+                ['t' => 'pane', 'kind' => 'list'],
+                ['t' => 'pane', 'kind' => 'calendar'],
+                ['t' => 'pane', 'kind' => 'calendar', 'id' => 'c2'],
+            ]]],
+        ], 'active' => 0]);
+
+        $body = $client->request('GET', '/mail/inbox')->filter('[data-layout--workspace-target="body"]');
+
+        self::assertSame(['list', 'calendar', 'calendar~c2'], $body->filter('[data-layout-pane]')->each(static fn (Crawler $pane): string => (string) $pane->attr('data-layout-pane')));
+        self::assertCount(2, $body->filter('[data-pane-kind="calendar"]'));
+        self::assertCount(1, $body->filter('[data-layout-pane="calendar"] turbo-frame#calendar-pane-frame'));
+        self::assertCount(1, $body->filter('[data-layout-pane="calendar~c2"] turbo-frame#calendar-pane-frame-c2'));
+
+        // Its links say which pane they are for, so its view is its own.
+        $links = $body->filter('#calendar-pane-frame-c2 [data-calendar-views] a')->each(static fn (Crawler $link): string => (string) $link->attr('href'));
+
+        self::assertNotEmpty($links);
+
+        foreach ($links as $href) {
+            self::assertStringEndsWith('?pane=c2', $href);
+        }
+    }
+
+    public function testEachCalendarPaneKeepsItsOwnView(): void
+    {
+        [$client] = $this->signedIn();
+        $first = $this->reread()->calendarPaneView;
+        $other = CalendarView::Month === $first ? CalendarView::Day : CalendarView::Month;
+
+        $client->request('GET', '/calendar/' . $other->value . '/2026-11-02?pane=c2');
+        self::assertResponseIsSuccessful();
+
+        $user = $this->reread();
+        self::assertSame($other, $user->calendarPaneViewFor('c2'));
+        self::assertSame($first, $user->calendarPaneView, 'the first calendar pane kept its view');
+        self::assertSame($first, $user->calendarPaneViewFor('c3'), 'a pane with nothing stored opens on the first one\'s');
+
+        $frame = $client->request('GET', '/calendar/pane?pane=c2')->filter('turbo-frame#calendar-pane-frame-c2');
+        self::assertCount(1, $frame);
+        self::assertSame('page', $frame->filter('[data-calendar-views] a[href^="/calendar/' . $other->value . '/"]')->attr('aria-current'));
+    }
+
     public function testTheContactsPageBorrowsThePaneAtFullWidth(): void
     {
         [$client, $user] = $this->signedIn();
@@ -180,6 +228,7 @@ final class WorkspaceShellTest extends WebTestCase
     {
         if (null !== $user = $this->find()) {
             $user->setSetting(User::SETTING_WORKSPACES, null);
+            $user->setSetting(User::SETTING_CALENDAR_PANE_VIEWS, null);
             static::getContainer()->get(EntityManagerInterface::class)->flush();
         }
 

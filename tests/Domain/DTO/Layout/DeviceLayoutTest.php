@@ -61,7 +61,17 @@ final class DeviceLayoutTest extends TestCase
     {
         $device = DeviceLayout::fromCookie('{"w1":{"m":"calendar"},"w2":{"m":"browser"}}');
 
-        self::assertSame(PaneKind::Calendar, $device->maximized('w1'));
+        self::assertSame('calendar', $device->maximized('w1'));
+        self::assertNull($device->maximized('w2'));
+        self::assertNull($device->maximized('w3'));
+    }
+
+    public function testAFurtherCalendarAtFullWidthIsReadByItsKey(): void
+    {
+        $device = DeviceLayout::fromCookie('{"w1":{"m":"calendar~c2"},"w2":{"m":"list~c2"},"w3":{"m":"calendar~C 2"}}');
+
+        self::assertSame('calendar~c2', $device->maximized('w1'));
+        // Only a calendar comes twice, and an id is lower-case letters and digits.
         self::assertNull($device->maximized('w2'));
         self::assertNull($device->maximized('w3'));
     }

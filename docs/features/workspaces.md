@@ -1,12 +1,15 @@
 # Workspaces
 
-The area beside the sidebar is yours to arrange. It holds up to five panes — the **Mail list**, the
+The area beside the sidebar is yours to arrange. It holds five kinds of pane — the **Mail list**, the
 **Message**, the **Calendar**, **Contacts** and **Tasks** — side by side, above and below each
 other, in any order. An arrangement is a **workspace**, and you can keep up to nine of them, for
 example one for going through new mail and one for planning the week.
 
-Each pane appears at most once in a workspace. Two mail lists side by side (the Inbox beside Sent)
-are not possible yet.
+Each pane appears at most once in a workspace, except the calendar: a workspace can show up to four
+calendars, each on its own view — this week beside this month, say. Choosing a view in one leaves the
+others as they are, and each keeps its view the next time you open the workspace. **Split right**,
+**Split below**, **Show instead** and edit mode's tray offer another calendar while there is room for
+one. Two mail lists side by side (the Inbox beside Sent) are not possible yet.
 
 ## The pane menu
 

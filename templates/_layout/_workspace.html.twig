@@ -4,7 +4,8 @@ _workspace.html.twig — the active workspace's layout tree, as markup (#755).
     {% import '_layout/_workspace.html.twig' as workspace %}
     {{ workspace.node(layout.active.root, bodies) }}
 
-`bodies` maps a pane kind ('list', 'calendar', …) to that pane's whole markup:
+`bodies` maps a pane's key ('list', 'calendar', 'calendar~a1b2', …; see
+LayoutPane::key()) to that pane's whole markup:
 the <section data-layout-pane> and everything in it, rendered once by the
 mailbox shell. This file only places them. The page's layout--workspace
 controller builds the same structure when the layout changes, and it MOVES
@@ -27,7 +28,7 @@ falling back to the workspace's own proportions.
 {% macro node(node, bodies) %}
     {% import _self as workspace %}
     {% if node.kind is defined %}
-        {{ bodies[node.kind.value] }}
+        {{ bodies[node.key] }}
     {% else %}
         {% set sizes = layout.sizes(node) %}
         <div class="layout-split" data-layout-split="{{ node.id }}" data-dir="{{ node.direction.value }}">
@@ -61,11 +62,12 @@ means nothing read aloud — so it carries a label only.
 
 {#
 The attributes of one pane's outer <section class="layout-pane">. `kind` is
-the PaneKind case; its value names the pane for the controller and the
-stylesheet; the two minimums are what a divider
+the PaneKind case; `key` names the pane for the controller and the stylesheet
+(LayoutPane::key(): the kind's value, or `calendar~<id>` for a further
+calendar) and `data-pane-kind` says what it shows; the two minimums are what a divider
 stops at and what a split must leave room for (PaneKind::minWidth(),
 minHeight()). The section and its content are the caller's.
 #}
-{% macro attrs(kind) -%}
-    data-layout-pane="{{ kind.value }}" data-min-w="{{ kind.minWidth }}" data-min-h="{{ kind.minHeight }}" aria-label="{{ kind.transKey|trans }}"
+{% macro attrs(kind, key = null) -%}
+    data-layout-pane="{{ key ?? kind.value }}" data-pane-kind="{{ kind.value }}" data-min-w="{{ kind.minWidth }}" data-min-h="{{ kind.minHeight }}" aria-label="{{ kind.transKey|trans }}"
 {%- endmacro %}

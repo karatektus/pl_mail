@@ -882,6 +882,24 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_CALENDAR_PANE_VIEW = 'calendar.pane_view';
 
     /**
+     * The view of each FURTHER calendar pane, by its id (LayoutPane::$id): a
+     * workspace can show several calendars, each on its own view — this week
+     * beside this month — and choosing one's view leaves the others alone.
+     * The first calendar pane, which has no id, keeps
+     * SETTING_CALENDAR_PANE_VIEW. A pane with nothing stored opens on what the
+     * first one shows. Ids of panes since removed stay, up to a cap: a
+     * handful of short strings, and a pane put back finds its view.
+     */
+    public const string SETTING_CALENDAR_PANE_VIEWS = 'calendar.pane_views';
+
+    /**
+     * How many further panes' views are kept. Past it some are dropped — not
+     * strictly the oldest, as the column is JSONB and keeps keys in an order
+     * of its own; a dropped pane just opens on the first pane's view.
+     */
+    private const int CALENDAR_PANE_VIEWS_KEPT = 24;
+
+    /**
      * The list a new task lands on when nothing else was picked (My Day, All, quick
      * add from either). An id, read through TaskListProvisioner::landingFor(), which
      * falls back to the default list when this one is gone, foreign or read-only.
@@ -1112,6 +1130,40 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         set (CalendarView $view) {
             $this->setSetting(self::SETTING_CALENDAR_PANE_VIEW, $view->value);
         }
+    }
+
+    /**
+     * The view the calendar pane of that id opens on; null is the first pane.
+     * See SETTING_CALENDAR_PANE_VIEWS.
+     */
+    public function calendarPaneViewFor(?string $paneId): CalendarView
+    {
+        if (null === $paneId) {
+            return $this->calendarPaneView;
+        }
+
+        $views = $this->getSetting(self::SETTING_CALENDAR_PANE_VIEWS);
+        $view  = is_array($views) && is_string($views[$paneId] ?? null) ? CalendarView::tryFrom($views[$paneId]) : null;
+
+        return $view ?? $this->calendarPaneView;
+    }
+
+    /** Keep the view of the calendar pane of that id; null is the first pane. */
+    public function setCalendarPaneViewFor(?string $paneId, CalendarView $view): void
+    {
+        if (null === $paneId) {
+            $this->calendarPaneView = $view;
+
+            return;
+        }
+
+        $views = $this->getSetting(self::SETTING_CALENDAR_PANE_VIEWS);
+        $views = is_array($views) ? array_filter($views, static fn (mixed $value, mixed $key): bool => is_string($key) && is_string($value), ARRAY_FILTER_USE_BOTH) : [];
+
+        unset($views[$paneId]);
+        $views[$paneId] = $view->value;
+
+        $this->setSetting(self::SETTING_CALENDAR_PANE_VIEWS, array_slice($views, -self::CALENDAR_PANE_VIEWS_KEPT, null, true));
     }
 
     /**

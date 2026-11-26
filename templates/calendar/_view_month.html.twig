@@ -87,7 +87,7 @@ neither.
            which appeared on busy days and nowhere else, and that link is gone
            along with the count it could not get right. The number itself is
            what every calendar anybody has used puts the link on. #}
-        <a href="{{ path('app_calendar_view', { view: 'day', date: dayKey }) }}{{ isPane|default(false) ? '?pane=1' : '' }}"
+        <a href="{{ path('app_calendar_view', { view: 'day', date: dayKey }) }}{{ isPane|default(false) ? '?pane=' ~ paneId|default('1') : '' }}"
            {% if frame|default(null) %}data-turbo-frame="{{ frame }}"{% endif %}
            aria-label="{{ 'calendar.open_day'|trans({ '%date%': dayKey|intl_date('EEEdMMM') }) }}"
            class="rounded-md hover:bg-hover transition-colors

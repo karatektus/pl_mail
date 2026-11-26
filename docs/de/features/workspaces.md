@@ -1,15 +1,20 @@
-<!-- translated-from: features/workspaces.md sha1:e76aaf82ea85efe34868c08d29a98a3dd10345c4 -->
+<!-- translated-from: features/workspaces.md sha1:52a79ad920f93e057b5f36e29f50e1a5fdba144f -->
 
 # Arbeitsbereiche
 
-Die Fläche neben der Seitenleiste ordnest du selbst an. Sie fasst bis zu fünf Bereiche — die
+Die Fläche neben der Seitenleiste ordnest du selbst an. Sie fasst fünf Arten von Bereichen — die
 **Mailliste**, die **Nachricht**, den **Kalender**, die **Kontakte** und die **Aufgaben** —
 nebeneinander, über- und untereinander, in beliebiger Reihenfolge. Eine Anordnung ist ein
 **Arbeitsbereich**, und du kannst bis zu neun davon behalten, zum Beispiel einen zum Abarbeiten neuer
 Mail und einen zum Planen der Woche.
 
-Jeder Bereich kommt in einem Arbeitsbereich höchstens einmal vor. Zwei Maillisten nebeneinander (der
-Posteingang neben Gesendet) gehen noch nicht.
+Jeder Bereich kommt in einem Arbeitsbereich höchstens einmal vor, außer dem Kalender: Ein
+Arbeitsbereich kann bis zu vier Kalender zeigen, jeden in seiner eigenen Ansicht — etwa diese Woche
+neben diesem Monat. Wählst du in einem eine Ansicht, bleiben die anderen, wie sie sind, und jeder
+behält seine Ansicht, wenn du den Arbeitsbereich wieder öffnest. **Rechts teilen**, **Darunter
+teilen**, **Stattdessen zeigen** und die Leiste im Bearbeitungsmodus bieten einen weiteren Kalender
+an, solange Platz für einen ist. Zwei Maillisten nebeneinander (der Posteingang neben Gesendet) gehen
+noch nicht.
 
 ## Das Bereichsmenü
 

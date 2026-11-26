@@ -60,6 +60,23 @@ abstract readonly class LayoutNode
      */
     abstract public function kinds(): array;
 
+    /**
+     * Every pane in this subtree, in the order they are drawn.
+     *
+     * @return list<LayoutPane>
+     */
+    abstract public function panes(): array;
+
+    /**
+     * Every pane's key (LayoutPane::key()), in the order they are drawn.
+     *
+     * @return list<string>
+     */
+    public function keys(): array
+    {
+        return array_map(static fn (LayoutPane $pane): string => $pane->key(), $this->panes());
+    }
+
     /** Whether this subtree is the split of that id or contains it. */
     abstract public function hasSplit(string $id): bool;
 

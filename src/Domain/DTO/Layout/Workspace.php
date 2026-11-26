@@ -15,6 +15,9 @@ final readonly class Workspace
 {
     public const string ID_PATTERN = '/^[A-Za-z0-9_-]{1,32}$/';
 
+    /** Calendars beside each other, each on its own view; past four they are slivers. */
+    public const int MAX_CALENDARS = 4;
+
     /** Long enough for "Morgens: Post und Kalender", short enough for a tab in the top bar. */
     public const int NAME_MAX_LENGTH = 40;
 
@@ -28,9 +31,10 @@ final readonly class Workspace
     /**
      * Parse one workspace, or null if it is not one.
      *
-     * Refused, not repaired: a pane kind twice, no panes, a name that is empty
-     * once trimmed. Each of those is something the page never sends, so the
-     * document did not come from it.
+     * Refused, not repaired: a pane twice (the same key — two calendars are
+     * two keys, see LayoutPane), more than MAX_CALENDARS calendars, no panes, a
+     * name that is empty once trimmed. Each of those is something the page
+     * never sends, so the document did not come from it.
      */
     public static function fromArray(mixed $data): ?self
     {
@@ -50,9 +54,13 @@ final readonly class Workspace
             return null;
         }
 
-        $kinds = array_map(static fn (PaneKind $kind): string => $kind->value, $root->kinds());
+        $keys = $root->keys();
 
-        if (count($kinds) !== count(array_unique($kinds))) {
+        if (count($keys) !== count(array_unique($keys))) {
+            return null;
+        }
+
+        if (count(array_filter($root->kinds(), static fn (PaneKind $kind): bool => PaneKind::Calendar === $kind)) > self::MAX_CALENDARS) {
             return null;
         }
 
@@ -63,6 +71,12 @@ final readonly class Workspace
     public function toArray(): array
     {
         return ['id' => $this->id, 'name' => $this->name, 'layout' => $this->root->toArray()];
+    }
+
+    /** Whether this workspace has the pane of that key (LayoutPane::key()). */
+    public function hasKey(string $key): bool
+    {
+        return in_array($key, $this->root->keys(), true);
     }
 
     /** Whether this workspace has a pane of that kind anywhere in it. */

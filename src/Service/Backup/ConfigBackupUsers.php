@@ -138,6 +138,7 @@ final readonly class ConfigBackupUsers
         // different installation.
         User::SETTING_CALENDAR_VIEW,
         User::SETTING_CALENDAR_PANE_VIEW,
+        User::SETTING_CALENDAR_PANE_VIEWS,
         User::SETTING_SEARCH_SORT,
         // Whether single keys act on mail. Stored only as a false, by
         // somebody who decided they did not want that — and a restore that
