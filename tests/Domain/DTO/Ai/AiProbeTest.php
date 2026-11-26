@@ -6,6 +6,7 @@ namespace App\Tests\Domain\DTO\Ai;
 
 use App\Domain\DTO\Ai\AiProbe;
 use App\Domain\DTO\Ai\AiWarmUp;
+use App\Domain\DTO\Ai\OllamaModel;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Translation\IdentityTranslator;
 
@@ -48,5 +49,40 @@ final class AiProbeTest extends TestCase
         $warmUp = AiWarmUp::failed('model_missing', ['model' => 'qwen3', 'error' => 'not found']);
 
         self::assertSame(['%model%' => 'qwen3', '%error%' => 'not found'], $warmUp->placeholders());
+    }
+
+    /**
+     * Gemini lists "models/gemini-3.8-flash" and answers to "gemini-3.8-flash".
+     * The test called that model missing while every request used it (#743).
+     */
+    public function testAModelListedWithGooglesPrefixMatchesTheBareName(): void
+    {
+        $probe = AiProbe::reachable([
+            new OllamaModel('models/gemini-3.8-flash'),
+            new OllamaModel('models/gemini-embedding-2'),
+        ]);
+
+        self::assertTrue($probe->hasModel('gemini-3.8-flash'));
+        self::assertTrue($probe->hasModel('gemini-embedding-2'));
+        self::assertTrue($probe->hasModel('models/gemini-3.8-flash'), 'typed the way the list spells it');
+    }
+
+    /** The prefix is ignored, not the rest of the name: a neighbour is not a match. */
+    public function testThePrefixDoesNotMakeANeighbourMatch(): void
+    {
+        $probe = AiProbe::reachable([new OllamaModel('models/gemini-3.8-flash-lite-tts')]);
+
+        self::assertFalse($probe->hasModel('gemini-3.8-flash'));
+        self::assertFalse($probe->hasModel('gemini-embedding-2'));
+    }
+
+    /** Ollama's default-tag tolerance is unchanged. */
+    public function testOllamasDefaultTagStillMatches(): void
+    {
+        $probe = AiProbe::reachable([new OllamaModel('llama3.1:8b')]);
+
+        self::assertTrue($probe->hasModel('llama3.1'));
+        self::assertTrue($probe->hasModel('llama3.1:8b'));
+        self::assertFalse($probe->hasModel('llama3.1:70b'));
     }
 }

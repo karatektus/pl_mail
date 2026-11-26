@@ -126,7 +126,7 @@ poll would empty a field mid-word.
                         <div role="status" class="flex items-start gap-2.5 rounded-lg bg-amber-500/10 px-3.5 py-3 text-sm text-amber-500">
                             <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
                             <p class="leading-snug">
-                                {{ 'admin.ai.probe.missing_model'|trans({ '%models%': missing|join(', ') }) }}
+                                {{ (tested.provider.pullsModels ? 'admin.ai.probe.missing_model' : 'admin.ai.probe.missing_model_listed')|trans({ '%models%': missing|join(', ') }) }}
                             </p>
                         </div>
                     {% endif %}

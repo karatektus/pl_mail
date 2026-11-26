@@ -47,6 +47,18 @@ enum AiProvider: string
         return self::Ollama === $this;
     }
 
+    /**
+     * Whether a model this host lacks is one its administrator pulls onto it.
+     *
+     * True of Ollama, where "pull it on the host" is the fix. Not something
+     * to tell somebody whose host is a hosted service, which offers what it
+     * offers (#743): there the fix is the name, checked against the list.
+     */
+    public function pullsModels(): bool
+    {
+        return self::Ollama === $this;
+    }
+
     /** The translation key for the name shown in the provider field. */
     public function label(): string
     {

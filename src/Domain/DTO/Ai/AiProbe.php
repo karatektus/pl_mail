@@ -71,8 +71,12 @@ final readonly class AiProbe
 
     public function hasModel(string $name): bool
     {
+        $name = self::bare($name);
+
         foreach ($this->models as $model) {
-            if ($model->name === $name) {
+            $listed = self::bare($model->name);
+
+            if ($listed === $name) {
                 return true;
             }
 
@@ -80,11 +84,25 @@ final readonly class AiProbe
             // "llama3.1", meaning the default tag. Treating those as different
             // would fail a test against a host that is holding exactly what was
             // asked for.
-            if ($name === explode(':', $model->name)[0]) {
+            if ($name === explode(':', $listed)[0]) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * A model name without the `models/` Google puts in front of it.
+     *
+     * Gemini's OpenAI-compatible `/models` lists "models/gemini-3.8-flash",
+     * and its `/chat/completions` and `/embeddings` take "gemini-3.8-flash"
+     * just as well. Compared as spelled, the test reported a model missing
+     * that every request then used without complaint (#743). Stripped on both
+     * sides, so a name typed the way the list spells it matches too.
+     */
+    private static function bare(string $name): string
+    {
+        return str_starts_with($name, 'models/') ? substr($name, 7) : $name;
     }
 }
