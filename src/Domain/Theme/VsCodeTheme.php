@@ -132,7 +132,13 @@ final readonly class VsCodeTheme
             $sunken = Oklab::mix($surface, $ink, 0.05);
         }
 
-        $grounds = [$surface, $page, $sunken];
+        $raised = $flat($pick('list.inactiveSelectionBackground', 'list.hoverBackground', 'editor.lineHighlightBackground'));
+
+        if (null === $raised || Oklab::contrast($raised, $surface) < 1.05) {
+            $raised = Oklab::mix($surface, $ink, 0.08);
+        }
+
+        $grounds = [$surface, $page, $sunken, $raised];
         $muted = Oklab::lift($flat($pick('foreground', 'sideBar.foreground', 'descriptionForeground')) ?? Oklab::mix($ink, $surface, 0.3), $ink, $grounds, self::TEXT_CONTRAST);
         $faint = Oklab::lift($flat($pick('descriptionForeground', 'editorLineNumber.foreground')) ?? Oklab::mix($ink, $surface, 0.45), $ink, $grounds, self::TEXT_CONTRAST);
 
@@ -173,12 +179,6 @@ final readonly class VsCodeTheme
             $line = Oklab::mix($surface, $ink, 0.14);
         }
 
-        $raised = $flat($pick('list.inactiveSelectionBackground', 'list.hoverBackground', 'editor.lineHighlightBackground'));
-
-        if (null === $raised || Oklab::contrast($raised, $surface) < 1.05) {
-            $raised = Oklab::mix($surface, $ink, 0.08);
-        }
-
         $field = $flat($pick('input.background')) ?? $sunken;
 
         foreach ([$ink, $soft, $muted, $faint] as $text) {
@@ -207,7 +207,7 @@ final readonly class VsCodeTheme
 
         // Status colours are text, and also text on a 12% wash of themselves.
         foreach ($status as $key => $colour) {
-            $status[$key] = Oklab::liftLightness($colour, $dark, [$surface, $page, Oklab::mix($surface, $colour, 0.12)], self::TEXT_CONTRAST);
+            $status[$key] = Oklab::liftLightness($colour, $dark, [$surface, $page, $raised, Oklab::mix($surface, $colour, 0.12)], self::TEXT_CONTRAST);
         }
 
         // A theme that leaves a terminal colour out gets the status colour of

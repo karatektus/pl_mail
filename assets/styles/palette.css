@@ -82,7 +82,8 @@
 }
 
 /* Raised is opaque in a palette, so a quiet button's two raised steps are
-   one colour; its hover steps toward the ink instead. */
-:root.palette .btn-quiet:hover {
+   one colour; its hover steps toward the ink instead. The mail sheet keeps
+   its own translucent raised, and with it the usual hover. */
+:root.palette .btn-quiet:hover:not(.mail-sheet *) {
     background-color: color-mix(in oklab, rgb(var(--rgb-raised)), rgb(var(--rgb-ink)) 10%);
 }

@@ -115,12 +115,14 @@ final class VsCodeThemeTest extends TestCase
     public function testTextReadsOnEverySurface(string $json): void
     {
         $c = VsCodeTheme::fromJson($json)?->palette->colours ?? [];
-        $grounds = ['surface' => $c['surface'], 'page' => $c['page'], 'sunken' => $c['sunken']];
+        $grounds = ['surface' => $c['surface'], 'page' => $c['page'], 'sunken' => $c['sunken'], 'raised' => $c['raised']];
 
         foreach ($grounds as $ground => $colour) {
-            self::assertGreaterThanOrEqual(10.0, Oklab::contrast($c['ink'], $colour), 'ink on ' . $ground);
+            if ('raised' !== $ground) {
+                self::assertGreaterThanOrEqual(10.0, Oklab::contrast($c['ink'], $colour), 'ink on ' . $ground);
+            }
 
-            foreach (['ink-soft', 'ink-muted', 'ink-faint', ...Palette::STATUS] as $ink) {
+            foreach (['ink', 'ink-soft', 'ink-muted', 'ink-faint', ...Palette::STATUS] as $ink) {
                 self::assertGreaterThanOrEqual(4.5, Oklab::contrast($c[$ink], $colour), $ink . ' on ' . $ground);
             }
         }
@@ -151,6 +153,18 @@ final class VsCodeThemeTest extends TestCase
 
         self::assertNotNull($palette);
         self::assertEquals($palette, Palette::fromArray($palette->toArray()));
+    }
+
+    public function testTextReadsOnARaisedRowTheThemeChose(): void
+    {
+        $json = '{"type": "dark", "colors": {"editor.background": "#1e1e1e", "editor.foreground": "#d4d4d4", "list.inactiveSelectionBackground": "#3a3d41"}}';
+        $c = VsCodeTheme::fromJson($json)?->palette->colours ?? [];
+
+        self::assertSame('#3a3d41', $c['raised']);
+
+        foreach (['ink-soft', 'ink-muted', 'ink-faint'] as $ink) {
+            self::assertGreaterThanOrEqual(4.5, Oklab::contrast($c[$ink], $c['raised']), $ink . ' on raised');
+        }
     }
 
     /** @return iterable<string, array{string}> */
