@@ -52,6 +52,18 @@ function nextSave(page: Page) {
     return page.waitForResponse((response) => response.url().endsWith("/layout/workspaces") && "POST" === response.request().method());
 }
 
+/** Layout → Edit this workspace. */
+async function editWorkspace(page: Page): Promise<void> {
+    await page.getByRole("button", { name: "Layout" }).click();
+    await page.locator(".layout-presets").getByRole("button", { name: /Edit this workspace/ }).click();
+    await expect(page.locator("[data-layout-editing]")).toHaveCount(1);
+}
+
+/** The picker on a pane's card in edit mode. */
+function editPicker(page: Page, kind: Kind) {
+    return pane(page, kind).locator(":scope > .layout-edit-card select");
+}
+
 /** The two panes' boxes, for "side by side" and "above and below". */
 async function boxes(page: Page, a: Kind, b: Kind) {
     return [(await pane(page, a).boundingBox())!, (await pane(page, b).boundingBox())!] as const;
@@ -312,6 +324,68 @@ test.describe("edit mode", () => {
 
         await page.getByRole("button", { name: "Cancel" }).click();
         await expect(pane(page, "calendar")).toBeVisible();
+    });
+
+    test("cancel leaves the server's copy as it was too", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar"));
+        await editWorkspace(page);
+
+        // Edit mode is a draft, not saved as it goes. A pick in a card's
+        // picker was, so Cancel put the calendar back here while the next
+        // load drew the tasks in its place.
+        await editPicker(page, "calendar").selectOption("tasks");
+        await expect(pane(page, "tasks")).toBeVisible();
+
+        // Longer than the pause a save waits out, as anyone takes to decide:
+        // a Cancel inside it once got away with it, because the save that
+        // went then carried what Cancel had put back.
+        await page.waitForTimeout(500);
+
+        const saved = nextSave(page);
+
+        await page.getByRole("button", { name: "Cancel" }).click();
+        await expect(pane(page, "calendar")).toBeVisible();
+
+        expect((await saved).ok()).toBe(true);
+        await page.reload();
+        await expect(pane(page, "calendar")).toBeVisible();
+        await expect(pane(page, "tasks")).toBeHidden();
+    });
+
+    test("leaving edit mode by leaving the page keeps what was saved", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar"));
+        await editWorkspace(page);
+
+        await editPicker(page, "calendar").selectOption("tasks");
+        await expect(pane(page, "calendar")).toBeHidden();
+
+        // Twice: a save sent as the page went could land after the first
+        // load was drawn. Nothing is sent from edit mode, so neither has it.
+        await page.reload();
+        await page.reload();
+        await expect(pane(page, "calendar")).toBeVisible();
+    });
+
+    test("every card's picker names its own pane, after a swap too", async ({ page }) => {
+        await useWorkspace(page, row("list", "calendar", "tasks"));
+        await editWorkspace(page);
+
+        const picker = (kind: Kind) => editPicker(page, kind);
+
+        // The list's card picks the tasks: the two swap places, and each card
+        // follows the pane it is on. Every render moves the cards, and the
+        // enhanced select they had fell back to its first option on a move.
+        await picker("list").selectOption("tasks");
+
+        for (const kind of ["list", "calendar", "tasks"] as const) {
+            await expect(picker(kind)).toHaveValue(kind);
+            await expect(picker(kind).locator("option:checked")).toHaveText(NAMES[kind]);
+        }
+
+        const [tasks, list] = await boxes(page, "tasks", "list");
+        expect(list.x).toBeGreaterThan(tasks.x);
+
+        await page.getByRole("button", { name: "Cancel" }).click();
     });
 });
 
