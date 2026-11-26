@@ -68,6 +68,29 @@ export const test = base.extend<object, { workerAuth: string }>({
     },
 
     /**
+     * The API client sends an Origin, as a browser does.
+     *
+     * Specs set things up through page.request (reset a preference, archive a
+     * thread) with the page's `ajax` token, and that token is stateless now
+     * (csrf.yaml): what is checked is that the request names this site. A
+     * browser's fetch() says so on its own; Playwright's request client says
+     * nothing, and every such post was refused. Only the API client is
+     * touched — what the browser sends is the browser's.
+     */
+    context: async ({ context, baseURL }, use) => {
+        const origin = new URL(baseURL ?? "http://localhost").origin;
+        const client = context.request as unknown as Record<string, (url: unknown, options?: { headers?: Record<string, string> }) => unknown>;
+
+        for (const method of ["post", "put", "patch", "delete", "fetch", "get", "head"]) {
+            const send = client[method].bind(context.request);
+
+            client[method] = (url, options = {}) => send(url, { ...options, headers: { Origin: origin, ...(options.headers ?? {}) } });
+        }
+
+        await use(context);
+    },
+
+    /**
      * V8 coverage for the application's own JavaScript, when asked for.
      *
      * Off unless E2E_JS_COVERAGE is set: collecting it slows every navigation
