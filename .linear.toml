@@ -1,0 +1,6 @@
+# linear cli
+# https://github.com/schpet/linear-cli
+
+workspace = "zenithmediacocom"
+team_id = "BMAIL"
+issue_sort = "priority"
