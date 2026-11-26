@@ -48,6 +48,6 @@ final class CalendarBehaviourController extends AbstractController
 
         $em->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'calendar-behaviour']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'calendar-behaviour']);
     }
 }

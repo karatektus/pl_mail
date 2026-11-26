@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\AddressBook;
 
 use App\Entity\AddressBook\AddressBook;
-use Doctrine\DBAL\Connection;
+use App\Repository\System\AdvisoryLock\AdvisoryLockRepository;
 
 /**
  * One run at a time per address book, across workers.
@@ -29,7 +29,7 @@ final readonly class AddressBookLock
     private const int NAMESPACE = 0x41424B00;
 
     public function __construct(
-        private Connection $connection,
+        private AdvisoryLockRepository $locks,
     ) {
     }
 
@@ -44,12 +44,12 @@ final readonly class AddressBookLock
     {
         $key = (int) $book->id;
 
-        $this->connection->executeQuery('SELECT pg_advisory_lock(?, ?)', [self::NAMESPACE, $key]);
+        $this->locks->lockIn(self::NAMESPACE, $key);
 
         try {
             return $work();
         } finally {
-            $this->connection->executeQuery('SELECT pg_advisory_unlock(?, ?)', [self::NAMESPACE, $key]);
+            $this->locks->unlockIn(self::NAMESPACE, $key);
         }
     }
 }

@@ -110,7 +110,7 @@ test.describe("create label", () => {
 });
 
 test.describe("manage labels", () => {
-    const SETTINGS_URL = "/settings?section=labels";
+    const SETTINGS_URL = "/settings/labels";
 
     test("renames a label from settings and the sidebar follows", async ({
         page,

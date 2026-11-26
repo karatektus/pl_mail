@@ -6,8 +6,8 @@ namespace App\Tests\Controller\Admin;
 
 use App\Domain\Enum\System\UpdateChannel;
 use App\Entity\User\User;
-use App\Repository\System\UpdateCheckRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\System\UpdateCheck\UpdateCheckRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;

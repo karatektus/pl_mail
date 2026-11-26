@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Mail;
 
 use App\Entity\User\User;
-use App\Repository\Job\BackgroundJobRepository;
+use App\Repository\Job\BackgroundJob\BackgroundJobRepository;
 use App\Service\Mail\ImportProgress;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;

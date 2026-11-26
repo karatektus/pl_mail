@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Contact;
 
-use App\Entity\Contacts\ContactMergeRecord;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
+use App\Repository\Contacts\ContactMergeRecord\ContactMergeRecordRepository;
 use App\Service\Contacts\ContactMerger;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -33,6 +33,7 @@ final class ContactMergeUndoMethod implements JmapMethod
         private readonly AccountResolver $accountResolver,
         private readonly ContactMerger $merger,
         private readonly EntityManagerInterface $entityManager,
+        private readonly ContactMergeRecordRepository $contactMergeRecordRepository,
     ) {
     }
 
@@ -53,7 +54,7 @@ final class ContactMergeUndoMethod implements JmapMethod
             throw new MethodException('invalidArguments', 'A string "mergeRecordId" is required.');
         }
 
-        $record = $this->entityManager->find(ContactMergeRecord::class, (int) $recordId);
+        $record = $this->contactMergeRecordRepository->find((int) $recordId);
 
         if (null === $record || $record->usr->id !== $context->user->id) {
             throw new MethodException('notFound', 'No such merge record.');

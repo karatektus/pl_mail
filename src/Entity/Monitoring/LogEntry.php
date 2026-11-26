@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Monitoring;
 
-use App\Repository\Monitoring\LogEntryRepository;
+use App\Repository\Monitoring\LogEntry\LogEntryRepository;
 use Doctrine\DBAL\Types\Types;
 use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;

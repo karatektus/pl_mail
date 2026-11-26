@@ -13,7 +13,7 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Jmap\State\ChangeType;
 use App\Jmap\State\JmapObjectType;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Imap\ThreadMerger;
 use App\Service\Label\ThreadLabelSynchronizer;
@@ -577,7 +577,7 @@ final class ThreadingOutOfOrderTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
         $this->em->flush();
 

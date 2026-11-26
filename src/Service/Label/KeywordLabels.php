@@ -6,7 +6,7 @@ namespace App\Service\Label;
 
 use App\Entity\Label\Label;
 use App\Entity\User\User;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Label\Label\LabelRepository;
 use App\Service\Imap\ImapKeyword;
 use Doctrine\ORM\EntityManagerInterface;
 

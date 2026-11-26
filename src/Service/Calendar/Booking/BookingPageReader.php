@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Calendar\Booking;
 
 use App\Entity\Calendar\BookingPage;
-use App\Repository\Calendar\BookingPageRepository;
+use App\Repository\Calendar\BookingPage\BookingPageRepository;
 use App\Service\Calendar\Sharing\PublicLinkToken;
 
 /**

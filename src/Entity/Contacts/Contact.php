@@ -8,7 +8,7 @@ use App\Domain\Enum\Calendar\SyncState;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\User\User;
-use App\Repository\Contacts\ContactRepository;
+use App\Repository\Contacts\Contact\ContactRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;

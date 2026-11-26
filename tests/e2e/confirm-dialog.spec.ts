@@ -23,7 +23,7 @@ import { seed } from "./support/config";
  * of its own now, because for a folder on the server it also has to ask where
  * the mail goes (issue #40). Only Cancel and Escape are ever pressed here.
  */
-const CONFIRMED_ACTION_URL = "/settings?section=accounts";
+const CONFIRMED_ACTION_URL = "/settings/accounts";
 
 test.beforeEach(() => {
     seed("seed-mail");
@@ -123,7 +123,7 @@ test.describe("confirmations", () => {
      * twenty-ninth.
      */
     test("no page still calls the browser dialog from an attribute", async ({ page }) => {
-        for (const url of ["/settings?section=labels", "/settings?section=security", "/settings?section=filters", "/admin"]) {
+        for (const url of ["/settings/labels", "/settings/security", "/settings/filters", "/admin"]) {
             const response = await page.goto(url);
 
             if ((response?.status() ?? 500) >= 400) {

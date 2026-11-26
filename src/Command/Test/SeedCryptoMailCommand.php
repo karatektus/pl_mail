@@ -9,12 +9,13 @@ use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
+use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Helper\MessageParser;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
-use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Crypto\ContactKeyCollector;
 use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Crypto\SignatureVerifier;
@@ -31,8 +32,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Throwable;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * Puts one message, given as its raw source, into the inbox of an end-to-end
@@ -210,23 +209,23 @@ final class SeedCryptoMailCommand extends Command
     private function attachmentsOf(string $raw, ?MessageCrypto $crypto): array
     {
         try {
-            $parsed = ImapMessage::fromString($raw, Config::make(['decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]]]));
+            $parsed = MessageParser::parse($raw);
         } catch (Throwable) {
             return [];
         }
 
         $parts = [];
 
-        foreach ($parsed->getAttachments() as $attachment) {
-            if (null !== $crypto && true === $this->detector->isWrapping($crypto, $attachment->getContentType(), $attachment->getFilename())) {
+        foreach ($parsed->attachments as $attachment) {
+            if (null !== $crypto && true === $this->detector->isWrapping($crypto, $attachment->contentType, $attachment->filename)) {
                 continue;
             }
 
             $part              = new MessagePart();
-            $part->contentType = strtolower(trim(explode(';', (string) $attachment->getContentType())[0]));
-            $part->filename    = (string) ($attachment->getFilename() ?? $attachment->getName());
+            $part->contentType = $attachment->contentType;
+            $part->filename    = $attachment->filename ?? AttachmentStorageHelper::fallbackName($attachment->contentType);
             $part->disposition = 'attachment';
-            $part->size        = strlen((string) $attachment->getContent());
+            $part->size        = strlen($attachment->content);
             $parts[]           = $part;
         }
 

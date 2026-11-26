@@ -9,7 +9,7 @@ use App\Domain\DTO\Calendar\CalendarSubscription;
 use App\Domain\DTO\Calendar\RemoteCalendar;
 use App\Domain\Exception\CalendarSyncException;
 use App\Entity\Calendar\Calendar;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarSyncDriverRegistry;
 
 /**

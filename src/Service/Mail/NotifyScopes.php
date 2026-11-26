@@ -11,8 +11,8 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use DateTimeImmutable;
 
 /**

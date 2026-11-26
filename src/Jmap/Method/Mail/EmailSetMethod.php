@@ -16,9 +16,9 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageJmapRepository;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
@@ -42,7 +42,7 @@ final class EmailSetMethod implements JmapMethod
 {
     public function __construct(
         private readonly AccountResolver $accountResolver,
-        private readonly MessageRepository $messageRepository,
+        private readonly MessageJmapRepository $messageJmapRepository,
         private readonly LabelRepository $labelRepository,
         private readonly LabelResolver $labelResolver,
         private readonly MailboxRepository $mailboxRepository,
@@ -51,7 +51,7 @@ final class EmailSetMethod implements JmapMethod
         private readonly EmailPatchApplier $patchApplier,
         private readonly JmapDraftWriter $draftWriter,
         private readonly StateManager $stateManager,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly EntityManagerInterface $entityManager
     ) {
     }
 
@@ -260,7 +260,7 @@ final class EmailSetMethod implements JmapMethod
             return null;
         }
 
-        $messages = $this->messageRepository->findByAccountAndIds($account->id, [(int) $id]);
+        $messages = $this->messageJmapRepository->findByAccountAndIds($account->id, [(int) $id]);
 
         return $messages[0] ?? null;
     }

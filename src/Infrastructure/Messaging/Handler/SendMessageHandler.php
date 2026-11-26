@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Infrastructure\Messaging\Handler;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Exception\SendDeferredException;
@@ -7,7 +9,8 @@ use App\Domain\Exception\SendOutcomeUnknownException;
 use App\Domain\Exception\SendRefusedException;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
 use App\Service\Imap\MessageSendService;
 use App\Service\Mail\SendOutcomeNotifier;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,7 +29,7 @@ use Throwable;
  * hold: HTTP 200, "Senden abgebrochen", and the message on the wire.
  *
  * Now the read and the decision are one statement — see
- * MessageRepository::claimForSend(). A cancel that arrives first wins and this
+ * MessageSendRepository::claimForSend(). A cancel that arrives first wins and this
  * handler refuses; a claim that lands first wins and the cancel is told it was
  * too late, which is the half the composer needs in order to stop lying.
  *
@@ -63,6 +66,7 @@ readonly class SendMessageHandler
 
     public function __construct(
         private MessageRepository  $messageRepository,
+        private MessageSendRepository $messageSendRepository,
         private MessageSendService $sendService,
         private EntityManagerInterface $em,
         private SendOutcomeNotifier $outcomes,
@@ -77,7 +81,7 @@ readonly class SendMessageHandler
         $pinsSendAt = $msg->pinsSendAt();
         $sendAt     = true === $pinsSendAt ? $msg->sendAt : null;
 
-        if (false === $this->messageRepository->claimForSend($msg->messageId, $pinsSendAt, $sendAt)) {
+        if (false === $this->messageSendRepository->claimForSend($msg->messageId, $pinsSendAt, $sendAt)) {
             // Cancelled, already sent, gone, held by another worker, or
             // rescheduled since this envelope was queued. All five mean the
             // same thing here, and none of them is an error.
@@ -141,7 +145,7 @@ readonly class SendMessageHandler
             // itself failing — the mail may be out and nobody can say.
             if (true === $checkable && false === $wasUnconfirmed) {
                 $this->releaseAfterFailure($msg->messageId);
-                $this->messageRepository->markSendUnconfirmed($msg->messageId);
+                $this->messageSendRepository->markSendUnconfirmed($msg->messageId);
 
                 $this->retryWithinBudget($msg->messageId, new SendDeferredException(
                     $unknown->getMessage(),
@@ -199,7 +203,7 @@ readonly class SendMessageHandler
     private function releaseAfterFailure(int $messageId): void
     {
         $this->em->clear();
-        $this->messageRepository->releaseSendClaim($messageId);
+        $this->messageSendRepository->releaseSendClaim($messageId);
     }
 
     /**
@@ -218,7 +222,7 @@ readonly class SendMessageHandler
      */
     private function retryWithinBudget(int $messageId, SendDeferredException $deferred): void
     {
-        $elapsed = $this->messageRepository->secondsRetryingSend($messageId);
+        $elapsed = $this->messageSendRepository->secondsRetryingSend($messageId);
         $left    = self::RETRY_BUDGET_SECONDS - $elapsed;
         $wait    = $deferred->retryAfterSeconds() ?? min($left, max(5, min(30, $elapsed + 5)));
 
@@ -238,7 +242,7 @@ readonly class SendMessageHandler
     private function failFinally(int $messageId, SendFailure $failure): void
     {
         $this->releaseAfterFailure($messageId);
-        $this->messageRepository->markSendFailed($messageId, $failure);
+        $this->messageSendRepository->markSendFailed($messageId, $failure);
 
         $message = $this->messageRepository->find($messageId);
 

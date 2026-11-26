@@ -14,7 +14,7 @@ final class Version20260703154340 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Add archive and snooze times to threads';
     }
 
     public function up(Schema $schema): void

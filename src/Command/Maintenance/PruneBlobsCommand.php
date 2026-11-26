@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Command\Maintenance;
 
 use App\Domain\Helper\UploadStorage;
-use App\Repository\Mail\MessagePartRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\UploadedBlobRepository;
+use App\Repository\Mail\MessagePart\MessagePartRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
+use App\Repository\Mail\UploadedBlob\UploadedBlobRepository;
 use App\Service\Mail\AttachmentThumbnailer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -117,11 +117,11 @@ final class PruneBlobsCommand extends Command
     public function __construct(
         private readonly UploadedBlobRepository $repository,
         private readonly MessagePartRepository $messageParts,
-        private readonly MessageRepository $messages,
+        private readonly MessageBackfillRepository $messageBackfillRepository,
         private readonly UploadStorage $storage,
         private readonly EntityManagerInterface $em,
         private readonly string $projectDir,
-        private readonly string $storageDir,
+        private readonly string $storageDir
     ) {
         parent::__construct();
     }
@@ -303,7 +303,7 @@ final class PruneBlobsCommand extends Command
         return match ($store) {
             'uploads'     => $this->repository->findReferencedPaths($root),
             'attachments' => $this->messageParts->findReferencedStoragePaths($root),
-            'raw'         => $this->messages->findReferencedRawPaths($root),
+            'raw'         => $this->messageBackfillRepository->findReferencedRawPaths($root),
             // Reached only by adding a store to STORES without saying who owns
             // it. Loud, because the silent answer would be an empty keep-list,
             // and an empty keep-list deletes the store.

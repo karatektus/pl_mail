@@ -6,8 +6,8 @@ namespace App\Service\JmapClient;
 
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
-use App\Repository\Label\LabelBindingRepository;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Label\Label\LabelRepository;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -30,7 +30,7 @@ final class JmapLabelResolver implements ResetInterface
 
     public function __construct(
         private readonly LabelBindingRepository $bindings,
-        private readonly EntityManagerInterface $em,
+        private readonly LabelRepository $labelRepository
     ) {
     }
 
@@ -50,7 +50,7 @@ final class JmapLabelResolver implements ResetInterface
             }
 
             $labelId = $map[(string) $mailboxId] ?? null;
-            $label   = null === $labelId ? null : $this->em->find(Label::class, $labelId);
+            $label   = null === $labelId ? null : $this->labelRepository->find($labelId);
 
             if (null !== $label) {
                 $labels[(int) $label->id] = $label;

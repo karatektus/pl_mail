@@ -8,9 +8,9 @@ use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Mail\GmailSkipReason;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\GmailSkippedMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\GmailSkippedMessageRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\GmailSkippedMessage\GmailSkippedMessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Gmail\GmailAddressFilter;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -239,6 +239,10 @@ final class GmailSkippedCommand extends Command
 
         if (GmailSkipReason::HeldElsewhere === $row->reason) {
             return 'Another Gmail account here holds it already';
+        }
+
+        if (GmailSkipReason::Unstorable === $row->reason) {
+            return 'The database refused it; the error is in the log';
         }
 
         $labels = $row->labelIds;

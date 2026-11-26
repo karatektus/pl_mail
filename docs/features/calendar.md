@@ -29,7 +29,7 @@ so the two are side by side from the first visit. Close it and plMail remembers 
 ### The calendar button
 
 By default the button is a three-way switch: mail, then the calendar beside the mail, then the
-calendar full width, and round again. **Settings → Calendar → Behaviour** has one choice,
+calendar full width, and round again. **Settings → Calendar & contacts → Calendar behaviour** has one choice,
 **Calendar button**, that can turn it into a two-way one:
 
 - **All three**: the three-way switch, which is the default.
@@ -148,7 +148,7 @@ all move to the new day — so a calendar left open beside the mail stays true.
 
 **The grid is drawn on your clock.** The hours down the side, where the red current-time line sits,
 and the time a new event is proposed at when you double-click empty space all follow the timezone in
-**Settings → General**. That is the same zone every other timestamp in the app is read against,
+**Settings → General → Language & region**. That is the same zone every other timestamp in the app is read against,
 and the header clock, so the two always agree. Every event shows at the moment it actually happens
 for you: a 15:00 meeting in a Tokyo calendar, read in Berlin, is on the 07:00 line. Change your
 timezone and the calendar moves with it. Until plMail 0.4.0 the grid followed your default
@@ -190,6 +190,20 @@ The fields are **Title**, **Starts**, **Ends**, **All day**, **Calendars**, **Re
 **Description** and **Reminders**, with **Apply to** appearing when the event repeats. An event
 saved with an empty title is called *Untitled* rather than refused. An end before the start is
 refused: *Those times do not work — the end has to come after the start.*
+
+### An event's own colour
+
+An event is drawn in its calendar's colour unless it has one of its own. The dot at the start of the
+**Title** field is that colour: click it for **Calendar colour**, the colours you use most under
+**Often used**, and twenty more under **All colours**. The search at the top finds a colour by name,
+and a typed `#ff8800` offers the nearest named colour instead, because that is all the calendar
+format can store. **Often used** is counted from your own events, phone-coloured ones included.
+
+The colour is the event's, so phones and other calendar apps that show event colours (DAVx5 on
+Android, Nextcloud) see the same one over CalDAV, and a colour set there shows up here. A colour
+plMail cannot draw, such as a hex value from some other app, is kept as it is and the calendar's
+colour is drawn instead. In an editor opened on one occurrence of a repeating event the colour
+still applies to the whole series.
 
 **Delete** sits beside **Save** in the same form. On an event plMail read out of a message there is
 also **Not an event**, which is a different thing from deleting — see

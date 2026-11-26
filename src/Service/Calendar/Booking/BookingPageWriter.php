@@ -7,7 +7,7 @@ namespace App\Service\Calendar\Booking;
 use App\Entity\Calendar\BookingPage;
 use App\Entity\Calendar\Calendar;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\Sharing\PublicLinkToken;
 use DateTimeZone;
 use Doctrine\ORM\EntityManagerInterface;

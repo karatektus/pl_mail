@@ -30,6 +30,7 @@ use App\Jmap\Method\Keys\ContactKeySmimeSignerMethod;
 use App\Jmap\Method\Keys\DecryptedMailPendingMethod;
 use App\Jmap\Method\Keys\DecryptedMailStoreMethod;
 use App\Jmap\Method\Keys\KeyringGetMethod;
+use App\Jmap\Method\Keys\RecipientPolicySetMethod;
 use App\Jmap\Method\Mail\EmailImportMethod;
 use App\Jmap\Protocol\Capability;
 use App\Jmap\Protocol\Exception\MethodException;
@@ -128,6 +129,32 @@ final class KeysCapabilityTest extends JmapTestCase
 
         self::assertSame($contact->fingerprint, $lookup['recipients'][0]['key']['fingerprint']);
         self::assertNull($lookup['recipients'][1]['key']);
+    }
+
+    /**
+     * What the web composer's lock panel sets (#703), an app sets the same
+     * way, and ContactKey/lookup answers with it: for one of the person's own
+     * addresses, which has no ContactKey to carry it, as for a contact.
+     */
+    public function testRecipientPolicySetIsReadBackByTheLookup(): void
+    {
+        $this->ownKey();
+        $own = strtolower((string) $this->account->email);
+
+        $answer = $this->method(RecipientPolicySetMethod::class)->handle(['email' => strtoupper($own), 'encrypt' => 'never'], $this->context());
+        self::assertSame(['email' => $own, 'encrypt' => 'never'], $answer);
+
+        $lookup = $this->method(ContactKeyLookupMethod::class)->handle(['emails' => [$own]], $this->context());
+        self::assertTrue($lookup['recipients'][0]['own']);
+        self::assertSame('never', $lookup['recipients'][0]['encrypt']);
+    }
+
+    public function testRecipientPolicySetRefusesAnAddressWithoutAKey(): void
+    {
+        $this->expectException(MethodException::class);
+        $this->expectExceptionMessage('no key');
+
+        $this->method(RecipientPolicySetMethod::class)->handle(['email' => 'stranger@example.test', 'encrypt' => 'never'], $this->context());
     }
 
     /**

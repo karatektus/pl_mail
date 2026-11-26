@@ -7,11 +7,12 @@ namespace App\Tests\Service\Ai;
 use App\Domain\DTO\Ai\AiConnection;
 use App\Domain\Enum\Ai\AiCallFeature;
 use App\Domain\Enum\Ai\AiProvider;
-use App\Service\Ai\AiCallRecorder;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Ai\AiSettings;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiCallMetric\AiCallMetricRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Ai\AiAssistant;
+use App\Service\Ai\AiCallRecorder;
 use App\Service\Ai\OllamaClient;
 use App\Service\Ai\OpenAiClient;
 use Doctrine\DBAL\Connection;
@@ -601,6 +602,6 @@ final class AiAssistantTest extends KernelTestCase
      */
     private function recorder(): AiCallRecorder
     {
-        return new AiCallRecorder($this->createStub(Connection::class), new NullLogger());
+        return new AiCallRecorder(new AiCallMetricRepository($this->createStub(Connection::class)), new NullLogger());
     }
 }

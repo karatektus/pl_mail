@@ -1,4 +1,4 @@
-<!-- translated-from: features/contacts.md sha1:713dc966d588067fd0d5ad0abafcfad4a6e76e2e -->
+<!-- translated-from: features/contacts.md sha1:204524f92bfe1e6eca458f9d7bb7b1eb6fa5fbe7 -->
 
 # Kontakte
 
@@ -151,8 +151,10 @@ schreibgeschützten Adressbuch lassen sich nicht zusammenführen.
 ## Import und Export
 
 **Import** nimmt eine `.vcf`-Datei (vCard, wie jedes Handy und jedes Adressbuch sie exportiert) oder
-eine `.csv`-Datei. Du siehst zuerst eine Vorschau. Importierte Kontakte liegen nur in plMail, und
-danach landest du auf der Duplikate-Seite, um zusammenzuführen, was du schon hattest.
+eine `.csv`-Datei. Du siehst zuerst eine Vorschau. Importierte Kontakte liegen nur in plMail. Der
+Import selbst läuft nach dem Bestätigen im Hintergrund: **Hintergrundarbeit** in der oberen Leiste zählt
+die Kontakte mit, und eine Meldung sagt am Ende, wie viele angekommen sind. Öffne danach **Doppelte**, um
+zusammenzuführen, was du schon hattest.
 
 **Export** lädt alle Kontakte als eine `.vcf`-Datei herunter, mit Fotos. Ein synchronisierter
 Kontakt wird als Karte seines Servers exportiert, mit deinen Änderungen darin, sodass die Datei

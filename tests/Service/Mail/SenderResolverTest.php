@@ -10,7 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Mail\SenderResolver;
 use PHPUnit\Framework\TestCase;
 
@@ -77,15 +77,28 @@ final class SenderResolverTest extends TestCase
     }
 
     /**
-     * Deactivating an account must take effect on the window that was already
+     * Switching sending off must take effect on the window that was already
      * open, which is the one place a stale token can still be submitted.
      */
-    public function testADeactivatedAccountIsRefused(): void
+    public function testAnAccountWhoseSendingIsOffIsRefused(): void
     {
-        $account           = $this->account();
-        $account->isActive = false;
+        $account              = $this->account();
+        $account->sendEnabled = false;
 
         self::assertNull($this->resolver->accountFor('7|alias@example.test', $this->user));
+    }
+
+    /**
+     * Receiving is not the question (#628): an SMTP relay has no mailbox to
+     * receive from and is a sender all the same. Asking the mail switch here,
+     * as this did while there was one switch, refused every send from it.
+     */
+    public function testAnAccountThatOnlySendsIsASender(): void
+    {
+        $account              = $this->account();
+        $account->mailEnabled = false;
+
+        self::assertSame($account, $this->resolver->accountFor('7|alias@example.test', $this->user));
     }
 
     public function testAnUnknownAccountIsRefused(): void
@@ -174,6 +187,24 @@ final class SenderResolverTest extends TestCase
         self::assertSame($this->resolver->token($account), $this->resolver->tokenFor($this->draft($account, null), $account));
     }
 
+    /**
+     * An account with no alias rows offers its email as typed, and the From
+     * selector keys that option by exactly that spelling. A draft of it has to
+     * reopen on the same token, or the window opens with no From and the send
+     * is refused.
+     */
+    public function testADraftOfAnAccountWithoutAliasesOpensOnItsAddressAsTheAccountSpellsIt(): void
+    {
+        $account        = $this->account();
+        $account->email = 'Jane.Doe@Example.test';
+
+        self::assertSame(
+            $this->resolver->token($account),
+            $this->resolver->tokenFor($this->draft($account, 'jane.doe@example.test'), $account),
+        );
+        self::assertSame('0|Jane.Doe@Example.test', $this->resolver->token($account));
+    }
+
     private function draft(Account $account, ?string $from): Message
     {
         $draft              = new Message();
@@ -185,10 +216,11 @@ final class SenderResolverTest extends TestCase
 
     private function account(): Account
     {
-        $account           = new Account();
-        $account->usr      = $this->user;
-        $account->email    = 'me@example.test';
-        $account->isActive = true;
+        $account              = new Account();
+        $account->usr         = $this->user;
+        $account->email       = 'me@example.test';
+        $account->mailEnabled = true;
+        $account->sendEnabled = true;
 
         $this->stored = $account;
 

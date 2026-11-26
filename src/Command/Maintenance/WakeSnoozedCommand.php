@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Maintenance;
 
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadSnoozeRepository;
 use App\Service\Mail\ThreadSnoozeService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -38,9 +38,9 @@ final class WakeSnoozedCommand extends Command
     private const int BATCH = 200;
 
     public function __construct(
-        private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageThreadSnoozeRepository $messageThreadSnoozeRepository,
         private readonly ThreadSnoozeService $snoozeService,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly EntityManagerInterface $entityManager
     ) {
         parent::__construct();
     }
@@ -48,9 +48,11 @@ final class WakeSnoozedCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $due = $this->threadRepository->findDueSnoozed(new \DateTimeImmutable(), self::BATCH);
+        $now    = new \DateTimeImmutable();
+        $due    = $this->messageThreadSnoozeRepository->findDueSnoozed($now, self::BATCH);
+        $emails = $this->messageThreadSnoozeRepository->findDueSnoozedEmails($now, self::BATCH);
 
-        if ([] === $due) {
+        if ([] === $due && [] === $emails) {
             return Command::SUCCESS;
         }
 
@@ -75,7 +77,24 @@ final class WakeSnoozedCommand extends Command
             }
         }
 
-        $io->success(sprintf('Woke %d conversation(s).', $woken));
+        // Emails snoozed on their own (#615), one at a time for the same
+        // reason as the conversations above.
+        foreach ($emails as $message) {
+            try {
+                $this->snoozeService->wakeEmails([$message]);
+                ++$woken;
+            } catch (\Throwable $error) {
+                $io->warning(sprintf(
+                    'Could not wake email %d: %s',
+                    (int) $message->id,
+                    $error->getMessage(),
+                ));
+
+                $this->entityManager->clear();
+            }
+        }
+
+        $io->success(sprintf('Woke %d conversation(s) or email(s).', $woken));
 
         return Command::SUCCESS;
     }

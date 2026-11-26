@@ -13,7 +13,7 @@ import { test, expect } from "./support/test";
  * to.
  */
 
-const URL = "/settings?section=filters";
+const URL = "/settings/filters";
 const EDITOR = "#filter-editor";
 const TREE = '[data-rules--rule-builder-target="tree"]';
 

@@ -9,7 +9,7 @@ use App\Domain\DTO\Mail\PostIngestResult;
 use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Domain\Interface\PostIngestStepInterface;
 use App\Entity\Mail\Account;
-use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\Contact\ContactRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Rule\MailRuleEngine;
 use DateTimeImmutable;

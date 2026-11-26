@@ -36,7 +36,7 @@ test.describe("login", () => {
     test("redirects anonymous users away from a protected page", async ({
                                                                             page,
                                                                         }) => {
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
 
         await expect(page).toHaveURL(/\/login/);
     });
@@ -130,7 +130,7 @@ test.describe("the password never leaves the browser", () => {
         seedUser({ email, password: PASSWORD, stretched: true });
 
         await login(page, email, PASSWORD);
-        await page.goto("/settings?section=security");
+        await page.goto("/settings/security");
 
         const card = page.locator("#settings-password");
         const posted = page.waitForRequest((request) => "POST" === request.method() && "/settings/password" === new URL(request.url()).pathname);

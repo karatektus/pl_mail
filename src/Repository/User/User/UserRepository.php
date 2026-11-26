@@ -1,0 +1,507 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Repository\User\User;
+
+use App\Entity\User\User;
+use App\Service\Demo\DemoMode;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\NonUniqueResultException;
+use Doctrine\ORM\QueryBuilder;
+use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\PasswordUpgraderInterface;
+
+/**
+ * @extends ServiceEntityRepository<User>
+ *
+ * @method User|null find($id, $lockMode = null, $lockVersion = null)
+ * @method User|null findOneBy(array $criteria, array $orderBy = null)
+ * @method User[]    findAll()
+ * @method User[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ */
+class UserRepository extends ServiceEntityRepository implements PasswordUpgraderInterface
+{
+    /**
+     * Advisory lock id for creating the first administrator. Arbitrary but
+     * fixed — 'plm1' as an integer — and used nowhere else, so it cannot
+     * collide with another lock in the same database.
+     */
+    private const int FIRST_ADMIN_LOCK = 0x706C6D31;
+
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, User::class);
+    }
+
+    public function add(User $entity, bool $flush = false): void
+    {
+        $this->getEntityManager()->persist($entity);
+
+        if ($flush) {
+            $this->getEntityManager()->flush();
+        }
+    }
+
+    public function remove(User $entity, bool $flush = false): void
+    {
+        $this->getEntityManager()->remove($entity);
+
+        if ($flush) {
+            $this->getEntityManager()->flush();
+        }
+    }
+
+    /**
+     * One page of users, keyset by id — the walk a backfill makes over every
+     * account on the install.
+     *
+     * QueryBuilder because `id > :afterId` is a comparison findBy() cannot
+     * state, and keyset rather than OFFSET because each batch flushes and
+     * clears: an offset walk would skip rows as the set shifts underneath it.
+     *
+     * @return list<User>
+     */
+    public function findBatchAfterId(int $afterId, int $limit): array
+    {
+        return $this->createQueryBuilder('usr')
+            ->where('usr.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('usr.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Map account ids to the id of the user that owns them.
+     *
+     * Push subscriptions belong to a user but changes are recorded per
+     * account, so delivery has to resolve one to the other. One query rather
+     * than hydrating an Account per changed id — and a query over a second
+     * entity entirely, which no finder on this repository can reach.
+     *
+     * @param list<int> $accountIds
+     *
+     * @return array<int,int> accountId => userId
+     */
+    public function findOwnersOfAccounts(array $accountIds): array
+    {
+        if (count($accountIds) === 0) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->createQueryBuilder()
+            ->select('a.id AS accountId', 'u.id AS userId')
+            ->from(\App\Entity\Mail\Account::class, 'a')
+            ->join('a.usr', 'u')
+            ->where('a.id IN (:ids)')
+            ->setParameter('ids', $accountIds)
+            ->getQuery()
+            ->getScalarResult();
+
+        $owners = [];
+
+        foreach ($rows as $row) {
+            $owners[(int) $row['accountId']] = (int) $row['userId'];
+        }
+
+        return $owners;
+    }
+
+    /**
+     * Every user row, soft-deleted ones included.
+     *
+     * Deliberately not countUndeleted(): this is what decides whether the
+     * unauthenticated /install page is open. Counting only live users would
+     * mean soft-deleting the last account re-opens an endpoint that mints an
+     * administrator.
+     */
+    public function countAll(): int
+    {
+        return $this->count([]);
+    }
+
+    /**
+     * Users this install belongs to, not counting demo visitors.
+     *
+     * The distinction exists because /install closes the moment a user exists,
+     * and demo mode mints one per visitor. Counted with countAll(), the first
+     * stranger to open /demo on a fresh demo instance would take the install
+     * page away with them: nobody could ever create an administrator through
+     * the browser, and the only way back would be app:setup on the console.
+     * Nothing announces that has happened, either — the page simply 404s, which
+     * is exactly what it does on a correctly installed instance.
+     *
+     * The predicate is the one DemoUserEraser deletes on, and is narrow for the
+     * same reason: both halves must match, so an administrator who happens to
+     * like the word "demo" is still counted as a real user.
+     */
+    public function countExcludingDemoVisitors(): int
+    {
+        return (int) $this->createQueryBuilder('usr')
+            ->select('COUNT(usr.id)')
+            ->where('usr.email NOT LIKE :demoAddress')
+            ->setParameter('demoAddress', DemoMode::USER_PREFIX.'%@'.DemoMode::USER_DOMAIN)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Demo visitors who have an account right now: the users app:demo:reap has
+     * not taken yet. The mirror of countExcludingDemoVisitors(), on the same
+     * predicate.
+     */
+    public function countDemoVisitors(): int
+    {
+        return (int) $this->createQueryBuilder('usr')
+            ->select('COUNT(usr.id)')
+            ->where('usr.email LIKE :demoAddress')
+            ->setParameter('demoAddress', DemoMode::USER_PREFIX.'%@'.DemoMode::USER_DOMAIN)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Persist $user as the first administrator, or return false if someone
+     * else got there first.
+     *
+     * The lock is the point, and is why this is not a plain persist+flush in a
+     * service. /install is unauthenticated by definition — it has to be, there
+     * is nobody to authenticate yet — so its only protection is that the
+     * install has no users. Two requests arriving together both read zero and
+     * both create an admin unless the count and the insert happen inside one
+     * transaction that nothing else can interleave with. Postgres advisory
+     * locks are the only way to hold a row that does not exist yet.
+     *
+     * The one raw statement is `pg_advisory_xact_lock`, which is a lock
+     * primitive rather than a query over data — there is nothing for Doctrine's
+     * API to express, and it must run on the connection the transaction below
+     * commits on.
+     */
+    public function createFirstAdmin(User $user): bool
+    {
+        $entityManager = $this->getEntityManager();
+
+        return $entityManager->getConnection()->transactional(function () use ($entityManager, $user): bool {
+            $entityManager->getConnection()->executeStatement(
+                'SELECT pg_advisory_xact_lock(?)',
+                [self::FIRST_ADMIN_LOCK],
+            );
+
+            // Demo visitors excluded, for the reason
+            // countExcludingDemoVisitors() gives: on a demo instance one of
+            // them exists within seconds of the stack coming up, and counting
+            // it here would refuse the very first administrator.
+            if (0 !== $this->countExcludingDemoVisitors()) {
+                return false;
+            }
+
+            $user->roles = [User::ROLE_ADMIN];
+
+            $entityManager->persist($user);
+            $entityManager->flush();
+
+            return true;
+        });
+    }
+
+    /** A null criterion is Doctrine's IS NULL, so this needs no query of its own. */
+    public function countUndeleted(): int
+    {
+        return $this->count(['deletedAt' => null]);
+    }
+
+    /**
+     * Used to upgrade (rehash) the user's password automatically over time.
+     */
+    public function upgradePassword(PasswordAuthenticatedUserInterface $user, string $newHashedPassword): void
+    {
+        if (false === $user instanceof User) {
+            throw new UnsupportedUserException(sprintf('Instances of "%s" are not supported.', \get_class($user)));
+        }
+
+        $user->password = $newHashedPassword;
+
+        $this->add($user, true);
+    }
+
+    /**
+     * Every query that should not see soft-deleted users.
+     *
+     * A builder rather than results, because its callers page and sort it —
+     * the admin list hands it to a paginator. The query is still written here,
+     * and nowhere else, which is what stops a caller from forgetting the
+     * filter.
+     *
+     * The `andWhere` matters: this used to build the expression and drop it on
+     * the floor — `$qb->expr()->isNull(...)` returns a value, it does not
+     * modify the builder — so the filter was a no-op and every caller,
+     * findOneByEmailExcept included, still matched deleted rows.
+     */
+    public function createUndeletedQueryBuilder(): QueryBuilder
+    {
+        return $this->createQueryBuilder('user')
+            ->andWhere('user.deletedAt IS NULL');
+    }
+
+    /**
+     * How many undeleted users hold ROLE_ADMIN.
+     *
+     * Native SQL with an explicit cast, because `roles` is a `json` column and
+     * Postgres defines no LIKE operator on that type — the DQL version failed
+     * with "operator does not exist: json ~~ unknown". Casting to text makes it
+     * an ordinary substring test.
+     *
+     * A substring test rather than a containment one is safe here: ROLE_ADMIN
+     * is the only role ever stored (see UserEntityModel::ROLES), so there is no
+     * longer role name it could match a prefix of by accident. The quotes are
+     * part of the pattern so it cannot match a bare word elsewhere in the JSON.
+     */
+    public function countAdmins(): int
+    {
+        return (int) $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery(
+                // "user" quoted: it is a reserved word in Postgres, which is
+                // why the entity maps to `#[ORM\Table(name: '`user`')]`.
+                'SELECT COUNT(*) FROM "user" WHERE deleted_at IS NULL AND CAST(roles AS text) LIKE :role',
+                ['role' => '%"ROLE_ADMIN"%'],
+            )
+            ->fetchOne();
+    }
+
+    /**
+     * The email addresses of the undeleted administrators.
+     *
+     * The same substring test countAdmins() explains, returning the addresses
+     * instead of the count, and for a reader who needs both at once: the
+     * screen at the end of a config restore has to say who was restored and
+     * which of them can administer the install. "3 accounts, including
+     * anna@example.org" is an operator's confirmation that the right file went
+     * in; "3 accounts" alone is a number they cannot check.
+     *
+     * Addresses rather than entities, because that is all any caller wants and
+     * hydrating users to read one column each is how a page acquires a query
+     * per person.
+     *
+     * @return list<string>
+     */
+    public function findAdminEmails(): array
+    {
+        $rows = $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery(
+                'SELECT email FROM "user" WHERE deleted_at IS NULL AND CAST(roles AS text) LIKE :role ORDER BY email',
+                ['role' => '%"ROLE_ADMIN"%'],
+            )
+            ->fetchFirstColumn();
+
+        return array_values(array_map(static fn (mixed $email): string => (string) $email, $rows));
+    }
+
+    /**
+     * The undeleted administrators themselves, for the few things that are
+     * told to every one of them (an update being available).
+     *
+     * The ids by the substring test countAdmins() explains, because `roles`
+     * is a json column Postgres has no LIKE for, then the entities by id. Two
+     * queries, whatever the number of administrators.
+     *
+     * @return list<User>
+     */
+    public function findAdmins(): array
+    {
+        $ids = $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery(
+                'SELECT id FROM "user" WHERE deleted_at IS NULL AND CAST(roles AS text) LIKE :role ORDER BY id',
+                ['role' => '%"ROLE_ADMIN"%'],
+            )
+            ->fetchFirstColumn();
+
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_values($this->findBy(['id' => $ids], ['id' => 'ASC']));
+    }
+
+    /**
+     * The undeleted account an OpenID Connect identity is linked to.
+     *
+     * Undeleted even though the delete action clears the link: a row
+     * tombstoned before the columns existed, or restored by hand, must not
+     * become reachable through the provider.
+     */
+    public function findOneByOidcIdentity(string $issuer, string $subject): ?User
+    {
+        return $this->createUndeletedQueryBuilder()
+            ->andWhere('user.oidcIssuer = :issuer')
+            ->andWhere('user.oidcSubject = :subject')
+            ->setParameter('issuer', $issuer)
+            ->setParameter('subject', $subject)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Every undeleted account whose address matches, ignoring case.
+     *
+     * A list rather than one row, because the unique index on `email` is case
+     * sensitive and so `Jo@example.com` and `jo@example.com` can both exist.
+     * The caller links an identity to an account by address only when exactly
+     * one matches; guessing between two would hand one person's mail to
+     * whoever the provider says owns the other spelling.
+     *
+     * Case-insensitive at all because the identity provider and plMail were
+     * filled in by different people at different times, and an address that
+     * differs only in case is the same mailbox everywhere that matters.
+     *
+     * @return list<User>
+     */
+    public function findUndeletedByEmailIgnoringCase(string $email): array
+    {
+        return $this->createUndeletedQueryBuilder()
+            ->andWhere('LOWER(user.email) = LOWER(:email)')
+            ->setParameter('email', $email)
+            ->setMaxResults(2)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Hand-written for the exclusion: "every undeleted user with this address
+     * except this one" needs `id != :id`, which findOneBy() cannot say.
+     *
+     * @throws NonUniqueResultException
+     */
+    public function findOneByEmailExcept(string $email, User $user): ?User
+    {
+        $qb = $this->createUndeletedQueryBuilder();
+        $qb
+            ->andWhere('user.email = :email')
+            ->setParameter('email', $email);
+
+        if (null !== $user->id) {
+            $qb
+                ->andWhere('user.id != :id')
+                ->setParameter('id', $user->id);
+        }
+
+        $result = $qb->getQuery()->getOneOrNullResult();
+
+        return $result;
+    }
+
+    /**
+     * The people whose sign-in address is on $domain, for plMail's Web Key
+     * Directory (WkdDirectory): undeleted and not suspended, because a key is
+     * published for a person who can still use it, and a removed person's
+     * address is a tombstone anyway.
+     *
+     * By sign-in address alone, and case-folded, since the directory matches
+     * on a hash of the lower-cased local part. Hand-written for the LOWER()
+     * and the suffix match, neither of which findBy() can say. $domain is a
+     * DNS name WkdLookup::domain() has already shaped, so it holds no `%` or
+     * `_` for LIKE to misread.
+     *
+     * @return list<User>
+     */
+    public function findForWkdDomain(string $domain): array
+    {
+        return $this->createUndeletedQueryBuilder()
+            ->andWhere('user.deactivatedAt IS NULL')
+            ->andWhere('LOWER(user.email) LIKE :suffix')
+            ->setParameter('suffix', '%@' . strtolower($domain))
+            ->orderBy('user.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * The admin user list, filtered. A builder for the same reason
+     * createUndeletedQueryBuilder() is one, and hand-written because a LIKE
+     * across three case-folded columns is three expressions joined by OR —
+     * findBy() states equality on fields, and nothing else.
+     */
+    public function createSearchQueryBuilder(?string $search): QueryBuilder
+    {
+        $qb = $this->createUndeletedQueryBuilder();
+
+        // Any length, including one character.
+        //
+        // This used to require three (`2 < strlen($search)`) and then fall
+        // through, so a one- or two-character search silently returned every
+        // user on the install — the same list as no search at all, with the
+        // term still sitting in the box claiming to have been applied. There is
+        // no third answer available to a caller that hands back a QueryBuilder,
+        // which is why the floor could only ever have been a lie: it cannot say
+        // "too short" from here.
+        //
+        // Nothing was bought by it either. The floor is the sort of rule that
+        // protects a full-text index over millions of rows; this is a LIKE over
+        // one page of a table with one row per person on the install, and "b"
+        // is a perfectly good way to find Bea when there are nine of you.
+        if (null !== $search) {
+            // Same discarded-expression bug as createUndeletedQueryBuilder had:
+            // orX() was built and never passed to andWhere(), so searching did
+            // nothing at all and every search returned the unfiltered list.
+            //
+            // The pattern was wrong too. sprintf('%%s%', $search) is not
+            // "%search%" — `%%` is a literal percent and the trailing `%` is a
+            // truncated conversion spec, so the argument was never interpolated.
+            $qb
+                ->andWhere($qb->expr()->orX(
+                    $qb->expr()->like('LOWER(user.email)', ':search'),
+                    $qb->expr()->like('LOWER(user.nameFirst)', ':search'),
+                    $qb->expr()->like('LOWER(user.nameLast)', ':search'),
+                ))
+                ->setParameter('search', '%' . mb_strtolower($search) . '%');
+        }
+
+        return $qb;
+    }
+
+    /**
+     * Every row of one class that names this user in one field, for erasing a
+     * user entity by entity so Doctrine's own cascades run.
+     *
+     * @param class-string $class
+     *
+     * @return list<object>
+     */
+    public function findOwnedRows(string $class, string $field, User $user): array
+    {
+        /** @var list<object> */
+        return $this->getEntityManager()->getRepository($class)->findBy([$field => $user]);
+    }
+
+    /** The id of the live user with this address, read as a number so an unreadable row still answers. */
+    public function findIdByEmail(string $email): ?int
+    {
+        return $this->idWhere('user.email = :email', $email);
+    }
+
+    /** The id of a deleted user who held this address, read the same way. */
+    public function findIdByEmailAtDeletion(string $email): ?int
+    {
+        return $this->idWhere('user.emailAtDeletion = :email', $email);
+    }
+
+    /** One indexed lookup answering with an id and nothing else. */
+    private function idWhere(string $predicate, string $email): ?int
+    {
+        $id = $this->createQueryBuilder('user')
+            ->select('user.id')
+            ->andWhere($predicate)
+            ->setParameter('email', $email)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return is_array($id) && is_int($id['id'] ?? null) ? $id['id'] : null;
+    }
+}

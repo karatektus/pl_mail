@@ -85,14 +85,14 @@ test.describe("calendar files and feeds", () => {
     test.beforeAll(provisionCalendars);
 
     test.beforeEach(async ({ page }) => {
-        await page.goto("/settings?section=calendars");
+        await page.goto("/settings/calendars");
     });
 
     test.afterEach(async ({ page }) => {
         // The calendar goes and its events go with it, by the cascade on the
         // join column — which is also what makes this cleanup complete rather
         // than a best effort at finding rows the run created.
-        await page.goto("/settings?section=calendars");
+        await page.goto("/settings/calendars");
 
         const remove = page.getByRole("button", { name: `Delete calendar "${CALENDAR}"` });
 
@@ -133,11 +133,14 @@ test.describe("calendar files and feeds", () => {
         await choose(modal, "Add them to", CALENDAR);
         await modal.getByRole("button", { name: "Import" }).click();
 
+        // The import runs on the bulk worker now (#672), and the counts arrive
+        // as a toast when it is done — a worker round-trip away.
+        //
         // The toast is the only place the counts are said, and saying them is
         // the point: "0 added" on a file full of events is what an import that
         // silently matched everything looks like, and it must be
         // distinguishable from one that failed.
-        await expect(page.getByText("2 added, 0 updated, 0 skipped.")).toBeVisible();
+        await expect(page.getByText("2 added, 0 updated, 0 skipped.")).toBeVisible({ timeout: 20_000 });
 
         const download = page.getByRole("link", { name: `Download "${CALENDAR}" as a calendar file` });
 
@@ -178,7 +181,7 @@ test.describe("calendar files and feeds", () => {
         await choose(modal, "Add them to", CALENDAR);
         await modal.getByRole("button", { name: "Import" }).click();
 
-        await expect(page.getByText("0 added, 2 updated, 0 skipped.")).toBeVisible();
+        await expect(page.getByText("0 added, 2 updated, 0 skipped.")).toBeVisible({ timeout: 20_000 });
     });
 
     /**
@@ -205,7 +208,7 @@ test.describe("calendar files and feeds", () => {
         });
         await choose(modal, "Add them to", CALENDAR);
         await modal.getByRole("button", { name: "Import" }).click();
-        await expect(page.getByText("2 added, 0 updated, 0 skipped.")).toBeVisible();
+        await expect(page.getByText("2 added, 0 updated, 0 skipped.")).toBeVisible({ timeout: 20_000 });
 
         // The agenda, not the day grid, and for the same reason
         // calendar.spec.ts counts its chips there: the time grid draws a chip
@@ -285,7 +288,7 @@ test.describe("calendar files and feeds", () => {
 
         await expect(modal.getByRole("alert")).toBeVisible();
 
-        await page.goto("/settings?section=calendars");
+        await page.goto("/settings/calendars");
         await expect(page.getByText("e2e-nothing-here", { exact: false })).toHaveCount(0);
     });
 });

@@ -11,8 +11,10 @@ use App\Entity\Contacts\ContactAddress;
 use App\Entity\Contacts\ContactEmail;
 use App\Entity\Contacts\ContactMergeRecord;
 use App\Entity\Contacts\ContactPhone;
-use App\Entity\Contacts\ContactRelation;
 use App\Entity\User\User;
+use App\Repository\Contacts\ContactMergeRecord\ContactMergeRecordRepository;
+use App\Repository\Contacts\ContactRelation\ContactRelationRepository;
+use App\Repository\Contacts\Contact\ContactRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -40,14 +42,17 @@ use Doctrine\ORM\EntityManagerInterface;
 final class ContactMerger
 {
     public function __construct(
-        private EntityManagerInterface $em,
-        private ContactPhotoStore $photos,
+        private readonly EntityManagerInterface $em,
+        private readonly ContactPhotoStore $photos,
+        private readonly ContactRepository $contactRepository,
+        private readonly ContactMergeRecordRepository $contactMergeRecordRepository,
+        private readonly ContactRelationRepository $contactRelationRepository,
     ) {
     }
 
     public function merge(int $keepId, array $mergeIds, User $user): ContactMergeRecord
     {
-        $keep = $this->em->find(Contact::class, $keepId);
+        $keep = $this->contactRepository->find($keepId);
         if (null === $keep) {
             throw new \InvalidArgumentException('Contact to keep not found: ' . $keepId);
         }
@@ -59,7 +64,7 @@ final class ContactMerger
         )));
         $merged = [];
         foreach ($mergeIds as $id) {
-            $contact = $this->em->find(Contact::class, $id);
+            $contact = $this->contactRepository->find($id);
             if (null === $contact) {
                 throw new \InvalidArgumentException('Contact to merge not found: ' . $id);
             }
@@ -96,7 +101,7 @@ final class ContactMerger
 
     public function undo(int $recordId, User $user): void
     {
-        $record = $this->em->find(ContactMergeRecord::class, $recordId);
+        $record = $this->contactMergeRecordRepository->find($recordId);
         if (null === $record) {
             throw new \InvalidArgumentException('Merge record not found: ' . $recordId);
         }
@@ -262,11 +267,9 @@ final class ContactMerger
      */
     private function repointRelations(Contact $keep, Contact $merged): void
     {
-        $repository = $this->em->getRepository(ContactRelation::class);
-
         $relations = array_merge(
-            $repository->findBy(['ownerContact' => $merged]),
-            $repository->findBy(['relatedContact' => $merged]),
+            $this->contactRelationRepository->findOwnedBy($merged),
+            $this->contactRelationRepository->findPointingAt($merged),
         );
 
         foreach ($relations as $relation) {
@@ -278,11 +281,7 @@ final class ContactMerger
                 continue;
             }
 
-            $duplicate = $repository->findOneBy([
-                'ownerContact' => $newOwner,
-                'relatedContact' => $newRelated,
-                'relType' => $relation->relType,
-            ]);
+            $duplicate = $this->contactRelationRepository->findBetween($newOwner, $newRelated, $relation->relType);
             if (null !== $duplicate && $duplicate !== $relation) {
                 $this->em->remove($relation);
                 continue;

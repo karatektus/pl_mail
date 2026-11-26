@@ -14,17 +14,17 @@ use PHPUnit\Framework\TestCase;
 /**
  * One message that cannot be read costs that message, not the fetch.
  *
- * The library's own paging gave up the whole fetch for one unreadable message,
- * so the folder it was in never synced again (#45), and its soft-fail mode
- * asked for empty pages for ever once a message was dropped. Pinned here:
- * every page is fetched once, a message the parser throws on is handed over
- * with the page it was on, and so is one the server listed and then
- * returned nothing for (#96).
+ * webklex's own paging gave up the whole fetch for one message it could not
+ * parse, so the folder it was in never synced again (#45), and its soft-fail
+ * mode asked for empty pages for ever once a message was dropped. Pinned here:
+ * every page is fetched once, the message that used to stop a folder arrives
+ * with the rest, and one the server listed and then returned nothing for is
+ * handed over with the page it was on (#96).
  *
- * Against Dovecot where a real server shows it — a message that will not
- * parse is put on the server as it is, and the flags come back as the server
- * set them — and against FakeImapServer for the message that is listed and
- * never returned, which no well-run server does on request.
+ * Against Dovecot where a real server shows it — the malformed message is put
+ * on the server as it is, and the flags come back as the server set them —
+ * and against FakeImapServer for the message that is listed and never
+ * returned, which no well-run server does on request.
  */
 final class ImapPagedFetchTest extends TestCase
 {
@@ -32,15 +32,18 @@ final class ImapPagedFetchTest extends TestCase
 
     private const string PLAIN = "From: a@example.test\r\nSubject: Fine\r\nMessage-ID: <fine-%d@example.test>\r\n\r\nHello.\r\n";
 
-    /** A multipart message with no boundary: the parser finds no content and throws. */
-    private const string UNREADABLE = "From: a@example.test\r\nSubject: Broken\r\nMessage-ID: <broken@example.test>\r\nContent-Type: multipart/mixed\r\n\r\n--\r\nhello\r\n";
+    /**
+     * A multipart message with no boundary. webklex found no content in it and
+     * threw; MessageParser reads it as a message with no body, which it is.
+     */
+    private const string MALFORMED = "From: a@example.test\r\nSubject: Broken\r\nMessage-ID: <broken@example.test>\r\nContent-Type: multipart/mixed\r\n\r\n--\r\nhello\r\n";
 
-    public function testAnUnreadableMessageIsReportedWithItsPageAndTheRestStillArrive(): void
+    public function testAMalformedMessageArrivesWithItsPageAndEveryPageIsFetchedOnce(): void
     {
         $session = $this->dovecotSession();
 
         foreach ([1, 2, 3, 4, 5] as $uid) {
-            $session->append('INBOX', 3 === $uid ? self::UNREADABLE : sprintf(self::PLAIN, $uid));
+            $session->append('INBOX', 3 === $uid ? self::MALFORMED : sprintf(self::PLAIN, $uid));
         }
 
         $pages = $this->pages($session, [1, 2, 3, 4, 5], 2);
@@ -49,9 +52,9 @@ final class ImapPagedFetchTest extends TestCase
 
         self::assertSame([
             ['uids' => [1, 2], 'unreadable' => []],
-            ['uids' => [4], 'unreadable' => [3]],
+            ['uids' => [3, 4], 'unreadable' => []],
             ['uids' => [5], 'unreadable' => []],
-        ], $pages, 'every page once, the unreadable one reported beside its page');
+        ], $pages, 'every page once, the malformed message among them');
     }
 
     /**
@@ -68,8 +71,8 @@ final class ImapPagedFetchTest extends TestCase
 
         $session->logout();
 
-        self::assertSame(['$Forwarded', '\\Draft', '\\Seen'], array_values($messages[0]->getFlags()->toArray()));
-        self::assertSame(1, $messages[0]->getUid());
+        self::assertSame(['$Forwarded', '\\Draft', '\\Seen'], $messages[0]->flags);
+        self::assertSame(1, $messages[0]->uid);
     }
 
     public function testAMessageTheServerListsAndNeverReturnsIsReportedRatherThanLost(): void
@@ -102,7 +105,7 @@ final class ImapPagedFetchTest extends TestCase
 
         foreach (new ImapPagedFetch()->pages($session, 'INBOX', $uids, $pageSize) as [$messages, $unreadable]) {
             $pages[] = [
-                'uids'       => array_map(static fn ($message): int => (int) $message->getUid(), $messages),
+                'uids'       => array_map(static fn ($message): int => (int) $message->uid, $messages),
                 'unreadable' => array_keys($unreadable),
             ];
         }

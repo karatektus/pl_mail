@@ -1,7 +1,7 @@
 {#
 shortcuts/help.html.twig — the list of keyboard shortcuts, for the shared dialog.
 
-Opened by `?` and from Settings → General. A fragment for the modal frame and
+Opened by `?` and from Settings → General → Layout & controls. A fragment for the modal frame and
 nothing else: see _partials/_modal.html.twig.
 
 ONE LIST, AND IT IS THE DOCUMENTATION. The keys are spelt here and matched in
@@ -41,12 +41,14 @@ handled before the controller's switch rather than in it — see #arrow() there.
         [['*', then, 'r'], 'shortcuts.keys.select_read'],
         [['*', then, 'u'], 'shortcuts.keys.select_unread'],
         [['*', then, 's'], 'shortcuts.keys.select_starred'],
+        [['t'], 'shortcuts.keys.conversation_view'],
     ] },
     { title: 'shortcuts.groups.actions', hint: 'shortcuts.groups.actions_hint', rows: [
         [['e'], 'shortcuts.keys.archive'],
         [['#'], 'shortcuts.keys.delete'],
         [['!'], 'shortcuts.keys.spam'],
         [['s'], 'shortcuts.keys.star'],
+        [['p'], 'shortcuts.keys.pin'],
         [['Shift', 'i'], 'shortcuts.keys.mark_read'],
         [['Shift', 'u'], 'shortcuts.keys.mark_unread'],
         [['l'], 'shortcuts.keys.label'],

@@ -14,7 +14,7 @@ final class Version20260725083833 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Create send-as aliases';
     }
 
     public function up(Schema $schema): void

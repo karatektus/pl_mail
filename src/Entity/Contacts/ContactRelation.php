@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Entity\Contacts;
 
 use App\Domain\Trait\TimestampableTrait;
+use App\Repository\Contacts\ContactRelation\ContactRelationRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * A typed link between two contacts (assistant, manager, partner, ...).
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: ContactRelationRepository::class)]
 #[ORM\Table(name: 'contacts_contact_relation')]
 #[ORM\UniqueConstraint(name: 'uniq_contacts_relation_triple', columns: ['owner_contact_id', 'related_contact_id', 'rel_type'])]
 #[ORM\HasLifecycleCallbacks]

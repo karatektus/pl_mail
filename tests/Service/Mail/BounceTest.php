@@ -14,7 +14,7 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\ProcessReadReceiptsHandler;
 use App\Infrastructure\Messaging\Message\ProcessReadReceiptsMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\BounceCorrelator;
 use App\Service\Mail\MailChangeRecorder;
@@ -415,7 +415,7 @@ final class BounceTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $this->em->flush();

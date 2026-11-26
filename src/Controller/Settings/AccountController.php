@@ -6,19 +6,25 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\ConnectionTestResult;
+use App\Domain\Enum\Account\AccountService;
 use App\Domain\Enum\Account\IncomingProtocol;
 use App\Domain\Helper\MailServerHost;
+use App\Entity\Job\BackgroundJob;
 use App\Entity\Mail\Account;
+use App\Entity\User\User;
 use App\Form\AccountType;
-use App\Repository\Mail\AccountRepository;
+use App\Infrastructure\Messaging\Message\PurgeLocalMailMessage;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Graph\GraphSubscriptionManager;
 use App\Service\Mail\AccountCreator;
+use App\Service\Mail\AccountRemoval;
+use App\Service\Mail\AccountRemovalState;
+use App\Service\Mail\AccountServiceSwitch;
 use App\Service\Mail\AliasSeeder;
 use App\Service\Mail\ConnectionTester;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\IncomingProtocolSwitch;
-use App\Service\Push\PushSubscriptionRegistry;
 use App\Twig\SenderAvatarExtension;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,6 +34,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -45,9 +53,10 @@ final class AccountController extends AbstractController
         private readonly AccountRepository      $accountRepository,
         private readonly LoggerInterface        $logger,
         private readonly GraphSubscriptionManager $graphSubscriptionManager,
-        private readonly PushSubscriptionRegistry $subscriptionRegistry,
         private readonly AliasSeeder $aliasSeeder,
         private readonly AccountCreator $accountCreator,
+        private readonly AccountRemoval $accountRemoval,
+        private readonly AccountRemovalState $removalState,
     ) {
     }
 
@@ -72,9 +81,11 @@ final class AccountController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'edit')]
-    public function edit(Request $request, Account $account, IncomingProtocolSwitch $protocolSwitch): Response
+    public function edit(Request $request, Account $account, IncomingProtocolSwitch $protocolSwitch, AccountServiceSwitch $serviceSwitch): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
+        $this->refuseWhileRemoving($account);
 
         // OAuth accounts have no editable password/host — they are managed
         // through connect/disconnect, not this form.
@@ -105,6 +116,14 @@ final class AccountController extends AbstractController
 
             $this->entityManager->flush();
 
+            // Receiving and sending as the form's switches say (#628) —
+            // through the switch service, so the primary and push follow as
+            // they do from Settings. A half that does not change is left
+            // alone by set(). The form has already refused a half switched
+            // on without its server.
+            $serviceSwitch->set($account, AccountService::Mail, true === $form->get('receiving')->getData());
+            $serviceSwitch->set($account, AccountService::Send, true === $form->get('sending')->getData());
+
             return $this->streamAccountList($request, 'account.updated');
         }
 
@@ -114,27 +133,96 @@ final class AccountController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/toggle', name: 'toggle', methods: ['POST'])]
-    public function toggle(Request $request, Account $account): Response
+    /** The account's three service switches, in a modal (#575). */
+    #[Route('/{id}/services', name: 'services', methods: ['GET'])]
+    public function services(Account $account): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
-        $this->assertCsrf($request, 'toggle' . $account->id);
+        $this->refuseWhileRemoving($account);
 
-        $newActive = false === $account->isActive;
-
-        $account->isActive = $newActive;
-        $this->entityManager->flush();
-
-        if (true === $newActive) {
-            $toastMessage = 'account.enabled';
-        } else {
-            $toastMessage = 'account.disabled';
-        }
-
-        return $this->streamAccountList($request, $toastMessage);
+        return $this->render('settings/accounts/_services_modal.html.twig', [
+            'account' => $account,
+        ]);
     }
 
+    /**
+     * Switch one of the account's services — receiving and sending mail,
+     * calendar, contacts — on or off (#575, #628). It replaces the single
+     * on/off toggle, which only ever governed mail whatever it looked like it
+     * governed.
+     *
+     * The position asked for is posted rather than flipped from what is
+     * stored, so two tabs pressing the same switch agree on where it ends up.
+     * A service whose grant does not cover it is not switched on here: the
+     * page offers the provider's consent screen in that case instead (see
+     * AccountServiceSwitch::needsConsent()), and a post that arrives anyway is
+     * refused rather than turning on something that can only fail. The same
+     * goes for a service whose server the account was never given — receiving
+     * on an account added to send through a relay: the page links to the
+     * account form for that one.
+     */
+    #[Route('/{id}/service/{service}', name: 'service', requirements: ['service' => 'mail|send|calendar|contacts'], methods: ['POST'])]
+    public function service(Request $request, Account $account, string $service, AccountServiceSwitch $switch): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
+        $this->assertCsrf($request, 'account-service' . $account->id);
+
+        $this->refuseWhileRemoving($account);
+
+        $which   = AccountService::from($service);
+        $enabled = true === $request->request->getBoolean('enabled');
+
+        if (true === $enabled && true === $switch->needsConsent($account, $which)) {
+            throw new BadRequestHttpException('The account\'s grant does not cover this service; reconnect to allow it.');
+        }
+
+        if (true === $enabled && true === $account->lacksServerFor($which)) {
+            throw new BadRequestHttpException('The account has no server for this service; add one in the account form first.');
+        }
+
+        $switch->set($account, $which, $enabled);
+
+        return $this->streamAccountList(
+            $request,
+            sprintf('account.service.%s.%s', $which->value, true === $enabled ? 'on' : 'off'),
+        );
+    }
+
+    /**
+     * Remove the mail plMail has synced for this account, from this database
+     * only (#575). Queued: see PurgeLocalMailMessage.
+     *
+     * No check of the mail switch, and that is on purpose. The page offers this
+     * only while mail is off, but nothing about the purge depends on it — it
+     * sends nothing to the server in either position — so a stale page that
+     * still shows the button cannot turn it into anything worse.
+     */
+    #[Route('/{id}/purge-mail', name: 'purge_mail', methods: ['POST'])]
+    public function purgeMail(Request $request, Account $account, MessageBusInterface $bus): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
+        $this->assertCsrf($request, 'account-purge-mail' . $account->id);
+
+        $this->refuseWhileRemoving($account);
+
+        $bus->dispatch(new PurgeLocalMailMessage((int) $account->id));
+
+        return $this->streamAccountList($request, 'account.mail_purge_queued');
+    }
+
+    /**
+     * Remove an account — queued, never done here (#672).
+     *
+     * This used to remove the row in the request and let ON DELETE CASCADE take
+     * the mail with it. On a mailbox of a few tens of thousands of messages
+     * that outlasted PHP's thirty seconds, the request died, and the person was
+     * told only that something had gone wrong. AccountRemoval switches the
+     * account off and queues the rest; the row greys out with a progress line,
+     * and the jobs indicator counts along.
+     */
     #[Route('/{id}/delete', name: 'delete', methods: ['POST'])]
     public function delete(Request $request, Account $account): Response
     {
@@ -142,31 +230,31 @@ final class AccountController extends AbstractController
 
         $this->assertCsrf($request, 'delete' . $account->id);
 
-        // Best-effort: stop any Gmail push watch so we don't leave a dangling
-        // registration pointing at an account that no longer exists.
-        $manager = $this->subscriptionRegistry->resolve($account);
+        $user = $this->getUser();
 
-        if (null !== $manager) {
-            $manager->unsubscribe($account);
+        if (false === $user instanceof User) {
+            throw $this->createAccessDeniedException();
         }
 
-        $this->entityManager->remove($account);
-        $this->entityManager->flush();
+        $this->accountRemoval->start($account, $user);
 
-        $remaining = $this->accountRepository->findForUserOrdered($this->getUser());
-
-        $this->resequence($remaining);
-
-        // Deleting the primary is one of the two ways the "exactly one" rule
-        // can be lost now that it is a flag rather than position 0 — the other
-        // being the very first account, which create() covers. Without this the
-        // user would be left with accounts and no default sender at all.
-        $this->accountCreator->ensurePrimary($remaining);
-
-        $this->entityManager->flush();
-
-        return $this->streamAccountList($request, 'account.removed');
+        return $this->streamAccountList($request, 'account.removal_started', jobsChanged: true);
     }
+
+    /**
+     * Both account lists as they stand now, for a page watching a removal
+     * (settings--account-removal): the row that was greyed out goes when its
+     * job finishes, or comes back when it fails. No toast and no modal: nothing
+     * was pressed.
+     */
+    #[Route('/lists', name: 'lists', methods: ['GET'])]
+    public function lists(Request $request): Response
+    {
+        $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
+
+        return $this->render('account/_lists.stream.html.twig', $this->accountLists());
+    }
+
     /**
      * The display order of the account list, and nothing else.
      *
@@ -247,6 +335,8 @@ final class AccountController extends AbstractController
 
         $this->assertCsrf($request, 'account-primary' . $account->id);
 
+        $this->refuseWhileRemoving($account);
+
         $this->accountCreator->makePrimary(
             $account,
             $this->accountRepository->findForUserOrdered($this->getUser()),
@@ -272,6 +362,8 @@ final class AccountController extends AbstractController
      * while the picker marked nothing. Choosing a colour another account already
      * wears is allowed — it is the user's list, and "these two are a pair" is a
      * thing a person might want.
+     *
+     * Or a colour of the user's own, as `#rrggbb` (#638): see Account::$customColor.
      */
     #[Route('/{id}/colour', name: 'colour', methods: ['POST'])]
     public function colour(Request $request, Account $account): Response
@@ -280,13 +372,31 @@ final class AccountController extends AbstractController
 
         $this->assertCsrf($request, 'account-colour' . $account->id);
 
-        $index = filter_var($request->request->get('colour'), FILTER_VALIDATE_INT);
+        $this->refuseWhileRemoving($account);
 
-        if (false === $index || 0 > $index || SenderAvatarExtension::ACCOUNT_COLOURS <= $index) {
-            throw new BadRequestHttpException('The colour is not one of the account palette.');
+        $value = $request->request->get('colour');
+
+        // A colour of the user's own (#638): one field, two shapes, because the
+        // palette and the custom swatch are one radio group in the menu and
+        // mean the same thing — "wear this". A hex value sets the custom
+        // colour; a palette index clears it again. Nothing in between: a short
+        // form, a name or a stray character is refused, since the value is
+        // printed into a style attribute on every list row.
+        if (is_string($value) && 1 === preg_match(Account::CUSTOM_COLOR_PATTERN, $value)) {
+            $account->customColor = strtolower($value);
+            $this->entityManager->flush();
+
+            return $this->streamAccountList($request, 'account.colour_set');
         }
 
-        $account->colorIndex = $index;
+        $index = filter_var($value, FILTER_VALIDATE_INT);
+
+        if (false === $index || 0 > $index || SenderAvatarExtension::ACCOUNT_COLOURS <= $index) {
+            throw new BadRequestHttpException('The colour is not one of the account palette, nor a #rrggbb colour.');
+        }
+
+        $account->colorIndex  = $index;
+        $account->customColor = null;
         $this->entityManager->flush();
 
         return $this->streamAccountList($request, 'account.colour_set');
@@ -309,6 +419,8 @@ final class AccountController extends AbstractController
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         $this->assertCsrf($request, 'account-sync-interval' . $account->id);
+
+        $this->refuseWhileRemoving($account);
 
         $minutes = filter_var($request->request->get('minutes'), FILTER_VALIDATE_INT);
 
@@ -355,11 +467,14 @@ final class AccountController extends AbstractController
         $account->jmapSessionUrl   = (string) ($payload['jmapSessionUrl'] ?? '');
         $account->jmapTokenAuth    = true === ($payload['jmapTokenAuth'] ?? false);
 
-        // A second password for sending, only when the form says it wants one
-        // — the same flag-then-value the form itself submits. See AccountType.
+        // A second sign-in for sending, only when the form says it wants one
+        // — the same flag-then-values the form itself submits. See
+        // AccountType. A blank username is the account's own; that rule lives
+        // in Account::$sendingUsername, so it is not repeated here.
         $separateSmtp = true === ($payload['separateSmtpPassword'] ?? false);
 
         if (true === $separateSmtp) {
+            $account->smtpUsername = (string) ($payload['smtpUsername'] ?? '');
             $account->smtpPassword = (string) ($payload['smtpPassword'] ?? '');
         }
 
@@ -384,7 +499,9 @@ final class AccountController extends AbstractController
             }
         }
 
-        if ('' === $account->username || '' === $account->imapHost) {
+        // One server is enough: an account may only send, through a relay,
+        // or only receive (#628). Neither leaves nothing to test.
+        if ('' === $account->username || ('' === $account->imapHost && '' === $account->smtpHost)) {
             return $this->json(new ConnectionTestResult(
                 false,
                 $translator->trans('account.test.result.missing_fields'),
@@ -395,7 +512,7 @@ final class AccountController extends AbstractController
             )->toArray());
         }
 
-        if (false === MailServerHost::isValid($account->imapHost)
+        if (('' !== $account->imapHost && false === MailServerHost::isValid($account->imapHost))
             || ('' !== $account->smtpHost && false === MailServerHost::isValid($account->smtpHost))) {
             return $this->json(new ConnectionTestResult(
                 false,
@@ -435,7 +552,11 @@ final class AccountController extends AbstractController
         $this->accountCreator->resequence($orderedAccounts);
     }
 
-    private function streamAccountList(Request $request, string $toastMessage): Response
+    /**
+     * @param bool $jobsChanged also redraw the jobs indicator, for a mutation
+     *                          that has just queued one — see delete()
+     */
+    private function streamAccountList(Request $request, string $toastMessage, bool $jobsChanged = false): Response
     {
         $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
 
@@ -443,10 +564,50 @@ final class AccountController extends AbstractController
         // come back in the arrangement the user made — re-sorting it by name
         // here would silently undo a drag on the next toggle or delete.
         return $this->render('account/_mutation.stream.html.twig', [
-            'toastMessage'       => $toastMessage,
+            'toastMessage' => $toastMessage,
+            'jobsChanged'  => $jobsChanged,
+            ...$this->accountLists(),
+        ]);
+    }
+
+    /**
+     * The accounts, and which of them are being removed — in that order of
+     * asking, removals FIRST, and the order is the point (#672).
+     *
+     * An account with little mail is removed by the worker in milliseconds,
+     * often while the response to pressing Remove is still being rendered.
+     * Asked the other way round, the list could be read with the account still
+     * in it and the job read after it had finished: the row came back as an
+     * ordinary one, with every control on it and nothing watching for it to go.
+     * Asked this way, a job seen running means the row is greyed out and
+     * watched, and a job already finished means the account was gone before the
+     * list was read — the worker removes the account before it ends the job.
+     *
+     * @return array{removals: array<int, BackgroundJob>, manageableAccounts: iterable<Account>}
+     */
+    private function accountLists(): array
+    {
+        $user     = $this->getUser();
+        $removals = null === $user ? [] : $this->removalState->activeFor($user);
+
+        return [
+            'removals'           => $removals,
             // Same ordering as the page this replaces and as reorder()'s own
             // stream — three renders of one list that used to disagree.
-            'manageableAccounts' => $this->accountRepository->findForUserOrdered($this->getUser()),
-        ]);
+            'manageableAccounts' => $this->accountRepository->findForUserOrdered($user),
+        ];
+    }
+
+    /**
+     * Nothing changes on an account that is being removed. The page greys the
+     * row out and offers nothing; this is for a tab that was open before, whose
+     * buttons still work — switching a service back on would start the sync
+     * the removal is racing to empty.
+     */
+    private function refuseWhileRemoving(Account $account): void
+    {
+        if (true === $this->removalState->isRemoving($account)) {
+            throw new ConflictHttpException('The account is being removed.');
+        }
     }
 }

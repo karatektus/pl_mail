@@ -7,7 +7,7 @@ namespace App\Tests\Controller\Settings;
 use App\Domain\Enum\Integration\Provider;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
-use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;

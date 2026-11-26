@@ -213,7 +213,7 @@ final class GoogleCalendarPushControllerTest extends WebTestCase
         $account->username      = $user->email;
         $account->authType      = AuthType::OAuth2->value;
         $account->oauthProvider = MailProvider::Google->value;
-        $account->isActive      = true;
+        $account->mailEnabled   = true;
         $this->em->persist($account);
 
         $this->token = bin2hex(random_bytes(32));

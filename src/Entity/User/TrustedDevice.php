@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Entity\User;
 
 use App\Domain\Trait\TimestampableTrait;
-use App\Repository\User\TrustedDeviceRepository;
+use App\Repository\User\TrustedDevice\TrustedDeviceRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

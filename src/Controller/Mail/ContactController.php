@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
-use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\Contact\ContactRepository;
 use App\Service\AddressBook\ContactSuggester;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;

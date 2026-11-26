@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Entity\Calendar;
 
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventOccurrenceRepository;
+use App\Repository\Calendar\CalendarEventOccurrence\CalendarEventOccurrenceRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;

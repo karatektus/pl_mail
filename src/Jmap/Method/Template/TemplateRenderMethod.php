@@ -9,7 +9,7 @@ use App\Jmap\Mail\IdentityResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
-use App\Repository\Template\MailTemplateRepository;
+use App\Repository\Template\MailTemplate\MailTemplateRepository;
 use App\Service\Mail\SignatureProvider;
 use App\Service\Template\TemplateRecipientFiller;
 use App\Service\Template\TemplateRenderer;

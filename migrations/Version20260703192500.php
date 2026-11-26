@@ -14,7 +14,7 @@ final class Version20260703192500 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Mark a primary account, store its address, and call its label a name';
     }
 
     public function up(Schema $schema): void

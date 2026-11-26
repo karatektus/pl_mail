@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
+use App\Domain\Helper\MessageParser;
 use Throwable;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
- * Opens a MIME container that webklex handed over as a single attachment.
+ * Opens a MIME container that webklex handed over as a single attachment, in
+ * mail stored before #82. MisfiledBodyBackfillTask is the one caller:
+ * MessageParser reads these containers as the bodies they hold, so nothing
+ * new is stored this way.
  *
  * ── The shape ────────────────────────────────────────────────────────────────
  * A `multipart/related` holding EXACTLY ONE part — an HTML body with no inline
- * images beside it — is not descended into when it sits inside another
- * multipart. The whole container arrives as one attachment, named after its own
- * checksum, and the message has no body at all. Measured, not inferred:
+ * images beside it — was not descended into when it sat inside another
+ * multipart. The whole container arrived as one attachment, named after its
+ * own checksum, and the message had no body at all. Measured, not inferred:
  *
  *   alt > [plain, rel[html]]       html=EMPTY   attachment: multipart/related
  *   alt > [plain, rel[html,img]]   html=ok      attachment: image/png
@@ -32,10 +33,9 @@ use Webklex\PHPIMAP\Message as ImapMessage;
  * What was stored is a complete MIME block: delimiters, part headers, transfer
  * encoding, charset. Fishing the HTML out of it with a regular expression would
  * work on the easy ones and quietly mangle quoted-printable and anything not
- * UTF-8. Handing it back to the same library gets all of that right, and gets
- * the charset right in particular: inside a message of its own the HTML is a
- * BODY part, so webklex converts it — which is exactly the step it skips for an
- * attachment.
+ * UTF-8. Handing it to the parser gets all of that right, and gets the charset
+ * right in particular: inside a message of its own the HTML is a BODY part, and
+ * a body is converted by CharsetHelper's rule.
  *
  * ── The boundary ─────────────────────────────────────────────────────────────
  * MessagePart stores `content_type` without parameters, so the boundary is not
@@ -59,9 +59,8 @@ final readonly class MisfiledBodyUnpacker
         }
 
         try {
-            $message = ImapMessage::fromString(
+            $message = MessageParser::parse(
                 sprintf("Content-Type: %s; boundary=\"%s\"\r\nMIME-Version: 1.0\r\n\r\n%s", $contentType, $boundary, $raw),
-                Config::make(['decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]]]),
             );
         } catch (Throwable) {
             return null;
@@ -73,12 +72,12 @@ final readonly class MisfiledBodyUnpacker
         // body and dropping the rest would turn a blank message into a blank
         // message that has also lost its attachments, which is worse than the
         // bug.
-        if (count($message->getAttachments()) > 0) {
+        if ([] !== $message->attachments) {
             return null;
         }
 
-        $html = (string) $message->getHTMLBody();
-        $text = (string) $message->getTextBody();
+        $html = $message->htmlBody;
+        $text = $message->textBody;
 
         if ('' === $html && '' === $text) {
             return null;

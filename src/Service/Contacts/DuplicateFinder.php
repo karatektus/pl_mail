@@ -7,7 +7,7 @@ namespace App\Service\Contacts;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Contacts\Contact;
 use App\Entity\User\User;
-use App\Repository\Contacts\ContactRepository;
+use App\Repository\Contacts\Contact\ContactRepository;
 
 /**
  * Finds suspected duplicate contacts within a user's address book.
@@ -64,7 +64,7 @@ final class DuplicateFinder
     ];
 
     public function __construct(
-        private ContactRepository $contacts,
+        private readonly ContactRepository $contacts,
     ) {
     }
 

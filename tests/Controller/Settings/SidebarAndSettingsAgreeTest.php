@@ -101,7 +101,7 @@ final class SidebarAndSettingsAgreeTest extends WebTestCase
     {
         $client = $this->german();
 
-        $client->request('GET', '/settings?section=labels');
+        $client->request('GET', '/settings/labels');
 
         self::assertResponseIsSuccessful();
 
@@ -130,7 +130,7 @@ final class SidebarAndSettingsAgreeTest extends WebTestCase
     {
         $client = $this->german();
 
-        $client->request('GET', '/settings?section=labels');
+        $client->request('GET', '/settings/labels');
 
         self::assertResponseIsSuccessful();
 

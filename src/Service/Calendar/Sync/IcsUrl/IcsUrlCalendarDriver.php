@@ -373,9 +373,9 @@ final readonly class IcsUrlCalendarDriver implements CalendarSyncDriverInterface
      *
      * Checked although IcsFeedClient checks it again, and deliberately: this is
      * the read that decides whether the connection is usable at all, and an
-     * address stored before an administrator tightened INTEGRATIONS_ALLOWED_HOSTS
-     * must stop working rather than keep working because it is already in the
-     * database. The double check costs one parse.
+     * address stored before an administrator removed its host from the allowed
+     * servers must stop working rather than keep working because it is already
+     * in the database. The double check costs one parse.
      *
      * @throws CalendarSyncPermanentException
      */

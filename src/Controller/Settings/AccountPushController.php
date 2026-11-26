@@ -134,7 +134,7 @@ final class AccountPushController extends AbstractController
                 ),
             );
 
-            return $this->redirectToRoute('app_settings_index', ['section' => 'health']);
+            return $this->redirectToRoute('app_settings_page', ['page' => 'health']);
         }
 
         return $this->renderToggle($account, $failed);

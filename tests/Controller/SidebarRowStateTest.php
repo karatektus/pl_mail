@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller;
 
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Twig\SidebarRowStateExtension;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -114,7 +114,9 @@ final class SidebarRowStateTest extends WebTestCase
      */
     public static function rows(): iterable
     {
-        yield 'a parent label is open while a child is' => ['/mail/label/path/Work/Clients', '/mail/label/path/Work', true];
+        yield 'a parent label is not open while a child is' => ['/mail/label/path/Work/Clients', '/mail/label/path/Work', false];
+        yield 'the child itself is open' => ['/mail/label/path/Work/Clients', '/mail/label/path/Work/Clients', true];
+        yield 'an account is not open on its own All Mail' => ['/mail/account/3/all', '/mail/account/3', false];
         yield 'a label sharing a prefix is not its child' => ['/mail/label/path/Workshop', '/mail/label/path/Work', false];
         yield 'an account folder, on that account' => ['/mail/label/5?account=3', '/mail/label/5?account=3', true];
         yield 'an account folder, on another account' => ['/mail/label/5?account=4', '/mail/label/5?account=3', false];

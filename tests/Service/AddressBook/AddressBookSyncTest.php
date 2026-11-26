@@ -13,8 +13,9 @@ use App\Infrastructure\Event\Listener\ContactSyncTracker;
 use App\Infrastructure\Messaging\Handler\PushAddressBookHandler;
 use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
-use App\Repository\AddressBook\AddressBookRepository;
-use App\Repository\Contacts\ContactRepository;
+use App\Repository\AddressBook\AddressBook\AddressBookRepository;
+use App\Repository\Contacts\Contact\ContactRepository;
+use App\Repository\System\AdvisoryLock\AdvisoryLockRepository;
 use App\Service\AddressBook\AddressBookDriverRegistry;
 use App\Service\AddressBook\AddressBookLock;
 use App\Service\AddressBook\AddressBookSync;
@@ -519,7 +520,7 @@ final class AddressBookSyncTest extends TestCase
     {
         return new AddressBookSync(
             new AddressBookDriverRegistry([$fixture->driver]),
-            new AddressBookLock($this->createStub(Connection::class)),
+            new AddressBookLock(new AdvisoryLockRepository($this->createStub(Connection::class))),
             new VCardMapper(),
             $this->repository(),
             new ContactPhotoStore(sys_get_temp_dir()),

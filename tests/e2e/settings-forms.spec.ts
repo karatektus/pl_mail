@@ -27,7 +27,7 @@ test.describe("app passwords", () => {
     }) => {
         const name = `E2E Key ${Date.now()}`;
 
-        await page.goto("/settings?section=app-passwords");
+        await page.goto("/settings/app-passwords");
 
         await page.getByPlaceholder(/What is it for/i).fill(name);
         await page.getByRole("button", { name: "Generate" }).click();
@@ -74,7 +74,7 @@ test.describe("app passwords", () => {
     });
 
     test("refuses an empty name", async ({ page }) => {
-        await page.goto("/settings?section=app-passwords");
+        await page.goto("/settings/app-passwords");
 
         const before = await page.locator("li").count();
 
@@ -90,7 +90,7 @@ test.describe("aliases", () => {
     test("adds a send-as address and removes it again", async ({ page }) => {
         const address = `alias-${Date.now()}@example.test`;
 
-        await page.goto("/settings?section=aliases");
+        await page.goto("/settings/aliases");
 
         const account = page.locator("#settings-alias-list > div > div").first();
         await account.getByPlaceholder(/Add another address/i).fill(address);
@@ -105,7 +105,7 @@ test.describe("aliases", () => {
     });
 
     test("refuses a malformed address", async ({ page }) => {
-        await page.goto("/settings?section=aliases");
+        await page.goto("/settings/aliases");
 
         const account = page.locator("#settings-alias-list > div > div").first();
         await account

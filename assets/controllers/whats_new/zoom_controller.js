@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus"
 import { openLayer, closeLayer } from "../../history_layer.js"
 

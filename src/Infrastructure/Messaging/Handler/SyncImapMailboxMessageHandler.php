@@ -6,7 +6,7 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Entity\Mail\Mailbox;
 use App\Infrastructure\Messaging\Message\SyncImapMailboxMessage;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapDeadline;
 use App\Service\Imap\MailboxSyncQueue;

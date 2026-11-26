@@ -8,7 +8,7 @@ use App\Command\Diagnostics\GraphDiagnoseCommand;
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Mail\Account;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\OAuth\OAuthTokenManager;
 use App\Tests\Command\MailFixtures;
 use Doctrine\DBAL\Connection;

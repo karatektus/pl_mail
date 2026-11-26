@@ -7,7 +7,7 @@ namespace App\Jmap\Method\Keys;
 use App\Entity\Crypto\ContactKey;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\JmapContext;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 use DateTimeInterface;
 
 /**

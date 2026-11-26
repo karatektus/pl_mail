@@ -6,7 +6,7 @@ namespace App\Service\Gmail;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Label\Label\LabelRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GmailApiClient;
 use Doctrine\ORM\EntityManagerInterface;

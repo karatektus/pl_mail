@@ -7,7 +7,7 @@ namespace App\Entity\Mail;
 use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Domain\Trait\TimestampableTrait;
-use App\Repository\Mail\EmailAliasRepository;
+use App\Repository\Mail\EmailAlias\EmailAliasRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

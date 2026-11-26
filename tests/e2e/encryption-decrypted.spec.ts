@@ -22,7 +22,7 @@ test("keeps decrypted mail readable on the server, and takes it back out when sw
     const word = `pineapple${Date.now()}`;
     const subject = `Kept seal ${Date.now()}`;
 
-    await page.goto("/settings?section=encryption");
+    await page.goto("/settings/encryption");
 
     const row = page.getByTestId("decrypted-mail-account").first();
 
@@ -67,7 +67,7 @@ test("keeps decrypted mail readable on the server, and takes it back out when sw
     await expect(page.getByTestId("crypto-banner")).toContainText("stored readable on this server");
 
     // Off: the decrypted copy goes, and the message reads as encrypted again.
-    await page.goto("/settings?section=encryption");
+    await page.goto("/settings/encryption");
     await saveSetting(page, () =>
         page.getByTestId("decrypted-mail-account").first().getByRole("button", { name: "Stop, and delete the decrypted copies" }).click(),
     );
@@ -89,7 +89,7 @@ async function person(page: Page): Promise<string> {
     consoleCommand(`app:test:seed-mail --email=${email}`);
 
     await login(page, email, PASSWORD);
-    await page.goto("/settings?section=encryption");
+    await page.goto("/settings/encryption");
     await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });
 
     return email;

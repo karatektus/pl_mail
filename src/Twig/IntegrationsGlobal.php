@@ -6,7 +6,7 @@ namespace App\Twig;
 
 use App\Domain\Enum\Integration\Capability;
 use App\Entity\Integration\Integration;
-use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\Service\ResetInterface;
 

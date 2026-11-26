@@ -9,7 +9,7 @@ use App\Domain\Enum\Onboarding\OnboardingStep;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\User\User;
 use App\Form\Integration\IntegrationProviderConfigType;
-use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationProviderConfig\IntegrationProviderConfigRepository;
 use App\Service\Integration\ProviderConfigWriter;
 use App\Service\Onboarding\OnboardingStepHandlerInterface;
 use Symfony\Component\Form\FormFactoryInterface;

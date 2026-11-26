@@ -44,6 +44,6 @@ final class EncryptionSendingController extends AbstractController
 
         $em->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'encryption']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'encryption']);
     }
 }

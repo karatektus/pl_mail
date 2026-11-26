@@ -7,7 +7,8 @@ namespace App\Tests\Service\Ai;
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Ai\AiSettings;
 use App\Entity\User\User;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiCallMetric\AiCallMetricRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiCallRecorder;
 use App\Service\Ai\AiPermissions;
@@ -393,6 +394,6 @@ final class WritingStreamTest extends KernelTestCase
                 return 1;
             });
 
-        return new AiCallRecorder($connection, new NullLogger());
+        return new AiCallRecorder(new AiCallMetricRepository($connection), new NullLogger());
     }
 }

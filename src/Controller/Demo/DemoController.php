@@ -8,8 +8,8 @@ use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Entity\Demo\DemoVisit;
 use App\Entity\User\User;
-use App\Repository\Demo\DemoVisitRepository;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Demo\DemoVisit\DemoVisitRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Security\LoginFormAuthenticator;
 use App\Service\Demo\DemoInbox;
 use App\Service\Demo\DemoMode;
@@ -17,16 +17,16 @@ use App\Service\Demo\DemoProvisioner;
 use App\Service\Demo\DemoScenarios;
 use App\Service\Demo\DemoVisitorFingerprint;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 
 /**
  * The two things a demo visitor can do that a normal user cannot: be handed an

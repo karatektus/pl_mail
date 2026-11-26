@@ -1,0 +1,23 @@
+{#
+A plain WebDAV server (#547) needs nothing registered: each user connects with
+their own password or token. What the admin needs to know is the address shape
+— the full folder URL, not a bare host — what the protocol cannot do, and the
+private-network allow-list, because these servers mostly live on one.
+#}
+<p>{{ 'admin.integrations.tutorial.webdav.intro'|trans }}</p>
+
+<ol class="list-decimal list-outside ml-4 space-y-1">
+    <li>{{ 'admin.integrations.tutorial.webdav.step_enable'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.webdav.step_base_url'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.webdav.step_user'|trans }}</li>
+</ol>
+
+<p class="text-xs text-ink-faint">
+    <i class="fa-solid fa-link-slash mr-1" aria-hidden="true"></i>
+    {{ 'admin.integrations.tutorial.webdav.no_links'|trans }}
+</p>
+
+<p class="text-xs text-ink-faint">
+    <i class="fa-solid fa-shield-halved mr-1" aria-hidden="true"></i>
+    {{ 'admin.integrations.tutorial.webdav.security'|trans }}
+</p>

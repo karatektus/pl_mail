@@ -14,7 +14,7 @@ import { expect, type Page } from "@playwright/test";
  * different toolbar in Spam and the bin.
  */
 export async function setDeleteNow(page: Page, on: boolean): Promise<void> {
-    await page.goto("/settings?section=disposal");
+    await page.goto("/settings/disposal");
 
     // Already how it was asked for: clicking the chosen radio changes nothing,
     // so it submits nothing and there is no redirect to wait for.
@@ -25,7 +25,7 @@ export async function setDeleteNow(page: Page, on: boolean): Promise<void> {
     const saved = page.waitForResponse(
         (response) =>
             "GET" === response.request().method() &&
-            response.url().includes("section=disposal") &&
+            response.url().includes("/settings/disposal") &&
             null !== response.request().redirectedFrom(),
     );
 

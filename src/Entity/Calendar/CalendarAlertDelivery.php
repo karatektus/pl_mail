@@ -6,7 +6,7 @@ namespace App\Entity\Calendar;
 
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarAlertDeliveryRepository;
+use App\Repository\Calendar\CalendarAlertDelivery\CalendarAlertDeliveryRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

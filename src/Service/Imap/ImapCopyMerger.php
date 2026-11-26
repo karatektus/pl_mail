@@ -10,8 +10,13 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Insight\MailInsightRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Calendar\EventProposal\EventProposalRepository;
+use App\Repository\Calendar\EventSourceLink\EventSourceLinkRepository;
+use App\Repository\Insight\InsightReport\InsightReportRepository;
+use App\Repository\Insight\MailInsight\MailInsightRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Pop3Uidl\Pop3UidlRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\MessageEraser;
 use Doctrine\ORM\EntityManagerInterface;
@@ -30,7 +35,7 @@ use Psr\Log\LoggerInterface;
  *
  * ── When ─────────────────────────────────────────────────────────────────────
  * After the sweep has given the folder's rows their size
- * (MessageRepository::backfillSizes()), which is the moment this folder's
+ * (MessageImapRepository::backfillSizes()), which is the moment this folder's
  * duplicates become recognisable — in a job of its own (FoldCopiesMessage),
  * one email at a time, so an email that cannot be folded costs that email
  * and neither the sweep nor the others. A bounded number of emails per sweep, so a
@@ -60,6 +65,7 @@ final readonly class ImapCopyMerger
 
     public function __construct(
         private MessageRepository       $messages,
+        private MessageImapRepository $messageImapRepository,
         private MessageEraser           $eraser,
         private ImapCopies              $copies,
         private ThreadLabelSynchronizer $threadLabels,
@@ -69,6 +75,10 @@ final readonly class ImapCopyMerger
         private EntityManagerInterface  $em,
         private ManagerRegistry         $registry,
         private LoggerInterface         $logger,
+        private EventSourceLinkRepository $eventSourceLinkRepository,
+        private EventProposalRepository $eventProposalRepository,
+        private InsightReportRepository $insightReportRepository,
+        private Pop3UidlRepository $pop3UidlRepository,
     ) {
     }
 
@@ -79,7 +89,7 @@ final readonly class ImapCopyMerger
      */
     public function foldKeptIn(Mailbox $mailbox, int $limit = self::PER_SWEEP): int
     {
-        $groups = $this->messages->findDuplicateCopyGroups($mailbox, $limit);
+        $groups = $this->messageImapRepository->findDuplicateCopyGroups($mailbox, $limit);
         $folded = 0;
 
         foreach ($groups as $ids) {
@@ -128,7 +138,6 @@ final readonly class ImapCopyMerger
      */
     private function fold(Message $survivor, array $copies): void
     {
-        $connection = $this->em->getConnection();
         $addresses  = [];
         $identities = [];
 
@@ -158,10 +167,8 @@ final readonly class ImapCopyMerger
 
             // What points at the copy points at the email: moved across, where
             // the survivor has no row of its own for the same thing already.
-            $params = ['survivor' => $survivor->id, 'copy' => $copy->id];
-
-            $connection->executeStatement('UPDATE event_source_link l SET message_id = :survivor WHERE l.message_id = :copy AND NOT EXISTS (SELECT 1 FROM event_source_link s WHERE s.message_id = :survivor AND s.event_id = l.event_id AND s.extractor = l.extractor)', $params);
-            $connection->executeStatement('UPDATE event_proposal p SET message_id = :survivor WHERE p.message_id = :copy AND NOT EXISTS (SELECT 1 FROM event_proposal s WHERE s.message_id = :survivor AND s.starts_at = p.starts_at)', $params);
+            $this->eventSourceLinkRepository->moveToMessage((int) $copy->id, (int) $survivor->id);
+            $this->eventProposalRepository->moveToMessage((int) $copy->id, (int) $survivor->id);
             // The insights through the entity manager and not in SQL, unlike
             // the rows around them: they may already be loaded. Merging the two
             // threads above loads the absorbed thread's insights to move their
@@ -175,8 +182,8 @@ final readonly class ImapCopyMerger
                 $insight->message = $survivor;
             }
 
-            $connection->executeStatement('UPDATE insight_report SET message_id = :survivor WHERE message_id = :copy', $params);
-            $connection->executeStatement('UPDATE pop3_uidl SET message_id = :survivor WHERE message_id = :copy', $params);
+            $this->insightReportRepository->moveToMessage((int) $copy->id, (int) $survivor->id);
+            $this->pop3UidlRepository->moveToMessage((int) $copy->id, (int) $survivor->id);
 
             // Files are per message; a path the survivor names too is not the
             // copy's to delete.

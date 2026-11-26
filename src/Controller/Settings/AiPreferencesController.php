@@ -140,7 +140,7 @@ final class AiPreferencesController extends AbstractController
         // _layout/app.html.twig.
         $this->addFlash('success', $this->translator->trans('settings.ai.notes.saved'));
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'ai']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'ai']);
     }
 
     /**
@@ -171,6 +171,6 @@ final class AiPreferencesController extends AbstractController
 
         $this->entityManager->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'ai']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'ai']);
     }
 }

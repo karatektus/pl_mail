@@ -7,7 +7,7 @@ namespace App\Entity\Calendar;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Calendar\EventProposalRepository;
+use App\Repository\Calendar\EventProposal\EventProposalRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;

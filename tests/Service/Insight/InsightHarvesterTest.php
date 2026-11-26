@@ -8,7 +8,7 @@ use App\Domain\Enum\Insight\InsightKind;
 use App\Entity\Insight\MailInsight;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Insight\MailInsightRepository;
+use App\Repository\Insight\MailInsight\MailInsightRepository;
 use App\Service\Insight\InsightDraft;
 use App\Service\Insight\InsightExtractorInterface;
 use App\Service\Insight\InsightExtractorRegistry;

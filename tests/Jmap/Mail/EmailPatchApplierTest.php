@@ -15,6 +15,7 @@ use App\Entity\User\User;
 use App\Jmap\Mail\EmailPatchApplier;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Service\Label\LabelResolver;
+use App\Service\Mail\ThreadPinService;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -217,6 +218,34 @@ final class EmailPatchApplierTest extends KernelTestCase
         self::assertCount(1, $transport->getSent());
     }
 
+    /**
+     * $pinned is the email list's pin (#615): setting it pins that email, and
+     * clearing it takes off whatever pinned the email, the conversation's pin
+     * included — what the web's thumbtack does.
+     */
+    public function testPinnedKeywordPinsTheEmailAndClearingItTakesOffWhatPinnedIt(): void
+    {
+        $thread = $this->thread(messages: 2);
+        [$first, $second] = array_values($thread->messages->toArray());
+
+        $this->applier->apply($this->account, $first, ['keywords/$pinned' => true]);
+
+        self::assertTrue($first->isPinned(), 'the email is pinned on its own');
+        self::assertFalse($thread->isPinned(), 'not the conversation');
+        self::assertTrue(ThreadPinService::conversationPinned($thread), 'which the conversation list shows pinned all the same');
+
+        // Pinned from the conversation list: its newest received email (the
+        // second, received at the same moment with the higher id) carries it.
+        $thread->pinnedAt = new \DateTimeImmutable('-1 hour');
+
+        self::assertTrue(ThreadPinService::emailPinned($second), 'presence: the conversation pin shows on its newest email');
+
+        $this->applier->apply($this->account, $second, ['keywords/$pinned' => null]);
+
+        self::assertFalse($thread->isPinned(), 'cleared there, the conversation pin is taken off');
+        self::assertTrue($first->isPinned(), "and another email's own pin is left alone");
+    }
+
     public function testFlaggedKeywordTogglesStarred(): void
     {
         $message = $this->message(draft: false);
@@ -380,7 +409,7 @@ final class EmailPatchApplierTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
         $this->em->flush();
 

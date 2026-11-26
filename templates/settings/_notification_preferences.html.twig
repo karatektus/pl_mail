@@ -15,10 +15,7 @@ Accepts:
   chosen     list<string>   the scopes that are on (NotifyScope keys)
   switches   {inbox: list<{scope, tab: ?InboxTab}>, labels: list<Label>}
 #}
-{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                  peer-checked:bg-accent peer-checked:text-accent-ink
-                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                  transition-colors cursor-pointer' %}
+{% import '_partials/_segmented.html.twig' as seg %}
 
 <form method="post" action="{{ path('app_settings_notifications_update') }}"
       class="border-t border-line" data-controller="ui--auto-submit">
@@ -72,19 +69,12 @@ Accepts:
             <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.skip_read_hint'|trans }}</span>
         </span>
 
-        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
-             role="radiogroup" aria-label="{{ 'settings.notifications.skip_read'|trans }}">
-            {% for on in [true, false] %}
-                <label>
-                    <input type="radio" name="skipRead" class="peer sr-only"
-                           value="{{ on ? '1' : '0' }}"
-                           data-action="change->ui--auto-submit#submit"
-                           {{ skipRead == on ? 'checked' : '' }}>
-                    <span class="{{ segText }}">
-                        {{ (on ? 'settings.notifications.on' : 'settings.notifications.off')|trans }}
-                    </span>
-                </label>
-            {% endfor %}
-        </div>
+        {{ seg.control('skipRead', [
+            { value: '1', label: 'settings.notifications.on'|trans },
+            { value: '0', label: 'settings.notifications.off'|trans },
+        ], skipRead ? '1' : '0', {
+            label:  'settings.notifications.skip_read'|trans,
+            action: 'change->ui--auto-submit#submit',
+        }) }}
     </div>
 </form>

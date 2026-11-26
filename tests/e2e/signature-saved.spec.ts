@@ -26,7 +26,7 @@ test.beforeEach(async ({ page }) => {
     // correctly" would pass without anything being saved at all. That is not
     // hypothetical: it is what these tests did while the save endpoint was
     // answering 500.
-    await page.goto("/settings?section=profile");
+    await page.goto("/settings/profile");
 
     const remove = page.getByRole("button", { name: "Remove saved signature" });
 
@@ -67,7 +67,7 @@ async function scribbleOn(page: Page, selector: string): Promise<void> {
 
 /** Saves one, so the tests below have something to find. */
 async function saveSignature(page: Page): Promise<void> {
-    await page.goto("/settings?section=profile");
+    await page.goto("/settings/profile");
     await scribbleOn(page, PAD);
 
     await page.getByRole("button", { name: "Save signature" }).click();
@@ -88,7 +88,7 @@ test.describe("a saved signature", () => {
 
     /** An untouched pad has nothing to save, and must not pretend otherwise. */
     test("cannot be saved before anything is drawn", async ({ page }) => {
-        await page.goto("/settings?section=profile");
+        await page.goto("/settings/profile");
 
         await expect(page.getByRole("button", { name: "Save signature" })).toBeDisabled();
     });

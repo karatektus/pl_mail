@@ -124,7 +124,7 @@ class JmapApiSender implements MailDeliveryInterface, SentCopyLookupInterface
         return true;
     }
 
-    public function deliver(Email $email, Account $account): void
+    public function deliver(Email $email, Account $account): ?string
     {
         // Not $email->toString(): that drops Bcc, and the server reads the
         // recipients from the MIME. See ApiMime.
@@ -205,7 +205,7 @@ class JmapApiSender implements MailDeliveryInterface, SentCopyLookupInterface
         }
 
         if (true === is_array($submitted['created']['s'] ?? null)) {
-            return;
+            return null;
         }
 
         $type = (string) ($submitted['notCreated']['s']['type'] ?? 'unknown');

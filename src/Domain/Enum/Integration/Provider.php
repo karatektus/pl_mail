@@ -62,6 +62,23 @@ enum Provider: string
     case Dropbox = 'dropbox';
 
     /**
+     * Any WebDAV file server that is not Nextcloud or OpenCloud: FileBrowser
+     * Quantum, a Synology box, `rclone serve webdav`, Apache mod_dav (#547).
+     *
+     * A protocol rather than a product, like CalDav, and for the same reason:
+     * there is no layout to know. The address the user types is the DAV
+     * collection itself — https://host/dav/files/ on FileBrowser Quantum —
+     * where the two products above put their files under a tree plMail builds
+     * from the username. That one difference is why choosing Nextcloud for a
+     * plain WebDAV server cannot work, and why this is not "Nextcloud without
+     * the share link".
+     *
+     * Lower-case 'webdav' like 'caldav', so slug() and transKey() answer the
+     * spelling a template name or a support ticket reaches for.
+     */
+    case WebDav = 'webdav';
+
+    /**
      * Any RFC 4791 calendar server: Nextcloud, Radicale, Baïkal, Fastmail,
      * iCloud, a Synology box.
      *
@@ -120,6 +137,7 @@ enum Provider: string
             self::GooglePhotos => 'Google Photos',
             self::OneDrive     => 'OneDrive',
             self::Dropbox      => 'Dropbox',
+            self::WebDav       => 'WebDAV',
             self::CalDav       => 'CalDAV',
             self::Ics          => 'Calendar feed',
             self::CardDav      => 'CardDAV',
@@ -145,6 +163,9 @@ enum Provider: string
             self::GooglePhotos => 'fa-solid fa-photo-film',
             self::OneDrive     => 'fa-brands fa-microsoft',
             self::Dropbox      => 'fa-brands fa-dropbox',
+            // No brand mark for a protocol, as with CalDAV; a server is what
+            // the user is pointing at, usually one in their own cupboard.
+            self::WebDav       => 'fa-solid fa-server',
             // No brand mark exists for a protocol, so it takes the same
             // calendar glyph the calendar UI uses for a mirrored list.
             self::CalDav       => 'fa-solid fa-calendar-days',
@@ -175,7 +196,8 @@ enum Provider: string
             self::GoogleDrive,
             self::GooglePhotos,
             self::OneDrive,
-            self::Dropbox => ServiceKind::Files,
+            self::Dropbox,
+            self::WebDav  => ServiceKind::Files,
             self::CalDav,
             self::Ics     => ServiceKind::Calendar,
             self::CardDav => ServiceKind::Contacts,
@@ -211,6 +233,10 @@ enum Provider: string
             self::GooglePhotos,
             self::OneDrive,
             self::Dropbox,
+            // A plain file server: whatever else runs on the same box is not
+            // reachable through this address, and guessing at it would
+            // offer calendars that are not there.
+            self::WebDav,
             self::CardDav      => false,
         };
     }
@@ -232,6 +258,7 @@ enum Provider: string
             self::GooglePhotos,
             self::OneDrive,
             self::Dropbox,
+            self::WebDav,
             self::CalDav,
             self::Ics          => false,
         };
@@ -262,6 +289,11 @@ enum Provider: string
             // over CalDAV exists only at Google, and Google's calendars come
             // in through the mail grant instead.
             self::CalDav => AuthKind::AppPassword,
+            // HTTP Basic is the one authentication every WebDAV server
+            // speaks. FileBrowser Quantum takes an API token as the password
+            // and ignores the username, which is why the connect form leaves
+            // the username optional for this provider only.
+            self::WebDav => AuthKind::AppPassword,
             // The same answer as CalDAV, for the same reason, and usually for
             // the same server.
             self::CardDav => AuthKind::AppPassword,
@@ -350,6 +382,17 @@ enum Provider: string
                 Capability::Thumbnail,
                 Capability::Search,
             ],
+            // Plain WebDAV has nothing past the file verbs. There is no public
+            // link in the protocol — a server that has one invents its own
+            // API for it — and no preview either, so the picker falls back to
+            // a file icon. No search: RFC 5323 SEARCH is optional and most of
+            // these servers (FileBrowser Quantum, rclone, mod_dav) do not
+            // implement it, so a search box would fail more often than not.
+            self::WebDav => [
+                Capability::Browse,
+                Capability::Download,
+                Capability::Upload,
+            ],
             // Empty because a CalDAV connection holds no files, not because
             // nobody has filled it in. Capability is the file vocabulary
             // throughout — Browse, Download, Upload, ShareLink, Thumbnail — and
@@ -400,6 +443,7 @@ enum Provider: string
             self::OpenCloud,
             self::Immich,
             self::Paperless,
+            self::WebDav,
             self::CalDav,
             self::Ics,
             self::CardDav,

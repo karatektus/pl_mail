@@ -13,12 +13,12 @@ import { Controller } from "@hotwired/stimulus";
  * the platform's.
  */
 export default class extends Controller {
-    static targets = ["message", "confirm", "cancel"];
+    static targets = ["message", "confirm", "cancel", "link"];
 
     connect() {
         // Registered on the element so assets/confirm.js can find whichever
         // instance is on the page, without either knowing about the other.
-        this.element.plConfirm = (message) => this.ask(message);
+        this.element.plConfirm = (message, options) => this.ask(message, options);
     }
 
     disconnect() {
@@ -30,10 +30,16 @@ export default class extends Controller {
     }
 
     /**
+     * `options` is for the one question that is not "are you sure": the pin
+     * reminder (#654) names its own button ("Pin anyway") and links to the
+     * setting it is about. Both go back to the dialog's own on every ask, so
+     * the next caller never inherits them.
+     *
      * @param {string} message
+     * @param {{confirm?: string, link?: {href: string, text: string}}} [options]
      * @returns {Promise<boolean>}
      */
-    ask(message) {
+    ask(message, options = {}) {
         // A second question while one is already up: answer the first with "no"
         // rather than leaving its promise dangling forever. Two confirmations
         // at once is not a state the app produces today, and a promise that
@@ -42,6 +48,17 @@ export default class extends Controller {
         this._settle(false);
 
         this.messageTarget.textContent = message ?? "";
+
+        this.confirmTarget.dataset.label ??= this.confirmTarget.textContent.trim();
+        this.confirmTarget.textContent = options.confirm ?? this.confirmTarget.dataset.label;
+
+        if (this.hasLinkTarget) {
+            const link = options.link ?? null;
+
+            this.linkTarget.hidden = null === link;
+            this.linkTarget.textContent = link?.text ?? "";
+            this.linkTarget.href = link?.href ?? "#";
+        }
 
         return new Promise((resolve) => {
             this._resolve = resolve;

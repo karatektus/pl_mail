@@ -1,4 +1,4 @@
-{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
+{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans(toastParameters|default({})), type: toastType|default('success') } only %}
 
 {# The whole panel, not the one select that changed — see
    ComposeDefaultsController::streamResponse() for why. #}

@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\Mail;
 
+use App\Domain\Enum\Account\AccountService;
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Domain\Enum\Account\IncomingProtocol;
@@ -10,7 +13,7 @@ use App\Domain\Enum\Account\Pop3DeleteMode;
 use App\Domain\Model\AccountModel;
 use App\Entity\User\User;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -76,6 +79,36 @@ class Account extends AccountModel
     #[ORM\Column(options: ['default' => 0])]
     public int $colorIndex = 0;
 
+    /**
+     * A colour of the user's own, as `#rrggbb`, worn instead of the palette
+     * entry while it is set (#638).
+     *
+     * The eight palette entries are chosen to be told apart by most people,
+     * and "most" is the problem: a colour-blind user could not find three of
+     * them that they could tell apart, and had no way to pick one that they
+     * could. So the palette stays the default, and this is the way out of it.
+     *
+     * Beside $colorIndex rather than replacing it. The palette entries are a
+     * light AND a dark shade each, picked per theme; a custom colour is one
+     * value on every theme, which is what the user asked for and what they
+     * check against the contrast readout in the picker. Keeping the index
+     * also means choosing a palette entry again is a plain "clear this", and
+     * nothing that hands out or restores $colorIndex has to know about it.
+     *
+     * Always lower case and always the full six digits: AccountController::
+     * colour() refuses anything else, so a template may print it as a CSS
+     * colour without escaping it into anything but an attribute.
+     */
+    #[ORM\Column(length: 7, nullable: true)]
+    public ?string $customColor = null;
+
+    /**
+     * What $customColor may hold: `#` and six hex digits. Not the three-digit
+     * short form, and not a colour name — one spelling, so two accounts in the
+     * same colour store the same string and the picker can mark which one is on.
+     */
+    public const string CUSTOM_COLOR_PATTERN = '/^#[0-9a-fA-F]{6}$/';
+
     #[ORM\ManyToOne(inversedBy: 'accounts')]
     #[ORM\JoinColumn(nullable: false)]
     public ?User $usr = null;
@@ -136,9 +169,8 @@ class Account extends AccountModel
      * authentication with nothing in the form to put the second password in
      * (#42).
      *
-     * Only the password differs. The username is shared: nobody has asked for
-     * two, and the form stays one field shorter for everyone who has one.
-     * Read through $sendingPassword, never directly, by anything that sends.
+     * The username may differ too, since #660: see $smtpUsername. Read
+     * through $sendingPassword, never directly, by anything that sends.
      */
     #[ORM\Column(type: EncryptedStringType::NAME, nullable: true)]
     public ?string $smtpPassword = null;
@@ -156,6 +188,36 @@ class Account extends AccountModel
         get => null !== $this->smtpPassword && '' !== $this->smtpPassword
             ? $this->smtpPassword
             : $this->password;
+    }
+
+    /**
+     * A username for sending, where SMTP signs in as somebody else than the
+     * mailbox does. Null — again nearly always — means $username (#660).
+     *
+     * A mailbox at one host sending through another host's relay (a web
+     * host's mailbox sent out through a deliverability service, a self-hosted
+     * server sent out through a smarthost) signs in to that relay with an
+     * account of the relay's. #42 gave such an account its own password; the
+     * username stayed shared, so the relay was still asked for the mailbox's
+     * name and refused it.
+     *
+     * Behind the same "different sign-in for sending" switch as the password,
+     * and left blank there it is the account's username: a server that only
+     * wants a second password needs nothing typed twice. Not a secret, so a
+     * plain column. Read through $sendingUsername by anything that sends.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $smtpUsername = null;
+
+    /**
+     * What SMTP signs in as: the sending username if the account has one, the
+     * account's username otherwise. The one place that fallback is written,
+     * for the same reason as $sendingPassword's.
+     */
+    public ?string $sendingUsername {
+        get => null !== $this->smtpUsername && '' !== trim($this->smtpUsername)
+            ? $this->smtpUsername
+            : $this->username;
     }
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -221,8 +283,115 @@ class Account extends AccountModel
     #[ORM\Column(type: 'text', nullable: true)]
     public ?string $exportRefusedReason = null;
 
-    #[ORM\Column]
-    public ?bool $isActive = null;
+    /**
+     * Whether plMail talks to the incoming mail server for this account: syncs
+     * it, listens for push, and carries changes back (#575). Sending is
+     * $sendEnabled, its own switch since #628.
+     *
+     * The column that used to be `is_active`, renamed for what it always did —
+     * the calendars never read it, so "switched off" only ever meant the mail.
+     * Off keeps the mail that is already here: the account stays in the sidebar
+     * while it holds any, and its own pages list it. What it leaves is
+     * everything unified — the shared inboxes, the badge counts, search across
+     * accounts, new-mail notifications — and every path to the server, in both
+     * directions. See AccountService for the rule all three switches share.
+     */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $mailEnabled = true;
+
+    /**
+     * Whether this account is offered as a sender and whether anything leaves
+     * through it — composed mail, scheduled sends, read receipts (#628).
+     *
+     * Apart from $mailEnabled so either half can exist alone: an SMTP relay
+     * with no mailbox behind it, or a mailbox whose provider offers no SMTP.
+     * Off is not a pause of something queued — a draft that comes due on an
+     * account that cannot send is refused and says why on the draft, as it
+     * did when mail as a whole was off.
+     */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $sendEnabled = true;
+
+    /**
+     * Whether this account's calendars sync. Off holds them still: the events
+     * stay, a local edit waits as pending, and both go out when it is on again.
+     */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $calendarEnabled = true;
+
+    /** The same, for the account's address books. */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $contactsEnabled = true;
+
+    /**
+     * The services that are switched on, in AccountService order.
+     *
+     * Virtual: it is the columns above read together, for the places
+     * that want them as a set — the OAuth scopes asked for, the health check
+     * that measures a grant against what it should cover.
+     *
+     * @var list<AccountService>
+     */
+    public array $services {
+        get => array_values(array_filter(
+            AccountService::cases(),
+            fn (AccountService $service): bool => $this->isEnabled($service),
+        ));
+    }
+
+    /**
+     * Stays a method: it takes the service and answers for it, which no single
+     * property can.
+     */
+    public function isEnabled(AccountService $service): bool
+    {
+        return match ($service) {
+            AccountService::Mail     => $this->mailEnabled,
+            AccountService::Send     => $this->sendEnabled,
+            AccountService::Calendar => $this->calendarEnabled,
+            AccountService::Contacts => $this->contactsEnabled,
+        };
+    }
+
+    /**
+     * Whether this service needs a server the account has not been given
+     * (#628), so switching it on could only fail.
+     *
+     * Only a password account can be short of one: Gmail and Microsoft find
+     * their own servers. Receiving needs the incoming host. Sending needs the
+     * SMTP host, except on JMAP, whose server takes submissions itself. An
+     * account added to send through a relay has no incoming host, and one
+     * added to read a mailbox may have no SMTP; either has to be completed in
+     * the account form before the other half is switched on.
+     *
+     * Stays a method: it takes the service and answers for it.
+     */
+    public function lacksServerFor(AccountService $service): bool
+    {
+        if (AuthType::Password->value !== $this->authType) {
+            return false;
+        }
+
+        return match ($service) {
+            AccountService::Mail     => null === $this->imapHost || '' === trim($this->imapHost),
+            AccountService::Send     => false === $this->isJmap() && (null === $this->smtpHost || '' === trim($this->smtpHost)),
+            AccountService::Calendar => false,
+            AccountService::Contacts => false,
+        };
+    }
+
+    /** The one place a switch is written, so a caller cannot name a column that is not one. */
+    public function enable(AccountService $service, bool $enabled): static
+    {
+        match ($service) {
+            AccountService::Mail     => $this->mailEnabled     = $enabled,
+            AccountService::Send     => $this->sendEnabled     = $enabled,
+            AccountService::Calendar => $this->calendarEnabled = $enabled,
+            AccountService::Contacts => $this->contactsEnabled = $enabled,
+        };
+
+        return $this;
+    }
 
     /**
      * When this account last synced without error.
@@ -683,6 +852,31 @@ class Account extends AccountModel
     }
 
     /**
+     * The addresses every message from this account is Bcc'd to (#692), for
+     * any sending address that has no list of its own.
+     *
+     * A list of bare, lowercased addresses. Absent and an empty list say the
+     * same thing here — no copy — because at the account level there is
+     * nothing further up to inherit from. DefaultBccProvider is the only
+     * reader and ComposeDefaultsController the only writer besides
+     * "Identity/set" and a restore.
+     */
+    public const string SETTING_DEFAULT_BCC = 'compose.bcc';
+
+    /**
+     * The per-alias Bcc override, keyed by alias id.
+     *
+     * Same shape as signatureAliasSetting(): the key's PRESENCE is the state.
+     * Absent means this address takes the account's list; an empty list means
+     * this address deliberately Bccs nobody, which is what a personal alias on
+     * a work mailbox that copies everything to an archive wants.
+     */
+    public static function defaultBccAliasSetting(int $aliasId): string
+    {
+        return 'compose.bcc.alias.' . $aliasId;
+    }
+
+    /**
      * The domains whose every address reaches this mailbox: a catch-all.
      *
      * A list of lowercased domain names. Any address at one of them counts as
@@ -926,7 +1120,7 @@ class Account extends AccountModel
      *
      * Both stay methods: there is no boolean column here. They answer a
      * question about $authType and $oauthProvider, which is an interpretation
-     * of two strings rather than the plain read $isActive and $pushEnabled are.
+     * of two strings rather than the plain read $mailEnabled and $pushEnabled are.
      */
     public function isMicrosoft(): bool
     {

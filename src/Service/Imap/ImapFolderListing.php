@@ -98,7 +98,7 @@ final readonly class ImapFolderListing
      *         with "and when". `sizes` is each message's RFC822.SIZE, a few
      *         bytes a message, which is how mail stored before #415 is given
      *         the size the sync recognises its copies by (see
-     *         MessageRepository::backfillSizes()).
+     *         MessageImapRepository::backfillSizes()).
      */
     public function read(ImapSession $session, Mailbox $mailbox): ?array
     {

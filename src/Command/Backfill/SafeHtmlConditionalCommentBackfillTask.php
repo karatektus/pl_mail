@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
 use App\Service\Mail\MailBodySanitizer;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -29,14 +30,14 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * id with an unchanging cursor: a row the sanitizer still cannot clean would
  * otherwise match again and be walked forever.
  */
-final readonly class SafeHtmlConditionalCommentBackfillTask implements BackfillTaskInterface
+final readonly class SafeHtmlConditionalCommentBackfillTask implements CountableBackfillTaskInterface
 {
     private const int BATCH_SIZE = 100;
 
     public function __construct(
-        private MessageRepository      $messageRepository,
+        private MessageBackfillRepository $messageBackfillRepository,
         private MailBodySanitizer      $bodySanitizer,
-        private EntityManagerInterface $em,
+        private EntityManagerInterface $em
     ) {}
 
     public function getName(): string
@@ -49,9 +50,29 @@ final readonly class SafeHtmlConditionalCommentBackfillTask implements BackfillT
         return 'Re-sanitize Message.bodyHtmlSafe for HTML bodies that show an Outlook conditional comment (<![endif]-->) as text.';
     }
 
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-08-10');
+    }
+
+    /**
+     * Safe to repeat: the display copy is rebuilt from bodyHtml, the sender's
+     * untouched original, so a second run arrives at the same copy.
+     */
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    /** A table repair walks everything, so it has no window to count within. */
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageBackfillRepository->countWithConditionalCommentText();
+    }
+
     public function run(SymfonyStyle $io): int
     {
-        $total = $this->messageRepository->countWithConditionalCommentText();
+        $total = $this->messageBackfillRepository->countWithConditionalCommentText();
 
         if (0 === $total) {
             $io->success('Nothing to repair — no stored HTML body shows a conditional comment as text.');
@@ -66,7 +87,7 @@ final readonly class SafeHtmlConditionalCommentBackfillTask implements BackfillT
         $repaired  = 0;
 
         while (true) {
-            $messages = $this->messageRepository->findWithConditionalCommentText($lastId, self::BATCH_SIZE);
+            $messages = $this->messageBackfillRepository->findWithConditionalCommentText($lastId, self::BATCH_SIZE);
 
             if (count($messages) === 0) {
                 break;

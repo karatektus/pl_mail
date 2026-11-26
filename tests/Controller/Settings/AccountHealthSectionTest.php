@@ -10,7 +10,7 @@ use App\Domain\Enum\Calendar\CalendarRole;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -68,16 +68,16 @@ final class AccountHealthSectionTest extends WebTestCase
         $account->oauthLastRefreshError = 'invalid_grant';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=accounts');
+        $crawler = $client->request('GET', '/settings/accounts');
 
         self::assertResponseIsSuccessful();
         self::assertGreaterThan(
             0,
-            $crawler->filter('nav a[href*="section=health"]')->count(),
+            $crawler->filter('nav a[href$="/settings/health"]')->count(),
             'something is wrong, so the settings nav links to the health section',
         );
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertResponseIsSuccessful();
         self::assertGreaterThan(0, $crawler->filter('#settings-health')->count());
@@ -86,7 +86,7 @@ final class AccountHealthSectionTest extends WebTestCase
         // to accounts, which would render no panel at all and still be a 200.
         self::assertGreaterThan(
             0,
-            $crawler->filter('nav a[href*="section=health"][aria-current="page"]')->count(),
+            $crawler->filter('nav a[href$="/settings/health"][aria-current="page"]')->count(),
             'the nav marks health as the current page',
         );
     }
@@ -105,12 +105,12 @@ final class AccountHealthSectionTest extends WebTestCase
         $this->oauthAccount($user, 'working@joder.dev');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=accounts');
+        $crawler = $client->request('GET', '/settings/accounts');
 
         self::assertResponseIsSuccessful();
         self::assertSame(
             0,
-            $crawler->filter('nav a[href*="section=health"]')->count(),
+            $crawler->filter('nav a[href$="/settings/health"]')->count(),
             'nothing is wrong, so the nav does not carry a health entry',
         );
 
@@ -118,7 +118,7 @@ final class AccountHealthSectionTest extends WebTestCase
         // heading along with the one link.
         self::assertGreaterThan(
             10,
-            $crawler->filter('nav a[href*="section="]')->count(),
+            $crawler->filter('nav a[href*="/settings/"]')->count(),
             'the rest of the settings nav is intact',
         );
     }
@@ -146,19 +146,19 @@ final class AccountHealthSectionTest extends WebTestCase
         $this->oauthAccount($user, 'working@joder.dev');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertResponseIsSuccessful();
         self::assertResponseStatusCodeSame(200, 'no redirect away from a bookmarked URL');
         self::assertSame(1, $crawler->filter('[data-health-empty]')->count(), 'the all-clear is rendered');
         self::assertSame(
             1,
-            $crawler->filter('nav a[href*="section=health"][aria-current="page"]')->count(),
+            $crawler->filter('nav a[href$="/settings/health"][aria-current="page"]')->count(),
             'and the nav shows the entry while you are standing on it',
         );
         self::assertSame(
             0,
-            $crawler->filter('nav a[href*="section=health"] span.rounded-full')->count(),
+            $crawler->filter('nav a[href$="/settings/health"] span.rounded-full')->count(),
             'without a badge',
         );
     }
@@ -185,7 +185,7 @@ final class AccountHealthSectionTest extends WebTestCase
 
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertResponseIsSuccessful();
         self::assertSame(
@@ -209,12 +209,12 @@ final class AccountHealthSectionTest extends WebTestCase
         $this->oauthAccount($user, 'quiet@joder.dev');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertResponseIsSuccessful();
         self::assertSame(
             0,
-            $crawler->filter('nav a[href*="section=health"] span.rounded-full')->count(),
+            $crawler->filter('nav a[href$="/settings/health"] span.rounded-full')->count(),
             'no badge on the nav entry',
         );
     }
@@ -234,7 +234,7 @@ final class AccountHealthSectionTest extends WebTestCase
         $account->oauthLastRefreshError = 'invalid_grant';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertResponseIsSuccessful();
 
@@ -284,7 +284,7 @@ final class AccountHealthSectionTest extends WebTestCase
         $account->oauthRefreshToken = null;
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-' . $account->id . '"]')->count());
     }
@@ -301,7 +301,7 @@ final class AccountHealthSectionTest extends WebTestCase
 
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="account-' . $account->id . '"]')->count());
     }
@@ -322,7 +322,7 @@ final class AccountHealthSectionTest extends WebTestCase
         $calendar->lastSyncError = 'The calendar no longer exists at the remote.';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="calendar-' . $calendar->id . '"]');
 
         self::assertSame(1, $card->count());
@@ -357,7 +357,7 @@ final class AccountHealthSectionTest extends WebTestCase
 
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         // ONE card for the three of them, not three.
         //
@@ -397,7 +397,7 @@ final class AccountHealthSectionTest extends WebTestCase
         self::assertSame(0, $group->filter('form[action*="/resync"]')->count());
 
         // The badge counts ONE thing to do, not four.
-        $badge = $crawler->filter('nav a[href*="section=health"] span.rounded-full');
+        $badge = $crawler->filter('nav a[href$="/settings/health"] span.rounded-full');
 
         self::assertSame(1, $badge->count());
         self::assertSame('1', trim($badge->text()));
@@ -414,7 +414,7 @@ final class AccountHealthSectionTest extends WebTestCase
         $calendar->recordSyncSuccess();
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="calendar-' . $calendar->id . '"]')->count());
     }
@@ -441,8 +441,8 @@ final class AccountHealthSectionTest extends WebTestCase
         $account->oauthLastRefreshError = 'invalid_grant';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
-        $badge   = $crawler->filter('nav a[href*="section=health"] span.rounded-full');
+        $crawler = $client->request('GET', '/settings/health');
+        $badge   = $crawler->filter('nav a[href$="/settings/health"] span.rounded-full');
 
         self::assertSame(1, $badge->count(), 'the indicator appears');
         self::assertSame('1', trim($badge->text()));
@@ -453,11 +453,11 @@ final class AccountHealthSectionTest extends WebTestCase
         $account->oauthLastRefreshError = null;
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             0,
-            $crawler->filter('nav a[href*="section=health"] span.rounded-full')->count(),
+            $crawler->filter('nav a[href$="/settings/health"] span.rounded-full')->count(),
             'and goes when the condition does — with nothing having been dismissed',
         );
         self::assertSame(1, $crawler->filter('[data-health-empty]')->count());
@@ -552,7 +552,7 @@ final class AccountHealthSectionTest extends WebTestCase
 
         self::assertTrue($calendar->isBackingOff());
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $form    = $crawler->filter('[data-health-issue="calendar-' . $calendar->id . '"] form[action*="/resync"]');
 
         self::assertSame(1, $form->count());
@@ -561,7 +561,7 @@ final class AccountHealthSectionTest extends WebTestCase
             '_token' => (string) $form->filter('input[name="_token"]')->attr('value'),
         ]);
 
-        self::assertResponseRedirects('/settings?section=health');
+        self::assertResponseRedirects('/settings/health');
 
         $this->em->clear();
         $reloaded = $this->em->find(Calendar::class, $calendar->id);
@@ -629,7 +629,7 @@ final class AccountHealthSectionTest extends WebTestCase
         $account->username = $email;
         $account->email    = $email;
         $account->authType = AuthType::Password->value;
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $account->imapHost = 'imap.example.test';
 
         $this->em->persist($account);
@@ -651,7 +651,7 @@ final class AccountHealthSectionTest extends WebTestCase
         $account->oauthProvider      = MailProvider::Google->value;
         $account->oauthAccessToken   = 'access-token';
         $account->oauthRefreshToken  = 'refresh-token';
-        $account->isActive           = true;
+        $account->mailEnabled        = true;
 
         $this->em->persist($account);
         $this->em->flush();
@@ -708,7 +708,7 @@ final class AccountHealthSectionTest extends WebTestCase
 
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]');
 
         self::assertSame(1, $card->count(), 'the missing permission is still not named anywhere');

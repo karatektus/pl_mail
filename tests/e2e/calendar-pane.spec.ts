@@ -135,6 +135,32 @@ test.describe("calendar pane demotion", () => {
         }).toPass({ timeout: 10_000 });
     });
 
+    // #678: the pane has the address book's ends, not only the topbar's.
+    test("the pane's own ↗, ↙ and × move it between its three positions", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await enterMode(page, "split");
+
+        const pane = page.locator("[data-side-pane='calendar']");
+
+        await expect(pane.getByRole("button", { name: "Show the calendar beside the mail" })).toBeHidden();
+        await pane.getByRole("link", { name: "Show the calendar full width" }).click();
+
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "calendar");
+        await expect(page.locator("[data-mail-column]")).toBeHidden();
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+        await expect(pane.getByRole("link", { name: "Show the calendar full width" })).toBeHidden();
+
+        await pane.getByRole("button", { name: "Show the calendar beside the mail" }).click();
+
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "split");
+        await expect(page.locator("[data-mail-column]")).toBeVisible();
+
+        await pane.getByRole("button", { name: "Close the calendar" }).click();
+
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
+        await expect(pane).toBeHidden();
+    });
+
     test.describe("just above lg", () => {
         test.use({ viewport: { width: 1100, height: 800 } });
 
@@ -244,7 +270,7 @@ test.describe("calendar button, skipping a position", () => {
      * own: this form is not one of the `ajax` token's callers.
      */
     async function setSkip(page: Page, skip: Skip): Promise<void> {
-        const html = await (await page.request.get("/settings?section=calendar-behaviour")).text();
+        const html = await (await page.request.get("/settings/calendar-behaviour")).text();
         const token = /name="_token" value="([^"]*)"/.exec(html)?.[1] ?? "";
 
         const response = await page.request.post("/settings/calendar-behaviour", {
@@ -370,7 +396,7 @@ test.describe("calendar button, skipping a position", () => {
 
     test("the Behaviour pane is one choice of three, and the button follows it", async ({ page }) => {
         await setSkip(page, "none");
-        await page.goto("/settings?section=calendar-behaviour");
+        await page.goto("/settings/calendar-behaviour");
 
         const group = page.getByRole("radiogroup", { name: "Calendar button" });
         const option = (name: string) => group.getByRole("radio", { name, exact: true });
@@ -384,7 +410,7 @@ test.describe("calendar button, skipping a position", () => {
             page.waitForResponse(
                 (response) =>
                     "GET" === response.request().method() &&
-                    response.url().includes("section=calendar-behaviour") &&
+                    response.url().includes("/settings/calendar-behaviour") &&
                     null !== response.request().redirectedFrom(),
             );
         // The radio itself is sr-only; its label is what a pointer meets.
@@ -405,7 +431,7 @@ test.describe("calendar button, skipping a position", () => {
         await expect(shell(page)).toHaveAttribute("data-calendar-mode", "calendar");
 
         // Straight to the other one. Nothing has to be switched off first.
-        await page.goto("/settings?section=calendar-behaviour");
+        await page.goto("/settings/calendar-behaviour");
         await choose("Split only");
         await expect(option("Split only")).toBeChecked();
         await expect(option("Full width only")).not.toBeChecked();

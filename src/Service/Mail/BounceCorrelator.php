@@ -6,7 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
 use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
 
@@ -47,9 +47,9 @@ final readonly class BounceCorrelator
     private const string FAILED = 'failed';
 
     public function __construct(
-        private MessageRepository $messages,
+        private MessageThreadingRepository $messageThreadingRepository,
         private HeaderNormalizer  $headers,
-        private LoggerInterface   $logger,
+        private LoggerInterface   $logger
     ) {
     }
 
@@ -106,7 +106,7 @@ final readonly class BounceCorrelator
             return null;
         }
 
-        $original = $this->messages->findOneForAccountByMessageId($dsn->account, $originalId);
+        $original = $this->messageThreadingRepository->findOneForAccountByMessageId($dsn->account, $originalId);
 
         if (null === $original) {
             return null;

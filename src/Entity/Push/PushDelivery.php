@@ -8,7 +8,7 @@ use App\Domain\Enum\PushDeliveryOutcome;
 use App\Domain\Enum\PushTransport;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Push\PushDeliveryRepository;
+use App\Repository\Push\PushDelivery\PushDeliveryRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

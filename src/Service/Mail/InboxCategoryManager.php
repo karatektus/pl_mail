@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Enum\AppLocale;
+use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Exception\InvalidInboxCategoryException;
+use App\Entity\Job\BackgroundJob;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Mail\InboxCategoryRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Infrastructure\Messaging\Message\ResortRemovedCategoryMessage;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
@@ -45,11 +49,12 @@ final readonly class InboxCategoryManager
 {
     public function __construct(
         private InboxCategoryRepository $categories,
-        private MessageThreadRepository $threads,
+        private MessageThreadCategoryRepository $messageThreadCategoryRepository,
         private EntityManagerInterface $em,
         private TranslatorInterface $translator,
         private \App\Jmap\State\StateManager $stateManager,
         private InboxTabChanges $tabChanges,
+        private MessageBusInterface $bus,
     ) {
     }
 
@@ -84,14 +89,26 @@ final readonly class InboxCategoryManager
     }
 
     /**
-     * Remove the category, un-file everything in it, free the pins into it, and
-     * put the conversations it held back in the tab they belong in.
+     * Remove the category, un-file everything in it and free the pins into it —
+     * and queue putting the conversations it held back in the tab they belong
+     * in (#672).
+     *
+     * The tab goes now; the re-sort is a job. Re-sorting is one conversation at
+     * a time with a change record for the apps each, and a category of years of
+     * newsletters is tens of thousands of them: measured at about a third of a
+     * millisecond each, enough to take a big category past PHP's thirty seconds
+     * — and the removal with it, since it all ran in one transaction. Until the
+     * job reaches them the conversations sit in whichever built-in tab they last
+     * had, which is where they were before they were filed here anyway.
+     *
+     * @return BackgroundJob|null the re-sort, or null when there was nothing in the category
      */
-    public function remove(InboxCategory $category): void
+    public function remove(InboxCategory $category): ?BackgroundJob
     {
-        $this->em->wrapInTransaction(function () use ($category): void {
-            $connection = $this->em->getConnection();
+        $owner = $category->usr;
+        $name  = $category->name;
 
+        $held = $this->em->wrapInTransaction(function () use ($category): array {
             // Recorded while the id is still there to be named.
             $this->tabChanges->destroyed($category->usr, [$category->tabKey()]);
 
@@ -105,18 +122,9 @@ final readonly class InboxCategoryManager
 
             // Taken BEFORE the delete, because the delete is what empties the
             // column this is read from.
-            $held = array_map(
-                intval(...),
-                $connection->fetchFirstColumn(
-                    'SELECT id FROM message_thread WHERE user_category_id = :id',
-                    ['id' => $category->id],
-                ),
-            );
+            $held = $this->messageThreadCategoryRepository->findIdsInUserCategory((int) $category->id);
 
-            $connection->executeStatement(
-                'UPDATE message_thread SET category_pinned_at = NULL WHERE user_category_id = :id',
-                ['id' => $category->id],
-            );
+            $this->messageThreadCategoryRepository->unpinFromUserCategory((int) $category->id);
 
             // The foreign keys un-file the rows; what is already loaded in this
             // request still points at the category, and the next flush would
@@ -138,21 +146,58 @@ final readonly class InboxCategoryManager
             $this->em->remove($category);
             $this->em->flush();
 
-            // Freed is not the same as resolved. A conversation dragged into the
-            // category kept whatever built-in category it had when it was
-            // dragged, and with its pin gone nothing would look at it again
-            // until its next message — it would sit in a stale tab for days, in
-            // the one place this removal was meant to put right. The foreign
-            // keys have already emptied the verdicts, so this resolves each of
-            // them from its messages like any other conversation.
-            // And told: a JMAP client shows the reader's own tabs too, and
-            // these conversations have just left one.
-            foreach ($this->threads->recomputeCategoriesForThreads($held) as $accountId => $moved) {
-                $this->stateManager->recordThreadsTouched($accountId, $moved);
-            }
-
-            $this->em->flush();
+            return $held;
         });
+
+        if ([] === $held) {
+            return null;
+        }
+
+        // Freed is not the same as resolved. A conversation dragged into the
+        // category kept whatever built-in category it had when it was dragged,
+        // and with its pin gone nothing would look at it again until its next
+        // message — it would sit in a stale tab for days, in the one place this
+        // removal was meant to put right. The foreign keys have already emptied
+        // the verdicts, and nothing in the database now says which
+        // conversations these were — so the list travels on the job.
+        $job       = new BackgroundJob($owner, JobKind::ResortRemovedCategory);
+        $job->view = [
+            'scope'      => 'category',
+            'value'      => '',
+            'unreadOnly' => false,
+            'name'       => $name,
+            'threadIds'  => array_values(array_map(intval(...), $held)),
+        ];
+
+        $this->em->persist($job);
+        $this->em->flush();
+
+        $this->bus->dispatch(new ResortRemovedCategoryMessage((int) $job->id));
+
+        return $job;
+    }
+
+    /**
+     * Resolve these conversations' tabs from their messages, and tell the apps
+     * about the ones that moved. ResortRemovedCategoryHandler runs it a batch
+     * at a time.
+     *
+     * @param list<int> $threadIds
+     *
+     * @return int how many moved
+     */
+    public function resort(array $threadIds): int
+    {
+        $moved = 0;
+
+        foreach ($this->messageThreadCategoryRepository->recomputeCategoriesForThreads($threadIds) as $accountId => $threads) {
+            $this->stateManager->recordThreadsTouched($accountId, $threads);
+            $moved += count($threads);
+        }
+
+        $this->em->flush();
+
+        return $moved;
     }
 
     /** A built-in tab's stored value, or its label in any interface language. */

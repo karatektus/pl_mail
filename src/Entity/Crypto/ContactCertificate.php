@@ -7,7 +7,7 @@ namespace App\Entity\Crypto;
 use App\Domain\Enum\Crypto\ContactKeyStatus;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Crypto\ContactCertificateRepository;
+use App\Repository\Crypto\ContactCertificate\ContactCertificateRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 

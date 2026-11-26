@@ -208,7 +208,7 @@ Named for what they *are*, not for the pattern they implement. `ThreadSnoozeServ
 
 | Suffix | Means |
 |---|---|
-| `…Repository` | Every query against one entity. Nothing else. |
+| `…Repository` | Queries about one model, or one topic of it. Nothing else. |
 | `…Service` | Owns what an operation *means*; shared by every caller. |
 | `…Resolver` | Turns an ambiguous input into the one right object. |
 | `…Builder` | Assembles a structure from parts. |
@@ -244,6 +244,8 @@ One class per file, PSR-4, path mirrors namespace. Directories are grouped by *d
 then kind* under each top-level layer: `src/Service/Mail/`, `src/Service/Graph/`,
 `src/Repository/Label/`, `src/Entity/Monitoring/`, `src/Domain/Enum/Mail/`. This scales: a new
 provider adds `src/Service/Fastmail/` rather than eleven files into one flat directory.
+Repositories go one level further, a folder per model: `src/Repository/Mail/Message/` holds
+`MessageRepository` and the topic repositories beside it (see §5.3).
 
 Twig partials are prefixed with an underscore (`_thread_row.html.twig`) and full pages are not
 (`inbox.html.twig`). Turbo Stream templates carry `.stream.html.twig`.
@@ -273,12 +275,13 @@ use Doctrine\ORM\EntityManagerInterface;
 alphabetical, no grouping by vendor, no trailing blank line games. Fully-qualified inline names
 (`\LogicException`, `\Exception`) appear only for throwaway catches.
 
-### 4.2 `final` by default, `readonly` where it fits
+### 4.2 `readonly` where it fits
 
-349 of 505 source files declare a `final` class. The default is final; non-final is a decision you
-make when a subclass exists, and it is usually an entity extending its `…Model` base.
+`final` is not a default. Many classes carry it from an earlier version of this rule, and it can
+stay where it is, but a new class does not need it, and removing it so a test can double the class
+needs no justification.
 
-Value objects and Messenger payloads are `final readonly`:
+Value objects and Messenger payloads are `readonly`:
 
 ```php
 final readonly class IngestedMessage
@@ -292,8 +295,7 @@ final readonly class IngestedMessage
 }
 ```
 
-`final` has a real payoff here and the tests lean on it: when every collaborator is final, mocking
-is impossible, so tests are written against the real container instead. See §9.3.
+Tests prefer the real container to doubles for their own reasons; see §9.3.
 
 ### 4.3 Constructor injection, promoted, aligned, `readonly`
 
@@ -525,7 +527,7 @@ src/
   Form/           Symfony form types
   Infrastructure/ Framework-facing wiring: Doctrine/, Messaging/, Event/, Scheduler/, Setup/, Encryption/
   Jmap/           A protocol implementation, self-contained, with its own Method/, Mapper/, Protocol/
-  Repository/     One per entity, mirroring Entity/'s grouping
+  Repository/     A folder per model, mirroring Entity/'s grouping, with a repository per topic
   Security/       Authenticators, user provider, two-factor
   Service/        Everything that decides something. The largest layer, by design.
   Twig/           Extensions and runtime helpers (Vendor/ for lifted upstream code)
@@ -585,10 +587,25 @@ class ThreadStatusController extends AbstractController
 
 ### 5.3 Every query lives in a repository
 
-No `createQueryBuilder` outside `src/Repository`, no `EntityManager::getRepository()->findBy()`
-inline in a service when the query means something. If a query is used twice, it is a named
-repository method; if it is used once but has a reason, it is a named repository method with a
-docblock explaining the reason.
+No query outside `src/Repository`: not in a service, controller, command, message handler,
+listener, form type, Twig extension or JMAP method. That is every kind — the query builder, DQL,
+native queries, raw DBAL statements and fetches, DBAL's `insert()`/`update()`/`delete()`, Postgres
+helpers such as advisory locks, and `EntityManager::find()` / `getRepository()`, which reach around
+the repository that should answer. `QueriesLiveInRepositoriesTest` reads `src/` and fails on any of
+them. Calling a repository's own `find()` or `findBy()` is fine; that is the repository answering.
+
+If a query is used twice, it is a named repository method; if it is used once but has a reason, it
+is a named repository method with a docblock explaining the reason.
+
+Repositories are grouped by model and topic: `src/Repository/<Area>/<Model>/`. The model's Doctrine
+repository (`MessageRepository`) holds its core lookups, and each topic with queries of its own gets
+a repository beside it — `MessageSendRepository`, `MessageImapRepository`,
+`MessageThreadSearchRepository` — so no repository grows to thousands of lines. Conditions two
+topics share live in one class in the folder (`MessageThreadListCriteria`) rather than in both.
+A table without an entity gets a `final readonly` repository on `Connection`
+(`MessageEmbeddingRepository`), and so does a write that must not touch the entity manager, such
+as one from a log handler or a Doctrine listener (`LogEntryAppendRepository`).
+Repositories a test doubles are not `final`.
 
 Raw DBAL is allowed, and when it appears it says why it had to be raw:
 
@@ -726,10 +743,11 @@ public function addMessagePart(MessagePart $messagePart): static
 
 Mutators return `static` so they chain.
 
-### 6.2 Indexes and constraints are commented
+### 6.2 Indexes and constraints are commented when the reason is not obvious
 
-Every index and unique constraint carries a comment saying what it protects and **why the columns
-are in that order**:
+An index on a foreign key or a lookup column explains itself and gets no comment. A unique
+constraint that guards against a race, a composite index whose column order matters, or a partial
+index gets a comment saying what it protects and **why the columns are in that order**:
 
 ```php
 // Remote-id uniqueness per account: one row per Gmail/Graph message. The
@@ -742,7 +760,12 @@ are in that order**:
 
 Constraint names are `uniq_<table>_<columns>` and `idx_<table>_<columns>`, snake_case, spelled out.
 
-### 6.3 Timestamps are a trait, and there are no exceptions
+### 6.3 Timestamps come from the trait, and only from the trait
+
+Not every entity has timestamps. A record that is created and later edited does, and takes them from
+`TimestampableTrait`; nothing writes `createdAt` or `updatedAt` by hand. Join rows, rows rebuilt
+from other data and markers that something was seen do without. A row whose moment means something
+particular names the column after it (`purgedAt`, `finishedAt`) rather than calling it `createdAt`.
 
 ```php
 trait TimestampableTrait
@@ -1300,16 +1323,16 @@ Paste this into `CLAUDE.md`, `AGENTS.md`, or a PR template.
 
 **Structure**
 6. Controllers resolve, authorise, delegate, render. Nothing else.
-7. Every query lives in a repository. Raw SQL says why it had to be raw.
+7. Every query lives in a repository, grouped by model and topic. Raw SQL says why it had to be raw.
 8. One service per concept; every caller goes through it. Differences between callers are named at
    both ends.
 9. Interfaces for the axis that varies; implementations under the provider's own directory.
-10. DTOs (`final readonly`) cross boundaries, not arrays.
+10. DTOs (`readonly`) cross boundaries, not arrays.
 11. Messenger payloads are readonly and carry ids, never entities.
 
 **PHP**
 12. `declare(strict_types=1);` on every file. PSR-4, one class per file.
-13. `final` by default; `final readonly` for value objects.
+13. `readonly` for value objects. `final` is not a default.
 14. Constructor injection, promoted, `private readonly`, one per line, aligned, trailing comma.
 15. Public properties with `public private(set)` where the outside must not write. No getters or
     setters.
@@ -1322,8 +1345,10 @@ Paste this into `CLAUDE.md`, `AGENTS.md`, or a PR template.
 22. Four spaces, LF, UTF-8, final newline, no trailing whitespace.
 
 **Data**
-23. Timestamps come from one trait, on every entity, with no exceptions.
-24. Every index and unique constraint is commented, including why the columns are in that order.
+23. Records that are created and later edited take `createdAt`/`updatedAt` from the trait; nothing
+    writes them by hand. A moment with a meaning of its own is named for it.
+24. An index or constraint whose reason is not obvious is commented, including why the columns are
+    in that order.
 25. Migrations carry a reasoning docblock and a one-line imperative description; backfills go
     nullable → populate → NOT NULL.
 

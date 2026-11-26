@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Controller\Integration;
 
 use App\Controller\ChecksCsrf;
-use App\Domain\Helper\AvatarStorage;
-use App\Domain\Helper\InlineDisposition;
 use App\Controller\Mail\ComposeAttachmentController;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Exception\IntegrationException;
+use App\Domain\Helper\AvatarStorage;
+use App\Domain\Helper\InlineDisposition;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
+use App\Repository\Mail\MessagePart\MessagePartRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Integration\IntegrationFilePicker;
 use App\Service\User\AvatarFromIntegration;
@@ -72,6 +74,8 @@ final class FilePickerController extends AbstractController
         private readonly IntegrationFilePicker  $picker,
         private readonly AvatarFromIntegration  $avatars,
         private readonly EntityManagerInterface $em,
+        private readonly MessagePartRepository $messagePartRepository,
+        private readonly MessageRepository $messageRepository,
     ) {
     }
 
@@ -445,7 +449,7 @@ final class FilePickerController extends AbstractController
      */
     private function ownedPart(int $id): MessagePart
     {
-        $part = 0 === $id ? null : $this->em->find(MessagePart::class, $id);
+        $part = 0 === $id ? null : $this->messagePartRepository->find($id);
 
         if (null === $part) {
             throw $this->createNotFoundException();
@@ -474,7 +478,7 @@ final class FilePickerController extends AbstractController
      */
     private function draft(int $id): Message
     {
-        $message = 0 === $id ? null : $this->em->find(Message::class, $id);
+        $message = 0 === $id ? null : $this->messageRepository->find($id);
 
         if (null === $message) {
             throw $this->createNotFoundException();

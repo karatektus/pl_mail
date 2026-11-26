@@ -11,7 +11,7 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Label\AccountFolderNode;
 use App\Service\Label\AccountFolderTree;
 use App\Service\Label\LabelKinds;
@@ -112,6 +112,58 @@ final class AccountFolderTreeTest extends TestCase
         $clients->parent = $work;
 
         self::assertSame(['Work' => ['Clients' => []]], self::shape($this->tree->of($account, [$work, $clients])));
+    }
+
+    /**
+     * Listed by account (#690), the account's tags are rows too, and on plain
+     * IMAP a tag, which has no folder path, hangs off its label parent — or
+     * every tag would be a root whatever its name says. A folder still nests
+     * by its path, even where its label has a parent label.
+     */
+    public function testListedByAccountATagIsARowUnderItsLabelParent(): void
+    {
+        $account                        = $this->imapAccount();
+        $account->usr->labelsByAccount  = true;
+        $inbox                          = $this->folder(LabelRole::Inbox, 'INBOX', '/');
+        $work                           = $this->folder(null, 'Work', '/');
+        $later                          = $this->label(null, 'Later');
+        $later->parent                  = $work;
+        $loose                          = $this->label(null, 'Loose');
+        $topFolder                      = $this->folder(null, 'Top', '/');
+        $topFolder->parent              = $work;
+
+        self::assertSame(
+            ['INBOX' => [], 'Work' => ['Later' => []], 'Loose' => [], 'Top' => []],
+            self::shape($this->tree->of($account, [$inbox, $work, $later, $loose, $topFolder])),
+        );
+    }
+
+    /**
+     * Gmail's "Sports/Football" and the "Sports" above it are two labels, and
+     * an account can have only the one. Listed by account, the parent is a row
+     * anyway, so the child sits where its name says — unless the parent is
+     * hidden, and then the child moves up as it would for a hidden folder.
+     */
+    public function testListedByAccountAParentNotOnTheAccountIsStillARow(): void
+    {
+        $account                        = new Account();
+        $account->authType              = AuthType::OAuth2->value;
+        $account->oauthProvider         = MailProvider::Google->value;
+        (new User())->addAccount($account);
+        $account->usr->labelsByAccount  = true;
+
+        $sports            = $this->label(null, 'Sports');
+        $football          = $this->label(null, 'Football');
+        $football->parent  = $sports;
+        $hidden            = $this->label(null, 'Hidden');
+        $hidden->isVisible = false;
+        $under             = $this->label(null, 'Under');
+        $under->parent     = $hidden;
+
+        self::assertSame(
+            ['Under' => [], 'Sports' => ['Football' => []]],
+            self::shape($this->tree->of($account, [$football, $under])),
+        );
     }
 
     private function imapAccount(): Account

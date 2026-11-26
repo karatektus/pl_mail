@@ -6,7 +6,7 @@ namespace App\Service\Mail;
 
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -50,12 +50,24 @@ final readonly class SenderResolver
      * Checked against Account::maySendAs() rather than trusted, so an alias
      * disabled since the draft was written falls back to the primary address
      * instead of offering an option the selector no longer has.
+     *
+     * The account's own address comes back as token() spells it, not
+     * lowercased. An account with no alias rows yet offers its legacy email
+     * as typed ("Jane.Doe@Example.com"), and ComposeType keys that option by
+     * exactly that spelling; a lowercased token matched no option, so every
+     * draft of such an account reopened with no From and could not be sent
+     * (#729 made that a refusal; before, the browser posted the first option).
+     * Aliases and catch-all addresses are stored lowercase, so theirs match.
      */
     public function tokenFor(Message $draft, Account $account): string
     {
         $address = strtolower(trim((string) $draft->fromAddress));
 
         if ($draft->account === $account && true === $account->maySendAs($address)) {
+            if ($address === strtolower((string) $account->displayAddress)) {
+                return $this->token($account);
+            }
+
             return sprintf('%d|%s', $account->id, $address);
         }
 
@@ -108,7 +120,7 @@ final readonly class SenderResolver
         if (
             null === $account
             || $account->usr !== $user
-            || false === (bool) $account->isActive
+            || false === $account->sendEnabled
         ) {
             return null;
         }

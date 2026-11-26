@@ -6,7 +6,7 @@ namespace App\Service\Crypto;
 
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\VerifySignatureMessage;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**

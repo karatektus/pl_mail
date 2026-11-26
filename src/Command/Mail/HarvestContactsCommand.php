@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Mail;
 
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\HarvestContactsService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -40,14 +40,14 @@ final class HarvestContactsCommand extends Command
         $io        = new SymfonyStyle($input, $output);
         $accountId = $input->getArgument('account-id');
 
-        if ($accountId !== null) {
+        if (null !== $accountId) {
             $accounts = [$this->accountRepository->find((int) $accountId)];
         } else {
-            $accounts = $this->accountRepository->findBy(['isActive' => true]);
+            $accounts = $this->accountRepository->findBy(['mailEnabled' => true]);
         }
 
         foreach ($accounts as $account) {
-            if ($account === null) {
+            if (null === $account) {
                 $io->error('Account not found.');
                 return Command::FAILURE;
             }

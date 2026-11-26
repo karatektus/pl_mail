@@ -25,7 +25,7 @@ replaced: a keyring hung off that password would be one the chooser could open.
          data-crypto--keyring-csrf-value="{{ csrf_token('keyring') }}"
          data-crypto--keyring-user-id-value="{{ app.user.id }}"
          data-crypto--keyring-email-value="{{ app.user.email }}"
-         data-crypto--keyring-settings-url-value="{{ path('app_settings_index', { section: 'encryption' }) }}"
+         data-crypto--keyring-settings-url-value="{{ path('app_settings_page', { page: 'encryption' }) }}"
          data-crypto--keyring-messages-value="{{ {
              lockedKeys:    'encryption.nag.locked_keys'|trans,
              recovered:     'encryption.nag.recovered'|trans,

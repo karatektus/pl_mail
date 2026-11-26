@@ -8,9 +8,10 @@ namespace App\Domain\Helper;
  * Canonical form for the two halves of an RFC 5322 address: the display name
  * and the addr-spec.
  *
- * Every backend hands them over differently. webklex exposes `personal`
- * verbatim, so a quoted-string display name arrives as `"Doe, John"` — quotes
- * and all — and lands in the UI and in `contact.display_name` that way. The
+ * Every backend hands them over differently. webklex, which parsed IMAP mail
+ * until #82, exposed `personal` verbatim, so a quoted-string display name
+ * arrived as `"Doe, John"` — quotes and all — and landed in the UI and in
+ * `contact.display_name` that way. The
  * Gmail path reads the raw `From:`/`To:` headers, where the quoting is ours to
  * undo, and Graph hands back a JSON `name` that is quoted whenever the mailbox
  * stored it quoted. Normalising in one place is what keeps the same person from

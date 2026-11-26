@@ -8,14 +8,17 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\InboxCategoryRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\InboxCategory\InboxCategoryRepository;
+use App\Repository\Mail\Message\MessageListRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadSearchRepository;
 use App\Service\Mail\UnifiedInboxes;
 use App\Service\Mail\AllMailView;
 use App\Service\Mail\InboxTabs;
 use App\Service\Mail\ListViewResolver;
+use App\Service\Search\SearchQueryParser;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -48,10 +51,13 @@ final class ListViewResolverCustomTabTest extends KernelTestCase
         // Built by hand: a service with one consumer is inlined away.
         $this->resolver = new ListViewResolver(
             $container->get(MessageThreadRepository::class),
+            $container->get(MessageListRepository::class),
             $container->get(LabelRepository::class),
             new InboxTabs($container->get(InboxCategoryRepository::class)),
             new AllMailView($container->get(AccountRepository::class)),
             $container->get(UnifiedInboxes::class),
+            $container->get(SearchQueryParser::class),
+            $container->get(MessageThreadSearchRepository::class),
         );
 
         $this->connection->beginTransaction();

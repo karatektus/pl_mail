@@ -7,7 +7,7 @@ namespace App\Service\Imap;
 use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Mailbox;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
 use App\Service\Label\KeywordLabelFollower;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
@@ -73,10 +73,10 @@ use Psr\Log\LoggerInterface;
 final readonly class ImapFlagReconciler
 {
     public function __construct(
-        private MessageRepository   $messages,
+        private MessageImapRepository $messageImapRepository,
         private ThreadStatusUpdater $status,
         private LoggerInterface     $logger,
-        private KeywordLabelFollower $keywords,
+        private KeywordLabelFollower $keywords
     ) {
     }
 
@@ -100,8 +100,8 @@ final readonly class ImapFlagReconciler
         // row in the mailbox as a full entity: bodies, stored HTML, headers and
         // the search vector, to compare two booleans and a small array. It was
         // the single largest cost in a real install's database. See
-        // MessageRepository::findFlagStateByUid().
-        $state = $this->messages->findFlagStateByUid($mailbox);
+        // MessageImapRepository::findFlagStateByUid().
+        $state = $this->messageImapRepository->findFlagStateByUid($mailbox);
 
         if ([] === $state) {
             return 0;
@@ -161,13 +161,13 @@ final readonly class ImapFlagReconciler
             $wanted[$current['id']] = [$seen, $flagged, $canonical];
         }
 
-        $this->messages->recordServerFlags($observed);
+        $this->messageImapRepository->recordServerFlags($observed);
 
         if ([] === $wanted) {
             return 0;
         }
 
-        $messages = $this->messages->findByIdsKeyedByUid(array_keys($wanted));
+        $messages = $this->messageImapRepository->findByIdsKeyedByUid(array_keys($wanted));
         $states   = [];
         $before   = [];
 

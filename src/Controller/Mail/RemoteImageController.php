@@ -8,7 +8,7 @@ use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Mail\TrustedImageSenderRepository;
+use App\Repository\Mail\TrustedImageSender\TrustedImageSenderRepository;
 use App\Security\Voter\OwnershipVoter;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;

@@ -11,7 +11,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\Push\PushEndpointPolicy;
 use App\Jmap\Push\PushSenderRegistry;
-use App\Repository\User\PushSubscriptionRepository;
+use App\Repository\User\PushSubscription\PushSubscriptionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

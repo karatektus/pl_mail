@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
+use App\Domain\DTO\Mail\ParsedMessage;
+use App\Domain\Helper\MessageParser;
 use App\Entity\Mail\Message;
-use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
 use App\Service\Mail\MailBodySanitizer;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * The invite from a booking system that rendered as "Ã¼ber", end to end.
@@ -21,9 +20,9 @@ use Webklex\PHPIMAP\Message as ImapMessage;
  * at fault. Both halves are asserted here so the next reader does not have to
  * re-run that elimination.
  *
- * The first half is the decode: bytes off the wire through the same decoder
- * MessageParser::config() installs, which is where "Stop believing a charset
- * label the bytes disprove" put its fix. It was already right. The second half
+ * The first half is the decode: bytes off the wire through MessageParser,
+ * which converts a body by CharsetHelper's rule and so stops believing a
+ * charset label the bytes disprove. It was already right. The second half
  * is the render, where the body was mangled by the sender's own
  * `<meta charset>` — a declaration no longer true of bytes the sync had
  * already converted, and which the sanitizer's parser believed anyway.
@@ -56,8 +55,8 @@ final class CalendarInviteBodyCharsetTest extends KernelTestCase
     {
         $message = $this->parse($this->rawMail('ISO-8859-1'));
 
-        self::assertStringContainsString(self::SENTENCE, (string) $message->getTextBody());
-        self::assertStringContainsString(self::SENTENCE, (string) $message->getHTMLBody());
+        self::assertStringContainsString(self::SENTENCE, $message->textBody);
+        self::assertStringContainsString(self::SENTENCE, $message->htmlBody);
     }
 
     /** The calendar part is carried through untouched, widget and all. */
@@ -67,9 +66,9 @@ final class CalendarInviteBodyCharsetTest extends KernelTestCase
 
         $calendar = null;
 
-        foreach ($message->getAttachments() as $attachment) {
-            if (true === str_contains((string) $attachment->getContentType(), 'calendar')) {
-                $calendar = (string) $attachment->getContent();
+        foreach ($message->attachments as $attachment) {
+            if ('text/calendar' === $attachment->contentType) {
+                $calendar = $attachment->content;
             }
         }
 
@@ -131,12 +130,10 @@ final class CalendarInviteBodyCharsetTest extends KernelTestCase
         return $message;
     }
 
-    /** Parsed through the decoder MessageParser::config() installs, not the default. */
-    private function parse(string $raw): ImapMessage
+    /** Parsed as the sync parses it. */
+    private function parse(string $raw): ParsedMessage
     {
-        return ImapMessage::fromString($raw, Config::make([
-            'decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]],
-        ]));
+        return MessageParser::parse($raw);
     }
 
     private function rawMail(string $declaredCharset): string

@@ -7,9 +7,9 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Domain\Enum\Mail\LabelColor;
 use App\Domain\Exception\GmailPermanentException;
 use App\Domain\Exception\GmailThrottledException;
@@ -48,7 +48,7 @@ final class ApplyGmailLabelsHandler
 {
     public function __construct(
         private readonly AccountRepository      $accountRepository,
-        private GmailLabelColorMapper  $colorMapper,
+        private readonly GmailLabelColorMapper $colorMapper,
         private readonly MessageRepository      $messageRepository,
         private readonly LabelRepository        $labelRepository,
         private readonly GmailApiClient         $apiClient,
@@ -66,6 +66,13 @@ final class ApplyGmailLabelsHandler
                 'accountId' => $message->accountId,
             ]);
 
+            return;
+        }
+
+        // Mail switched off (#575): the change stays here and nothing goes to
+        // the server. The next sync after switching back on reads the server's
+        // state over it — see AccountService.
+        if (false === $account->mailEnabled) {
             return;
         }
 

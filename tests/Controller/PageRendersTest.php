@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -40,28 +40,29 @@ final class PageRendersTest extends WebTestCase
         yield 'archive' => ['/mail/archive'];
         yield 'spam' => ['/mail/spam'];
         yield 'search' => ['/mail/search?q=test'];
-        yield 'settings' => ['/settings'];
-        yield 'settings appearance' => ['/settings?section=appearance'];
-        yield 'settings accounts' => ['/settings?section=accounts'];
-        yield 'settings health' => ['/settings?section=health'];
-        yield 'settings filters' => ['/settings?section=filters'];
-        yield 'settings integrations' => ['/settings?section=integrations'];
-        yield 'settings aliases' => ['/settings?section=aliases'];
-        yield 'settings app passwords' => ['/settings?section=app-passwords'];
-        yield 'settings notifications' => ['/settings?section=notifications'];
-        yield 'settings security' => ['/settings?section=security'];
+        yield 'settings appearance' => ['/settings/appearance'];
+        yield 'settings accounts' => ['/settings/accounts'];
+        yield 'settings health' => ['/settings/health'];
+        yield 'settings filters' => ['/settings/filters'];
+        yield 'settings integrations' => ['/settings/integrations'];
+        yield 'settings aliases' => ['/settings/aliases'];
+        yield 'settings app passwords' => ['/settings/app-passwords'];
+        yield 'settings notifications' => ['/settings/notifications'];
+        yield 'settings security' => ['/settings/security'];
         // The enrolment panel, which is where the QR is rendered — a broken
         // renderer only shows up once something asks it for an image.
-        yield 'settings security enrolling' => ['/settings?section=security&enrol=1'];
-        yield 'settings general' => ['/settings?section=general'];
-        yield 'settings disposal' => ['/settings?section=disposal'];
-        yield 'settings images' => ['/settings?section=images'];
-        yield 'settings swipe actions' => ['/settings?section=swipe-actions'];
+        yield 'settings security enrolling' => ['/settings/security?enrol=1'];
+        yield 'settings language and region' => ['/settings/region'];
+        yield 'settings compose' => ['/settings/compose'];
+        yield 'settings whats new' => ['/settings/whats-new'];
+        yield 'settings disposal' => ['/settings/disposal'];
+        yield 'settings reading' => ['/settings/reading'];
+        yield 'settings layout' => ['/settings/layout'];
         // The AI section renders whether or not an administrator has switched
         // anything on: a feature that is off is a row with a sentence instead
         // of a switch, and that branch is the one nothing else walks.
-        yield 'settings ai' => ['/settings?section=ai'];
-        yield 'settings insights' => ['/settings?section=insights'];
+        yield 'settings ai' => ['/settings/ai'];
+        yield 'settings insights' => ['/settings/insights'];
         yield 'filters list' => ['/settings/filters/list'];
         yield 'filters editor' => ['/settings/filters/new'];
         yield 'label editor' => ['/labels/new'];
@@ -124,7 +125,7 @@ final class PageRendersTest extends WebTestCase
         // Not the integrations step: it is the one that still answers 404 by
         // design, when an admin has made nothing connectable, and whether this
         // database has anything depends on what the e2e suite last did.
-        yield 'settings profile' => ['/settings?section=profile'];
+        yield 'settings profile' => ['/settings/profile'];
         // Was a 500 on a fresh install: no account, and Message::setAccount()
         // is not nullable. See "Findings worth fixing" in todo.md.
         yield 'compose new' => ['/compose/new'];
@@ -165,7 +166,7 @@ final class PageRendersTest extends WebTestCase
     public static function pagesWithATopbar(): iterable
     {
         yield 'a mail list' => ['/mail/inbox'];
-        yield 'settings' => ['/settings?section=profile'];
+        yield 'settings' => ['/settings/profile'];
     }
 
     #[DataProvider('pagesWithATopbar')]

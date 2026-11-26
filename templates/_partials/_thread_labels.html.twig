@@ -16,15 +16,20 @@ Variables:
                                     message (`item` is then a Message).
                                     Default false: a list row has the Label
                                     as picker for that.
+  hook       string|null            `data-row-labels` on the chips' box, for
+                                    a list row that draws them in more than
+                                    one place and lets app.css pick (#608)
+  class      string                 extra classes on that box
 #}
 {% set account   = account|default(null) %}
 {% set removable = removable|default(false) %}
+{% set hook      = hook|default(null) %}
 {% set chipLabels = item.labels|filter(chipLabel => chipLabel.role is null and chipLabel.isVisible) %}
 {% if chipLabels|length > 0 %}
     {# Shown at every width now. They used to be hidden on a narrow list
        because they competed with the subject on the same line; they sit on
        their own line with the snippet there, so there is nothing to lose to. #}
-    <span class="inline-flex items-center gap-1 mr-0.5 shrink-0 align-middle">
+    <span {% if hook %}data-row-labels="{{ hook }}"{% endif %} class="inline-flex items-center gap-1 shrink-0 align-middle {{ class|default('mr-0.5') }}">
         {#
         An outlined pill rather than a filled block with a dot beside it. A row
         carries three of these next to a subject and a snippet, and a filled
@@ -50,8 +55,10 @@ Variables:
             }[chipLabel.color ?? 'gray'] ?? 'border-ink-faint/40 text-ink-muted' %}
 
             {% set isFolder = account is not null and sidebarCounts.isFolderOn(chipLabel, account) %}
+            {# The title on a tag too, since #608: shown as a dot, the
+               chip's colour is all that is left of it on screen. #}
             <span data-label-chip="{{ chipLabel.id }}"
-                  {% if isFolder %}data-label-chip-folder title="{{ 'thread_row.folder'|trans({ '%label%': chipLabel|label_name }) }}"{% endif %}
+                  {% if isFolder %}data-label-chip-folder title="{{ 'thread_row.folder'|trans({ '%label%': chipLabel|label_name }) }}"{% else %}title="{{ chipLabel|label_name }}"{% endif %}
                   class="inline-flex items-center gap-1 px-2 py-px rounded-full border
                          text-[11px] leading-[1.35] max-w-28 {{ tone }}">
                 {% if isFolder %}<i class="fa-solid fa-folder text-[9px] opacity-70" aria-hidden="true"></i>{% endif %}

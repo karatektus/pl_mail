@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Mail;
 
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -304,7 +304,7 @@ final class ListFragmentTest extends WebTestCase
     {
         $client = $this->signedIn();
 
-        foreach (['/admin', '/calendar', '/settings'] as $uri) {
+        foreach (['/admin', '/calendar', '/settings/profile'] as $uri) {
             $client->request('GET', $uri);
 
             self::assertResponseIsSuccessful(sprintf('%s did not render', $uri));

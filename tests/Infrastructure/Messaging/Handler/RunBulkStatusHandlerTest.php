@@ -17,7 +17,7 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\RunBulkStatusHandler;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Driver\Exception as DriverException;
@@ -447,7 +447,119 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
         self::assertSame(JobState::Failed, $this->em->find(BackgroundJob::class, $job->id)?->state);
     }
 
+    /**
+     * "Select all" and Delete in Drafts bins the drafts, not the mail they
+     * answer — the whole-view twin of NarrowedDeleteAndRestoreTest.
+     */
+    public function testDeletingAllOfDraftsBinsOnlyTheDrafts(): void
+    {
+        [$received] = $this->seedThreads(1);
+
+        $drafts = $this->labelResolver->systemLabel(LabelRole::Drafts, $this->account);
+        $receivedMessage = $this->em->find(Message::class, $received);
+
+        self::assertNotNull($receivedMessage?->thread);
+
+        $draft = $this->sibling($receivedMessage, 9901);
+        $draft->flags = [\App\Domain\Enum\Mail\MessageFlag::DRAFT->value];
+        $draft->addLabel($drafts);
+        $receivedMessage->thread->addLabel($drafts);
+        $this->em->flush();
+
+        $draftId = (int) $draft->id;
+
+        $job = $this->wholeViewJob(JobKind::Trash, 'drafts');
+
+        $this->handler()(new RunBulkStatusMessage((int) $job->id));
+        $this->em->clear();
+
+        self::assertSame(JobState::Done, $this->em->find(BackgroundJob::class, $job->id)?->state);
+        self::assertTrue($this->wearsRole($draftId, LabelRole::Trash), 'the draft is in the bin');
+        self::assertFalse($this->wearsRole($received, LabelRole::Trash), 'the mail it answers is not');
+    }
+
+    /**
+     * "Select all" and Not spam brings back what is in Spam, not the rest of
+     * the conversations it is part of.
+     */
+    public function testRestoringAllOfSpamBringsBackOnlyTheSpam(): void
+    {
+        [$archived] = $this->seedThreads(1);
+
+        $inbox   = $this->labelResolver->systemLabel(LabelRole::Inbox, $this->account);
+        $spam    = $this->labelResolver->systemLabel(LabelRole::Spam, $this->account);
+        $archive = $this->labelResolver->systemLabel(LabelRole::Archive, $this->account);
+
+        $archivedMessage = $this->em->find(Message::class, $archived);
+
+        self::assertNotNull($archivedMessage?->thread);
+
+        $archivedMessage->removeLabel($inbox);
+        $archivedMessage->addLabel($archive);
+
+        $thrown = $this->sibling($archivedMessage, 9902);
+        $thrown->addLabel($spam);
+        $archivedMessage->thread->removeLabel($inbox);
+        $archivedMessage->thread->addLabel($spam);
+        $this->em->flush();
+
+        $thrownId = (int) $thrown->id;
+
+        $job = $this->wholeViewJob(JobKind::Restore, 'spam');
+
+        $this->handler()(new RunBulkStatusMessage((int) $job->id));
+        $this->em->clear();
+
+        self::assertSame(JobState::Done, $this->em->find(BackgroundJob::class, $job->id)?->state);
+        self::assertTrue($this->wearsRole($thrownId, LabelRole::Inbox), 'the spam is back in the inbox');
+        self::assertFalse($this->wearsRole($archived, LabelRole::Inbox), 'the archived message is not');
+    }
+
     // ── fixtures ─────────────────────────────────────────────────────────────
+
+    private function wholeViewJob(JobKind $kind, string $scope): BackgroundJob
+    {
+        $job       = new BackgroundJob($this->user, $kind);
+        $job->view = ['scope' => $scope, 'value' => '', 'unreadOnly' => false];
+
+        $this->em->persist($job);
+        $this->em->flush();
+
+        return $job;
+    }
+
+    /** Read back after a clear, so by role rather than by entity identity. */
+    private function wearsRole(int $messageId, LabelRole $role): bool
+    {
+        foreach ($this->em->find(Message::class, $messageId)->labels ?? [] as $label) {
+            if ($role === $label->role) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** A second message in the same conversation, with no labels yet. */
+    private function sibling(Message $of, int $uid): Message
+    {
+        $message                 = new Message();
+        $message->account        = $this->account;
+        $message->subject        = $of->subject;
+        $message->fromAddress    = 'sender@example.test';
+        $message->messageId      = 'bulk-sibling-' . uniqid('', true) . '@example.test';
+        $message->receivedAt     = new \DateTimeImmutable();
+        $message->sentAt         = $message->receivedAt;
+        $message->hasAttachments = false;
+        $message->flags          = [];
+        $message->mailbox        = $of->mailbox;
+        $message->imapUid        = $uid;
+        $of->thread?->addMessage($message);
+
+        $this->em->persist($message);
+
+        return $message;
+    }
 
     private function purgeJob(string $scope = 'spam'): BackgroundJob
     {
@@ -492,19 +604,22 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
         $container = self::getContainer();
 
         return new RunBulkStatusHandler(
-            $container->get(\App\Repository\Job\BackgroundJobRepository::class),
-            $threads ?? $container->get(\App\Repository\Mail\MessageThreadRepository::class),
+            $container->get(\App\Repository\Job\BackgroundJob\BackgroundJobRepository::class),
+            $threads ?? $container->get(\App\Repository\Mail\MessageThread\MessageThreadRepository::class),
+            $container->get(\App\Repository\Mail\Message\MessageRepository::class),
             $container->get(\App\Service\Mail\ListViewResolver::class),
             $container->get(\App\Service\Mail\ThreadStatusUpdater::class),
             $container->get(\App\Service\Mail\ThreadSnoozeService::class),
             $container->get(\App\Service\Mail\MoveToService::class),
             $container->get(\App\Service\Mail\MessagePurger::class),
             $container->get(\App\Service\Mail\MailPlacement::class),
-            $container->get(\App\Repository\Label\LabelRepository::class),
+            $container->get(\App\Repository\Label\Label\LabelRepository::class),
             $container->get(\App\Service\Job\JobNotifier::class),
             $this->em,
             $container->get(\Doctrine\Persistence\ManagerRegistry::class),
             $container->get(\Psr\Log\LoggerInterface::class),
+            $container->get(\App\Service\Mail\DraftsView::class),
+            $container->get(\App\Service\Mail\DiscardedView::class),
         );
     }
 
@@ -621,7 +736,7 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
 
         $this->em->flush();

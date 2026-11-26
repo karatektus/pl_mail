@@ -14,7 +14,7 @@ final class Version20260724114850 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Store push switches and Graph subscriptions on the account';
     }
 
     public function up(Schema $schema): void

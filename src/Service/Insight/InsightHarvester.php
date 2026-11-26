@@ -7,7 +7,7 @@ namespace App\Service\Insight;
 use App\Entity\Insight\MailInsight;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Insight\MailInsightRepository;
+use App\Repository\Insight\MailInsight\MailInsightRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -44,7 +44,7 @@ final readonly class InsightHarvester
         $account = $message->account;
         $user = $account->usr;
 
-        if (!$user instanceof User) {
+        if (false === $user instanceof User) {
             return 0;
         }
 

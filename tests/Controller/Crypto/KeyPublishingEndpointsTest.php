@@ -134,7 +134,7 @@ final class KeyPublishingEndpointsTest extends WebTestCase
      */
     private function post(string $path, array $body): array
     {
-        $crawler = $this->client->request('GET', '/settings?section=encryption');
+        $crawler = $this->client->request('GET', '/settings/encryption');
         $csrf    = (string) $crawler->filter('[data-crypto--keyring-csrf-value]')->attr('data-crypto--keyring-csrf-value');
 
         $this->client->request('POST', $path, server: [

@@ -32,6 +32,7 @@ final class ReplyDraftBuilder
         private readonly SignatureProvider $signatures,
         private readonly MailBodySanitizer $sanitizer,
         private readonly ReplyFromResolver $replyFrom = new ReplyFromResolver(),
+        private readonly DefaultBccProvider $defaultBcc = new DefaultBccProvider(),
     ) {
     }
 
@@ -63,6 +64,7 @@ final class ReplyDraftBuilder
                 : [];
 
             $this->linkToOriginal($draft, $original);
+            $this->defaultBcc->applyTo($draft, $account, $draft->fromAddress);
 
             return $draft;
         }
@@ -74,6 +76,10 @@ final class ReplyDraftBuilder
             : [];
 
         $this->linkToOriginal($draft, $original);
+
+        // After the recipients, so an address the reply already goes to is
+        // not copied a second time — see DefaultBccProvider::applyTo().
+        $this->defaultBcc->applyTo($draft, $account, $draft->fromAddress);
 
         return $draft;
     }
@@ -192,6 +198,10 @@ final class ReplyDraftBuilder
         $draft = $this->draft($original, $original->account, 'Fwd', 'forward', signed: false);
 
         $draft->toAddresses = [];
+
+        // Unsigned, but not uncopied: the Bcc is a record of what left the
+        // mailbox, and a forward leaves it like anything else.
+        $this->defaultBcc->applyTo($draft, $original->account, $draft->fromAddress);
 
         return $draft;
     }

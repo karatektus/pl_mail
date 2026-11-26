@@ -12,8 +12,8 @@ use App\Entity\Mail\EmailAlias;
 use App\Form\EmailAliasType;
 use App\Form\Factory\AliasAddFormFactory;
 use App\Infrastructure\Messaging\Message\SeverGmailifyLinksMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\EmailAliasRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\EmailAlias\EmailAliasRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\AliasSeeder;
 use Doctrine\ORM\EntityManagerInterface;
@@ -327,6 +327,8 @@ final class AliasController extends AbstractController
             ]);
         }
 
-        return $this->redirectToRoute('app_settings_index');
+        // The Aliases page. This used to be bare /settings, which opened
+        // Profile — the no-script fallback lost the list just changed.
+        return $this->redirectToRoute('app_settings_page', ['page' => 'aliases']);
     }
 }

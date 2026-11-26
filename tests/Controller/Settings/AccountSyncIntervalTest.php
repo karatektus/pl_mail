@@ -8,7 +8,7 @@ use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -142,7 +142,7 @@ final class AccountSyncIntervalTest extends WebTestCase
         $oauth->syncIntervalMinutes = 30;
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
         self::assertResponseIsSuccessful();
 
         foreach ([[$imap, 15], [$oauth, 30]] as [$account, $current]) {
@@ -181,7 +181,7 @@ final class AccountSyncIntervalTest extends WebTestCase
     /** Fetched through the page and its session saved; see AccountColourTest. */
     private function csrfToken(Account $account): string
     {
-        $this->client->request('GET', '/settings?section=accounts');
+        $this->client->request('GET', '/settings/accounts');
 
         $stack   = static::getContainer()->get('request_stack');
         $carrier = new Request();
@@ -223,7 +223,7 @@ final class AccountSyncIntervalTest extends WebTestCase
         $account->name     = $email;
         $account->username = $email;
         $account->email    = $email;
-        $account->isActive = true;
+        $account->mailEnabled = true;
 
         if ($oauth) {
             $account->authType          = AuthType::OAuth2->value;

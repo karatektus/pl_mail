@@ -6,7 +6,7 @@ namespace App\Tests\Service\Template;
 
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Template\TemplateRenderer;
 use DateTimeImmutable;
@@ -242,7 +242,7 @@ final class TemplateRendererTest extends KernelTestCase
         $account->username  = $email;
         $account->email     = $email;
         $account->authType  = 'password';
-        $account->isActive  = true;
+        $account->mailEnabled = true;
         $account->isPrimary = false;
         $account->sortOrder = 50;
         $account->imapHost  = 'imap.example.test';

@@ -11,7 +11,7 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -73,7 +73,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->pushEnabled = false;
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="push-' . $account->id . '"]')->count());
     }
@@ -94,7 +94,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthLastRefreshError  = 'invalid_grant';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-' . $account->id . '"]')->count());
         self::assertSame(
@@ -124,7 +124,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthGrantedScopes = 'https://mail.google.com/';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]');
 
         self::assertSame(1, $card->count(), 'the missing permission is not reported');
@@ -152,7 +152,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthGrantedScopes = implode(' ', array_diff(MailProvider::Google->scopes(), MailProvider::Google->contactScopes()));
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="account-contacts-scope-' . $account->id . '"]');
 
         self::assertSame(1, $card->count(), 'the missing contacts permission is not mentioned');
@@ -170,7 +170,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthGrantedScopes = 'https://mail.google.com/';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count());
         self::assertSame(0, $crawler->filter('[data-health-issue="account-contacts-scope-' . $account->id . '"]')->count());
@@ -189,7 +189,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthGrantedScopes = implode(' ', MailProvider::Google->scopes());
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count());
     }
@@ -209,7 +209,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
 
         self::assertNull($account->oauthGrantedScopes);
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count());
     }
@@ -232,7 +232,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthLastRefreshError = 'invalid_grant';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-' . $account->id . '"]')->count());
         self::assertSame(
@@ -266,7 +266,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->exportRefusedReason = 'Gmail messages.batchModify failed with 403 (insufficientPermissions)';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             1,
@@ -293,7 +293,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->recordSyncFailure('IMAP: connection refused');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             0,
@@ -305,7 +305,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->recordSyncFailure('IMAP: connection refused');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             1,
@@ -331,9 +331,73 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         self::assertSame(0, $account->syncFailureCount);
         self::assertNotNull($account->lastSyncedAt, 'a success should record when it happened');
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]')->count());
+    }
+
+    /**
+     * The advice fits the account (#602).
+     *
+     * During Exchange Online's incident of November 2026 an Outlook account
+     * showed a Graph 502 under "check the host, the port or the password" —
+     * none of which an account signed in through Microsoft has. The host, the
+     * port and the password are for IMAP; a 5xx from the provider is the
+     * provider's, and says so.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('syncFailureAdvice')]
+    public function testTheSyncCardGivesAdviceThatFitsTheAccount(?string $provider, string $error, string $says, string $doesNotSay): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'advice-' . md5($error . $provider) . '@joder.dev');
+
+        $account->oauthProvider = $provider;
+
+        for ($i = 0; $i < 3; ++$i) {
+            $account->recordSyncFailure($error);
+        }
+
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings/health');
+        $card    = $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]');
+
+        self::assertSame(1, $card->count());
+        self::assertStringContainsString($says, $card->text());
+        self::assertStringNotContainsString($doesNotSay, $card->text());
+    }
+
+    /** @return iterable<string, array{?string, string, string, string}> */
+    public static function syncFailureAdvice(): iterable
+    {
+        yield 'IMAP keeps the host, the port and the password' => [
+            null,
+            'IMAP: connection refused',
+            'the host, the port or the password',
+            'status page',
+        ];
+
+        yield 'Outlook during a Microsoft outage' => [
+            MailProvider::Microsoft->value,
+            'Graph request failed with 502: {"error":{"code":"UnknownError","message":""}}',
+            'failing at their end',
+            'the host, the port or the password',
+        ];
+
+        yield 'Gmail during a Google outage' => [
+            MailProvider::Google->value,
+            'Gmail messages.list failed with 503: (no message in body)',
+            'failing at their end',
+            'the host, the port or the password',
+        ];
+
+        yield 'an OAuth account failing some other way' => [
+            MailProvider::Google->value,
+            'Gmail messages.list failed with 404 (notFound): Requested entity was not found.',
+            'refusing or not answering',
+            'the host, the port or the password',
+        ];
     }
 
     /**
@@ -354,7 +418,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->recordSyncFailure('Gmail: 401');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-' . $account->id . '"]')->count());
         self::assertSame(
@@ -392,7 +456,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->exportRefusedReason = 'Gmail messages.batchModify failed with 403 (insufficientPermissions)';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             0,
@@ -419,7 +483,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthGrantedScopes = 'Mail.ReadWrite Mail.Send MailboxSettings.ReadWrite Calendars.ReadWrite User.Read';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(
             0,
@@ -450,7 +514,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $this->em->persist($integration);
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="integration-scope-' . $integration->id . '"]');
 
         self::assertSame(1, $card->count(), 'a partial grant on a connection is not reported');
@@ -470,7 +534,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $this->em->persist($integration);
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="integration-scope-' . $integration->id . '"]')->count());
     }
@@ -494,7 +558,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
 
         self::assertNull($integration->oauthGrantedScopes);
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="integration-scope-' . $integration->id . '"]')->count());
     }
@@ -520,7 +584,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->imapServerAlert = 'Quota exceeded (mailbox for user is full)';
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="server-alert-' . $account->id . '"]');
 
         self::assertSame(1, $card->count(), 'the server said something and nobody was told');
@@ -563,7 +627,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->recordFullResync();
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]');
 
         self::assertSame(1, $card->count());
@@ -582,7 +646,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->recordSyncFailure('IMAP: connection refused');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]');
 
         self::assertSame(1, $card->count());
@@ -618,7 +682,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->lastPolledAt        = new DateTimeImmutable('-5 minutes');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-sync-behind-' . $account->id . '"]')->count());
     }
@@ -634,7 +698,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->lastSyncedAt        = new DateTimeImmutable('-20 minutes');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="account-sync-behind-' . $account->id . '"]')->count());
     }
@@ -651,7 +715,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->syncFailureCount = 3;
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(1, $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]')->count());
         self::assertSame(0, $crawler->filter('[data-health-issue="account-sync-behind-' . $account->id . '"]')->count());
@@ -675,7 +739,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $this->em->persist($integration);
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
         $card    = $crawler->filter('[data-health-issue="integration-' . $integration->id . '"]');
 
         self::assertSame(1, $card->count());
@@ -702,7 +766,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $this->em->persist($integration);
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertSame(0, $crawler->filter('[data-health-issue="integration-' . $integration->id . '"]')->count());
     }
@@ -723,7 +787,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $plain = $this->plainUser();
         $client->loginUser($plain);
 
-        $crawler = $client->request('GET', '/settings?section=health');
+        $crawler = $client->request('GET', '/settings/health');
 
         self::assertResponseIsSuccessful();
         self::assertSame(
@@ -820,7 +884,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         $account->oauthProvider     = MailProvider::Google->value;
         $account->oauthAccessToken  = 'access-token';
         $account->oauthRefreshToken = 'refresh-token';
-        $account->isActive          = true;
+        $account->mailEnabled       = true;
 
         $this->em->persist($account);
         $this->em->flush();

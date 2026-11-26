@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Service\Ai;
 
 use App\Domain\DTO\Ai\StoredThreadSummary;
+use App\Repository\Ai\ThreadSummary\ThreadSummaryRepository;
 use DateTimeImmutable;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\ParameterType;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -61,7 +60,7 @@ use Throwable;
 final readonly class ThreadSummaryStore
 {
     public function __construct(
-        private Connection      $connection,
+        private ThreadSummaryRepository $summaries,
         private LoggerInterface $logger,
     ) {
     }
@@ -95,17 +94,7 @@ final readonly class ThreadSummaryStore
         bool   $isPartial = false,
     ): ?StoredThreadSummary {
         try {
-            $row = $this->connection->fetchAssociative(
-                <<<'SQL'
-                    SELECT summary, source_hash, created_at, full_context
-                      FROM thread_summary
-                     WHERE thread_id = :id
-                       AND model = :model
-                       AND prompt_hash = :prompt
-                SQL,
-                ['id' => $threadId, 'model' => $model, 'prompt' => $promptHash],
-                ['id' => ParameterType::INTEGER],
-            );
+            $row = $this->summaries->findForThread($threadId, $model, $promptHash);
         } catch (Throwable $exception) {
             // Answering "no summary" costs a person one button press against a
             // feature they were going to press anyway. Answering with one we
@@ -165,29 +154,7 @@ final readonly class ThreadSummaryStore
     public function save(int $threadId, string $summary, string $sourceHash, string $model, string $promptHash, bool $fullContext = false): bool
     {
         try {
-            $this->connection->executeStatement(
-                <<<'SQL'
-                    INSERT INTO thread_summary (thread_id, summary, source_hash, model, prompt_hash, full_context, created_at)
-                    VALUES (:id, :summary, :hash, :model, :prompt, :full, :now)
-                    ON CONFLICT (thread_id) DO UPDATE
-                        SET summary      = EXCLUDED.summary,
-                            source_hash  = EXCLUDED.source_hash,
-                            model        = EXCLUDED.model,
-                            prompt_hash  = EXCLUDED.prompt_hash,
-                            full_context = EXCLUDED.full_context,
-                            created_at   = EXCLUDED.created_at
-                SQL,
-                [
-                    'id'      => $threadId,
-                    'summary' => $summary,
-                    'hash'    => $sourceHash,
-                    'model'   => $model,
-                    'prompt'  => $promptHash,
-                    'full'    => $fullContext,
-                    'now'     => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
-                ],
-                ['id' => ParameterType::INTEGER, 'full' => ParameterType::BOOLEAN],
-            );
+            $this->summaries->upsert($threadId, $summary, $sourceHash, $model, $promptHash, $fullContext, new DateTimeImmutable());
 
             return true;
         } catch (Throwable $exception) {

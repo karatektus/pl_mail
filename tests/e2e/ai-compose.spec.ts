@@ -1,6 +1,6 @@
-import { test, expect } from "./support/test";
+import { test, expect, type Locator, type Page } from "./support/test";
 import { INBOX_SUBJECTS, consoleCommand, mailRow, seed } from "./support/config";
-import { pressAction } from "./support/compose";
+import { clearAccountSignature, pressAction, setAccountSignature } from "./support/compose";
 
 /**
  * What the composer says while a language model is thinking.
@@ -43,7 +43,108 @@ test.afterAll(() => {
     consoleCommand("app:test:ai-writing-help off");
 });
 
+const EDITOR = '[data-compose--compose-toolbar-target="editor"]';
+
+/**
+ * Ask for `task` in `window` and accept `answer`, without the body ever having
+ * been clicked or typed in — the untouched body is the case #657 is about.
+ *
+ * The stream is answered here rather than by a model: what is under test is
+ * where the accepted text goes, and the test host has no model anyway.
+ */
+async function acceptAnswer(page: Page, window: Locator, task: string, answer: string): Promise<void> {
+    await page.route("**/compose/assist/stream", (route) => route.fulfill({
+        contentType: "application/x-ndjson",
+        body: `${JSON.stringify({ type: "token", text: answer })}\n${JSON.stringify({ type: "done", text: answer })}\n`,
+    }));
+
+    await pressAction(window, "Help me write");
+    await page.getByRole("button", { name: task }).click();
+    await window.locator('[data-action="click->compose--ai-assist#accept"]').click();
+    await expect(window.locator(EDITOR)).toContainText(answer);
+}
+
 test.describe("composer writing help", () => {
+    /**
+     * #657: an answer accepted into an UNTOUCHED reply went into the quote.
+     *
+     * The caret was put in the gap before the quoted block, and Chrome resolved
+     * that gap into the quote. Send drops the quote before counting, so it said
+     * "This message has no text" about a reply the writer could read — and
+     * typing more did not help, because the caret stayed in the quote too.
+     * Typing one character first hid it, which is why the reply tests that
+     * typed something never saw it.
+     */
+    test("an answer accepted into an untouched reply is the reply, not part of the quote", async ({ page }) => {
+        const answer = "Thanks for your message. Tuesday works well for me.";
+        const sends: string[] = [];
+
+        seed("seed-mail");
+
+        await page.goto("/mail/inbox");
+        await mailRow(page, INBOX_SUBJECTS.read).click();
+        await page.getByRole("link", { name: "Reply", exact: true }).first().click();
+
+        const window = page.locator("#compose_inline");
+        await expect(window.locator(EDITOR)).toBeVisible();
+
+        await acceptAnswer(page, window, "Draft a reply", answer);
+
+        expect(await window.locator(EDITOR).evaluate((editor) => [...editor.querySelectorAll(
+            "[data-quote-wrapped], [data-quoted], blockquote",
+        )].some((quote) => quote.textContent?.includes("Tuesday works well")))).toBe(false);
+
+        // Send's own judgement, which is what the writer met: no "no text"
+        // question, and the message goes. Aborted on the wire — nothing here
+        // is about delivering it.
+        await page.route("**/compose/send**", (route) => {
+            sends.push(route.request().url());
+            return route.abort();
+        });
+
+        await window.getByRole("button", { name: "Send", exact: true }).click();
+
+        await expect.poll(() => sends.length).toBe(1);
+        await expect(window.locator('[data-compose--compose-target="sendWarning"]')).toBeHidden();
+    });
+
+    /**
+     * #657's other half: in a new message that opens with a signature, the
+     * caret went to the end of the box, after the signature, and Chrome made
+     * the answer's lines as copies of the signature block — `data-pl-signature`
+     * and all. The answer read as signature to everything that looks for one,
+     * and changing From would have swapped it away.
+     */
+    test("an answer accepted into an untouched new message goes above the signature", async ({ page }) => {
+        const answer = "Thanks for your message. Tuesday works well for me.";
+        const signature = "Cheers, Robin";
+
+        await setAccountSignature(page, signature);
+
+        try {
+            await page.goto("/mail/inbox");
+            await page.getByRole("link", { name: "Compose" }).first().click();
+
+            const window = page.locator(DOCK);
+            await expect(window.locator(EDITOR)).toBeVisible();
+
+            await acceptAnswer(page, window, "Fix spelling and grammar", answer);
+
+            const blocks = window.locator(`${EDITOR} [data-pl-signature]`);
+            await expect(blocks).toHaveCount(1);
+            await expect(blocks).toHaveText(signature);
+
+            // Above it, in the writing space the window opened with.
+            expect(await window.locator(EDITOR).evaluate((editor) => {
+                const text = editor.innerText;
+
+                return text.indexOf("Tuesday works well") < text.indexOf("Cheers, Robin");
+            })).toBe(true);
+        } finally {
+            await clearAccountSignature(page);
+        }
+    });
+
     test("says what it is doing once the menu it lived in has closed", async ({ page }) => {
         await page.goto("/mail/inbox");
         await page.getByRole("link", { name: "Compose" }).first().click();

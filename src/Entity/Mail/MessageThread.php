@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Label\Label;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -24,6 +26,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_message_thread_user_category', columns: ['user_category_id'], options: ['where' => '(user_category_id IS NOT NULL)'])]
 #[ORM\Index(name: 'idx_message_thread_account_starred', columns: ['account_id'], options: ['where' => "(starred_at IS NOT NULL)"])]
 #[ORM\Index(name: 'idx_message_thread_account_unread', columns: ['account_id'], options: ['where' => "(unread_count > 0)"])]
+// Partial, like the snooze index beside it: the pin count asks only for the
+// few pinned rows of one account, and the expiry sweep only for those with an
+// end. A full index would be one entry per conversation to answer about twenty.
+#[ORM\Index(name: 'idx_message_thread_account_pinned', columns: ['account_id'], options: ['where' => "(pinned_at IS NOT NULL)"])]
 #[ORM\Index(name: 'idx_message_thread_snoozed_until', columns: ['snoozed_until'], options: ['where' => "(snoozed_until IS NOT NULL)"])]
 // Descending in the migration; the comparator doesn't see column order direction.
 #[ORM\Index(name: 'idx_message_thread_account_last_message', columns: ['account_id', 'last_message_at', 'id'])]
@@ -177,6 +183,39 @@ class MessageThread
     public ?\DateTimeImmutable $snoozedUntil = null;
 
     /**
+     * When somebody pinned this conversation to the top of its lists (#654).
+     *
+     * Not to be confused with $categoryPinnedAt above, which records a tab
+     * chosen by hand and puts nothing anywhere on screen. This one is the
+     * thumbtack: a pinned conversation is listed before every other in each
+     * folder or label list it appears in, whatever the sort.
+     *
+     * plMail's own state, never written to the mail server. IMAP has no
+     * standard keyword for it, and Gmail and Outlook have nothing at all, so a
+     * pin made here is one the provider never hears of. A timestamp rather
+     * than a boolean for the reason starredAt is one.
+     *
+     * Write it through ThreadPinService, never directly: the service is where
+     * the end time, the reminder and the rules about moving live.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $pinnedAt = null;
+
+    /**
+     * When the pin runs out on its own; null for a pin that lasts until it is
+     * taken off.
+     *
+     * Fixed when the pin is made, from the owner's "Pins last" setting at that
+     * moment, rather than computed from the setting at read time. Otherwise
+     * shortening the setting would unpin conversations somebody pinned under
+     * the old one, all at once and without a click. The lists read it too
+     * (ListSortOrder::pinnedFirst()), so a pin is gone from the top the
+     * moment it ends rather than when the sweep next runs.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $pinnedUntil = null;
+
+    /**
      * When this thread's row was first PUT IN FRONT OF the user in a list.
      *
      * The "new mail" marker, and deliberately not the same question as unread.
@@ -313,7 +352,7 @@ class MessageThread
 
     public function addMessage(Message $message): static
     {
-        if (!$this->messages->contains($message)) {
+        if (false === $this->messages->contains($message)) {
             $this->messages->add($message);
             $message->thread = $this;
         }
@@ -342,7 +381,21 @@ class MessageThread
      */
     public function isSnoozed(): bool
     {
-        return $this->snoozedUntil !== null && $this->snoozedUntil > new \DateTimeImmutable();
+        return null !== $this->snoozedUntil && $this->snoozedUntil > new \DateTimeImmutable();
+    }
+
+    /**
+     * A method for isSnoozed()'s reason: the answer changes with the clock.
+     * A pin whose end has passed is no pin, whether or not the sweep has
+     * cleared the columns yet.
+     */
+    public function isPinned(?\DateTimeImmutable $now = null): bool
+    {
+        if (null === $this->pinnedAt) {
+            return false;
+        }
+
+        return null === $this->pinnedUntil || $this->pinnedUntil > ($now ?? new \DateTimeImmutable());
     }
 
     public function addLabel(Label $label): static

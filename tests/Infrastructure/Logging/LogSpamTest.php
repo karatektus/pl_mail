@@ -6,6 +6,7 @@ namespace App\Tests\Infrastructure\Logging;
 
 use App\Domain\Exception\OAuthGrantRevokedException;
 use App\Infrastructure\Doctrine\Logging\DoctrineLogHandler;
+use App\Repository\Monitoring\LogEntry\LogEntryAppendRepository;
 use Doctrine\DBAL\Connection;
 use Monolog\Level;
 use Monolog\LogRecord;
@@ -53,7 +54,7 @@ final class LogSpamTest extends TestCase
             },
         );
 
-        $handler = new DoctrineLogHandler($connection);
+        $handler = new DoctrineLogHandler(new LogEntryAppendRepository($connection));
 
         $handler->handle(new LogRecord(
             new \DateTimeImmutable(),

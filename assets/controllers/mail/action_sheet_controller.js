@@ -256,7 +256,8 @@ export default class extends Controller {
     #fill() {
         const readState = this._entries.read_unread?.b?.read === true ? "mark_read" : "mark_unread";
         const starState = this._row.getAttribute("data-starred") === "true" ? "unstar" : "star";
-        const states = { read_unread: readState, star: starState };
+        const pinState = this._row.getAttribute("data-pinned") === "true" ? "unpin" : "pin";
+        const states = { read_unread: readState, star: starState, pin: pinState };
 
         for (const entry of this.element.querySelectorAll("[data-sheet-entry]")) {
             const key = entry.dataset.sheetEntry;

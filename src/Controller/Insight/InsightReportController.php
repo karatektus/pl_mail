@@ -9,7 +9,7 @@ use App\Domain\Helper\ReadableBody;
 use App\Entity\Insight\InsightReport;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Insight\InsightReportRepository;
+use App\Repository\Insight\InsightReport\InsightReportRepository;
 use App\Security\Voter\OwnershipVoter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

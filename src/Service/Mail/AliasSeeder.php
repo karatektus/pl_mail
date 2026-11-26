@@ -11,7 +11,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
-use App\Repository\Mail\EmailAliasRepository;
+use App\Repository\Mail\EmailAlias\EmailAliasRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

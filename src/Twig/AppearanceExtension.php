@@ -51,6 +51,7 @@ final class AppearanceExtension extends AbstractExtension
             new TwigFunction('appearance_theme', $this->appearanceTheme(...)),
             new TwigFunction('appearance_motion', $this->appearanceMotion(...)),
             new TwigFunction('appearance_vars', $this->appearanceVars(...)),
+            new TwigFunction('appearance_app_theme_colours', $this->appThemeColours(...)),
             new TwigFunction('background_preset_css', $this->backgrounds->preset(...)),
             new TwigFunction('background_solid_css', $this->backgrounds->solid(...)),
             new TwigFunction('logo_icon_url', $this->logoIcons->url(...)),
@@ -112,6 +113,48 @@ final class AppearanceExtension extends AbstractExtension
     public function appearanceMotion(): string
     {
         return $this->appearance()->motion->value;
+    }
+
+    /**
+     * The installed app's `theme-color`s, as media query → colour (#589).
+     *
+     * Chrome paints an installed app's title bar, and with the title bar
+     * hidden the strips behind the window buttons, in the page's theme-color.
+     * In a tab that colour is the brand purple, which colours a phone's
+     * browser bar and is right there; in the app it has to be the top bar's
+     * own surface. The server cannot tell the two apart — the display mode is
+     * the browser's — so it sends both, the app's under a `display-mode`
+     * condition, and the browser takes the first tag whose media matches.
+     * These go BEFORE the plain purple one for that reason.
+     *
+     * For System, the OS picks light or dark, so each app mode is sent twice,
+     * once per colour scheme.
+     *
+     * Rendered rather than set from JavaScript after load: a Turbo visit
+     * merges the next page's head, and a script's colour was replaced by the
+     * server's purple on every link.
+     *
+     * @return array<string, string>
+     */
+    public function appThemeColours(): array
+    {
+        $modes    = ['standalone', 'minimal-ui', 'window-controls-overlay'];
+        $surfaces = $this->appearance()->theme->surfaces();
+
+        $media = static fn (?string $scheme): string => implode(', ', array_map(
+            static fn (string $mode): string => sprintf('(display-mode: %s)', $mode)
+                . (null === $scheme ? '' : sprintf(' and (prefers-color-scheme: %s)', $scheme)),
+            $modes,
+        ));
+
+        if (null === $surfaces['dark']) {
+            return [$media(null) => $surfaces['light']];
+        }
+
+        return [
+            $media('dark')  => $surfaces['dark'],
+            $media('light') => $surfaces['light'],
+        ];
     }
 
     public function appearanceVars(): string

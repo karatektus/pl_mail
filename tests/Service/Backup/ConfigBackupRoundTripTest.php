@@ -10,6 +10,8 @@ use App\Domain\Enum\Ai\AiProvider;
 use App\Domain\Enum\Ai\PromptSlot;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Mail\CategorySource;
+use App\Domain\Enum\MessageList\AttachmentDisplay;
+use App\Domain\Enum\MessageList\RowPreview;
 use App\Entity\Ai\AiSettings;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\Integration\MailProviderConfig;
@@ -25,10 +27,10 @@ use App\Entity\User\User;
 use App\Domain\Enum\Account\EmailAliasSource;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Infrastructure\Encryption\Encryptor;
-use App\Repository\Ai\AiSettingsRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Monitoring\LogSettingsRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Monitoring\LogSettings\LogSettingsRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Backup\ConfigBackupExporter;
 use App\Service\Backup\ConfigBackupImporter;
 use Doctrine\DBAL\Connection;
@@ -170,7 +172,9 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('user.timezone', 'Europe/Berlin', $user->timezone);
         $this->check('user.appearance.accent', '#123456', $user->appearance->accent);
         $this->check('user.appearance.fontScale', 1.125, $user->appearance->fontScale);
-        $this->check('user.appearance.previewLines', 2, $user->appearance->previewLines);
+        $this->check('user.messageList.preview', RowPreview::Two, $user->messageList->preview);
+        $this->check('user.messageList.attachments', AttachmentDisplay::Chips, $user->messageList->attachments);
+        $this->check('user.messageList.replied', true, $user->messageList->replied);
         $this->check('user.aiPreferences.aboutMe', 'Ich baue Fahrräder.', $user->aiPreferences->aboutMe);
         $this->check('user.categorySorting.source', CategorySource::Assistant->value, $user->categorySorting->source);
         $this->check('user.categorySorting.overrideProvider', true, $user->categorySorting->overrideProvider);
@@ -186,28 +190,28 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('user.passphraseIterations', 700000, $user->passphraseIterations);
 
         // ── The keyring ───────────────────────────────────────────────────
-        $userKeys = $container->get(\App\Repository\Crypto\UserKeyRepository::class)->findForUser($user);
+        $userKeys = $container->get(\App\Repository\Crypto\UserKey\UserKeyRepository::class)->findForUser($user);
         self::assertCount(1, $userKeys, 'the user key did not come back');
         $this->check('userKey.wrapped', self::WRAPPED_KEY, $userKeys[0]->wrapped);
 
-        $copies = $container->get(\App\Repository\Crypto\UserKeyCopyRepository::class)->findForUser($user);
+        $copies = $container->get(\App\Repository\Crypto\UserKeyCopy\UserKeyCopyRepository::class)->findForUser($user);
         self::assertCount(1, $copies, 'the recovery phrase copy did not come back');
 
-        $addressKeys = $container->get(\App\Repository\Crypto\AddressKeyRepository::class)->findForUser($user);
+        $addressKeys = $container->get(\App\Repository\Crypto\AddressKey\AddressKeyRepository::class)->findForUser($user);
         self::assertCount(1, $addressKeys, 'the address key did not come back');
         $this->check('addressKey.fingerprint', self::ADDRESS_FPR, $addressKeys[0]->fingerprint);
         $this->check('addressKey.userKey', $userKeys[0], $addressKeys[0]->userKey);
         $this->check('addressKey.addresses', ['anna@work.audit.test'], $addressKeys[0]->addresses());
         $this->check('addressKey.revokedPublicKey', "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nrevoked\n-----END PGP PUBLIC KEY BLOCK-----", $addressKeys[0]->revokedPublicKey);
 
-        $publications = $container->get(\App\Repository\Crypto\KeyPublicationRepository::class)->findForKey($addressKeys[0]);
+        $publications = $container->get(\App\Repository\Crypto\KeyPublication\KeyPublicationRepository::class)->findForKey($addressKeys[0]);
         self::assertCount(1, $publications, 'where the key is published did not come back');
         $this->check('keyPublication.host', 'keys.openpgp.org', $publications[0]->host);
         $this->check('keyPublication.state', \App\Domain\Enum\Crypto\KeyPublicationState::Published, $publications[0]->state);
         $this->check('keyPublication.checkedAt', '2026-01-02 03:04:05', $publications[0]->checkedAt->format('Y-m-d H:i:s'));
 
         // ── Contacts' keys ────────────────────────────────────────────────
-        $contactKeys = $container->get(\App\Repository\Crypto\ContactKeyRepository::class)->findForUser($user);
+        $contactKeys = $container->get(\App\Repository\Crypto\ContactKey\ContactKeyRepository::class)->findForUser($user);
         self::assertCount(2, $contactKeys, 'the contact keys did not come back');
         $this->check('contactKey.fingerprint', self::CONTACT_FPR, $contactKeys[0]->fingerprint);
         $this->check('contactKey.pinned', true, $contactKeys[0]->pinned);
@@ -218,14 +222,14 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('contactKey (changed).originHost', 'keys.openpgp.org', $contactKeys[1]->originHost);
 
         // ── S/MIME ────────────────────────────────────────────────────────
-        $smime = $container->get(\App\Repository\Crypto\SmimeCertificateRepository::class)->findForUser($user);
+        $smime = $container->get(\App\Repository\Crypto\SmimeCertificate\SmimeCertificateRepository::class)->findForUser($user);
         self::assertCount(1, $smime, 'the S/MIME certificate did not come back');
         $this->check('smimeCertificate.privateKey', self::WRAPPED_KEY, $smime[0]->privateKey);
         $this->check('smimeCertificate.userKey', $userKeys[0], $smime[0]->userKey);
         $this->check('smimeCertificate.addresses', ['anna@work.audit.test'], $smime[0]->addresses);
         $this->check('smimeCertificate.status', \App\Domain\Enum\Crypto\SmimeCertificateStatus::Retired, $smime[0]->status);
 
-        $certificates = $container->get(\App\Repository\Crypto\ContactCertificateRepository::class)->findForUser($user);
+        $certificates = $container->get(\App\Repository\Crypto\ContactCertificate\ContactCertificateRepository::class)->findForUser($user);
         self::assertCount(1, $certificates, 'the contact certificate did not come back');
         $this->check('contactCertificate.fingerprint', str_repeat('c', 64), $certificates[0]->fingerprint);
         $this->check('contactCertificate.verified', true, $certificates[0]->verified);
@@ -249,20 +253,23 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('setting insights.pane_dismissed_at', '2026-08-01T00:00:00+00:00', $user->getSetting(User::SETTING_INSIGHT_PANE_DISMISSED_AT));
         $this->check('setting compose.forward_quote_collapsed', false, $user->getSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED));
         $this->check('setting compose.send_feedback', User::SEND_FEEDBACK_HOLD, $user->getSetting(User::SETTING_COMPOSE_SEND_FEEDBACK));
-        $this->check('setting appearance.preview_width', 480, $user->getSetting(User::SETTING_APPEARANCE_PREVIEW_WIDTH));
         $this->check('setting crypto.key_servers', false, $user->lookUpKeyServers);
+        $this->check('setting crypto.own_encrypt', ['me@gmail.test' => 'never'], $user->ownAddressEncrypt);
 
         // ── The account ───────────────────────────────────────────────────
         $this->check('account.password (IMAP)', self::MAILBOX_PASSWORD, $account->password);
         $this->check('account.smtpPassword', 'the-smtp-password-4c1e', $account->smtpPassword);
+        $this->check('account.smtpUsername', 'relay-user-4c1e', $account->smtpUsername);
         $this->check('account.imapHost', 'imap.audit.test', $account->imapHost);
         $this->check('account.colorIndex', 3, $account->colorIndex);
+        $this->check('account.customColor', '#0072b2', $account->customColor);
         $this->check('account.oauthGrantedScopes', 'https://mail.google.com/ openid', $account->oauthGrantedScopes);
         // NOT carried: a settled 0 from the source would tell the target's
         // Gmail sync that its still-empty mailbox is complete.
         $this->check('account setting sync.backfill_target', null, $account->getSetting(Account::SETTING_BACKFILL_TARGET));
         $this->check('account setting compose.signature', '<p>Viele Grüße, Anna</p>', $account->getSetting(Account::SETTING_SIGNATURE));
         $this->check('account setting compose.read_receipt.default', 'ask', $account->getSetting(Account::SETTING_READ_RECEIPT_DEFAULT));
+        $this->check('account setting compose.bcc', ['backup@audit.test'], $account->getSetting(Account::SETTING_DEFAULT_BCC));
         $this->check('account setting mail.catch_all_domains', ['shop.test'], $account->catchAllDomains);
         $this->check(
             'account setting compose.signature.alias.N',
@@ -274,9 +281,14 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
             'always',
             $account->getSetting(Account::readReceiptAliasSetting((int) $restoredAlias->id)),
         );
+        $this->check(
+            'account setting compose.bcc.alias.N (empty is "nobody", and must survive as such)',
+            [],
+            $account->getSetting(Account::defaultBccAliasSetting((int) $restoredAlias->id)),
+        );
 
         // ── The app password ──────────────────────────────────────────────
-        $tokens = $container->get(\App\Repository\User\ApiTokenRepository::class)->findForUser($user);
+        $tokens = $container->get(\App\Repository\User\ApiToken\ApiTokenRepository::class)->findForUser($user);
         $this->check('appPassword count', 1, count($tokens));
         $this->check('appPassword.tokenHash', self::TOKEN_HASH, $tokens[0]->tokenHash ?? null);
         $this->check('appPassword.hint', 'ab12cd', $tokens[0]->hint ?? null);
@@ -458,7 +470,10 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
 
         $user->appearance->accent       = '#123456';
         $user->appearance->fontScale    = 1.125;
-        $user->appearance->previewLines = 2;
+
+        $user->messageList->preview     = RowPreview::Two;
+        $user->messageList->attachments = AttachmentDisplay::Chips;
+        $user->messageList->replied     = true;
 
         $user->aiPreferences->aboutMe = 'Ich baue Fahrräder.';
 
@@ -485,8 +500,8 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $user->setSetting(User::SETTING_INSIGHT_PANE_DISMISSED_AT, '2026-08-01T00:00:00+00:00');
         $user->setSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED, false);
         $user->setSetting(User::SETTING_COMPOSE_SEND_FEEDBACK, User::SEND_FEEDBACK_HOLD);
-        $user->setSetting(User::SETTING_APPEARANCE_PREVIEW_WIDTH, 480);
         $user->lookUpKeyServers = false;
+        $user->ownAddressEncrypt = ['Me@Gmail.test' => 'never'];
 
         $this->entityManager->persist($user);
 
@@ -498,18 +513,21 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $account->username           = 'anna@work.audit.test';
         $account->password           = self::MAILBOX_PASSWORD;
         $account->smtpPassword       = 'the-smtp-password-4c1e';
+        $account->smtpUsername       = 'relay-user-4c1e';
         $account->imapHost           = 'imap.audit.test';
         $account->imapPort           = 993;
         $account->smtpHost           = 'smtp.audit.test';
         $account->smtpPort           = 587;
         $account->authType           = 'password';
-        $account->isActive           = true;
+        $account->mailEnabled        = true;
         $account->isPrimary          = true;
         $account->colorIndex         = 3;
+        $account->customColor        = '#0072b2';
         $account->oauthGrantedScopes = 'https://mail.google.com/ openid';
         $account->setSetting(Account::SETTING_BACKFILL_TARGET, 0);
         $account->setSetting(Account::SETTING_SIGNATURE, '<p>Viele Grüße, Anna</p>');
         $account->setSetting(Account::SETTING_READ_RECEIPT_DEFAULT, 'ask');
+        $account->setSetting(Account::SETTING_DEFAULT_BCC, ['backup@audit.test']);
         $account->catchAllDomains = ['shop.test'];
 
         $this->entityManager->persist($account);
@@ -611,6 +629,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         // The per-alias keys can only be written once the alias has an id.
         $account->setSetting(Account::signatureAliasSetting($aliasId), '<p>Anna, privat</p>');
         $account->setSetting(Account::readReceiptAliasSetting($aliasId), 'always');
+        $account->setSetting(Account::defaultBccAliasSetting($aliasId), []);
 
         $this->entityManager->flush();
         $this->entityManager->clear();

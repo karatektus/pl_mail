@@ -46,7 +46,7 @@ offered in the address-book list. See
 [Discovery, and the `.well-known` dance](caldav.md#discovery-and-the-well-known-dance).
 
 The same [refused addresses](caldav.md#addresses-plmail-will-refuse) apply: a server on your LAN
-needs its host in `INTEGRATIONS_ALLOWED_HOSTS`, and plain `http://` needs `INTEGRATIONS_ALLOW_HTTP`.
+has to be allowed under [Admin → Integrations → Servers on a private network](../features/admin.md#servers-on-a-private-network), and plain `http://` has to be ticked for it there.
 
 ## Sync
 
@@ -124,7 +124,8 @@ The window is the time between saving and the worker's next run, usually seconds
 here go, along with any photo uploaded to them here; the server keeps its own. If a contact shows
 the pending clock, wait for it to clear first.
 
-**A LAN server is refused by default**, as for CalDAV. Add the host to `INTEGRATIONS_ALLOWED_HOSTS`.
+**A LAN server is refused by default**, as for CalDAV. An administrator allows it under
+[Admin → Integrations → Servers on a private network](../features/admin.md#servers-on-a-private-network).
 
 **Moving a contact between address books is not offered.** On the server it is a delete in one
 collection and a create in another; do it in the server's own interface.

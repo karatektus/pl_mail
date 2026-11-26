@@ -13,10 +13,7 @@ with:
 Accepts:
   skip  ContactsSwitchSkip
 #}
-{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
-                  peer-checked:bg-accent peer-checked:text-accent-ink
-                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                  transition-colors cursor-pointer' %}
+{% import '_partials/_segmented.html.twig' as seg %}
 
 <form method="post" action="{{ path('app_settings_contacts_behaviour_update') }}"
       data-controller="ui--auto-submit" class="px-4 py-3">
@@ -28,17 +25,12 @@ Accepts:
             <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.contacts_behaviour.button_hint'|trans }}</span>
         </span>
 
-        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
-             role="radiogroup" aria-label="{{ 'settings.contacts_behaviour.button'|trans }}">
-            {% for option in enum('App\\Domain\\Enum\\Contacts\\ContactsSwitchSkip').cases() %}
-                <label>
-                    <input type="radio" name="skip" class="peer sr-only"
-                           value="{{ option.value }}"
-                           data-action="change->ui--auto-submit#submit"
-                           {{ option == skip ? 'checked' : '' }}>
-                    <span class="{{ segText }}">{{ ('settings.contacts_behaviour.option_' ~ option.value)|trans }}</span>
-                </label>
-            {% endfor %}
-        </div>
+        {{ seg.control('skip', enum('App\\Domain\\Enum\\Contacts\\ContactsSwitchSkip').cases()|map(option => {
+            value: option.value,
+            label: ('settings.contacts_behaviour.option_' ~ option.value)|trans,
+        }), skip.value, {
+            label:  'settings.contacts_behaviour.button'|trans,
+            action: 'change->ui--auto-submit#submit',
+        }) }}
     </div>
 </form>

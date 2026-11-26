@@ -19,18 +19,18 @@ use App\Service\User\UserTimezoneResolver;
 use App\Service\User\TwoFactor\SecuritySectionViewData;
 use App\Form\Factory\AliasAddFormFactory;
 use App\Form\Factory\ChangePasswordFormFactory;
-use App\Repository\Calendar\BookingPageRepository;
-use App\Repository\Calendar\CalendarRepository;
-use App\Repository\Calendar\CalendarShareLinkRepository;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Calendar\BookingPage\BookingPageRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarShareLink\CalendarShareLinkRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Mail\InboxTabs;
 use App\Service\Mail\NotifyScopes;
-use App\Repository\Push\PushDeliveryRepository;
-use App\Repository\User\ApiTokenRepository;
-use App\Repository\User\PushSubscriptionRepository;
-use App\Repository\Label\LabelRepository;
+use App\Repository\Push\PushDelivery\PushDeliveryRepository;
+use App\Repository\User\ApiToken\ApiTokenRepository;
+use App\Repository\User\PushSubscription\PushSubscriptionRepository;
+use App\Repository\Label\Label\LabelRepository;
 use App\Service\Label\LabelResolver;
-use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
 use App\Service\AddressBook\AddressBookLister;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
 use App\Service\Health\AccountHealthInspector;
@@ -38,10 +38,13 @@ use App\Service\Ai\AiAssistant;
 use App\Service\Insight\InsightExtractorInterface;
 use App\Service\Insight\InsightExtractorRegistry;
 use App\Service\Push\PushSubscriptionRegistry;
+use App\Service\Settings\SettingsNavigation;
+use App\Service\Settings\SettingsSearchIndex;
 use App\Service\Template\TemplateLibrary;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -52,22 +55,18 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class SettingsController extends AbstractController
 {
     /**
-     * `health` leads deliberately.
+     * There is no list of sections here any more: SettingsNavigation holds the
+     * pages, and the route requirement on page() refuses anything else (#569).
      *
-     * It is not a settings pane — nothing on it is a preference — but it is
-     * where the topbar indicator points and where the OAuth reconnect returns
-     * to, so it needs a stable section of its own. It gets one rather than a
-     * block on `accounts` for two reasons: the problems it lists are not all
-     * account problems (calendars, file-store connections and abandoned
-     * background work all appear there), and a variable-height alert stack at
-     * the top of the accounts pane would push the actual account controls below
-     * the fold on exactly the installs that have something wrong.
+     * `health` is one of them, under Mail accounts, rather than a block on the
+     * accounts page. It is not a settings pane — nothing on it is a preference —
+     * but it is where the topbar indicator points and where the OAuth reconnect
+     * returns to, so it needs a stable page of its own; and the problems it
+     * lists are not all account problems (calendars, file-store connections and
+     * abandoned background work appear there too), while a variable-height
+     * alert stack at the top of the accounts page would push the account
+     * controls below the fold on exactly the installs that have something wrong.
      */
-    /** Where /settings opens: the first entry in the navigation. */
-    private const string DEFAULT_SECTION = 'profile';
-
-    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'encryption', 'notifications', 'general', 'categories', 'inboxes', 'reading-pane', 'shortcuts', 'disposal', 'images', 'swipe-actions', 'calendar-behaviour', 'contacts'];
-
     /**
      * One icon per AI feature, here rather than on the enum.
      *
@@ -116,26 +115,63 @@ final class SettingsController extends AbstractController
         private readonly LabelResolver $labelResolver,
         private readonly TemplateLibrary $templateLibrary,
         private readonly NotifyScopes $notifyScopes,
+        private readonly SettingsNavigation $navigation,
     ) {
     }
 
-    #[Route('', name: 'index')]
-    public function index(Request $request): Response
+    /**
+     * /settings on its own opens the first page of the tree.
+     *
+     * A redirect rather than rendering Profile at this address, so the page
+     * that is open always has its own URL: the tree marks the current page by
+     * it, a saved setting redirects back to it, and the browser's back button
+     * returns to it.
+     *
+     * The query string is ignored on purpose. Settings used to be addressed as
+     * `?section=…`, and those links still exist in bookmarks and open tabs.
+     * There is no map from old sections to new pages: every caller inside the
+     * app was moved to app_settings_page when the pages changed, and a stale
+     * bookmark landing on the first page is the answer an unknown section has
+     * always had here.
+     */
+    #[Route('', name: 'index', methods: ['GET'])]
+    public function index(): Response
     {
-        // Profile, because it is the first entry in the navigation and opening
-        // a settings page anywhere other than its top reads as though something
-        // else had been clicked. It used to be 'accounts', which is the FOURTH
-        // item on a healthy install — the Health entry only shows itself when
-        // there is something wrong, so the strip normally begins profile,
-        // general, appearance, accounts.
-        //
-        // Kept as one constant so the default and the fallback below cannot
-        // drift apart.
-        $section = (string) $request->query->get('section', self::DEFAULT_SECTION);
+        return $this->redirectToRoute('app_settings_page', ['page' => SettingsNavigation::DEFAULT_PAGE]);
+    }
 
-        if (false === in_array($section, self::SECTIONS, true)) {
-            $section = self::DEFAULT_SECTION;
+    /**
+     * What the ⌘K palette searches, as JSON — see SettingsSearchIndex.
+     *
+     * Declared before page() although the two cannot collide — `search` is not
+     * a page slug and the requirement refuses it — so a reader of the routes
+     * finds the fixed path first.
+     */
+    #[Route('/search', name: 'search', methods: ['GET'])]
+    public function search(SettingsSearchIndex $index): JsonResponse
+    {
+        return $this->json(['entries' => $index->entries()]);
+    }
+
+    /**
+     * One settings page.
+     *
+     * GET only. Several pages share their path with the endpoint that saves
+     * them — POST /settings/profile, /settings/appearance, /settings/disposal
+     * and others were there first — and the method is what tells the two apart.
+     */
+    #[Route('/{page}', name: 'page', requirements: ['page' => SettingsNavigation::PAGE_REQUIREMENT], methods: ['GET'])]
+    public function page(Request $request, string $page): Response
+    {
+        $current = $this->navigation->page($page);
+
+        if (null === $current) {
+            throw $this->createNotFoundException();
         }
+
+        // The template still calls the open page `section`, which is what every
+        // include on it was written against.
+        $section = $current->slug;
 
         // Unread and All Mail are opt-in: their labels are created hidden and
         // switched on in this list, which they can only be if they exist. No
@@ -161,6 +197,9 @@ final class SettingsController extends AbstractController
 
         return $this->render('settings/index.html.twig', [
             'section'            => $section,
+            'navigation'         => $this->navigation->areas(),
+            'currentPage'        => $current,
+            'currentArea'        => $this->navigation->areaOf($current),
             'manageableAccounts' => $manageableAccounts,
             'labels'             => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
             'calendars'          => $this->calendarRepository->findForUser($this->getUser()),
@@ -206,7 +245,8 @@ final class SettingsController extends AbstractController
             'activeLocale'       => AppLocale::tryFromRequest($this->getUser()->locale)
                 ?? AppLocale::tryFromRequest($this->defaultLocale)
                 ?? AppLocale::English,
-            ...$this->timezoneSectionData($section),
+            ...$this->regionSectionData($section),
+            ...$this->composeSectionData($section),
             ...$this->healthSectionData($section),
             ...$this->insightsSectionData($section),
             ...$this->aiSectionData($section),
@@ -216,7 +256,7 @@ final class SettingsController extends AbstractController
     }
 
     /**
-     * The choices the swipe selects offer, for their own section only. Every case
+     * The choices the swipe selects offer, for the Layout & controls page only. Every case
      * the enum has and nothing else, so purge, which is not a case, is never
      * offered (see SwipeAction).
      *
@@ -224,7 +264,7 @@ final class SettingsController extends AbstractController
      */
     private function swipeActionsSectionData(string $section): array
     {
-        if ('swipe-actions' !== $section) {
+        if ('layout' !== $section) {
             return [];
         }
 
@@ -378,16 +418,16 @@ final class SettingsController extends AbstractController
     }
 
     /**
-     * Only when the General section is on screen: grouped() walks every IANA
-     * identifier, which is not work to do for whoever opened the Labels tab.
+     * Only when Language & region is on screen: grouped() walks every IANA
+     * identifier, which is not work to do for whoever opened the Labels page.
      *
      * @return array<string, mixed>
      */
-    private function timezoneSectionData(string $section): array
+    private function regionSectionData(string $section): array
     {
         $user = $this->getUser();
 
-        if ('general' !== $section || false === $user instanceof User) {
+        if ('region' !== $section || false === $user instanceof User) {
             return [];
         }
 
@@ -419,7 +459,24 @@ final class SettingsController extends AbstractController
                 ClockFormat::forLocale(AppLocale::tryFromRequest($user->locale)
                     ?? AppLocale::tryFromRequest($this->defaultLocale))->time(),
             ),
+        ];
+    }
 
+    /**
+     * The compose behaviour card's two answers, for the Compose page only. They
+     * sat in the General section's data while that card lived there.
+     *
+     * @return array<string, mixed>
+     */
+    private function composeSectionData(string $section): array
+    {
+        $user = $this->getUser();
+
+        if ('compose' !== $section || false === $user instanceof User) {
+            return [];
+        }
+
+        return [
             // Folded is the default, so anything but a stored false reads as
             // true — the same absent-key convention the setting itself keeps.
             'forwardQuoteCollapsed' => false !== $user->getSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED, true),

@@ -6,7 +6,7 @@ namespace App\Twig;
 
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\Crypto\DecryptedMailPolicy;
 use Symfony\Bundle\SecurityBundle\Security;
 use Twig\Extension\AbstractExtension;
@@ -48,7 +48,7 @@ final class DecryptedMailExtension extends AbstractExtension
             'model'    => $this->policy->modelHost(),
             'accounts' => $user instanceof User ? array_values(array_filter(
                 $this->accounts->findForUserOrdered($user),
-                static fn (Account $account): bool => true === $account->isActive,
+                static fn (Account $account): bool => true === $account->mailEnabled,
             )) : [],
         ];
     }

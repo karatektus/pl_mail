@@ -5,16 +5,15 @@ declare(strict_types=1);
 namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
-use App\Domain\Enum\Crypto\MessageCrypto;
-use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Exception\DecryptedMailRefused;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageDecryptedRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Crypto\DecryptedMail;
 use App\Service\Crypto\DecryptedMailPolicy;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -43,10 +42,11 @@ final class DecryptedMailController extends AbstractController
     private const int PENDING_BATCH = 25;
 
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
         private readonly DecryptedMail          $decryptedMail,
         private readonly DecryptedMailPolicy    $policy,
         private readonly LoggerInterface        $logger,
+        private readonly AccountRepository $accountRepository,
+        private readonly MessageDecryptedRepository $messageDecryptedRepository
     ) {
     }
 
@@ -55,7 +55,7 @@ final class DecryptedMailController extends AbstractController
     public function pending(#[CurrentUser] User $user): JsonResponse
     {
         $accounts = array_values(array_filter(
-            $this->entityManager->getRepository(Account::class)->findBy(['usr' => $user, 'isActive' => true]),
+            $this->accountRepository->findActiveForUserOrdered($user),
             fn (Account $account): bool => $this->policy->keeps($account),
         ));
 
@@ -63,18 +63,7 @@ final class DecryptedMailController extends AbstractController
             return new JsonResponse(['messages' => []], headers: ['Cache-Control' => 'private, no-store']);
         }
 
-        /** @var list<Message> $messages */
-        $messages = $this->entityManager->createQuery(
-            'SELECT m FROM ' . Message::class . ' m
-              WHERE m.account IN (:accounts) AND m.crypto IN (:crypto)
-                AND m.plaintextSource = :none AND m.sealedDraft = false
-              ORDER BY m.receivedAt DESC',
-        )
-            ->setParameter('accounts', $accounts)
-            ->setParameter('crypto', [MessageCrypto::PgpEncrypted, MessageCrypto::PgpInlineEncrypted, MessageCrypto::SmimeEncrypted])
-            ->setParameter('none', PlaintextSource::None)
-            ->setMaxResults(self::PENDING_BATCH)
-            ->getResult();
+        $messages = $this->messageDecryptedRepository->findAwaitingDecryption($accounts, self::PENDING_BATCH);
 
         return new JsonResponse(['messages' => array_map(fn (Message $message): array => [
             'id'     => $message->id,

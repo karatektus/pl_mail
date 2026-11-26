@@ -11,8 +11,8 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Integration\IntegrationRepository;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
+use App\Repository\Mail\Account\AccountRepository;
 
 /**
  * The questions a compose window has to answer that are not about HTTP.
@@ -54,9 +54,9 @@ final readonly class ComposeWindow
     public function defaultAccountFor(User $user): ?Account
     {
         $primary = $this->accounts->findOneBy([
-            'usr'       => $user,
-            'isActive'  => true,
-            'isPrimary' => true,
+            'usr'         => $user,
+            'sendEnabled' => true,
+            'isPrimary'   => true,
         ]);
 
         if (null !== $primary) {
@@ -65,8 +65,8 @@ final readonly class ComposeWindow
 
         return $this->accounts->findOneBy(
             [
-                'usr'      => $user,
-                'isActive' => true,
+                'usr'         => $user,
+                'sendEnabled' => true,
             ],
             ['sortOrder' => 'ASC'],
         );

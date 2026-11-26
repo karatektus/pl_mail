@@ -146,6 +146,17 @@ framework:
             limit: 30
             interval: '1 hour'
 
+        # The public Libravatar route (#642), keyed per IP: nobody who asks it
+        # is signed in. A mail client asks once per correspondent and then
+        # caches for a day, and a mailing-list archive or a forge page may ask
+        # for a few hundred at once — so generous, but finite, because the
+        # alternative is an unauthenticated endpoint that runs GD for anyone
+        # who loops on it.
+        libravatar:
+            policy: 'sliding_window'
+            limit: 600
+            interval: '10 minutes'
+
         # Provisioning a demo visitor. GET /demo creates a user, an account,
         # ten threads and ten contacts, which is by far the most expensive
         # thing an anonymous caller can ask this install to do — and on a

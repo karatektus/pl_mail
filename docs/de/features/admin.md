@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:759bc93bc0ffbc875edde959d545889254ed9a13 -->
+<!-- translated-from: features/admin.md sha1:df4207ab54859543805d62c5e78e583c823271e7 -->
 
 # Administration
 
@@ -187,6 +187,48 @@ aktiviert. Durfte die Datenbankrolle die Erweiterung nicht anlegen, sagt das Pan
 wird, Abfragen von davor erscheinen also nie. **Statistik zurücksetzen** leert die gesammelten
 Zahlen.
 
+## Nachträge
+
+Manche Korrekturen können nur Mail ändern, die nach dem Update ankommt. Ein **Nachtrag** repariert,
+was vorher gespeichert wurde: Er schreibt eine falsch berechnete Spalte neu oder liest gespeicherte
+Mail mit einem verbesserten Leser noch einmal. Die Versionshinweise sagen, wann sich einer lohnt.
+Dieser Bereich startet sie ohne Terminal, dieselben Aufgaben, die `app:backfill` ausführt.
+
+Die Liste ist **neueste zuerst**, gruppiert nach dem Monat, in dem eine Aufgabe dazukam, denn ein
+Update verlangt fast immer nach der neuesten. Eine Aufgabe aus dem letzten Monat, die noch nicht von
+dieser Seite gestartet wurde, trägt ein **Neu**. Wählst du eine aus, siehst du in einfachen Worten,
+was sie tut, wann sie dazukam, wann sie hier zuletzt lief und ob sie **mehrfach ausführbar** ist. Die
+meisten sind es: Sie wählen nur die Zeilen, die den Fehler noch haben, oder bauen aus dem Original
+neu, ein zweiter Lauf kommt also dort an, wo der erste war. Zwei sind es nicht und sagen neben der
+Erklärung, warum: `contacts` zählt jede Adresse bei jedem Lauf erneut, wodurch Leute aus älterer
+Mail in den Adressvorschlägen nach vorn rücken, und `rethread` verwirft die KI-Zusammenfassungen,
+die seit dem letzten Lauf entstanden sind.
+
+- **Erst zählen** fragt eine Aufgabe, wie viele Nachrichten sie sich ansehen würde, ohne etwas zu
+  ändern. Manche lesen jeden Kandidaten und ändern nur die mit dem Fehler; die Zahl sagt also, was
+  sie liest, nicht was sie ändert. Aufgaben, die jede Nachricht durchgehen, können nicht vorher
+  zählen und sagen das.
+- Aufgaben, die **Mail neu lesen** (Termine, Insights), nehmen einen Zeitraum: die letzten 24
+  Stunden, 7 Tage, 4 Wochen oder alle Mail. Die Tabellenreparaturen nehmen keinen; ein Fehler, der
+  in jeder Zeile steckt, wird in jeder Zeile repariert.
+- **Starten** reiht die Aufgabe für den Wartungs-Worker ein. Sie läuft nicht in der Seite, du kannst
+  sie also verlassen. Ein zweiter Klick, solange sie eingereiht ist oder läuft, zeigt denselben Lauf,
+  statt einen weiteren zu starten.
+- **Dasselbe auf der Konsole** zeigt die `app:backfill`-Zeile für Aufgabe und Zeitraum, falls du sie
+  lieber in einer Shell startest.
+
+**Letzte Läufe** listet, was hier gestartet wurde: wann, von wem, über welchen Zeitraum und wie es
+endete. Solange ein Lauf geht, stehen seine letzten Ausgabezeilen darunter, und die Karte lädt sich
+selbst neu; ein fertiger Lauf behält seine Ausgabe hinter **Ausgabe zeigen**. Ein Lauf, der eine
+halbe Stunde nichts ausgegeben hat, erscheint als *Seit 30 Minuten still*: Sein Worker wurde
+wahrscheinlich neu gestartet. Eine als mehrfach ausführbar markierte Aufgabe startest du einfach
+noch einmal.
+
+Zwei Aufgaben stellen auf der Konsole eine Frage, `rethread` ("Rebuild all threads now?") und
+`category` ("Re-run messages that already have a category?"). Von dieser Seite gestartet lautet die
+Antwort ja, denn Starten nach dem Lesen der Erklärung ist diese Antwort; die Ausgabe hält sie fest.
+Läufe von der Konsole erscheinen hier nicht.
+
 ## Protokolle
 
 Ein filterbarer Browser über das, was plMail in die Datenbank geschrieben hat: eine
@@ -374,7 +416,7 @@ eingerichtet, und seine Kalender nutzen diese Adresse.
   auf einer Verbindung das nächste Mal Kalender gesucht werden. Bereits gespiegelte Kalender
   behalten die Adresse, unter der sie gefunden wurden, und wer eine Adresse in einem privaten Netz
   leert, beendet auch ihre Ausnahme von der Regel für private Netze — diese Kalender
-  synchronisieren dann nicht mehr, bis der Host in `INTEGRATIONS_ALLOWED_HOSTS` steht. Sobald sich
+  synchronisieren dann nicht mehr, bis der Host unter **Server in privaten Netzen** steht. Sobald sich
   jemand verbunden hat, sagt das Formular, wie viele Verbindungen eine Änderung erreicht. Siehe
   [CalDAV](../providers/caldav.md).
 - **Calendar feed**, der Kalender-Feed, hat keinen Server zum Festlegen, denn jeder Feed ist seine
@@ -401,6 +443,35 @@ Unterstützung erscheint.
 Die Einrichtungsschritte je Anbieter stehen auf [Google](../providers/google.md),
 [Microsoft](../providers/microsoft.md) und, für die Kalenderseite,
 [CalDAV](../providers/caldav.md).
+
+### Server in privaten Netzen
+
+plMail lehnt eine eingetippte Serveradresse ab, wenn sie auf eine private, Loopback- oder
+Link-Local-Adresse auflöst, damit niemand, der angemeldet ist, darüber den Datenbank-Container, den
+Cloud-Metadaten-Endpunkt oder sonst etwas in seinem Netz erreicht
+([warum](../internals/security-model.md)). Der Abschnitt ganz unten unter **Integrationen** listet
+die Server, die trotzdem erlaubt sind: ein Baïkal oder Nextcloud zu Hause, ein NAS, ein Kalender-Feed
+im LAN. Wer auf *„Server address must not point at a private network“* stößt, wird von der Meldung
+selbst hierher geschickt.
+
+- **Server erlauben** nimmt einen Hostnamen oder eine IP-Adresse, oder die ganze Adresse aus der
+  Fehlermeldung — übernommen wird nur ihr Host, kleingeschrieben. Ein Host pro Zeile und keine
+  Platzhalter: `*.lan` ließe jede angemeldete Person jeden Rechner im Netz erreichen, und genau das
+  soll die Regel verhindern.
+- **Unverschlüsseltes http erlauben** ist ein eigener Haken pro Host, für einen Server ohne
+  Zertifikat. App-Passwörter gehen dann unverschlüsselt durchs Netz, setz ihn also nur für den Server,
+  der ihn braucht. Ein Server, der ohne ihn erlaubt ist, braucht weiterhin `https://`.
+- **Entfernen** wirkt bei der nächsten Anfrage: Verbindungen zu diesem Server synchronisieren dann
+  nicht mehr und melden den Fehler für private Netze, und genau darum geht es.
+
+Eine Änderung gilt sofort, ohne Neustart, und die Liste reist in einer
+[Konfigurationssicherung](#sicherung) mit. Der Host einer oben festgelegten Serveradresse ist von
+selbst erlaubt und muss hier nicht stehen, und eine festgelegte `http://`-Adresse erlaubt diesem Host
+auch unverschlüsseltes http.
+
+Das ersetzt seit v0.4.3 die Umgebungsvariablen `INTEGRATIONS_ALLOWED_HOSTS` und
+`INTEGRATIONS_ALLOW_HTTP`. Keine von beiden wird noch gelesen; das Update übernimmt einmalig, was in
+ihnen stand, in diese Liste.
 
 ## Push
 
@@ -789,6 +860,64 @@ Ein Postfach, das weit hinterherhängt — die Funktion wurde letzte Woche einge
 das Such-Modell gewechselt —, ist nicht der Fall für den nächtlichen Durchlauf. Der hat mit Absicht
 eine Obergrenze pro Postfach. Nimm dafür `app:ai:embed-mailbox` von oben, und schau unter
 **Administration → KI**, wie weit er gekommen ist.
+
+## Absenderbilder
+
+Ob plMail Bilder für die Leute nachschlagen darf, die deinen Benutzern schreiben: Firmenlogos (BIMI)
+und Website-Symbole von der Domain des Absenders, und Gravatar oder Libravatar für Benutzer, die das
+möchten. Aus, bis du es einschaltest, denn danach schickt dein Server Anfragen, die er vorher nicht
+geschickt hat, an Hosts, die sich aussucht, wer deinen Benutzern schreibt.
+
+Das Nachschlagen läuft auf dem Maintenance-Worker, nie während eine Seite gezeichnet wird, und kein
+Browser eines Benutzers spricht mit diesen Diensten. Jede Adresse und jede Domain wird einmal für den
+ganzen Server nachgeschlagen. Beim Einschalten werden die Leute nachgeschlagen, die jedem Benutzer in
+den letzten 90 Tagen geschrieben haben, höchstens tausend pro Benutzer; danach neue Absender, sobald
+ihre Mail ankommt. Eine tägliche Runde (`app:sender-pictures:refresh`) fragt Antworten, die älter als
+einen Monat sind, erneut ab, vergisst Absender, die seit sechs Monaten nicht geschrieben haben, und
+löscht Dateien, die nichts mehr benutzt. Die Bilder liegen unter `uploads/sender-pictures` im
+Speicher-Volume.
+
+Jede Anfrage folgt denselben Regeln wie der Bild-Proxy: nur https, nie eine Adresse in einem privaten
+Netz, höchstens drei Weiterleitungen und eine Größengrenze. Ein Bild wird neu gezeichnet, bevor es
+gespeichert wird, und ein SVG-Logo wird auf seine Zeichnung zurückgeschnitten.
+
+Ausschalten stoppt neues Nachschlagen und nimmt alle nachgeschlagenen Bilder sofort von allen Seiten.
+Fotos an Kontakten und die eigenen Profilbilder der Benutzer werden in jedem Fall gezeigt: Sie liegen
+schon auf diesem Server. Welche Arten sie möchten, wählt jeder Benutzer weiterhin selbst unter
+**Einstellungen → Lesen & Schreiben → Lesen**. Eine Konfigurationssicherung enthält diesen Schalter.
+
+### Die Bilder deiner Benutzer ausliefern (Libravatar)
+
+Die zweite Karte auf derselben Seite dreht die Richtung um: plMail beantwortet die Mailprogramme,
+Forges und Websites anderer Leute mit dem Profilbild, das deine Benutzer hier ausgesucht haben, als
+[Libravatar](https://www.libravatar.org)-Server. Es ist aus, bis du es einschaltest, und auch dann
+liefert es das Bild eines Benutzers nur aus, wenn er das selbst unter **Einstellungen → Profil**
+einschaltet. Für alle anderen, und solange der Schalter aus ist, antwortet plMail, als kenne es die
+Adresse nicht, damit niemand damit herausfinden kann, wer hier ein Konto hat.
+
+Ein Libravatar-Programm findet den Server für eine Adresse über einen DNS-Eintrag bei der Domain der
+Adresse. Die Karte listet jede Domain, unter der deine Benutzer Adressen haben, mit dem genauen
+Eintrag, den sie braucht, und dem Host aus **Admin → Adresse**:
+
+```
+_avatars-sec._tcp.example.com. 3600 IN SRV 0 0 443 mail.example.com.
+```
+
+**DNS prüfen** schlägt jeden nach und sagt, was es gefunden hat. **OK** heißt, der Eintrag nennt
+diesen Server auf Port 443. **Noch kein Eintrag** heißt, er muss noch angelegt werden. **Zeigt auf**
+nennt einen anderen Server, also entweder einen Tippfehler oder eine Domain mit eigenem
+Avatar-Server. **Falscher Port** heißt, der Eintrag nennt diesen Server auf einem anderen Port als
+443. Domains von Mailanbietern wie Gmail oder Fastmail stehen ohne Eintrag unter der Liste: Dort kann nur
+der Anbieter Einträge anlegen, und diese Benutzer bekommen ihr Bild stattdessen von Gravatar oder
+Libravatar.
+
+DNS ist nicht alles, und die Karte sagt das auch: Die öffentliche Adresse muss https sein, mit einem
+Zertifikat, das Browser akzeptieren (ein selbst signiertes lehnen die Programme stillschweigend ab),
+und `/avatar/` auf diesem Host muss aus dem Internet erreichbar sein. Hinter einem Reverse Proxy
+musst du diesen Pfad durchreichen. Die Route beantwortet die Anfragen der Spezifikation vollständig:
+ein Bild per MD5 oder SHA-256 einer Adresse, jede Größe von 1 bis 512 Pixeln und den `d=`-Standard
+des Programms, wenn es kein Bild gibt. Jede Client-IP bekommt höchstens 600 Anfragen in zehn Minuten. Eine Konfigurationssicherung
+enthält den Schalter und die Entscheidung jedes Benutzers.
 
 ## Benutzer
 

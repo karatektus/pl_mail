@@ -163,6 +163,15 @@ presets:
         pop3: { host: ssl0.ovh.net, port: 995, encryption: ssl }
         smtp: { host: ssl0.ovh.net, port: 465, encryption: ssl }
 
+    hostinger:
+        name: Hostinger
+        group: Hosting
+        domains: []
+        note: 'Benutzername ist die vollständige E-Mail-Adresse.'
+        imap: { host: imap.hostinger.com, port: 993, encryption: ssl }
+        pop3: { host: pop.hostinger.com, port: 995, encryption: ssl }
+        smtp: { host: smtp.hostinger.com, port: 465, encryption: ssl }
+
     infomaniak:
         name: Infomaniak
         group: Hosting

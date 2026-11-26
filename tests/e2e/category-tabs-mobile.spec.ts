@@ -25,8 +25,8 @@ test.use({ ...devices["Pixel 5"] });
 /** The smallest phone still worth supporting; four tabs overflow its card. */
 const SMALL_PHONE = { width: 320, height: 640 };
 
-const STRIP = "nav:has(> a[href*='tab='])";
-const TABS = `${STRIP} > a[href*='tab=']`;
+const STRIP = "nav:has(> [data-category-tab])";
+const TABS = `${STRIP} > [data-category-tab]`;
 
 test.beforeEach(async ({ page }) => {
     seed("seed-mail");
@@ -63,7 +63,7 @@ test("on a phone only the open tab spells its name out, and the four fit", async
     // box. Still in the DOM either way, which is what a screen reader reads.
     const shown = await page.locator(TABS).evaluateAll((tabs) =>
         tabs
-            .filter((tab) => (tab.querySelector("span > span > span")?.getBoundingClientRect().width ?? 0) > 1)
+            .filter((tab) => (tab.querySelector("[data-category-tab-link] > span")?.getBoundingClientRect().width ?? 0) > 1)
             .map((tab) => tab.getAttribute("title")),
     );
 

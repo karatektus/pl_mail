@@ -8,8 +8,8 @@ use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -341,7 +341,7 @@ final class AccountFolderSyncTest extends WebTestCase
         $gmail->oauthProvider = 'google';
         $this->em->flush();
 
-        $crawler = $this->client->request('GET', '/settings?section=accounts');
+        $crawler = $this->client->request('GET', '/settings/accounts');
 
         self::assertResponseIsSuccessful();
 
@@ -519,7 +519,7 @@ final class AccountFolderSyncTest extends WebTestCase
      */
     private function csrfToken(int $mailboxId, string $intention = 'account_folder_sync_'): string
     {
-        $this->client->request('GET', '/settings?section=accounts');
+        $this->client->request('GET', '/settings/accounts');
 
         $stack   = static::getContainer()->get('request_stack');
         $carrier = new Request();
@@ -551,7 +551,7 @@ final class AccountFolderSyncTest extends WebTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
         $this->em->persist($account);
         $this->em->flush();
 

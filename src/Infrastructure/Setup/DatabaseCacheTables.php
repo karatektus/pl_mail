@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Setup;
 
-use App\Repository\Monitoring\PostgresStatusRepository;
+use App\Repository\Monitoring\PostgresStatus\PostgresStatusRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
 use Symfony\Component\Cache\Adapter\DoctrineDbalAdapter;

@@ -6,8 +6,8 @@ namespace App\Service\Calendar;
 
 use App\Domain\DTO\Calendar\HappeningSoonRow;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventOccurrenceRepository;
-use App\Repository\Calendar\EventSourceLinkRepository;
+use App\Repository\Calendar\CalendarEventOccurrence\CalendarEventOccurrenceRepository;
+use App\Repository\Calendar\EventSourceLink\EventSourceLinkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 

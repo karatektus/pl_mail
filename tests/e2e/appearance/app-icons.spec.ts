@@ -66,7 +66,7 @@ async function expectOwnIcon(page: Page, url: string, size: number): Promise<voi
 
 /** Back to the default logo, which is where both tests start and must leave the user. */
 async function reset(page: Page): Promise<void> {
-    await page.goto("/settings?section=appearance");
+    await page.goto("/settings/appearance");
     await page.locator(PANEL).getByRole("button", { name: /reset/i }).first().click();
     await page.waitForResponse((r) => r.url().includes("/appearance/reset")).catch(() => {});
 }
@@ -80,7 +80,7 @@ test.describe("appearance — the installed app's icons", () => {
     test.afterEach(async ({ page }) => reset(page));
 
     test("picking a logo draws its PNGs, and the manifest and iOS icon serve them", async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await expect(page.locator(PANEL)).toBeVisible();
 
         const uploaded = uploadOf(page, "blue-horn.original");
@@ -112,7 +112,7 @@ test.describe("appearance — the installed app's icons", () => {
     test("a page whose PNGs are missing draws them once", async ({ page }) => {
         // Saved without the pane, so nothing has drawn this choice: only one
         // choice is kept per user, and the last one drawn was not this.
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         const saved = await ajaxPost(page, "/settings/appearance", { logoMotif: "pl", logoOriginal: "0", logoLinked: "0", logoStyle: "postal" });
         expect(saved.ok()).toBe(true);
 

@@ -1,5 +1,6 @@
 import { test, expect } from "./support/test";
-import { TEST_DEMO, TEST_DEMO_ADMIN, ajaxPost, consoleCommand, login, seedUser } from "./support/config";
+import { TEST_DEMO, TEST_DEMO_ADMIN, ajaxPost, consoleCommand, login, mailRow, seedUser } from "./support/config";
+import { rowAction } from "./support/rows";
 
 /**
  * The pictures beside highlighted entries in What's new (#165).
@@ -51,7 +52,7 @@ async function capture(page: Page, name: string, of: Locator, maxHeight?: number
 
 /** The settings card with this heading. */
 async function card(page: Page, section: string, heading: string): Promise<Locator> {
-    await page.goto(`/settings?section=${section}`);
+    await page.goto(`/settings/${section}`);
 
     const found = page.locator("section", { has: page.locator("h2", { hasText: heading }) }).first();
     await expect(found).toBeVisible();
@@ -116,43 +117,6 @@ test.describe("What's new screenshots", () => {
 
         await capture(page, "html-signature", signature);
     });
-
-    test("tab-unread-counts", async ({ page }) => {
-        await page.goto("/mail/inbox");
-        await expect(page.locator("#message-list li").first()).toBeVisible();
-        await capture(page, "tab-unread-counts", page.locator(".main-pane").first());
-    });
-
-    test("permanent-delete", async ({ page }) => {
-        await capture(page, "permanent-delete", await card(page, "disposal", "Disposal"));
-    });
-
-    test("templates", async ({ page }) => {
-        await capture(page, "templates", await card(page, "templates", "Templates"));
-    });
-
-    /** The pane beside the list, with a conversation open in it; put back to off afterwards. */
-    test("reading-pane", async ({ page }) => {
-        const pane = async (mode: "right" | "off"): Promise<void> => {
-            await page.goto("/settings?section=reading-pane");
-            const option = page.locator(`input[name="readingPane"][value="${mode}"]`);
-
-            await page.locator("label", { has: option }).click();
-            await expect(option).toBeChecked();
-            await page.waitForLoadState("networkidle");
-        };
-
-        await pane("right");
-
-        try {
-            await page.goto("/mail/inbox");
-            await page.locator("#message-list li").first().click();
-            await page.waitForTimeout(800);
-            await capture(page, "reading-pane", page.locator(".main-pane").first());
-        } finally {
-            await pane("off");
-        }
-    });
 });
 
 /**
@@ -177,7 +141,7 @@ test.describe("What's new screenshots, v0.4.0", () => {
         // delete choice away under its own footer.
         await page.setViewportSize({ width: 1200, height: 1400 });
         await login(page, TEST_DEMO.email, TEST_DEMO.password);
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
         await page.locator("section").filter({ has: page.locator("#settings-account-list") })
             .getByRole("button", { name: "Add account" }).click();
 
@@ -211,7 +175,7 @@ test.describe("What's new screenshots, v0.4.0", () => {
     /** Settings → Appearance → Logo with an upload worn: the "Your own" tile, and the top bar wearing it. */
     test("custom-logo", async ({ page }) => {
         await login(page, TEST_DEMO.email, TEST_DEMO.password);
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
 
         const panel = page.locator('[data-controller="settings--appearance"]');
         await expect(panel).toBeVisible();
@@ -240,12 +204,12 @@ test.describe("What's new screenshots, v0.4.0", () => {
      */
     test("simplified-chinese", async ({ page }) => {
         const useLocale = async (locale: string): Promise<void> => {
-            await page.goto("/settings?section=general");
+            await page.goto("/settings/region");
             const button = page.locator(`form[action*='locale']:has(input[value='${locale}']) button`).first();
 
             if (false === (await button.isDisabled())) {
                 await button.click();
-                await expect(page).toHaveURL(/section=general/);
+                await expect(page).toHaveURL(/\/settings\/region/);
             }
         };
 
@@ -339,7 +303,7 @@ test.describe("What's new screenshots, v0.4.1", () => {
     /** The account form under JMAP with Fastmail chosen: one host, one token, no SMTP. */
     test("jmap-accounts", async ({ page }) => {
         await page.setViewportSize({ width: 1200, height: 1400 });
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
         await page.locator("section").filter({ has: page.locator("#settings-account-list") })
             .getByRole("button", { name: "Add account" }).click();
 
@@ -428,7 +392,7 @@ test.describe("What's new screenshots, v0.4.1", () => {
         const forget = (): void => consoleCommand(`dbal:run-sql "DELETE FROM mail_rule WHERE name IN ('${names.join("', '")}')"`);
 
         const saveFilter = async (name: string, subject: string): Promise<void> => {
-            await page.goto("/settings?section=filters");
+            await page.goto("/settings/filters");
             const list = page.locator("#settings-filter-list");
 
             await list.getByRole("link", { name: "New filter" }).click();
@@ -462,7 +426,7 @@ test.describe("What's new screenshots, v0.4.1", () => {
 
         try {
             await page.setViewportSize({ width: 1200, height: 900 });
-            await page.goto("/settings?section=accounts");
+            await page.goto("/settings/accounts");
             await page.locator("#settings-account-list li").first()
                 .getByRole("button", { name: "Folders", exact: true }).click();
 
@@ -477,7 +441,7 @@ test.describe("What's new screenshots, v0.4.1", () => {
 
     /** Settings → App passwords, from the Play badge down to Pair a device. */
     test("android-app", async ({ page }) => {
-        await page.goto("/settings?section=app-passwords");
+        await page.goto("/settings/app-passwords");
         await expect(page.getByTestId("native-apps-play")).toBeVisible();
 
         const card = page.locator("section", { has: page.getByTestId("native-apps-play") }).first();
@@ -507,7 +471,7 @@ test.describe("What's new screenshots, encryption", () => {
         consoleCommand(`app:test:seed-demo --email=${email}`);
 
         await login(page, email, password);
-        await page.goto("/settings?section=encryption");
+        await page.goto("/settings/encryption");
         await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 20000 });
 
         await page.goto("/mail/inbox");
@@ -754,7 +718,7 @@ async function enableProvider(page: Page, id: string, baseUrl: string): Promise<
 
 /** The connect dialog of one service, opened from Settings → Integrations. */
 async function connectDialog(page: Page, service: string): Promise<Locator> {
-    await page.goto("/settings?section=integrations");
+    await page.goto("/settings/integrations");
     const frame = page.locator("#settings-integrations-frame");
     await frame.getByRole("button", { name: service, exact: true }).click();
 
@@ -800,5 +764,513 @@ test.describe("What's new screenshots, v0.4.2 integrations", () => {
         await expect(panel.getByRole("button", { name: "Connect with browser approval" })).toBeVisible();
 
         await capture(page, "nextcloud-approval", panel, 760);
+    });
+});
+
+test.describe("What's new screenshots, v0.4.3", () => {
+    test.skip(undefined === process.env.E2E_SCREENSHOTS, 'Demo mailbox required — run "npm run test:e2e:screenshots".');
+
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.beforeAll(() => {
+        seedUser({ email: TEST_DEMO.email, password: TEST_DEMO.password });
+        consoleCommand(`app:test:seed-demo --email=${TEST_DEMO.email}`);
+    });
+
+    test.beforeEach(async ({ page }) => {
+        await login(page, TEST_DEMO.email, TEST_DEMO.password);
+    });
+
+    /**
+     * The tree with a word in its filter (#569). "sign" rather than a page's
+     * name: it finds cards in two areas, and Password by its keyword
+     * "sign-in", which is what a search over the cards adds to a list of pages.
+     */
+    test("settings-search", async ({ page }) => {
+        await page.goto("/settings/labels");
+
+        const tree = page.locator("#settings-tree");
+        await page.locator("#settings-filter").fill("sign");
+        await expect(tree.locator("li[data-settings--nav-target='hit']:not([hidden])").first()).toBeVisible();
+
+        await capture(page, "settings-search", tree);
+    });
+
+    /**
+     * The compose window a mailto: link opens (#572), reached the way the
+     * browser's handler reaches it: /compose/new?mailto=…, which the server
+     * turns into the mailbox with the window in its dock. Not saved: a link's
+     * window is no draft until the first autosave.
+     */
+    test("mailto-links", async ({ page }) => {
+        const link = "mailto:priya@ramanjoinery.example?cc=jonas@ramanjoinery.example"
+            + "&subject=Shelves%20for%20the%20Brunnengasse%20workshop"
+            + "&body=Hello%20Priya%2C%0A%0AI%20saw%20the%20shelves%20on%20your%20website.";
+
+        await page.goto(`/compose/new?mailto=${encodeURIComponent(link)}`);
+
+        const dock = page.locator("#compose_dock");
+        await expect(dock.locator('input[name="compose[subject]"]')).toHaveValue("Shelves for the Brunnengasse workshop");
+        await expect(dock.locator('[data-compose--compose-target="ccField"]')).toContainText("jonas@ramanjoinery.example");
+
+        await capture(page, "mailto-links", dock.locator(".compose-window"));
+    });
+});
+
+/**
+ * A square picture for a demo contact (#639): a company's mark, or a person's
+ * head and shoulders. Drawn rather than shipped, like demoPhoto, so the repo
+ * carries no stock portraits; flat shapes are what a logo or an avatar at
+ * 32 pixels reads as anyway.
+ */
+async function demoAvatar(page: Page, kind: "person" | "mark", background: string, foreground: string, shape: "peak" | "bars" = "bars"): Promise<Buffer> {
+    const base64 = await page.evaluate(async ([k, bg, fg, text]) => {
+        const size = 256;
+        const canvas = new OffscreenCanvas(size, size);
+        const context = canvas.getContext("2d")!;
+        context.fillStyle = bg;
+        context.fillRect(0, 0, size, size);
+        context.fillStyle = fg;
+
+        if ("person" === k) {
+            context.beginPath();
+            context.arc(size / 2, size * 0.4, size * 0.2, 0, Math.PI * 2);
+            context.fill();
+            context.beginPath();
+            context.ellipse(size / 2, size * 1.02, size * 0.38, size * 0.4, 0, 0, Math.PI * 2);
+            context.fill();
+        } else if ("peak" === text) {
+            context.beginPath();
+            context.moveTo(size * 0.12, size * 0.74);
+            context.lineTo(size * 0.42, size * 0.3);
+            context.lineTo(size * 0.58, size * 0.52);
+            context.lineTo(size * 0.68, size * 0.4);
+            context.lineTo(size * 0.88, size * 0.74);
+            context.closePath();
+            context.fill();
+        } else {
+            for (const [y, w] of [[0.28, 0.6], [0.45, 0.44], [0.62, 0.28]]) {
+                context.fillRect(size * 0.2, size * y, size * w, size * 0.1);
+            }
+        }
+
+        const blob = await canvas.convertToBlob({ type: "image/png" });
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) {
+            binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        }
+
+        return btoa(binary);
+    }, [kind, background, foreground, shape] as const);
+
+    return Buffer.from(base64, "base64");
+}
+
+test.describe("What's new screenshots, v0.4.4", () => {
+    test.skip(undefined === process.env.E2E_SCREENSHOTS, 'Demo mailbox required — run "npm run test:e2e:screenshots".');
+
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.beforeAll(() => {
+        seedUser({ email: TEST_DEMO.email, password: TEST_DEMO.password });
+        consoleCommand(`app:test:seed-demo --email=${TEST_DEMO.email}`);
+    });
+
+    test.beforeEach(async ({ page }) => {
+        await login(page, TEST_DEMO.email, TEST_DEMO.password);
+    });
+
+    /**
+     * The inbox with pictures beside most senders and an initial beside the
+     * rest (#639). From contact photos, the one source that needs no lookup
+     * on the internet: BIMI, Gravatar and website icons would make the
+     * picture depend on what example domains answer today. The demo's
+     * contacts have no photos, so they are given some through the contact
+     * page's own upload, and the reseed of the next run takes them off again.
+     */
+    test("sender-pictures", async ({ page }) => {
+        const photos: Array<[string, Buffer]> = [
+            ["Priya Raman", await demoAvatar(page, "person", "#c7d7e8", "#3d5a80")],
+            ["Mum", await demoAvatar(page, "person", "#f2d4c2", "#9c5a3c")],
+            ["Sofia Marchetti", await demoAvatar(page, "person", "#d9e8d0", "#4f7a45")],
+            ["Steuerbüro Lang", await demoAvatar(page, "mark", "#1f3b57", "#e9c46a", "bars")],
+            ["Hotel Aare", await demoAvatar(page, "mark", "#2a9d8f", "#ffffff", "peak")],
+            ["Jonas Weber", await demoAvatar(page, "person", "#e6dcf0", "#6b4f8a")],
+            ["Marek Nowak", await demoAvatar(page, "mark", "#8b5e34", "#f4e3c8", "bars")],
+        ];
+
+        for (const [name, photo] of photos) {
+            await page.goto("/contacts");
+            await page.getByRole("link", { name, exact: false }).first().click();
+            await expect(page).toHaveURL(/\/contacts\/\d+/);
+            const id = page.url().match(/\/contacts\/(\d+)/)![1];
+
+            await page.goto(`/contacts/${id}/edit`);
+            const uploaded = page.waitForResponse((r) => r.url().endsWith(`/contacts/${id}/photo`) && "POST" === r.request().method());
+            await page.locator("#f-photo").setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: photo });
+            expect((await uploaded).status(), `${name}: the photo was refused`).toBeLessThan(400);
+        }
+
+        // Tall enough for the whole demo inbox, and only its sender column:
+        // at the dialog's 220 pixels the column of circles is the feature,
+        // and the subjects beside it would be a grey blur.
+        await page.setViewportSize({ width: 1200, height: 1100 });
+        await page.goto("/mail/inbox");
+
+        const rows = page.locator('#message-list li[data-controller="mail--message-row"]');
+        await expect(page.locator("#message-list img").first()).toBeVisible();
+        await expect(page.locator('[data-controller~="ui--toast"]')).toHaveCount(0, { timeout: 8_000 });
+        await page.waitForLoadState("networkidle");
+        await page.waitForTimeout(400);
+
+        const first = (await rows.first().boundingBox())!;
+        const last = (await rows.last().boundingBox())!;
+        await page.screenshot({
+            path: `${OUT}/sender-pictures.png`,
+            clip: { x: first.x, y: first.y, width: 420, height: last.y + last.height - first.y },
+        });
+    });
+
+    /** Two conversations pinned above the line, through the row's own thumbtack (#654). */
+    test("pin-conversations", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const rows = page.locator('#message-list li[data-controller="mail--message-row"]');
+        await expect(rows.nth(4)).toBeVisible();
+
+        // From further down, so the picture shows them moved up.
+        const subjects = [
+            (await rows.nth(3).locator("[data-row-subject], .subject").first().textContent() ?? "").trim(),
+            (await rows.nth(4).locator("[data-row-subject], .subject").first().textContent() ?? "").trim(),
+        ];
+
+        for (const subject of subjects) {
+            const row = mailRow(page, subject).first();
+            const pinned = page.waitForResponse((r) => r.url().includes("/pin") && "POST" === r.request().method());
+            await rowAction(row, /^Pin/);
+            expect((await pinned).status()).toBeLessThan(400);
+            await expect(mailRow(page, subject).first()).toHaveAttribute("data-pinned", "true");
+        }
+
+        await page.mouse.move(0, 0);
+        await capture(page, "pin-conversations", page.locator("#message-list"), 366);
+    });
+
+    /** The snooze menu with Pick a date and time unfolded (#342), on a row. */
+    test("snooze-pick-date", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const row = page.locator('#message-list li[data-controller="mail--message-row"]').nth(1);
+        await rowAction(row, /snooze/i);
+
+        const menu = page.locator("#row-snooze-menu");
+        await menu.getByRole("menuitem", { name: /Pick a date and time/ }).click();
+        await expect(menu.locator('[data-mail--snooze-menu-target="custom"]')).toBeVisible();
+
+        await capture(page, "snooze-pick-date", menu);
+    });
+
+    /**
+     * The week with events in colours of their own beside ones in their
+     * calendar's (#616). The demo seed gives most of its events a colour, as a
+     * phone sharing the calendar would; scrolled to the morning so every block
+     * has its label, as the README's calendar picture is.
+     */
+    test("event-colours", async ({ page }) => {
+        await page.goto("/calendar/week");
+        await expect(page.getByRole("button", { name: /Dentist/ }).first()).toBeVisible();
+
+        await page.evaluate(() => {
+            const scroller = document.querySelector('[data-calendar--time-grid-target="scroller"]');
+            const hours = document.querySelector('[data-calendar--time-grid-target="hours"]');
+
+            if (null !== scroller && null !== hours) {
+                scroller.scrollTop = ((hours as HTMLElement).offsetHeight * 7.75) / 24;
+            }
+        });
+
+        await capture(page, "event-colours", page.locator('[data-controller~="calendar--time-grid"]').first(), 520);
+    });
+});
+
+/**
+ * The sidebar's width as stored for the user (#699), posted the way the
+ * handle posts it. Put back to the default after the picture, so the demo
+ * user's other pictures keep the sidebar they were taken with.
+ */
+async function sidebarWidth(page: Page, width: number): Promise<void> {
+    const token = await page.locator("[data-ui--sidebar-split-token-value]").first()
+        .getAttribute("data-ui--sidebar-split-token-value");
+    const response = await page.request.post("/mail/sidebar/state", {
+        form: { width: String(width), _token: token ?? "" },
+        headers: { "X-Requested-With": "fetch" },
+    });
+    expect(response.ok()).toBe(true);
+}
+
+/** One of the two switches on Settings → Labels → Labels in the sidebar. */
+async function labelView(page: Page, key: "by_account", on: boolean): Promise<void> {
+    await page.goto("/settings/labels");
+    const row = page.locator(`[data-label-view="${key}"]`);
+    const saved = page.waitForResponse((r) => r.url().includes("/labels") && "POST" === r.request().method());
+    await row.getByText(on ? "On" : "Off", { exact: true }).click();
+    await saved;
+}
+
+test.describe("What's new screenshots, v0.4.5", () => {
+    test.skip(undefined === process.env.E2E_SCREENSHOTS, 'Demo mailbox required — run "npm run test:e2e:screenshots".');
+
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.beforeAll(() => {
+        seedUser({ email: TEST_DEMO.email, password: TEST_DEMO.password });
+        consoleCommand(`app:test:seed-demo --email=${TEST_DEMO.email}`);
+    });
+
+    test.beforeEach(async ({ page }) => {
+        await login(page, TEST_DEMO.email, TEST_DEMO.password);
+    });
+
+    /**
+     * The sidebar halfway through a drag to the right (#699): the handle
+     * held, the sidebar wider than its old fixed 224 pixels and the list
+     * moved over for it. The top left of the window, where the names are.
+     */
+    test("sidebar-width", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expect(page.locator("#message-list li").first()).toBeVisible();
+
+        try {
+            const grip = (await page.locator("[data-sidebar-handle]").boundingBox())!;
+            await page.mouse.move(grip.x + grip.width / 2, grip.y + 160);
+            await page.mouse.down();
+            await page.mouse.move(grip.x + grip.width / 2 + 96, grip.y + 160, { steps: 8 });
+            const saved = page.waitForResponse((r) => r.url().includes("/mail/sidebar/state"));
+            await page.mouse.up();
+            await saved;
+
+            // The pointer back on the grip, after the drag: the grip lit and
+            // the handle's tooltip saying what it does, which is the feature
+            // as somebody first meets it. From the top of the window down to
+            // the grip.
+            const pill = (await page.locator("[data-sidebar-handle] .split-grip").boundingBox())!;
+            await page.mouse.move(pill.x + pill.width / 2, pill.y + pill.height / 2);
+            await page.waitForTimeout(800);
+
+            const bottom = Math.round(pill.y + pill.height + 24);
+            await page.screenshot({ path: `${OUT}/sidebar-width.png`, clip: { x: 0, y: 0, width: 640, height: bottom } });
+        } finally {
+            await sidebarWidth(page, 224);
+        }
+    });
+
+    /**
+     * The demo account open in the sidebar with its labels under it (#690),
+     * switched on through the settings card and off again afterwards. The
+     * demo's three labels are made on its account, so all of them move there.
+     */
+    test("labels-by-account", async ({ page }) => {
+        await labelView(page, "by_account", true);
+
+        try {
+            await page.goto("/mail/inbox");
+            const toggle = page.locator("#sidebar [data-settings--account-expand-target=toggle]").first();
+            if ("false" === (await toggle.getAttribute("aria-expanded"))) {
+                await toggle.click();
+            }
+            await expect(page.locator("#sidebar [data-account-label-new]").first()).toBeVisible();
+
+            const account = page.locator("#sidebar [data-account-label-new]").first();
+            const top = (await toggle.boundingBox())!;
+            const bottom = (await account.boundingBox())!;
+            const sidebar = (await page.locator(".sidebar-pane").boundingBox())!;
+
+            await page.mouse.move(700, 400);
+            await page.waitForLoadState("networkidle");
+            await page.waitForTimeout(400);
+            await page.screenshot({
+                path: `${OUT}/labels-by-account.png`,
+                clip: { x: sidebar.x, y: top.y - 12, width: sidebar.width, height: bottom.y + bottom.height + 12 - (top.y - 12) },
+            });
+        } finally {
+            await labelView(page, "by_account", false);
+        }
+    });
+
+    /** Compose defaults with the account opened and two Bcc addresses on it (#692). */
+    test("always-bcc", async ({ page }) => {
+        await page.goto("/settings/compose");
+
+        const account = page.locator("[data-compose-defaults-account]").first();
+        if (null === (await account.getAttribute("open"))) {
+            await account.locator("summary").first().click();
+        }
+
+        const field = account.locator("form[action$='/compose-defaults/bcc'] .ts-wrapper");
+
+        for (const address of ["archive@ramanjoinery.example", "office@ramanjoinery.example"]) {
+            if (0 === (await field.locator(".item").filter({ hasText: address }).count())) {
+                const saved = page.waitForResponse((r) => r.url().endsWith("/bcc") && "POST" === r.request().method());
+                await field.locator("input").fill(address);
+                await field.locator("input").press("Enter");
+                await saved;
+            }
+        }
+        await field.locator("input").blur();
+
+        const card = page.locator("section", { has: page.locator("[data-compose-defaults-account]") }).first();
+        await capture(page, "always-bcc", card, 520);
+    });
+
+    /**
+     * Admin → Backfills with its newest repair chosen (#726): the list by
+     * month, and what the chosen one does. As the administrator demo user.
+     */
+    test("admin-backfills", async ({ page }) => {
+        seedUser({ email: TEST_DEMO_ADMIN.email, password: TEST_DEMO_ADMIN.password, admin: true });
+        await page.context().clearCookies();
+        await login(page, TEST_DEMO_ADMIN.email, TEST_DEMO_ADMIN.password);
+        await page.setViewportSize({ width: 1400, height: 900 });
+        await page.goto("/admin?section=backfills");
+
+        const frame = page.locator("turbo-frame#admin-backfills");
+        await expect(frame.locator("nav a, nav button").first()).toBeVisible();
+
+        await capture(page, "admin-backfills", frame.locator("section").first(), 560);
+    });
+});
+
+test.describe("What's new screenshots, v0.4.5 encryption", () => {
+    test.skip(undefined === process.env.E2E_SCREENSHOTS, 'Demo mailbox required — run "npm run test:e2e:screenshots".');
+
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    /**
+     * The lock's panel in the compose window (#703): On / Off / Auto for the
+     * one recipient with a key, one's own address, as the encryption picture
+     * is taken. A person of their own, for the keyring.
+     */
+    test("encrypt-per-recipient", async ({ page }) => {
+        const email = `e2e-demo-crypto-${Date.now()}@plmail.test`;
+        const password = "a-password-for-the-picture";
+
+        seedUser({ email, password, stretched: true });
+        consoleCommand(`app:test:seed-demo --email=${email}`);
+
+        await login(page, email, password);
+        await page.goto("/settings/encryption");
+        await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 20000 });
+
+        const dock = await composeTo(
+            page,
+            ["you@example.com"],
+            "Invoices for the Brunnengasse workshop",
+            "Copies for my other account, so I can read them on the go.",
+        );
+        await expect(dock.locator("[data-testid=compose-encrypted]")).toBeVisible({ timeout: 15000 });
+
+        await dock.locator('button[aria-label="More options"]').click();
+        await dock.locator("[data-testid=compose-encrypt-toggle]").click();
+        const panel = dock.locator("[data-testid=compose-encrypt-policy]");
+        await expect(panel).toBeVisible();
+        await page.waitForLoadState("networkidle");
+        await page.waitForTimeout(400);
+
+        // The panel opens over the window's right edge: the picture is the
+        // window and the panel together.
+        const [w, p] = [(await dock.locator(".compose-window").boundingBox())!, (await panel.boundingBox())!];
+        const right = Math.max(w.x + w.width, p.x + p.width) + 8;
+        await page.screenshot({
+            path: `${OUT}/encrypt-per-recipient.png`,
+            clip: { x: w.x, y: w.y, width: right - w.x, height: w.height },
+        });
+    });
+});
+
+/**
+ * plMail's stars on GitHub, as [day, stars so far], one pair per day that
+ * added any: GitHub's stargazer list with timestamps, read when v0.4.5 was
+ * released (24 Nov 2026). Written in here rather than fetched, so retaking
+ * the picture gives the same picture and needs no network.
+ */
+const STARS: Array<[string, number]> = [
+    ["2026-07-05", 1], ["2026-07-13", 2], ["2026-08-21", 3], ["2026-10-05", 4], ["2026-10-08", 5],
+    ["2026-10-09", 155], ["2026-10-10", 220], ["2026-10-11", 256], ["2026-10-12", 277],
+    ["2026-10-13", 286], ["2026-10-14", 301], ["2026-10-15", 306], ["2026-10-16", 327],
+    ["2026-10-17", 332], ["2026-10-18", 343], ["2026-10-19", 366], ["2026-10-20", 386],
+    ["2026-10-21", 399], ["2026-10-22", 409], ["2026-10-23", 417], ["2026-10-24", 420],
+    ["2026-10-25", 424], ["2026-10-26", 431], ["2026-10-27", 434], ["2026-10-28", 443],
+    ["2026-10-29", 460], ["2026-10-30", 470], ["2026-10-31", 511], ["2026-11-01", 527],
+    ["2026-11-02", 537], ["2026-11-03", 546], ["2026-11-04", 552], ["2026-11-05", 555],
+    ["2026-11-06", 556], ["2026-11-07", 559], ["2026-11-08", 561], ["2026-11-09", 564],
+    ["2026-11-10", 565], ["2026-11-11", 568], ["2026-11-12", 573], ["2026-11-13", 601],
+    ["2026-11-14", 627], ["2026-11-15", 641], ["2026-11-16", 653], ["2026-11-17", 667],
+    ["2026-11-18", 676], ["2026-11-19", 681], ["2026-11-20", 682], ["2026-11-21", 684],
+    ["2026-11-22", 685], ["2026-11-23", 689], ["2026-11-24", 690],
+];
+
+/**
+ * The thank-you's picture (v0.4.5): stars over time, drawn as SVG in an
+ * empty page. Not of a feature, so not of the app: a chart in the app's
+ * colours, as tall as the highlight's box gets beside the three paragraphs.
+ * Labels only where they say something at 220 pixels: the day 150 came in
+ * at once, and the total.
+ */
+function starsChart(): string {
+    const [W, H, L, R, T, B] = [400, 456, 20, 24, 70, 48];
+    const start = Date.UTC(2026, 6, 2);
+    const end = Date.UTC(2026, 10, 24);
+    const day = 86_400_000;
+    const top = 720;
+    const x = (t: number): number => L + ((W - L - R) * (t - start)) / (end - start);
+    const y = (v: number): number => T + (H - T - B) * (1 - v / top);
+    const at = (d: string): number => Date.parse(`${d}T00:00:00Z`);
+
+    const byDay = new Map(STARS.map(([d, v]) => [at(d), v]));
+    const points: string[] = [];
+    let stars = 0;
+    for (let t = start; t <= end; t += day) {
+        stars = byDay.get(t) ?? stars;
+        points.push(`${x(t).toFixed(1)},${y(stars).toFixed(1)}`);
+    }
+
+    const line = `M${points.join(" L")}`;
+    const area = `${line} L${x(end).toFixed(1)},${y(0)} L${x(start)},${y(0)} Z`;
+    const total = STARS[STARS.length - 1][1];
+    const [jumpDay, jump] = [at("2026-10-09"), byDay.get(at("2026-10-09"))!];
+    const grid = [0, 200, 400, 600].map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="g"/>`).join("");
+    const months = ["Jul", "Aug", "Sep", "Oct", "Nov"].map((name, i) => {
+        const first = 0 === i;
+        const left = first ? x(start) + 4 : x(Date.UTC(2026, 6 + i, 1));
+
+        return `<text x="${left}" y="${H - 16}" class="ax" text-anchor="${first ? "start" : "middle"}">${name}</text>`;
+    }).join("");
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+<style>.g{stroke:#e4ddd2;stroke-width:1.5}.ax{font:500 17px -apple-system,Inter,sans-serif;fill:#8a8072}
+.t{font:700 24px -apple-system,Inter,sans-serif;fill:#2b2620}.n{font:600 19px -apple-system,Inter,sans-serif;fill:#5c5347}
+.v{font:700 26px -apple-system,Inter,sans-serif;fill:#2b2620}</style>
+<rect width="${W}" height="${H}" fill="#f7f3ed"/>
+<text x="${L}" y="40" class="t">Stars on GitHub</text>
+${grid}${months}
+<path d="${area}" fill="#7d6b4f" fill-opacity=".12"/>
+<path d="${line}" fill="none" stroke="#7d6b4f" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="${x(jumpDay)}" cy="${y(jump)}" r="6" fill="#7d6b4f" stroke="#f7f3ed" stroke-width="3"/>
+<text x="${x(jumpDay) - 12}" y="${y(jump) - 18}" class="n" text-anchor="end">150 in</text>
+<text x="${x(jumpDay) - 12}" y="${y(jump) + 4}" class="n" text-anchor="end">one day</text>
+<circle cx="${x(end)}" cy="${y(total)}" r="6" fill="#7d6b4f" stroke="#f7f3ed" stroke-width="3"/>
+<text x="${x(end) - 12}" y="${y(total) - 14}" class="v" text-anchor="end">${total}</text>
+</svg>`;
+}
+
+test.describe("What's new screenshots, thank you", () => {
+    test.skip(undefined === process.env.E2E_SCREENSHOTS, 'Demo mailbox required — run "npm run test:e2e:screenshots".');
+
+    test.use({ deviceScaleFactor: 2 });
+
+    test("thank-you", async ({ page }) => {
+        await page.setContent(`<body style="margin:0">${starsChart()}</body>`);
+        await page.locator("svg").screenshot({ path: `${OUT}/thank-you.png` });
     });
 });

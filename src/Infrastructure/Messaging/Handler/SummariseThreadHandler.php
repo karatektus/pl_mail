@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Infrastructure\Messaging\Message\SummariseThreadMessage;
-use App\Repository\Mail\MessageThreadRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Ai\ThreadSummariser;
 use App\Service\Ai\ThreadSummaryNotifier;
 use App\Service\Ai\ThreadSummaryStore;

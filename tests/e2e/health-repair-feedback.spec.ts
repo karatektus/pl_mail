@@ -118,7 +118,7 @@ test.describe("health repair feedback", () => {
 
     test.beforeEach(async ({ page }) => {
         resetTheCalendar();
-        await page.goto("/settings?section=health");
+        await page.goto("/settings/health");
     });
 
     /**
@@ -259,7 +259,7 @@ test.describe("health repair feedback", () => {
             route.abort("aborted"),
         );
 
-        await page.goto("/settings?section=health");
+        await page.goto("/settings/health");
 
         const link = page.locator(
             '[data-health-kind="account_reconnect"] a[href*="/reconnect/"]',
@@ -385,7 +385,7 @@ test.describe("health repair feedback", () => {
                 page,
             }, testInfo) => {
                 await page.setViewportSize({ width, height: 900 });
-                await page.goto("/settings?section=health");
+                await page.goto("/settings/health");
 
                 // emulateMedia does nothing in this app — the theme is a
                 // data-theme attribute on <html>, which is also how a real

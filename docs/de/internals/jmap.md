@@ -1,4 +1,4 @@
-<!-- translated-from: internals/jmap.md sha1:42f8206efa6d7cda9909e16d323308ad25e27916 -->
+<!-- translated-from: internals/jmap.md sha1:368f6bda681419949dd23bc265d8a201327b8685 -->
 # JMAP
 
 Was implementiert ist, was bewusst nicht, die ID-Räume und warum jeder von ihnen so aussieht,
@@ -413,6 +413,11 @@ und ihre Gründe:
 | `participants` | eine Zu- oder Absage wird über den Einladungsablauf beantwortet, der eine iTIP-Antwort verschickt; hier eine Teilnehmerliste entgegenzunehmen hieße, Antworten festzuhalten, von denen niemand erfährt |
 | `privacy` | es gibt keinen Writer-Parameter dafür, und die Spalte direkt zu schreiben ist genau das, was diese Klasse nicht tun darf |
 | `alerts`, `links` | es gibt nichts, woraus sie projiziert werden könnten — der Writer baut das kanonische Objekt bei jedem Schreibvorgang aus den Spalten neu auf, sie überlebten also ein Speichern und verschwänden beim nächsten |
+
+`color` wird angenommen: ein CSS-Farbname oder `#rrggbb` (RFC 8984 §4.2.9), und `null` entfernt
+die Farbe. Was nichts zeichnen würde, wird mit `invalidProperties` abgelehnt. Ein Update, das
+`color` nicht nennt, behält die gespeicherte Farbe, auch einen Wert, den dieser Server nicht zeichnen
+kann; er geht unverändert an einen CalDAV-Server zurück.
 
 Zeiten werden als striktes LocalDateTime geparst (RFC 8984 §4.1.2): kein Offset, kein
 angehängtes `Z`. `2026-06-02T09:00:00Z` anzunehmen sieht nach Entgegenkommen aus und ist keines —

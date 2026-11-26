@@ -14,7 +14,7 @@ final class Version20260724104759 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Store Microsoft Graph sync state and ids';
     }
 
     public function up(Schema $schema): void

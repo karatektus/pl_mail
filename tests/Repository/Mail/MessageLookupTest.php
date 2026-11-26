@@ -10,7 +10,10 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Jmap\Query\CompiledFilter;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
+use App\Repository\Mail\Message\MessageProviderIdRepository;
+use App\Repository\Mail\Message\MessageFilterRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -35,6 +38,9 @@ final class MessageLookupTest extends KernelTestCase
     private EntityManagerInterface $em;
     private Connection $connection;
     private MessageRepository $repository;
+    private MessageProviderIdRepository $messageProviderIdRepository;
+    private MessageThreadingRepository $messageThreadingRepository;
+    private MessageFilterRepository $messageFilterRepository;
     private User $user;
     private Account $account;
 
@@ -46,6 +52,9 @@ final class MessageLookupTest extends KernelTestCase
         $this->em         = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
         $this->repository = $container->get(MessageRepository::class);
+        $this->messageProviderIdRepository = $container->get(MessageProviderIdRepository::class);
+        $this->messageThreadingRepository = $container->get(MessageThreadingRepository::class);
+        $this->messageFilterRepository = $container->get(MessageFilterRepository::class);
 
         $this->connection->beginTransaction();
 
@@ -71,14 +80,14 @@ final class MessageLookupTest extends KernelTestCase
     {
         $this->seedMessage(messageId: '<abc@example.test>');
 
-        self::assertNotNull($this->repository->findOneByMessageIdsForAccount(
+        self::assertNotNull($this->messageThreadingRepository->findOneByMessageIdsForAccount(
             ['<nope@example.test>', '<abc@example.test>'],
             $this->account,
         ));
 
         $other = $this->seedAccount($this->user);
 
-        self::assertNull($this->repository->findOneByMessageIdsForAccount(
+        self::assertNull($this->messageThreadingRepository->findOneByMessageIdsForAccount(
             ['<abc@example.test>'],
             $other,
         ));
@@ -88,7 +97,7 @@ final class MessageLookupTest extends KernelTestCase
     {
         $this->seedMessage(messageId: '<abc@example.test>');
 
-        self::assertNull($this->repository->findOneByMessageIdsForAccount([], $this->account));
+        self::assertNull($this->messageThreadingRepository->findOneByMessageIdsForAccount([], $this->account));
     }
 
     /**
@@ -103,14 +112,14 @@ final class MessageLookupTest extends KernelTestCase
         $this->seedMessage(graphId: 'BBB');
         $this->seedMessage();
 
-        $ids = $this->repository->findSyncedGraphIdsForUser($this->user);
+        $ids = $this->messageProviderIdRepository->findSyncedGraphIdsForUser($this->user);
 
         sort($ids);
 
         self::assertSame(['AAA', 'BBB'], $ids);
 
         $stranger = $this->seedUser();
-        self::assertSame([], $this->repository->findSyncedGraphIdsForUser($stranger));
+        self::assertSame([], $this->messageProviderIdRepository->findSyncedGraphIdsForUser($stranger));
     }
 
     /**
@@ -132,7 +141,7 @@ final class MessageLookupTest extends KernelTestCase
         $after  = 0;
 
         while (true) {
-            $page = $this->repository->findIdsMatchingForUser($this->user, $filter, $after, 2);
+            $page = $this->messageFilterRepository->findIdsMatchingForUser($this->user, $filter, $after, 2);
 
             if (0 === count($page)) {
                 break;
@@ -160,11 +169,11 @@ final class MessageLookupTest extends KernelTestCase
 
         $filter = new CompiledFilter('TRUE', []);
 
-        $under = $this->repository->countMatchingForUser($this->user, $filter, 10);
+        $under = $this->messageFilterRepository->countMatchingForUser($this->user, $filter, 10);
         self::assertSame(4, $under['count']);
         self::assertFalse($under['capped']);
 
-        $over = $this->repository->countMatchingForUser($this->user, $filter, 2);
+        $over = $this->messageFilterRepository->countMatchingForUser($this->user, $filter, 2);
         self::assertSame(2, $over['count']);
         self::assertTrue($over['capped']);
     }
@@ -182,10 +191,10 @@ final class MessageLookupTest extends KernelTestCase
 
         $filter = new CompiledFilter('TRUE', []);
 
-        self::assertSame(2, $this->repository->countMatchingForUser($this->user, $filter)['count']);
+        self::assertSame(2, $this->messageFilterRepository->countMatchingForUser($this->user, $filter)['count']);
         self::assertSame(
             1,
-            $this->repository->countMatchingForUser($this->user, $filter, 500, $second)['count'],
+            $this->messageFilterRepository->countMatchingForUser($this->user, $filter, 500, $second)['count'],
         );
     }
 
@@ -229,11 +238,11 @@ final class MessageLookupTest extends KernelTestCase
 
         $filter = new CompiledFilter('TRUE', []);
 
-        self::assertSame([$one], $this->repository->matchingIds([$one], $filter));
-        self::assertSame([], $this->repository->matchingIds([], $filter));
+        self::assertSame([$one], $this->messageFilterRepository->matchingIds([$one], $filter));
+        self::assertSame([], $this->messageFilterRepository->matchingIds([], $filter));
 
         $none = new CompiledFilter('FALSE', []);
-        self::assertSame([], $this->repository->matchingIds([$one, $two], $none));
+        self::assertSame([], $this->messageFilterRepository->matchingIds([$one, $two], $none));
     }
 
     // ── Fixtures ─────────────────────────────────────────────────────────────
@@ -290,7 +299,7 @@ final class MessageLookupTest extends KernelTestCase
         $account->imapPort       = 993;
         $account->imapEncryption = 'ssl';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
 
         $this->em->persist($account);
         $this->em->flush();

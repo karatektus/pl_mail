@@ -134,6 +134,23 @@ test.describe("sidebar rail (desktop)", () => {
 
         await hovered.hover();
 
+        // A clipped name anywhere in the sidebar (other specs leave long
+        // labels on this worker's user) makes the hover lean the sidebar out,
+        // over 160ms. Read mid-way, the hovered row and the active one, read a
+        // moment later, are two different widths of the same sidebar. Wait
+        // for it to stop moving.
+        const sidebar = page.locator("#sidebar");
+        let last = -1;
+        await expect
+            .poll(async () => {
+                const now = (await sidebar.boundingBox())!.width;
+                const settled = now === last;
+                last = now;
+
+                return settled;
+            })
+            .toBe(true);
+
         const hoveredBox = await hovered.boundingBox();
         const activeBox = await active.boundingBox();
 

@@ -10,7 +10,7 @@ use App\Domain\Enum\System\UpdateChannel;
 use App\Domain\Enum\System\UpdateVerdict;
 use App\Domain\Exception\UpdateCheckFailedException;
 use App\Entity\System\UpdateCheck;
-use App\Repository\System\UpdateCheckRepository;
+use App\Repository\System\UpdateCheck\UpdateCheckRepository;
 use App\Service\System\AppVersion;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;

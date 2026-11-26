@@ -7,7 +7,7 @@ namespace App\Service\Calendar;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 
 /**
  * Which calendar an extracted event belongs on.

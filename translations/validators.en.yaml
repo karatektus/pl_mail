@@ -2,9 +2,14 @@
 # domain, not `messages` — a key put in messages.*.yaml renders as the raw key,
 # which is how "setup.install.password_too_short" ended up on screen.
 account.host_invalid: Enter a host name or IP address only — no slashes, question marks or @.
+account.incoming_required: 'Enter the incoming server — this account receives mail.'
+account.port_required: 'Enter the port.'
+account.services_none: 'Switch on receiving, sending, or both.'
+account.smtp_required: 'Enter the SMTP server — this account sends mail.'
 admin.ai.keep_alive_invalid: Use a duration like 5m, 30m or 4h, a plain number of seconds, or -1 to keep the model loaded for good — leave it empty to use the host's own setting.
 admin.integrations.client_id_missing: Enter the client ID that goes with this secret.
 admin.integrations.secret_missing: Enter the client secret too — a client ID on its own cannot sign anyone in.
+admin.integrations.trusted.host_invalid: 'Enter a host name or IP address, such as dav.home.example.com or 192.168.1.20, or a whole address that contains one.'
 admin.sso.error.client_id_missing: 'A client ID is needed with the issuer and the secret. All three, or none of them.'
 admin.sso.error.issuer_missing: 'An issuer is needed with the client ID and the secret. All three, or none of them.'
 admin.sso.error.issuer_not_https: 'The issuer has to start with https://. plMail trusts the provider because of the TLS connection to it.'
@@ -23,6 +28,7 @@ carddav.username_required: Enter the username your CardDAV server knows you by.
 contacts.invalid_email: '"%email%" is not a valid email address.'
 contacts.name_or_email_required: Give the contact a name or at least one email address.
 calendar.name_required: Give the calendar a name — it is what tells it apart from the others.
+compose.from_required: Choose an address to send from before sending.
 compose.recipient_invalid: "“{{ address }}” is not a valid email address."
 compose.recipient_required: Add at least one recipient before sending.
 integration.name_taken: You already have a connection to this service called {{ value }}. Give this one another name — home and work, say.

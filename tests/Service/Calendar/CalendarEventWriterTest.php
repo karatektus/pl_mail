@@ -170,6 +170,75 @@ final class CalendarEventWriterTest extends KernelTestCase
         self::assertArrayNotHasKey('alerts', $event->jscalendar);
     }
 
+    /**
+     * An event's own colour (#616) survives every write that has no opinion
+     * about it — an edit from JMAP, a re-extraction, the sync engine. Lost
+     * there, a colour set on the phone would go back to the calendar's the
+     * first time somebody fixed the title here, and be pushed back that way.
+     */
+    public function testAWriteThatSaysNothingAboutTheColourKeepsIt(): void
+    {
+        $event = $this->invitedEvent();
+        $event->jscalendar['color'] = 'turquoise';
+
+        $this->rename($event, 'Quarterly review (moved)');
+
+        self::assertSame('turquoise', $event->jscalendar['color'] ?? null);
+        self::assertSame('#40e0d0', $event->displayColor);
+    }
+
+    public function testNoColourTakesTheEventBackToItsCalendarsColour(): void
+    {
+        $event = $this->invitedEvent();
+        $event->jscalendar['color'] = 'turquoise';
+
+        $this->colour($event, CalendarEventWriter::NO_COLOR);
+
+        self::assertArrayNotHasKey('color', $event->jscalendar);
+        self::assertSame($this->calendar->color, $event->displayColor);
+    }
+
+    public function testAColourTheAppCannotDrawIsStillKeptAndTheCalendarsIsDrawn(): void
+    {
+        $event = $this->invitedEvent();
+
+        $this->colour($event, 'not-a-colour');
+
+        self::assertSame('not-a-colour', $event->jscalendar['color'] ?? null);
+        self::assertSame($this->calendar->color, $event->displayColor);
+    }
+
+    /**
+     * A full remote object without a colour is a colour removed at the server;
+     * one from a driver that knows nothing about colours says nothing about it.
+     */
+    public function testAnOverlayClearsTheColourOnlyWhenItStatesThereIsNone(): void
+    {
+        $event = $this->invitedEvent();
+        $event->jscalendar['color'] = 'turquoise';
+
+        $this->overlay($event, ['@type' => 'Event', 'title' => 'Quarterly review']);
+        self::assertSame('turquoise', $event->jscalendar['color'] ?? null, 'a driver that is silent about colours keeps it');
+
+        $this->overlay($event, ['@type' => 'Event', 'title' => 'Quarterly review', 'color' => 'teal']);
+        self::assertSame('teal', $event->jscalendar['color'] ?? null, 'a remote colour wins');
+
+        $this->overlay($event, ['@type' => 'Event', 'title' => 'Quarterly review', 'color' => null]);
+        self::assertArrayNotHasKey('color', $event->jscalendar, 'a stated null takes it off');
+    }
+
+    public function testRecolouringASeriesChangesOnlyItsColour(): void
+    {
+        $event  = $this->invitedEvent();
+        $before = $event->jscalendar;
+
+        $this->writer->recolor($event, 'orchid');
+        self::assertSame(array_merge($before, ['color' => 'orchid']), $event->jscalendar);
+
+        $this->writer->recolor($event, CalendarEventWriter::NO_COLOR);
+        self::assertSame($before, $event->jscalendar);
+    }
+
     /** What the editor does show is still written from the columns. */
     public function testAnEditStillRewritesTheDerivedFields(): void
     {
@@ -245,6 +314,45 @@ final class CalendarEventWriterTest extends KernelTestCase
             startsAt: new DateTimeImmutable('2026-06-02 11:00', $utc),
             endsAt:   new DateTimeImmutable('2026-06-02 12:00', $utc),
             timeZone: 'UTC',
+        );
+
+        $this->em->flush();
+    }
+
+    private function colour(CalendarEvent $event, string $color): void
+    {
+        $utc = new DateTimeZone('UTC');
+
+        $this->writer->write(
+            event:    $event,
+            calendar: $this->calendar,
+            user:     $this->user,
+            title:    'Quarterly review',
+            startsAt: new DateTimeImmutable('2026-06-02 09:00', $utc),
+            endsAt:   new DateTimeImmutable('2026-06-02 10:00', $utc),
+            timeZone: 'UTC',
+            color:    $color,
+        );
+
+        $this->em->flush();
+    }
+
+    /**
+     * @param array<string,mixed> $overlay
+     */
+    private function overlay(CalendarEvent $event, array $overlay): void
+    {
+        $utc = new DateTimeZone('UTC');
+
+        $this->writer->write(
+            event:             $event,
+            calendar:          $this->calendar,
+            user:              $this->user,
+            title:             'Quarterly review',
+            startsAt:          new DateTimeImmutable('2026-06-02 09:00', $utc),
+            endsAt:            new DateTimeImmutable('2026-06-02 10:00', $utc),
+            timeZone:          'UTC',
+            jscalendarOverlay: $overlay,
         );
 
         $this->em->flush();

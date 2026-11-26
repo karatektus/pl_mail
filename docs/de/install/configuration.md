@@ -1,4 +1,4 @@
-<!-- translated-from: install/configuration.md sha1:91cdc6afc6b949be67aa0e94aa9747ad147004ba -->
+<!-- translated-from: install/configuration.md sha1:d4bb147efa8b7f493d56686e9f238aaeaedb2a4b -->
 # Konfigurationsreferenz
 
 Jede Umgebungsvariable, die plMail liest, was sie bewirkt, welchen Vorgabewert sie hat und was
@@ -94,8 +94,6 @@ Das sind die Variablen aus `.env`, in der Reihenfolge, in der sie dort stehen.
 | `VAPID_PUBLIC_KEY` | Öffentlicher Schlüssel für Web Push / JMAP `PushSubscription`. | leer — von `app:secrets:init` erzeugt | Ja, aber erzeugt | Browser binden ein Abonnement an den öffentlichen Schlüssel, mit dem es angelegt wurde. Wird er gewechselt, empfängt jedes Gerät lautlos keine Benachrichtigungen mehr, bis es neu abonniert. |
 | `VAPID_PRIVATE_KEY` | Der zugehörige private Schlüssel. | leer — erzeugt | Ja, aber erzeugt | Wie oben. |
 | `PUSH_ALLOWED_HOSTS` | Kommagetrennte Hosts, auf die ein Push-Endpunkt zeigen darf, obwohl sie auf eine private Adresse auflösen. | leer | Nur für ein ntfy im LAN | Jeder andere private, Loopback- oder Link-Local-Endpunkt wird bei der Registrierung und beim Senden abgewiesen. Läuft das mitgelieferte ntfy auf einer LAN- oder Tailscale-Adresse, setz hier deinen `SERVER_NAME`, sonst bekommen die Telefone keine Pushes mehr. Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
-| `INTEGRATIONS_ALLOW_HTTP` | Ob jemand für eine selbst gehostete Integration einen `http://`-Server angeben darf. | `false` | Nein | Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
-| `INTEGRATIONS_ALLOWED_HOSTS` | Kommagetrennte Hosts, die von der Sperre privater Adressbereiche ausgenommen sind. | leer | Nein | Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
 | `APP_FEEDBACK_TO` | Wohin **Feedback senden** in „Was ist neu“ mailt. Die Mail geht über das eigene Konto der Person; das hier ist nur der Empfänger. | `feedback@pluetzner.de` (auch der Parameter `app.fallback_feedback_to`, der greift, wenn die Variable fehlt) | Nein | Das Feedback der Leute auf dieser Installation geht an den Entwickler von plMail. Trag deine eigene Adresse ein, um es selbst zu lesen; ein Tippfehler schickt es ins Leere, und wer es geschrieben hat, bekommt einen Bounce ins eigene Postfach. |
 
 **Der typische Fehlerfall bei dieser Tabelle ist, ein Leerfeld für einen fehlenden Wert zu halten.**
@@ -178,9 +176,10 @@ eine Hälfte nicht lesen, was die andere schreibt.
 
 ## Der SSRF-Schutz
 
-Drei Variablen lockern eine Prüfung, und es lohnt sich, genau zu sagen, wofür diese Prüfung da ist.
+Eine Admin-Einstellung und eine Variable lockern eine Prüfung, und es lohnt sich, genau zu sagen,
+wofür diese Prüfung da ist.
 
-Selbst gehostete Integrationen — Nextcloud, OpenCloud, Immich, Paperless-ngx — lassen eine angemeldete Person ihre eigene
+Selbst gehostete Integrationen — Nextcloud, OpenCloud, Immich, Paperless-ngx, WebDAV — lassen eine angemeldete Person ihre eigene
 Serveradresse eintippen. Das richtet plMails ausgehenden HTTP-Client dorthin, wohin diese Person
 will, und zwar aus einem Containernetz heraus, in dem auch Postgres und der Mercure-Hub liegen.
 `App\Service\Integration\IntegrationUrlValidator` löst den Host auf und weist jede Adresse in einem
@@ -194,13 +193,13 @@ Diese Prüfung liefert beim Speichern eine lesbare Fehlermeldung. Die Anfragen s
 Er löst den Host erneut auf, nagelt die geprüfte Adresse fest und prüft jede Weiterleitung neu.
 Derselbe Client trägt CalDAV, ICS-Feeds und Push-Zustellungen.
 
-- **`INTEGRATIONS_ALLOW_HTTP=true`** erlaubt es, ein App-Passwort über unverschlüsseltes HTTP zu
-  senden. In einem LAN ist das oft genau das, was gewünscht ist, und es ist standardmäßig aus, damit
-  es eine bewusste Entscheidung bleibt und kein Versehen.
-- **`INTEGRATIONS_ALLOWED_HOSTS=nextcloud.lan,10.0.0.5`** nimmt benannte Hosts von der Sperre
-  privater Adressbereiche aus. Jeder Name, den du hinzufügst, ist ein Name, auf den jemand plMail
-  richten kann — einen ganzen Bereich einzutragen oder den Host, auf dem die Datenbank läuft, gibt
-  einer authentifizierten Person eine Anfrage aus dem Inneren deines Netzes.
+- **Server in privaten Netzen**, unter
+  [Admin → Integrationen](../features/admin.md#server-in-privaten-netzen), nimmt benannte Hosts von
+  der Sperre privater Adressbereiche aus, jeden mit eigenem Haken für unverschlüsseltes `http://`.
+  Jeder Host darin ist einer, auf den jemand plMail richten kann — den Host einzutragen, auf dem die
+  Datenbank läuft, gibt einer authentifizierten Person eine Anfrage aus dem Inneren deines Netzes.
+  Bis v0.4.3 waren das `INTEGRATIONS_ALLOWED_HOSTS` und `INTEGRATIONS_ALLOW_HTTP`; keine der beiden
+  Variablen wird noch gelesen, und das Update hat ihre Werte in die Liste übernommen.
 
 - **`PUSH_ALLOWED_HOSTS=192.168.1.10`** macht dasselbe für Push-Endpunkte, die auf einer privaten
   Adresse sonst ausnahmslos abgewiesen werden. Es gibt die Variable für das mitgelieferte ntfy, dessen

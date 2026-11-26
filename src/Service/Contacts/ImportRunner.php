@@ -4,34 +4,48 @@ declare(strict_types=1);
 
 namespace App\Service\Contacts;
 
-use App\Entity\Contacts\Contact;
 use App\Entity\User\User;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Persists ParsedContact DTOs as contacts (source 'import:vcf' or
  * 'import:csv'), then runs DuplicateFinder over the new batch.
+ *
+ * IN CHUNKS, WITH THE ENTITY MANAGER CLEARED BETWEEN THEM (#672). Every
+ * contact is three flushes — the contact, its addresses, its numbers — and a
+ * flush looks at every entity the manager holds. Holding all of them made the
+ * import quadratic: a thousand contacts took forty-three seconds, inside the
+ * request, which is how it came to be a background job. Clearing every CHUNK
+ * contacts keeps each flush small; the owner is read again afterwards, since
+ * the clear detaches it.
  */
 final class ImportRunner
 {
+    private const int CHUNK = 100;
+
     public function __construct(
-        private ContactManager $manager,
-        private DuplicateFinder $finder,
-        private ContactPhotoStore $photos,
-        private EntityManagerInterface $em,
+        private readonly ContactManager $manager,
+        private readonly DuplicateFinder $finder,
+        private readonly ContactPhotoStore $photos,
+        private readonly EntityManagerInterface $em,
+        private readonly UserRepository $users,
     ) {
     }
 
     /**
-     * @param list<ParsedContact> $dtos
-     * @return array{imported: list<Contact>, duplicates: list<DuplicatePair>}
+     * @param list<ParsedContact>  $dtos
+     * @param (callable(int): void)|null $progress told how many are in after each chunk
+     *
+     * @return array{imported: list<int>, duplicates: list<DuplicatePair>}
      */
-    public function run(User $user, array $dtos, string $source): array
+    public function run(User $user, array $dtos, string $source, ?callable $progress = null): array
     {
         if (!in_array($source, ['import:vcf', 'import:csv'], true)) {
             throw new \InvalidArgumentException('Unsupported import source: ' . $source);
         }
 
+        $userId   = (int) $user->id;
         $imported = [];
         foreach ($dtos as $dto) {
             $data = [
@@ -83,11 +97,23 @@ final class ImportRunner
                 }
             }
 
-            $imported[] = $contact;
+            $imported[] = (int) $contact->id;
+
+            if (0 === count($imported) % self::CHUNK) {
+                $this->em->clear();
+                $user = $this->users->find($userId) ?? throw new \RuntimeException('The importing user is gone.');
+
+                if (null !== $progress) {
+                    $progress(count($imported));
+                }
+            }
         }
 
-        $ids = array_map(static fn (Contact $c) => $c->id, $imported);
-        $duplicates = $this->finder->findCandidates($user, $ids);
+        if (null !== $progress) {
+            $progress(count($imported));
+        }
+
+        $duplicates = $this->finder->findCandidates($user, $imported);
 
         return ['imported' => $imported, 'duplicates' => $duplicates];
     }

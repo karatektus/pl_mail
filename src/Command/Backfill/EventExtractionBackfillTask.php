@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Backfill;
 
 use App\Entity\Mail\Message;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
 use App\Service\Calendar\EventReconciler;
 use App\Service\Calendar\Extraction\EventExtractionRunner;
 use DateTimeImmutable;
@@ -31,15 +31,15 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * mostly newsletters, and parsing all of it to find the few per cent that are
  * bookings is work nobody gets back.
  */
-final readonly class EventExtractionBackfillTask implements WindowedBackfillTaskInterface
+final readonly class EventExtractionBackfillTask implements WindowedBackfillTaskInterface, CountableBackfillTaskInterface
 {
     private const int BATCH_SIZE = 200;
 
     public function __construct(
-        private MessageRepository      $messages,
+        private MessageAiRepository $messageAiRepository,
         private EventExtractionRunner  $runner,
         private EventReconciler        $reconciler,
-        private EntityManagerInterface $em,
+        private EntityManagerInterface $em
     ) {
     }
 
@@ -53,6 +53,21 @@ final readonly class EventExtractionBackfillTask implements WindowedBackfillTask
         return 'Re-run calendar event extraction over stored mail.';
     }
 
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-08-01');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageAiRepository->countExtractionCandidates($since);
+    }
+
     public function run(SymfonyStyle $io): int
     {
         return $this->runSince($io, null);
@@ -60,7 +75,7 @@ final readonly class EventExtractionBackfillTask implements WindowedBackfillTask
 
     public function runSince(SymfonyStyle $io, ?DateTimeImmutable $since): int
     {
-        $total = $this->messages->countExtractionCandidates($since);
+        $total = $this->messageAiRepository->countExtractionCandidates($since);
 
         if (0 === $total) {
             $io->success('No messages carry anything to extract.');
@@ -78,7 +93,7 @@ final readonly class EventExtractionBackfillTask implements WindowedBackfillTask
 
         while (true) {
             /** @var list<Message> $batch */
-            $batch = $this->messages->extractionCandidates($lastId, self::BATCH_SIZE, $since);
+            $batch = $this->messageAiRepository->extractionCandidates($lastId, self::BATCH_SIZE, $since);
 
             if (0 === count($batch)) {
                 break;

@@ -14,7 +14,7 @@ use App\Entity\Calendar\EventSuppression;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Calendar\EventSuppressionRepository;
+use App\Repository\Calendar\EventSuppression\EventSuppressionRepository;
 use App\Service\Calendar\CalendarProvisioner;
 use App\Service\Calendar\EventReconciler;
 use App\Service\Calendar\Extraction\EventExtractionRunner;
@@ -865,7 +865,7 @@ final class StructuredDataExtractionTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
         $this->em->flush();
 

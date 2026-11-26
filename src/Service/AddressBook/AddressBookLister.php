@@ -9,9 +9,9 @@ use App\Entity\AddressBook\AddressBook;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\AddressBook\AddressBookRepository;
-use App\Repository\Integration\IntegrationRepository;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\AddressBook\AddressBook\AddressBookRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
+use App\Repository\Mail\Account\AccountRepository;
 
 /**
  * What Settings → Contacts draws: the contacts connections, the Google and

@@ -9,8 +9,8 @@ use App\Domain\Exception\GmailThrottledException;
 use App\Domain\Exception\JmapThrottledException;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\ImportMailMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Gmail\GmailBackfillStep;
 use App\Service\Gmail\GmailQuotaPacer;
@@ -112,7 +112,7 @@ final readonly class MailImporter
     /** Whether this account still has history that this class would fetch. */
     public function hasWork(Account $account): bool
     {
-        if (true !== $account->isActive) {
+        if (true !== $account->mailEnabled) {
             return false;
         }
 

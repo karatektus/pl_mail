@@ -7,6 +7,7 @@ namespace App\Jmap\Mapper;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Entity\Mail\Message;
+use App\Service\Mail\ThreadPinService;
 use App\Entity\Mail\MessagePart;
 use App\Jmap\Blob\BlobId;
 use App\Service\Mail\MessageSnippet;
@@ -207,6 +208,13 @@ final class EmailMapper
 
         if (null !== $message->starredAt) {
             $keywords['$flagged'] = true;
+        }
+
+        // The email list's pin (#654, #615): the email's own, or its being
+        // the newest received email of a pinned conversation — see
+        // Capability::PINS.
+        if (true === ThreadPinService::emailPinned($message)) {
+            $keywords['$pinned'] = true;
         }
 
         $flags = $message->flags;

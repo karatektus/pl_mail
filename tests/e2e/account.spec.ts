@@ -32,7 +32,7 @@ import { acceptConfirm } from "./support/confirm";
 
 /** Drop an account created by this spec, by the label it was given. */
 async function removeAccount(page: Page, label: string): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     // Addresses are normalised to lowercase on save, so match the label the
     // same case-insensitive way the creation test asserts it.
@@ -47,7 +47,9 @@ async function removeAccount(page: Page, label: string): Promise<void> {
     await row.getByRole("button", { name: "Remove account" }).first().click();
     await acceptConfirm(page);
 
-    await expect(row).toHaveCount(0);
+    // Removing runs on the bulk worker now (#672): the row greys out at once
+    // and goes when the job is done, which is a worker round-trip away.
+    await expect(row).toHaveCount(0, { timeout: 20_000 });
 }
 
 test.describe("mail account creation", () => {
@@ -59,7 +61,7 @@ test.describe("mail account creation", () => {
         const host = `imap-${stamp}.example.test`;
 
         try {
-            await page.goto("/settings?section=accounts");
+            await page.goto("/settings/accounts");
 
             const accountsSection = page
                 .locator("section")
@@ -82,6 +84,8 @@ test.describe("mail account creation", () => {
             await page
                 .locator('select[name="account[imapEncryption]"]')
                 .selectOption("ssl");
+            // Sending is on by default and needs its server (#628).
+            await page.locator('input[name="account[smtpHost]"]').fill(`smtp.${host}`);
 
             await page.locator('#modal button[type="submit"]').click();
 
@@ -104,7 +108,7 @@ test.describe("mail account creation", () => {
     test("keeps the modal open and reports the error when required fields are missing", async ({
                                                                                                    page,
                                                                                                }) => {
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
 
         const accountsSection = page
             .locator("section")

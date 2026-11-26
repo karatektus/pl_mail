@@ -22,6 +22,10 @@ Params:
     padded      body gets its own inset — see chrome.body(); default false,
                 because most bodies are lists that pad their own rows
     class       extra classes on the <section>
+    id          the card's anchor, e.g. 'card-timezone' — what Settings search
+                links to (#569). SettingsNavigation lists every anchor and
+                SettingsPageAnchorsTest checks each one is drawn, so give a new
+                card one and list it there.
 
 Blocks:
     body        the card's content
@@ -49,7 +53,7 @@ control. Both draw their chrome from _partials/_card_chrome.html.twig.
 #}
 {% import '_partials/_card_chrome.html.twig' as chrome %}
 
-<section class="{{ chrome.shell() }} mb-4{{ class|default('') ? ' ' ~ class|default('') : '' }}">
+<section{% if id|default(null) %} id="{{ id }}"{% endif %} class="{{ chrome.shell() }} mb-4 scroll-mt-4{{ class|default('') ? ' ' ~ class|default('') : '' }}">
     <header class="flex items-center justify-between gap-3 {{ chrome.band() }}">
         <div class="min-w-0">
             <h2 class="text-sm font-semibold text-ink">{{ heading }}</h2>

@@ -28,6 +28,22 @@ final readonly class ThreadRow
     public ?\DateTimeImmutable $lastAt;
 
     /**
+     * Whether the conversation has been answered from here: the newest mail
+     * that is not a draft is either one you sent or one marked \Answered.
+     * The row's reply arrow (#608). The newest rather than any, because an
+     * arrow on a conversation whose latest mail is still waiting for you would
+     * say the opposite of what is true.
+     */
+    public bool $replied;
+
+    /**
+     * When the newest draft on the row was last written, or null without one.
+     * The date the Drafts list shows: lastAt is the conversation's, which a
+     * draft does not move, so a reply written just now read "last week".
+     */
+    public ?\DateTimeImmutable $draftAt;
+
+    /**
      * @param list<ThreadRowMessage> $messages  oldest first
      * @param string                 $snippet   MessageSnippet of the latest message
      * @param bool                   $encrypted whether the latest message is encrypted:
@@ -35,12 +51,21 @@ final readonly class ThreadRow
      * @param bool                   $narrowed  whether $messages leaves out the other
      *                                          side of a partly deleted conversation
      *                                          (App\Service\Mail\BinView)
+     * @param list<AttachmentChip>   $attachments the files on those messages, for a
+     *                                          row that names them (#608); empty
+     *                                          when the row only needs to know
+     *                                          there are some — see ThreadRows
+     * @param bool                   $emailPinned whether an email of the conversation
+     *                                          is pinned on its own (#615), which pins
+     *                                          the conversation in the conversation list
      */
     public function __construct(
         public array $messages,
         public string $snippet,
         public bool $encrypted = false,
         public bool $narrowed = false,
+        public array $attachments = [],
+        public bool $emailPinned = false,
     ) {
         $this->latest = [] === $messages ? null : $messages[count($messages) - 1];
 
@@ -48,10 +73,15 @@ final readonly class ThreadRow
         $unread         = false;
         $hasAttachments = false;
         $lastAt         = null;
+        $draftAt        = null;
 
         foreach ($messages as $message) {
             if ($message->isDraft) {
                 $draft = $message;
+
+                if (null === $draftAt || $message->writtenAt() > $draftAt) {
+                    $draftAt = $message->writtenAt();
+                }
             }
 
             $unread         = $unread || $message->unread;
@@ -67,5 +97,21 @@ final readonly class ThreadRow
         $this->unread         = $unread;
         $this->hasAttachments = $hasAttachments;
         $this->lastAt         = $lastAt;
+        $this->replied        = self::repliedTo($messages);
+        $this->draftAt        = $draftAt;
+    }
+
+    /** @param list<ThreadRowMessage> $messages */
+    private static function repliedTo(array $messages): bool
+    {
+        foreach (array_reverse($messages) as $message) {
+            if (true === $message->isDraft) {
+                continue;
+            }
+
+            return $message->filedAsSent || $message->answered;
+        }
+
+        return false;
     }
 }

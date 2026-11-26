@@ -7,7 +7,7 @@ namespace App\Controller\Webhook;
 use App\Domain\Enum\Mail\SyncTrigger;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -205,7 +205,7 @@ final class GraphNotificationController extends AbstractController
             return null;
         }
 
-        if (true !== $account->isActive) {
+        if (true !== $account->mailEnabled) {
             return null;
         }
 

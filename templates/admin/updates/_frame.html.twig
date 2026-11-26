@@ -17,11 +17,7 @@ and mail keeps flowing whatever this page says.
 No auto-refresh: a check is a button, and the hourly one writes the same row
 this renders.
 #}
-{% set seg = 'grid grid-flow-col auto-cols-fr max-w-md rounded-pane border border-line overflow-hidden' %}
-{% set segText = 'flex h-full items-center justify-center px-2 py-1.5 text-center text-xs leading-tight text-ink-muted
-                  peer-checked:bg-accent peer-checked:text-accent-ink
-                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
-                  transition-colors' %}
+{% import '_partials/_segmented.html.twig' as seg %}
 {% set verdict = status ? status.verdict.value : null %}
 {% set latestLabel = status ? (status.latest.release ? status.latest.version : status.latest.version ~ ' · ' ~ status.latest.shortRevision) : null %}
 <turbo-frame id="admin-updates">
@@ -66,15 +62,13 @@ this renders.
                 <input type="hidden" name="_token" value="{{ csrf_token('admin_updates') }}">
                 <span class="block text-xs font-medium text-ink-muted" id="update-channel-label">{{ 'admin.updates.channel.label'|trans }}</span>
                 <div class="flex flex-wrap items-center gap-3">
-                    <div class="{{ seg }} flex-1 min-w-[16rem]" role="radiogroup" aria-labelledby="update-channel-label">
-                        {% for option in enum('App\\Domain\\Enum\\System\\UpdateChannel').cases %}
-                            <label class="cursor-pointer">
-                                <input type="radio" name="channel" value="{{ option.value }}" class="peer sr-only"
-                                       {{ option == channel ? 'checked' : '' }}>
-                                <span class="{{ segText }}">{{ ('admin.updates.channel.' ~ option.value ~ '.name')|trans }}</span>
-                            </label>
-                        {% endfor %}
-                    </div>
+                    {{ seg.control('channel', enum('App\\Domain\\Enum\\System\\UpdateChannel').cases|map(option => {
+                        value: option.value,
+                        label: ('admin.updates.channel.' ~ option.value ~ '.name')|trans,
+                    }), channel.value, {
+                        labelledby: 'update-channel-label',
+                        width:      'max-w-md flex-1 min-w-[16rem]',
+                    }) }}
                     <button type="submit"
                             class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-xs font-medium btn-quiet hover:bg-hover transition-colors cursor-pointer">
                         {{ 'admin.updates.channel.save'|trans }}

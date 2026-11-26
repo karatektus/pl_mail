@@ -61,6 +61,17 @@ Variables: sidebarCounts (the list's own, for the move menu's labels).
                     </button>
                 </li>
 
+                {# Pin (#654): two labels like the star, picked from the row's
+                   data-pinned. Posted through mail--message-row#perform, which
+                   sends a pin through assets/pin.js for the reminder and the
+                   move. #}
+                <li data-sheet-row>
+                    <button type="button" data-sheet-entry="pin" data-action="click->mail--action-sheet#run" class="{{ entry_class }}">
+                        <span data-sheet-when="pin"><i class="fa-solid fa-thumbtack rotate-45 pin-outline {{ icon_class }} mr-3" aria-hidden="true"></i><span>{{ 'thread_row.pin'|trans }}</span></span>
+                        <span data-sheet-when="unpin"><i class="fa-solid fa-thumbtack {{ icon_class }} mr-3" aria-hidden="true"></i><span>{{ 'thread_row.unpin'|trans }}</span></span>
+                    </button>
+                </li>
+
                 <li data-sheet-row class="relative">
                     <button type="button" data-sheet-entry="move" data-sheet-picker="move" data-action="click->mail--action-sheet#openPicker" class="{{ entry_class }}">
                         <i class="fa-solid fa-folder {{ icon_class }}" aria-hidden="true"></i>
@@ -99,7 +110,11 @@ Variables: sidebarCounts (the list's own, for the move menu's labels).
                         <span>{{ 'thread_row.actions.snooze'|trans }}</span>
                     </button>
                     <div data-sheet-picker-scope="snooze" class="absolute inset-0">
-                        <div class="absolute inset-0" data-controller="ui--dropdown">
+                        {# In the top layer and over the entry, kept on screen: with
+                           "Pick a date and time" unfolded (#342) the menu is taller
+                           than the room left under the entry at the foot of the
+                           sheet, and hung from it, ran off the bottom. #}
+                        <div class="absolute inset-0" data-controller="ui--dropdown" data-ui--dropdown-place-value="above">
                             <button type="button" tabindex="-1" aria-hidden="true"
                                     data-action="click->ui--dropdown#toggle"
                                     class="block w-full h-full invisible"></button>

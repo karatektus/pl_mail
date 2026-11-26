@@ -11,6 +11,7 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
+use App\Repository\Mail\MessageThread\MessageThreadSnoozeRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\ThreadSnoozeService;
 use Doctrine\DBAL\Connection;
@@ -80,6 +81,24 @@ final class WakeSnoozedCommandTest extends KernelTestCase
         self::assertContains(LabelRole::Inbox, $this->rolesOn($thread));
     }
 
+    /** An email snoozed on its own (#615) is woken by the same sweep, at its own time. */
+    public function testAnEmailSnoozedOnItsOwnComesBack(): void
+    {
+        $thread = $this->snoozedThread('+2 days');
+        $this->snoozeService->wake($thread);
+        $email = $thread->messages->first();
+
+        self::assertInstanceOf(Message::class, $email);
+
+        $this->snoozeService->snoozeEmails([$email], new \DateTimeImmutable('-5 minutes'));
+
+        $this->command->execute([]);
+
+        self::assertStringContainsString('Woke 1', $this->command->getDisplay());
+        self::assertNull($email->snoozedUntil);
+        self::assertContains(LabelRole::Inbox, $this->rolesOn($thread));
+    }
+
     /** The whole point of a wake time: before it, nothing happens. */
     public function testAThreadStillInTheFutureIsLeftAlone(): void
     {
@@ -139,7 +158,7 @@ final class WakeSnoozedCommandTest extends KernelTestCase
         $this->em->flush();
         $this->em->clear();
 
-        $due = $this->em->getRepository(MessageThread::class)->findDueSnoozed(new \DateTimeImmutable(), 1);
+        $due = self::getContainer()->get(MessageThreadSnoozeRepository::class)->findDueSnoozed(new \DateTimeImmutable(), 1);
 
         self::assertCount(1, $due);
         self::assertCount(2, $due[0]->messages);
@@ -216,7 +235,7 @@ final class WakeSnoozedCommandTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
         $this->em->flush();
 

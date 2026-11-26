@@ -29,6 +29,7 @@
 
     {# The glyphs live in a partial the account page's strip draws from too. #}
     {% import '_partials/_category_tab_glyphs.html.twig' as glyphs %}
+    {% import '_partials/_tab_unread_count.html.twig' as tabLinks %}
 
     {# Gmail's category colours for the "N new" pills — identity colour, not
        theme colour, which is why these are the fixed -600s under white text
@@ -190,14 +191,17 @@
                    opens it. Rendered by the server rather than set from script,
                    because the strip is morphed on every list refresh and a morph
                    drops any attribute the server did not render. #}
-                <a
-                    href="{{ path('app_mail_inbox', tabQuery|merge({tab: tabCase.value, inbox: unified_inbox.id})) }}"
-                    data-turbo-frame="inbox-list-frame"
-                    data-turbo-action="replace"
+                {# A box, not the link itself: the tab's link and its unread
+                   count's link sit side by side in it (#670), since one <a>
+                   cannot hold another. The tab link is stretched over the whole
+                   box, so a click anywhere but the count opens the tab as it
+                   always did. See _tab_unread_count.html.twig. #}
+                <div
+                    data-category-tab="{{ tabCase.value }}"
                     {% if false == isActive %}data-dnd-category="{{ tabCase.value }}"{% endif %}
                     {% if isActive %}data-ui--scroll-active-target="current"{% endif %}
                     title="{{ tabName }}"
-                    class="flex items-center gap-1.5 @xl:gap-2 px-2 @xl:px-4 py-1.5 min-h-12 @xl:min-h-14 font-medium border-b-2 -mb-px transition-colors shrink-0 {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
+                    class="relative flex items-center gap-1.5 @xl:gap-2 px-2 @xl:px-4 py-1.5 min-h-12 @xl:min-h-14 font-medium border-b-2 -mb-px transition-colors shrink-0 {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
                 >
                     {% if isActive %}
                         <svg class="w-4 h-4 @xl:w-5 @xl:h-5 shrink-0{{ unreadHere > 0 ? ' ' ~ iconTone : '' }}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
@@ -221,9 +225,18 @@
                                row sat past the edge, and what is off-screen
                                cannot say it holds unread mail. Hidden from
                                sight only: the name is still what a screen
-                               reader announces, and the link carries it as a
-                               title. #}
-                            <span class="{{ isActive ? '' : 'sr-only @md:not-sr-only' }}">{{ tabName }}</span>
+                               reader announces, and the tab carries it as a
+                               title. The span is what hides, not the link:
+                               `sr-only` would clip the link's stretched
+                               `::after`, and the glyph would stop opening
+                               the tab. #}
+                            <a href="{{ path('app_mail_inbox', tabQuery|merge({tab: tabCase.value, inbox: unified_inbox.id})) }}"
+                               data-turbo-frame="inbox-list-frame"
+                               data-turbo-action="replace"
+                               data-category-tab-link
+                               {% if isActive %}aria-current="page"{% endif %}
+                               class="{{ tabLinks.tab_link_classes() }}"
+                            ><span class="{{ isActive ? '' : 'sr-only @md:not-sr-only' }}">{{ tabName }}</span></a>
 
                             {# How many conversations here hold unread mail —
                                the number the sidebar's Inbox badge adds up,
@@ -255,14 +268,18 @@
                                `--tab-unread-display`, read by the
                                `[data-tab-unread]` rule in app.css. It is still
                                rendered and still patched, so switching it back
-                               on shows the right figure at once. #}
+                               on shows the right figure at once.
+
+                               A link to this tab's unread mail (#670), as the
+                               sidebar's counts are to theirs. `unread: 1` on
+                               top of what the tab link carries, so a search or
+                               another filter survives into it the same way. #}
                             {% set unreadCount = tab_unread[tabCase.value]|default(0) %}
-                            <span class="ml-1 @xl:ml-1.5 text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 bg-accent text-accent-ink{{ unreadCount > 0 ? '' : ' hidden' }}"
-                                  data-tab-unread
-                                  data-count-key="category:{{ tabCase.value }}"
-                                  data-label-template="{{ 'sidebar.badge.unread'|trans }}"
-                                  aria-label="{{ 'sidebar.badge.unread'|trans({ '%count%': unreadCount }) }}"
-                            >{{ unreadCount }}</span>
+                            {{ tabLinks.tab_unread_count(
+                                unreadCount,
+                                path('app_mail_inbox', tabQuery|merge({tab: tabCase.value, inbox: unified_inbox.id, unread: 1})),
+                                'category:' ~ tabCase.value,
+                            ) }}
 
                             {# "3 new", the Gmail way: what arrived here that
                                you have never seen — a different question from
@@ -299,7 +316,7 @@
                         >{{ senderNames }}</span>
                         </span>
                     </span>
-                </a>
+                </div>
             {% endfor %}
 
             {# The categories nothing is in yet.

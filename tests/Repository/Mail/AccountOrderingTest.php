@@ -6,7 +6,7 @@ namespace App\Tests\Repository\Mail;
 
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -111,7 +111,7 @@ final class AccountOrderingTest extends KernelTestCase
     public function testTheSidebarListsOnlyActiveAccountsWithoutChangingTheOrder(): void
     {
         $this->account('sven@example.test', sortOrder: 1);
-        $this->account('uptime@example.test', sortOrder: 2, isActive: false);
+        $this->account('uptime@example.test', sortOrder: 2, mailEnabled: false);
         $this->account('pmd@example.test', sortOrder: 3);
 
         self::assertSame(
@@ -141,7 +141,7 @@ final class AccountOrderingTest extends KernelTestCase
         return $emails;
     }
 
-    private function account(string $email, int $sortOrder = 0, bool $isActive = true): Account
+    private function account(string $email, int $sortOrder = 0, bool $mailEnabled = true): Account
     {
         $account = new Account();
         $account->usr            = $this->user;
@@ -155,7 +155,7 @@ final class AccountOrderingTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password       = 'x';
         $account->authType       = 'password';
-        $account->isActive       = $isActive;
+        $account->mailEnabled    = $mailEnabled;
         $account->sortOrder      = $sortOrder;
 
         $this->em->persist($account);

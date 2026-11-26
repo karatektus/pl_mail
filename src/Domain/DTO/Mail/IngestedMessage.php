@@ -18,7 +18,7 @@ use App\Entity\Mail\Message;
  * that carried the bytes.
  *
  * rawSource is the original RFC822 bytes when the caller already has them.
- * IMAP does — webklex keeps them after parsing — so they are written to disk in
+ * IMAP does — the parsed message keeps them — so they are written to disk in
  * the pipeline, once the row has an id. Gmail and Graph would need a second API
  * call, so they pass null and RawMessageResolver fetches lazily on first use.
  */

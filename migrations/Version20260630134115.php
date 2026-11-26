@@ -14,7 +14,7 @@ final class Version20260630134115 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Record how a thread was formed and its normalised subject';
     }
 
     public function up(Schema $schema): void

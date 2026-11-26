@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Infrastructure\ImapClient\ImapLoop;
-use App\Service\Imap\ImapConnector;
-use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Repository\Mail\Mailbox\MailboxRepository;
+use App\Repository\Mail\Message\MessageImapRepository;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapCopies;
 use App\Service\Imap\MailboxSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessageEraser;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -253,7 +253,7 @@ final class MailboxUnselectableFolderTest extends KernelTestCase
             $this->em,
             $container->get(ImapConnector::class),
             $container->get(LabelResolver::class),
-            $container->get(MessageRepository::class),
+            self::getContainer()->get(MessageImapRepository::class),
             $container->get(MessageEraser::class),
             $container->get(ImapCopies::class),
             new NullLogger(),
@@ -316,7 +316,7 @@ final class MailboxUnselectableFolderTest extends KernelTestCase
         $account->smtpEncryption = 'starttls';
         $account->password = 'x';
         $account->authType = 'password';
-        $account->isActive = true;
+        $account->mailEnabled = true;
         $this->em->persist($account);
 
         $this->em->flush();

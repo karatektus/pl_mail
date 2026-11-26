@@ -32,9 +32,9 @@ test.beforeEach(() => {
 const SURFACES: ReadonlyArray<readonly [string, string]> = [
     ["inbox", "/mail/inbox"],
     ["settings", "/settings"],
-    ["settings: security", "/settings?section=security"],
-    ["settings: appearance", "/settings?section=appearance"],
-    ["settings: filters", "/settings?section=filters"],
+    ["settings: security", "/settings/security"],
+    ["settings: appearance", "/settings/appearance"],
+    ["settings: filters", "/settings/filters"],
     ["calendar", "/calendar"],
     ["search", "/mail/search?q=e2e"],
 ];

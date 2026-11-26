@@ -17,6 +17,9 @@ Accepts everything _event_modal.html.twig documents, plus:
             names are `title`, `startsAt` and `endsAt`; anything under `_` is a
             statement about the form as a whole and is shown only in the
             summary. Empty on the way in, filled on the way back.
+  color     the colour the failed save posted (#616), so the re-rendered
+            picker shows the user's pick rather than the stored one. Absent
+            on the way in.
 
 **Every value below is read from a variable rather than off `event`.** That is
 what makes the error re-render show what the user typed instead of what is
@@ -121,15 +124,27 @@ on an empty string, and clearing the location is a thing a user may mean.
             <label for="event-title" class="block text-xs text-ink-muted mb-1">
                 {{ 'calendar.event.title'|trans }}
             </label>
-            <input id="event-title" name="title" type="text" required autofocus
-                   value="{{ event_title }}"
-                   data-calendar--event-form-target="title"
-                   data-error-message="{{ 'calendar.event.error.title_required'|trans }}"
-                   {% if errors.title is defined %}aria-invalid="true"{% endif %}
-                   aria-describedby="event-title-error"
-                   class="w-full rounded-lg border bg-sunken px-3 py-2 text-sm text-ink
-                          focus:outline-none focus:ring-2 focus:ring-accent
-                          {{ errors.title is defined ? 'border-danger' : 'border-line' }}">
+            {# The event's colour lives in the title field — see _event_color. The
+               calendar it falls back to is the first ticked one, which is the
+               calendar the chip is drawn on. #}
+            {% set chosen_copy = (copies|filter(c => c.isChosen)|first) ?: (copies|first) %}
+            {% embed 'calendar/_event_color.html.twig' with {
+                event:        event,
+                posted:       color is defined ? color : null,
+                calendar_hex: chosen_copy ? chosen_copy.calendar.color : '#2563eb',
+            } %}
+                {% block field %}
+                    <input id="event-title" name="title" type="text" required autofocus
+                           value="{{ event_title }}"
+                           data-calendar--event-form-target="title"
+                           data-error-message="{{ 'calendar.event.error.title_required'|trans }}"
+                           {% if errors.title is defined %}aria-invalid="true"{% endif %}
+                           aria-describedby="event-title-error"
+                           class="w-full rounded-lg border bg-sunken py-2 pl-11 pr-3 text-sm text-ink
+                                  focus:outline-none focus:ring-2 focus:ring-accent
+                                  {{ errors.title is defined ? 'border-danger' : 'border-line' }}">
+                {% endblock %}
+            {% endembed %}
             {# Referenced by aria-describedby whether or not it has anything in
                it: a describedby pointing at nothing is ignored, and pointing it
                at an element that appears later means the field never has to be
@@ -251,6 +266,7 @@ on an empty string, and clearing the location is a thing a user may mean.
                         <label class="flex items-center gap-2 text-sm
                                       {{ copy_refused ? 'text-ink-faint' : 'text-ink' }}">
                             <input type="checkbox" name="calendars[]" value="{{ copy.calendar.id }}"
+                                   data-color="{{ copy.calendar.color }}"
                                    {{ copy_refused ? 'disabled' : '' }}
                                    {{ copy.isChosen ? 'checked' : '' }}
                                    class="rounded border-line accent-accent focus:ring-accent">

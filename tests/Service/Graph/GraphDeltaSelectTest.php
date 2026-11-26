@@ -113,7 +113,7 @@ final class GraphDeltaSelectTest extends KernelTestCase
         $account->oauthProvider    = 'microsoft';
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new DateTimeImmutable('+1 day');
-        $account->isActive         = true;
+        $account->mailEnabled      = true;
 
         return $account;
     }

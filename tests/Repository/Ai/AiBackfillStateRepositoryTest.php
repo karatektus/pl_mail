@@ -6,7 +6,7 @@ namespace App\Tests\Repository\Ai;
 
 use App\Domain\Enum\Ai\BackfillPauseReason;
 use App\Domain\Enum\Ai\BackfillStatus;
-use App\Repository\Ai\AiBackfillStateRepository;
+use App\Repository\Ai\AiBackfillState\AiBackfillStateRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

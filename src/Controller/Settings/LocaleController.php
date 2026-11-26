@@ -48,6 +48,6 @@ final class LocaleController extends AbstractController
 
         $this->entityManager->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'general']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'region']);
     }
 }

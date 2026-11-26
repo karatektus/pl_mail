@@ -1,6 +1,7 @@
 {# templates/compose/_window.html.twig #}
 {% form_theme form '_layout/form/compose_theme.html.twig' %}
 {% import '_partials/_select.html.twig' as select %}
+{% import '_partials/_segmented.html.twig' as seg %}
 
 {#
 Renders in two places:
@@ -28,8 +29,10 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
    which conversation we're in, and which message we're answering. #}
 {% set params = ctx.urlParams %}
 
-{# Window-chrome button. Larger below md so it clears the 44px touch target. #}
-{% set hc = "w-9 h-9 md:w-7 md:h-7 flex items-center justify-center rounded-lg
+{# Window-chrome button. Larger below md so it clears the 44px touch target.
+   32px from md up, the size of every pane header's icon-btn (#678): it was
+   28px, and the dock's ↗ and × were the smallest of the app's three pairs. #}
+{% set hc = "w-9 h-9 md:w-8 md:h-8 flex items-center justify-center rounded-lg
              text-ink-muted hover:text-ink hover:bg-hover transition-colors shrink-0" %}
 {# Formatting-toolbar button: shrink-0 so it keeps its own width when the
    toolbar wraps onto a second row rather than being squeezed thin. #}
@@ -122,6 +125,10 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             a keystroke-level interaction and a network round trip inside it is
             a spinner where a signature should be. See signature_map(). #}
          data-compose--compose-signatures-value="{{ signature_map()|json_encode|e('html_attr') }}"
+         {# The default Bcc of every From option (#692), the same way and for
+            the same reason: changing From swaps the copies the old address
+            asked for for the ones the new one asks for. See default_bcc_map(). #}
+         data-compose--compose-default-bcc-value="{{ default_bcc_map()|json_encode|e('html_attr') }}"
          data-compose--compose-inline-value="{{ inline ? 'true' : 'false' }}"
          {# Encryption: see compose--encryption. Encrypted from the start when
             the draft is already sealed, or when it answers encrypted mail —
@@ -132,6 +139,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
          data-compose--encryption-sealed-value="{{ message.sealedDraft ? 'true' : 'false' }}"
          data-compose--encryption-sealed-draft-url-value="{{ message.sealedDraft and message.id ? path('app_compose_sealed_draft', { id: message.id }) : '' }}"
          data-compose--encryption-recipients-url-value="{{ path('app_contact_keys_recipients') }}"
+         data-compose--encryption-policy-url-value="{{ path('app_contact_keys_recipient_policy') }}"
          data-compose--encryption-raw-url-value="{{ path('app_mail_message_raw', { id: 0 })|replace({ '/0/': '/__ID__/' }) }}"
          data-compose--encryption-attachment-url-value="{{ path('app_mail_attachment', { id: 0 })|replace({ '/0': '/__ID__' }) }}?download=1"
          data-compose--encryption-sign-plain-value="{{ app.user.signPlainMail ? 'true' : 'false' }}"
@@ -160,6 +168,8 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              hasKey:         'compose.crypto.has_key'|trans,
              hasCertificate: 'compose.crypto.has_certificate'|trans,
              keyChanged:     'compose.crypto.key_changed'|trans,
+             policyLabel:    'compose.crypto.policy.label'|trans({ '%email%': '%email%' }),
+             policyFailed:   'compose.crypto.policy.failed'|trans,
          }|json_encode|e('html_attr') }}"
          {# 'forward' moves the caret to To, spares the quote-only body the
             empty-mail question, and is the case the quote-collapse setting
@@ -435,6 +445,14 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                     aria-labelledby="{{ form.vars.id }}_from_label"
                     data-compose--compose-target="accountSelect"
                     class="sr-only">
+                {# With no option selected a browser posts the first one, which
+                   is how #704 sent through an account the user never saw: the
+                   window opened on a token that was not among the options. An
+                   empty option in front, selected, posts nothing instead, and
+                   ComposeType refuses a send with no From. #}
+                {% if form.account.vars.value not in form.account.vars.choices|map(c => c.value) %}
+                    <option value="" selected></option>
+                {% endif %}
                 {% for choice in form.account.vars.choices %}
                     <option value="{{ choice.value }}"
                             {% if form.account.vars.value == choice.value %}selected{% endif %}>
@@ -505,9 +523,11 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                             class="flex-1 flex items-center justify-between gap-2 text-sm
                                    text-ink-soft text-left">
                         <span data-compose--compose-target="fromLabel" id="{{ form.vars.id }}_from_value" class="truncate">
-                            {% for choice in form.account.vars.choices %}
-                                {% if form.account.vars.value == choice.value %}{{ choice.label }}{% endif %}
-                            {% endfor %}
+                            {%- set from_label = null -%}
+                            {%- for choice in form.account.vars.choices -%}
+                                {%- if form.account.vars.value == choice.value %}{% set from_label = choice.label %}{% endif -%}
+                            {%- endfor -%}
+                            {{- from_label ?? ('compose.from_pick'|trans) -}}
                         </span>
                         <i class="fa-solid fa-chevron-down text-[10px] text-ink-faint shrink-0 transition-transform duration-150"
                            data-compose--compose-target="fromChevron"></i>
@@ -556,8 +576,12 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             {% endif %}
 
             {# ── Cc ───────────────────────────────────────────────── #}
+            {# Folded away until asked for — unless the draft already has a
+               Cc, as a mailto: link with `cc=` or a reopened draft does. A row
+               hidden over addresses that WILL be sent to is a recipient the
+               sender never saw. The same for Bcc, where it matters more. #}
             <div data-compose--compose-target="ccField"
-                 class="flex hidden items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
+                 class="flex {{ form.ccAddresses.vars.value is empty ? 'hidden' }} items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
                 <label for="{{ form.ccAddresses.vars.id }}"
                        id="{{ form.ccAddresses.vars.id }}_label"
                        class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">{{ 'compose.cc'|trans }}</label>
@@ -568,7 +592,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
 
             {# ── Bcc ──────────────────────────────────────────────── #}
             <div data-compose--compose-target="bccField"
-                 class="flex hidden items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
+                 class="flex {{ form.bccAddresses.vars.value is empty ? 'hidden' }} items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
                 <label for="{{ form.bccAddresses.vars.id }}"
                        id="{{ form.bccAddresses.vars.id }}_label"
                        class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">{{ 'compose.bcc'|trans }}</label>
@@ -1614,6 +1638,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                          style="order: {{ actionOrder.more }}">
                         <button type="button"
                                 data-action="click->ui--dropdown#toggle"
+                                data-compose--encryption-target="moreButton"
                                 title="{{ 'compose.more_options'|trans }}"
                                 aria-label="{{ 'compose.more_options'|trans }}"
                                 class="{{ ic }}"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></button>
@@ -1763,6 +1788,45 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
 
         <input type="hidden" name="{{ form.vars.full_name }}[_token]" value="{{ csrf_token('compose') }}">
         {{ form_end(form, { render_rest: false }) }}
+
+        {# ── Encryption per recipient (#703) ─────────────────────────────
+           Opened by the lock (toolbar or More options) and lifted over it by
+           compose--encryption: whether mail to each address is encrypted
+           from now on. Outside the form on purpose — its radios are saved on
+           their own (RecipientPolicies), and inside the form every autosave
+           would post them as fields the form does not have.
+
+           A dialog that needs no answer: it starts on what is stored, and a
+           click, a focus or an Escape anywhere else closes it. The rows are
+           cloned from the two templates, one per recipient. #}
+        <div data-compose--encryption-target="policyPanel" hidden
+             data-enter="rise"
+             data-testid="compose-encrypt-policy"
+             role="dialog" aria-labelledby="{{ frame }}-encrypt-policy-heading"
+             class="popover w-80 p-3">
+            <p id="{{ frame }}-encrypt-policy-heading" class="text-xs font-semibold text-ink">{{ 'compose.crypto.policy.heading'|trans }}</p>
+            <p class="mt-0.5 mb-2 text-[11px] text-ink-muted">{{ 'compose.crypto.policy.hint'|trans }}</p>
+            <ul data-compose--encryption-target="policyList" class="space-y-2"></ul>
+        </div>
+        <template data-compose--encryption-target="policyRow">
+            <li class="flex items-center justify-between gap-3">
+                <span data-policy-email class="min-w-0 truncate text-xs text-ink"></span>
+                {{ seg.control('encrypt-policy', [
+                    { value: 'always', label: 'compose.crypto.policy.on'|trans },
+                    { value: 'never',  label: 'compose.crypto.policy.off'|trans },
+                    { value: 'auto',   label: 'compose.crypto.policy.auto'|trans },
+                ], 'auto', {
+                    width:  'w-36',
+                    action: 'change->compose--encryption#setPolicy',
+                }) }}
+            </li>
+        </template>
+        <template data-compose--encryption-target="policyNoKey">
+            <li class="flex items-center justify-between gap-3">
+                <span data-policy-email class="min-w-0 truncate text-xs text-ink"></span>
+                <span class="shrink-0 text-[11px] text-ink-faint">{{ 'compose.crypto.policy.no_key'|trans }}</span>
+            </li>
+        </template>
 
     </div>
 </turbo-frame>

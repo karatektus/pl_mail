@@ -6,7 +6,7 @@ namespace App\Service\OAuth;
 
 use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Integration\MailProviderConfig;
-use App\Repository\Integration\MailProviderConfigRepository;
+use App\Repository\Integration\MailProviderConfig\MailProviderConfigRepository;
 use League\OAuth2\Client\Provider\AbstractProvider;
 use League\OAuth2\Client\Provider\Google;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;

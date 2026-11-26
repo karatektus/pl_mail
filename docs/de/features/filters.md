@@ -1,4 +1,4 @@
-<!-- translated-from: features/filters.md sha1:6a1ff890e6c0bf78040b983d8cc6aba62e84b44a -->
+<!-- translated-from: features/filters.md sha1:e0c61f36acf747367c92f3833295b54e66345d40 -->
 
 # Filter
 
@@ -247,7 +247,9 @@ Filter sagt.
 Würden zwei Filter dieselbe Nachricht ablegen, entscheidet der, der **zuletzt** läuft; **Nach
 diesem Filter aufhören** beim früheren ist der Weg, seine Wahl zu behalten.
 
-Einen Tab zu löschen legt seine Mail in den Tab zurück, in dem sie sonst läge. Es wird keine Mail
+Einen Tab zu löschen legt seine Mail in den Tab zurück, in dem sie sonst läge. Der Tab verschwindet
+sofort; die Unterhaltungen eines großen Tabs zurückzulegen dauert eine Weile und läuft im Hintergrund,
+angezeigt unter **Hintergrundarbeit** in der oberen Leiste. Es wird keine Mail
 gelöscht, und ein Filter, der dort ablegte, behält seinen Platz und liest **(gelöschte Kategorie)**,
 bis du ihn auf etwas anderes zeigen lässt.
 

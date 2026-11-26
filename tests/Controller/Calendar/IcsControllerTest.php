@@ -6,12 +6,17 @@ namespace App\Tests\Controller\Calendar;
 
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Domain\Enum\Integration\Provider;
+use App\Domain\Enum\Job\JobKind;
+use App\Domain\Enum\Job\JobState;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
+use App\Entity\Job\BackgroundJob;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
-use App\Repository\Calendar\CalendarRepository;
-use App\Repository\Integration\IntegrationRepository;
+use App\Infrastructure\Messaging\Handler\ImportCalendarHandler;
+use App\Infrastructure\Messaging\Message\ImportCalendarMessage;
+use App\Repository\Calendar\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\DBAL\Connection;
@@ -157,6 +162,10 @@ final class IcsControllerTest extends WebTestCase
         $this->importFile($client, $this->twoEvents());
 
         self::assertResponseIsSuccessful();
+        self::assertCount(0, $this->events->findBy(['calendar' => $this->calendar]), 'the request imported it itself (#672)');
+
+        $this->runImport();
+
         self::assertCount(2, $this->events->findBy(['calendar' => $this->calendar]));
 
         $standup = $this->events->findOneByUid($this->calendar, 'meeting-1');
@@ -323,6 +332,26 @@ final class IcsControllerTest extends WebTestCase
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
+
+    /**
+     * What the bulk worker does with the import the request queued: the
+     * newest ImportCalendar job of this user, handed to its handler.
+     */
+    private function runImport(): void
+    {
+        $job = $this->em->getRepository(BackgroundJob::class)->findOneBy(
+            ['usr' => $this->user, 'kind' => JobKind::ImportCalendar],
+            ['id' => 'DESC'],
+        );
+
+        self::assertNotNull($job, 'no import was queued');
+
+        (static::getContainer()->get(ImportCalendarHandler::class))(new ImportCalendarMessage((int) $job->id));
+
+        $this->em->clear();
+
+        self::assertSame(JobState::Done, $this->em->find(BackgroundJob::class, $job->id)?->state);
+    }
 
     private function importFile(KernelBrowser $client, string $contents, ?Calendar $calendar = null): void
     {

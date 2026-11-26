@@ -14,7 +14,7 @@ final class Version20260723120515 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Add per-user appearance settings';
     }
 
     public function up(Schema $schema): void

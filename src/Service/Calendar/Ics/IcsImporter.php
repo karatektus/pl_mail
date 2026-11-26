@@ -13,7 +13,7 @@ use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
-use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\Sync\CalDav\CalDavEventConverter;
 use Psr\Log\LoggerInterface;
@@ -78,6 +78,9 @@ use Psr\Log\LoggerInterface;
  */
 final readonly class IcsImporter
 {
+    /** Meetings between two progress reports, when somebody is listening. */
+    private const int PROGRESS_EVERY = 100;
+
     public function __construct(
         private IcsDocumentReader       $reader,
         private CalDavEventConverter    $converter,
@@ -88,29 +91,63 @@ final readonly class IcsImporter
     }
 
     /**
-     * @param string $ics the uploaded file's bytes
+     * Whether this file can go onto this calendar at all: the calendar accepts
+     * writes and the bytes are a calendar. The request asks this before it
+     * hands the import to a worker (#672), so a wrong file or a read-only
+     * calendar is still answered inside the dialog, where the person holding
+     * the file can do something about it.
+     *
+     * @throws CalendarSyncException as import() does
+     */
+    public function check(Calendar $calendar, string $ics): void
+    {
+        $this->assertWritable($calendar);
+        $this->reader->read($ics);
+    }
+
+    /**
+     * @param string                             $ics      the uploaded file's bytes
+     * @param (callable(int, int): void)|null    $progress told (done, total) before the first
+     *                                                     meeting and every PROGRESS_EVERY after
      *
      * @throws CalendarSyncException when the bytes are not a calendar at all,
      *                               or the target does not accept writes —
      *                               both carry a sentence written for the
      *                               person who pressed the button
      */
-    public function import(Calendar $calendar, User $user, string $ics): IcsImportResult
+    public function import(Calendar $calendar, User $user, string $ics, ?callable $progress = null): IcsImportResult
     {
-        if (true === $calendar->isReadOnly) {
-            throw new CalendarSyncPermanentException(
-                'This calendar is a read-only mirror, so nothing can be added to it. Choose another calendar.',
-            );
-        }
+        $this->assertWritable($calendar);
 
         $document = $this->reader->read($ics);
+
+        // Listed up front for the total a progress bar needs. Keyed by UID,
+        // which is what the loop below reads anyway.
+        $resources = [];
+
+        foreach ($this->reader->resources($document) as $uid => $resource) {
+            $resources[$uid] = $resource;
+        }
+
+        $total = count($resources);
+        $done  = 0;
+
+        if (null !== $progress) {
+            $progress(0, $total);
+        }
 
         $imported = 0;
         $updated  = 0;
         $elsewhere = 0;
         $skipped  = 0;
 
-        foreach ($this->reader->resources($document) as $uid => $resource) {
+        foreach ($resources as $uid => $resource) {
+            if (null !== $progress && 0 < $done && 0 === $done % self::PROGRESS_EVERY) {
+                $progress($done, $total);
+            }
+
+            ++$done;
+
             // The UID is the resource id here, and legitimately so: a file has
             // no addresses in it, and the UID is the only name every component
             // in the group shares. Null etag, because a file has no version
@@ -141,10 +178,23 @@ final readonly class IcsImporter
             null === $existing ? ++$imported : ++$updated;
         }
 
+        if (null !== $progress) {
+            $progress($total, $total);
+        }
+
         return new IcsImportResult($imported, $updated, $elsewhere, $skipped);
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    private function assertWritable(Calendar $calendar): void
+    {
+        if (true === $calendar->isReadOnly) {
+            throw new CalendarSyncPermanentException(
+                'This calendar is a read-only mirror, so nothing can be added to it. Choose another calendar.',
+            );
+        }
+    }
 
     /**
      * Whether this meeting is already on some other calendar of this user's.
@@ -207,7 +257,8 @@ final readonly class IcsImporter
         // import of the same file, which would then duplicate it.
         $event->uid = $remote->uid;
 
-        $isNew = null === $event->id;
+        $isNew  = null === $event->id;
+        $before = $this->writer->snapshot($event);
 
         $this->writer->write(
             event:             $event,
@@ -236,9 +287,13 @@ final readonly class IcsImporter
         // where an import usually lands — but importing into a writable mirror
         // has to reach the provider, or the events exist here alone until the
         // next full read quietly deletes them again.
+        //
+        // An update only when the document changed something: a CalDAV client
+        // PUTs an event back when its reminder is dismissed, and that echo must
+        // not become a push.
         true === $isNew
             ? $this->writer->markLocallyCreated($event)
-            : $this->writer->markLocallyChanged($event);
+            : $this->writer->markLocallyChangedIfChanged($event, $before);
 
         return true;
     }

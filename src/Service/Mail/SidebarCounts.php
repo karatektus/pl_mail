@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Jmap\State\ChangeLogRepository;
+use App\Repository\Jmap\ChangeLog\ChangeLogRepository;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\SidebarRow;
 use App\Entity\Label\Label;
@@ -12,11 +12,14 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\UnifiedInbox;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
-use App\Repository\Label\LabelBindingRepository;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageSendRepository;
+use App\Repository\Mail\MessageThread\MessageThreadSnoozeRepository;
+use App\Repository\Mail\Message\MessageListBadgeRepository;
+use App\Repository\Mail\MessageThread\MessageThreadBadgeRepository;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -87,6 +90,9 @@ class SidebarCounts implements ResetInterface
     /** @var array<int, array<int, true>> label id => (account id => it has a binding there that is not a folder) */
     private array $tagInUseOn = [];
 
+    /** @var array<int, array<int, Account>> label id => (account id => the account, for every binding it has) */
+    private array $boundOn = [];
+
     /**
      * Worker-mode hygiene - see LogAlertGlobal::reset(), the sibling whose
      * staleness was actually caught in the wild.
@@ -114,18 +120,32 @@ class SidebarCounts implements ResetInterface
         $this->folders            = [];
         $this->folderOn           = [];
         $this->tagInUseOn         = [];
+        $this->boundOn            = [];
         $this->inboxUnread        = null;
     }
 
     public function __construct(
-        private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageThreadBadgeRepository $messageThreadBadgeRepository,
+        private readonly MessageThreadSnoozeRepository $messageThreadSnoozeRepository,
         private readonly LabelRepository         $labelRepository,
         private readonly Security                $security,
         private readonly ChangeLogRepository     $changeLog,
-        private readonly MessageRepository       $messages,
+        private readonly MessageSendRepository $messageSendRepository,
         private readonly LabelBindingRepository  $bindings,
         private readonly UnifiedInboxes          $inboxes,
+        private readonly MailLists               $lists,
+        private readonly MessageListBadgeRepository $emailBadges,
     ) {}
+
+    /**
+     * Where the unread badges are counted: in conversations, or in emails
+     * for somebody with conversation view off (#615) — the unit of the list
+     * each badge opens.
+     */
+    private function badgeCounts(UserInterface $user): MessageThreadBadgeRepository|MessageListBadgeRepository
+    {
+        return $user instanceof User && false === $user->conversationView ? $this->emailBadges : $this->messageThreadBadgeRepository;
+    }
 
     /** @var array<int, int>|null account id => conversations holding unread mail in its Inbox */
     private ?array $inboxUnread = null;
@@ -176,7 +196,7 @@ class SidebarCounts implements ResetInterface
             return $this->forRole(LabelRole::Inbox);
         }
 
-        $this->inboxUnread ??= $this->threadRepository->countUnreadInboxPerAccount($user);
+        $this->inboxUnread ??= $this->badgeCounts($user)->countUnreadInboxPerAccount($user);
 
         $count = 0;
 
@@ -223,7 +243,7 @@ class SidebarCounts implements ResetInterface
 
     /**
      * The visible labels materialised on one account, for the folder list the
-     * sidebar renders inline when that account is the expanded one.
+     * sidebar renders inline when that account is expanded.
      *
      * The same read MailController::accountFolders does, which still serves
      * the list when another account is expanded by hand. This exists so the
@@ -310,6 +330,36 @@ class SidebarCounts implements ResetInterface
         return isset($this->tagInUseOn[(int) $label->id][(int) $account->id]);
     }
 
+    /**
+     * Every account this label is on — has a binding on, folder or tag — in
+     * the order the bindings were read.
+     *
+     * For labels listed by account (#690): a label on more than one account is
+     * marked as shared under each of them, because renaming or deleting it
+     * there reaches the others too unless it is renamed for that account
+     * alone. Out of the same one read as the folder marks.
+     *
+     * @return list<Account>
+     */
+    public function accountsOf(Label $label): array
+    {
+        $this->loadFolders();
+
+        return array_values($this->boundOn[(int) $label->id] ?? []);
+    }
+
+    /**
+     * Whether this label is on any account at all. A label made in plMail and
+     * never used is on none, and with labels listed by account the LABELS
+     * section keeps those, or they would be nowhere (LabelKinds::inLabels()).
+     */
+    public function isOnAnyAccount(Label $label): bool
+    {
+        $this->loadFolders();
+
+        return isset($this->boundOn[(int) $label->id]);
+    }
+
     private function loadFolders(): void
     {
         if (null !== $this->folderAccounts) {
@@ -320,6 +370,7 @@ class SidebarCounts implements ResetInterface
         $this->folders        = [];
         $this->folderOn       = [];
         $this->tagInUseOn     = [];
+        $this->boundOn        = [];
         $user                 = $this->security->getUser();
 
         foreach (null === $user ? [] : $this->bindings->findForUser($user) as $binding) {
@@ -329,6 +380,8 @@ class SidebarCounts implements ResetInterface
             if (null === $account || null === $label) {
                 continue;
             }
+
+            $this->boundOn[(int) $label->id][(int) $account->id] = $account;
 
             if (null === $binding->mailbox && null === $binding->graphFolderId) {
                 $this->tagInUseOn[(int) $label->id][(int) $account->id] = true;
@@ -365,7 +418,7 @@ class SidebarCounts implements ResetInterface
 
             $this->accountLabelCounts[$accountId] = null === $user
                 ? []
-                : $this->threadRepository->countUnreadPerUserLabel($user, $account);
+                : $this->badgeCounts($user)->countUnreadPerUserLabel($user, $account);
         }
 
         return $this->accountLabelCounts[$accountId][(int) $label->id] ?? 0;
@@ -463,7 +516,7 @@ class SidebarCounts implements ResetInterface
 
             $this->roleTotals[$key] = null === $user
                 ? 0
-                : $this->threadRepository->countForRole($user, $role);
+                : $this->lists->for($user)->countForRole($user, $role);
         }
 
         return $this->roleTotals[$key];
@@ -477,7 +530,7 @@ class SidebarCounts implements ResetInterface
             if (null === $user) {
                 $this->roleCounts = [];
             } else {
-                $this->roleCounts = $this->threadRepository->countUnreadPerRole($user);
+                $this->roleCounts = $this->badgeCounts($user)->countUnreadPerRole($user);
             }
         }
 
@@ -508,17 +561,25 @@ class SidebarCounts implements ResetInterface
 
     /**
      * The LABELS heading's own number, shown only while that section is
-     * collapsed — see MessageThreadRepository::countUnreadInUserLabels() for
+     * collapsed — see MessageThreadBadgeRepository::countUnreadInUserLabels() for
      * why it is not the sum of the rows it stands in for.
+     *
+     * Zero, without asking, while labels are listed by account (#690). LABELS
+     * then holds only labels that are on no account, and no mail carries one
+     * of those: putting a label on mail binds it to that mail's account
+     * (LabelResolver::usedAsTagOn()), and Version20261105170000 wrote the
+     * bindings for mail tagged before that. Counted as before, the collapsed
+     * heading showed every labelled unread conversation of every account
+     * while the section under it held none of them.
      */
     public function unreadInLabels(): int
     {
         if (null === $this->labelsUnread) {
             $user = $this->security->getUser();
 
-            $this->labelsUnread = null === $user
+            $this->labelsUnread = null === $user || ($user instanceof User && true === $user->labelsByAccount)
                 ? 0
-                : $this->threadRepository->countUnreadInUserLabels($user);
+                : $this->badgeCounts($user)->countUnreadInUserLabels($user);
         }
 
         return $this->labelsUnread;
@@ -535,7 +596,7 @@ class SidebarCounts implements ResetInterface
             $user = $this->security->getUser();
 
             $this->unsentDrafts = $user instanceof User
-                ? $this->messages->countUnsentDraftsForUser($user)
+                ? $this->messageSendRepository->countUnsentDraftsForUser($user)
                 : 0;
         }
 
@@ -550,7 +611,7 @@ class SidebarCounts implements ResetInterface
             if (null === $user) {
                 $this->starredCount = 0;
             } else {
-                $this->starredCount = $this->threadRepository->countUnreadForStarred($user);
+                $this->starredCount = $this->badgeCounts($user)->countUnreadForStarred($user);
             }
         }
 
@@ -568,7 +629,7 @@ class SidebarCounts implements ResetInterface
 
             $this->unreadCount = null === $user
                 ? 0
-                : $this->threadRepository->countForUnread($user);
+                : $this->lists->for($user)->countForUnread($user);
         }
 
         return $this->unreadCount;
@@ -651,7 +712,7 @@ class SidebarCounts implements ResetInterface
 
             $this->snoozedCount = null === $user
                 ? 0
-                : $this->threadRepository->countSnoozedForUser($user);
+                : $this->messageThreadSnoozeRepository->countSnoozedForUser($user);
         }
 
         return $this->snoozedCount > 0;
@@ -890,7 +951,7 @@ class SidebarCounts implements ResetInterface
         if (null === $user) {
             $this->labelCounts = [];
         } else {
-            $this->labelCounts = $this->threadRepository->countUnreadPerUserLabel($user);
+            $this->labelCounts = $this->badgeCounts($user)->countUnreadPerUserLabel($user);
         }
     }
 

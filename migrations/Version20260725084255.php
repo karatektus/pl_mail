@@ -14,7 +14,7 @@ final class Version20260725084255 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Delete labels with their account';
     }
 
     public function up(Schema $schema): void

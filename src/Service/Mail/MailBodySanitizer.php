@@ -6,8 +6,10 @@ namespace App\Service\Mail;
 
 use App\Domain\Helper\CharsetHelper;
 use App\Entity\Mail\Message;
+use Dom\HTMLDocument;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
+use Symfony\Component\HtmlSanitizer\HtmlSanitizerAction;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -38,6 +40,22 @@ final readonly class MailBodySanitizer
      * around 102 KB).
      */
     private const int MAX_INPUT_LENGTH = 2_000_000;
+
+    /**
+     * Elements the allow-list need not name for containsElementOutside() to
+     * call a body unaffected.
+     *
+     * The void elements have no content, so dropping one and unwrapping it
+     * come out the same; `<meta>` alone is in nearly every mail and would
+     * otherwise make the check say yes to all of them. `html`, `head` and
+     * `body` never reach the sanitizer as elements: it parses the input as
+     * the content of a `<body>`, where the parser ignores those three tags.
+     */
+    private const array CONTENTLESS_ELEMENTS = [
+        'area', 'base', 'basefont', 'bgsound', 'br', 'col', 'embed', 'frame', 'hr', 'image', 'img',
+        'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr',
+        'html', 'head', 'body',
+    ];
 
     /**
      * The attributes a body composed in plMail is allowed to keep, on top of
@@ -105,7 +123,7 @@ final readonly class MailBodySanitizer
         $html = CharsetHelper::retagHtmlAsUtf8($html);
         $html = $this->resolveCids($html, $message);
         $html = $this->inlineStyles($html);
-        $html = $this->buildSanitizer()->sanitize($html);
+        $html = $this->buildSanitizer()->sanitize(self::withoutStyleSheets($html));
 
         $message->bodyHtmlSafe = $html;
     }
@@ -136,7 +154,7 @@ final readonly class MailBodySanitizer
             return '';
         }
 
-        return trim($this->buildSanitizer()->sanitize(CharsetHelper::retagHtmlAsUtf8($html)));
+        return trim($this->buildSanitizer()->sanitize(self::withoutStyleSheets(CharsetHelper::retagHtmlAsUtf8($html))));
     }
 
     /**
@@ -178,7 +196,7 @@ final readonly class MailBodySanitizer
         }
 
         return trim($this->restoreCidReferences(
-            $this->buildComposeSanitizer()->sanitize($this->unfoldQuotes(CharsetHelper::retagHtmlAsUtf8($html))),
+            $this->buildComposeSanitizer()->sanitize(self::withoutStyleSheets($this->unfoldQuotes(CharsetHelper::retagHtmlAsUtf8($html)))),
         ));
     }
 
@@ -357,6 +375,85 @@ final readonly class MailBodySanitizer
         }
     }
 
+    /**
+     * Every element name the allow-list has an answer for (allow, unwrap or
+     * drop), plus the ones without content: what containsElementOutside()
+     * measures a body against.
+     *
+     * Read from the configuration itself rather than kept as a second list,
+     * so the two cannot drift apart. Asked for once per walk by its caller:
+     * this class is readonly and cannot keep it, and building the
+     * configuration clones it once per element.
+     *
+     * @return array<string, true>
+     */
+    public function knownElements(): array
+    {
+        $config = $this->allowList();
+        $known  = array_fill_keys(self::CONTENTLESS_ELEMENTS, true);
+
+        foreach ([$config->getAllowedElements(), $config->getBlockedElements(), $config->getDroppedElements()] as $elements) {
+            foreach (array_keys($elements) as $element) {
+                $known[strtolower($element)] = true;
+            }
+        }
+
+        return $known;
+    }
+
+    /**
+     * Whether the raw body has a tag the allow-list does not name — the mail
+     * an earlier sanitizer dropped content from, before unknown elements were
+     * unwrapped (#719).
+     *
+     * A look at the tag names, not a parse: it runs over every stored HTML
+     * body during the repair, and nearly all of them say no. It errs towards
+     * yes — a tag inside a comment, such as Outlook's `<v:roundrect>` in an
+     * `[if mso]` block, counts too — which costs a sanitise that changes
+     * nothing, never a body left blank.
+     *
+     * @param array<string, true> $known from knownElements()
+     */
+    public static function containsElementOutside(string $html, array $known): bool
+    {
+        if (0 === preg_match_all('/<([a-z][^\s\/>]*)/i', $html, $matches)) {
+            return false;
+        }
+
+        foreach ($matches[1] as $name) {
+            if (!isset($known[strtolower($name)])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Take out every `<style>` and `<title>` before the sanitizer sees them.
+     *
+     * Symfony ignores dropElement() for an element it counts as a `<head>`
+     * element when it sanitizes a body, and hands it to the default action
+     * instead. With unknown elements unwrapped (see allowList()) that action
+     * keeps their content, and a stylesheet in the body would be shown as
+     * text. A stylesheet is already on the elements by now, and a title is
+     * never part of the letter.
+     */
+    private static function withoutStyleSheets(string $html): string
+    {
+        if (1 !== preg_match('/<(?:style|title)\b/i', $html)) {
+            return $html;
+        }
+
+        $document = HTMLDocument::createFromString($html, LIBXML_NOERROR, 'UTF-8');
+
+        foreach (iterator_to_array($document->querySelectorAll('style, title')) as $element) {
+            $element->remove();
+        }
+
+        return $document->saveHtml();
+    }
+
     private function buildSanitizer(): HtmlSanitizer
     {
         return new HtmlSanitizer($this->allowList());
@@ -398,6 +495,12 @@ final readonly class MailBodySanitizer
         $config = new HtmlSanitizerConfig()
             // Structurally-safe baseline (text, lists, tables, …).
             ->allowSafeElements()
+            // An element the list does not name is unwrapped, not dropped.
+            // Symfony drops it by default, children and all, and Nayax wraps
+            // every mail it sends in a `<message>` element: the whole letter
+            // went and the body showed blank. What must never be read is
+            // dropped by name below instead.
+            ->defaultAction(HtmlSanitizerAction::Block)
             // Drop these entirely — content included — so nothing leaks as text.
             // <style> is redundant after inlining; the rest are never wanted.
             ->dropElement('head')
@@ -407,6 +510,14 @@ final readonly class MailBodySanitizer
             ->dropElement('iframe')
             ->dropElement('object')
             ->dropElement('embed')
+            // Content that is never shown: Outlook's settings block, inert
+            // templates, and the fallbacks for clients without scripts,
+            // plugins or frames. Unwrapped, they would read as stray text.
+            ->dropElement('xml')
+            ->dropElement('template')
+            ->dropElement('noscript')
+            ->dropElement('noembed')
+            ->dropElement('noframes')
             // A form is unwrapped, not dropped. Review requests put the whole
             // product card inside one — photo, name, star links — and dropping
             // the element took all of it with it (#271). The two controls whose

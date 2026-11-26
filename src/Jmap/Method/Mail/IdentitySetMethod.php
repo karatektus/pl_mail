@@ -14,7 +14,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Mail\EmailAliasRepository;
+use App\Repository\Mail\EmailAlias\EmailAliasRepository;
 use App\Service\Mail\SignatureProvider;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -32,9 +32,13 @@ use Doctrine\ORM\EntityManagerInterface;
  * `textSignature` is accepted as a convenience for clients that only offer a
  * plain-text field, and is escaped into HTML when it arrives without one.
  *
- * replyTo and bcc are still rejected rather than accepted-and-dropped: plMail
- * has nowhere to store them, and a client that thinks it saved a per-identity
- * Bcc would silently send mail without it.
+ * replyTo and bcc are still rejected rather than accepted-and-dropped. bcc is
+ * published since #692 (Identity/get reads the default Bcc set in Settings),
+ * but writing it is not taken yet: the setting has three states per address —
+ * inherit the account's list, a list of its own, deliberately none — and the
+ * spec's one `bcc` value cannot say which of the first and last a client
+ * meant. A client that thinks it saved a Bcc would otherwise send mail
+ * without it.
  */
 final class IdentitySetMethod implements JmapMethod
 {
@@ -351,7 +355,7 @@ final class IdentitySetMethod implements JmapMethod
             }
 
             throw new MethodException('invalidProperties', sprintf(
-                'Property "%s" is not supported; plMail stores no replyTo or bcc for an identity.',
+                'Property "%s" is not supported; plMail does not take replyTo or bcc for an identity (bcc is set in Settings).',
                 $property,
             ));
         }

@@ -10,7 +10,7 @@ use App\Entity\User\PushSubscription;
 use App\Entity\User\User;
 use App\Jmap\Push\PushEndpointPolicy;
 use App\Jmap\Push\WebPushSender;
-use App\Repository\User\PushSubscriptionRepository;
+use App\Repository\User\PushSubscription\PushSubscriptionRepository;
 use App\Service\Mail\NotifyScopes;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

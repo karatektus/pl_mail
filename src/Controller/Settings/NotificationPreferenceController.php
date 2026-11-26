@@ -54,7 +54,7 @@ final class NotificationPreferenceController extends AbstractController
 
         $em->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'notifications']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'notifications']);
     }
 
     /**

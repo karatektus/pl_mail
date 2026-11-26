@@ -17,7 +17,7 @@ use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Infrastructure\ImapClient\ImapFolder;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapFolderProvisioner;
 use App\Service\JmapClient\JmapMailboxWriter;

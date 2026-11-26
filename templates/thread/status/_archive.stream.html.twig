@@ -1,5 +1,9 @@
+{# The row that stays: the email's own in the email list (#615), else its
+   conversation's — an email archived from an open conversation redraws the
+   conversation's row. #}
+{% set rowItem = message is defined ? (app.user.conversationView ? message.thread : message) : thread %}
 {% if stays|default(false) %}
-<turbo-stream action="replace" target="thread_{{ message is defined ? message.thread.id : thread.id }}"><template>{% include '_partials/_thread_row.html.twig' with {thread: message is defined ? message.thread : thread, unified: unified|default(false)} %}</template></turbo-stream>
+<turbo-stream action="replace" target="thread_{{ rowItem.id }}"><template>{% include '_partials/_thread_row.html.twig' with {thread: rowItem, unified: unified|default(false)} %}</template></turbo-stream>
 {% else %}
 <turbo-stream action="remove" target="thread_{{ message is defined ? message.id : thread.id }}">
 </turbo-stream>

@@ -25,14 +25,14 @@ const cssVar = (page: Page, name: string) =>
 
 test.describe("density", () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         // Land on a known value whatever an earlier test left behind.
         await densityTile(page, "comfortable").click();
         await page.waitForTimeout(700);
     });
 
     test.afterEach(async ({ page }) => {
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await densityTile(page, "comfortable").click();
         await page.waitForTimeout(700);
     });
@@ -187,7 +187,7 @@ test.describe("density", () => {
         const count = await rows.count();
         expect(count).toBeGreaterThan(0);
 
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await densityTile(page, "comfortable").click();
         await expect.poll(() => cssVar(page, "--density-row-y")).toBe("0.5rem");
     });
@@ -217,31 +217,50 @@ test.describe("density", () => {
                     return el === null ? null : Math.round(el.getBoundingClientRect().height);
                 };
 
+                // A section heading is measured from the top of its section
+                // to the bottom of the heading. Since #733 the space above a
+                // heading is the section's padding (nav-section-y), not the
+                // heading's own, and the heading pads itself evenly with a
+                // fixed py-1 — so the heading alone is 24px at every density,
+                // and the part density moves sits just above it.
+                const section = (selector: string) => {
+                    const details = document.querySelector(selector);
+                    const summary = details?.querySelector(":scope > summary");
+
+                    return null == details || null == summary
+                        ? null
+                        : Math.round(summary.getBoundingClientRect().bottom - details.getBoundingClientRect().top);
+                };
+
                 return {
                     system: h('#sidebar a[data-also-open-at="/mail/inbox"]'),
-                    heading: h("#sidebar details.group\\/labels > summary"),
+                    heading: section('#sidebar details.group\\/section:has(> summary[aria-label="Labels"])'),
                     compose: h("#sidebar .compose-link"),
                 };
             });
         };
 
         // Comfortable is the geometry the file shipped with, to the pixel: a
-        // `py-2` row is 36px, a `pt-4 pb-1` heading is 48px, and the Compose
-        // button is a `py-2` row like the ones under it.
+        // `py-2` row is 36px, and the Compose button is a `py-2` row like the
+        // ones under it. A section heading is 36px from the section's top:
+        // 12px of section padding and a 24px heading. It was 48px until #733
+        // swapped the heading's 26px action buttons for 11px icons, which took
+        // its content row from 28px to 16px — measured, the same 12px at every
+        // density, so density still moves it 4px a step as it always did.
         const comfortable = await rows();
-        expect(comfortable).toEqual({ system: 36, heading: 48, compose: 36 });
+        expect(comfortable).toEqual({ system: 36, heading: 36, compose: 36 });
 
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await densityTile(page, "cosy").click();
         await page.waitForTimeout(700);
-        expect(await rows()).toEqual({ system: 32, heading: 44, compose: 32 });
+        expect(await rows()).toEqual({ system: 32, heading: 32, compose: 32 });
 
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await densityTile(page, "compact").click();
         await page.waitForTimeout(700);
 
         const compact = await rows();
-        expect(compact).toEqual({ system: 28, heading: 40, compose: 28 });
+        expect(compact).toEqual({ system: 28, heading: 28, compose: 28 });
 
         // Tighter, and still a row rather than a line of text: 28px is the
         // number reported for Compact's tap target on a fine pointer. Touch
@@ -268,7 +287,7 @@ test.describe("density", () => {
 
         const comfortable = await navHeight();
 
-        await page.goto("/settings?section=appearance");
+        await page.goto("/settings/appearance");
         await densityTile(page, "compact").click();
         await page.waitForTimeout(700);
 

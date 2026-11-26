@@ -7,7 +7,7 @@ namespace App\Service\Imap;
 use App\Domain\Interface\AccountSyncerInterface;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;

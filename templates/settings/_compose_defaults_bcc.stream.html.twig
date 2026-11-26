@@ -1,0 +1,28 @@
+{#
+After a Bcc chip was added or removed: the summary lines and the captions that
+quote the account's list, and nothing else — the chip field being typed in is
+left alone. See ComposeDefaultsController::bccResponse().
+
+Variables:
+  account  Account
+#}
+{% import 'settings/_compose_defaults_macros.html.twig' as summaries %}
+{% set accountBcc = account.getSetting('compose.bcc')|default([]) %}
+
+{% include '_partials/_toast.stream.html.twig' with { message: 'settings.compose_defaults.saved'|trans, type: 'success' } only %}
+
+<turbo-stream action="update" target="compose-defaults-summary-{{ account.id }}">
+    <template>{{ summaries.account_summary(account) }}</template>
+</turbo-stream>
+
+{% for alias in account.aliases %}
+    <turbo-stream action="update" target="compose-defaults-alias-summary-{{ alias.id }}">
+        <template>{{ summaries.alias_summary(account, alias) }}</template>
+    </turbo-stream>
+{% endfor %}
+
+<turbo-stream action="update" targets="[data-bcc-account-caption='{{ account.id }}']">
+    <template>{{ accountBcc is empty
+        ? 'settings.compose_defaults.bcc.per_address.account_none'|trans
+        : 'settings.compose_defaults.bcc.per_address.account_list'|trans({ '%addresses%': accountBcc|join(', ') }) }}</template>
+</turbo-stream>

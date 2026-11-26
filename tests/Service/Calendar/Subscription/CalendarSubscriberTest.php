@@ -15,7 +15,7 @@ use App\Entity\Integration\Integration;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\RegisterCalendarPushMessage;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
-use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Service\Calendar\Subscription\CalendarDiscoverer;
 use App\Service\Calendar\Subscription\CalendarSubscriber;
 use App\Tests\Support\Calendar\ScriptedCalendarSyncDriver;

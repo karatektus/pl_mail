@@ -9,7 +9,7 @@ use App\Controller\RendersTurboStreams;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Contacts\Contact;
 use App\Entity\User\User;
-use App\Repository\Contacts\ContactRepository;
+use App\Repository\Contacts\Contact\ContactRepository;
 use App\Service\Contacts\ContactManager;
 use App\Twig\AddressBookExtension;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

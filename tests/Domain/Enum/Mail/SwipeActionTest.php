@@ -18,6 +18,7 @@ use Symfony\Component\Yaml\Yaml;
  * it out for want of one). Purge must never join it: a full swipe with no tap in
  * front of it must not end in the one action nothing undoes. So the set below is
  * exact, and adding a case fails here until whoever adds it has reopened that.
+ * Pin joined in #654: a toggle like Star, which the next swipe takes back.
  *
  * Each rule is a match table with no default, so a case without a mapping is an
  * error at the match, and the tests below name the mapping they expect so a
@@ -28,13 +29,13 @@ final class SwipeActionTest extends KernelTestCase
     /** The locales the shipped catalogue carries; a key missing from one is a gap a user would see. */
     private const array LOCALES = ['de', 'en', 'en_PI', 'fr', 'zh_CN'];
 
-    public function testTheCaseSetIsExactlyTheFiveTheDesignAllows(): void
+    public function testTheCaseSetIsExactlyTheSixTheDesignAllows(): void
     {
         $names = array_map(static fn (SwipeAction $case): string => $case->name, SwipeAction::cases());
 
         // Presence first: a set compared on its own could pass for an empty enum.
         self::assertContains('ReadUnread', $names);
-        self::assertSame(['ReadUnread', 'Archive', 'Star', 'Trash', 'None'], $names);
+        self::assertSame(['ReadUnread', 'Archive', 'Star', 'Pin', 'Trash', 'None'], $names);
     }
 
     /** Trash moves to the bin; it never names the route that deletes for good. */
@@ -49,6 +50,7 @@ final class SwipeActionTest extends KernelTestCase
         self::assertSame('app_status_mark_read', SwipeAction::ReadUnread->route());
         self::assertSame('app_status_archive', SwipeAction::Archive->route());
         self::assertSame('app_status_star', SwipeAction::Star->route());
+        self::assertSame('app_status_pin', SwipeAction::Pin->route());
         self::assertSame('app_status_trash', SwipeAction::Trash->route());
         self::assertNull(SwipeAction::None->route());
     }
@@ -109,10 +111,12 @@ final class SwipeActionTest extends KernelTestCase
         foreach (SwipeAction::cases() as $action) {
             foreach ([true, false] as $unread) {
                 foreach ([true, false] as $starred) {
-                    $key = $action->labelKey($unread, $starred);
+                    foreach ([true, false] as $pinned) {
+                        $key = $action->labelKey($unread, $starred, $pinned);
 
-                    if (null !== $key) {
-                        $keys[$key] = true;
+                        if (null !== $key) {
+                            $keys[$key] = true;
+                        }
                     }
                 }
             }
@@ -125,6 +129,17 @@ final class SwipeActionTest extends KernelTestCase
                 self::assertTrue(self::catalogueHas($locale, $key), sprintf('"%s" is missing from messages.%s.yaml', $key, $locale));
             }
         }
+    }
+
+    /** Pin says which way the swipe goes, as Star does (#654). */
+    public function testPinIsAToggleWhoseLabelFollowsThePin(): void
+    {
+        self::assertTrue(SwipeAction::Pin->toggles());
+        self::assertSame('thread_row.pin', SwipeAction::Pin->labelKey(false, false, false));
+        self::assertSame('thread_row.unpin', SwipeAction::Pin->labelKey(false, false, true));
+        self::assertSame('fa-solid fa-thumbtack', SwipeAction::Pin->icon(false, false, true));
+        self::assertTrue(SwipeAction::Pin->needsNotADraft(), 'a draft is not pinned');
+        self::assertTrue(SwipeAction::Pin->needsOrdinaryPlacement(), 'the bin and spam take pins off');
     }
 
     public function testEveryDoingActionHasAnIcon(): void

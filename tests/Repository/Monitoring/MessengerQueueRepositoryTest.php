@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Repository\Monitoring;
 
-use App\Repository\Monitoring\MessengerQueueRepository;
+use App\Repository\Monitoring\MessengerQueue\MessengerQueueRepository;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 

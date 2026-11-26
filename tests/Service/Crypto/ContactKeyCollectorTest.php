@@ -16,7 +16,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\ContactKey\ContactKeyRepository;
 use App\Service\Crypto\Autocrypt;
 use App\Service\Crypto\ContactKeyCollector;
 use App\Service\Mail\RawMessageResolver;

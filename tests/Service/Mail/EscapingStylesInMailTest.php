@@ -51,16 +51,29 @@ final class EscapingStylesInMailTest extends TestCase
     }
 
     /**
-     * Mail that is only read keeps absolute positioning — real newsletters use
-     * it, and in the frame it can only rearrange the message. A body being
-     * composed is in the app's document, where "absolute" with no positioned
-     * ancestor means "against the page".
+     * An absolutely positioned box leaves the flow, so the text after it runs
+     * underneath. Scriptura-generated mail puts its header banner in one (#626).
      */
-    public function testAbsolutePositioningSurvivesReadingAndNotComposing(): void
+    public function testAnAbsoluteBannerDoesNotCoverTheTextBelowIt(): void
+    {
+        $body = '<table style="position: absolute; width: 100%"><tr><td>'
+            . '<div style="position: absolute; width: 595pt"><img src="https://example.com/b.jpg" style="display: block"></div>'
+            . '</td></tr></table><p>Beste,</p>';
+
+        $html = $this->sanitizer->sanitizeFragment($body);
+
+        self::assertStringNotContainsString('absolute', $html);
+        self::assertStringContainsString('width: 595pt', $html);
+        self::assertStringContainsString('display: block', $html);
+        self::assertStringContainsString('Beste,', $html);
+    }
+
+    /** `z-index` only matters where the message shares the app's document. */
+    public function testZIndexIsDroppedOnlyWhereTheMessageSharesTheAppDocument(): void
     {
         $body = '<div style="position:absolute; z-index: 99999; inset: 0">x</div>';
 
-        self::assertStringContainsString('absolute', $this->sanitizer->sanitizeFragment($body));
+        self::assertStringContainsString('z-index', $this->sanitizer->sanitizeFragment($body));
 
         $composed = $this->sanitizer->sanitizeComposedBody($body);
 

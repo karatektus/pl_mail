@@ -7,7 +7,7 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Infrastructure\Messaging\Message\DeleteRemoteContactMessage;
-use App\Repository\AddressBook\AddressBookRepository;
+use App\Repository\AddressBook\AddressBook\AddressBookRepository;
 use App\Service\AddressBook\AddressBookDriverRegistry;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -40,6 +40,15 @@ final readonly class DeleteRemoteContactHandler
 
         if (null === $book) {
             // Unsubscribed since: the book's cards are no longer ours to delete.
+            return;
+        }
+
+        if (false === $book->isActive()) {
+            // Contacts switched off, or the connection paused: nothing goes to
+            // the server while it is (#575). There is no row left to keep the
+            // delete pending on, so the card is still on the server, and the
+            // first pull after switching back on brings it back as a contact —
+            // the same outcome as a delete the server refused.
             return;
         }
 

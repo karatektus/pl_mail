@@ -14,7 +14,7 @@ final class Version20260717081504 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Store Gmail history and watch state on the account';
     }
 
     public function up(Schema $schema): void

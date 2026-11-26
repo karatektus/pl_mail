@@ -6,11 +6,11 @@ namespace App\Controller\Admin;
 
 use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
-use App\Repository\Insight\InsightReportRepository;
-use App\Repository\Monitoring\ClientErrorRepository;
-use App\Repository\Monitoring\LogEntryRepository;
-use App\Repository\Monitoring\LogSettingsRepository;
-use App\Repository\Monitoring\PostgresStatusRepository;
+use App\Repository\Insight\InsightReport\InsightReportRepository;
+use App\Repository\Monitoring\ClientError\ClientErrorRepository;
+use App\Repository\Monitoring\LogEntry\LogEntryRepository;
+use App\Repository\Monitoring\LogSettings\LogSettingsRepository;
+use App\Repository\Monitoring\PostgresStatus\PostgresStatusRepository;
 use App\Service\Demo\DemoMode;
 use App\Service\Monitoring\AdminMonitoringService;
 use App\Service\Monitoring\DbPerformanceService;
@@ -33,7 +33,7 @@ final class AdminDashboardController extends AbstractController
 {
     use ChecksCsrf;
 
-    private const array SECTIONS = ['system', 'performance', 'database', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'sso', 'ai', 'users', 'backup', 'updates', 'reset', self::SECTION_DEMO];
+    private const array SECTIONS = ['system', 'performance', 'database', 'backfills', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'sso', 'ai', 'sender-pictures', 'users', 'backup', 'updates', 'reset', self::SECTION_DEMO];
     private const string SECTION_DEMO = 'demo';
     private const int LOGS_PER_PAGE = 100;
 

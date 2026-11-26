@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Monitoring;
 
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use App\Repository\Monitoring\ProcessHeartbeatRepository;
+use App\Repository\Monitoring\ProcessHeartbeat\ProcessHeartbeatRepository;
 
 /**
  * Liveness policy for long-running processes: what counts as stale, per

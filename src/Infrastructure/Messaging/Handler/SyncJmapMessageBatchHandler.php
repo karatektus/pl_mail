@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Infrastructure\Messaging\Message\SyncJmapMessageBatchMessage;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\JmapClient\JmapEmailSyncer;
 use App\Service\Mail\SyncOrigin;
 use Psr\Log\LoggerInterface;
@@ -37,7 +37,7 @@ final readonly class SyncJmapMessageBatchHandler
         $this->origin->during($message->trigger ?? null, function () use ($message): void {
             $account = $this->accounts->find($message->accountId);
 
-            if (null === $account || true !== $account->isActive || false === $account->isJmap()) {
+            if (null === $account || true !== $account->mailEnabled || false === $account->isJmap()) {
                 $this->logger->info('SyncJmapMessageBatch: account gone, inactive or no longer JMAP', [
                     'accountId' => $message->accountId,
                 ]);

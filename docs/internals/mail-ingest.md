@@ -28,6 +28,14 @@ batches of 50 and hands the raw RFC822 bytes forward, because each message is fe
 (`BODY.PEEK[]`) and parsed from those bytes — which is why IMAP is the only path that stores the
 original for free.
 
+**One parser for every message that arrives as bytes.** IMAP, POP3, JMAP `Email/import`,
+decryption and the backfills that re-read a stored original all go through `MessageParser`, which
+wraps zbateson/mail-mime-parser and hands back plMail's own `ParsedMessage`. Two rules there are
+plMail's and not the library's: a body is converted from its bytes by `CharsetHelper` rather than
+by the charset its part declares, because that declaration is often wrong, and a nameless text part
+marked as an attachment in a message with no body of its type is read as the body. Until #82 this
+was webklex/php-imap, and each of its parsing mistakes had a correction of its own in the sync.
+
 **Gmail has no `Mailbox` rows at all.** `GmailApiSyncer` plans work directly on the account
 and fans out `SyncGmailMessageBatchMessage` jobs of 100 ids each, listing at the API's page
 size of 500. The account's `gmailHistoryId` is snapshotted *before* any message is fetched,
@@ -102,7 +110,10 @@ The two are separate now. A sync arranges for new mail to be seen and stops; the
   (`includeSpamTrash`), which `messages.list` otherwise leaves out and `messagesTotal` counts.
 - **A Gmail message that is looked at and not stored is written down.** The batch handler
   declines a chat — the one kind left with nowhere to go — and cannot store a message Gmail
-  lists and answers 404 for. Each gets a row
+  lists and answers 404 for, nor one the database refuses. A batch whose flush is refused is
+  put back as batches of one, and the one refused again on its own is recorded as unstorable,
+  with the error in the log: one message that does not fit no longer holds its 49 neighbours
+  back every hour. Each gets a row
   in `gmail_skipped_message` (`App\Entity\Mail\GmailSkippedMessage`) with the reason, its labels
   and its address headers. The listing treats a recorded id like a stored one, so the message
   is not fetched again every hour and an import whose every outstanding message has an answer
@@ -344,8 +355,8 @@ collapses into one endless conversation.
 reply to what it answers, so on their own the result depends on sync order. Folders are synced
 one after the other, and replies in INBOX routinely arrive before the Sent Items message they
 answer; they found nothing, opened threads of their own, and stayed there (#172). After steps 2
-and 3, `adoptReplies()` asks `MessageRepository::findRepliesToForAccount()` for every message of
-the account whose `in_reply_to` or `thread_references` names this Message-ID, and
+and 3, `adoptReplies()` asks `MessageThreadingRepository::findRepliesToForAccount()` for every
+message of the account whose `in_reply_to` or `thread_references` names this Message-ID, and
 `ThreadMerger` folds each of their threads into this one. A GIN expression index,
 `idx_message_referenced_ids`, keeps that lookup from scanning the mailbox per message. Step 1
 skips it: a provider conversation id has already grouped the replies.

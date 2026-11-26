@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Backfill;
 
 use App\Service\Search\SearchIndexRebuilder;
+use DateTimeImmutable;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
@@ -22,7 +23,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * the words of mail sent as HTML alone, and drops their headers-only
  * embeddings. Safe to run again; a row it has done is not waiting any more.
  */
-final readonly class HtmlBodyTextBackfillTask implements BackfillTaskInterface
+final readonly class HtmlBodyTextBackfillTask implements CountableBackfillTaskInterface
 {
     public function __construct(
         private SearchIndexRebuilder $rebuilder,
@@ -36,6 +37,22 @@ final readonly class HtmlBodyTextBackfillTask implements BackfillTaskInterface
     public function getDescription(): string
     {
         return 'Index every message still waiting for search, storing the words of HTML-only mail so search, embeddings and summaries read its body.';
+    }
+
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-11-08');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    /** A table repair walks everything, so it has no window to count within. */
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->rebuilder->pending();
     }
 
     public function run(SymfonyStyle $io): int

@@ -14,7 +14,7 @@ final class Version20260717153710 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Store Gmail label ids on messages, and the Gmailify switch';
     }
 
     public function up(Schema $schema): void

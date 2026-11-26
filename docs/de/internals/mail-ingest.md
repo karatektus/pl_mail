@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:d06783871817375a11da1fd9b71ced333d18b805 -->
+<!-- translated-from: internals/mail-ingest.md sha1:9cb66e176c5d6af8fcc0fea019ab2ed2fa520eb8 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -30,6 +30,15 @@ Nachricht versucht, sich in eine davon aufzulösen. `MessageSyncer` holt in Stap
 reicht die rohen RFC822-Bytes weiter, weil jede Nachricht als Ganzes geholt (`BODY.PEEK[]`) und
 aus diesen Bytes geparst wird — deshalb ist IMAP der einzige Weg, auf dem das Original gratis
 gespeichert wird.
+
+**Ein Parser für jede Nachricht, die als Bytes ankommt.** IMAP, POP3, JMAP `Email/import`, die
+Entschlüsselung und die Backfills, die ein gespeichertes Original neu lesen, gehen alle durch
+`MessageParser`, der zbateson/mail-mime-parser kapselt und plMails eigene `ParsedMessage`
+zurückgibt. Zwei Regeln darin sind plMails und nicht die der Bibliothek: Ein Body wird von
+`CharsetHelper` aus seinen Bytes umgewandelt statt nach dem Zeichensatz, den sein Teil angibt, weil
+diese Angabe oft falsch ist, und ein namenloser Textteil, der als Anhang markiert ist, in einer
+Nachricht ohne Body dieses Typs wird als Body gelesen. Bis #82 war das webklex/php-imap, und jeder
+seiner Parse-Fehler hatte in der Synchronisierung eine eigene Korrektur.
 
 **Gmail hat überhaupt keine `Mailbox`-Zeilen.** `GmailApiSyncer` plant die Arbeit direkt auf dem
 Konto und fächert `SyncGmailMessageBatchMessage`-Jobs zu je 100 Ids auf, während er mit der
@@ -116,7 +125,11 @@ die Vorgeschichte gehört `App\Service\Mail\MailImporter`, auf der Warteschlange
   die `messages.list` sonst auslässt und `messagesTotal` mitzählt.
 - **Eine Gmail-Nachricht, die angesehen und nicht gespeichert wird, wird notiert.** Der
   Stapel-Handler lehnt einen Chat ab — die einzige Art, für die es keinen Platz gibt — und
-  kann eine Nachricht nicht speichern, die Gmail auflistet und mit 404 beantwortet. Jede
+  kann eine Nachricht nicht speichern, die Gmail auflistet und mit 404 beantwortet, und auch
+  keine, die die Datenbank ablehnt. Ein Stapel, dessen Flush abgelehnt wird, kommt als
+  Einzelstapel zurück in die Warteschlange, und die Nachricht, die auch allein abgelehnt wird,
+  wird als nicht speicherbar notiert, mit dem Fehler im Log: Eine Nachricht, die nicht passt,
+  hält nicht mehr jede Stunde ihre 49 Nachbarn auf. Jede
   bekommt eine Zeile in
   `gmail_skipped_message` (`App\Entity\Mail\GmailSkippedMessage`) mit dem Grund, ihren Labels
   und ihren Adress-Headern. Die Auflistung behandelt eine notierte id wie eine gespeicherte, die
@@ -390,7 +403,7 @@ einer Antwort auf das, was sie beantwortet, also hing das Ergebnis allein von de
 Synchronisation ab. Ordner werden nacheinander synchronisiert, und Antworten im INBOX kommen
 regelmäßig vor der Nachricht aus Sent Items an, auf die sie antworten; sie fanden nichts, legten
 eigene Konversationen an und blieben dort (#172). Nach Stufe 2 und 3 fragt `adoptReplies()`
-`MessageRepository::findRepliesToForAccount()` nach jeder Nachricht des Kontos, deren
+`MessageThreadingRepository::findRepliesToForAccount()` nach jeder Nachricht des Kontos, deren
 `in_reply_to` oder `thread_references` diese Message-ID nennt, und `ThreadMerger` faltet jede
 ihrer Konversationen in diese hier. Ein GIN-Ausdrucksindex, `idx_message_referenced_ids`, hält
 diese Abfrage davon ab, pro Nachricht das ganze Postfach zu durchsuchen. Stufe 1 überspringt das:

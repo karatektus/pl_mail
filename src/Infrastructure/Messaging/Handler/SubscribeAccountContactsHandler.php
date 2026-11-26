@@ -6,8 +6,8 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Infrastructure\Messaging\Message\SubscribeAccountContactsMessage;
-use App\Repository\AddressBook\AddressBookRepository;
-use App\Repository\Mail\AccountRepository;
+use App\Repository\AddressBook\AddressBook\AddressBookRepository;
+use App\Repository\Mail\Account\AccountRepository;
 use App\Service\AddressBook\AddressBookSubscriber;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -40,7 +40,10 @@ final readonly class SubscribeAccountContactsHandler
     {
         $account = $this->accounts->find($message->accountId);
 
-        if (null === $account || null === $account->usr || [] !== $this->books->findForHolder($account)) {
+        // Contacts switched off at connect time (#575) is a "no" to mirroring
+        // them, not a "later": switching contacts on afterwards queues this
+        // again, which is when the books are found.
+        if (null === $account || null === $account->usr || false === $account->contactsEnabled || [] !== $this->books->findForHolder($account)) {
             return;
         }
 

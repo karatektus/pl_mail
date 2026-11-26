@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from "@hotwired/stimulus";
 import { derivePasswordSecrets } from "../../password_kdf.js";
 import { remember } from "../../crypto/session.js";

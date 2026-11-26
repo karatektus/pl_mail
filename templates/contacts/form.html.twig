@@ -140,7 +140,7 @@ rather than as a dozen data attributes.
       data-action="input->contacts--editor#changed change->contacts--editor#changed">
     <input type="hidden" name="_token" value="{{ csrf_token(tokenId) }}">
 
-    <div class="flex items-center gap-2 px-4 @2xl:px-6 h-14 border-b border-line shrink-0">
+    <div class="flex items-center gap-2 pane-header px-4 @2xl:px-6 border-b border-line shrink-0">
         <a href="{{ isNew ? path('app_contacts_list') : path('app_contacts_show', { id: c.id }) }}" class="{{ iconBtn }}" title="{{ 'contacts.cancel'|trans }}" aria-label="{{ 'contacts.cancel'|trans }}">
             <i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i>
         </a>

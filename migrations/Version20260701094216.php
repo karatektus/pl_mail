@@ -14,7 +14,7 @@ final class Version20260701094216 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Let IDLE be switched on per mailbox';
     }
 
     public function up(Schema $schema): void

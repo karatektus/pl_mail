@@ -7,7 +7,7 @@ namespace App\Entity\Mail;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
-use App\Repository\Mail\TrustedImageSenderRepository;
+use App\Repository\Mail\TrustedImageSender\TrustedImageSenderRepository;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 

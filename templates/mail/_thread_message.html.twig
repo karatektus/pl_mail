@@ -10,6 +10,7 @@ Variables:
   draft     bool   — override; a just-sent message still carries the DRAFT
                      flag for a moment, but belongs in the thread as a message
 #}
+{% import '_partials/_sender_picture.html.twig' as pictures %}
 {% set expanded = expanded|default(false) %}
 {# A draft in the bin is drawn as the mail it is, not as the way back into the
    editor. It was thrown away, so what it is offered is the bin's: Restore and
@@ -131,9 +132,12 @@ Variables:
            colour, wherever they appear. The gradient this replaces was a
            hardcoded one-off that predated SenderAvatarExtension: every sender
            wore the same blue, and "<hello@…>" wore a bracket. #}
-        <div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-semibold select-none
+        {# And the same picture (#639), over the initial. #}
+        {% set senderPicture = sender_picture(message.fromAddress, message.senderVerified) %}
+        <div {{ pictures.attributes(message.fromAddress, message.senderVerified, senderPicture) }}
+             class="relative overflow-hidden w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-semibold select-none
                     {{ (message.fromAddress ?: message.fromName)|avatar_tone }}">
-            {{ message.fromName|avatar_initial(message.fromAddress) }}
+            {{ message.fromName|avatar_initial(message.fromAddress) }}{{ pictures.image(senderPicture) }}
         </div>
 
         <div
@@ -261,7 +265,7 @@ Variables:
                 data-mail--thread-message-target="toggleBtn"
                 aria-expanded="{{ expanded ? 'true' : 'false' }}"
                 aria-label="{{ (expanded ? 'message.actions.collapse' : 'message.actions.expand')|trans }}"
-                class="flex items-center justify-center w-8 h-8 rounded-full text-ink-muted hover:text-ink hover:bg-hover transition-colors"
+                class="flex items-center justify-center w-8 h-8 rounded-lg text-ink-muted hover:text-ink hover:bg-hover transition-colors"
             >
                 <i
                     data-mail--thread-message-target="chevron"

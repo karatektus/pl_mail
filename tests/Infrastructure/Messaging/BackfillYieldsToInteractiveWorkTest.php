@@ -9,7 +9,7 @@ use App\Domain\Enum\Ai\BackfillStatus;
 use App\Entity\Ai\AiSettings;
 use App\Infrastructure\Messaging\Handler\BackfillEmbeddingsHandler;
 use App\Infrastructure\Messaging\Message\BackfillEmbeddingsMessage;
-use App\Repository\Ai\AiBackfillStateRepository;
+use App\Repository\Ai\AiBackfillState\AiBackfillStateRepository;
 use App\Service\Ai\InteractiveAiActivity;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;

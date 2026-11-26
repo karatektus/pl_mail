@@ -21,7 +21,7 @@ const ACCOUNT = "E2E Mailbox";
 
 test.describe("account folders modal", () => {
     test("opens from the account row, explains itself, and closes", async ({ page }) => {
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
 
         const row = page
             .locator("#settings-account-list li")
@@ -50,7 +50,7 @@ test.describe("account folders modal", () => {
      * not exist. The modal stays open on the form, keeping what was typed.
      */
     test("refuses a folder name with the separator in it, inside the modal", async ({ page }) => {
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
 
         await page
             .locator("#settings-account-list li")
@@ -76,7 +76,7 @@ test.describe("account folders modal", () => {
      * not exist) the list says so rather than claiming either answer.
      */
     test("switches labels as keywords on and off in the folder list", async ({ page }) => {
-        await page.goto("/settings?section=accounts");
+        await page.goto("/settings/accounts");
 
         await page
             .locator("#settings-account-list li")
@@ -143,9 +143,19 @@ test.describe("account folders modal", () => {
 
             // As wide as the account row it hangs from, and on top of whatever
             // is under its middle — never the other account's ⋯.
-            const row = await first.locator("xpath=ancestor::div[contains(@class,'nav-item')][1]").boundingBox();
+            //
+            // Both widths in one frame. A sidebar with a truncated entry peeks
+            // wider while hovered or focused, over a 160 ms transition, and the
+            // click on ⋯ does both; measured in two calls, the row and the menu
+            // landed on two different widths of that transition. CI's fonts
+            // truncate where a Mac's do not, so it only ever failed there.
+            const widths = await firstMenu.evaluate((menu) => ({
+                menu: menu.getBoundingClientRect().width,
+                row: menu.parentElement?.closest("div[class*='nav-item']")?.getBoundingClientRect().width ?? 0,
+            }));
+            expect(Math.abs(widths.menu - widths.row)).toBeLessThan(2);
+
             const box = await firstMenu.boundingBox();
-            expect(Math.abs((box?.width ?? 0) - (row?.width ?? 0))).toBeLessThan(2);
 
             const otherBox = await other.boundingBox();
             if (otherBox && box && otherBox.y < box.y + box.height && otherBox.y + otherBox.height > box.y) {
@@ -179,7 +189,7 @@ test.describe("account folders modal", () => {
 
 /** Adds a password IMAP account through the settings modal, as accounts-sidebar.spec.ts does. */
 async function addAccount(page: Page, label: string, stamp: number): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     await page
         .locator("section")
@@ -196,19 +206,23 @@ async function addAccount(page: Page, label: string, stamp: number): Promise<voi
     await imapHost.fill(`folders-${stamp}.example.test`);
     await page.locator('input[name="account[imapPort]"]').fill("993");
     await page.locator('select[name="account[imapEncryption]"]').selectOption("ssl");
+    // Sending is on by default and needs its server (#628).
+    await page.locator('input[name="account[smtpHost]"]').fill(`smtp-${stamp}.example.test`);
     await page.locator("#modal button[type=submit]").click();
 
     await expect(page.getByText("Account added successfully")).toBeVisible();
 }
 
 async function removeAccount(page: Page, label: string): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     const row = page.locator("#settings-account-list li").filter({ hasText: new RegExp(label, "i") });
 
     for (let remaining = await row.count(); remaining > 0; remaining -= 1) {
         await row.getByRole("button", { name: "Remove account" }).first().click();
         await acceptConfirm(page);
-        await expect(row).toHaveCount(remaining - 1);
+        // Removing runs on the bulk worker now (#672): the row greys out at once
+        // and goes when the job is done, which is a worker round-trip away.
+        await expect(row).toHaveCount(remaining - 1, { timeout: 20_000 });
     }
 }

@@ -7,8 +7,9 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Domain\Enum\Mail\RuleRunState;
 use App\Entity\Rule\MailRule;
 use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
-use App\Repository\Rule\MailRuleRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Rule\MailRule\MailRuleRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageFilterRepository;
 use App\Service\Rule\RuleActionExecutor;
 use App\Service\Rule\RuleConditions;
 use App\Service\Rule\RuleRunNotifier;
@@ -42,6 +43,7 @@ final readonly class ApplyMailRuleHandler
     public function __construct(
         private MailRuleRepository     $ruleRepository,
         private MessageRepository      $messageRepository,
+        private MessageFilterRepository $messageFilterRepository,
         private RuleConditions    $conditions,
         private RuleActionExecutor     $executor,
         private RuleRunNotifier        $notifier,
@@ -124,7 +126,7 @@ final readonly class ApplyMailRuleHandler
                 return $rule;
             }
 
-            $ids = $this->messageRepository->findIdsMatchingForUser(
+            $ids = $this->messageFilterRepository->findIdsMatchingForUser(
                 $user,
                 $filter,
                 $afterId,

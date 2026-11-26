@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Entity\Monitoring;
 
 use App\Domain\Trait\TimestampableTrait;
-use App\Repository\Monitoring\LogSettingsRepository;
+use App\Repository\Monitoring\LogSettings\LogSettingsRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

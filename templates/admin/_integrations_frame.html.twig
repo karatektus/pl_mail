@@ -117,4 +117,77 @@ the same screen as the field.
         </div>
     {% endif %}
 
+    {# ── Servers on your network ──
+       The hosts plMail may reach although they resolve to a private address,
+       each with its own plain-http permission (TrustedHost). Last, because it
+       is the answer to an error a user meets on the services above — "must
+       not point at a private network" — and that error sends the admin here.
+       Inline rows rather than a modal per host: there is nothing to a host
+       but its name and one checkbox. #}
+    <div id="admin-trusted-hosts" class="space-y-2 pt-4">
+        <h3 class="px-4 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+            {{ 'admin.integrations.trusted.heading'|trans }}
+        </h3>
+
+        <p class="px-4 text-sm text-ink-muted">
+            {{ 'admin.integrations.trusted.intro'|trans }}
+        </p>
+
+        {% for trusted in trustedHosts %}
+            <div id="trusted-host-{{ trusted.id }}"
+                 class="flex flex-wrap items-center gap-3 px-4 min-h-14 py-2 rounded-pane border border-line bg-pane-soft">
+                <i class="fa-solid fa-server text-base w-5 text-center text-accent" aria-hidden="true"></i>
+
+                <span class="text-sm font-semibold text-ink break-all">{{ trusted.host }}</span>
+
+                {% if trusted.allowHttp %}
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500">
+                        {{ 'admin.integrations.trusted.http_allowed'|trans }}
+                    </span>
+                {% endif %}
+
+                <span class="ml-auto flex items-center gap-2">
+                    <form method="post"
+                          action="{{ path('app_admin_integrations_trusted_host_http', { id: trusted.id }) }}"
+                          data-turbo-frame="admin-integrations">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin-trusted-host-' ~ trusted.id) }}">
+                        <input type="hidden" name="allowHttp" value="{{ trusted.allowHttp ? '0' : '1' }}">
+                        <button type="submit"
+                                class="inline-flex items-center h-8 px-3 rounded-lg text-xs font-medium
+                                       text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors cursor-pointer">
+                            {{ (trusted.allowHttp ? 'admin.integrations.trusted.require_https' : 'admin.integrations.trusted.allow_http')|trans }}
+                        </button>
+                    </form>
+
+                    <form method="post"
+                          action="{{ path('app_admin_integrations_trusted_host_remove', { id: trusted.id }) }}"
+                          data-turbo-frame="admin-integrations"
+                          data-turbo-confirm="{{ 'admin.integrations.trusted.remove_confirm'|trans({ '%host%': trusted.host }) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin-trusted-host-' ~ trusted.id) }}">
+                        <button type="submit"
+                                aria-label="{{ 'admin.integrations.trusted.remove'|trans({ '%host%': trusted.host }) }}"
+                                class="inline-flex items-center px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer">
+                            <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </span>
+            </div>
+        {% else %}
+            <p class="px-4 text-sm text-ink-faint">{{ 'admin.integrations.trusted.empty'|trans }}</p>
+        {% endfor %}
+
+        <div class="px-4 pt-1">
+            <button type="button"
+                    data-controller="ui--modal"
+                    data-ui--modal-src-value="{{ path('app_admin_integrations_trusted_host_new') }}"
+                    data-ui--modal-title-value="{{ 'admin.integrations.trusted.add'|trans }}"
+                    data-action="click->ui--modal#open"
+                    class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
+                           text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
+                <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
+                {{ 'admin.integrations.trusted.add'|trans }}
+            </button>
+        </div>
+    </div>
+
 </turbo-frame>

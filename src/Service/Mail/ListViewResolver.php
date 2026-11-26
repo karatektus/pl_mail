@@ -7,10 +7,14 @@ namespace App\Service\Mail;
 use App\Domain\DTO\Mail\InboxTab;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Message\MessageListRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRepository;
+use App\Repository\Mail\MessageThread\MessageThreadSearchRepository;
+use App\Service\Search\SearchQueryParser;
 
 /**
  * Every conversation in a list, not just the page somebody can see.
@@ -35,6 +39,16 @@ use App\Repository\Mail\MessageThreadRepository;
  * the person cannot see — the exact failure that makes bulk actions frightening.
  * It is carried through to the same repository methods the list itself uses, so
  * the set can only ever be what was on screen, continued past the page break.
+ *
+ * ## A search is a view too
+ *
+ * Its value is the query as typed, re-parsed when the job runs, and it is the
+ * one scope with no counterpart in `{% block list_scope %}`: the search page
+ * keeps `*` there, because that block is also the sync scope and a search has
+ * to refresh when any mailbox does. The toolbar names it through
+ * `list_view_scope` instead. It used to name nothing, so "select all 1,077,
+ * move to bin" posted `*`, resolved to no conversations, and finished as a job
+ * that had done nothing without saying so (#711).
  */
 final readonly class ListViewResolver
 {
@@ -59,30 +73,101 @@ final readonly class ListViewResolver
     public const int LIMIT = 10_000;
 
     public function __construct(
-        private MessageThreadRepository $threads,
-        private LabelRepository         $labels,
-        private InboxTabs               $tabs,
-        private AllMailView             $allMail,
-        private UnifiedInboxes          $inboxes,
+        private MessageThreadRepository       $threads,
+        private MessageListRepository         $emails,
+        private LabelRepository               $labels,
+        private InboxTabs                     $tabs,
+        private AllMailView                   $allMail,
+        private UnifiedInboxes                $inboxes,
+        private SearchQueryParser             $parser,
+        private MessageThreadSearchRepository $search,
     ) {
+    }
+
+    /**
+     * Whether a scope is one this resolves at all.
+     *
+     * For BulkStatusController, which refuses a whole-view action on anything
+     * else when it is asked rather than when the worker runs. A scope outside
+     * the set resolves to nothing — that is the closed set doing its job — and
+     * a job over nothing finishes as Done, which is how "select all" on a
+     * search reported success while acting on no mail at all (#711).
+     */
+    public static function names(string $scope): bool
+    {
+        return true === AllMailView::names($scope)
+            || true === in_array($scope, self::SCOPES, true)
+            || true === array_key_exists($scope, self::ROLES);
     }
 
     /**
      * @param string $scope one of `inbox`, `archive`, `trash`, `spam`, `sent`,
      *                      `drafts`, `snoozed`, `starred`, `unread`, `all_mail`,
-     *                      `label`
+     *                      `label`, `search`
      * @param string $value the inbox and tab for `inbox` (UnifiedInboxes::listValue()),
-     *                      the label id for `label`, ignored otherwise
+     *                      the label id for `label`, the query for `search`,
+     *                      ignored otherwise
      *
      * @return list<MessageThread> at most self::LIMIT of them
      */
     public function threadsIn(User $user, string $scope, string $value, bool $unreadOnly): array
     {
+        if (self::SEARCH === $scope) {
+            return $this->searchResults($user, $value);
+        }
+
+        /** @var list<MessageThread> */
+        return $this->drain($this->threads, $user, $scope, $value, $unreadOnly);
+    }
+
+    /**
+     * The same view one email per row (#615): what "select all" holds in the
+     * email list, where the replies of a conversation that the list did not
+     * show are not part of the selection.
+     *
+     * Never a search: its results are conversations whatever the reader's list
+     * setting, so a search posts the thread level and `search` falls through
+     * page() to nothing here.
+     *
+     * @return list<Message> at most self::LIMIT of them
+     */
+    public function emailsIn(User $user, string $scope, string $value, bool $unreadOnly): array
+    {
+        /** @var list<Message> */
+        return $this->drain($this->emails, $user, $scope, $value, $unreadOnly);
+    }
+
+    /**
+     * Every conversation a search matches, chunk by chunk, up to self::LIMIT.
+     *
+     * The query is parsed again from what was typed, by the parser the page
+     * used, rather than stored parsed: the job then holds one string a person
+     * could read, and nothing that has to stay in step with ParsedSearchQuery.
+     * A query that parses to nothing selects nothing, as the page shows
+     * nothing for one — it does not mean the whole mailbox.
+     *
+     * Whether the body pass is part of the statement is decided once, before
+     * the first chunk; see MessageThreadSearchRepository::needsBodyRescue().
+     * The unread filter is not read: the search page has none, and `is:unread`
+     * is part of the query.
+     *
+     * @return list<MessageThread>
+     */
+    private function searchResults(User $user, string $value): array
+    {
+        $query = $this->parser->parse(trim($value));
+
+        if (true === $query->isEmpty()) {
+            return [];
+        }
+
+        $withBodyRescue = $this->search->needsBodyRescue($user, $query);
+
         $page  = 1;
         $found = [];
 
         do {
-            $batch = $this->page($user, $scope, $value, $unreadOnly, $page);
+            $batch = $this->search->bulkPage($user, $query, $withBodyRescue, $page, self::CHUNK);
 
             foreach ($batch as $thread) {
                 $found[] = $thread;
@@ -99,9 +184,37 @@ final readonly class ListViewResolver
     }
 
     /**
-     * @return list<MessageThread>
+     * Every row of a view, page by page, at the level $lists lists — the two
+     * repositories answer the same methods (App\Service\Mail\MailLists).
+     *
+     * @return list<MessageThread|Message>
      */
-    private function page(User $user, string $scope, string $value, bool $unreadOnly, int $page): array
+    private function drain(MessageThreadRepository|MessageListRepository $lists, User $user, string $scope, string $value, bool $unreadOnly): array
+    {
+        $page  = 1;
+        $found = [];
+
+        do {
+            $batch = $this->page($lists, $user, $scope, $value, $unreadOnly, $page);
+
+            foreach ($batch as $thread) {
+                $found[] = $thread;
+
+                if (count($found) >= self::LIMIT) {
+                    return $found;
+                }
+            }
+
+            ++$page;
+        } while (count($batch) === self::CHUNK);
+
+        return $found;
+    }
+
+    /**
+     * @return list<MessageThread|Message>
+     */
+    private function page(MessageThreadRepository|MessageListRepository $lists, User $user, string $scope, string $value, bool $unreadOnly, int $page): array
     {
         // All Mail is not a label either: nothing wears it, the list is a
         // query. The value narrows it to one account, or to none for the list
@@ -111,8 +224,8 @@ final readonly class ListViewResolver
 
             return match (true) {
                 false === $account => [],
-                null === $account  => $this->threads->findForUnifiedAllMail($user, $page, self::CHUNK, unreadOnly: $unreadOnly),
-                default            => $this->threads->findForAccountAllMail($account, $page, self::CHUNK, unreadOnly: $unreadOnly),
+                null === $account  => $lists->findForUnifiedAllMail($user, $page, self::CHUNK, unreadOnly: $unreadOnly),
+                default            => $lists->findForAccountAllMail($account, $page, self::CHUNK, unreadOnly: $unreadOnly),
             };
         }
 
@@ -161,7 +274,7 @@ final readonly class ListViewResolver
                 $category ??= InboxTab::builtIn(MessageCategory::Primary);
             }
 
-            return $this->threads->findForUnifiedInbox(
+            return $lists->findForUnifiedInbox(
                 $user,
                 $category,
                 $page,
@@ -182,7 +295,7 @@ final readonly class ListViewResolver
                 return [];
             }
 
-            return $this->threads->findForLabel($label, page: $page, perPage: self::CHUNK, unreadOnly: $unreadOnly);
+            return $lists->findForLabel($label, page: $page, perPage: self::CHUNK, unreadOnly: $unreadOnly);
         }
 
         // Starred is not a label role — it is a column on the thread — so it
@@ -190,13 +303,13 @@ final readonly class ListViewResolver
         // Being asked for it is not exotic: "select every starred mail" is the
         // example the feature was asked for with.
         if ('starred' === $scope) {
-            return $this->threads->findForStarred($user, $page, self::CHUNK, unreadOnly: $unreadOnly);
+            return $lists->findForStarred($user, $page, self::CHUNK, unreadOnly: $unreadOnly);
         }
 
         // Not a label query either: nothing carries the Unread label, the view
         // is read off the unread counts. $unreadOnly has nothing left to narrow.
         if ('unread' === $scope) {
-            return $this->threads->findForUnread($user, $page, self::CHUNK);
+            return $lists->findForUnread($user, $page, self::CHUNK);
         }
 
         $role = self::ROLES[$scope] ?? null;
@@ -205,7 +318,7 @@ final readonly class ListViewResolver
             return [];
         }
 
-        return $this->threads->findForRole($user, $role, $page, self::CHUNK, unreadOnly: $unreadOnly);
+        return $lists->findForRole($user, $role, $page, self::CHUNK, unreadOnly: $unreadOnly);
     }
 
     /**
@@ -221,4 +334,18 @@ final readonly class ListViewResolver
         'drafts'  => LabelRole::Drafts,
         'snoozed' => LabelRole::Snoozed,
     ];
+
+    /**
+     * The search, by the name the toolbar posts for it. A constant because
+     * names() and threadsIn() both read it.
+     */
+    private const string SEARCH = 'search';
+
+    /**
+     * The scopes that are neither a role nor All Mail, each answered by a
+     * branch of its own in page() or threadsIn().
+     *
+     * @var list<string>
+     */
+    private const array SCOPES = ['inbox', 'label', 'starred', 'unread', self::SEARCH];
 }

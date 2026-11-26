@@ -24,7 +24,7 @@ test.beforeAll(() => {
 
 /** Choose a clock in Settings. `""` is "follow the interface language". */
 async function chooseClock(page: Page, value: "12" | "24" | ""): Promise<void> {
-    await page.goto("/settings?section=general");
+    await page.goto("/settings/region");
     await page.locator("#settings-clock").selectOption(value);
     await expect(page.locator("html")).toHaveAttribute(
         "data-clock-hour12",

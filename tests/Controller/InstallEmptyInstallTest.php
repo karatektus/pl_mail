@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller;
 
 use App\Infrastructure\Setup\GeneratedSecretsFile;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Monitoring\WorkerRestartSignal;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

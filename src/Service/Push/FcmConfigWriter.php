@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Push;
 
 use App\Entity\Push\FcmConfig;
-use App\Repository\Push\FcmConfigRepository;
+use App\Repository\Push\FcmConfig\FcmConfigRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Form\FormInterface;
 

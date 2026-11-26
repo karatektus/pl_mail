@@ -14,7 +14,7 @@ import { test, expect } from "./support/test";
  * an X-Request-Id.
  */
 test("a failed form submission raises a toast and leaves the page alone", async ({ page }) => {
-    await page.goto("/settings?section=profile");
+    await page.goto("/settings/profile");
 
     const form = page.locator('form[action$="/settings/profile/signature"]');
     await expect(form).toHaveCount(1);
@@ -57,5 +57,5 @@ test("a failed form submission raises a toast and leaves the page alone", async 
     // Nothing of the error page was drawn, and the settings page is intact.
     await expect(page.getByRole("heading", { name: "Something went wrong" })).toHaveCount(0);
     await expect(page.locator("#sidebar")).toBeVisible();
-    await expect(page).toHaveURL(/section=profile/);
+    await expect(page).toHaveURL(/\/settings\/profile/);
 });

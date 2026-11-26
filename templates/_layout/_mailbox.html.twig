@@ -52,7 +52,9 @@ dozen other reasons while the conversation was open.
    server rendered at page load and then sat there, for as long as it existed
    (#42 is where it was finally noticed). Whatever the base layout mounts, the
    mailbox mounts too. #}
-{% block body_controllers %}{{ parent() }} mail--mail-pane mail--dnd{% endblock %}
+{# mail--sender-pictures here and not in the base layout: the avatars it
+   updates exist only on mail pages (#639). #}
+{% block body_controllers %}{{ parent() }} mail--mail-pane mail--dnd mail--sender-pictures{% endblock %}
 
 {% block body_values %}
     {# The list to draw beside a message that was opened by its own address.
@@ -74,7 +76,8 @@ dozen other reasons while the conversation was open.
        Same shape as the calendar grid's pending/reverted announcements. Always
        plural because the pill it fills is only drawn for two or more; a single
        conversation drags a picture of its own row. #}
-    data-mail--dnd-dragging-value="{{ 'dnd.dragging'|trans }}"
+    {# Emails, not conversations, in the email list (#615). #}
+    data-mail--dnd-dragging-value="{{ (app.user and not app.user.conversationView ? 'dnd.dragging_emails' : 'dnd.dragging')|trans }}"
 {% endblock %}
 
 {# The one part of a view that varies within its scope: the category tab for the
@@ -82,6 +85,16 @@ dozen other reasons while the conversation was open.
    the whole answer. Defined here so `block('list_scope_value')` resolves for
    every list rather than only the two that care. #}
 {% block list_scope_value %}{% endblock %}
+
+{# What the toolbar's "select all N" posts as the view, which is list_scope and
+   list_scope_value everywhere except a search. There list_scope has to stay
+   `*` — it is also the sync scope, and a search shows mail from every mailbox
+   — while the toolbar has to name the search and its query, or the worker is
+   handed `*` and resolves it to no conversations at all (#711). Two blocks of
+   their own rather than a second meaning for the two above: those reach the
+   frame too, where every row button reads them (assets/list_view.js). #}
+{% block list_view_scope %}{{ block('list_scope') }}{% endblock %}
+{% block list_view_value %}{{ block('list_scope_value') }}{% endblock %}
 
 {% set selectedMessage = selectedMessage|default(null) %}
 
@@ -236,10 +249,15 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
             {# Sidebar + content #}
             <div class="flex flex-1 gap-gutter overflow-hidden">
 
-                {# Sidebar — desktop only (hidden on mobile, shown in drawer) #}
-                <div class="hidden md:flex" data-surface="sidebar">
-                    {% include '_partials/_sidebar.html.twig' %}
-                </div>
+                {# Sidebar — desktop only (hidden on mobile, shown in drawer),
+                   with its drag handle (#699). It takes its room from the
+                   mail column rather than .main-pane inside it: the calendar
+                   pane keeps the width it was given, so the list is what
+                   shrinks, and the clamp must measure what shrinks. #}
+                {% include '_partials/_sidebar_pane.html.twig' with {
+                    room:    '[data-mail-column]',
+                    surface: true,
+                } %}
 
                 {# ── The mail column: the insight card, then the mail card ──
                    Two cards, not one card with a band inside it. The strip is a
@@ -467,13 +485,14 @@ which of the two is happening.
                names itself once. list_scope_value carries the one thing that
                varies within a scope: the category tab for the inbox, the label
                id for a label view. Both go to the server's closed set — see
-               App\Service\Mail\ListViewResolver. #}
+               App\Service\Mail\ListViewResolver — through list_view_scope and
+               list_view_value, which only a search overrides. #}
             {% include '_partials/_list_toolbar.html.twig' with {
                 page:             page     ?? 1,
                 total:            total    ?? 0,
                 per_page:         per_page ?? 50,
-                list_scope:       block('list_scope'),
-                list_scope_value: block('list_scope_value'),
+                list_scope:       block('list_view_scope'),
+                list_scope_value: block('list_view_value'),
                 unread_only:      unread_only ?? false,
             } %}
         {% endblock %}

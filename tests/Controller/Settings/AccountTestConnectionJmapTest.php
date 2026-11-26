@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Settings;
 
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
 use App\Tests\Support\Jmap\FakeJmapServer;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;

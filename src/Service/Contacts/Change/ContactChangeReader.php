@@ -8,7 +8,7 @@ use App\Domain\DTO\Contacts\ContactDelta;
 use App\Domain\Enum\Contacts\ContactChangeKind;
 use App\Domain\Exception\ContactStateTokenException;
 use App\Entity\Contacts\ContactChangeLog;
-use App\Repository\Contacts\ContactChangeLogRepository;
+use App\Repository\Contacts\ContactChangeLog\ContactChangeLogRepository;
 
 /**
  * contact_change_log as JMAP states and deltas.

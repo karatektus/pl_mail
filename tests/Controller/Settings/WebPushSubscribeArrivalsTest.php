@@ -8,8 +8,8 @@ use App\Entity\User\PushSubscription;
 use App\Entity\User\User;
 use App\Jmap\Push\PushDeliveryRecorder;
 use App\Jmap\Push\WebPushSender;
-use App\Repository\User\PushSubscriptionRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\User\PushSubscription\PushSubscriptionRepository;
+use App\Repository\User\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Minishlink\WebPush\VAPID;
 use Psr\Log\NullLogger;
@@ -198,7 +198,7 @@ final class WebPushSubscribeArrivalsTest extends WebTestCase
      */
     private function csrfToken(string $tokenId): string
     {
-        $this->client->request('GET', '/settings?section=notifications');
+        $this->client->request('GET', '/settings/notifications');
 
         $stack   = static::getContainer()->get('request_stack');
         $carrier = new Request();

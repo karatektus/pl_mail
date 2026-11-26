@@ -40,6 +40,6 @@ final class ContactsBehaviourController extends AbstractController
 
         $em->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'contacts']);
+        return $this->redirectToRoute('app_settings_page', ['page' => 'contacts']);
     }
 }

@@ -6,9 +6,9 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Entity\Ai\AiFeature;
 use App\Infrastructure\Messaging\Message\EmbedMessagesMessage;
-use App\Repository\Ai\AiSettingsRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\EmbeddingStore;
 use App\Service\Ai\MessageEmbedder;

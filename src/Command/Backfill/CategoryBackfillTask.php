@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Command\Backfill;
 
 use App\Entity\Mail\Account;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\ContactRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Contact\ContactRepository;
+use App\Repository\Mail\Message\MessageAiRepository;
+use App\Repository\Mail\MessageThread\MessageThreadCategoryRepository;
 use App\Service\Mail\MessageCategorizer;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -26,7 +27,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * Keyset pagination by id so each batch can flush + clear without a
  * server-side cursor, matching SafeHtmlBackfillTask. The cursor itself is
- * MessageRepository::findPendingCategorization().
+ * MessageAiRepository::findPendingCategorization().
  */
 final readonly class CategoryBackfillTask implements BackfillTaskInterface
 {
@@ -34,12 +35,12 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
 
     public function __construct(
         private AccountRepository       $accountRepository,
-        private MessageRepository       $messageRepository,
-        private MessageThreadRepository $threadRepository,
+        private MessageAiRepository $messageAiRepository,
+        private MessageThreadCategoryRepository $messageThreadCategoryRepository,
         private ContactRepository       $contactRepository,
         private MessageCategorizer      $categorizer,
         private EntityManagerInterface  $em,
-        private \App\Jmap\State\StateManager $stateManager,
+        private \App\Jmap\State\StateManager $stateManager
     ) {}
 
     public function getName(): string
@@ -52,11 +53,28 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
         return 'Recompute message and thread inbox categories from stored headers/labels.';
     }
 
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-07-23');
+    }
+
+    /**
+     * Safe to repeat: the category is worked out again from what the row
+     * stores — headers, labels and the assistant's stored verdict, which
+     * MessageCategorizer reads — so a second run arrives at the same tabs.
+     * Conversations somebody put in a tab by hand are skipped
+     * (category_pinned_at).
+     */
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
     public function run(SymfonyStyle $io): int
     {
         $force = $io->confirm('Re-run messages that already have a category?', false);
 
-        $accounts = $this->accountRepository->findBy(['isActive' => true]);
+        $accounts = $this->accountRepository->findBy(['mailEnabled' => true]);
 
         if (count($accounts) === 0) {
             $io->warning('No active accounts.');
@@ -75,7 +93,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
     {
         $io->section(sprintf('Account #%d (%s)', $account->id, $account->email));
 
-        $total = $this->messageRepository->countPendingCategorization((int) $account->id, $force);
+        $total = $this->messageAiRepository->countPendingCategorization((int) $account->id, $force);
 
         if (0 === $total) {
             $io->text('Nothing to categorise.');
@@ -92,7 +110,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
         $processed = 0;
 
         while (true) {
-            $messages = $this->messageRepository->findPendingCategorization(
+            $messages = $this->messageAiRepository->findPendingCategorization(
                 $accountId,
                 $force,
                 $lastId,
@@ -120,7 +138,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
 
         // Resolve each thread most-recent-wins from its messages, in one
         // statement. Runs after clear(), so it is pure DBAL.
-        $moved = $this->threadRepository->recomputeCategoriesForAccount($account);
+        $moved = $this->messageThreadCategoryRepository->recomputeCategoriesForAccount($account);
 
         // So a JMAP client hears about the conversations that changed tab.
         $this->stateManager->recordThreadsTouched((int) $account->id, $moved);

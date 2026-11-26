@@ -64,7 +64,7 @@ final class SwipeActionResolver
     {
         $user = $this->security->getUser();
 
-        if (!$user instanceof User) {
+        if (false === $user instanceof User) {
             return $direction->defaultAction();
         }
 
@@ -87,7 +87,7 @@ final class SwipeActionResolver
     {
         $entries = [];
 
-        foreach ([SwipeAction::ReadUnread, SwipeAction::Archive, SwipeAction::Star] as $action) {
+        foreach ([SwipeAction::ReadUnread, SwipeAction::Archive, SwipeAction::Star, SwipeAction::Pin] as $action) {
             $affordance = $this->for($action, $item, $draft);
 
             if (null !== $affordance) {
@@ -183,6 +183,7 @@ final class SwipeActionResolver
         $thread  = $item instanceof MessageThread;
         $unread  = $thread ? $item->unreadCount > 0 : null === $item->seenAt;
         $starred = null !== $item->starredAt;
+        $pinned  = $thread ? $item->isPinned() : (null !== $item->thread && $item->thread->isPinned());
 
         return new SwipeAffordance(
             action: $action,
@@ -191,11 +192,11 @@ final class SwipeActionResolver
                 'id'   => $item->id,
             ]),
             body: $action->requestBody($unread),
-            label: $action->labelKey($unread, $starred) ?? throw new LogicException(sprintf(
+            label: $action->labelKey($unread, $starred, $pinned) ?? throw new LogicException(sprintf(
                 'Swipe action "%s" has no label key: add one to labelKey().',
                 $action->value,
             )),
-            icon: $action->icon($unread, $starred) ?? throw new LogicException(sprintf(
+            icon: $action->icon($unread, $starred, $pinned) ?? throw new LogicException(sprintf(
                 'Swipe action "%s" has no icon: add one to icon().',
                 $action->value,
             )),

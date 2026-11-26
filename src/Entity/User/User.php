@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity\User;
 
 use App\Domain\DTO\Push\NotifyScope;
@@ -9,29 +11,31 @@ use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Contacts\ContactsPaneMode;
 use App\Domain\Enum\Contacts\ContactsSwitchSkip;
 use App\Domain\Enum\Crypto\KeyringRoot;
+use App\Domain\Enum\Mail\ComposeAction;
 use App\Domain\Enum\Mail\ReadingPaneMode;
+use App\Domain\Enum\Mail\SearchSortOrder;
+use App\Domain\Enum\Mail\SenderPictureKind;
+use App\Domain\Enum\Mail\SidebarRow;
 use App\Domain\Enum\Mail\SwipeAction;
 use App\Domain\Enum\Mail\SwipeDirection;
-use App\Domain\Enum\Mail\SearchSortOrder;
-use App\Domain\Enum\Mail\ComposeAction;
-use App\Domain\Enum\Mail\SidebarRow;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
+use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Embeddable\AiPreferences;
-use App\Entity\Embeddable\CategorySorting;
 use App\Entity\Embeddable\Appearance;
+use App\Entity\Embeddable\CategorySorting;
+use App\Entity\Embeddable\MessageList;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
-use App\Repository\User\UserRepository;
+use App\Repository\User\User\UserRepository;
+use DateTimeImmutable;
+use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
-use App\Domain\Trait\TimestampableTrait;
-use DateTimeImmutable;
-use DateTimeInterface;
-use Exception;
 use Doctrine\ORM\Mapping as ORM;
+use Exception;
 use Scheb\TwoFactorBundle\Model\BackupCodeInterface;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfiguration;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfigurationInterface;
@@ -106,6 +110,10 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     #[ORM\Embedded(class: Appearance::class, columnPrefix: 'appearance_')]
     public private(set) Appearance $appearance;
+
+    /** What a row in the message list shows (#608); see MessageList. */
+    #[ORM\Embedded(class: MessageList::class, columnPrefix: 'message_list_')]
+    public private(set) MessageList $messageList;
 
     /**
      * What this person has decided about the AI features an administrator
@@ -357,8 +365,8 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     #[ORM\Column(length: 255)]
     public ?string $nameLast = null;
 
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    public ?\DateTimeInterface $lastLogin = null;
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    public ?\DateTimeImmutable $lastLogin = null;
 
 
 
@@ -463,6 +471,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         $this->updatedAt = new \DateTimeImmutable();
         $this->accounts = new ArrayCollection();
         $this->appearance = new Appearance();
+        $this->messageList = new MessageList();
         $this->aiPreferences = new AiPreferences();
         $this->categorySorting = new CategorySorting();
     }
@@ -735,12 +744,20 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
-     * The account whose folder list is expanded in the sidebar, or null.
+     * The accounts whose folder lists are expanded in the sidebar.
      *
      * Server-side for the same reason the calendar pane's width is: the
      * sidebar re-renders on every visit, and a list restored by JavaScript
      * afterwards is a list the user watches blink. Rendered into the first
      * paint, it never moves.
+     *
+     * Several at once since #690. It used to be one account, and opening a
+     * second closed the first; with labels listed by account an account's row
+     * is its whole label tree, and comparing two accounts' trees — the case
+     * the issue was about — meant opening and closing them in turn. The key
+     * is the one the single id was stored under, and a bag still holding an
+     * int reads as that one account (see $expandedAccountIds), so nobody's
+     * open account closes on upgrade.
      */
     public const string SETTING_SIDEBAR_ACCOUNT = 'sidebar.expanded_account';
 
@@ -783,6 +800,27 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         get => true === $this->getSetting(self::SETTING_FOLDERS_IN_LABELS, false);
         set(bool $on) {
             $this->setSetting(self::SETTING_FOLDERS_IN_LABELS, $on ? true : null);
+        }
+    }
+
+    /**
+     * Whether the sidebar lists labels by account rather than merged (#690).
+     *
+     * Merged, the default, is the LABELS section: one plMail label, however
+     * many accounts it is on. By account, each account's own labels — its
+     * LabelBindings — are listed under the account in ACCOUNTS, beside its
+     * folders, and LABELS keeps only the labels that are on no account yet,
+     * which would otherwise be nowhere. Nothing about the labels changes; this
+     * is which half of the model the sidebar shows. Takes precedence over
+     * SETTING_FOLDERS_IN_LABELS, which is a question about the merged list.
+     */
+    public const string SETTING_LABELS_BY_ACCOUNT = 'sidebar.labels_by_account';
+
+    /** Virtual, out of the settings bag — see SETTING_LABELS_BY_ACCOUNT. */
+    public bool $labelsByAccount {
+        get => true === $this->getSetting(self::SETTING_LABELS_BY_ACCOUNT, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_LABELS_BY_ACCOUNT, $on ? true : null);
         }
     }
 
@@ -909,20 +947,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const int CONTACTS_PANE_DEFAULT_WIDTH = 420;
 
     /**
-     * How wide the live preview beside the appearance settings is.
-     *
-     * The settings bag for the same reason the calendar's width is: rendered
-     * into the first paint, and the same at every desk. It needs no migration —
-     * the bag is a JSON column, and a user who has never dragged it reads the
-     * default below.
-     *
-     * Its own key rather than sharing the calendar's: they are two boundaries
-     * on two pages with different useful ranges, and one number would mean
-     * widening the preview to read a colour narrowed the calendar next time.
-     */
-    public const string SETTING_APPEARANCE_PREVIEW_WIDTH = 'appearance.preview_width';
-
-    /**
      * Whether the open message sits beside the message list, and how much of the
      * mail card it takes — see ReadingPaneMode.
      *
@@ -968,6 +992,45 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     /** A little over half: the message is the thing being read, the list is how it was found. */
     public const int READING_PANE_DEFAULT_PCT = 55;
+
+    /**
+     * How wide the sidebar is, and whether a row too long for it may lean out
+     * over the mail to show itself (#699).
+     *
+     * The bag, for the reasons the reading pane's keys are in it: rendered into
+     * the first paint, so a sidebar never appears at 224px and jumps to the
+     * user's 300px once JavaScript runs, and the same at every desk. No
+     * migration.
+     *
+     * Pixels rather than a share, unlike the reading pane: the sidebar holds
+     * rows of text whose length does not change with the window, so the width
+     * that fits them is a number of pixels on any screen.
+     *
+     * PEEK is ON by default, the maintainer's call on #699, and an exception to
+     * "a setting that changes how plMail behaves starts off" (CONTRIBUTING).
+     * It costs nothing where nothing is clipped — the sidebar only leans out
+     * over a name that is cut off — and a cut-off name is exactly the problem
+     * the issue reports, so the default is the one that answers it without a
+     * trip to Settings. Switched off it is stored as false, which is how it
+     * stays off.
+     */
+    public const string SETTING_SIDEBAR_WIDTH = 'sidebar.width';
+    public const string SETTING_SIDEBAR_PEEK = 'sidebar.peek';
+
+    /**
+     * Matches the clamp in ui--sidebar-split; the server is what enforces it.
+     *
+     * 224 is what `w-56` was before the boundary existed, so nobody's sidebar
+     * moves until they move it. 180 is what a row needs to still be a row (an
+     * icon, a word of label and a badge); below that the icon rail is the
+     * better answer and the burger already reaches it. 480 is generous because
+     * the complaint is a nested tree that will not fit, but it is a number and
+     * not "half the window", so a wide screen cannot store a sidebar that a
+     * laptop then has to clamp away.
+     */
+    public const int SIDEBAR_MIN_WIDTH = 180;
+    public const int SIDEBAR_MAX_WIDTH = 480;
+    public const int SIDEBAR_DEFAULT_WIDTH = 224;
 
     /**
      * Insight extractors this user has switched OFF, as a list of extractor
@@ -1051,30 +1114,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     /** The composer stays open and is its own cancel. */
     public const string SEND_FEEDBACK_HOLD = 'hold';
-
-    /**
-     * The default is 19rem — what the column was fixed at before it could move.
-     *
-     * The maximum is the CALENDAR's maximum, deliberately the same number: both
-     * are "a pane beside the thing the page is for", and 560 was a limit
-     * inherited from the days when this was a sidebar rather than a peer card.
-     * A preview is worth widening — it is the only place on the page where the
-     * list density, the preview lines and the snippet clamp can be judged
-     * against each other at a realistic width, and at 560 the list still had to
-     * use its stacked layout to fit.
-     *
-     * What keeps this honest is that it is a ceiling and not a promise. The
-     * boundary is clamped against what the two cards actually have between
-     * them, minus the controls card's own floor (`main-min` in
-     * _appearance.html.twig), so 900 is reachable on a window with 900 to spare
-     * and the preview simply stops earlier on one without. Note that raising a
-     * maximum can only widen the range a stored width is clamped into: nobody's
-     * remembered value changes, and the pane they left is the pane they return
-     * to.
-     */
-    public const int APPEARANCE_PREVIEW_MIN_WIDTH = 240;
-    public const int APPEARANCE_PREVIEW_MAX_WIDTH = 900;
-    public const int APPEARANCE_PREVIEW_DEFAULT_WIDTH = 304;
 
     /**
      * Virtual, so there is no column behind it — the value lives in the
@@ -1161,22 +1200,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
     }
 
-    /** Virtual, out of the settings bag — see SETTING_APPEARANCE_PREVIEW_WIDTH. */
-    public int $appearancePreviewWidth {
-        get {
-            $width = $this->getSetting(
-                self::SETTING_APPEARANCE_PREVIEW_WIDTH,
-                self::APPEARANCE_PREVIEW_DEFAULT_WIDTH,
-            );
-
-            if (false === is_int($width)) {
-                return self::APPEARANCE_PREVIEW_DEFAULT_WIDTH;
-            }
-
-            return max(self::APPEARANCE_PREVIEW_MIN_WIDTH, min(self::APPEARANCE_PREVIEW_MAX_WIDTH, $width));
-        }
-    }
-
     /**
      * Virtual, out of the settings bag — see SETTING_READING_PANE_MODE.
      *
@@ -1208,6 +1231,36 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::READING_PANE_MIN_PCT, min(self::READING_PANE_MAX_PCT, $share));
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_SIDEBAR_WIDTH.
+     *
+     * Clamped on the way out as well as on the way in, for the reason the
+     * reading pane's share is: a stored width outside the range is a sidebar
+     * nobody can drag back.
+     */
+    public int $sidebarWidth {
+        get {
+            $width = $this->getSetting(self::SETTING_SIDEBAR_WIDTH, self::SIDEBAR_DEFAULT_WIDTH);
+
+            if (false === is_int($width)) {
+                return self::SIDEBAR_DEFAULT_WIDTH;
+            }
+
+            return max(self::SIDEBAR_MIN_WIDTH, min(self::SIDEBAR_MAX_WIDTH, $width));
+        }
+        set (int $width) {
+            $this->setSetting(self::SETTING_SIDEBAR_WIDTH, max(self::SIDEBAR_MIN_WIDTH, min(self::SIDEBAR_MAX_WIDTH, $width)));
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_SIDEBAR_PEEK. */
+    public bool $sidebarPeek {
+        get => false !== $this->getSetting(self::SETTING_SIDEBAR_PEEK, true);
+        set (bool $peek) {
+            $this->setSetting(self::SETTING_SIDEBAR_PEEK, $peek);
         }
     }
 
@@ -1383,10 +1436,98 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * the key is absent for nearly everybody, and routes that delete for good
      * refuse with a 403 while it is, not only the templates that draw the
      * button: a switch that only hid the flame would leave a hand-made POST
-     * working. Per USER, like every setting in this bag — Settings → Mail →
+     * working. Per USER, like every setting in this bag — Settings → Inbox →
      * Disposal.
      */
     public const string SETTING_DISPOSAL_DELETE_NOW = 'disposal.delete_now';
+
+    /**
+     * Pinned conversations (#654), three keys in the bag: no column and no
+     * migration for a choice about how this person's lists behave.
+     *
+     * - reminder_at: how many pins before pinning asks "pin anyway?". A
+     *   reminder, never a limit; 0 switches it off.
+     * - duration_days: how long a new pin lasts; absent for forever.
+     * - keep_on_move: whether a pin survives the conversation being moved or
+     *   archived; absent for yes. Stored only when switched off, so the bag
+     *   carries nothing for anybody on the default.
+     */
+    public const string SETTING_PIN_REMINDER_AT = 'pins.reminder_at';
+    public const string SETTING_PIN_DURATION_DAYS = 'pins.duration_days';
+    public const string SETTING_PIN_KEEP_ON_MOVE = 'pins.keep_on_move';
+
+    /**
+     * Whether the lists show conversations or single emails (#615). Absent
+     * for conversations, the default; a stored false lists one row per email.
+     * A display preference switched from the list toolbar as often as from
+     * Settings, so in the bag like the rest of them.
+     */
+    public const string SETTING_CONVERSATION_VIEW = 'list.conversations';
+
+    /** Twenty: about a screenful of rows, past which the top of a list is no longer "the few I need". */
+    public const int PIN_REMINDER_DEFAULT = 20;
+
+    /**
+     * The longest a pin may be set to last: ten years, which is forever by
+     * another name, and keeps the end date a date the database can hold.
+     */
+    public const int PIN_DURATION_MAX_DAYS = 3650;
+
+    /** The reminder can go this high; past it, "off" is the honest setting. */
+    public const int PIN_REMINDER_MAX = 999;
+
+    /** Virtual, out of the settings bag — see SETTING_PIN_REMINDER_AT. Anything unreadable is the default. */
+    public int $pinReminderAt {
+        get {
+            $stored = $this->getSetting(self::SETTING_PIN_REMINDER_AT);
+
+            if (false === is_int($stored) || $stored < 0 || $stored > self::PIN_REMINDER_MAX) {
+                return self::PIN_REMINDER_DEFAULT;
+            }
+
+            return $stored;
+        }
+        set(int $count) {
+            $count = max(0, min(self::PIN_REMINDER_MAX, $count));
+
+            $this->setSetting(self::SETTING_PIN_REMINDER_AT, self::PIN_REMINDER_DEFAULT === $count ? null : $count);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_PIN_DURATION_DAYS. Null is forever. */
+    public ?int $pinDurationDays {
+        get {
+            $stored = $this->getSetting(self::SETTING_PIN_DURATION_DAYS);
+
+            if (false === is_int($stored) || $stored < 1 || $stored > self::PIN_DURATION_MAX_DAYS) {
+                return null;
+            }
+
+            return $stored;
+        }
+        set(?int $days) {
+            $this->setSetting(
+                self::SETTING_PIN_DURATION_DAYS,
+                null === $days ? null : max(1, min(self::PIN_DURATION_MAX_DAYS, $days)),
+            );
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_PIN_KEEP_ON_MOVE. On unless switched off. */
+    public bool $pinKeepOnMove {
+        get => false !== $this->getSetting(self::SETTING_PIN_KEEP_ON_MOVE, true);
+        set(bool $keep) {
+            $this->setSetting(self::SETTING_PIN_KEEP_ON_MOVE, $keep ? null : false);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CONVERSATION_VIEW. On unless switched off. */
+    public bool $conversationView {
+        get => false !== $this->getSetting(self::SETTING_CONVERSATION_VIEW, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CONVERSATION_VIEW, $on ? null : false);
+        }
+    }
 
     /** Virtual, out of the settings bag — see SETTING_DISPOSAL_DELETE_NOW. */
     public bool $deleteNowButtons {
@@ -1615,6 +1756,55 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Whether mail to one of the person's OWN addresses is encrypted (#703):
+     * the RecipientPolicy a contact's key carries in ContactKey::$encrypt,
+     * for the addresses that have no contact key because the key is the
+     * person's own. Set from the lock's popover in the composer
+     * (RecipientPolicies).
+     *
+     * Here and not on AddressKeyBinding, where it would sit beside the key
+     * like a contact's does: bindings are rewritten whenever the keyring is
+     * — a key added, made primary, retired — and the choice is about the
+     * address and the provider's app that reads it, not about which key
+     * happens to serve it this month. By address, lower-cased, like
+     * SETTING_CRYPTO_WKD_UNPUBLISHED; only `always` and `never` are kept, so
+     * an address set back to Auto leaves nothing behind.
+     */
+    public const string SETTING_CRYPTO_OWN_ENCRYPT = 'crypto.own_encrypt';
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CRYPTO_OWN_ENCRYPT.
+     *
+     * @var array<string, string> address => RecipientPolicy value
+     */
+    public array $ownAddressEncrypt {
+        get {
+            $stored   = $this->getSetting(self::SETTING_CRYPTO_OWN_ENCRYPT, []);
+            $policies = [];
+
+            foreach (true === is_array($stored) ? $stored : [] as $address => $policy) {
+                if (true === is_string($address) && true === is_string($policy)) {
+                    $policies[$address] = $policy;
+                }
+            }
+
+            return $policies;
+        }
+        set(array $policies) {
+            $kept = [];
+
+            foreach ($policies as $address => $policy) {
+                if ('always' === $policy || 'never' === $policy) {
+                    $kept[strtolower(trim((string) $address))] = $policy;
+                }
+            }
+
+            ksort($kept);
+            $this->setSetting(self::SETTING_CRYPTO_OWN_ENCRYPT, [] === $kept ? null : $kept);
+        }
+    }
+
+    /**
      * Whether remote images load in every message without the "Show images"
      * bar, as if every sender were on the allowlist (#124).
      *
@@ -1629,7 +1819,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * Spam as the provider disputing who sent it, and no standing permission
      * outranks that. Images still come through the proxy, so a sender learns
      * that the message was opened but not the reader's address. Per USER, like
-     * the allowlist it widens — Settings → Mail → Images.
+     * the allowlist it widens — Settings → Reading & writing → Reading.
      */
     public const string SETTING_IMAGES_ALWAYS_SHOW = 'images.always_show';
 
@@ -1638,6 +1828,70 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         get => true === $this->getSetting(self::SETTING_IMAGES_ALWAYS_SHOW, false);
         set(bool $on) {
             $this->setSetting(self::SETTING_IMAGES_ALWAYS_SHOW, $on ? true : null);
+        }
+    }
+
+    /**
+     * Which looked-up sender pictures this reader wants (#639), kind value =>
+     * on/off, out of the settings bag. Only what differs from the kind's own
+     * default is stored — see SenderPictureKind::onByDefault() for why
+     * Gravatar alone starts off — so a later release that changes a default
+     * reaches everyone who never chose.
+     *
+     * Per user, beside the remote images switch it resembles: Settings →
+     * Reading & writing → Reading. None of it applies until the administrator
+     * allows lookups at all (SenderPictureSettings).
+     */
+    public const string SETTING_SENDER_PICTURES = 'sender_pictures';
+
+    /**
+     * Stays a method: it takes the kind and asks the stored choices about it.
+     * Contact photos and other users' pictures are not lookups and are always
+     * on.
+     */
+    public function allowsSenderPicture(SenderPictureKind $kind): bool
+    {
+        if (false === $kind->isLookup()) {
+            return true;
+        }
+
+        $chosen = $this->getSetting(self::SETTING_SENDER_PICTURES, []);
+        $value  = is_array($chosen) ? ($chosen[$kind->value] ?? null) : null;
+
+        return is_bool($value) ? $value : $kind->onByDefault();
+    }
+
+    public function allowSenderPicture(SenderPictureKind $kind, bool $on): static
+    {
+        $chosen = $this->getSetting(self::SETTING_SENDER_PICTURES, []);
+        $chosen = is_array($chosen) ? $chosen : [];
+
+        if ($on === $kind->onByDefault()) {
+            unset($chosen[$kind->value]);
+        } else {
+            $chosen[$kind->value] = $on;
+        }
+
+        return $this->setSetting(self::SETTING_SENDER_PICTURES, [] === $chosen ? null : $chosen);
+    }
+
+    /**
+     * Whether this user's profile picture is served to the internet as their
+     * Libravatar (#642), for every address of theirs: OFF until they turn it
+     * on, and only offered while the administrator runs the Libravatar route.
+     *
+     * The user's own choice and not the administrator's, because what it
+     * does is personal: anybody who knows one of their addresses can fetch
+     * their face. The administrator decides the server answers; each person
+     * decides whether it answers for them. Only a stored true is on.
+     */
+    public const string SETTING_LIBRAVATAR_PUBLISH = 'libravatar.publish';
+
+    /** Virtual, out of the settings bag — see SETTING_LIBRAVATAR_PUBLISH. */
+    public bool $publishesLibravatar {
+        get => true === $this->getSetting(self::SETTING_LIBRAVATAR_PUBLISH, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_LIBRAVATAR_PUBLISH, $on ? true : null);
         }
     }
 
@@ -1655,7 +1909,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * Only read while the inbox tabs are on at all (CategorySorting::$tabs):
      * somebody who chose One list gets one list everywhere, whatever this says.
      * Only a stored true is on, so the key is absent for nearly everybody.
-     * Per USER — Settings → Mail → Categories.
+     * Per USER — Settings → Inbox → Categories & sorting.
      */
     public const string SETTING_ACCOUNT_INBOX_TABS = 'categories.account_tabs';
 
@@ -1778,16 +2032,42 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
     }
 
-    /** Virtual, out of the settings bag — see SETTING_SIDEBAR_ACCOUNT. */
-    public ?int $expandedAccountId {
+    /**
+     * Virtual, out of the settings bag — see SETTING_SIDEBAR_ACCOUNT.
+     *
+     * @var list<int>
+     */
+    public array $expandedAccountIds {
         get {
-            $accountId = $this->getSetting(self::SETTING_SIDEBAR_ACCOUNT);
+            $stored = $this->getSetting(self::SETTING_SIDEBAR_ACCOUNT);
 
-            return is_int($accountId) ? $accountId : null;
+            if (true === is_int($stored)) {
+                return [$stored];
+            }
+
+            if (false === is_array($stored)) {
+                return [];
+            }
+
+            return array_values(array_filter($stored, 'is_int'));
         }
-        set (?int $accountId) {
-            $this->setSetting(self::SETTING_SIDEBAR_ACCOUNT, $accountId);
+        set (array $accountIds) {
+            $kept = array_values(array_unique(array_filter($accountIds, 'is_int')));
+
+            $this->setSetting(self::SETTING_SIDEBAR_ACCOUNT, [] === $kept ? null : $kept);
         }
+    }
+
+    public function isAccountExpanded(int $accountId): bool
+    {
+        return true === in_array($accountId, $this->expandedAccountIds, true);
+    }
+
+    public function setAccountExpanded(int $accountId, bool $expanded): void
+    {
+        $others = array_values(array_filter($this->expandedAccountIds, static fn (int $id): bool => $id !== $accountId));
+
+        $this->expandedAccountIds = true === $expanded ? [...$others, $accountId] : $others;
     }
 
     /**
@@ -1963,7 +2243,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     public function addAccount(Account $account): static
     {
-        if (!$this->accounts->contains($account)) {
+        if (false === $this->accounts->contains($account)) {
             $this->accounts->add($account);
             $account->usr = $this;
         }

@@ -1,4 +1,4 @@
-<!-- translated-from: internals/architecture.md sha1:d22ed62220b4c65684688c1e360ec0e54eead4a8 -->
+<!-- translated-from: internals/architecture.md sha1:fe017125bffb3c0f0bc7d14115bf639cf1811099 -->
 # Architektur
 
 Die Schichten, was wo liegt, und die Regeln, die das so halten. Diese Seite beschreibt die
@@ -70,10 +70,16 @@ andere.
 
 ## Jede Abfrage lebt in einem Repository
 
-Außerhalb von `src/Repository` gibt es kein `createQueryBuilder`. Eine Abfrage, die zweimal
-gebraucht wird, ist eine benannte Repository-Methode; eine Abfrage, die einmal gebraucht wird,
-aber einen Grund hat, ist eine benannte Repository-Methode, deren Docblock diesen Grund nennt.
-`App\Repository\Calendar\CalendarEventRepository` zeigt den Gewinn am deutlichsten —
+Außerhalb von `src/Repository` gibt es keine Abfrage: keinen Query Builder, kein DQL, kein rohes
+DBAL und kein `EntityManager::find()` in einem Service, Controller, Handler, Listener oder sonst
+wo, und `QueriesLiveInRepositoriesTest` lässt den Build an einer solchen scheitern. Eine Abfrage,
+die zweimal gebraucht wird, ist eine benannte Repository-Methode; eine Abfrage, die einmal
+gebraucht wird, aber einen Grund hat, ist eine benannte Repository-Methode, deren Docblock diesen
+Grund nennt. Repositories liegen in einem Ordner pro Modell, `src/Repository/<Bereich>/<Modell>/`,
+mit dem Doctrine-Repository des Modells und einem Repository pro Thema daneben
+(`MessageRepository`, `MessageSendRepository`, `MessageImapRepository`, …), damit keines auf
+Tausende Zeilen anwächst.
+`App\Repository\Calendar\CalendarEvent\CalendarEventRepository` zeigt den Gewinn am deutlichsten —
 `findOneByRemoteId()`, `findOneByUid()`, `findPendingSync()`, `findRemoteRowsNotIn()` und
 `findRowsTheRemoteNeverGave()` tragen jeweils den Absatz, der erklärt, welche Menge sie
 auswählen, und die Sync-Engine liest sich dadurch als Folge von Entscheidungen statt als Folge
@@ -184,6 +190,17 @@ dieser Reihenfolge — siehe [Mail-Ingest](mail-ingest.md#was-auf-eine-nachricht
 weitergeführt, damit Envelopes, die vor der Aufteilung eingereiht wurden, noch irgendwo landen
 können; der Maintenance-Worker leert ihn.
 
+Ein Prozess pro Queue reicht für `ingest` trotzdem nicht, denn diese Queue enthält jeden Job, der
+für irgendein Konto mit einem Mailanbieter spricht. Als Microsoft Graph am 13. November 2026 nicht
+richtig antwortete, steckte ein Job für ein Outlook-Konto in einem Aufruf fest, und eine Stunde lang
+synchronisierte kein Konto, Gmail und IMAP eingeschlossen. Deshalb führt `worker-ingest`
+`app:messenger:consume-isolated` aus: derselbe Symfony-Worker, aber jede Nachricht wird von einem
+eigenen Kindprozess bearbeitet (`ChildProcessExecutionStrategy`). Mehrere laufen gleichzeitig, so
+viele wie Admin → Performance erlaubt (standardmäßig vier). Jobs desselben Kontos laufen weiterhin
+nacheinander, in der Reihenfolge ihres Eintreffens, und ein Kindprozess, der länger als sechs
+Minuten läuft, wird beendet. Ein so beendeter Sync wird verworfen, weil der Zeitplan ihn ohnehin
+wieder anstößt; alles andere landet wie jeder andere Fehler auf der Retry-Leiter.
+
 `bulk` ist der jüngste davon und derjenige, den du am ehesten mit `maintenance` verwechselst:
 Er trägt Mark-Read- und Archiv-Läufe über eine ganze Ansicht. Die dauern so lange wie eine
 nachträgliche Verarbeitung, sind aber im entscheidenden Punkt nicht dasselbe — jemand hat einen
@@ -233,6 +250,7 @@ war, in dem das Projekt vorher steckte: Logs und verwaiste Blobs wuchsen ohne Gr
 | `11-59/15 * * * *` | `app:contacts:sync --stale` | CardDAV-Adressbücher haben überhaupt keinen Push, also kommen Änderungen vom Handy nur so an. Gegen beide Durchläufe oben versetzt, aus demselben Grund des geteilten Workers |
 | `20 * * * *` | `app:calendar:push` | Stündlich, nicht weil so schnell etwas abliefe, sondern weil die Registrierung aus *Deployment*-Gründen scheitert, die mit dem Klick, der den Kalender verbunden hat, nichts zu tun haben |
 | `* * * * *` | `app:mail:wake-snoozed` | Eine Minute ist die Einheit, in der Menschen eine Weckzeit wählen |
+| `*/15 * * * *` | `app:mail:unpin-ended` | Die Listen lassen eine abgelaufene Anheftung selbst fallen; das hier sagt es nur den JMAP-Clients, und Anheftungen werden in Tagen gesetzt |
 | `* * * * *` | `app:calendar:alerts` | Dasselbe Argument, und zusätzlich ist das Intervall die Schranke dafür, wie spät eine Erinnerung kommen kann |
 | `0 4 * * *` | `app:push:renew --repair` | Gmail-Watches halten 7 Tage, Graph-Abonnements etwa 3 |
 | `50 3 * * *` | `app:calendar:materialise` | Rollt den Horizont der Termininstanzen vorwärts, damit einem Serientermin nicht klammheimlich die Termine ausgehen |
@@ -260,18 +278,20 @@ Property nicht kann.
 
 Zwei Gewohnheiten seien hervorgehoben, weil dort die Korrektheit tatsächlich wohnt.
 
-**Jeder Index und jedes Unique Constraint trägt einen Kommentar, der sagt, was er schützt und
-warum die Spalten in dieser Reihenfolge stehen.** `uniq_calendar_booking_page_start` auf
+**Ein Index oder Constraint, dessen Grund nicht offensichtlich ist, trägt einen Kommentar, der
+sagt, was er schützt und warum die Spalten in dieser Reihenfolge stehen.** Ein Index auf einem
+Fremdschlüssel braucht keinen. `uniq_calendar_booking_page_start` auf
 `calendar_booking` ist keine Optimierung — es ist das Einzige, was zwei Fremde davon abhält,
 dieselbe halbe Stunde zu nehmen, und die Id der Seite steht vorn, weil das Constraint von den
 Zeitfenstern einer Seite handelt. `uniq_calendar_event_calendar_uid` begrenzt die
 Eindeutigkeit der UID auf einen Kalender, und genau das macht die Kopie einer Besprechung auf
 einem zweiten Kalender legal statt bloß geduldet.
 
-**Zeitstempel kommen aus `App\Domain\Trait\TimestampableTrait`, auf jeder Entity, ohne
-Ausnahme** — auch auf den Tabellen, die einmal geschrieben werden. Eine Regel für jede Entity
-ist mehr wert als die Bytes, die eine Ausnahme spart, und nichts muss entscheiden, welche Art
-Entity gerade vor ihm liegt. Der Trait braucht `#[ORM\HasLifecycleCallbacks]` an der
+**Zeitstempel kommen aus `App\Domain\Trait\TimestampableTrait`, und nur von dort.** Nicht
+jede Entity hat welche: ein Datensatz, der angelegt und später bearbeitet wird, schon;
+Verknüpfungszeilen, aus anderen Daten neu aufgebaute Zeilen und Markierungen, dass etwas
+gesehen wurde, kommen ohne aus. Nichts schreibt `createdAt` oder `updatedAt` von Hand, und ein
+Zeitpunkt mit eigener Bedeutung wird nach ihr benannt (`purgedAt`, `finishedAt`). Der Trait braucht `#[ORM\HasLifecycleCallbacks]` an der
 aufnehmenden Klasse und Doctrine tut ohne das stillschweigend nichts, deshalb prüft
 `TimestampableTest` jede aufnehmende Entity auf das Attribut — die eine Anforderung, die der
 Trait selbst nicht erzwingen kann.

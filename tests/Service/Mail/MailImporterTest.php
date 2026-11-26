@@ -9,7 +9,7 @@ use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Mailbox;
 use App\Infrastructure\Messaging\Message\ImportMailMessage;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\Mail\InitialImportState;
 use App\Service\Mail\MailImporter;

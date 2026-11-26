@@ -211,7 +211,7 @@ final class DeleteNowSettingTest extends WebTestCase
 
     public function testTheDisposalSectionShowsTheSwitchAndSavingItStoresTheChoice(): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=disposal');
+        $crawler = $this->client->request('GET', '/settings/disposal');
 
         self::assertResponseIsSuccessful();
         self::assertSame(1, $crawler->filter('input[name="deleteNow"][value="1"]')->count(), 'the switch is on the page');
@@ -225,7 +225,7 @@ final class DeleteNowSettingTest extends WebTestCase
         $user = $this->em->find(User::class, $this->user->id);
         self::assertTrue($user->deleteNowButtons, 'saved on');
 
-        $crawler = $this->client->request('GET', '/settings?section=disposal');
+        $crawler = $this->client->request('GET', '/settings/disposal');
         self::assertSame(1, $crawler->filter('input[name="deleteNow"][value="1"][checked]')->count(), 'and shown as on');
 
         $this->client->request('POST', '/settings/disposal', ['_token' => $token, 'deleteNow' => '0']);
@@ -248,11 +248,11 @@ final class DeleteNowSettingTest extends WebTestCase
 
     public function testTheNavigationListsDisposalUnderMail(): void
     {
-        $crawler = $this->client->request('GET', '/settings?section=disposal');
+        $crawler = $this->client->request('GET', '/settings/disposal');
 
         self::assertSame(
             1,
-            $crawler->filter('a[href*="section=disposal"][aria-current="page"]')->count(),
+            $crawler->filter('a[href$="/settings/disposal"][aria-current="page"]')->count(),
             'Disposal is a section of its own, and is the one marked as current',
         );
     }

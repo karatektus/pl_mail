@@ -9,7 +9,7 @@ use App\Entity\Embeddable\CategorySorting;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Ai\AiSettings\AiSettingsRepository;
 use App\Service\Ai\AiPermissions;
 use App\Service\Mail\PostIngest\RecentMailPolicy;
 

@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Jmap\Mail;
 
+use App\Domain\DTO\Mail\ParsedMessage;
 use App\Domain\Enum\Mail\MessageFlag;
+use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MessageParser;
-use App\Domain\Helper\MimeHeaderHelper;
 use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
 use App\Jmap\Blob\BlobId;
 use App\Jmap\Blob\BlobResolver;
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\Label\LabelBindingRepository;
+use App\Repository\Label\LabelBinding\LabelBindingRepository;
 use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Crypto\SealGuard;
 use App\Service\Imap\MessageSyncer;
@@ -32,8 +32,6 @@ use App\Service\Mail\RawMessageResolver;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Throwable;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * One message for JMAP Email/import (RFC 8621 §4.8): an uploaded RFC 5322
@@ -108,7 +106,7 @@ final readonly class EmailImporter
         }
 
         try {
-            $mime = MessageParser::fromString($raw, Config::make(['decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]]]));
+            $mime = MessageParser::parse($raw);
         } catch (Throwable $exception) {
             throw new MethodException('invalidProperties', 'The blob is not an RFC 5322 message: ' . $exception->getMessage(), ['properties' => ['blobId']]);
         }
@@ -149,8 +147,8 @@ final readonly class EmailImporter
 
         $this->store($account, $message, $draft, $labels, $keywords);
 
-        foreach ($mime->getAttachments() as $attachment) {
-            if (null === $message->crypto || false === $this->crypto->isWrapping($message->crypto, $attachment->getContentType(), $attachment->getFilename())) {
+        foreach ($mime->attachments as $attachment) {
+            if (null === $message->crypto || false === $this->crypto->isWrapping($message->crypto, $attachment->contentType, $attachment->filename)) {
                 $this->attachments->write($message, $attachment);
             }
         }
@@ -171,39 +169,28 @@ final readonly class EmailImporter
         return $message;
     }
 
-    private function build(Account $account, ImapMessage $mime, bool $draft, mixed $receivedAt): Message
+    private function build(Account $account, ParsedMessage $mime, bool $draft, mixed $receivedAt): Message
     {
         $message = new Message();
         $message->account   = $account;
-        $message->messageId = MessageIdHelper::normalise((string) $mime->getMessageId());
-        $message->subject   = MimeHeaderHelper::decode((string) $mime->getSubject());
+        $message->messageId = MessageIdHelper::normalise($mime->messageId);
+        $message->subject   = $mime->subject;
 
-        $from = $mime->getFrom()->first();
-
-        if (false !== $from && null !== $from) {
-            $message->fromAddress = strtolower(trim((string) ($from->mail ?? '')));
-            $message->fromName    = MimeHeaderHelper::decode((string) ($from->personal ?? ''));
+        if (null !== $mime->from) {
+            $message->fromAddress = AddressHelper::email($mime->from->address);
+            $message->fromName    = AddressHelper::name($mime->from->name);
         }
 
-        $message->toAddresses  = MessageSyncer::addressesOf($mime->getTo());
-        $message->ccAddresses  = MessageSyncer::addressesOf($mime->getCc());
-        $message->bccAddresses = MessageSyncer::addressesOf($mime->getBcc());
+        $message->toAddresses  = MessageSyncer::addressesOf($mime->to);
+        $message->ccAddresses  = MessageSyncer::addressesOf($mime->cc);
+        $message->bccAddresses = MessageSyncer::addressesOf($mime->bcc);
 
-        $inReplyTo  = $mime->getInReplyTo();
-        $references = $mime->getReferences();
-        $message->inReplyTo  = $inReplyTo->exist() ? MessageIdHelper::normaliseList((string) $inReplyTo) : [];
-        $message->references = $references->exist() ? MessageIdHelper::normaliseList((string) $references) : [];
+        $message->inReplyTo  = '' !== $mime->inReplyTo ? MessageIdHelper::normaliseList($mime->inReplyTo) : [];
+        $message->references = '' !== $mime->references ? MessageIdHelper::normaliseList($mime->references) : [];
 
-        $headers = [];
-
-        foreach ($mime->getHeader()->getAttributes() as $name => $attribute) {
-            $values = $attribute->toArray();
-            $headers[(string) $name] = 1 === count($values) ? (string) reset($values) : array_map(static fn ($value): string => (string) $value, $values);
-        }
-
-        $message->headers  = $this->headers->normalize($headers);
-        $message->bodyText = (string) $mime->getTextBody();
-        $message->bodyHtml = (string) $mime->getHTMLBody();
+        $message->headers  = $this->headers->normalize($mime->headers);
+        $message->bodyText = $mime->textBody;
+        $message->bodyHtml = $mime->htmlBody;
 
         $this->crypto->seal($message, $this->crypto->classify(
             $this->headers->first($message->headers, 'content-type'),
@@ -216,8 +203,7 @@ final readonly class EmailImporter
         // carries: a Date header of "14:53 +0100" kept as it stands was read
         // back as 14:53 UTC, and shown an hour late in Berlin — two in summer.
         // The sync has always converted (MessageSyncer::toUtc()); this did not.
-        $date = $mime->getDate()->first();
-        $sent = $date instanceof \DateTimeInterface ? MessageSyncer::toUtc($date) : null;
+        $sent = null === $mime->date ? null : MessageSyncer::toUtc($mime->date);
 
         // A draft has not been sent, whatever its Date header says.
         $message->sentAt     = true === $draft ? null : $sent;

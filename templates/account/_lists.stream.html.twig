@@ -1,0 +1,25 @@
+{# Both account lists, as they stand now. Streams targeting an absent id are
+   no-ops, so this works whether the page shows the sidebar, the settings pane
+   or both. Used by _mutation.stream (after a change) and by
+   AccountController::lists() (while a removal runs, see
+   settings--account-removal).
+
+   Variables: manageableAccounts #}
+
+{# Sidebar list (mail pages) — uses the active-only accounts global. #}
+<turbo-stream action="replace" target="account-list">
+    <template>
+        <div id="account-list" class="space-y-0.5">
+            {% include '_partials/_account_list.html.twig' %}
+        </div>
+    </template>
+</turbo-stream>
+
+{# Settings pane — uses the full, explicitly-passed account list. #}
+<turbo-stream action="replace" target="settings-account-list">
+    <template>
+        <div id="settings-account-list">
+            {% include 'settings/_accounts.html.twig' with { manageableAccounts: manageableAccounts } %}
+        </div>
+    </template>
+</turbo-stream>

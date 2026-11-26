@@ -51,6 +51,7 @@ trait SeedsMarkerFixtures
         int              $unread = 0,
         bool             $flush = true,
         ?string          $fromName = null,
+        ?string          $body = null,
     ): MessageThread {
         $thread                    = new MessageThread();
         $thread->account           = $this->account;
@@ -71,6 +72,7 @@ trait SeedsMarkerFixtures
         $message->subject     = $subject;
         $message->fromAddress = 'sender@example.test';
         $message->fromName    = $fromName;
+        $message->bodyText    = $body;
         $message->receivedAt  = new DateTimeImmutable($lastMessageAt);
         $message->sentAt      = $message->receivedAt;
         $message->seenAt         = $unread > 0 ? null : new DateTimeImmutable($lastMessageAt);
@@ -132,7 +134,7 @@ trait SeedsMarkerFixtures
         $account->imapPort       = 993;
         $account->imapEncryption = 'ssl';
         $account->authType       = 'password';
-        $account->isActive       = true;
+        $account->mailEnabled    = true;
 
         $this->em->persist($account);
         $this->em->flush();

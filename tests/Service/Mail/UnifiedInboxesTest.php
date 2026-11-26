@@ -102,7 +102,7 @@ final class UnifiedInboxesTest extends KernelTestCase
     {
         $this->inboxes->assign($this->user, $this->second, $this->inboxes->other($this->user));
 
-        $this->second->isActive = false;
+        $this->second->mailEnabled = false;
         $this->em->flush();
         $this->inboxes->reset();
 

@@ -11,7 +11,7 @@ use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
 use App\Service\Calendar\Subscription\CalendarSubscriber;
-use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Integration\Integration\IntegrationRepository;
 use App\Service\Calendar\Sync\IcsUrl\IcsUrlNormaliser;
 use Doctrine\ORM\EntityManagerInterface;
 

@@ -8,12 +8,13 @@ use App\Domain\Helper\CharsetHelper;
 use App\Domain\Interface\UpgradeTaskInterface;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MisfiledBodyDetector;
 use App\Service\Mail\MisfiledBodyUnpacker;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -26,7 +27,8 @@ use Throwable;
  *
  * Those messages render blank with one chip named something like `09704cea`,
  * and the mail the chip contains is the mail the message is supposed to show.
- * MessageSyncer stops new ones arriving; this is for the ones already here.
+ * MessageParser reads such parts as bodies, so no new ones arrive; this is for
+ * the ones stored while webklex parsed.
  *
  * ── Repairable without a mail server, which is the whole reason it exists ────
  * The bytes were saved. persistAttachment() wrote the part's content to
@@ -51,19 +53,19 @@ use Throwable;
  * interrupted and re-run, and a backfill an administrator types twice must do
  * nothing the second time.
  */
-final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, UpgradeTaskInterface
+final readonly class MisfiledBodyBackfillTask implements CountableBackfillTaskInterface, UpgradeTaskInterface
 {
     private const int BATCH_SIZE = 100;
 
     public function __construct(
-        private MessageRepository       $messages,
-        private MessageThreadRepository $threads,
+        private MessageBackfillRepository $messageBackfillRepository,
+        private MessageThreadRebuildRepository $messageThreadRebuildRepository,
         private AttachmentResolver      $attachments,
         private MisfiledBodyDetector    $detector,
         private MisfiledBodyUnpacker    $unpacker,
         private MailBodySanitizer       $sanitizer,
         private EntityManagerInterface  $em,
-        private LoggerInterface         $logger,
+        private LoggerInterface         $logger
     ) {}
 
     /**
@@ -87,9 +89,25 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
         return 'Restore message bodies that were stored as nameless attachments, leaving the message blank.';
     }
 
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-09-21');
+    }
+
+    public function isSafeToRunAgain(): bool
+    {
+        return true;
+    }
+
+    /** A table repair walks everything, so it has no window to count within. */
+    public function countCandidates(?DateTimeImmutable $since): int
+    {
+        return $this->messageBackfillRepository->countWithMisfiledBodyPart();
+    }
+
     public function run(SymfonyStyle $io): int
     {
-        $total = $this->messages->countWithMisfiledBodyPart();
+        $total = $this->messageBackfillRepository->countWithMisfiledBodyPart();
 
         if (0 === $total) {
             $io->success('Nothing to repair — no message is missing a body this way.');
@@ -104,7 +122,7 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
         $skipped  = 0;
 
         while (true) {
-            $messages = $this->messages->findWithMisfiledBodyPart($lastId, self::BATCH_SIZE);
+            $messages = $this->messageBackfillRepository->findWithMisfiledBodyPart($lastId, self::BATCH_SIZE);
 
             if (count($messages) === 0) {
                 break;
@@ -132,7 +150,7 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
 
         // Derived counters, rebuilt rather than patched by deltas — the same
         // reasoning ReclassifyAttachmentsCommand gives.
-        $this->threads->recomputeAttachmentCounts();
+        $this->messageThreadRebuildRepository->recomputeAttachmentCounts();
 
         $io->success(sprintf('%d message(s) repaired, %d left alone.', $repaired, $skipped));
 
@@ -220,7 +238,7 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
             return false;
         }
 
-        if (false === $this->detector->isBody($part->contentType, null, null)) {
+        if (false === $this->detector->isBodyType($part->contentType)) {
             return false;
         }
 

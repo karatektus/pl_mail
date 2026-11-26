@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Command\Demo;
 
-use App\Repository\Demo\DemoVisitRepository;
-use App\Repository\User\UserRepository;
+use App\Repository\Demo\DemoVisit\DemoVisitRepository;
+use App\Repository\User\User\UserRepository;
 use App\Service\Demo\DemoMode;
 use App\Service\Demo\DemoProvisioner;
 use App\Service\Demo\DemoUserEraser;

@@ -6,7 +6,7 @@ namespace App\Entity\Contacts;
 
 use App\Domain\Enum\Contacts\ContactChangeKind;
 use App\Domain\Trait\TimestampableTrait;
-use App\Repository\Contacts\ContactChangeLogRepository;
+use App\Repository\Contacts\ContactChangeLog\ContactChangeLogRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

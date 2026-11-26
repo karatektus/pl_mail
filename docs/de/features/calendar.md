@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:b293d951b77d4bb00035776790dd9e8bf7517a7e -->
+<!-- translated-from: features/calendar.md sha1:992dac57b4cb4bddca6d309e42eac0f6a7119253 -->
 
 # Kalender
 
@@ -32,7 +32,7 @@ merkt sich plMail das.
 ### Die Kalenderschaltfläche
 
 Standardmäßig ist die Schaltfläche ein Dreifachschalter: Mail, dann der Kalender neben der Mail,
-dann der Kalender in voller Breite, und wieder von vorn. **Einstellungen → Kalender → Verhalten**
+dann der Kalender in voller Breite, und wieder von vorn. **Einstellungen → Kalender & Kontakte → Kalenderverhalten**
 hat eine Auswahl, **Kalenderschaltfläche**, die daraus einen Zweifachschalter machen kann:
 
 - **Alle drei**: der Dreifachschalter, das ist die Voreinstellung.
@@ -165,7 +165,7 @@ stimmt.
 
 **Das Raster wird auf deiner Uhr gezeichnet.** Die Stunden an der Seite, die Stelle, an der die
 Linie der aktuellen Zeit sitzt, und die Zeit, die für einen neuen Termin vorgeschlagen wird, wenn du
-auf leeren Raum doppelklickst, folgen alle der Zeitzone aus **Einstellungen → Allgemein**. Das ist
+auf leeren Raum doppelklickst, folgen alle der Zeitzone aus **Einstellungen → Allgemein → Sprache & Region**. Das ist
 dieselbe Zone, gegen die jeder andere Zeitstempel in der App gelesen wird, und die der Uhr oben,
 also sind sich beide immer einig. Jeder Termin steht zu dem Zeitpunkt da, zu dem er bei dir
 tatsächlich stattfindet: Ein Termin um 15:00 in einem Tokioter Kalender liegt, in Berlin gelesen,
@@ -212,6 +212,22 @@ Die Felder sind **Titel**, **Beginn**, **Ende**, **Ganztägig**, **Kalender**, *
 Ein Termin, der mit leerem Titel gespeichert wird, heißt *Termin ohne Titel*, statt abgelehnt zu
 werden. Ein Ende vor dem Beginn wird abgelehnt: *Diese Zeiten gehen nicht — das Ende muss nach dem
 Beginn liegen.*
+
+### Die eigene Farbe eines Termins
+
+Ein Termin wird in der Farbe seines Kalenders gezeichnet, außer er hat eine eigene. Der Punkt am
+Anfang des Felds **Titel** ist diese Farbe: Ein Klick darauf zeigt **Kalenderfarbe**, die Farben,
+die du am meisten verwendest, unter **Oft verwendet** und zwanzig weitere unter **Alle Farben**. Die
+Suche oben findet eine Farbe über ihren Namen, und ein eingetipptes `#ff8800` bietet stattdessen die
+nächstgelegene benannte Farbe an, weil das Kalenderformat nur Namen speichern kann. **Oft verwendet**
+wird aus deinen eigenen Terminen gezählt, auch aus denen, die du am Telefon eingefärbt hast.
+
+Die Farbe gehört dem Termin, deshalb sehen Telefone und andere Kalender-Apps, die Terminfarben
+anzeigen (DAVx5 unter Android, Nextcloud), über CalDAV dieselbe, und eine dort gesetzte Farbe
+erscheint hier. Eine Farbe, die plMail nicht zeichnen kann, etwa ein Hex-Wert aus einer anderen App,
+bleibt unverändert erhalten, und gezeichnet wird die Farbe des Kalenders. In einem Editor, der auf
+einem einzelnen Vorkommen eines sich wiederholenden Termins geöffnet wurde, gilt die Farbe trotzdem
+für die ganze Serie.
 
 **Löschen** steht neben **Speichern** im selben Formular. Bei einem Termin, den plMail aus einer
 Nachricht gelesen hat, gibt es zusätzlich **Kein Termin**, was etwas anderes ist als Löschen — siehe

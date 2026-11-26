@@ -191,14 +191,14 @@ async function person(page: Page): Promise<string> {
     consoleCommand(`app:test:seed-mail --email=${email}`);
 
     await login(page, email, PASSWORD);
-    await page.goto("/settings?section=encryption");
+    await page.goto("/settings/encryption");
     await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });
 
     return email;
 }
 
 async function importP12(page: Page, p12: Buffer = material.p12): Promise<void> {
-    await page.goto("/settings?section=encryption");
+    await page.goto("/settings/encryption");
     await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });
     await page.locator("[data-testid=smime-file]").setInputFiles({ name: "mine.p12", mimeType: "application/x-pkcs12", buffer: p12 });
     await page.locator("#encryption-smime-password").fill(P12_PASSWORD);

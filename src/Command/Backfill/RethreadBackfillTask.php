@@ -7,10 +7,13 @@ namespace App\Command\Backfill;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageRepository;
+use App\Repository\Mail\Message\MessageThreadingRepository;
+use App\Repository\Mail\Message\MessageBackfillRepository;
+use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
 use App\Service\Imap\MessageThreader;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -40,9 +43,11 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
     public function __construct(
         private AccountRepository       $accountRepository,
         private MessageRepository       $messageRepository,
-        private MessageThreadRepository $threadRepository,
+        private MessageBackfillRepository $messageBackfillRepository,
+        private MessageThreadingRepository $messageThreadingRepository,
+        private MessageThreadRebuildRepository $messageThreadRebuildRepository,
         private MessageThreader         $threader,
-        private EntityManagerInterface  $em,
+        private EntityManagerInterface  $em
     ) {}
 
     public function getName(): string
@@ -55,9 +60,23 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
         return 'Normalise stored Message-IDs and rebuild all threads from scratch.';
     }
 
+    public function getAddedOn(): DateTimeImmutable
+    {
+        return new DateTimeImmutable('2026-07-28');
+    }
+
+    /**
+     * Not safe to repeat: the threads are discarded each time, and the AI
+     * summaries written since the last run go with them (see run()).
+     */
+    public function isSafeToRunAgain(): bool
+    {
+        return false;
+    }
+
     public function run(SymfonyStyle $io): int
     {
-        $accounts = $this->accountRepository->findBy(['isActive' => true]);
+        $accounts = $this->accountRepository->findBy(['mailEnabled' => true]);
 
         if (count($accounts) === 0) {
             $io->warning('No active accounts.');
@@ -153,17 +172,17 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
      * Per-thread state worth keeping, anchored to the thread's earliest message
      * so it can be found again once threads have been rebuilt.
      *
-     * @return list<array{anchor: int, starredAt: ?string, snoozedUntil: ?string, category: ?string, listedAt: ?string, labels: list<int>}>
+     * @return list<array{anchor: int, starredAt: ?string, snoozedUntil: ?string, pinnedAt: ?string, pinnedUntil: ?string, category: ?string, listedAt: ?string, labels: list<int>}>
      */
     private function snapshotThreadState(int $accountId): array
     {
-        $rows = $this->threadRepository->findCarriedOverStateForAccount($accountId);
+        $rows = $this->messageThreadRebuildRepository->findCarriedOverStateForAccount($accountId);
 
         if (count($rows) === 0) {
             return [];
         }
 
-        $labelsByThread = $this->threadRepository->findLabelIdsByThread(
+        $labelsByThread = $this->messageThreadRebuildRepository->findLabelIdsByThread(
             array_map(static fn(array $row): int => (int) $row['id'], $rows),
         );
 
@@ -176,6 +195,8 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
                 'anchor'       => (int) $row['anchor'],
                 'starredAt'    => $row['starred_at'],
                 'snoozedUntil' => $row['snoozed_until'],
+                'pinnedAt'     => $row['pinned_at'],
+                'pinnedUntil'  => $row['pinned_until'],
                 'category'     => $row['category'],
                 // Or the rebuild announces the account's whole history as new
                 // mail — see findCarriedOverStateForAccount().
@@ -196,8 +217,8 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
      */
     private function discardThreads(int $accountId): void
     {
-        $this->messageRepository->detachAllFromThreadsForAccount($accountId);
-        $this->threadRepository->deleteAllForAccount($accountId);
+        $this->messageThreadingRepository->detachAllFromThreadsForAccount($accountId);
+        $this->messageThreadRebuildRepository->deleteAllForAccount($accountId);
 
         $this->em->clear();
     }
@@ -243,7 +264,7 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
     }
 
     /**
-     * @param list<array{anchor: int, starredAt: ?string, snoozedUntil: ?string, category: ?string, listedAt: ?string, labels: list<int>}> $snapshots
+     * @param list<array{anchor: int, starredAt: ?string, snoozedUntil: ?string, pinnedAt: ?string, pinnedUntil: ?string, category: ?string, listedAt: ?string, labels: list<int>}> $snapshots
      */
     private function restoreThreadState(int $accountId, array $snapshots): int
     {
@@ -260,16 +281,18 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
                 continue;
             }
 
-            $this->threadRepository->restoreCarriedOverState(
+            $this->messageThreadRebuildRepository->restoreCarriedOverState(
                 $threadId,
                 $snapshot['starredAt'],
                 $snapshot['snoozedUntil'],
                 $snapshot['category'],
                 $snapshot['listedAt'],
+                $snapshot['pinnedAt'],
+                $snapshot['pinnedUntil'],
             );
 
             foreach ($snapshot['labels'] as $labelId) {
-                $this->threadRepository->addLabelIfAbsent($threadId, $labelId);
+                $this->messageThreadRebuildRepository->addLabelIfAbsent($threadId, $labelId);
             }
 
             ++$restored;
@@ -286,7 +309,7 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
      */
     private function idChunks(int $accountId, bool $orderByArrival = false): iterable
     {
-        $ids = $this->messageRepository->findAllIdsForAccount($accountId, $orderByArrival);
+        $ids = $this->messageBackfillRepository->findAllIdsForAccount($accountId, $orderByArrival);
 
         foreach (array_chunk($ids, self::BATCH_SIZE) as $chunk) {
             yield $chunk;

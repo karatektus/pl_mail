@@ -8,7 +8,7 @@ use App\Domain\Enum\Calendar\EventSource;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\EventProposal;
 use App\Entity\Calendar\EventSuppression;
-use App\Repository\Calendar\EventSuppressionRepository;
+use App\Repository\Calendar\EventSuppression\EventSuppressionRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\ExtractedEventCalendarResolver;
 use Doctrine\ORM\EntityManagerInterface;

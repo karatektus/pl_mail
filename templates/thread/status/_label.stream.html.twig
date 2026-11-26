@@ -10,6 +10,15 @@ Variables:
   attach            true when it was put on, false when it was taken off
   undoToken         optional; puts an Undo in the toast
 #}
+{# In the email list (#615) the row is the email's own. #}
+{% if message is defined and not app.user.conversationView %}
+    <turbo-stream action="replace" target="thread_{{ message.id }}">
+        <template>
+            {% include '_partials/_thread_row.html.twig' with { thread: message } %}
+        </template>
+    </turbo-stream>
+{% endif %}
+
 {% if thread is defined %}
     <turbo-stream action="replace" target="thread_{{ thread.id }}">
         <template>

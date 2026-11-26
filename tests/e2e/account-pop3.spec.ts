@@ -23,7 +23,7 @@ const PORT = 'input[name="account[imapPort]"]';
 const DELETE_MODE = 'select[name="account[pop3DeleteMode]"]';
 
 async function openAddForm(page: Page): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     await page
         .locator("section")
@@ -66,7 +66,7 @@ async function chooseDeleteMode(page: Page, option: string): Promise<void> {
 }
 
 async function removeAccount(page: Page, label: string): Promise<void> {
-    await page.goto("/settings?section=accounts");
+    await page.goto("/settings/accounts");
 
     const row = page.locator("#settings-account-list li").filter({ hasText: new RegExp(label, "i") });
 
@@ -77,7 +77,9 @@ async function removeAccount(page: Page, label: string): Promise<void> {
     await row.getByRole("button", { name: "Remove account" }).first().click();
     await acceptConfirm(page);
 
-    await expect(row).toHaveCount(0);
+    // Removing runs on the bulk worker now (#672): the row greys out at once
+    // and goes when the job is done, which is a worker round-trip away.
+    await expect(row).toHaveCount(0, { timeout: 20_000 });
 }
 
 test.describe("account form — incoming protocol", () => {
@@ -207,6 +209,8 @@ test.describe("account form — incoming protocol", () => {
             await page.locator(PORT).fill("995");
             await page.locator('select[name="account[imapEncryption]"]').selectOption("ssl");
             await chooseDeleteMode(page, "Delete it from the server");
+            // Sending is on by default and needs its server (#628).
+            await page.locator('input[name="account[smtpHost]"]').fill(`smtp-${stamp}.example.test`);
 
             await modal.locator('button[type="submit"]').click();
             await expect(page.getByText("Account added successfully")).toBeVisible();

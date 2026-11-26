@@ -6,7 +6,7 @@ namespace App\Entity\System;
 
 use App\Domain\Enum\System\UpdateChannel;
 use App\Domain\Trait\TimestampableTrait;
-use App\Repository\System\UpdateCheckRepository;
+use App\Repository\System\UpdateCheck\UpdateCheckRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;

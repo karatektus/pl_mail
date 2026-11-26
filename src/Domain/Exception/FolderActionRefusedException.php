@@ -21,6 +21,8 @@ namespace App\Domain\Exception;
  *     (RFC 3501 §6.3.4). Neither is something to do by accident.
  *   - NOT_EMPTY: deleting a folder deletes its mail. The same rule
  *     RemoteLabelRemover keeps: empty on the server and empty here, or no.
+ *   - MAIL_OFF: the account's mail is switched off (#575), and nothing about
+ *     its mail goes to the server until it is on again — folders included.
  *
  * `$reason` is the last part of a translation key under
  * `settings.accounts.folders.refused.`.
@@ -30,6 +32,7 @@ final class FolderActionRefusedException extends \RuntimeException
     public const string SPECIAL_USE  = 'special_use';
     public const string HAS_CHILDREN = 'has_children';
     public const string NOT_EMPTY    = 'not_empty';
+    public const string MAIL_OFF     = 'mail_off';
 
     public function __construct(
         public readonly string $reason,

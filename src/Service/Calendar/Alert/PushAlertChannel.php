@@ -8,7 +8,7 @@ use App\Domain\DTO\Calendar\DueAlert;
 use App\Domain\Enum\Calendar\AlertAction;
 use App\Domain\Interface\AlertChannelInterface;
 use App\Jmap\Push\PushSenderRegistry;
-use App\Repository\User\PushSubscriptionRepository;
+use App\Repository\User\PushSubscription\PushSubscriptionRepository;
 use Psr\Log\LoggerInterface;
 
 /**

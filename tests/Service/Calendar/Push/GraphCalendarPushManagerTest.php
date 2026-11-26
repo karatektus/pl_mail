@@ -324,7 +324,7 @@ final class GraphCalendarPushManagerTest extends KernelTestCase
         $account->username      = $user->email;
         $account->authType      = AuthType::OAuth2->value;
         $account->oauthProvider = MailProvider::Microsoft->value;
-        $account->isActive      = true;
+        $account->mailEnabled   = true;
         $this->em->persist($account);
 
         $this->calendar           = new Calendar();

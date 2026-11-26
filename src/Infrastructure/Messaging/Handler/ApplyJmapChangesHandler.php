@@ -12,9 +12,9 @@ use App\Entity\Mail\Message;
 use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Messaging\Message\ApplyJmapChangesMessage;
-use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\MessageRepository;
+use App\Repository\Label\Label\LabelRepository;
+use App\Repository\Mail\Account\AccountRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Service\JmapClient\JmapMailboxSyncer;
 use App\Service\JmapClient\JmapMailboxWriter;
 use Doctrine\ORM\EntityManagerInterface;
@@ -59,7 +59,10 @@ final readonly class ApplyJmapChangesHandler
     {
         $account = $this->accounts->find($message->accountId);
 
-        if (null === $account || false === $account->isJmap()) {
+        // Mail switched off (#575): the change stays here and nothing goes to
+        // the server. The next sync after switching back on reads the server's
+        // state over it — see AccountService.
+        if (null === $account || false === $account->mailEnabled || false === $account->isJmap()) {
             return;
         }
 

@@ -6,7 +6,7 @@ namespace App\Service\Imap;
 
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
-use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\Mailbox\MailboxRepository;
 
 /**
  * Where a new folder on a plain IMAP account goes, when nobody says otherwise

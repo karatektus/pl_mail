@@ -13,7 +13,7 @@ use App\Jmap\Push\FcmAccessTokenProvider;
 use App\Jmap\Push\FcmSender;
 use App\Jmap\Push\FcmSettings;
 use App\Jmap\Push\PushDeliveryRecorder;
-use App\Repository\Push\FcmConfigRepository;
+use App\Repository\Push\FcmConfig\FcmConfigRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;

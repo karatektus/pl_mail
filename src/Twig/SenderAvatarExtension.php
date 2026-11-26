@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Entity\Mail\Account;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
+use Twig\TwigFunction;
 
 /**
  * The initial and the colour behind it for a sender with no picture.
@@ -79,6 +81,13 @@ final class SenderAvatarExtension extends AbstractExtension
         ];
     }
 
+    public function getFunctions(): array
+    {
+        return [
+            new TwigFunction('account_dot', $this->accountDot(...)),
+        ];
+    }
+
     /** How many distinct account colours there are to hand out. */
     public const int ACCOUNT_COLOURS = 8;
 
@@ -108,6 +117,29 @@ final class SenderAvatarExtension extends AbstractExtension
     public function accountColor(int $colorIndex): string
     {
         return self::DOT_TONES[(($colorIndex % count(self::DOT_TONES)) + count(self::DOT_TONES)) % count(self::DOT_TONES)];
+    }
+
+    /**
+     * How an account's mark is painted: the palette entry's classes, or the
+     * user's own colour as an inline style (#638) — one or the other, never
+     * both, so a template writes `class="… {{ dot.class }}" style="{{ dot.style }}"`
+     * and does not have to know which it got.
+     *
+     * An inline style and not a class because the value is the user's, and
+     * Tailwind only has classes for what it saw at build time. That also makes
+     * it one colour on every theme, where the palette has a light and a dark
+     * shade; that is the trade the user makes by picking one, and the picker
+     * shows the contrast on the theme in use so it is made knowingly.
+     *
+     * @return array{class: string, style: string}
+     */
+    public function accountDot(Account $account): array
+    {
+        if (null !== $account->customColor && 1 === preg_match(Account::CUSTOM_COLOR_PATTERN, $account->customColor)) {
+            return ['class' => '', 'style' => 'background-color: ' . $account->customColor];
+        }
+
+        return ['class' => $this->accountColor($account->colorIndex), 'style' => ''];
     }
 
     public function accountTone(?string $seed): string
