@@ -49,6 +49,9 @@ account:
             username: Benutzername zum Senden
             username_help: 'Leer lassen, um mit dem Benutzernamen oben zu senden.'
         username: Benutzername
+    groups:
+        help: "Wo seine Mail erscheint und welche Arbeitsbereiche es zeigen. Ohne Haken kommt es in die Sammelgruppe."
+        legend: "Kontogruppen"
     mail_purge_queued: 'Die E-Mails dieses Kontos werden aus plMail entfernt. Auf dem Server bleiben sie.'
     oauth:
         calendar_declined: Das Konto ist verbunden, aber der Kalenderzugriff wurde nicht erteilt — seine Kalender werden also nicht synchronisiert. Verbinde es neu und hak auf Googles Zustimmungsseite den Kalenderzugriff an.
@@ -101,6 +104,7 @@ account:
             jmap_submission: 'Gesendet wird über den JMAP-Server.'
             missing_fields: 'Gib zuerst eine E-Mail-Adresse und mindestens einen Server ein.'
             missing_password: 'Kein Passwort zum Testen. Gib oben eins ein — beim Bearbeiten behält ein leeres Feld das gespeicherte Passwort, und das kann der Test erst nutzen, wenn das Konto gespeichert ist.'
+            password_for_new_server: 'Gib das Passwort noch einmal ein: Die Server haben sich geändert, und das gespeicherte Passwort geht nur an die Server, für die es gespeichert wurde.'
             pop3_ok: 'Verbunden — %count% Nachrichten im Postfach.'
             private_network: 'Dieser Server liegt in einem privaten Netz. Eine Administratorin oder ein Administrator muss ihn erst unter Admin → Integrationen → Server in privaten Netzen erlauben, bevor plMail sich verbinden darf.'
             smtp_none: 'Kein SMTP-Host eingetragen — Senden ist für dieses Konto aus.'
@@ -285,6 +289,7 @@ admin:
                 embedding: 'Such-Modell'
                 missing: 'nicht auf diesem Host'
                 missing_body: 'Ein hier eingetragenes Modell ist auf dem Host nicht installiert. Zieh es dort, oder trag eines ein, das vorhanden ist — bis dahin scheitert jede Anfrage dafür.'
+                missing_body_listed: 'Ein hier eingetragenes Modell steht nicht in der Modell-Liste des Hosts. Vergleich den Namen mit dem, was der Host anbietet — einen Namen, den er nicht kennt, lehnt er bei jeder Anfrage ab.'
                 none: 'nicht gesetzt'
                 resident: 'im Speicher'
             no_history: 'In diesem Zeitraum hat nichts ein Modell gefragt. Die Zahlen erscheinen, sobald etwas es tut.'
@@ -322,6 +327,7 @@ admin:
             openai: 'OpenAI-kompatibel'
         probe:
             missing_model: 'Der Host hat geantwortet, hat aber nicht: %models%. Zieh sie dort erst.'
+            missing_model_listed: 'Der Host hat geantwortet, aber seine Modell-Liste enthält nicht: %models%. Vergleich die Namen mit der Liste unten.'
             host:
                 search: 'Such-Host'
                 writing: 'Modell-Host'
@@ -440,6 +446,12 @@ admin:
 
                     Das liest das gespeicherte Original jeder betroffenen Nachricht und gibt dem Anhang seinen echten Namen zurück, wo das Original ihn eindeutig nennt. Läuft nach einem Update auch von selbst.
                 summary: 'Anhängen ihren Namen statt einer Prüfsumme zurückgeben'
+            attachment_unreferenced_inline:
+                explanation: >-
+                    Manche Anhänge, etwa in Apple Mail angehängte Dateien, hat das Mailprogramm des Absenders als „inline“ markiert, und sie wurden als Bilder im Text gespeichert. Nichts im Text zeigte sie an, also erschienen sie nirgends: kein Chip unter der Nachricht und keine Büroklammer in der Liste.
+
+                    Das zeigt jeden solchen Teil wieder als Anhang; Bilder, die der Text wirklich zeigt, und Einladungen bleiben, wie sie sind. Läuft nach einem Update auch von selbst.
+                summary: 'Als inline versteckte Anhänge wieder anzeigen'
             calendars:
                 explanation: >-
                     Jede neue Person bekommt einen persönlichen Kalender und einen für jedes Mailkonto. Das gibt dieselben Kalender allen, die schon vorher da waren. Es füllt nur Lücken, ein zweiter Lauf nach neuen Konten schadet also nicht.
@@ -626,6 +638,7 @@ admin:
         export:
             error:
                 mismatch: 'Die beiden Passwörter stimmten nicht überein, es wurde nichts exportiert.'
+                remembered_session: 'Mit einer gemerkten Anmeldung geht das nicht. Melde dich ab, wieder an und versuch es noch einmal; nichts wurde exportiert oder geändert.'
                 too_short: 'Dieses Passwort ist zu kurz, es wurde nichts exportiert.'
             heading: 'Konfiguration exportieren'
             intro: >-
@@ -1287,6 +1300,7 @@ admin:
             issuer_help: 'Die Issuer-URL des Anbieters, genau so, wie sein Discovery-Dokument sie angibt. In Authentik ist das der „OpenID Configuration Issuer“ auf der Seite des Providers.'
             password_login_disabled: 'Nur Single Sign-on'
             password_login_disabled_help: 'Blendet das Passwortformular aus und weist Passwort-Anmeldungen ab, sodass alle über den Anbieter hereinkommen. Gilt nur, solange hier ein Anbieter eingerichtet ist. Du kannst es erst ankreuzen, nachdem du dich selbst über den Anbieter angemeldet hast, und fällt der Anbieter einmal aus, holt bin/console app:sso:allow-password-login das Formular zurück. Passwörter für Mail-Programme (App-Passwörter) sind nicht betroffen.'
+            password_login_disabled_locked_help: 'Aktiv. Ausschalten geht nur über die Konsole: bin/console app:sso:allow-password-login. Bis dahin lässt sich der Anbieter hier auch nicht entfernen.'
             require_verified_email: 'Nur eine Adresse verknüpfen, die der Anbieter bestätigt hat'
             require_verified_email_help: 'Eine erste Anmeldung findet ihr Konto über die E-Mail-Adresse. Schalt das nur aus, wenn man die eigene Adresse beim Anbieter nicht selbst ändern kann: Ist es aus, kann jede Person, die das darf, jedes Konto übernehmen, das sich noch nicht über den Anbieter angemeldet hat.'
             scopes: 'Scopes'
@@ -1570,6 +1584,15 @@ attachment:
         zoom_out: Verkleinern
 calendar:
     # plMail's date-and-time picker; see calendar--when.
+    pane:
+        scope_all: "Alle"
+        scope_all_hint: "Alle Kalender gleich"
+        scope_label: "Welche Kalender"
+        scope_overlay: "+ Andere"
+        scope_overlay_hint: "Die Kalender dieses Arbeitsbereichs, die anderen blass"
+        scope_workspace: "Bereich"
+        scope_workspace_hint: "Nur die Kalender der Konten dieses Arbeitsbereichs"
+        show_all: "Alle Kalender anzeigen"
     when:
         previous_month: 'Vorheriger Monat'
         next_month: 'Nächster Monat'
@@ -1842,6 +1865,8 @@ calendar:
             Die Zone, in der ein neuer Termin in diesem Kalender angelegt wird.
             „plMail folgen“ nimmt deine eigene, gerade %zone%. Termine stehen
             immer zu der Uhrzeit da, zu der sie bei dir stattfinden.
+        workspace: "Arbeitsbereich"
+        workspace_help: "Ein Kalender ohne Konto gehört zu keiner Kontogruppe und erscheint deshalb in diesem Arbeitsbereich. Arbeitsbereiche über alle Konten zeigen ihn ebenfalls."
     grid:
         all_day: Ganztägig
         continues_after: Geht in den nächsten Tag hinein
@@ -1975,13 +2000,6 @@ calendar:
         next: Weiter
         previous: Zurück
     open_day: 'Alles am %date%'
-    pane:
-        close: 'Kalender schließen'
-        mode:
-            calendar: Kalender in voller Breite zeigen
-            mail: Mail zeigen
-            split: Kalender neben der Mail zeigen
-        resize: Kalender in der Breite ändern
     proposal:
         action:
             add: In den Kalender
@@ -2115,11 +2133,8 @@ calendar:
         range_day: '%day%.'
         range_short: '%start%–%end%'
         range_short_month: '%start%.–%end%. %month%'
-    upcoming:
-        imminent: Beginnt innerhalb einer Stunde
-        later: Heute noch
-        soon: In wenigen Stunden
     view:
+        label: "Ansicht"
         agenda: Agenda
         day: Tag
         monday_week: Woche
@@ -2905,6 +2920,8 @@ discarded:
         restore: In den Posteingang
 header:
     search:
+        chip_remove: "%token% entfernen"
+        clear: "Suche leeren"
         close: Suche schließen
         live:
             status: '%count% passende Unterhaltungen'
@@ -3091,7 +3108,6 @@ label:
         red: Rot
         teal: Petrol
         violet: Violett
-    empty: Keine Konversationen mit diesem Label.
     created: Label erstellt.
     delete:
         already_running: '"%name%" wird schon gelöscht.'
@@ -3111,8 +3127,10 @@ label:
     delete_confirm: 'Das Label "%name%" löschen? Es verschwindet aus allen Konten. Nachrichten behalten ihre übrigen Labels und werden nicht gelöscht.'
     delete_confirm_children: '"%name%" und die %count% untergeordneten Label(s) löschen? Sie verschwinden aus allen Konten. Nachrichten werden nicht gelöscht.'
     deleted: Label gelöscht.
+    empty: Keine Konversationen mit diesem Label.
     error:
         duplicate: Hier gibt es bereits ein Label mit diesem Namen. Groß- und Kleinschreibung macht daraus keinen anderen.
+    filters: "Filter"
     form:
         account_note:
             new: 'Wird nur auf %account% angelegt.'
@@ -3152,11 +3170,156 @@ label:
     menu:
         create: Neu erstellen
         empty: Noch keine Labels.
+    remove_filter: "Filter „%name%“ entfernen"
     updated: Label aktualisiert.
     visibility:
         hidden: Label ist jetzt ausgeblendet.
         shown: Label ist jetzt sichtbar.
 
+layout:
+    divider: "Größe der Bereiche ändern"
+    divider_hint: "Ziehen zum Ändern, Doppelklick zum Angleichen"
+    drop:
+        bottom: "Unter %pane%"
+        left: "Links von %pane%"
+        replace: "%pane% ersetzen"
+        right: "Rechts von %pane%"
+        swap: "Mit %pane% tauschen"
+        top: "Über %pane%"
+    edit:
+        add_below: "Darunter"
+        add_right: "Rechts"
+        cancel: "Abbrechen"
+        delete: "Arbeitsbereich löschen"
+        delete_confirm: "Arbeitsbereich „%name%“ löschen? Deine anderen Arbeitsbereiche bleiben, wie sie sind."
+        grip: "Ziehen, um diesen Bereich zu verschieben"
+        hint: "Klick auf einen Bereich, um ihn auszuwählen. Zieh am Griff, um ihn zu verschieben, oder leg einen Bereich aus der Leiste auf einen Rand."
+        kind: "Was dieser Bereich zeigt"
+        name: "Name des Arbeitsbereichs"
+        percent_high: "%n%% hoch"
+        percent_wide: "%n%% breit"
+        remove: "Bereich entfernen"
+        save: "Arbeitsbereich speichern"
+        title: "Bearbeiten"
+        tray: "Bereich hinzufügen"
+        tray_empty: "Alle Bereiche sind schon zu sehen."
+        tray_hint: "Auf einen Rand ziehen zum Teilen, in die Mitte zum Ersetzen. Oder klicken, um ihn neben dem gewählten Bereich einzufügen."
+    menu:
+        all_shown: "Alle Bereiche sind schon zu sehen."
+        close: "Bereich schließen"
+        full_width: "Volle Breite"
+        label: "Bereichsmenü"
+        layout: "Layout"
+        layout_title: "Arbeitsbereiche und Layouts (⌥L)"
+        move: "Verschieben"
+        move_down: "Nach unten"
+        move_left: "Nach links"
+        move_right: "Nach rechts"
+        move_up: "Nach oben"
+        restore: "Zurück zum Layout"
+        show_instead: "Stattdessen zeigen"
+        show_instead_heading: "In diesem Bereich zeigen"
+        split_col: "Darunter teilen"
+        split_col_heading: "Neuer Bereich darunter"
+        split_row: "Rechts teilen"
+        split_row_heading: "Neuer Bereich rechts"
+    pane:
+        calendar: "Kalender"
+        contacts: "Kontakte"
+        list: "Mailliste"
+        message: "Nachricht"
+        tasks: "Aufgaben"
+    presets:
+        apply: "Für diesen Arbeitsbereich nutzen"
+        back: "Zurück"
+        edit: "Diesen Arbeitsbereich bearbeiten"
+        new: "Neuer Arbeitsbereich"
+        save_new: "Als neuen Arbeitsbereich speichern"
+        shape:
+            four: "Vier"
+            list_stack: "Liste + Stapel"
+            list_stack_side: "Liste, Stapel, Seite"
+            one: "Ein Bereich"
+            rows: "Über- und untereinander"
+            side: "Nebeneinander"
+            three: "Drei Spalten"
+            top_two: "Oben + zwei"
+        shapes: "Mit einer Form beginnen"
+        slots: "Was wohin kommt"
+        workspaces: "Arbeitsbereiche"
+    settings:
+        all_accounts: "Alle Konten"
+        built_in: "Mail (eingebaut)"
+        delete_sidebar: "Diese Seitenleiste löschen"
+        duplicate_mail: "Kopie der Mail-Seitenleiste…"
+        edit_groups: "Kontogruppen bearbeiten"
+        gone: "(nicht mehr vorhanden)"
+        group:
+            blocks: "Wächst von selbst"
+            calendars: "Kalender"
+            labels: "Labels"
+            mail: "Mail"
+            other: "Sonstiges"
+            tasks: "Aufgabenlisten"
+        groups: "Kontogruppen"
+        groups_help: "Was dieser Arbeitsbereich zeigt: die Mailliste, Markiert und Ungelesen, die Seitenleiste mit ihren Zahlen und die Zahl neuer Einträge auf seinem Tab."
+        heading: "Überschrift"
+        heading_prompt: "Text der Überschrift"
+        intro: "Einstellungen des Arbeitsbereichs „%name%“."
+        live: "live"
+        mail_clock: "Uhr unten anzeigen"
+        missing: "Wenn dieser Arbeitsbereich keinen Bereich für einen Link hat"
+        missing_edge: "Den Bereich am rechten Rand hinzufügen"
+        missing_switch: "Zu einem Arbeitsbereich wechseln, der einen hat"
+        missing_switch_help: "Am liebsten zu einem, der das Konto des Kalenders oder der Liste zeigt."
+        move_down: "Nach unten"
+        move_up: "Nach oben"
+        new_name: "Seitenleiste %n%"
+        new_sidebar: "Neue Seitenleiste…"
+        'off': "Aus"
+        'on': "An"
+        open: "Gruppen & Seitenleiste"
+        remove: "Entfernen"
+        save_failed: "Die Einstellungen konnten nicht gespeichert werden. Nichts wurde geändert."
+        sidebar: "Seitenleiste"
+        sidebar_help: "Seitenleisten werden geteilt: Änderst du eine, ändert sie sich in jedem Arbeitsbereich, der sie nutzt."
+        sidebar_none: "Keine Seitenleiste"
+        target_calendar: "Kalender"
+        target_default: "Standard"
+        target_nth: "%kind% %n%"
+        targets: "Links der Seitenleiste öffnen in"
+        targets_help: "Dieser Arbeitsbereich hat mehr als einen Kalender. Ohne Auswahl öffnen Links im ersten."
+        title: "Einstellungen des Arbeitsbereichs"
+        used_by: "Auch in %names%: Eine Änderung hier ändert sie dort mit."
+    sidebar:
+        block:
+            accounts: "Konten und ihre Ordner"
+            calendars: "Alle Kalender"
+            inboxes: "Posteingänge"
+            labels: "Alle Labels"
+            tasklists: "Alle Aufgabenlisten"
+        clock: "Uhr"
+        empty: "Diese Seitenleiste ist leer. Füge in den Einstellungen des Arbeitsbereichs Zeilen hinzu."
+    tabs:
+        label: "Bereiche"
+    toast:
+        all_shown: "Alle Bereiche sind schon zu sehen."
+        applied: "Layout geändert."
+        at_edge: "Dieser Bereich ist schon an diesem Rand."
+        deleted: "„%name%“ gelöscht."
+        edit_first: "Speichere oder verwirf zuerst den Arbeitsbereich, den du bearbeitest."
+        no_list: "Dieser Arbeitsbereich hat keine Mailliste, deshalb wird sie in voller Breite gezeigt."
+        no_room: "Neben %pane% ist nicht genug Platz. Mach den Bereich zuerst größer oder schließ einen anderen."
+        only_pane: "Das ist der einzige Bereich. Wähl mit „Stattdessen zeigen“ etwas anderes dafür."
+        save_failed: "Das Layout konnte nicht gespeichert werden. Es bleibt auf dieser Seite so; lade neu, um das gespeicherte zu sehen."
+        saved: "„%name%“ gespeichert."
+    workspace:
+        first_name: "Mail"
+        more: "Weitere Arbeitsbereiche"
+        new: "%count% neu, seit du zuletzt hier warst"
+        new_name: "Arbeitsbereich %n%"
+        soon: "Hier beginnt etwas innerhalb der nächsten Stunde"
+        tabs_label: "Arbeitsbereiche"
 list:
     conversation_view: 'Konversationsansicht'
     sort:
@@ -3273,6 +3436,8 @@ message:
             ai: 'ein Sprachmodell, weil keine Regel gegriffen hat: '
             ai_differs: 'die Regeln sehen das anders'
             awaiting_resort: 'Wird neu einsortiert — du hast geändert, wie Mail sortiert wird, und diese hier ist noch nicht umgezogen.'
+            # A filter's "File in category" chose this built-in tab.
+            filter: 'dort von einem deiner Filter abgelegt'
             own_filter: 'dort von einem deiner Filter abgelegt'
             gmail_overruled: 'wird nicht benutzt — du hast plMail gebeten, selbst zu sortieren'
             in_force: 'das hier entscheidet'
@@ -3333,6 +3498,9 @@ message:
             to: An
         heading: Originalnachricht
         reconstructed: 'Die Originalbytes dieser Nachricht wurden nicht aufbewahrt. Du siehst eine Rekonstruktion aus den gespeicherten Headern und dem Textteil — die MIME-Struktur und ein etwaiger HTML-Teil fehlen, und gegen eine DKIM-Signatur lässt sie sich nicht prüfen.'
+    push_notice:
+        several: '{1}1 neue Nachricht|]1,Inf[ %count% neue Nachrichten'
+        unknown_sender: 'Unbekannter Absender'
     quote:
         hide: Zitierten Text ausblenden
         show: Zitierten Text anzeigen
@@ -3561,7 +3729,6 @@ profile:
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
-    handle: Größe des Nachrichtenbereichs ändern
     placeholder: Wähle eine Unterhaltung aus, um sie hier zu lesen
 
 # Said in a toast when a request fails and there is no better place to say it;
@@ -4927,22 +5094,6 @@ settings:
         test_failed: 'Verbindungstest fehlgeschlagen'
         test_ok: 'Verbindung funktioniert'
         unavailable_heading: 'Hier nicht verfügbar'
-    calendar_behaviour:
-        button: Kalenderschaltfläche
-        button_hint: 'Welche Ansichten die Schaltfläche in der Kopfleiste durchläuft. Eine ausgelassene Ansicht wird nicht entfernt: Mit dem Ziehgriff erreichst du sie weiterhin.'
-        heading: Verhalten
-        option_calendar: Nur geteilt
-        option_none: Alle drei
-        option_split: Nur volle Breite
-        subheading: 'Wie die Kalenderschaltfläche in der Kopfleiste zwischen den Ansichten wechselt.'
-    contacts_behaviour:
-        button: 'Kontakte-Knopf'
-        button_hint: 'Durch welche Ansichten der Knopf in der oberen Leiste schaltet. Eine ausgelassene Ansicht ist nicht weg: Der Ziehgriff erreicht sie weiterhin.'
-        heading: 'Verhalten'
-        option_contacts: 'Nur neben der Mail'
-        option_none: 'Alle drei'
-        option_split: 'Nur volle Breite'
-        subheading: 'Wie der Kontakte-Knopf in der oberen Leiste zwischen den Ansichten wechselt.'
     contacts:
         allow_contacts: 'Kontakte erlauben'
         allow_contacts_hint: 'Verbunden, bevor plMail nach Kontakten gefragt hat. Melde dich einmal neu an und erlaube sie, dann erscheint das Adressbuch dieses Kontos hier.'
@@ -5180,6 +5331,16 @@ settings:
         'off': Aus
         'on': An
         subheading: Ob Bilder, die eine Mail von anderswo lädt, erst auf Nachfrage geladen werden.
+    search_meaning:
+        heading: "Suche nach Bedeutung"
+        subheading: "Findet neben den getippten Wörtern auch Mail zu dem, was du gemeint hast. Ob es verfügbar ist, entscheidet deine Administration."
+    search_scope:
+        heading: "Suche"
+        hint: "Fügt den Arbeitsbereich als Filter (space:Name) hinzu, sobald du tippst. Einmal Rücktaste entfernt ihn."
+        label: "Suche im Arbeitsbereich beginnen"
+        'off': "Aus"
+        'on': "An"
+        subheading: "Ob die Suche alle Konten umfasst oder mit dem angezeigten Arbeitsbereich beginnt."
     sender_pictures:
         admin_off: 'Deine Administration hat diesem Server nicht erlaubt, Bilder im Internet nachzuschlagen, deshalb bewirken diese Schalter gerade nichts. Deine Wahl bleibt für später gespeichert.'
         bimi: 'Firmenlogos'
@@ -5212,17 +5373,16 @@ settings:
             label: Nach rechts wischen
         subheading: Was eine Wischbewegung über eine Zeile auf dem Telefon bewirkt.
     unified_inboxes:
-        account_label: 'Sammel-Posteingang für %account%'
         account_off: 'E-Mail ausgeschaltet — nichts davon wird hier angezeigt, bis du sie wieder einschaltest.'
-        accounts_heading: 'Konten'
-        accounts_subheading: 'In welchem Posteingang die Mail jedes Kontos erscheint. Ein neues Konto landet in deinem ersten Posteingang.'
         add: 'Hinzufügen'
+        add_account: "Konto zu %group% hinzufügen"
+        add_account_short: "Konto hinzufügen"
         created: '„%name%“ angelegt.'
         delete: '%inbox% löschen'
-        delete_confirm: '„%name%“ löschen? Seine Konten wandern nach %other%. Es wird keine Mail gelöscht.'
-        deleted: 'Posteingang gelöscht. Seine Konten stehen jetzt im Sammelbecken.'
-        heading: 'Sammel-Posteingänge'
-        hint: 'Jeder Posteingang zeigt die Mail der Konten, die du ihm zuordnest, als eine Liste mit eigenen Tabs. Lass den Namen leer, um den Standardnamen zu verwenden.'
+        delete_confirm: "„%name%“ löschen? Konten, die in keiner anderen Gruppe sind, wandern nach %other%. Es wird keine Mail gelöscht."
+        deleted: "Gruppe gelöscht. Konten, die nur in ihr waren, stehen jetzt in der Sammelgruppe."
+        heading: "Kontogruppen"
+        hint: "Eine Gruppe zeigt die Mail ihrer Konten als einen Posteingang mit eigenen Tabs. Ein Konto kann in mehreren Gruppen sein; ein neues Konto kommt in deine erste. Lass den Namen leer, um den Standardnamen zu verwenden."
         icon_label: 'Symbol für %inbox%'
         icon_new: 'Symbol für den neuen Posteingang'
         last_stays: 'Mindestens ein eigener Posteingang muss bleiben.'
@@ -5231,16 +5391,18 @@ settings:
         name_label: 'Name'
         name_required: 'Ein Posteingang braucht einen Namen.'
         name_too_long: 'Der Name ist zu lang (höchstens 40 Zeichen).'
-        no_accounts: 'Noch keine Mailkonten.'
+        no_accounts_in_group: "Noch keine Konten."
         not_found: 'Diesen Posteingang gibt es nicht mehr.'
-        other_hint: 'Sammelt jedes Konto, das du aus deinen eigenen Posteingängen nimmst. In der Seitenleiste erscheint er erst, wenn er eins enthält.'
-        other_option: 'Sammelbecken'
+        other_is_the_rest: "„Sonstige“ enthält den Rest: Leg das Konto stattdessen in eine deiner eigenen Gruppen."
+        other_hint: "Nimmt jedes Konto auf, das du aus seiner letzten Gruppe nimmst. In der Seitenleiste erscheint sie erst, wenn sie eins enthält."
         other_stays: 'Das Sammelbecken kann nicht gelöscht werden: Dort stehen die Konten, die in keinem deiner Posteingänge sind.'
         placeholder: 'z. B. Arbeit'
+        remove_account: "%account% aus %group% nehmen"
+        remove_to_other: "%account% aus %group% nehmen; es ist in keiner anderen Gruppe und wandert in die Sammelgruppe"
         reorder: 'Zum Sortieren ziehen'
         save: 'Speichern'
         saved: 'Gespeichert.'
-        subheading: 'Gib ihnen Namen und Symbole und zieh sie in die Reihenfolge, in der die Seitenleiste sie zeigt.'
+        subheading: "Jede Gruppe ist ein Posteingang in der Seitenleiste und etwas, das ein Arbeitsbereich zeigen kann. Gib ihnen Namen und Symbole, leg Konten hinein und zieh sie in die richtige Reihenfolge."
     whats_new:
         heading: 'Was ist neu'
         'off': 'Aus'
@@ -5263,6 +5425,7 @@ settings:
             integrations: "Integrationen"
             mail_accounts: "E-Mail-Konten"
             reading_writing: "Lesen & Schreiben"
+            search: "Suche"
         calendar_behaviour: "Kalenderverhalten"
         calendars: Kalender
         categories: "Kategorien & Sortierung"
@@ -5273,11 +5436,12 @@ settings:
         filters: Filter
         health: 'Zustand der Konten'
         health_banner: "Etwas braucht deine Aufmerksamkeit — siehe Zustand der Konten."
-        inboxes: 'Sammel-Posteingänge'
+        inboxes: "Kontogruppen"
         insights: Insights
         integrations: Integrationen
         labels: Labels
         layout: "Layout & Bedienung"
+        mail_search: "Suche"
         message_list: 'Nachrichtenliste'
         notifications: Benachrichtigungen
         profile: Profil
@@ -5321,12 +5485,13 @@ settings:
             list_content: 'anhänge chips büroklammer dateien labels absender datum uhrzeit anzahl beantwortet'
             list_layout: 'zeilen einzeilig kompakt dicht vorschau gestapelt breite'
             list_markers: 'stern überfahren avatar kreis konto ecke ungelesen fett'
-            notifications: "push browser handy ton hinweis tab symbol favicon ungelesen zahl angeheftet"
+            notifications: "push browser handy ton hinweis absender betreff tab symbol favicon ungelesen zahl angeheftet"
             password: "kennwort anmeldung login"
             pinning: 'anheften angeheftet reißzwecke oben erinnerung pin'
             profile: "name avatar foto bild"
             read_receipts: "mdn empfangsbestätigung bestätigung bcc kopie sicherung blindkopie"
-            reading_pane: "vorschau geteilt rechts unten"
+            search_meaning: "semantisch bedeutung ki suche ähnlich"
+            search_scope: "suche bereich arbeitsbereich space filter"
             sender_pictures: 'avatar bild foto gravatar libravatar bimi logo symbol absender'
             sharing: "link öffentlich buchung"
             shortcuts: "tastatur tasten kürzel hotkeys"
@@ -5383,6 +5548,8 @@ settings:
         notify_for_hint: 'Welche Mail eine Benachrichtigung auslöst: ein Kästchen pro Posteingang-Tab und pro Label. Gilt für alle deine Browser und für die Android-App. Ist nichts angehakt, benachrichtigt keine Mail.'
         'off': 'Aus'
         'on': 'An'
+        show_content: 'Absender und Betreff anzeigen'
+        show_content_hint: 'Eine Browser-Benachrichtigung nennt, wer geschrieben hat, und den Betreff, statt nur „New mail“. Beides ist dann auch auf dem gesperrten Bildschirm zu sehen. Gilt für alle deine Browser.'
         skip_read: 'Nur bei ungelesener Mail benachrichtigen'
         skip_read_hint: 'Bevor eine Browser-Benachrichtigung erscheint, wartet plMail einige Sekunden und prüft, ob die neue Mail noch ungelesen ist. Hast du sie schon gelesen oder gelöscht, etwa auf dem Handy, erscheint nichts.'
         state_denied: >-
@@ -5402,7 +5569,7 @@ settings:
             Lass dich auf diesem Gerät über neue E-Mails benachrichtigen, auch
             wenn plMail geschlossen ist.
         tab_icon_count: 'Ungelesene am Symbol des Browser-Tabs'
-        tab_icon_count_hint: 'Wie viele Unterhaltungen in deinem Posteingang ungelesen sind, alle Konten zusammen, auf dem Symbol von plMail im Browser-Tab, damit auch ein angehefteter Tab sie zeigt. Gilt für alle deine Browser.'
+        tab_icon_count_hint: 'Wie viele Unterhaltungen in deinem Posteingang ungelesen sind, dieselbe Zahl wie im Tab-Titel, auf dem Symbol von plMail im Browser-Tab, damit auch ein angehefteter Tab sie zeigt. Gilt für alle deine Browser.'
         this_device: Dieses Gerät
         toggle: Benachrichtigungen aktivieren
         toggle_off: Benachrichtigungen deaktivieren
@@ -5424,13 +5591,6 @@ settings:
         subheading: 'Womit du dich anmeldest. Nur du kannst es ändern — nicht einmal die Administration kann es für dich setzen.'
         submit: Passwort ändern
         submitting: Wird gespeichert…
-    reading_pane:
-        heading: Lesebereich
-        hint: '„Aus“ zeigt Liste und Nachricht nacheinander; „Rechts“ stellt die Nachricht neben die Liste, sobald das Fenster genug Platz für beide hat – am Trenner dazwischen stellst du ein, wie viel jede bekommt.'
-        label: 'Geöffnete Nachricht anzeigen'
-        off: Aus
-        right: Rechts
-        subheading: 'Wo eine Unterhaltung aufgeht: anstelle der Liste oder daneben.'
     security:
         codes:
             copy: Codes kopieren
@@ -5705,6 +5865,8 @@ shortcuts:
         anywhere: "Überall"
         conversation: "In einer Unterhaltung"
         list: "In einer Liste"
+        panes: "Bereiche und Arbeitsbereiche"
+        panes_hint: "Alt ist ⌥ auf dem Mac. Diese gehen auch bei ausgeschalteten Einzeltasten-Kürzeln."
     keys:
         archive: "Archivieren"
         back: "Zurück zur Liste"
@@ -5719,12 +5881,19 @@ shortcuts:
         go_starred: "Zu Markiert"
         help: "Diese Liste anzeigen"
         label: "Label vergeben"
+        layout_menu: "Layout-Menü"
         mark_read: "Als gelesen markieren"
         mark_unread: "Als ungelesen markieren"
         move: "Verschieben nach"
         next: "Eine Unterhaltung nach unten"
         next_conversation: "Nächste Unterhaltung öffnen"
         open: "Hervorgehobene Unterhaltung öffnen"
+        pane_close: "Bereich schließen"
+        pane_focus: "Nächsten Bereich in diese Richtung fokussieren"
+        pane_full_width: "Volle Breite, und zurück"
+        pane_move: "Bereich in diese Richtung verschieben"
+        pane_split_below: "Bereich darunter teilen"
+        pane_split_right: "Bereich rechts teilen"
         pin: 'Anheften oder lösen'
         previous: "Eine Unterhaltung nach oben"
         previous_conversation: "Vorherige Unterhaltung öffnen"
@@ -5741,6 +5910,8 @@ shortcuts:
         spam: "Als Spam markieren"
         star: "Markieren oder Markierung entfernen"
         undo: "Letzte Aktion rückgängig machen"
+        workspace_edit: "Arbeitsbereich bearbeiten"
+        workspace_switch: "Arbeitsbereich wechseln"
     or: "oder"
     switched_off: "Die Kürzel sind für dich ausgeschaltet. Schalte sie unter Einstellungen → Allgemein → Layout & Bedienung ein."
     then: "dann"
@@ -6212,13 +6383,6 @@ contacts:
     no_subject: '(kein Betreff)'
     notes: Notizen
     page: 'Seite %page%'
-    pane:
-        close: 'Kontakte schließen'
-        mode:
-            contacts: 'Kontakte in voller Breite zeigen'
-            mail: 'Kontakte ausblenden'
-            split: 'Kontakte neben der Mail zeigen'
-        resize: 'Kontakte in der Breite ändern'
     pending: 'Wartet darauf, an den Server zu gehen'
     phone_placeholder: '+49 30 1234567'
     phonetic: 'Phonetische Schreibweise'
@@ -6376,6 +6540,11 @@ contacts:
         use_as: 'Verwenden als …'
         you_placed: 'Von dir zugeordnet'
 tasks:
+    pane:
+        scope_label: "Welche Listen"
+        scope_workspace_hint: "Nur die Aufgabenlisten dieses Arbeitsbereichs"
+        scope_overlay_hint: "Die Listen dieses Arbeitsbereichs, die übrigen blass"
+        scope_all_hint: "Alle Listen gleich"
     occurrence_undone: 'Abhaken rückgängig gemacht.'
     added: 'Aufgabe hinzugefügt.'
     completed: 'Aufgabe erledigt.'
@@ -6393,10 +6562,6 @@ tasks:
     read_only: 'Diese Liste ist schreibgeschützt, ihre Aufgaben lassen sich hier nicht ändern.'
     saved: 'Aufgabe gespeichert.'
     deleted: 'Aufgabe gelöscht.'
-    pane:
-        close: 'Aufgaben schließen'
-        resize: 'Breite der Aufgaben ändern'
-        toggle: 'Aufgaben'
     section:
         loading: 'Wird geladen …'
         more: 'Mehr anzeigen'
@@ -6472,6 +6637,8 @@ tasks:
         delete_confirm: '„%name%“ und alle Aufgaben darin löschen?'
         default_hint: 'Neue Aufgaben landen hier, wenn nichts anderes gewählt wurde. Deshalb lässt sich diese Liste nicht löschen.'
         synced_hint: 'Diese Liste wird synchronisiert, ihr Name kommt vom Server. Die Farbe bestimmst du.'
+        workspace: "Arbeitsbereich"
+        workspace_help: "Eine Liste ohne Konto gehört zu keiner Kontogruppe und erscheint deshalb in diesem Arbeitsbereich. Arbeitsbereiche über alle Konten zeigen sie ebenfalls."
         transferred: '%count% Aufgabe nach „%name%“ verschoben.|%count% Aufgaben nach „%name%“ verschoben.'
     transfer:
         title: 'In eine lokale Liste übertragen'

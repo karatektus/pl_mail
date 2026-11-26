@@ -6,6 +6,7 @@ namespace App\Repository\Mail\Message;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Helper\CalendarAttachment;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageLocation;
@@ -571,6 +572,45 @@ class MessageBackfillRepository extends ServiceEntityRepository
                 . ' WHERE p.message = m AND p.sealed = false AND LENGTH(p.filename) = 8)',
             )
             ->setParameter('afterId', $afterId);
+    }
+
+    /**
+     * Messages after $afterId, in id order, with a part stored as inline that
+     * is not a calendar invite: the set InlineAttachmentBackfillTask reads.
+     * Whether the body references the part is the detector's call, made in
+     * PHP; this only narrows the walk to messages where the answer can change.
+     *
+     * @return list<Message>
+     */
+    public function findWithInlinePart(int $afterId, int $limit): array
+    {
+        return $this->inlinePartQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithInlinePart(): int
+    {
+        return (int) $this->inlinePartQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function inlinePartQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere(
+                'EXISTS (SELECT p.id FROM ' . MessagePart::class . ' p'
+                . ' WHERE p.message = m AND p.isInline = true AND LOWER(p.contentType) NOT IN (:calendarTypes))',
+            )
+            ->setParameter('afterId', $afterId)
+            ->setParameter('calendarTypes', CalendarAttachment::CONTENT_TYPES);
     }
 
     /**

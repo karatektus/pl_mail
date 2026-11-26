@@ -1129,11 +1129,7 @@ class MessageSyncer
         // embedded; both went through the same UTF-8 repair, so a `cid:`
         // reference with a raw byte in it still finds its part (#81).
         $normalizedCid = $this->inlineDetector->normalizeContentId($attachment->contentId);
-        $isInline      = $this->inlineDetector->isInline(
-            $attachment->disposition,
-            $normalizedCid,
-            $message->bodyHtml,
-        );
+        $isInline      = $this->inlineDetector->isInline($normalizedCid, $message->bodyHtml);
 
         $part->contentId   = '' !== $normalizedCid ? $normalizedCid : null;
         $part->disposition = $isInline ? 'inline' : 'attachment';

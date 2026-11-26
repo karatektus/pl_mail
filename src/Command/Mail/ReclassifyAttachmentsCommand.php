@@ -8,7 +8,7 @@ use App\Entity\Mail\Message;
 use App\Repository\Mail\MessagePart\MessagePartRepository;
 use App\Repository\Mail\Message\MessageRepository;
 use App\Repository\Mail\MessageThread\MessageThreadRebuildRepository;
-use App\Service\Mail\InlineAttachmentDetector;
+use App\Service\Mail\InlineAttachmentReclassifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -22,9 +22,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * "is inline". Those parts were saved as inline, so real attachments never
  * appeared under the message and message.has_attachments stayed false.
  *
- * Re-runs InlineAttachmentDetector against the stored body HTML and rewrites
- * is_inline / disposition, then recomputes message.has_attachments and
- * thread.attachment_count. Idempotent.
+ * Re-runs the detector's rule against the stored body HTML through
+ * InlineAttachmentReclassifier, the same one the upgrade task
+ * `attachment-unreferenced-inline` uses (#753), then recomputes
+ * thread.attachment_count. Idempotent. Kept beside that task for its
+ * --dry-run, which says how many parts would change before anything does.
  */
 #[AsCommand(
     name: 'app:attachments:reclassify',
@@ -39,7 +41,7 @@ final class ReclassifyAttachmentsCommand extends Command
         private readonly MessageRepository        $messages,
         private readonly MessagePartRepository    $messageParts,
         private readonly MessageThreadRebuildRepository $messageThreadRebuildRepository,
-        private readonly InlineAttachmentDetector $inlineDetector
+        private readonly InlineAttachmentReclassifier $reclassifier,
     ) {
         parent::__construct();
     }
@@ -67,35 +69,12 @@ final class ReclassifyAttachmentsCommand extends Command
             $messages = $this->messages->findBy(['id' => $chunk]);
 
             foreach ($messages as $message) {
-                $bodyHtml       = $message->bodyHtml;
-                $hasAttachments = false;
-                $touched        = false;
+                $hadAttachments = $message->hasAttachments;
+                $changed        = $this->reclassifier->reclassify($message);
 
-                foreach ($message->messageParts as $part) {
-                    $isInline = $this->inlineDetector->isInline(
-                        $part->disposition,
-                        $part->contentId,
-                        $bodyHtml,
-                    );
+                $changedParts += $changed;
 
-                    if ($isInline !== $part->isInline) {
-                        $part->isInline    = $isInline;
-                        $part->disposition = $isInline ? 'inline' : 'attachment';
-                        ++$changedParts;
-                        $touched = true;
-                    }
-
-                    if (false === $isInline) {
-                        $hasAttachments = true;
-                    }
-                }
-
-                if ($hasAttachments !== $message->hasAttachments) {
-                    $message->hasAttachments = $hasAttachments;
-                    $touched = true;
-                }
-
-                if (true === $touched) {
+                if (0 < $changed || $hadAttachments !== $message->hasAttachments) {
                     ++$changedMessages;
                 }
             }

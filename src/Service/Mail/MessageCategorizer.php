@@ -77,12 +77,17 @@ final class MessageCategorizer
      * message is filed.
      *
      * The question ClassificationHold asks before keeping mail out of the tabs:
-     * there is no point holding a message whose answer is already final. Three
+     * there is no point holding a message whose answer is already final. Four
      * things make it final, and they are read off the cascade below rather
      * than restated here — the reader sorts by rules, so the verdict is never
-     * consulted; the provider's own label decided; or the sender is somebody
-     * the reader writes to. Everywhere else, an assistant-first reader's mail
-     * goes wherever the model says.
+     * consulted; a filter decided, or the provider's own label did; or the
+     * sender is somebody the reader writes to. Everywhere else, an
+     * assistant-first reader's mail goes wherever the model says.
+     *
+     * The filter only counts here once it has run. Arriving mail is held
+     * before the filters run (PostIngestPipeline), so mail a filter files into
+     * a built-in tab still waits for the model, exactly like mail filed into a
+     * tab of the reader's own, and lands in the filter's tab on release.
      *
      * Asked with $ignoreAi so the answer describes the cascade and not a
      * verdict that happens to be on the row already.
@@ -97,7 +102,7 @@ final class MessageCategorizer
 
         $reason = $this->explain($message, $correspondentEmails, $sorting->overrideProvider, true)['reason'];
 
-        return 'gmail' !== $reason && 'correspondent' !== $reason;
+        return 'gmail' !== $reason && 'correspondent' !== $reason && 'filter' !== $reason;
     }
 
     /**
@@ -180,6 +185,22 @@ final class MessageCategorizer
         bool $ignoreAi,
         bool $aiFirst,
     ): array {
+        // A FILTER IS THE LAST WORD, so it is the first step. The reader wrote
+        // it, naming the mail it is for; Gmail's label, the headers and the
+        // assistant are all guesses beside it — the same ranking
+        // RuleCategoryFiler gives the reader's own tabs. Read here rather than
+        // written over $category by the filter so that every writer that
+        // recomputes $category arrives at it again. Still subject to the
+        // switched-off tabs in explain(): a filter into a tab the reader
+        // turned off files into Primary, like everything else would.
+        if (null !== $message->ruleBuiltinCategory) {
+            return [
+                'category' => $message->ruleBuiltinCategory,
+                'reason'   => 'filter',
+                'signal'   => null,
+            ];
+        }
+
         $gmailLabelIds = $message->gmailLabelIds;
 
         // Gmail account: its own classification is authoritative.

@@ -7,7 +7,7 @@ import { requestFailed } from "../../request_errors.js";
  *
  * Each segment change POSTs on its own — the toggles are independent, so
  * there is no form and nothing to submit. The body is FormData with a `_token`
- * field rather than JSON with the shared `ajax` header, matching how ui--split
+ * field rather than JSON with the shared `ajax` header, matching how the sidebar's boundary (ui--sidebar-split)
  * posts the pane width to its sibling endpoint: the token is minted for this
  * one action (`insights_toggle`) and travels as a Stimulus value from the
  * template.

@@ -112,8 +112,9 @@ final class ConfigBackupUnifiedInboxesTest extends KernelTestCase
     /**
      * A hand-edited file is not trusted: an overlong name is cut, an unknown
      * icon is the tray, an account id the file does not carry is dropped, an
-     * account named twice stays in the first inbox naming it, and a second
-     * Other comes back as an ordinary inbox instead of aborting the restore.
+     * account in a group of the reader's own is not in Other as well (#783:
+     * Other is the rest), and a second Other comes back as an ordinary inbox
+     * instead of aborting the restore.
      */
     public function testAHandEditedSectionIsReadDefensively(): void
     {
@@ -144,6 +145,62 @@ final class ConfigBackupUnifiedInboxesTest extends KernelTestCase
             $inboxes->accountIdsOf($user, $all[0]),
         );
         self::assertSame([$accounts['old@example.test']->id], $inboxes->accountIdsOf($user, $all[1]));
+    }
+
+    /**
+     * #783: an account in several groups comes back in each, and what names a
+     * group or an account by id — a workspace's groups, a sidebar's rows — is
+     * rewritten to the rows the restore made. What the file did not carry is
+     * dropped: a group, a label, and task lists, which never travel.
+     */
+    public function testGroupsWorkspacesAndSidebarsComeBackOnTheNewIds(): void
+    {
+        $this->seedReader();
+
+        $user    = $this->restoredUser();
+        $inboxes = static::getContainer()->get(UnifiedInboxes::class);
+        $work    = $inboxes->all($user)[1];
+        $home    = $this->accountsByEmail($user)['home@example.test'];
+
+        $inboxes->addAccount($user, $home, $work);
+
+        $user->setSetting(User::SETTING_WORKSPACES, ['workspaces' => [
+            ['id' => 'w1', 'name' => 'Work', 'layout' => ['t' => 'pane', 'kind' => 'list'], 'groups' => [(int) $work->id], 'sidebar' => 'sb1'],
+            ['id' => 'w2', 'name' => 'Gone', 'layout' => ['t' => 'pane', 'kind' => 'list'], 'groups' => [987654]],
+        ], 'active' => 0]);
+        $user->setSetting(User::SETTING_SIDEBARS, [['id' => 'sb1', 'name' => 'Work', 'entries' => [
+            ['t' => 'head', 'text' => 'Work'],
+            ['t' => 'acc', 'acc' => (int) $home->id],
+            ['t' => 'inbox', 'inbox' => (int) $work->id],
+            ['t' => 'label', 'label' => 424242],
+            ['t' => 'tasks', 'list' => 5],
+            ['t' => 'block', 'b' => 'calendars'],
+        ]]]);
+        $this->entityManager->flush();
+
+        $document = $this->exporter->document();
+
+        $this->restoreElsewhere($document);
+
+        $user     = $this->restoredUser();
+        $inboxes  = static::getContainer()->get(UnifiedInboxes::class);
+        [$mail, $work] = $inboxes->all($user);
+        $accounts = $this->accountsByEmail($user);
+
+        self::assertSame([$accounts['home@example.test']->id], $inboxes->accountIdsOf($user, $mail));
+        self::assertEqualsCanonicalizing([$accounts['home@example.test']->id, $accounts['work@example.test']->id], $inboxes->accountIdsOf($user, $work));
+
+        $workspaces = $user->getSetting(User::SETTING_WORKSPACES);
+        self::assertSame([(int) $work->id], $workspaces['workspaces'][0]['groups']);
+        self::assertNull($workspaces['workspaces'][1]['groups'], 'a group the file did not carry: every account');
+
+        // Equal, not identical: JSONB keeps an object's keys in its own order.
+        self::assertEquals([
+            ['t' => 'head', 'text' => 'Work'],
+            ['t' => 'acc', 'acc' => (int) $accounts['home@example.test']->id],
+            ['t' => 'inbox', 'inbox' => (int) $work->id],
+            ['t' => 'block', 'b' => 'calendars'],
+        ], $user->getSetting(User::SETTING_SIDEBARS)[0]['entries']);
     }
 
     /** @return list<int> the source accounts' ids */
@@ -199,6 +256,7 @@ final class ConfigBackupUnifiedInboxesTest extends KernelTestCase
         // Ids the source install used are taken, so the restored rows cannot
         // land on them by coincidence and pass a remap that never happened.
         $this->connection->executeStatement("SELECT setval(pg_get_serial_sequence('account', 'id'), 900000)");
+        $this->connection->executeStatement("SELECT setval(pg_get_serial_sequence('unified_inbox', 'id'), 900000)");
 
         static::getContainer()->get(UnifiedInboxes::class)->reset();
 

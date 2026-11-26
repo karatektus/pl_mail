@@ -179,15 +179,61 @@ final class ThreadStatusGuardsTest extends WebTestCase
         self::assertSame(403, $client->getResponse()->getStatusCode());
     }
 
+    /**
+     * The token a page shows keeps working after its session is gone.
+     *
+     * A page left open past its session — kept signed in by the remember-me
+     * cookie — still carries the `ajax` token it was rendered with. That token
+     * used to live in the session, so once the session went every post from
+     * the page was refused: a conversation that would not be marked read, with
+     * "Invalid CSRF token" in the log and nothing on screen. It is stateless
+     * now (csrf.yaml): what is checked is that the request comes from this
+     * site. Asserted against an absent id, so passing the token is a 404.
+     */
+    public function testAPageWhoseSessionWasReplacedCanStillPost(): void
+    {
+        $client = $this->signedIn();
+        $server = $this->jsonPost($client);
+
+        // A new session, as the remember-me cookie would sign in to.
+        $client->getCookieJar()->clear();
+        $user = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => self::USER_EMAIL]);
+        self::assertNotNull($user);
+        $client->loginUser($user);
+
+        $client->request(
+            'POST',
+            sprintf('/status/thread/%d/read', self::ABSENT_ID),
+            server: [...$server, 'HTTP_ORIGIN' => 'http://localhost', 'HTTP_SEC_FETCH_SITE' => 'same-origin'],
+            content: '{"read":true}',
+        );
+
+        self::assertSame(404, $client->getResponse()->getStatusCode());
+    }
+
+    /** What keeps it a defence: the same token from another site is refused. */
+    public function testThePagesTokenFromAnotherSiteIsRefused(): void
+    {
+        $client = $this->signedIn();
+        $server = $this->jsonPost($client);
+
+        $client->request(
+            'POST',
+            sprintf('/status/thread/%d/read', self::ABSENT_ID),
+            server: [...$server, 'HTTP_ORIGIN' => 'https://evil.example', 'HTTP_SEC_FETCH_SITE' => 'cross-site'],
+            content: '{"read":true}',
+        );
+
+        self::assertSame(403, $client->getResponse()->getStatusCode());
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /**
      * The `ajax` token, read the way the real callers read it.
      *
      * Scraped from the layout's `csrf-token` meta tag rather than minted from
-     * the token manager: the manager stores session-backed tokens and there is
-     * no session until a request has been made, so asking it first throws
-     * SessionNotFoundException. Rendering a page is also the honest version of
+     * the token manager. Rendering a page is the honest version of
      * what the Stimulus controllers do — they read this same tag — so a change
      * that broke the tag would fail here instead of passing against a token the
      * browser never sees.

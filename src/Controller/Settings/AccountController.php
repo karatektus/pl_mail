@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Service\Mail\UnifiedInboxes;
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\ConnectionTestResult;
 use App\Domain\Enum\Account\AccountService;
 use App\Domain\Enum\Account\IncomingProtocol;
 use App\Domain\Helper\MailServerHost;
+use App\Domain\Helper\StoredSecretTarget;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
@@ -30,6 +32,8 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -57,6 +61,8 @@ final class AccountController extends AbstractController
         private readonly AccountCreator $accountCreator,
         private readonly AccountRemoval $accountRemoval,
         private readonly AccountRemovalState $removalState,
+        private readonly UnifiedInboxes $unifiedInboxes,
+        private readonly TranslatorInterface $translator,
     ) {
     }
 
@@ -71,12 +77,23 @@ final class AccountController extends AbstractController
         if (true === $form->isSubmitted() && true === $form->isValid()) {
             $this->accountCreator->create($account, $this->getUser());
 
+            // The groups ticked on the form (#783), when it showed them.
+            $user = $this->getUser();
+
+            if ($request->request->has('account_groups_shown') && $user instanceof User) {
+                $this->unifiedInboxes->placeNew($user, $account, $request->request->all('account_groups'));
+            }
+
             return $this->streamAccountList($request, 'account.added');
         }
 
+        $user = $this->getUser();
+
         return $this->render('account/_form_modal.html.twig', [
-            'title' => 'New Account',
-            'form'  => $form,
+            'title'      => 'New Account',
+            'form'       => $form,
+            'groups'     => $user instanceof User ? $this->unifiedInboxes->all($user) : [],
+            'firstGroup' => $user instanceof User ? $this->unifiedInboxes->first($user) : null,
         ]);
     }
 
@@ -95,12 +112,25 @@ final class AccountController extends AbstractController
 
         $existingPassword = $account->password;
         $existingProtocol = $account->incomingProtocol;
+        $existingTarget   = StoredSecretTarget::of($account);
 
         $form = $this->createForm(AccountType::class, $account, [
             'action'           => $this->generateUrl('app_account_edit', ['id' => $account->id]),
             'require_password' => false,
         ]);
         $form->handleRequest($request);
+
+        // A blank password keeps the stored one, but only for the servers it
+        // was typed for (StoredSecretTarget): saving a new host with a blank
+        // field would otherwise hand the stored password to that host on the
+        // next sync. Checked before isValid() so the error lands on the field.
+        if (true === $form->isSubmitted() && $existingTarget !== StoredSecretTarget::of($account)) {
+            $this->refuseKeptSecret($form, 'password');
+
+            if (true === $form->get('separateSmtpPassword')->getData()) {
+                $this->refuseKeptSecret($form, 'smtpPassword');
+            }
+        }
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
             $submittedPassword = $form->get('password')->getData();
@@ -494,6 +524,21 @@ final class AccountController extends AbstractController
 
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $existing);
 
+            // The stored password only goes to the servers it was typed for.
+            // Without this a session alone could aim the test at a server of
+            // its own and read the mailbox password off the wire. See
+            // StoredSecretTarget.
+            if (false === StoredSecretTarget::same($existing, $account)) {
+                return $this->json(new ConnectionTestResult(
+                    false,
+                    $translator->trans('account.test.result.password_for_new_server'),
+                    '',
+                    null,
+                    '',
+                    '',
+                )->toArray());
+            }
+
             if ('' === $account->password) {
                 $account->password = $existing->password;
             }
@@ -608,6 +653,23 @@ final class AccountController extends AbstractController
      * buttons still work — switching a service back on would start the sync
      * the removal is racing to empty.
      */
+    /**
+     * Puts "type the password again" on a password field left blank while the
+     * servers changed. See StoredSecretTarget.
+     *
+     * @param FormInterface<mixed> $form
+     */
+    private function refuseKeptSecret(FormInterface $form, string $field): void
+    {
+        $submitted = $form->get($field)->getData();
+
+        if (null !== $submitted && '' !== $submitted) {
+            return;
+        }
+
+        $form->get($field)->addError(new FormError($this->translator->trans('account.test.result.password_for_new_server')));
+    }
+
     private function refuseWhileRemoving(Account $account): void
     {
         if (true === $this->removalState->isRemoving($account)) {

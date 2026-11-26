@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
+use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Infrastructure\Messaging\Message\FoldCopiesMessage;
@@ -138,6 +139,22 @@ final readonly class VanishedMessageReconciler
      */
     private const float BULK_RATIO = 0.5;
 
+    /**
+     * How long, and over how many sweeps, the same mass disappearance has to
+     * hold in the bin or spam before it is believed (#756).
+     *
+     * Both, like MailboxSyncer's missing-folder grace: four sweeps alone could
+     * come in four minutes from a busy worker, an hour alone could be one
+     * listing. A server that lost its index rarely answers the same wrong way
+     * for an hour; a folder somebody emptied does. Other folders keep the
+     * refusal as it was: mail there is what people keep.
+     */
+    private const int BULK_CONFIRM_SWEEPS = 4;
+
+    private const int BULK_CONFIRM_MINUTES = 60;
+
+    private const array BULK_CONFIRMABLE = [MailboxSpecialUse::TRASH, MailboxSpecialUse::JUNK];
+
     public function __construct(
         private ImapFolderListing      $listing,
         private MessageRepository      $messages,
@@ -217,7 +234,7 @@ final readonly class VanishedMessageReconciler
             $vanished[] = $messageId;
         }
 
-        if (true === $this->isSuspicious($vanished, $located, $mailbox, $listing['uids'])) {
+        if (true === $this->isSuspicious($vanished, $located, $mailbox, $listing['uids'], $now)) {
             return false;
         }
 
@@ -420,18 +437,31 @@ final readonly class VanishedMessageReconciler
      * @param array<int,int>   $located
      * @param array<int,true>  $onServer
      */
-    private function isSuspicious(array $vanished, array $located, Mailbox $mailbox, array $onServer): bool
+    private function isSuspicious(array $vanished, array $located, Mailbox $mailbox, array $onServer, DateTimeImmutable $now): bool
     {
         $missing = count($vanished);
         $total   = count($located);
 
-        if ($missing < self::BULK_FLOOR) {
+        if ($missing < self::BULK_FLOOR || $missing < (int) ceil($total * self::BULK_RATIO)) {
+            $this->forgetBulkVanish($mailbox);
+
             return false;
         }
 
-        if ($missing < (int) ceil($total * self::BULK_RATIO)) {
+        if (true === $this->confirmedBulkVanish($mailbox, $vanished, $now)) {
+            $this->logger->notice('Believing a mass disappearance from the bin or spam after it held', [
+                'mailbox' => $mailbox->fullPath,
+                'local'   => $total,
+                'missing' => $missing,
+                'sweeps'  => self::BULK_CONFIRM_SWEEPS,
+            ]);
+
+            $this->forgetBulkVanish($mailbox);
+
             return false;
         }
+
+        $this->em->flush();
 
         $this->logger->warning('Refusing a folder listing that would mark most of the folder as gone', [
             'mailbox'  => $mailbox->fullPath,
@@ -444,5 +474,43 @@ final readonly class VanishedMessageReconciler
         ]);
 
         return true;
+    }
+
+    /**
+     * Counts this sweep towards believing the disappearance, in the bin or
+     * spam only, and says whether it now has (#756). The same rows have to be
+     * gone each time: a different set starts the count again.
+     *
+     * @param list<int> $vanished
+     */
+    private function confirmedBulkVanish(Mailbox $mailbox, array $vanished, DateTimeImmutable $now): bool
+    {
+        if (false === in_array($mailbox->specialUse, self::BULK_CONFIRMABLE, true)) {
+            return false;
+        }
+
+        $sorted = $vanished;
+        sort($sorted);
+        $hash = hash('sha256', implode(',', $sorted));
+
+        if ($hash !== $mailbox->bulkVanishHash || null === $mailbox->bulkVanishSince) {
+            $mailbox->bulkVanishHash   = $hash;
+            $mailbox->bulkVanishSince  = $now;
+            $mailbox->bulkVanishSweeps = 1;
+
+            return false;
+        }
+
+        $mailbox->bulkVanishSweeps++;
+
+        return $mailbox->bulkVanishSweeps >= self::BULK_CONFIRM_SWEEPS
+            && $mailbox->bulkVanishSince <= $now->modify(sprintf('-%d minutes', self::BULK_CONFIRM_MINUTES));
+    }
+
+    private function forgetBulkVanish(Mailbox $mailbox): void
+    {
+        $mailbox->bulkVanishHash   = null;
+        $mailbox->bulkVanishSince  = null;
+        $mailbox->bulkVanishSweeps = 0;
     }
 }

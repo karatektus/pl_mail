@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Security\TwoFactor;
 
+use App\Security\LocalRedirect;
 use Scheb\TwoFactorBundle\Security\Authentication\Token\TwoFactorTokenInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
@@ -112,9 +113,7 @@ final readonly class CompletedTwoFactorRedirect
 
         $target = null !== $session ? $this->getTargetPath($session, self::FIREWALL) : null;
 
-        return null !== $target && '' !== $target
-            ? $target
-            : $this->urlGenerator->generate('app_default_index');
+        return LocalRedirect::path($target, $this->urlGenerator->generate('app_default_index'));
     }
 
     /**

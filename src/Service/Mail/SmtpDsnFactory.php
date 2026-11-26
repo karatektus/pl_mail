@@ -48,8 +48,22 @@ final class SmtpDsnFactory
         // rawurlencode, not urlencode: Dsn::fromString() decodes the userinfo
         // with rawurldecode, so urlencode's `+` for a space came back as a
         // literal `+` and a password with a space in it never authenticated.
+        // STARTTLS is required, not merely attempted. Symfony's EsmtpTransport
+        // upgrades only when the server advertises STARTTLS and then signs in
+        // either way, so someone between plMail and the server who strips the
+        // offer from the EHLO reply received the password in clear text. With
+        // `require_tls` a server that does not offer STARTTLS fails the send
+        // (and the connection test) loudly instead. `ssl` is TLS from the
+        // first byte and needs no flag; `none` is the user saying plain text
+        // on purpose, for a relay on the same host or network.
+        $query = '';
+
+        if ('ssl' !== $encryption && 'none' !== $encryption) {
+            $query = '?require_tls=true';
+        }
+
         return sprintf(
-            '%s://%s:%s@%s:%d',
+            '%s://%s:%s@%s:%d%s',
             $scheme,
             // The sending username and password, which are the account's own
             // unless it has been given separate ones (#660, #42). See
@@ -58,6 +72,7 @@ final class SmtpDsnFactory
             rawurlencode((string) $account->sendingPassword),
             MailServerHost::forAuthority((string) $account->smtpHost),
             $port,
+            $query,
         );
     }
 

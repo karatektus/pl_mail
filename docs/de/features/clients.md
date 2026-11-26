@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:9ae3d6de34acfd55748c3340b95d40748119c442 -->
+<!-- translated-from: features/clients.md sha1:f2b9602e57dad917fb407b5b613a5fc427e354d6 -->
 
 # Andere Clients
 
@@ -133,9 +133,9 @@ Browser behält.
 unter einen deiner Benachrichtigungs-Schalter fällt (siehe unten), und sonst von nichts: nicht vom
 Lesen, Markieren, Archivieren oder Verschieben, nicht von Spam, nicht von einem Entwurf oder einer
 Kopie von etwas, das du gesendet hast, und nicht von Post, die importiert wird oder in einem Postfach
-ankommt, dessen Import noch läuft. Die Benachrichtigung sagt nur „New mail“; Absender und Betreff
-trägt sie nicht. Eine Nachricht, deren Ankunftszeit plMail aus ihren Headern nicht ermitteln kann,
-wird nicht gemeldet.
+ankommt, dessen Import noch läuft. Die Benachrichtigung sagt „New mail“ oder, wenn du das möchtest
+(siehe unten), wer geschrieben hat und den Betreff. Eine Nachricht, deren Ankunftszeit plMail aus
+ihren Headern nicht ermitteln kann, wird nicht gemeldet.
 
 Als neu gilt Post erst, nachdem deine [Filter](filters.md) gelaufen sind. Eine Nachricht, die ein
 Filter als gelesen markiert oder in den Papierkorb oder Spam verschiebt, wird nicht gemeldet, und
@@ -156,20 +156,33 @@ auf dem Server entscheidet; die App bekommt jede Änderung (sie braucht sie, um 
 und entscheidet mit denselben Kästchen auf dem Handy. Post, die der Assistent noch einsortiert, wird
 gemeldet, sobald sie in ihrem Tab liegt — ein paar Sekunden später und nur einmal.
 
+**Absender und Betreff anzeigen** (standardmäßig aus) schreibt in die Benachrichtigung eines Browsers,
+wer geschrieben hat, und den Betreff statt „New mail“, und ein Klick öffnet diese Unterhaltung. Post,
+die zusammen ankam, etwa drei Nachrichten aus einem Abgleich, ist eine Benachrichtigung: „3 neue
+Nachrichten“ und von wem. Ein Klick auf eine plMail-Benachrichtigung nutzt den plMail-Tab, den du
+offen hast, wie bei Gmail, und öffnet nur dann einen neuen, wenn keiner offen ist. Die Worte reisen
+nie mit dem Push. Der Push-Dienst erfährt nur, dass sich
+etwas geändert hat, und der Browser fragt plMail über deine eigene Sitzung danach, wenn der Push
+ankommt; ein Browser, der plMail in dem Moment nicht erreicht, sagt deshalb „New mail“. Die Worte
+sind dann auch auf dem gesperrten Bildschirm zu sehen. Wie die Kästchen oben gilt das für alle deine
+Browser.
+
 **Nur bei ungelesener Mail benachrichtigen** (standardmäßig aus) begegnet einem Push, der sich nicht
 zurückrufen lässt: Sind die Benachrichtigungen in mehreren Browsern an, meldet jeder „New mail“, auch
 wenn du die Nachricht eine Minute später auf dem Handy gelesen oder gelöscht hast. Ein Browser mit
-dieser Option wartet nach dem Push zwanzig Sekunden und fragt, ob Post aus den letzten fünfzehn
-Minuten, die unter ein angehaktes Kästchen fällt, noch ungelesen ist. Wenn nicht, zeigt er nichts an
-und nimmt eine Benachrichtigung zurück, die er für frühere Post gezeigt hatte. Alte ungelesene Post
+dieser Option wartet nach dem Push zwanzig Sekunden und fragt, ob die Post, um die es ging, oder
+etwas, das danach kam, noch ungelesen ist. Wenn nicht, zeigt er nichts an und nimmt eine
+Benachrichtigung zurück, die er für frühere Post gezeigt hatte. Ungelesene Post von vor dem Push
 zählt nicht, ebenso wenig ungelesene Post in einem Tab oder Label, das du nicht angehakt hast.
 
 **Ungelesene am Symbol des Browser-Tabs** (standardmäßig aus) setzt die Zahl der ungelesenen
-Unterhaltungen in deinem Posteingang, alle Konten zusammen, in die rechte untere Ecke des Symbols von
-plMail im Browser-Tab, schwarz mit dünnem weißem Rand, damit auch ein angehefteter Tab sie zeigt.
-Über 99 steht dort 99+. Gezählt wird der Posteingang, egal welcher Ordner offen ist; die Zahl bleibt
-aktuell, während der Tab im Hintergrund liegt, und braucht keinen Push: Sie funktioniert auch mit
-ausgeschalteten Benachrichtigungen. Wie die Kästchen oben gilt sie für alle deine Browser.
+Unterhaltungen in deinem Posteingang, dieselbe Zahl wie im Tab-Titel, in die rechte untere Ecke des
+Symbols von plMail im Browser-Tab, schwarz mit dünnem weißem Rand, damit auch ein angehefteter Tab
+sie zeigt. Über 99 steht dort 99+. Gezählt wird der Posteingang, egal welcher Ordner offen ist; die
+Zahl bleibt aktuell, während der Tab im Hintergrund liegt, und braucht keinen Push: Sie funktioniert
+auch mit ausgeschalteten Benachrichtigungen. Wie die Kästchen oben gilt sie für alle deine Browser.
+In einem [Arbeitsbereich](workspaces.md), der nur einige Kontogruppen zeigt, zählt sie wie der Titel
+die Konten dieses Arbeitsbereichs.
 
 Zwei andere Arten von Push gehen an dieselben Geräte und sind nicht betroffen: eine Erinnerung aus
 den [Kalender-Erinnerungen](calendar-alerts.md) und der Hinweis, den ein Administrator bekommt, wenn

@@ -51,7 +51,7 @@ final readonly class ParsedAttachmentWriter
         );
 
         $contentId         = $this->inline->normalizeContentId($attachment->contentId);
-        $isInline          = $this->inline->isInline($attachment->disposition, $contentId, $message->bodyHtml);
+        $isInline          = $this->inline->isInline($contentId, $message->bodyHtml);
         $part->contentId   = '' !== $contentId ? $contentId : null;
         $part->disposition = $isInline ? 'inline' : 'attachment';
         $part->isInline    = $isInline;

@@ -94,6 +94,11 @@
        seeds the setting with the same colour when the theme is picked. */
     --rgb-accent:        37  99 235;
     --rgb-accent-ink:   255 255 255;
+    /* The light a manual switch of workspace gives off (.workspace-tab-thumb).
+       The theme's accent taken toward white — a little on a light theme, a
+       lot on a dark one, where a glow has to read as light. Not the stored
+       accent: a user's own accent does not reach it. */
+    --rgb-glow:         70 122 238;
 
     /* Fields. The field is the surface's own white, so its border is all
        that marks it, and the border is held to WCAG 1.4.11's 3:1 for the
@@ -262,6 +267,7 @@
 
     --rgb-accent:       37  99 235;
     --rgb-accent-ink:  255 255 255;
+    --rgb-glow:        135 169 244;
 
     --rgb-field:        39  39  42;
     --rgb-field-border: 112 114 122;
@@ -351,6 +357,7 @@
 
     --rgb-accent:    125 107  79;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        144 129 105;
 
     --rgb-field:        255 255 255;
 
@@ -457,6 +464,7 @@
 
     --rgb-accent:      58 111  92;
     --rgb-accent-ink: 240 245 242;
+    --rgb-glow:        147 176 165;
 
     /* Fields lighten the surface instead of darkening it. .dark's field is
        #27272a, which is the same colour as this surface — the search input
@@ -547,6 +555,7 @@
 
     --rgb-accent:    136 192 208;   /* frost  #88c0d0 */
     --rgb-accent-ink: 24  24  27;   /* the frost blue is light enough to need dark ink */
+    --rgb-glow:        190 220 229;
 
     --rgb-field:        39  39  42;
     --rgb-field-border:153 157 163;
@@ -626,6 +635,7 @@
 
     --rgb-accent:    167 139 250;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        207 191 252;
 
     --rgb-field:        39  39  42;
     --rgb-field-border:120 118 132;
@@ -701,6 +711,7 @@
 
     --rgb-accent:    181 137   0;   /* yellow #b58900 */
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        192 155  38;
 
     --rgb-field:        255 255 255;
 
@@ -832,6 +843,7 @@
 
     --rgb-accent:    232 226 217;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        242 239 234;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 135 131 125;
@@ -891,6 +903,7 @@
 
     --rgb-accent:    217 119 6;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        234 180 118;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 131 135 140;
@@ -950,6 +963,7 @@
 
     --rgb-accent:    245 158 11;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        250 202 121;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 133 131 127;
@@ -1009,6 +1023,7 @@
 
     --rgb-accent:    214 199 174;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        232 224 210;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 138 128 113;
@@ -1068,6 +1083,7 @@
 
     --rgb-accent:    16 185 129;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        124 216 186;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 118 133 137;
@@ -1127,6 +1143,7 @@
 
     --rgb-accent:    234 88 12;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        243 163 121;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 135 124 119;
@@ -1186,6 +1203,7 @@
 
     --rgb-accent:    244 114 182;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        249 177 215;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 132 128 151;
@@ -1245,6 +1263,7 @@
 
     --rgb-accent:    37 99 235;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         70 122 238;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 126 133 146;
@@ -1302,6 +1321,7 @@
 
     --rgb-accent:    71 85 105;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         99 110 128;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 125 130 138;
@@ -1359,6 +1379,7 @@
 
     --rgb-accent:    22 101 52;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         57 124  82;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 126 134 123;
@@ -1416,6 +1437,7 @@
 
     --rgb-accent:    159 18 57;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        173  54  87;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 142 129 132;
@@ -1473,6 +1495,7 @@
 
     --rgb-accent:    109 40 217;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        131  72 223;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 132 128 147;
@@ -1530,6 +1553,7 @@
 
     --rgb-accent:    30 58 110;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         64  88 132;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 125 133 151;
@@ -1587,6 +1611,7 @@
 
     --rgb-accent:    125 107 79;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        144 129 105;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 132 127 120;
@@ -1644,6 +1669,7 @@
 
     --rgb-accent:    15 118 110;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         51 139 132;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 121 134 132;
@@ -1701,6 +1727,7 @@
 
     --rgb-accent:    30 58 138;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         64  88 156;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 123 134 157;
@@ -1758,6 +1785,7 @@
 
     --rgb-accent:    132 204 22;
     --rgb-accent-ink: 24 24 27;
+    --rgb-glow:        150 212  57;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 129 136 122;
@@ -1815,6 +1843,7 @@
 
     --rgb-accent:    134 25 143;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        152  60 160;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 142 128 136;
@@ -1872,6 +1901,7 @@
 
     --rgb-accent:    29 78 216;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         63 105 222;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 127 133 153;
@@ -1929,6 +1959,7 @@
 
     --rgb-accent:    15 118 110;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         51 139 132;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 123 134 130;
@@ -1986,6 +2017,7 @@
 
     --rgb-accent:    220 38 38;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        225  71  71;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 127 129 135;
@@ -2043,6 +2075,7 @@
 
     --rgb-accent:    200 64 47;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        208  93  78;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 136 132 129;
@@ -2100,6 +2133,7 @@
 
     --rgb-accent:    2 132 199;
     --rgb-accent-ink: 0 0 0;
+    --rgb-glow:         40 150 207;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 131 135 137;
@@ -2157,6 +2191,7 @@
 
     --rgb-accent:    125 107 79;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        144 129 105;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 136 132 128;
@@ -2214,6 +2249,7 @@
 
     --rgb-accent:    139 92 246;
     --rgb-accent-ink: 0 0 0;
+    --rgb-glow:        156 116 247;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 134 132 139;
@@ -2271,6 +2307,7 @@
 
     --rgb-accent:    200 64 47;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        208  93  78;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 128 133 149;
@@ -2328,6 +2365,7 @@
 
     --rgb-accent:    79 70 229;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        105  98 233;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 129 130 153;
@@ -2385,6 +2423,7 @@
 
     --rgb-accent:    225 29 72;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        230  63  99;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 140 129 119;
@@ -2442,6 +2481,7 @@
 
     --rgb-accent:    14 116 144;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         50 137 161;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 121 136 141;
@@ -2499,6 +2539,7 @@
 
     --rgb-accent:    162 28 175;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        176  62 187;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 143 128 138;
@@ -2556,6 +2597,7 @@
 
     --rgb-accent:    180 83 9;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:        191 109  46;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 140 129 119;
@@ -2613,6 +2655,7 @@
 
     --rgb-accent:    30 64 175;
     --rgb-accent-ink: 255 255 255;
+    --rgb-glow:         64  93 187;
 
     --rgb-field:        255 255 255;
     --rgb-field-border: 122 133 149;
@@ -2652,421 +2695,1033 @@
     --rgb-sheet-info:        68 102 153;
 }
 
-/* ═══ The calendar switch ═══════════════════════════════════════════════════
-   Three positions — mail, split, calendar — driven entirely by one attribute
-   on the shell. Rules rather than classes toggled onto .main-pane from two
-   places: the server renders the position and the controller changes it, and
-   those two must not be able to disagree about what a position looks like.
-   See App\Domain\Enum\Calendar\CalendarPaneMode.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* Calendar: the pane has the row and the mail steps aside. The mail is still
-   in the DOM, so coming back is a class change rather than a navigation —
-   which is the whole reason this is a third position of the pane and not a
-   link to /calendar. */
-[data-calendar-mode="calendar"]:not([data-calendar-restored]) .main-pane:not([data-ui--split-target="pane"]),
-/* …and the column that carries it. The insight strip is a sibling of the mail
-   card rather than a box inside it, so the two share a wrapper — and a wrapper
-   that survived this rule would leave an insight card floating beside the
-   calendar with the mail it introduces nowhere on screen. */
-[data-calendar-mode="calendar"]:not([data-calendar-restored]) [data-mail-column] {
-    display: none;
-}
-
-/* A REMEMBERED position, before ui--split has connected, only steps the mail
-   aside where the pane is drawn beside or over it: from lg up. Below lg the
-   controller opens every remembered position on the mail, and the server has
-   already rendered the pane `hidden` there, so hiding the mail as well would
-   paint a phone's first frame blank. `data-calendar-restored` is on the shell
-   from the server and comes off on connect, after which the rules above and
-   below apply at every width again. */
-@media (min-width: 1024px) {
-    [data-calendar-mode="calendar"][data-calendar-restored] .main-pane:not([data-ui--split-target="pane"]),
-    [data-calendar-mode="calendar"][data-calendar-restored] [data-mail-column] {
-        display: none;
-    }
-}
-
-/* …and the pane stops honouring the stored width, at both levels. The wrapper
-   is `lg:w-auto` — sized by its contents — so telling only the pane to fill it
-   is circular and collapses both to the width of the handle. Each has to be
-   told to grow, which is what `flex: 1 1 0%` says and what `width: auto`
-   un-says about the stored pixel count. The handle goes too: there is no
-   boundary left to drag when one side has all of it. */
-[data-calendar-mode="calendar"] [data-side-pane="calendar"],
-[data-calendar-mode="calendar"] [data-side-pane="calendar"] [data-ui--split-target="pane"] {
-    flex: 1 1 0%;
-    width: auto;
-}
-
-[data-calendar-mode="calendar"] [data-side-pane="calendar"] [data-ui--split-target="handle"] {
-    display: none;
-}
-
-/* ═══ The address book beside the calendar ═══════════════════════════════════
-   Both are docked panes (_side_pane.html.twig), and from 1920px up the row
-   holds them side by side. Below that it holds one beside the mail, so the
-   address book is not drawn while the calendar is — contacts--pane keeps what
-   is remembered in step, but the layout must not wait for it: a first paint
-   with both remembered open, or a window made narrower with both showing,
-   would otherwise squeeze the mail under three panes. And a calendar that has
-   the whole row has it at every width. The numbers match contacts--pane. */
-[data-calendar-mode="calendar"] [data-side-pane="contacts"] {
-    display: none;
-}
-
-@media (max-width: 1919px) {
-    [data-calendar-mode="split"] [data-side-pane="contacts"] {
-        display: none;
-    }
-}
-
-/* The tasks answer to the same two rules, for the same reasons. Not on their own
-   page, which gives them the row whatever the calendar remembers. */
-[data-calendar-mode="calendar"]:not([data-tasks-full]) [data-side-pane="tasks"] {
-    display: none;
-}
-
-@media (max-width: 1919px) {
-    [data-calendar-mode="split"]:not([data-tasks-full]) [data-side-pane="tasks"] {
-        display: none;
-    }
-}
-
-/* Split below lg is Calendar. The row cannot hold a sidebar, a usable message
-   list and a usable calendar at once under 1024px, so rather than squeezing
-   both under their minimums the calendar takes over — the same behaviour the
-   boolean version had, kept because it is right. */
-@media (max-width: 1023px) {
-    [data-calendar-mode="split"]:not([data-calendar-restored]) .main-pane:not([data-ui--split-target="pane"]),
-    [data-calendar-mode="split"]:not([data-calendar-restored]) [data-mail-column] {
-        display: none;
-    }
-}
-
-/* ═══ The address book at full size ═════════════════════════════════════════
-   The full contacts page is the mailbox with `data-contacts-full` on the shell
-   (contacts/_page_shell.html.twig): the mail column put away and the address
-   book's dock given what is left of the row, at every width. A calendar the
-   user keeps open stays beside it — there is no mail here to take turns with.
-
-   After the rules above, which they have to beat: a calendar that covers the
-   mail, or splits it on a notebook, hides the dock, and its .main-pane rule
-   catches the dock's pane as well. Same specificity, later in the file.
-
-   The handle goes while it has the row — it is about a boundary that is not
-   there. Its window controls stay, with ↙ in place of ↗ (see the next
-   section): they used to go as well, and full width had no way back but the
-   topbar (#678). */
-[data-contacts-full] [data-mail-column] {
-    display: none;
-}
-
-[data-contacts-full] [data-side-pane="contacts"],
-[data-contacts-full] [data-side-pane="contacts"] .main-pane {
-    display: flex;
-    flex: 1 1 0%;
-    width: auto;
-}
-
-[data-contacts-full] [data-side-pane="contacts"] [data-ui--side-split-target="handle"] {
-    display: none;
-}
-
-/* ═══ A docked pane's window controls ════════════════════════════════════════
-   _pane_window_controls.html.twig renders ↗ and ↙ both; which one shows is the
-   position the shell is in. Each pane reads its own attribute, scoped to its
-   own dock, so the calendar at full width does not turn the address book's ↗
-   round as well. Below lg there is no "beside the mail" for either to go to or
-   come back from, so both go and the × is left. */
-[data-pane-restore] {
-    display: none;
-}
-
-[data-calendar-mode="calendar"] [data-side-pane="calendar"] [data-pane-expand],
-[data-contacts-full] [data-side-pane="contacts"] [data-pane-expand] {
-    display: none;
-}
-
-/* From lg only, rather than shown everywhere and hidden again below it: the
-   rule that shows ↙ is more specific than any that could hide it. */
-@media (min-width: 1024px) {
-    [data-calendar-mode="calendar"] [data-side-pane="calendar"] [data-pane-restore],
-    [data-contacts-full] [data-side-pane="contacts"] [data-pane-restore] {
-        display: inline-flex;
-    }
-}
-
-@media (max-width: 1023px) {
-    [data-pane-window-controls] [data-pane-expand] {
-        display: none;
-    }
-}
-
-/* The tasks at full size: /tasks, on the same shell by the same attribute. The
-   other two panes step aside, since their rows are about a mail that is not
-   here, and the ways out of a boundary that is not there go too. */
-[data-tasks-full] [data-mail-column],
-[data-tasks-full] [data-side-pane="calendar"],
-[data-tasks-full] [data-side-pane="contacts"] {
-    display: none;
-}
-
-[data-tasks-full] [data-side-pane="tasks"],
-[data-tasks-full] [data-side-pane="tasks"] .main-pane {
-    display: flex;
-    flex: 1 1 0%;
-    width: auto;
-}
-
-[data-tasks-full] [data-side-pane="tasks"] [data-ui--side-split-target="handle"] {
-    display: none;
-}
-
-/* Leaving it — a message opened from the contact — is a view transition (see
-   contacts--pane#reveal): the mail column comes in from the left and the
-   address book draws back to its docked width, the same DOM throughout. The
-   names are only given for the length of it, so no other change of the page
-   is animated by accident. The two pictures of the address book are pinned to
-   its right edge and not stretched: the contact narrows, it does not squash. */
-[data-contacts-revealing] [data-mail-column] {
-    view-transition-name: contacts-reveal-mail;
-}
-
-[data-contacts-revealing] [data-side-pane="contacts"] {
-    view-transition-name: contacts-reveal-dock;
-}
-
-[data-contacts-revealing] [data-side-pane="calendar"] {
-    view-transition-name: contacts-reveal-calendar;
-}
-
-::view-transition-group(contacts-reveal-mail),
-::view-transition-group(contacts-reveal-dock),
-::view-transition-group(contacts-reveal-calendar) {
-    animation-duration: 280ms;
-    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
-}
-
-::view-transition-group(contacts-reveal-dock) {
-    overflow: clip;
-}
-
-::view-transition-old(contacts-reveal-dock),
-::view-transition-new(contacts-reveal-dock) {
-    height: 100%;
-    object-fit: none;
-    object-position: right top;
-    animation-duration: 280ms;
-}
-
-::view-transition-new(contacts-reveal-mail) {
-    animation: contacts-reveal-mail 280ms cubic-bezier(0.2, 0, 0, 1) both;
-}
-
-@keyframes contacts-reveal-mail {
-    from {
-        opacity: 0;
-        transform: translateX(-2rem);
-    }
-}
-
-/* The switch itself needs no rule here, deliberately. Which icon is drawn is
-   the `hidden` ATTRIBUTE on the other two, and the accented state is two
-   utility classes — both written by the server and toggled by ui--split. A
-   first version selected the icon from the shell's mode here, and on a stack
-   whose Tailwind build had not been rerun all three drew on top of each other:
-   a control that says which mode you are in has to be right from the markup
-   alone. The rules below are layout, which genuinely is CSS's job.
-
-   The rubber band, and the settle back from it.
-   Dragging past the pane's minimum or maximum does not stop dead — the handle
-   keeps moving, with resistance, which is what tells you there IS something
-   past the end without a label saying so. Past a threshold, letting go
-   switches position; short of it, this transition is what puts the pane back.
-   Only ever on for the length of that settle: a transition left on would make
-   every drag lag a frame behind the pointer. */
-[data-ui--split-target="pane"].is-settling,
-[data-ui--side-split-target="pane"].is-settling {
-    transition: width 180ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* And the grip says the same thing, so the affordance is visible on a handle
-   that is only two pixels wide. */
-[data-ui--split-target="handle"].is-straining .split-grip,
-[data-ui--side-split-target="handle"].is-straining .split-grip {
-    background-color: rgb(var(--rgb-accent));
-    transform: scaleY(1.6);
-}
-
-.split-grip {
-    transition: transform 120ms ease-out, background-color 120ms ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    [data-ui--split-target="pane"].is-settling,
-    [data-ui--side-split-target="pane"].is-settling,
-    .split-grip {
-        transition: none;
-    }
-
-    [data-ui--split-target="handle"].is-straining .split-grip,
-    [data-ui--side-split-target="handle"].is-straining .split-grip {
-        transform: none;
-    }
-}
-
 /* Accessibility: never force glass on people who opted out. */
 @media (prefers-reduced-transparency: reduce) {
     :root { --pane-alpha: 1; --popover-alpha: 1; --pane-blur: 0px; --scrim-alpha: 0; --main-alpha: 1;}
 }
 
-/* ═══ The reading pane beside the list ══════════════════════════════════════
-   One attribute on the mail card — `data-reading-pane`, the STORED mode — and
-   one question this file answers that the server cannot: is the card wide
-   enough to hold both panes? See App\Domain\Enum\Mail\ReadingPaneMode.
+/* ═══ Workspaces (#755) ══════════════════════════════════════════════════════
+   The row beside the sidebar is a tree: splits that divide their box side by
+   side (`data-dir="row"`) or above and below (`col`), cells that carry each
+   child's share as their flex-grow, and one pane per leaf. The markup is
+   _layout/_workspace.html.twig's on first paint and layout--workspace's after
+   that; the rules here are everything the tree looks like, so the server and
+   the script only ever write attributes.
 
-   Rules rather than classes toggled by a script, for the reason the calendar
-   switch's are: the server renders the mode and the browser changes it, and
-   they must not be able to disagree about what it looks like. It also means a
-   reload paints the right layout the first time, with no flash of one pane
-   rearranging itself into two.
+   Rules outside every layer, like the calendar switch's were, so they beat a
+   `hidden` utility without !important: mail--mail-pane still hides and shows
+   the list and the message with that class, which is what one-at-a-time
+   means, and these decide where that does not apply.
 
-   ── Why the CARD's width and not the viewport's ───────────────────────────
-   A docked calendar takes up to 900px of the row, so a 1440px window can leave
-   a mail card narrower than a phone. A media query would draw two panes there,
-   each too small to use, in the one situation where the setting most needs to
-   step aside. The query measures the box the panes actually share.
-
-   The container is declared ONLY for the mode that uses it. Containment is not
-   free — it changes how the box is sized — and somebody who has not turned the
-   setting on should be getting exactly the layout they had before it existed.
-
-   ── What it does NOT touch ────────────────────────────────────────────────
-   mail--mail-pane still hides and shows the two panes with `hidden`, which is
-   what one-pane-at-a-time means below the threshold. These rules sit outside
-   every layer, so they beat that utility regardless of the order Tailwind
-   emits it in, and the same script state reads correctly at both widths: a
-   message open when the window is narrowed is simply the one pane that was
-   showing.
-
-   ── The two minimums ──────────────────────────────────────────────────────
-   The share is a preference and the minimums are a fact. At 75% on a card just
-   over the threshold the list would be a sliver, so each pane keeps a floor
-   and the other gives way; the drag handle reads the same two floors, which is
-   why they are real `min-width`s and not numbers in a script.
+   ── What replaced what ─────────────────────────────────────────────────────
+   The calendar switch's three positions, the address book and tasks docks,
+   their full pages' attributes and the reading pane's container query: all
+   gone with #755. Full width is `data-layout-max` on the root and
+   `data-maxed` on the pane; the message beside the list is
+   `data-message-beside`; below lg the tree is flattened and one pane shows,
+   the one carrying `data-tab-current`.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.main-pane[data-reading-pane="right"] {
-    container: mailcard / inline-size;
+.layout-root {
+    display: flex;
+    flex: 1 1 0%;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
 }
 
-/* The divider and the hint exist everywhere and show nowhere but beside the
-   list, so one-pane mailboxes carry no stray element. */
-[data-reading-handle],
+.layout-body,
+.layout-split,
+.layout-cell {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+}
+
+.layout-body {
+    flex: 1 1 0%;
+}
+
+.layout-split[data-dir="col"] {
+    flex-direction: column;
+}
+
+/* A cell's share is its flex-grow, written inline; the basis is zero so the
+   shares are exactly the proportions, whatever the panes contain. */
+.layout-cell {
+    flex: 1 1 0%;
+}
+
+.layout-body > *,
+.layout-cell > * {
+    flex: 1 1 0%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.layout-pane {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    outline: none;
+}
+
+/* The pane the keyboard just moved to (⌥ + arrow), until the pointer is used. */
+.layout-pane[data-layout-focus] > .layout-card {
+    box-shadow: 0 0 0 2px rgb(var(--rgb-accent));
+}
+
+/* ── Dividers ─────────────────────────────────────────────────────────────
+   A gutter wide, which is the gap the panes had between them anyway, so the
+   whole space between two panes is the handle. The line is drawn only on
+   hover, focus and drag. */
+.layout-divider {
+    position: relative;
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    outline: none;
+}
+
+.layout-split[data-dir="row"] > .layout-divider {
+    width: var(--spacing-gutter);
+    cursor: col-resize;
+}
+
+.layout-split[data-dir="col"] > .layout-divider {
+    height: var(--spacing-gutter);
+    cursor: row-resize;
+}
+
+.layout-divider::after {
+    content: "";
+    border-radius: 9999px;
+    background-color: rgb(var(--rgb-border) / var(--border-alpha));
+    transition: background-color 120ms ease-out;
+}
+
+.layout-split[data-dir="row"] > .layout-divider::after {
+    width: 2px;
+    height: 2rem;
+}
+
+.layout-split[data-dir="col"] > .layout-divider::after {
+    width: 2rem;
+    height: 2px;
+}
+
+.layout-divider:hover::after,
+.layout-divider:focus-visible::after,
+.layout-divider.is-dragging::after {
+    background-color: rgb(var(--rgb-accent));
+}
+
+.is-resizing-row,
+.is-resizing-row * {
+    cursor: col-resize !important;
+    user-select: none;
+}
+
+.is-resizing-col,
+.is-resizing-col * {
+    cursor: row-resize !important;
+    user-select: none;
+}
+
+/* The sidebar's handle keeps the grip transition the calendar handle had. */
+.split-grip {
+    transition: background-color 120ms ease-out;
+}
+
+/* ── Full width and the message beside the list, from lg up ──────────────── */
+[data-pane-restore],
 [data-reading-placeholder] {
     display: none;
 }
 
-@container mailcard (min-width: 52rem) {
-    [data-reading-pane="right"] [data-mail--mail-pane-target="list"] {
-        display: flex;
-        flex: 1 1 0%;
-        min-width: 22rem;
-    }
-
-    [data-reading-pane="right"] [data-mail--mail-pane-target="reading"],
-    [data-reading-pane="right"] [data-reading-placeholder] {
-        flex: 0 1 var(--reading-pane-pct, 55%);
-        min-width: 24rem;
-    }
-
-    [data-reading-pane="right"] [data-mail--mail-pane-target="reading"] {
-        display: flex;
-    }
-
-    /* Nothing open: the hint stands where the message will be. The message
-       pane is hidden rather than left empty so its own border and sheet do not
-       frame a blank. */
-    [data-reading-pane="right"]:not([data-reading-open]) [data-mail--mail-pane-target="reading"] {
+@media (min-width: 1024px) {
+    [data-layout-max] .layout-pane:not([data-maxed]),
+    [data-layout-max] .layout-divider,
+    [data-layout-max] .layout-cell:not(:has([data-maxed])) {
         display: none;
     }
 
-    [data-reading-pane="right"]:not([data-reading-open]) [data-reading-placeholder] {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 0.75rem;
-        font-size: 0.875rem;
-        color: rgb(var(--rgb-ink-faint));
+    [data-layout-max] .layout-cell {
+        flex-grow: 1 !important;
     }
 
-    [data-reading-pane="right"] [data-reading-placeholder] i {
+    [data-layout-max] [data-maxed] [data-pane-restore] {
+        display: inline-flex;
+    }
+
+    /* The list stays on screen while a message is open beside it; the message
+       shows in its own pane, and the placeholder stands there while nothing
+       is open. The message's element is hidden rather than left empty so its
+       sheet does not frame a blank. */
+    [data-message-beside] [data-mail--mail-pane-target="list"],
+    [data-message-beside] [data-layout-pane="message"] [data-mail--mail-pane-target="reading"] {
+        display: flex;
+    }
+
+    [data-message-beside] [data-layout-pane="message"] .layout-card:not([data-reading-open]) [data-mail--mail-pane-target="reading"] {
+        display: none;
+    }
+
+    [data-message-beside] [data-layout-pane="message"] .layout-card:not([data-reading-open]) [data-reading-placeholder] {
+        display: flex;
+        flex: 1 1 0%;
+        flex-direction: column;
+        font-size: 0.875rem;
+        color: var(--color-ink-faint);
+    }
+
+    [data-reading-placeholder] .fa-envelope-open {
         font-size: 2rem;
         opacity: 0.6;
     }
+}
 
-    /* One pixel of layout, eight of grip. The divider used to BE its hit area
-       — an 8px box with the line down its middle — and the four pixels either
-       side of the line showed as a strip of bare card between the list and
-       the message: the toolbar band and every row rule stopped short of the
-       line. So the box is the line, and the grip is a pseudo-element laid
-       over the edges of both panes, which takes the pointer for its element
-       without taking any room. */
-    [data-reading-pane="right"] [data-reading-handle] {
-        display: block;
-        flex: none;
-        position: relative;
-        z-index: 1;
-        width: 1px;
-        background-color: rgb(var(--rgb-border) / var(--border-alpha));
-        cursor: col-resize;
-        /* The browser would otherwise take a horizontal touch drag for a scroll
-           or a back-swipe, and the pointer events this divider depends on
-           would never arrive. */
-        touch-action: none;
-    }
+/* ── Below lg: one pane at a time ────────────────────────────────────────── */
+.layout-tabs {
+    display: flex;
+    flex: none;
+    gap: 0.375rem;
+    padding-bottom: var(--spacing-gutter);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
 
-    [data-reading-pane="right"] [data-reading-handle]::before {
-        content: "";
-        position: absolute;
-        inset-block: 0;
-        inset-inline: -0.25rem;
-    }
+.layout-tab {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.25rem;
+    padding: 0 0.875rem;
+    border-radius: 9999px;
+    border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+    background-color: rgb(var(--rgb-surface) / var(--pane-alpha));
+    font-size: 0.875rem;
+    color: var(--color-ink-soft);
+    cursor: pointer;
+}
 
-    /* What hover, focus and a drag thicken. Drawn over the line rather than
-       by widening it, so the panes do not shift by two pixels under the
-       pointer. */
-    [data-reading-pane="right"] [data-reading-handle]::after {
-        content: "";
-        position: absolute;
-        inset-block: 0;
-        left: 50%;
-        width: 3px;
-        transform: translateX(-50%);
-        background-color: rgb(var(--rgb-accent));
-        opacity: 0;
-        transition: opacity 120ms ease-out;
-        pointer-events: none;
-    }
+.layout-tab[aria-pressed="true"] {
+    background-color: var(--color-accent);
+    border-color: transparent;
+    color: var(--color-accent-ink);
+}
 
-    [data-reading-pane="right"] [data-reading-handle]:hover::after,
-    [data-reading-pane="right"] [data-reading-handle]:focus-visible::after,
-    [data-reading-pane="right"][data-reading-resizing] [data-reading-handle]::after {
-        opacity: 1;
-    }
-
-    [data-reading-pane="right"] [data-reading-handle]:focus-visible {
-        outline: none;
+@media (min-width: 1024px) {
+    .layout-tabs {
+        display: none;
     }
 }
 
-/* While the divider is dragged: no text selection under the pointer, and the
-   cursor stays a resize cursor however far from the divider it strays. */
-[data-reading-resizing] {
+@media (max-width: 1023px) {
+    .layout-split,
+    .layout-cell {
+        display: contents;
+    }
+
+    .layout-divider,
+    .layout-pane:not([data-tab-current]) {
+        display: none;
+    }
+
+    .layout-pane[data-tab-current] {
+        flex: 1 1 0%;
+    }
+}
+
+/* ── The agenda's day headings ───────────────────────────────────────────
+   Sticky, and siblings in one grid (calendar/_agenda_shell.html.twig), so
+   they stack at the top and each new one has to cover the one before. The
+   tint is the theme's sunken or a tenth of the accent, which on most themes
+   is a few percent opaque; it is laid over the pane's own colour, solid, so
+   nothing behind shows through. */
+.agenda-day-head {
+    background-color: rgb(var(--rgb-main));
+    background-image: linear-gradient(var(--color-sunken), var(--color-sunken));
+}
+
+.agenda-day-head.is-today {
+    background-image: linear-gradient(rgb(var(--rgb-accent) / 0.1), rgb(var(--rgb-accent) / 0.1));
+}
+
+/* ── The topbar's workspace tabs ─────────────────────────────────────────── */
+.workspace-tabs {
+    position: relative;
+    display: inline-flex;
+    gap: 2px;
+    min-width: 0;
+    padding: 3px;
+    border-radius: 0.5rem;
+    background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 2));
+    /* Not a scroller: the switch's glow is drawn outside the highlight, and a
+       scroll box clips it. Many tabs shrink and truncate instead. */
+    overflow: visible;
+}
+
+.workspace-tab {
+    display: inline-flex;
+    flex: 0 1 auto;
+    /* The narrowest a tab gets before the strip folds — layout--workspace's
+       TAB_MIN, which measures against it (#783). */
+    min-width: 4.5rem;
+    align-items: center;
+    max-width: 10rem;
+    height: 1.875rem;
+    padding: 0 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-ink-muted);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.workspace-tab:hover {
+    color: var(--color-ink);
+}
+
+.workspace-tab {
+    position: relative;
+    z-index: 1;
+}
+
+/* A workspace's "new" count (#783, WorkspaceNews): what arrived since it was
+   last on screen. A numeral pill like the sidebar's unread pills, in the
+   accent, since it is the one thing on the strip asking to be looked at. The
+   dot instead of it: something there starts within the hour.
+
+   Both sit on the tab's corner rather than beside its name. Inline, they made
+   the tab wider, and visiting it — which clears them — made it narrower again
+   under the pointer that had just pressed it. */
+.workspace-new {
+    position: absolute;
+    top: -0.375rem;
+    right: -0.25rem;
+    z-index: 2;
+    min-width: 1rem;
+    height: 1rem;
+    padding: 0 0.25rem;
+    border-radius: 9999px;
+    background-color: var(--color-accent);
+    color: var(--color-accent-ink);
+    box-shadow: 0 0 0 2px var(--color-surface);
+    font-size: 0.625rem;
+    font-weight: 600;
+    line-height: 1rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+}
+
+.workspace-soon,
+.soon-dot {
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-radius: 9999px;
+    background-color: var(--color-accent);
+    pointer-events: none;
+}
+
+.workspace-soon {
+    position: absolute;
+    top: 0.1875rem;
+    right: 0.1875rem;
+    z-index: 2;
+}
+
+.soon-dot {
+    position: absolute;
+    top: 0.3125rem;
+    right: 0.3125rem;
+}
+
+.soon-dot[hidden] {
+    display: none;
+}
+
+.workspace-tab[aria-pressed="true"] {
+    background-color: rgb(var(--rgb-surface));
+    color: var(--color-ink);
+    box-shadow: 0 1px 2px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 2));
+}
+
+/* The highlight, once layout--workspace has placed it: the pressed tab gives
+   its own background up to it, and a switch slides it from tab to tab. Before
+   that (the first paint, or no script) the pressed tab draws its own. Slides
+   only at Full motion; Minimal and None move it at once, nothing travelling. */
+.workspace-tab-thumb {
+    position: absolute;
+    top: 3px;
+    left: 0;
+    height: 1.875rem;
+    border-radius: 0.375rem;
+    background-color: rgb(var(--rgb-surface));
+    box-shadow: 0 1px 2px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 2));
+    opacity: 0;
+    pointer-events: none;
+}
+
+.workspace-tabs[data-thumb-ready] .workspace-tab-thumb {
+    opacity: 1;
+}
+
+.workspace-tabs[data-thumb-ready] .workspace-tab[aria-pressed="true"] {
+    background-color: transparent;
+    box-shadow: none;
+}
+
+[data-motion="full"] .workspace-tabs[data-thumb-sliding] .workspace-tab-thumb {
+    transition: transform var(--motion-slow) var(--motion-ease), width var(--motion-slow) var(--motion-ease);
+}
+
+/* A little magic on a switch, at Full motion only. layout--workspace sets
+   `data-glow` on the strip for one switch: `spark-…` when plMail switched by
+   itself (a folder chosen in a workspace without the list, #769) — a gold
+   spark runs once round the highlight and leaves twinkles behind it, which
+   says "this happened to you" — and `bloom-…` when the user switched, the
+   highlight's edge lighting up in the theme's --rgb-glow as it lands. The
+   -0/-1 ending alternates so the same effect twice in a row restarts. */
+.workspace-glow,
+.workspace-glow-trace,
+.workspace-glow-star,
+.workspace-glow-bloom {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.workspace-glow {
+    inset: 0;
+    opacity: 1;
+    /* The highlight's corners, passed down: the bloom draws its edge and glow
+       with inherit, and without this it inherited nothing and lit up a
+       square-cornered box round a rounded tab. */
+    border-radius: inherit;
+}
+
+.workspace-glow-trace {
+    inset: -1px;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
+    overflow: visible;
+}
+
+.workspace-glow-trace rect {
+    fill: none;
+    stroke: #fff6d8;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-dasharray: 0.5 99.5;
+    filter: drop-shadow(0 0 3px #ffe9a8) drop-shadow(0 0 7px #f5b942);
+}
+
+.workspace-glow-star {
+    width: 9px;
+    height: 9px;
+    margin: -4.5px 0 0 -4.5px;
+    color: #ffe9a8;
+    filter: drop-shadow(0 0 3px #f5b942);
+}
+
+.workspace-glow-star svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.workspace-glow-bloom {
+    inset: 0;
+    border-radius: inherit;
+}
+
+[data-motion="full"] .workspace-tabs[data-glow="spark-0"] .workspace-glow-trace { animation: workspace-trace-0 900ms linear; }
+[data-motion="full"] .workspace-tabs[data-glow="spark-1"] .workspace-glow-trace { animation: workspace-trace-1 900ms linear; }
+[data-motion="full"] .workspace-tabs[data-glow="spark-0"] .workspace-glow-trace rect { animation: workspace-trace-dash-0 900ms linear; }
+[data-motion="full"] .workspace-tabs[data-glow="spark-1"] .workspace-glow-trace rect { animation: workspace-trace-dash-1 900ms linear; }
+[data-motion="full"] .workspace-tabs[data-glow="spark-0"] .workspace-glow-star { animation: workspace-twinkle-0 700ms ease-out var(--at) both; }
+[data-motion="full"] .workspace-tabs[data-glow="spark-1"] .workspace-glow-star { animation: workspace-twinkle-1 700ms ease-out var(--at) both; }
+[data-motion="full"] .workspace-tabs[data-glow="bloom-0"] .workspace-glow-bloom { animation: workspace-bloom-0 900ms cubic-bezier(.2, .7, .3, 1) 180ms both; }
+[data-motion="full"] .workspace-tabs[data-glow="bloom-1"] .workspace-glow-bloom { animation: workspace-bloom-1 900ms cubic-bezier(.2, .7, .3, 1) 180ms both; }
+
+@keyframes workspace-trace-0 { 0% { opacity: 0; } 6% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes workspace-trace-1 { 0% { opacity: 0; } 6% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes workspace-trace-dash-0 { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -100; } }
+@keyframes workspace-trace-dash-1 { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -100; } }
+@keyframes workspace-twinkle-0 {
+    0% { opacity: 0; transform: scale(.2) rotate(0deg); }
+    25% { opacity: 1; transform: scale(1.1) rotate(20deg); }
+    100% { opacity: 0; transform: scale(.4) rotate(70deg); }
+}
+@keyframes workspace-twinkle-1 {
+    0% { opacity: 0; transform: scale(.2) rotate(0deg); }
+    25% { opacity: 1; transform: scale(1.1) rotate(20deg); }
+    100% { opacity: 0; transform: scale(.4) rotate(70deg); }
+}
+@keyframes workspace-bloom-0 {
+    0% { opacity: 0; box-shadow: 0 0 0 0 rgb(var(--rgb-glow) / 0), inset 0 0 0 1px rgb(var(--rgb-glow) / 0); }
+    25% { opacity: 1; box-shadow: 0 0 14px 2px rgb(var(--rgb-glow) / .45), inset 0 0 0 1px rgb(var(--rgb-glow) / .9); }
+    100% { opacity: 0; box-shadow: 0 0 22px 8px rgb(var(--rgb-glow) / 0), inset 0 0 0 1px rgb(var(--rgb-glow) / 0); }
+}
+@keyframes workspace-bloom-1 {
+    0% { opacity: 0; box-shadow: 0 0 0 0 rgb(var(--rgb-glow) / 0), inset 0 0 0 1px rgb(var(--rgb-glow) / 0); }
+    25% { opacity: 1; box-shadow: 0 0 14px 2px rgb(var(--rgb-glow) / .45), inset 0 0 0 1px rgb(var(--rgb-glow) / .9); }
+    100% { opacity: 0; box-shadow: 0 0 22px 8px rgb(var(--rgb-glow) / 0), inset 0 0 0 1px rgb(var(--rgb-glow) / 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .workspace-tabs .workspace-tab-thumb {
+        transition: none !important;
+    }
+
+    .workspace-tabs .workspace-glow * {
+        animation: none !important;
+    }
+}
+
+/* ── Menus ───────────────────────────────────────────────────────────────── */
+.layout-menu {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    padding: 0.375rem;
+    min-width: 15rem;
+    overflow: visible;
+    font-size: 0.875rem;
+    color: var(--color-ink);
+}
+
+.layout-presets {
+    width: 30rem;
+    max-width: calc(100vw - 1rem);
+    max-height: calc(100vh - 5rem);
+    padding: 0.5rem 0.75rem 0.75rem;
+    overflow: auto;
+}
+
+.layout-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    height: 2.125rem;
+    padding: 0 0.625rem;
+    border-radius: 0.5rem;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.layout-menu-item:hover,
+.layout-menu-item:focus-visible,
+.layout-menu-sub.is-open > .layout-menu-item {
+    background-color: var(--color-hover);
+    outline: none;
+}
+
+.layout-menu-item:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.layout-menu-item.is-current {
+    color: var(--color-accent);
+    font-weight: 500;
+}
+
+.layout-menu-check {
+    visibility: hidden;
+}
+
+.layout-menu-item.is-current .layout-menu-check {
+    visibility: visible;
+}
+
+.layout-menu-rule {
+    margin: 0.375rem 0.25rem;
+    border: 0;
+    border-top: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+}
+
+.layout-menu-heading {
+    margin: 0;
+    padding: 0.5rem 0.625rem 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-ink-faint);
+}
+
+.layout-menu-note {
+    max-width: 13rem;
+    margin: 0;
+    padding: 0.25rem 0.625rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--color-ink-faint);
+}
+
+.layout-menu .kbd {
+    padding: 0 0.3125rem;
+    border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+    border-radius: 0.25rem;
+    font-family: inherit;
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    color: var(--color-ink-faint);
+    white-space: nowrap;
+}
+
+/* Submenus open beside their row on hover and on focus — the keyboard's way —
+   and on a press for touch (`is-open`). The bridge across the gap keeps a
+   pointer travelling into the submenu from closing it on the way. */
+.layout-menu-sub {
+    position: relative;
+}
+
+.layout-menu-sub::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 100%;
+    width: 0.5rem;
+}
+
+.layout-submenu {
+    position: absolute;
+    top: -0.375rem;
+    left: calc(100% + 0.25rem);
+    display: none;
+    min-width: 13rem;
+    padding: 0.375rem;
+}
+
+.opens-left .layout-menu-sub::after {
+    left: auto;
+    right: 100%;
+}
+
+.opens-left .layout-submenu {
+    left: auto;
+    right: calc(100% + 0.25rem);
+}
+
+.layout-menu-sub:hover > .layout-submenu,
+.layout-menu-sub:focus-within > .layout-submenu,
+.layout-menu-sub.is-open > .layout-submenu {
+    display: block;
+}
+
+/* The menu holds the focus while it is open (see layout--workspace#menu); its
+   own ring would only frame the whole menu. */
+.layout-menu:focus {
+    outline: none;
+}
+
+/* ── The Layout menu's outlines ──────────────────────────────────────────── */
+.layout-preset-workspaces {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.375rem;
+}
+
+.layout-preset-workspace {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-width: 0;
+    padding: 0.375rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    cursor: pointer;
+}
+
+.layout-preset-workspace:hover {
+    background-color: var(--color-hover);
+}
+
+.layout-preset-workspace[aria-pressed="true"] {
+    border-color: var(--color-accent);
+    background-color: rgb(var(--rgb-accent) / 0.08);
+}
+
+.layout-preset-shapes {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.layout-preset-shape {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: 0.5rem;
+    font-size: 0.6875rem;
+    color: var(--color-ink-muted);
+    text-align: center;
+    cursor: pointer;
+}
+
+.layout-preset-shape:hover,
+.layout-preset-shape[aria-pressed="true"] {
+    color: var(--color-ink);
+}
+
+.layout-preset-shape:hover {
+    background-color: var(--color-hover);
+}
+
+.layout-thumb {
+    display: flex;
+    flex: none;
+    width: 4.5rem;
+    height: 3rem;
+    padding: 3px;
+    border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+    border-radius: 0.375rem;
+    background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 2));
+}
+
+.layout-thumb.is-small {
+    width: 3.375rem;
+    height: 2.25rem;
+}
+
+.layout-preset-shape[aria-pressed="true"] .layout-thumb {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -1px;
+}
+
+.layout-thumb-split {
+    display: flex;
+    flex: 1 1 0%;
+    gap: 2px;
+    min-width: 0;
+    min-height: 0;
+}
+
+.layout-thumb-split.is-col {
+    flex-direction: column;
+}
+
+.layout-thumb-split > span {
+    display: flex;
+    flex-basis: 0;
+    min-width: 0;
+    min-height: 0;
+}
+
+.layout-thumb-pane {
+    flex: 1 1 0%;
+    border-radius: 2px;
+    background-color: rgb(var(--rgb-ink) / 0.18);
+}
+
+.layout-thumb-pane.is-message {
+    background-color: rgb(var(--rgb-accent) / 0.4);
+}
+
+.layout-slot-preview {
+    display: flex;
+    height: 12.5rem;
+    padding: 0.375rem;
+    border-radius: 0.625rem;
+    background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 2));
+}
+
+.layout-slot-preview > *,
+.layout-slot-split > div > * {
+    flex: 1 1 0%;
+}
+
+.layout-slot-split {
+    display: flex;
+    gap: 0.375rem;
+    min-width: 0;
+    min-height: 0;
+}
+
+.layout-slot-split.is-col {
+    flex-direction: column;
+}
+
+.layout-slot-split > div {
+    display: flex;
+    flex-basis: 0;
+    min-width: 0;
+    min-height: 0;
+}
+
+.layout-slot {
+    display: flex;
+    align-items: flex-end;
+    min-width: 0;
+    padding: 0.5rem;
+    border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+    border-radius: 0.5rem;
+    background-color: rgb(var(--rgb-surface));
+}
+
+/* ── Edit mode ───────────────────────────────────────────────────────────── */
+[data-layout-editing] .shell-topbar {
+    display: none;
+}
+
+.workspace-editbar,
+.workspace-tray {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 0.625rem;
+    min-width: 0;
+    border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+    border-radius: var(--app-radius);
+    background-color: rgb(var(--rgb-surface) / var(--pane-alpha));
+    box-shadow: 0 6px 12px -6px rgb(var(--rgb-shadow) / var(--shadow-alpha));
+}
+
+.workspace-editbar {
+    height: 3.5rem;
+    padding: 0 0.5rem 0 1rem;
+}
+
+.workspace-editbar .workspace-name {
+    flex: none;
+    width: 12rem;
+}
+
+.workspace-editbar-hint {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 0.8125rem;
+    color: var(--color-ink-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.workspace-tray {
+    order: 99;
+    height: 3.5rem;
+    padding: 0 1rem;
+    overflow-x: auto;
+}
+
+.workspace-tray-label {
+    font-size: 0.8125rem;
+    color: var(--color-ink-muted);
+    white-space: nowrap;
+}
+
+.workspace-tray-hint,
+.workspace-tray-empty {
+    font-size: 0.75rem;
+    color: var(--color-ink-faint);
+    white-space: nowrap;
+}
+
+.workspace-chip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.125rem;
+    padding: 0 0.75rem 0 0.5rem;
+    border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+    border-radius: 0.5rem;
+    background-color: rgb(var(--rgb-surface));
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: grab;
+    touch-action: none;
+}
+
+.workspace-chip:hover {
+    background-color: var(--color-hover);
+}
+
+/* In edit mode, whatever the pane draws is a stacking context of its own, so
+   nothing in it can rise above the card: avatars, attachment chips, a task's
+   tick and the calendar's today all carry a z-index of their own, and with the
+   card at 5 they showed through it. The card is the one child left out. */
+[data-layout-editing] .layout-pane > :not(.layout-edit-card) {
+    isolation: isolate;
+}
+
+.layout-edit-card {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    border: 1.5px dashed rgb(var(--rgb-ink) / 0.25);
+    border-radius: var(--app-radius);
+    background-color: rgb(var(--rgb-surface) / 0.94);
+    backdrop-filter: blur(2px);
+}
+
+[data-edit-selected] > .layout-edit-card {
+    border: 2px solid var(--color-accent);
+}
+
+.layout-edit-head {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem;
+    border-bottom: 1px dashed rgb(var(--rgb-ink) / 0.2);
+}
+
+.layout-edit-kind {
+    flex: 1 1 0%;
+    min-width: 0;
+}
+
+.layout-grip {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 1.5rem;
+    height: 2rem;
+    border-radius: 0.375rem;
+    color: var(--color-ink-faint);
+    cursor: grab;
+    touch-action: none;
+}
+
+.layout-grip:hover {
+    background-color: var(--color-hover);
+    color: var(--color-ink);
+}
+
+.layout-edit-body {
+    display: flex;
+    flex: 1 1 0%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    min-height: 0;
+    overflow: hidden;
+    text-align: center;
+    color: var(--color-ink-muted);
+}
+
+.layout-edit-icon {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-bottom: 0.25rem;
+    border-radius: 0.75rem;
+    background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 2));
+    font-size: 1.125rem;
+    color: var(--color-ink-soft);
+}
+
+[data-edit-selected] .layout-edit-icon {
+    background-color: rgb(var(--rgb-accent) / 0.12);
+    color: var(--color-accent);
+}
+
+.layout-edit-name {
+    font-weight: 600;
+    color: var(--color-ink);
+}
+
+.layout-edit-size {
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink-faint);
+}
+
+.layout-edge {
+    position: absolute;
+    display: none;
+    align-items: center;
+    gap: 0.25rem;
+    height: 1.75rem;
+    padding: 0 0.625rem 0 0.5rem;
+    border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+    border-radius: 9999px;
+    background-color: rgb(var(--rgb-surface));
+    box-shadow: 0 10px 15px -3px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 3));
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+[data-edit-selected] .layout-edge {
+    display: inline-flex;
+}
+
+.layout-edge:hover,
+.layout-edge:focus-visible {
+    border-color: transparent;
+    background-color: var(--color-accent);
+    color: var(--color-accent-ink);
+}
+
+.layout-edge-right {
+    top: 50%;
+    right: 0.5rem;
+    transform: translateY(-50%);
+}
+
+.layout-edge-below {
+    bottom: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* What a drag will do, over the pane under the pointer, and the pane being
+   carried. Both fixed, placed from the pane's rect by the controller. */
+.layout-drop {
+    position: fixed;
+    z-index: 300;
+    display: grid;
+    place-items: center;
+    border: 2px dashed var(--color-accent);
+    border-radius: 0.625rem;
+    background-color: rgb(var(--rgb-accent) / 0.18);
+    pointer-events: none;
+}
+
+.layout-drop span {
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    background-color: var(--color-accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-accent-ink);
+}
+
+.layout-ghost {
+    position: fixed;
+    z-index: 301;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+    border-radius: 0.625rem;
+    background-color: rgb(var(--rgb-surface));
+    box-shadow: 0 20px 25px -5px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 4));
+    font-size: 0.8125rem;
+    font-weight: 600;
+    pointer-events: none;
+    transform: translate(12px, 12px);
+}
+
+body.is-dragging-pane,
+body.is-dragging-pane * {
+    cursor: grabbing !important;
     user-select: none;
-    cursor: col-resize;
 }
 
 /* ═══ The folder tree ══════════════════════════════════════════════════════
@@ -3149,12 +3804,6 @@
 li[data-selected="true"] {
     background-color: rgb(var(--rgb-accent) / 0.1);
     box-shadow: inset 3px 0 0 rgb(var(--rgb-accent));
-}
-
-@media (prefers-reduced-motion: reduce) {
-    [data-reading-handle]::after {
-        transition: none;
-    }
 }
 
 /* ═══ A section that FILLS its scroll port ══════════════════════════════════
@@ -4684,7 +5333,7 @@ html {
 
    The transition is for the rail, the keys and the double-click reset, and is
    off while dragging (body.cursor-col-resize is on for exactly that long,
-   set by ui--split#start): a transition under a drag lags the pointer. */
+   set by ui--sidebar-split#start): a transition under a drag lags the pointer. */
 .sidebar-pane {
     width: var(--sidebar-width, 14rem);
     flex: none;
@@ -4752,13 +5401,16 @@ body.cursor-col-resize .sidebar-pane {
    focused, never just because the pointer crossed the sidebar. Its width
    is the wider of its own and the nav's — the pane is hovered too, and the
    nav's peek must not shrink under it. The rule after this one sets it:
-   the same selector, so the later rule wins. */
+   the same selector, so the later rule wins.
+
+   #sidebar is inside the pane, not its child: the mailbox draws it in the
+   frame a workspace switch fills again (#783, workspace-sidebar). */
 html:not(.sidebar-rail) body:not(.cursor-col-resize)
     .sidebar-pane:is(:hover, :has(:focus-visible))
-    > #sidebar[data-sidebar-peek][data-sidebar-truncated],
+    #sidebar[data-sidebar-peek][data-sidebar-truncated],
 html:not(.sidebar-rail) body:not(.cursor-col-resize)
     .sidebar-pane:has([data-sidebar-peek-own]:is(:hover, :focus-visible))
-    > #sidebar[data-sidebar-peek][data-sidebar-truncated-own] {
+    #sidebar[data-sidebar-peek][data-sidebar-truncated-own] {
     width: var(--sidebar-peek-width, 100%);
 
     /* Over a list of subjects now, so opaque — the pane surface is
@@ -4771,7 +5423,7 @@ html:not(.sidebar-rail) body:not(.cursor-col-resize)
 
 html:not(.sidebar-rail) body:not(.cursor-col-resize)
     .sidebar-pane:has([data-sidebar-peek-own]:is(:hover, :focus-visible))
-    > #sidebar[data-sidebar-peek][data-sidebar-truncated-own] {
+    #sidebar[data-sidebar-peek][data-sidebar-truncated-own] {
     width: max(var(--sidebar-peek-own-width), var(--sidebar-peek-width, 0px));
 }
 
@@ -4780,10 +5432,10 @@ html:not(.sidebar-rail) body:not(.cursor-col-resize)
    an edge that is not there. Gone, and not grabbable; it comes back where it
    always was when the peek lets go. */
 html:not(.sidebar-rail) body:not(.cursor-col-resize)
-    .sidebar-pane:is(:hover, :has(:focus-visible)):has(> #sidebar[data-sidebar-peek][data-sidebar-truncated])
+    .sidebar-pane:is(:hover, :has(:focus-visible)):has(#sidebar[data-sidebar-peek][data-sidebar-truncated])
     + [data-sidebar-handle],
 html:not(.sidebar-rail) body:not(.cursor-col-resize)
-    .sidebar-pane:has([data-sidebar-peek-own]:is(:hover, :focus-visible)):has(> #sidebar[data-sidebar-peek][data-sidebar-truncated-own])
+    .sidebar-pane:has([data-sidebar-peek-own]:is(:hover, :focus-visible)):has(#sidebar[data-sidebar-peek][data-sidebar-truncated-own])
     + [data-sidebar-handle] {
     opacity: 0;
     pointer-events: none;
@@ -5011,10 +5663,19 @@ html:not(.sidebar-rail) body:not(.cursor-col-resize)
    Only where there IS a sidebar. Below md it is a drawer, so dropping the
    start padding left nothing to bleed and simply glued the mail pane to the
    left edge while the right kept its gutter — lopsided, and the reason the
-   list looked cut off on a phone. */
+   list looked cut off on a phone.
+
+   A workspace without a sidebar (#783) takes the gutter back on its own row,
+   not on the shell: the shell holds the topbar too, which would otherwise
+   shift sideways on every switch between a workspace with a sidebar and one
+   without. */
 @media (min-width: 768px) {
     .layout-flat .shell-frame {
         padding-inline-start: 0;
+    }
+
+    .layout-flat [data-workspace-row]:not(:has(.sidebar-boundary:not([data-no-sidebar]))) {
+        padding-inline-start: var(--spacing-gutter);
     }
 }
 
@@ -6666,6 +7327,19 @@ html[data-dnd-active] [data-dnd-ghost] {
     padding-left: 1.5em;
 }
 
+/* Paragraphs inside the compose editors, spaced the way the recipient will
+   see them (#782). Enter in a `<p>` makes a new `<p>`, and the body starts as
+   one (`<p><br></p>` above the signature or the quote). Preflight zeroes
+   their margin, so in the editor Enter looked like a single line break; the
+   mail goes out without any margin on them, and every mail client — and our
+   own reading pane, which has no preflight — gives a `<p>` the browser's
+   1em above and below. The sender saw tight lines and the recipient got a
+   gap after each one. 1em is that default, so what is on screen while
+   writing is what arrives. Shift+Enter is still a plain `<br>`. */
+[data-compose--compose-toolbar-target="editor"] p {
+    margin-block: 1em;
+}
+
 /* ── Row swipe ─────────────────────────────────────────────────────────────
    The action revealed on each side of a row, on a phone. row_swipe_controller.js
    moves the row's content (data-swipe-content) with an inline transform, sets
@@ -6820,4 +7494,373 @@ li[data-swipe-side] > [data-swipe-content] {
     outline:        2px solid rgb(var(--rgb-accent));
     outline-offset: 2px;
     border-radius:  var(--app-radius);
+}
+
+/* Workspace settings (#783): the account chips and the sidebar editor's rows. */
+.settings-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 1.75rem;
+    padding: 0 0.625rem;
+    border-radius: 9999px;
+    border: 1px solid var(--color-field-border);
+    font-size: 0.75rem;
+    color: var(--color-ink-soft);
+    cursor: pointer;
+    max-width: 100%;
+}
+
+.settings-chip:hover {
+    background-color: var(--color-hover);
+}
+
+.settings-chip:has(input:checked) {
+    background-color: var(--color-accent-soft);
+    border-color: transparent;
+    color: var(--color-accent);
+    font-weight: 500;
+}
+
+.settings-chip:has(input:focus-visible) {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+}
+
+.sidebar-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.125rem 0.125rem 0.5rem;
+    border-radius: 0.5rem;
+}
+
+.sidebar-entry:hover {
+    background-color: var(--color-hover);
+}
+
+/* A filter on the mail list, shown as what it is (#783): a label, or the
+   account a label is narrowed to, with an × that takes it off. */
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    max-width: 100%;
+    height: 1.625rem;
+    padding: 0 0.25rem 0 0.625rem;
+    border-radius: 9999px;
+    background-color: var(--color-accent-soft);
+    color: var(--color-ink);
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+.filter-chip-remove {
+    display: inline-grid;
+    place-items: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+    border-radius: 9999px;
+    color: var(--color-ink-muted);
+}
+
+.filter-chip-remove:hover {
+    background-color: var(--color-hover);
+    color: var(--color-ink);
+}
+
+.filter-chip-remove:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+}
+
+/* The strip folded (#783): too many tabs for the room, so only the active
+   one stays, beside a "more" tab of the same look that lists the rest. */
+.workspace-tabs[data-folded] > .workspace-tab:not([aria-pressed="true"]):not([data-workspace-more]) {
+    display: none;
+}
+
+.workspace-tabs[data-folded] .workspace-tab-thumb {
+    display: none;
+}
+
+.workspace-tabs[data-folded] > .workspace-tab[aria-pressed="true"] {
+    background-color: rgb(var(--rgb-surface));
+    color: var(--color-ink);
+}
+
+.workspace-more {
+    min-width: 2rem;
+    justify-content: center;
+    padding: 0 0.5rem;
+}
+
+.workspace-more-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 11rem;
+    padding: 3px;
+    border-radius: 0.5rem;
+    background-color: rgb(var(--rgb-surface));
+    box-shadow: var(--shadow-popover, 0 10px 15px -3px rgb(0 0 0 / 0.15));
+    border: 1px solid var(--color-line);
+}
+
+.workspace-more-list[hidden] {
+    display: none;
+}
+
+.workspace-more-list .workspace-tab {
+    max-width: none;
+    width: 100%;
+}
+
+.workspace-more-list .workspace-tab[aria-pressed="true"] {
+    background-color: var(--color-accent-soft);
+    color: var(--color-accent);
+}
+
+/* Search operators as chips in the box (#783): laid over the field's left,
+   after the glass; the input's own padding starts after them
+   (mail--search#drawChips). */
+.search-chips {
+    position: absolute;
+    left: 2.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+    display: flex;
+    gap: 0.25rem;
+    max-width: 60%;
+    overflow: hidden;
+}
+
+.search-chips:empty {
+    display: none;
+}
+
+.search-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    min-width: 0;
+    max-width: 12rem;
+    height: 1.375rem;
+    padding: 0 0.125rem 0 0.5rem;
+    border-radius: 9999px;
+    background-color: var(--color-accent-soft);
+    color: var(--color-ink);
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.search-chip-remove {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 9999px;
+    color: var(--color-ink-muted);
+    cursor: pointer;
+}
+
+.search-chip-remove:hover {
+    background-color: var(--color-hover);
+    color: var(--color-ink);
+}
+
+/* The search box's own clear (#783); the browser's is hidden, as it only
+   emptied the text and wore the browser's colours. */
+.search-shell input[type="search"]::-webkit-search-cancel-button,
+.search-shell input[type="search"]::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}
+
+.search-shell input[type="search"] {
+    padding-right: 2.25rem;
+}
+
+.search-clear {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 9999px;
+    color: var(--color-ink-muted);
+    cursor: pointer;
+}
+
+.search-clear:hover {
+    background-color: var(--color-hover);
+    color: var(--color-ink);
+}
+
+.search-clear:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+}
+
+.search-clear[hidden] {
+    display: none;
+}
+
+/* A calendar outside the workspace in a pane set to "+ Others" (#783): there,
+   so the time is seen to be taken, and faint, so it does not compete. */
+[data-faint] {
+    opacity: 0.4;
+    filter: saturate(0.25);
+}
+
+[data-faint]:hover,
+[data-faint]:focus-within {
+    opacity: 0.85;
+}
+
+/* The pane's Workspace / + Others / All switch (#783): the segmented look of
+   the view switch beside it, small. */
+.pane-scope {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 0.5rem;
+    background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 2));
+}
+
+.pane-scope-option {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.375rem;
+    font-size: 0.6875rem;
+    color: var(--color-ink-faint);
+    transition: color 120ms, background-color 120ms;
+}
+
+.pane-scope-option:hover {
+    color: var(--color-ink);
+    background-color: rgb(var(--rgb-surface) / 0.6);
+}
+
+.pane-scope-option[aria-pressed="true"] {
+    background-color: rgb(var(--rgb-surface));
+    color: var(--color-ink);
+    box-shadow: 0 1px 2px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 2));
+}
+
+
+/* A workspace switch on its way (#783): what the new workspace draws again —
+   its sidebar, the mail list, its calendar and tasks panes — goes faint until
+   the one stream with all of them lands, so the old content does not read as
+   the new workspace's. At once, in the frame the new arrangement is drawn in:
+   a delay (90ms, then a fade) showed the old content at full strength in the
+   new layout first, and the dimming looked like it came after the switch. An
+   answer fetched ahead is never dimmed (layout--workspace#applyRedraw); the
+   way back fades in. */
+.sidebar-boundary,
+[data-layout-pane="list"] > .layout-card,
+[data-layout-pane] turbo-frame {
+    transition: opacity 150ms ease;
+}
+
+/* The list's card, since its frame is display: contents and has no box. */
+[data-workspace-redrawing] :is(.sidebar-boundary, [data-layout-pane="list"] > .layout-card, [data-layout-pane] turbo-frame[disabled]) {
+    opacity: 0.45;
+    pointer-events: none;
+    transition-duration: 0ms;
+}
+
+[data-workspace-redrawing] .workspace-tabs {
+    cursor: progress;
+}
+
+/* A pane header's switch folded into a menu (#783), when the header is short
+   of room: the current choice and a chevron, the workspace strip's "more" on a
+   phone. _partials/_pane_switch.html.twig draws both forms; a container query
+   on the header shows one. */
+.pane-fold {
+    height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0 0.45rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--color-ink);
+    background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 2));
+    transition: background-color 120ms;
+}
+
+.pane-fold:hover,
+.pane-fold[aria-expanded="true"] {
+    background-color: var(--color-hover);
+}
+
+.pane-fold-chevron {
+    font-size: 0.5625rem;
+    color: var(--color-ink-faint);
+}
+
+.pane-fold-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 12rem;
+    padding: 3px;
+}
+
+.pane-fold-list[hidden] {
+    display: none;
+}
+
+.pane-fold-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    color: var(--color-ink-soft);
+    white-space: nowrap;
+}
+
+.pane-fold-item > i {
+    line-height: 1.25rem;
+}
+
+.pane-fold-item:hover {
+    background-color: var(--color-hover);
+    color: var(--color-ink);
+}
+
+.pane-fold-item[aria-current="true"] {
+    background-color: var(--color-accent-soft);
+    color: var(--color-accent);
+}
+
+/* A workspace without a sidebar (#783): the rail is kept in the page, so a
+   switch can bring one back without a reload, and is not shown. */
+.sidebar-boundary[data-no-sidebar] {
+    display: none !important;
 }

@@ -326,6 +326,50 @@ final class AiSettingsCardTest extends WebTestCase
     }
 
     /**
+     * Gemini's list spells its models "models/gemini-3.8-flash" (#743).
+     *
+     * Its requests take the bare name, so the bare name is what gets typed,
+     * and the test called both models missing — then told the administrator
+     * to pull them onto a hosted service. A name that really is not on the
+     * list is still reported, in words about the name rather than a pull.
+     */
+    public function testAHostedListWithGooglesPrefixHoldsTheBareNames(): void
+    {
+        $this->client->disableReboot();
+
+        static::getContainer()->set(OpenAiClient::class, new OpenAiClient(
+            new MockHttpClient(static fn (): MockResponse => new MockResponse((string) json_encode(['data' => [
+                ['id' => 'models/gemini-3.8-flash'],
+                ['id' => 'models/gemini-embedding-2'],
+            ]]))),
+            new NullLogger(),
+        ));
+
+        $crawler = $this->client->request('GET', '/admin/ai');
+        $form    = $crawler->filter('form[name="ai_settings"]')->form();
+
+        $form['ai_settings[provider]']       = 'openai';
+        $form['ai_settings[baseUrl]']        = 'https://generativelanguage.googleapis.com/v1beta/openai';
+        $form['ai_settings[chatModel]']      = 'gemini-3.8-flash';
+        $form['ai_settings[embeddingModel]'] = 'gemini-embedding-2';
+
+        $crawler = $this->client->request('POST', '/admin/ai/test', $form->getPhpValues());
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('.fa-plug-circle-check'));
+        self::assertCount(0, $crawler->filter('.fa-triangle-exclamation'));
+
+        $form['ai_settings[chatModel]'] = 'gemini-9-flash';
+
+        $crawler = $this->client->request('POST', '/admin/ai/test', $form->getPhpValues());
+        $warning = $crawler->filter('.fa-triangle-exclamation')->closest('div')->text();
+
+        self::assertStringContainsString('gemini-9-flash', $warning);
+        self::assertStringNotContainsString('gemini-embedding-2', $warning);
+        self::assertStringNotContainsString('Pull', $warning, 'a hosted service is not pulled onto');
+    }
+
+    /**
      * The controls that are about Ollama's memory are put away for the other
      * provider — rendered, so their values survive a save, and hidden.
      */

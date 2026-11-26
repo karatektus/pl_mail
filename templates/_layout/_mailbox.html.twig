@@ -174,174 +174,109 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                    -translate-x-full transition-transform duration-200 ease-out"
             aria-label="{{ 'sidebar.nav.inbox'|trans }}"
         >
-            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } %}
+            {# The workspace's own sidebar, as on the desktop (#783); a workspace
+               without one has an empty drawer, and its burger is not drawn. #}
+            {% include '_layout/_sidebar_frame.html.twig' with { drawer: true } %}
         </div>
 
-        {# ui--split spans the topbar as well as the panes: the calendar
-           toggle lives in the topbar, and a Stimulus action only reaches a
-           controller mounted on an ancestor. #}
-        <div class="shell-frame flex h-full flex-col p-gutter gap-gutter"
-             {% if app.user %}
-             style="--calendar-pane-width: {{ app.user.calendarPaneWidth }}px"
-             {# contacts--pane after ui--split: it reads the calendar's position
-                on connect, once ui--split has settled it for this window. #}
-             data-controller="ui--split contacts--pane tasks--pane"
-             {# A contacts page at full size, or the mailbox with the address
-                book in its full-width position: the mail column put away and
-                the dock given the row. See contacts/_page_shell.html.twig. #}
-             {% if contactsFull|default(false) or app.user.contactsPaneMode.value == 'contacts' %}data-contacts-full{% endif %}
-             data-contacts--pane-open-value="{{ contactsFull|default(false) or app.user.contactsPaneOpen ? 'true' : 'false' }}"
-             {# The stored position, and which one the button skips (Settings →
-                Contacts → Behaviour). `contacts` is drawn as full width above
-                too: the mailbox with the full page's attribute. `page` is the
-                /contacts page, where there is no mail behind it. #}
-             data-contacts--pane-mode-value="{{ app.user.contactsPaneMode.value }}"
-             data-contacts--pane-skip-value="{{ app.user.contactsSwitchSkip.value }}"
-             data-contacts--pane-page-value="{{ contactsFull|default(false) ? 'true' : 'false' }}"
-             data-contacts--pane-src-value="{{ path('app_contacts_list') }}"
-             data-contacts--pane-inbox-url-value="{{ path('app_mail_inbox') }}"
-             data-contacts--pane-state-url-value="{{ path('app_contacts_pane_state') }}"
-             data-contacts--pane-token-value="{{ csrf_token('contacts_pane_state') }}"
-             {# The tasks at full size: the /tasks page, as the address book's. #}
-             {% if tasksFull|default(false) %}data-tasks-full{% endif %}
-             data-tasks--pane-open-value="{{ tasksFull|default(false) or app.user.tasksPaneOpen ? 'true' : 'false' }}"
-             data-tasks--pane-page-value="{{ tasksFull|default(false) ? 'true' : 'false' }}"
-             data-tasks--pane-src-value="{{ path('app_tasks_index') }}"
-             data-tasks--pane-inbox-url-value="{{ path('app_mail_inbox') }}"
-             data-tasks--pane-state-url-value="{{ path('app_tasks_pane_state') }}"
-             data-tasks--pane-token-value="{{ csrf_token('tasks_pane_state') }}"
-             data-ui--split-state-url-value="{{ path('app_calendar_pane_state') }}"
-             data-ui--split-token-value="{{ csrf_token('calendar_pane_state') }}"
-             data-ui--split-min-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MIN_WIDTH') }}"
-             data-ui--split-max-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MAX_WIDTH') }}"
-             data-ui--split-mode-value="{{ app.user.calendarPaneMode.value }}"
-             {# Settings → Calendar → Behaviour. Which position the switch skips
-                (none, split or calendar); the label in the topbar is drawn from
-                the same setting. #}
-             data-ui--split-skip-value="{{ app.user.calendarSwitchSkip.value }}"
-             {# The attribute drives every layout rule below, and it is rendered
-                as the STORED mode. It used to be rendered as `mail` and
-                corrected by the controller on connect — which painted every
-                reload as mail first and the remembered view second, a flash on
-                every refresh. The one reader the stored mode can be wrong for
-                is a phone, which cannot hold split or calendar; the controller
-                still demotes there on connect, so the correction flash is
-                confined to the case that actually needs correcting. #}
-             data-calendar-mode="{{ app.user.calendarPaneMode.value }}"
-             {# …and marked as remembered rather than chosen in this window, which
-                is what keeps the phone's first paint clean. Below lg every
-                remembered position opens on the mail, and the pane is already
-                `hidden` there, so until the controller has confirmed the mode
-                the mail must not step aside for a calendar that is not drawn
-                (see [data-calendar-restored] in app.css). Split is the default
-                now, so without this every phone would open on a blank row and
-                wait for JavaScript to put the mail back. connect() removes it. #}
-             data-calendar-restored
-             {# The pane reloads its body through a Turbo Frame, and the view it
-                lands on decides how much room it wants — see
-                CalendarView::minimumPaneWidth(). turbo:frame-load bubbles, so
-                the boundary's own controller can hear it from up here. #}
-             {# …and the two docked panes, which share the row: the calendar's
-                moves are reported to the address book, and the address book
-                asks the calendar for room. See contacts--pane. #}
-             data-action="turbo:frame-load->ui--split#paneLoaded ui--split:mode->contacts--pane#calendarMoved contacts--pane:claim->ui--split#yield ui--split:mode->tasks--pane#calendarMoved tasks--pane:claim->ui--split#yield contacts--pane:moved->tasks--pane#contactsMoved tasks--pane:opened->contacts--pane#tasksOpened"
-             {% endif %}
-        >
+        {#
+        ── The workspace (#755) ──────────────────────────────────────────────
 
-            {# Full-width topbar. `calendarRestored`, because its calendar
-               switch has to be drawn in the same remembered position as the
-               layout above — and, like the layout, as `mail` below lg. See
-               "The first paint" in the topbar. #}
-            {% include '_partials/_topbar.html.twig' with { calendarRestored: true } %}
+        The row beside the sidebar is the user's active workspace: a tree of
+        splits (side by side, or above and below) with one pane at each leaf,
+        drawn from the layout global. It replaced a fixed row — the mail, then
+        the calendar, the address book and the tasks docked to its right, each
+        with its own three-way switch in the topbar and its own controller
+        negotiating room with the others.
 
-            {# Sidebar + content #}
-            <div class="flex flex-1 gap-gutter overflow-hidden">
+        Every pane is rendered exactly once below, into `bodies`, and placed by
+        _workspace.html.twig: the ones in the workspace into the tree, the rest
+        into the park, hidden and lazy. layout--workspace moves those same
+        sections around when the layout changes — it never re-renders a pane —
+        so a split or a move keeps every frame, scroll position and open
+        contact as it was.
 
-                {# Sidebar — desktop only (hidden on mobile, shown in drawer),
-                   with its drag handle (#699). It takes its room from the
-                   mail column rather than .main-pane inside it: the calendar
-                   pane keeps the width it was given, so the list is what
-                   shrinks, and the clamp must measure what shrinks. #}
-                {% include '_partials/_sidebar_pane.html.twig' with {
-                    room:    '[data-mail-column]',
-                    surface: true,
-                } %}
+        The controller is on this element, not the root, because the topbar's
+        workspace tabs and Layout button are inside it and a Stimulus action
+        only reaches a controller on an ancestor.
+        #}
+        {% import '_layout/_workspace.html.twig' as workspace %}
+        {% set kinds = {} %}
+        {% for kind in enum('App\\Domain\\Enum\\Layout\\PaneKind').cases() %}
+            {% set kinds = kinds|merge({ (kind.value): kind }) %}
+        {% endfor %}
+        {% set activeWorkspace = app.user ? layout.active : null %}
+        {# The panes on screen by key (LayoutPane::key()): a kind, or
+           `calendar~<id>` for each calendar after the first. #}
+        {% set present = activeWorkspace ? activeWorkspace.root.keys : ['list'] %}
+        {#
+        Full width. A page that IS one pane — /contacts, /tasks — names it as
+        `fullPane` and is drawn with it at full width whatever the device
+        remembers; otherwise it is what this device last put there, if that
+        pane is still in the workspace.
+        #}
+        {% set fullPane = fullPane|default(null) %}
+        {% set maxKind = fullPane ?? (app.user and layout.maximized ? layout.maximized : null) %}
+        {#
+        Whether the open message has a pane of its own beside the list. With
+        no Message pane in the workspace — or with the list at full width — a
+        conversation opens in place of the list, as it did with the reading
+        pane off, and the message's element is drawn inside the list's card.
+        layout--workspace moves it between the two when that changes; below lg
+        it always lives in the list's card, because there the panes take turns.
+        #}
+        {% set beside = 'message' in present and maxKind != 'list' %}
+        {# Below lg, the pane shown first: the page's own, else the list, else
+           whatever comes first that is not the message (the message is never
+           a tab — it opens in place of the list there). #}
+        {% set tabKinds = present|filter(kind => kind != 'message') %}
+        {% set firstTab = fullPane ?? ('list' in present ? 'list' : (tabKinds|first ?: present|first)) %}
+        {% set paneOpen = 'true' == block('pane_open')|trim %}
 
-                {# ── The mail column: the insight card, then the mail card ──
-                   Two cards, not one card with a band inside it. The strip is a
-                   SIBLING of .main-pane here rather than a child of the list
-                   pane, which is the only way it can carry its own border and
-                   sit on the app background the way the sidebar and the
-                   calendar pane do — a child can only ever be a box drawn on
-                   the mail card's surface.
+        {% set readingElement %}
+            <div
+                data-mail--mail-pane-target="reading"
+                data-surface="reading"
+                class="flex flex-col flex-1 overflow-hidden {% block reading_hidden %}hidden{% endblock %}"
+            >
+                {% block reading_pane %}
+                    {% if selectedMessage is not null %}
+                        {% include 'mail/_message_content.html.twig' with { message: selectedMessage } %}
+                    {% endif %}
+                {% endblock %}
+            </div>
+        {% endset %}
 
-                   `data-mail-column` exists for the two rules in app.css that
-                   hide the mail side outright: calendar mode, and split below
-                   lg. They select .main-pane, and a wrapper around it would
-                   survive both and leave an insight card floating beside a
-                   calendar. The wrapper answers to the same two rules.
+        {% set bodies = {} %}
 
-                   The strip is still LAZY and still renders nothing when there
-                   is nothing to say — being its own card costs the mailbox no
-                   more than being a band did. #}
-                {# No `gap-gutter` here, and that is load-bearing. A gap is
-                   paid between CHILDREN, and the frame below is a child even
-                   with nothing in it — before its lazy fetch lands, on a day
-                   with no insight, and after the strip is dismissed. The mail
-                   pane then sat a gutter lower than the sidebar beside it, for
-                   a strip that was not on screen. The separation is the
-                   STRIP's margin instead (see insight/_pane.html.twig), so it
-                   exists exactly when the strip does. #}
-                <div data-mail-column
-                     class="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {# ── The mail list ───────────────────────────────────────────────
+           The insight strip, then the list's card. Two cards rather than a
+           band inside one, so the strip carries its own border and sits on the
+           app background the way every pane does. The strip's frame is lazy
+           and renders nothing when there is nothing to say; its separation is
+           the strip's own margin (insight/_pane.html.twig), so an absent strip
+           costs no gap. #}
+        {% set listBody %}
+            <section class="layout-pane flex flex-col min-w-0 min-h-0" {{ workspace.attrs(kinds.list) }} {{ maxKind == 'list' ? 'data-maxed' }} {{ firstTab == 'list' ? 'data-tab-current' }}>
+                <turbo-frame id="insight_pane"
+                             class="shrink-0"
+                             src="{{ path('app_insight_pane') }}"
+                             loading="lazy"></turbo-frame>
 
-                    <turbo-frame id="insight_pane"
-                                 class="shrink-0"
-                                 src="{{ path('app_insight_pane') }}"
-                                 loading="lazy"></turbo-frame>
-
-                {# Main content. Targeted by ui--split so the drag can enforce a
-                   minimum on this side too — the pane knows how much room it is
-                   taking only by measuring what is left. #}
-                {#
-                The reading pane position, drawn from the first paint.
-
-                `data-reading-pane` is the STORED mode and nothing the browser has
-                measured: whether the message actually goes beside the list is a
-                question about this card's width, answered in app.css by a
-                container query, so a window the calendar has squeezed falls back
-                to one pane at a time without a script having to notice. It is
-                rendered here rather than applied on connect for the reason the
-                calendar mode is — a reload that painted one pane and then
-                rearranged itself would flash on every visit.
-
-                `data-reading-open` is the one thing that varies within a mode: a
-                message is open. The thread page renders it directly; everywhere
-                else mail--mail-pane sets and clears it as messages open and
-                close, so the placeholder and the message never both show.
-                #}
-                {% set readingPane = app.user ? app.user.readingPaneMode : enum('App\\Domain\\Enum\\Mail\\ReadingPaneMode').Off %}
-                <div class="flex flex-1 overflow-hidden relative main-pane"
-                     data-reading-pane="{{ readingPane.value }}"
-                     {% if 'true' == block('pane_open')|trim %}data-reading-open{% endif %}
-                     {% if app.user %}
-                     data-ui--split-target="main"
-                     data-controller="mail--reading-split"
-                     style="--reading-pane-pct: {{ app.user.readingPaneWidthPct }}%"
-                     data-mail--reading-split-state-url-value="{{ path('app_appearance_reading_pane_state') }}"
-                     data-mail--reading-split-token-value="{{ csrf_token('reading_pane_state') }}"
-                     data-mail--reading-split-min-value="{{ constant('App\\Entity\\User\\User::READING_PANE_MIN_PCT') }}"
-                     data-mail--reading-split-max-value="{{ constant('App\\Entity\\User\\User::READING_PANE_MAX_PCT') }}"
-                     data-mail--reading-split-default-value="{{ constant('App\\Entity\\User\\User::READING_PANE_DEFAULT_PCT') }}"
-                     data-mail--reading-split-width-value="{{ app.user.readingPaneWidthPct }}"
-                     {% endif %}>
+                {# `data-reading-open` is the one thing that varies within a
+                   layout: a message is open. The thread page renders it
+                   directly; everywhere else mail--mail-pane sets and clears it
+                   on whichever card holds the message, so the placeholder and
+                   the message never both show. #}
+                <div class="main-pane layout-card flex flex-1 overflow-hidden relative"
+                     data-mail-card
+                     {% if paneOpen and not beside %}data-reading-open{% endif %}>
 
                     {# List pane #}
                     <div
                         id="message-list"
                         data-surface="list"
                         data-mail--mail-pane-target="list"
-                        data-mail--reading-split-target="list"
                         {# Confirms to the server that the rows below reached the
                            screen. Mounted on the container rather than on each
                            row so fifty rows are one report, and here rather than
@@ -362,11 +297,9 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                             data-controller="mail--pull-to-refresh mail--row-swipe mail--row-hold"
                         {% endif %}
                         {# @container, so the rows below switch to their stacked
-                           layout on the LIST's width. They used to switch on the
-                           viewport's, which is a different number entirely once
-                           the calendar pane is docked: a 1440px window with a
-                           wide pane leaves the list narrower than a phone, and
-                           every row stayed on one line and truncated to nothing. #}
+                           layout on the LIST's width rather than the viewport's:
+                           a workspace with three panes side by side leaves the
+                           list narrower than a phone on a wide window. #}
                         class="@container relative flex flex-col flex-1 overflow-hidden {% block list_hidden %}{% endblock %}"
                     >
                         {# The pull to refresh indicator. Here, beside the frame and not inside it, so a
@@ -380,80 +313,247 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                         {{ block('list_frame') }}
                     </div>
 
-                    {#
-                    The divider between list and message. Drawn only when the
-                    reading pane is beside the list (see app.css), which is also
-                    how mail--mail-pane tells that it is: a handle that is
-                    `display: none` means one pane at a time.
+                    {% if not beside %}{{ readingElement }}{% endif %}
+                </div>
+            </section>
+        {% endset %}
+        {% set bodies = bodies|merge({ list: listBody }) %}
 
-                    A separator rather than a button, because it is a window
-                    splitter in the ARIA sense: it has a value, a range and arrow
-                    keys, and a screen reader announces it as such. The value is
-                    the MESSAGE's share of the card, in percent, which is what is
-                    stored and what the keys step.
-                    #}
-                    {% if app.user %}
-                        <div
-                            data-reading-handle
-                            data-mail--reading-split-target="handle"
-                            data-action="pointerdown->mail--reading-split#start keydown->mail--reading-split#nudge dblclick->mail--reading-split#reset"
-                            role="separator"
-                            aria-orientation="vertical"
-                            aria-valuemin="{{ constant('App\\Entity\\User\\User::READING_PANE_MIN_PCT') }}"
-                            aria-valuemax="{{ constant('App\\Entity\\User\\User::READING_PANE_MAX_PCT') }}"
-                            aria-valuenow="{{ app.user.readingPaneWidthPct }}"
-                            aria-label="{{ 'reading_pane.handle'|trans }}"
-                            tabindex="0"
-                        ></div>
-                    {% endif %}
+        {% if app.user %}
+            {# ── The open message ────────────────────────────────────────
+               The message's element when it sits beside the list, and what
+               the pane says while nothing is open: a sibling of the message
+               rather than content inside it, because mail--mail-pane REPLACES
+               the message element's innerHTML with each message it loads, and
+               a hint placed in it would be wiped by the first click. The hint
+               carries the pane's menu, so an empty Message pane can still be
+               split, moved or closed. #}
+            {% set messageBody %}
+                <section class="layout-pane flex flex-col min-w-0 min-h-0" {{ workspace.attrs(kinds.message) }} {{ maxKind == 'message' ? 'data-maxed' }} {{ firstTab == 'message' ? 'data-tab-current' }}>
+                    <div class="main-pane layout-card flex flex-1 overflow-hidden relative"
+                         {% if paneOpen and beside %}data-reading-open{% endif %}>
+                        {% if beside %}{{ readingElement }}{% endif %}
+                        <div data-reading-placeholder>
+                            <div class="pane-header flex items-center justify-end px-2 border-b border-line">
+                                {% include '_partials/_pane_controls.html.twig' only %}
+                            </div>
+                            <div class="flex flex-1 flex-col items-center justify-center gap-3" aria-hidden="true">
+                                <i class="fa-regular fa-envelope-open" aria-hidden="true"></i>
+                                <p>{{ 'reading_pane.placeholder'|trans }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            {% endset %}
 
-                    {# Reading pane #}
-                    <div
-                        data-mail--mail-pane-target="reading"
-                        data-mail--reading-split-target="reading"
-                        data-surface="reading"
-                        class="flex flex-col flex-1 overflow-hidden {% block reading_hidden %}hidden{% endblock %}"
-                    >
-                        {% block reading_pane %}
-                            {% if selectedMessage is not null %}
-                                {% include 'mail/_message_content.html.twig' with { message: selectedMessage } %}
+            {# ── The calendar ────────────────────────────────────────────
+               Rendered with the page when it is on screen, so a reload shows
+               mail and calendar together instead of a spinner that fills in a
+               beat later; a lazy empty frame when it is parked, which
+               layout--workspace points at `data-layout-src` the first time the
+               pane is placed. Nobody pays for a calendar they are not looking
+               at. #}
+            {% set calendarBody %}
+                <section class="layout-pane flex flex-col min-w-0 min-h-0" {{ workspace.attrs(kinds.calendar) }} {{ maxKind == 'calendar' ? 'data-maxed' }} {{ firstTab == 'calendar' ? 'data-tab-current' }}
+                         data-layout-src="{{ path('app_calendar_pane') }}">
+                    <div class="main-pane layout-card flex flex-col flex-1 overflow-hidden min-w-0">
+                        {% if 'calendar' in present %}
+                            {{ render(controller('App\\Controller\\Calendar\\CalendarController::pane')) }}
+                        {% else %}
+                            {{ _self.lazyFrame('calendar-pane-frame') }}
+                        {% endif %}
+                    </div>
+                </section>
+            {% endset %}
+
+            {# ── The address book ────────────────────────────────────────
+               The pane runs the whole address book: every contacts page renders
+               into `contacts-pane-frame` when the frame asks for it (see
+               contacts/_layout.html.twig), so a list, a contact, the editor and
+               the merge all stay in the pane and the mail beside it never
+               reloads. A block, because the full contacts page fills it with
+               its own page (contacts/_page_shell.html.twig). #}
+            {% set contactsBody %}
+                <section class="layout-pane flex flex-col min-w-0 min-h-0" {{ workspace.attrs(kinds.contacts) }} {{ maxKind == 'contacts' ? 'data-maxed' }} {{ firstTab == 'contacts' ? 'data-tab-current' }}
+                         data-layout-src="{{ path('app_contacts_list') }}">
+                    <div class="main-pane layout-card flex flex-col flex-1 overflow-hidden min-w-0">
+                        {% block contacts_pane_body %}
+                            {% if 'contacts' in present %}
+                                {{ render(controller('App\\Controller\\Contacts\\ContactController::list', { _contacts_pane: true })) }}
+                            {% else %}
+                                {{ _self.lazyFrame('contacts-pane-frame') }}
                             {% endif %}
                         {% endblock %}
                     </div>
+                </section>
+            {% endset %}
 
-                    {#
-                    What the right-hand pane says while no message is open. A
-                    sibling of the reading pane and not content inside it,
-                    because mail--mail-pane REPLACES the reading pane's
-                    innerHTML with each message it loads — a hint placed in it
-                    would be wiped by the first click and never come back.
-                    Hidden everywhere the reading pane is not beside the list.
-                    #}
-                    <div data-reading-placeholder aria-hidden="true">
-                        <i class="fa-regular fa-envelope-open" aria-hidden="true"></i>
-                        <p>{{ 'reading_pane.placeholder'|trans }}</p>
+            {# ── The tasks ───────────────────────────────────────────────
+               As the address book, and a block for its reason: /tasks fills it
+               with its own page. #}
+            {% set tasksBody %}
+                <section class="layout-pane flex flex-col min-w-0 min-h-0" {{ workspace.attrs(kinds.tasks) }} {{ maxKind == 'tasks' ? 'data-maxed' }} {{ firstTab == 'tasks' ? 'data-tab-current' }}
+                         data-layout-src="{{ path('app_tasks_index') }}"
+                         data-controller="tasks--keep-scroll">
+                    <div class="main-pane layout-card flex flex-col flex-1 overflow-hidden min-w-0">
+                        {% block tasks_pane_body %}
+                            {% if 'tasks' in present %}
+                                {{ render(controller('App\\Controller\\Task\\TaskController::index', { _tasks_pane: true })) }}
+                            {% else %}
+                                {{ _self.lazyFrame('tasks-pane-frame') }}
+                            {% endif %}
+                        {% endblock %}
+                    </div>
+                </section>
+            {% endset %}
+
+            {# ── Further calendars ───────────────────────────────────────
+               A workspace may show several calendars, each on its own view
+               (LayoutPane, User::SETTING_CALENDAR_PANE_VIEWS). Each further one
+               is drawn as the first is, in a frame of its own named by its id.
+               One that is not on screen is not drawn at all: layout--workspace
+               makes it from `calendarTemplate` below when a workspace places
+               it. #}
+            {% set furtherCalendars = {} %}
+            {% for key in present|filter(key => key starts with 'calendar~') %}
+                {% set paneId = key|split('~')|last %}
+                {% set furtherBody %}
+                    <section class="layout-pane flex flex-col min-w-0 min-h-0" {{ workspace.attrs(kinds.calendar, key) }} {{ maxKind == key ? 'data-maxed' }} {{ firstTab == key ? 'data-tab-current' }}
+                             data-layout-src="{{ path('app_calendar_pane', { pane: paneId }) }}">
+                        <div class="main-pane layout-card flex flex-col flex-1 overflow-hidden min-w-0">
+                            {{ render(controller('App\\Controller\\Calendar\\CalendarController::pane', {}, { pane: paneId })) }}
+                        </div>
+                    </section>
+                {% endset %}
+                {% set furtherCalendars = furtherCalendars|merge({ (key): furtherBody }) %}
+            {% endfor %}
+
+            {% set bodies = bodies|merge({ message: messageBody, calendar: calendarBody, contacts: contactsBody, tasks: tasksBody })|merge(furtherCalendars) %}
+        {% endif %}
+
+        <div class="shell-frame flex h-full flex-col p-gutter gap-gutter"
+             {% if app.user %}
+             data-controller="layout--workspace"
+             data-layout--workspace-document-value="{{ layout.document }}"
+             data-layout--workspace-save-url-value="{{ path('app_layout_workspaces') }}"
+             data-layout--workspace-token-value="{{ csrf_token('layout_workspaces') }}"
+             data-layout--workspace-inbox-url-value="{{ path('app_mail_inbox') }}"
+             data-layout--workspace-cookie-value="{{ constant('App\\Domain\\DTO\\Layout\\DeviceLayout::COOKIE') }}"
+             {# A page that is one pane at full width: leaving full width there
+                is a visit to the mail, because there is no list rendered
+                behind it (see the contacts and tasks page shells). #}
+             data-layout--workspace-page-value="{{ fullPane ?? '' }}"
+             data-layout--workspace-strings-value="{{ _self.strings()|trim }}"
+             data-layout--workspace-news-url-value="{{ path('app_layout_news') }}"
+             data-layout--workspace-news-value="{{ layout.news|json_encode(constant('JSON_FORCE_OBJECT')) }}"
+             data-layout--workspace-news-next-value="{{ layout.newsNext }}"
+             data-layout--workspace-sidebar-url-value="{{ path('app_layout_sidebar') }}"
+             data-layout--workspace-redraw-url-value="{{ path('app_layout_workspace_redraw', { id: '__ID__' }) }}"
+             data-layout--workspace-groups-value="{{ layout.groupAccounts is empty ? '{}' : layout.groupAccounts|json_encode }}"
+             {# The calendar's frame reports which view it landed on, and a
+                week or a month needs more room than a day — see
+                CalendarView::minimumPaneWidth(). turbo:frame-load bubbles, so
+                the controller hears it from up here. #}
+             data-action="turbo:frame-load->layout--workspace#frameLoaded keydown@window->layout--workspace#key resize@window->layout--workspace#resized"
+             {% endif %}
+        >
+
+            {% include '_partials/_topbar.html.twig' with { workspaceShell: true } %}
+
+            {% if app.user %}
+                {% include '_layout/_workspace_edit.html.twig' %}
+            {% endif %}
+
+            {# Sidebar + workspace. data-workspace-row: where a workspace
+               without a sidebar takes its left gutter back (#783, app.css). #}
+            <div class="flex flex-1 gap-gutter overflow-hidden" data-workspace-row>
+
+                {# Sidebar — desktop only (hidden on mobile, shown in drawer),
+                   with its drag handle (#699). It takes its room from the
+                   workspace, so the clamp stops before squeezing the panes
+                   below a phone's width. #}
+                {# The workspace's sidebar (#783): the Mail one, one of the
+                   user's own, or none — a workspace of calendars and tasks
+                   has no use for folders. Signed out there is no workspace,
+                   and the Mail sidebar is what it always was. #}
+                {# Always drawn, so a switch can bring a sidebar back without a
+                   reload; hidden (data-no-sidebar) while there is none. #}
+                {% include '_partials/_sidebar_pane.html.twig' with {
+                    room:      '[data-layout-root]',
+                    surface:   true,
+                    template:  '_layout/_sidebar_frame.html.twig',
+                    noSidebar: app.user and layout.sidebar is null,
+                } %}
+
+                <div class="layout-root"
+                     data-layout-root
+                     {% if app.user %}data-layout--workspace-target="root"{% endif %}
+                     {% if maxKind %}data-layout-max="{{ maxKind }}"{% endif %}
+                     {% if fullPane %}data-layout-page="{{ fullPane }}"{% endif %}
+                     {% if beside %}data-message-beside{% endif %}>
+
+                    {# Below lg the panes take turns: one at a time, chosen
+                       here. The message is not a tab — it opens in place of
+                       the list there, as it always did on a phone — so the
+                       strip is drawn only when two other panes share the
+                       workspace. Rebuilt by the controller when the layout
+                       changes. #}
+                    {% if app.user %}
+                        <nav class="layout-tabs" data-layout--workspace-target="paneTabs"
+                             aria-label="{{ 'layout.tabs.label'|trans }}"
+                             {{ tabKinds|length < 2 ? 'hidden' }}>
+                            {% for kind in tabKinds %}
+                                <button type="button"
+                                        class="layout-tab"
+                                        data-action="layout--workspace#tab"
+                                        data-layout--workspace-kind-param="{{ kind }}"
+                                        aria-pressed="{{ kind == firstTab ? 'true' : 'false' }}">
+                                    {# `kind` is a key: `calendar~<id>` for a further calendar. #}
+                                    {% set shown = kinds[kind|split('~')|first] %}
+                                    <i class="{{ shown.icon }}" aria-hidden="true"></i>{{ shown.transKey|trans }}
+                                </button>
+                            {% endfor %}
+                        </nav>
+                    {% endif %}
+
+                    <div class="layout-body" {% if app.user %}data-layout--workspace-target="body"{% endif %}>
+                        {% if app.user %}
+                            {{ workspace.node(activeWorkspace.root, bodies) }}
+                            {# A pane page whose pane the workspace does not show:
+                               it is borrowed for the visit, at full width, and
+                               goes back to the park when the page is left. #}
+                            {% if fullPane and fullPane not in present %}
+                                <div class="layout-cell" data-layout-borrowed>{{ bodies[fullPane] }}</div>
+                            {% endif %}
+                        {% else %}
+                            {{ bodies.list }}
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if app.user %}
+                    {# The panes this workspace does not show, rendered empty and
+                       hidden until something places them. #}
+                    <div class="layout-park" hidden data-layout--workspace-target="park">
+                        {% for kind in enum('App\\Domain\\Enum\\Layout\\PaneKind').cases() %}
+                            {% if kind.value not in present and kind.value != fullPane %}
+                                {{ bodies[kind.value] }}
+                            {% endif %}
+                        {% endfor %}
                     </div>
 
-                </div>
-                </div>{# /mail column #}
-
-                {# Calendar — a sibling of .main-pane, so the handle between
-                   them splits the row's width rather than shrinking one into
-                   the other. Below lg it is absent and the sidebar link goes
-                   to the full page instead. #}
-                {% if app.user %}
-                    {% include '_partials/_calendar_pane.html.twig' %}
-                    {# The address book, the same kind of pane, after it. A
-                       block, because the full contacts page fills it with its
-                       own content — see contacts/_page_shell.html.twig. #}
-                    {% block contacts_dock %}
-                        {% include '_partials/_contacts_pane.html.twig' %}
-                    {% endblock %}
-                    {# The tasks, the same kind of pane again. A block for the
-                       address book's reason: /tasks fills it with its own page. #}
-                    {% block tasks_dock %}
-                        {% include '_partials/_tasks_pane.html.twig' %}
-                    {% endblock %}
+                    {# A further calendar, for layout--workspace to make when a
+                       workspace places one this page did not draw: __KEY__ and
+                       __ID__ are its key and id. Empty and lazy, like a parked
+                       pane. #}
+                    <template data-layout--workspace-target="calendarTemplate">
+                        <section class="layout-pane flex flex-col min-w-0 min-h-0" {{ workspace.attrs(kinds.calendar, '__KEY__') }}
+                                 data-layout-src="{{ path('app_calendar_pane') }}?pane=__ID__">
+                            <div class="main-pane layout-card flex flex-col flex-1 overflow-hidden min-w-0">
+                                {{ _self.lazyFrame('calendar-pane-frame-__ID__') }}
+                            </div>
+                        </section>
+                    </template>
                 {% endif %}
             </div>
         </div>
@@ -558,3 +658,47 @@ which of the two is happening.
 
     </turbo-frame>
 {% endblock %}
+
+{# A pane's frame before anything has asked for it: empty, lazy and without a
+   src, which layout--workspace sets from the pane's data-layout-src the first
+   time it places the pane. #}
+{% macro lazyFrame(id) %}
+    <turbo-frame id="{{ id }}" loading="lazy" data-layout-lazy class="flex flex-col min-h-0 flex-1">
+        <div class="flex items-center justify-center h-24 text-ink-faint" aria-live="polite">
+            <i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i>
+        </div>
+    </turbo-frame>
+{% endmacro %}
+
+{# What the controller says and labels, translated here so no English lives in
+   the script. One JSON object, read once on connect. #}
+{% macro strings() %}
+    {{- {
+        kinds:        enum('App\\Domain\\Enum\\Layout\\PaneKind').cases()|reduce((carry, kind) => carry|merge({ (kind.value): kind.transKey|trans }), {}),
+        noRoom:       'layout.toast.no_room'|trans,
+        onlyPane:     'layout.toast.only_pane'|trans,
+        atEdge:       'layout.toast.at_edge'|trans,
+        saveFailed:   'layout.toast.save_failed'|trans,
+        saved:        'layout.toast.saved'|trans,
+        deleted:      'layout.toast.deleted'|trans,
+        newName:      'layout.workspace.new_name'|trans,
+        editFirst:    'layout.toast.edit_first'|trans,
+        noList:       'layout.toast.no_list'|trans,
+        allShown:     'layout.toast.all_shown'|trans,
+        widePercent:  'layout.edit.percent_wide'|trans,
+        highPercent:  'layout.edit.percent_high'|trans,
+        applied:      'layout.toast.applied'|trans,
+        deleteConfirm: 'layout.edit.delete_confirm'|trans,
+        divider:      'layout.divider'|trans,
+        dividerHint:  'layout.divider_hint'|trans,
+        dropSwap:     'layout.drop.swap'|trans,
+        dropReplace:  'layout.drop.replace'|trans,
+        drop_left:    'layout.drop.left'|trans,
+        drop_right:   'layout.drop.right'|trans,
+        drop_top:     'layout.drop.top'|trans,
+        drop_bottom:  'layout.drop.bottom'|trans,
+        newCount:     'layout.workspace.new'|trans({ '%count%': '%count%' }),
+        soon:         'layout.workspace.soon'|trans,
+        moreWorkspaces: 'layout.workspace.more'|trans,
+    }|json_encode -}}
+{% endmacro %}

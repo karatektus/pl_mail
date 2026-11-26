@@ -203,6 +203,27 @@ class Mailbox
     public int $missingSyncs = 0;
 
     /**
+     * A mass disappearance the sweep refused, while it waits to be confirmed
+     * (#756): which rows it was (a hash of their ids), since when, and how
+     * many sweeps in a row have seen exactly that set gone.
+     *
+     * Only the bin and spam folders use it. Emptying either from another
+     * client, or a provider's 30-day clean-out, is routine there, and refusing
+     * it forever left the folder unreconciled with a warning every sweep.
+     * VanishedMessageReconciler believes such a purge once the same rows have
+     * stayed gone across several sweeps and an hour. Any other answer resets
+     * all three.
+     */
+    #[ORM\Column(length: 64, nullable: true)]
+    public ?string $bulkVanishHash = null;
+
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $bulkVanishSince = null;
+
+    #[ORM\Column(options: ['default' => 0])]
+    public int $bulkVanishSweeps = 0;
+
+    /**
      * The lowest UID the last sync could not store, and how many syncs in a
      * row it has failed.
      *

@@ -49,6 +49,9 @@ account:
             username: "Name fer sendin'"
             username_help: "Leave it bare t' sail under th' name above."
         username: Name ye go by
+    groups:
+        help: "Where its letters be listed, an’ which berths show it. None ticked puts it in the catch-all fleet."
+        legend: "Fleets"
     mail_purge_queued: 'Heavin’ this ship’s letters out o’ plMail. The far port keeps its copy.'
     oauth:
         calendar_declined: The account be aboard, but ye never granted the almanac — so its calendars will not sync. Sign in again and tick the calendar box when Google asks.
@@ -101,6 +104,7 @@ account:
             jmap_submission: 'Messages sail out through the JMAP server.'
             missing_fields: 'Give us an email address an’ one server at least first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored one, which the test can only use once the ship be saved.'
+            password_for_new_server: 'Type the password again, matey: the ports of call changed, and the stowed password only sails to the ports it were saved for.'
             pop3_ok: 'Aye, connected — %count% messages in the hold.'
             private_network: 'This server lies in private waters. Th'' captain must let it aboard under Admin → Friendly ports → Holds in private waters afore plMail may sail to it.'
             smtp_none: 'No SMTP host charted — this ship sends no letters.'
@@ -282,6 +286,7 @@ admin:
                 embedding: "Divinin' model"
                 missing: 'not at this berth'
                 missing_body: "A model named here be not aboard the berth. Haul her in, or name one that be there — 'til then ev'ry askin' founders."
+                missing_body_listed: "A model named here be not on this berth's list. Check the name 'gainst what she offers — a name she don't know founders ev'ry askin'."
                 none: 'not set'
                 resident: 'aboard'
             no_history: "Nowt has asked the oracle in this stretch. The numbers come once somethin' does."
@@ -319,6 +324,7 @@ admin:
             openai: 'OpenAI-compatible'
         probe:
             missing_model: "That berth answered, but holds no: %models%. Haul 'em aboard there first."
+            missing_model_listed: "That berth answered, but her list holds no: %models%. Check the names 'gainst the list below."
             host:
                 search: "Searcher's berth"
                 writing: "Oracle's berth"
@@ -437,6 +443,12 @@ admin:
 
                     This reads each such message’s stored original an’ gives the attachment back its true name, where the original names it plain. It also sails by itself after an update.
                 summary: 'Give attachments back their names'
+            attachment_unreferenced_inline:
+                explanation: >-
+                    Some attachments, like files lashed on in Apple Mail, were marked "inline" by the sender’s mail program an’ stowed as pictures in the text. Nothin’ in the text showed ’em, so they appeared nowhere: no chip under the message an’ no paperclip in the list.
+
+                    This hoists every such part back up as an attachment; pictures the text truly shows, an’ calendar invites, stay as they be. It also sails by itself after an update.
+                summary: 'Show attachments hidden as inline parts'
             calendars:
                 explanation: >-
                     Every new hand gets a calendar o’ their own, an’ one fer each mail account. This gives the same calendars to the hands who were aboard afore. It only fills gaps, so sailin’ it again after addin’ accounts does no harm.
@@ -588,6 +600,7 @@ admin:
         export:
             error:
                 mismatch: "The two passwords didn't match, so naught were sent ashore."
+                remembered_session: 'A remembered boarding cannot do this, matey. Go ashore, board again and try once more; nothing were taken or changed.'
                 too_short: "That password be too short, so naught were sent ashore."
             heading: "Send the ship's papers ashore"
             intro: "Every settin' and credential this installation sails on, in one password-locked chest: the environment values, the files in the secrets hold, the provider and Firebase credentials from the database, and the crew — each with their password, their second factor, their mailboxes and all else they rigged up. No post, no calendar entries and no contacts; that be what `app:backup` is for."
@@ -1209,6 +1222,7 @@ admin:
             issuer_help: 'Th'' fleet''s issuer URL, exactly as its discovery document states it. In Authentik it be th'' "OpenID Configuration Issuer" on th'' provider''s page.'
             password_login_disabled: 'Th'' fleet''s seal only'
             password_login_disabled_help: 'Hides th'' password form an'' turns away password boardin''s, so every sailor comes in through th'' fleet. Only holds while a fleet be set up here. Ye can tick it only after ye''ve boarded through th'' fleet yerself, an'' if th'' fleet ever sinks, run bin/console app:sso:allow-password-login t'' bring th'' form back. Passwords fer mail clients (app passwords) be left alone.'
+            password_login_disabled_locked_help: 'In force, matey. Only the console can strike it: run bin/console app:sso:allow-password-login. Till then the provider cannot be thrown overboard here neither.'
             require_verified_email: 'Only tie a bottle address th'' fleet has vouched fer'
             require_verified_email_help: 'A first boardin'' finds its berth by bottle address. Shut this off only where sailors cannot change their own address at th'' fleet: with it off, any who can may claim any berth that has not boarded through th'' fleet yet.'
             scopes: 'Scopes'
@@ -1476,6 +1490,15 @@ attachment:
         zoom_out: Further off
 calendar:
     # plMail's date-and-time picker; see calendar--when.
+    pane:
+        scope_all: "All"
+        scope_all_hint: "Every chart alike"
+        scope_label: "Which charts"
+        scope_overlay: "+ Others"
+        scope_overlay_hint: "This berth’s charts, an’ the others faint"
+        scope_workspace: "Deck"
+        scope_workspace_hint: "Only the charts o’ this deck’s ships"
+        show_all: "Show every chart"
     when:
         previous_month: 'Last moon'
         next_month: 'Next moon'
@@ -1739,6 +1762,8 @@ calendar:
             The bell a new reckonin' on this almanac be written by. Followin'
             plMail takes yer own, now %zone%. Reckonin's always show at the hour
             they happen by yer own bell.
+        workspace: "Deck"
+        workspace_help: "A chart with no ship's account has no fleet t' follow, so it shows on this deck. Decks over every account show it too."
     grid:
         all_day: All the day long
         continues_after: Sails on into the next day
@@ -1865,13 +1890,6 @@ calendar:
         next: Onward
         previous: Back
     open_day: 'All that be on %date%'
-    pane:
-        close: 'Stow the almanac'
-        mode:
-            calendar: Give the almanac the whole deck
-            mail: Show the letters
-            split: Set the almanac alongside the letters
-        resize: Shift the almanac's width
     proposal:
         action:
             add: Write it in the almanac
@@ -2002,11 +2020,8 @@ calendar:
         range_day: '%day%'
         range_short: '%start%–%end%'
         range_short_month: '%month% %start%–%end%'
-    upcoming:
-        imminent: Within the hour
-        later: Later this day
-        soon: In a few hours
     view:
+        label: "Spyglass"
         agenda: The list
         day: Day
         monday_week: Week
@@ -2785,6 +2800,8 @@ discarded:
 
 header:
     search:
+        chip_remove: "Cast off %token%"
+        clear: "Clear the search"
         close: Batten the hunt
         live:
             status: "%count% matchin' parleys"
@@ -2969,7 +2986,6 @@ label:
         red: Red
         teal: Teal
         violet: Violet
-    empty: No yarns flyin' this flag.
     created: Flag hoisted.
     delete:
         already_running: '"%name%" be comin'' down already.'
@@ -2989,8 +3005,10 @@ label:
     delete_confirm: 'Strike the flag "%name%"? It comes down on every ship in the fleet. Yarns keep their other flags and be not thrown overboard.'
     delete_confirm_children: 'Strike "%name%" and the %count% flag(s) beneath it? They come down on every ship in the fleet. No yarns be thrown overboard.'
     deleted: Flag struck.
+    empty: No yarns flyin' this flag.
     error:
         duplicate: A flag by that name already flies here. Shoutin it in capitals dont make it a new one.
+    filters: "Filters"
     form:
         account_note:
             new: 'Hoisted on %account% only.'
@@ -3030,11 +3048,156 @@ label:
     menu:
         create: Hoist a new one
         empty: No flags yet.
+    remove_filter: "Cast off the filter “%name%”"
     updated: Flag mended.
     visibility:
         hidden: That flag be lowered.
         shown: That flag flies again.
 
+layout:
+    divider: "Haul the bulkhead"
+    divider_hint: "Drag to shift the bulkhead, double-click to square her up"
+    drop:
+        bottom: "Below %pane%"
+        left: "Port o' %pane%"
+        replace: "Make %pane% walk the plank"
+        right: "Starboard o' %pane%"
+        swap: "Swap berths with %pane%"
+        top: "Above %pane%"
+    edit:
+        add_below: "Below"
+        add_right: "Starboard"
+        cancel: "Belay that"
+        delete: "Scuttle this deck"
+        delete_confirm: "Scuttle the deck “%name%”? Yer other decks stay shipshape."
+        grip: "Drag to shift this cabin"
+        hint: "Click a cabin to pick it. Haul its grip to shift it, or drop a cabin from the hold onto an edge."
+        kind: "What this cabin shows"
+        name: "Name o' the deck"
+        percent_high: "%n%% tall"
+        percent_wide: "%n%% broad"
+        remove: "Clear the cabin"
+        save: "Stow the deck"
+        title: "Refittin'"
+        tray: "Add a cabin"
+        tray_empty: "Every cabin be on deck already."
+        tray_hint: "Drop on an edge to split, amidships to replace. Or click to berth it beside the picked cabin."
+    menu:
+        all_shown: "Every cabin be on deck already."
+        close: "Batten the cabin"
+        full_width: "Full beam"
+        label: "Cabin orders"
+        layout: "Deck plan"
+        layout_title: "Decks an' deck plans (⌥L)"
+        move: "Shift"
+        move_down: "Below decks"
+        move_left: "To port"
+        move_right: "To starboard"
+        move_up: "Aloft"
+        restore: "Back to the deck plan"
+        show_instead: "Show instead"
+        show_instead_heading: "Show in this cabin"
+        split_col: "Split below decks"
+        split_col_heading: "New cabin below"
+        split_row: "Split to starboard"
+        split_row_heading: "New cabin to starboard"
+    pane:
+        calendar: "Cap'n's log"
+        contacts: "Crew roster"
+        list: "Bottle rack"
+        message: "Message in a bottle"
+        tasks: "Chores"
+    presets:
+        apply: "Use fer this deck"
+        back: "Back"
+        edit: "Refit this deck"
+        new: "New deck"
+        save_new: "Stow as a new deck"
+        shape:
+            four: "Four"
+            list_stack: "Rack + stack"
+            list_stack_side: "Rack, stack, side"
+            one: "One cabin"
+            rows: "Aloft an' below"
+            side: "Side by side"
+            three: "Three masts"
+            top_two: "Crow's nest + two"
+        shapes: "Start from a deck plan"
+        slots: "What goes where"
+        workspaces: "Decks"
+    settings:
+        all_accounts: "All accounts"
+        built_in: "Mail (built in)"
+        delete_sidebar: "Scuttle this sidebar"
+        duplicate_mail: "Copy o’ the Mail sidebar…"
+        edit_groups: "Refit the fleets"
+        gone: "(lost at sea)"
+        group:
+            blocks: "Grows by itself"
+            calendars: "Calendars"
+            labels: "Labels"
+            mail: "Mail"
+            other: "Other"
+            tasks: "Task lists"
+        groups: "Fleets"
+        groups_help: "What this berth shows: the mail list, Starred an’ Unread, the sidebar an’ its tallies, an’ the new count on its tab."
+        heading: "Headin’"
+        heading_prompt: "Words fer the headin’"
+        intro: "Settin’s o’ the berth “%name%”."
+        live: "live"
+        mail_clock: "Hang the ship’s clock at the bottom"
+        missing: "When this berth has no pane fer a link"
+        missing_edge: "Lash the pane to the starboard edge"
+        missing_switch: "Sail to a berth that has one"
+        missing_switch_help: "Best one that shows the account the calendar or list belongs to."
+        move_down: "Haul down"
+        move_up: "Haul up"
+        new_name: "Sidebar %n%"
+        new_sidebar: "New sidebar…"
+        'off': "Nay"
+        'on': "Aye"
+        open: "Fleets & sidebar"
+        remove: "Throw overboard"
+        save_failed: "The settin’s could not be stowed. Nothin’ changed."
+        sidebar: "Sidebar"
+        sidebar_help: "Sidebars be shared: change one an’ it changes in every berth that uses it."
+        sidebar_none: "No sidebar"
+        target_calendar: "Calendar"
+        target_default: "default"
+        target_nth: "%kind% %n%"
+        targets: "Sidebar links open in"
+        targets_help: "This berth has more than one calendar. Without a choice, links open in the first."
+        title: "Berth settin’s"
+        used_by: "Also flown in %names%: change it here an’ it changes there too."
+    sidebar:
+        block:
+            accounts: "Accounts an’ their holds"
+            calendars: "All calendars"
+            inboxes: "Inboxes"
+            labels: "All labels"
+            tasklists: "All task lists"
+        clock: "Ship’s clock"
+        empty: "This sidebar be empty. Add rows in the berth settin’s."
+    tabs:
+        label: "Cabins"
+    toast:
+        all_shown: "Every cabin be on deck already."
+        applied: "Deck plan changed."
+        at_edge: "That cabin be at the rail already."
+        deleted: "Scuttled “%name%”."
+        edit_first: "Stow or belay the deck ye be refittin' first."
+        no_list: "This deck has no bottle rack, so it be shown full beam."
+        no_room: "No room beside %pane%. Make her bigger first, or batten a cabin."
+        only_pane: "This be the only cabin. Pick somethin' else fer it with Show instead."
+        save_failed: "The deck plan could not be stowed. She stays as she be on this page; reload to see the stowed one."
+        saved: "Stowed “%name%”."
+    workspace:
+        first_name: "Bottles"
+        more: "Other berths"
+        new: "%count% new since ye were last aboard"
+        new_name: "Deck %n%"
+        soon: "Somethin’ here starts within the hour"
+        tabs_label: "Decks"
 list:
     conversation_view: 'Yarn view'
     sort:
@@ -3151,6 +3314,8 @@ message:
             ai: "an oracle, for no rule knew it: "
             ai_differs: 'the rules say otherwise'
             awaiting_resort: "Bein' re-stowed — ye changed how post be sorted, an' this one has not shifted yet."
+            # A filter's "File in category" chose this built-in tab.
+            filter: "stowed there by one o' yer sieves"
             own_filter: "stowed there by one o' yer sieves"
             gmail_overruled: "not used — ye asked plMail to stow this itself"
             in_force: 'this one decides'
@@ -3211,6 +3376,9 @@ message:
             to: To
         heading: The original scroll
         reconstructed: "The true scroll be lost to the deep, so what ye see here be redrawn from the headers we kept and the plain text. The MIME riggin' and any HTML sail be missin', and it'll ne'er answer to a DKIM seal."
+    push_notice:
+        several: '{1}1 new bottle|]1,Inf[ %count% new bottles'
+        unknown_sender: 'Unknown sailor'
     quote:
         hide: Stow the quoted words
         show: Unfurl the quoted words
@@ -3435,7 +3603,6 @@ profile:
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
-    handle: Shift the rail 'tween list an' letter
     placeholder: Pick a conversation, matey, an' it'll be laid out here
 
 # Said in a toast when a request fails and there is no better place to say it;
@@ -4724,22 +4891,6 @@ settings:
         test_failed: 'Soundin'' came back foul'
         test_ok: 'Passage be clear'
         unavailable_heading: 'No passage from here'
-    calendar_behaviour:
-        button: Calendar button
-        button_hint: 'Which views the button up top steps through. A view it leaves out be not scuttled: the drag handle still reaches it.'
-        heading: Behaviour
-        option_calendar: Split only
-        option_none: All three
-        option_split: Full breadth only
-        subheading: 'How the calendar button up top moves between views.'
-    contacts_behaviour:
-        button: 'Crew log button'
-        button_hint: 'Which views the button up top steps through. A view it skips be not thrown overboard: the drag handle still reaches it.'
-        heading: 'Behaviour'
-        option_contacts: 'Beside the post only'
-        option_none: 'All three'
-        option_split: 'Full deck only'
-        subheading: 'How the crew log button up top moves between views.'
     contacts:
         allow_contacts: 'Allow the shipmates'
         allow_contacts_hint: 'Came aboard before plMail asked for shipmates. Sign aboard once more and allow them, and this vessel''s crew roll appears here.'
@@ -4965,6 +5116,16 @@ settings:
         'off': Off
         'on': On
         subheading: "Whether pictures a bottle hauls in from elsewhere wait to be asked for."
+    search_meaning:
+        heading: "Search by meanin’"
+        subheading: "Besides the words ye typed, also finds letters about what ye meant. Yer captain decides whether it be aboard."
+    search_scope:
+        heading: "Search"
+        hint: "Adds the berth as a filter (space:Name) when ye start typin’. One backspace casts it off."
+        label: "Start search in the berth"
+        'off': "Nay"
+        'on': "Aye"
+        subheading: "Whether search scours every ship or starts in the berth ye be in."
     sender_pictures:
         admin_off: 'Yer captain hasn''t let this ship go lookin'' fer pictures across the seven seas, so these switches do naught fer now. Yer choice be kept fer when they do.'
         bimi: 'Company flags'
@@ -4996,17 +5157,16 @@ settings:
             label: "Swipe right"
         subheading: "What a swipe across a bottle does on yer phone."
     unified_inboxes:
-        account_label: 'Gathered hold fer %account%'
         account_off: 'Letters becalmed — none o’ its letters be shown here till ye raise ’em again.'
-        accounts_heading: 'Ships'
-        accounts_subheading: 'Which hold each ship’s letters be stowed in. A new ship goes in yer first hold.'
         add: 'Add'
+        add_account: "Add a ship to %group%"
+        add_account_short: "Add ship"
         created: 'Built "%name%".'
         delete: 'Scuttle %inbox%'
-        delete_confirm: 'Scuttle "%name%"? Its ships move to %other%. No letters be lost.'
-        deleted: 'Hold scuttled. Its ships be in the catch-all hold now.'
-        heading: 'Gathered holds'
-        hint: 'Each hold shows the letters o’ the ships ye put in it as one list, with its own tabs. Leave a name empty fer the usual one.'
+        delete_confirm: "Scuttle \"%name%\"? Ships in no other fleet move to %other%. No letters be lost."
+        deleted: "Fleet scuttled. Ships that sailed only in it be in the catch-all fleet now."
+        heading: "Fleets"
+        hint: "A fleet shows the letters o’ its ships as one hold, with its own tabs. A ship can sail in several fleets; a new ship joins yer first. Leave a name empty fer the usual one."
         icon_label: 'Flag fer %inbox%'
         icon_new: 'Flag fer the new hold'
         last_stays: 'Keep at least one hold o’ yer own, matey.'
@@ -5015,16 +5175,18 @@ settings:
         name_label: 'Name'
         name_required: 'A hold needs a name.'
         name_too_long: 'That name be too long (40 letters at most).'
-        no_accounts: 'No ships yet.'
+        no_accounts_in_group: "No ships yet."
         not_found: 'That hold be gone.'
-        other_hint: 'Gathers every ship ye take out o’ yer own holds. Stays off the sidebar while it holds none.'
-        other_option: 'catch-all'
+        other_is_the_rest: "Other holds the rest o’ the fleet: put the ship in one o’ yer own fleets instead."
+        other_hint: "Takes every ship ye pull out o’ its last fleet. Stays off the sidebar while it holds none."
         other_stays: 'The catch-all hold cannot be scuttled: ships in none o’ yer holds be stowed there.'
         placeholder: 'e.g. Plunder'
+        remove_account: "Pull %account% out o’ %group%"
+        remove_to_other: "Pull %account% out o’ %group%; it sails in no other fleet, so it joins the catch-all"
         reorder: 'Drag to reorder'
         save: 'Stow'
         saved: 'Stowed.'
-        subheading: 'Name ’em, give ’em a flag an’ drag ’em into the order the sidebar shows.'
+        subheading: "Each fleet be a hold in the sidebar an’ somethin’ a berth can show. Name ’em, flag ’em, put ships in ’em an’ drag ’em into order."
     whats_new:
         heading: 'What''s new aboard'
         'off': 'Off'
@@ -5047,6 +5209,7 @@ settings:
             integrations: "Friendly ports"
             mail_accounts: "Mail crews"
             reading_writing: "Readin' an' scribblin'"
+            search: "Search"
         calendar_behaviour: "Almanac's habits"
         calendars: Almanacs
         categories: "Holds an' sortin'"
@@ -5057,11 +5220,12 @@ settings:
         filters: Sieves
         health: "State o' yer crew"
         health_banner: "Somethin' needs yer eye — see State o' yer crew."
-        inboxes: 'Gathered holds'
+        inboxes: "Fleets"
         insights: The spyglass
         integrations: 'Friendly ports'
         labels: Flags
         layout: "Riggin' an' helm"
+        mail_search: "Search"
         message_list: 'Manifest'
         notifications: Word from the crow's nest
         profile: Yer colours
@@ -5105,12 +5269,13 @@ settings:
             list_content: 'cargo attachments chips paperclip files flags labels sender date hour tally answered'
             list_layout: 'rows one line compact dense peek preview stacked width'
             list_markers: 'mark star hover medallion avatar crew corner unread bold'
-            notifications: "push browser phone sound alert tab flag favicon unread tally pinned"
+            notifications: "push browser phone sound alert sender heading tab flag favicon unread tally pinned"
             password: "login sign-in"
             pinning: 'pin pinned nail mast top nag'
             profile: "name avatar photo picture"
             read_receipts: "mdn receipt confirmation bcc copy backup always"
-            reading_pane: "preview split right bottom"
+            search_meaning: "semantic meaning ai search similar"
+            search_scope: "search scope berth space filter"
             sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender likeness flag'
             sharing: "link public booking"
             shortcuts: "keyboard hotkeys keys"
@@ -5157,6 +5322,8 @@ settings:
         notify_for_hint: 'Which bottles ring the bell: a box for each Inbox tab an'' each flag. Holds for all yer browsers an'' the Android app. Tick nothin'' an'' no bottle rings it.'
         'off': Off
         'on': On
+        show_content: 'Show who wrote an'' what about'
+        show_content_hint: 'A browser notice names th'' sender an'' th'' heading, not just "New mail". They show on a locked screen too, mind. Holds fer every browser o'' yers.'
         skip_read: 'Only for bottles still unread'
         skip_read_hint: 'Afore showin'' a notice in yer browser, plMail waits a few seconds an'' checks if the new bottle be still unread. If ye already read or sunk it, say on yer phone, nothing be shown.'
         state_denied: >-
@@ -5176,7 +5343,7 @@ settings:
             Get word o' new mail on this here device, even when plMail be
             battened down.
         tab_icon_count: 'Unread tally on th'' browser tab flag'
-        tab_icon_count_hint: 'How many yarns in yer Inbox be unread, all accounts together, painted on plMail''s flag in yer browser tab, so a pinned tab shows it too. Holds fer every browser o'' yers.'
+        tab_icon_count_hint: 'How many yarns in yer Inbox be unread, the same tally as the tab''s title, painted on plMail''s flag in yer browser tab, so a pinned tab shows it too. Holds fer every browser o'' yers.'
         this_device: This here device
         toggle: Send up the lookout
         toggle_off: Call down the lookout
@@ -5197,13 +5364,6 @@ settings:
         subheading: 'What ye board with. Only ye can change it — not even a quartermaster may set it for ye.'
         submit: Change th' secret word
         submitting: Stowin'…
-    reading_pane:
-        heading: Spyglass deck
-        hint: 'Stowed shows the list an'' the letter one at a time; Starboard lays the letter beside the list when the ship has room for both — drag the rail between ''em to say how much deck each gets.'
-        label: 'Lay out the open letter'
-        off: Stowed
-        right: Starboard
-        subheading: 'Where a parley opens: in place o'' the list, or beside it.'
     security:
         codes:
             copy: Copy the tokens
@@ -5472,6 +5632,8 @@ shortcuts:
         anywhere: "Anywhere"
         conversation: "In a yarn"
         list: "In a list"
+        panes: "Cabins an' decks"
+        panes_hint: "Alt be ⌥ on a Mac. These work even with single-key orders off."
     keys:
         archive: "Stow in the hold"
         back: "Back to the list"
@@ -5486,12 +5648,19 @@ shortcuts:
         go_starred: "Sail to Marked"
         help: "Show this list"
         label: "Label as"
+        layout_menu: "Deck plan menu"
         mark_read: "Mark as read"
         mark_unread: "Mark as unread"
         move: "Move to"
         next: "Down one yarn"
         next_conversation: "Open the next yarn"
         open: "Open the marked yarn"
+        pane_close: "Batten the cabin"
+        pane_focus: "Look to the next cabin that way"
+        pane_full_width: "Full beam, an' back"
+        pane_move: "Shift the cabin that way"
+        pane_split_below: "Split the cabin below"
+        pane_split_right: "Split the cabin to starboard"
         pin: 'Nail to the mast or pry it off'
         previous: "Up one yarn"
         previous_conversation: "Open the yarn afore"
@@ -5508,6 +5677,8 @@ shortcuts:
         spam: "Mark as bilge"
         star: "Mark or unmark"
         undo: "Undo the last deed"
+        workspace_edit: "Refit the deck"
+        workspace_switch: "Change decks"
     or: "or"
     switched_off: "Shortcuts be struck fer ye. Raise 'em under Settings → General → Riggin' an' helm."
     then: "then"
@@ -5976,13 +6147,6 @@ contacts:
     no_subject: '(no subject)'
     notes: Scribblings
     page: 'Page %page%'
-    pane:
-        close: 'Stow the shipmates'
-        mode:
-            contacts: 'Spread the crew log across the deck'
-            mail: 'Stow the shipmates'
-            split: 'Muster the shipmates beside the post'
-        resize: 'Haul the shipmates wider or narrower'
     pending: 'Waiting on a fair wind to the server'
     phone_placeholder: '+1 555 010 2030'
     phonetic: 'As it be spoken'
@@ -6140,6 +6304,11 @@ contacts:
         use_as: 'Use as…'
         you_placed: 'Ye berthed this line'
 tasks:
+    pane:
+        scope_label: "Which lists"
+        scope_workspace_hint: "Only the lists o’ this deck"
+        scope_overlay_hint: "This deck’s lists, an’ the others faint"
+        scope_all_hint: "Every list alike"
     occurrence_undone: 'Tick undone.'
     added: 'Task added.'
     completed: 'Task done.'
@@ -6157,10 +6326,6 @@ tasks:
     read_only: 'This list be read-only, so its tasks can''t be changed here.'
     saved: 'Task stowed.'
     deleted: 'Task sent overboard.'
-    pane:
-        close: 'Close tasks'
-        resize: 'Resize the tasks'
-        toggle: 'Tasks to do'
     section:
         loading: 'Haulin'' it aboard…'
         more: 'Show more'
@@ -6236,6 +6401,8 @@ tasks:
         delete_confirm: 'Scuttle “%name%” and every task aboard?'
         default_hint: 'New tasks land here when nothin'' else was picked, so this list can''t be scuttled.'
         synced_hint: 'This list be synced, so its name comes from the server. The colour be yers.'
+        workspace: "Deck"
+        workspace_help: "A list with no ship's account has no fleet t' follow, so it shows on this deck. Decks over every account show it too."
         transferred: 'Hauled %count% task over to “%name%”.|Hauled %count% tasks over to “%name%”.'
     transfer:
         title: 'Haul to a local list'

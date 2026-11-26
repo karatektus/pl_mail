@@ -32,6 +32,24 @@ final class MessageCategorizerTest extends TestCase
     }
 
     /**
+     * A filter's built-in tab is the first step of the cascade: it beats
+     * Google's own label, the headers and a correspondent alike, and is
+     * explained as the filter's doing.
+     */
+    public function testAFiltersBuiltInTabBeatsEveryOtherStep(): void
+    {
+        $message                      = $this->message(['List-Post' => '<mailto:list@x.test>'], 'kim@example.test', ['INBOX', 'CATEGORY_PROMOTIONS']);
+        $message->ruleBuiltinCategory = MessageCategory::Updates;
+
+        self::assertSame(MessageCategory::Updates, $this->categorizer->categorize($message, ['kim@example.test' => true]));
+
+        $explained = $this->categorizer->explain($message, []);
+
+        self::assertSame('filter', $explained['reason']);
+        self::assertNull($explained['signal']);
+    }
+
+    /**
      * @param array<string,mixed> $headers
      * @param list<string>|null   $gmailLabelIds
      */

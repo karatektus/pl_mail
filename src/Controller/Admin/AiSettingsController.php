@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Ai\AiProbe;
+use App\Domain\Enum\Ai\AiProvider;
 use App\Domain\Enum\Ai\MetricWindow;
 use App\Domain\Enum\Ai\PromptSlot;
 use App\Domain\Helper\RequestTimeLimit;
@@ -170,7 +171,7 @@ final class AiSettingsController extends AbstractController
      * the writing host would be an error message for a field somebody left
      * empty on purpose. If NOTHING was filled in, that is the one thing to say.
      *
-     * @return list<array{role: string, probe: AiProbe, wanted: list<string>}>
+     * @return list<array{role: string, provider: AiProvider, probe: AiProbe, wanted: list<string>}>
      */
     private function probes(AiSettings $settings): array
     {
@@ -179,9 +180,10 @@ final class AiSettingsController extends AbstractController
 
         if (false === $settings->embeddingOwnConnection) {
             return [[
-                'role'   => 'writing',
-                'probe'  => $this->assistant->probe($writing),
-                'wanted' => self::named($settings->chatModel, $settings->embeddingModel),
+                'role'     => 'writing',
+                'provider' => $writing->provider,
+                'probe'    => $this->assistant->probe($writing),
+                'wanted'   => self::named($settings->chatModel, $settings->embeddingModel),
             ]];
         }
 
@@ -189,17 +191,19 @@ final class AiSettingsController extends AbstractController
 
         if (true === $writing->isSet() || false === $search->isSet()) {
             $probes[] = [
-                'role'   => 'writing',
-                'probe'  => $this->assistant->probe($writing),
-                'wanted' => self::named($settings->chatModel),
+                'role'     => 'writing',
+                'provider' => $writing->provider,
+                'probe'    => $this->assistant->probe($writing),
+                'wanted'   => self::named($settings->chatModel),
             ];
         }
 
         if (true === $search->isSet()) {
             $probes[] = [
-                'role'   => 'search',
-                'probe'  => $this->assistant->probe($search),
-                'wanted' => self::named($settings->embeddingModel),
+                'role'     => 'search',
+                'provider' => $search->provider,
+                'probe'    => $this->assistant->probe($search),
+                'wanted'   => self::named($settings->embeddingModel),
             ];
         }
 

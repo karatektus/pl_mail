@@ -49,6 +49,9 @@ account:
             username: 发件用户名
             username_help: '留空则使用上方的用户名发件。'
         username: 用户名
+    groups:
+        help: "其邮件显示的位置，以及哪些工作区显示它。都不勾选则放入汇总组。"
+        legend: "账户组"
     mail_purge_queued: '正在从 plMail 中移除此账户的邮件。服务器上的副本会保留。'
     oauth:
         calendar_declined: '账户已连接，但未获授日历访问权限，因此不会同步该账户的日历。请重新连接，并在 Google 授权页面勾选日历访问权限。'
@@ -101,6 +104,7 @@ account:
             jmap_submission: '通过 JMAP 服务器发送。'
             missing_fields: '请先输入电子邮件地址和至少一个服务器。'
             missing_password: 没有可用于测试的密码。请在上方输入密码；编辑表单中留空会保留已保存的密码，但需先保存账户，测试才能使用该密码。
+            password_for_new_server: '请重新输入密码：服务器已更改，已保存的密码只会发送到保存时对应的服务器。'
             pop3_ok: '已连接，邮箱中有 %count% 封邮件。'
             private_network: '该服务器位于私有网络中。必须先由管理员在“管理 → 集成 → 私有网络中的服务器”中允许它，plMail 才能连接。'
             smtp_none: '未配置 SMTP 主机，此账户无法发送邮件。'
@@ -263,6 +267,7 @@ admin:
                 embedding: 搜索模型
                 missing: 此主机上不存在
                 missing_body: 此处指定的模型未安装在主机上。请先在主机上拉取该模型，或填写已安装的模型名称；否则每次请求都会失败。
+                missing_body_listed: 此处指定的模型不在该主机的模型列表中。请对照主机提供的模型核对名称；主机不认识的名称会导致每次请求失败。
                 none: 未设置
                 resident: 已驻留内存
             no_history: 此时间范围内尚未调用模型。调用后会显示数据。
@@ -303,6 +308,7 @@ admin:
                 search: 搜索主机
                 writing: 模型主机
             missing_model: 主机已响应，但未安装以下模型：%models%。请先在主机上拉取。
+            missing_model_listed: 主机已响应，但其模型列表中没有：%models%。请对照下方列表核对名称。
             no_host: 请先输入地址。
             no_model_list: '该地址有响应，但未提供模型列表（HTTP %status%）。请检查地址是否以 API 版本结尾，通常为 /v1。部分服务器虽无模型列表也可正常工作；保存后尝试生成草稿即可确认。'
             not_an_api: '该地址有响应，但返回的不是 JSON。通常这是登录页面或代理，而非 API。'
@@ -418,6 +424,12 @@ admin:
 
                     此任务读取每封受影响邮件存储的原件，在原件明确给出名称时恢复附件的真实名称。更新后也会自动运行。
                 summary: '为以校验和存储的附件恢复名称'
+            attachment_unreferenced_inline:
+                explanation: >-
+                    有些附件（例如在 Apple Mail 中添加的文件）被发件人的邮件程序标记为 "inline"，并作为正文中的图片存储。正文中没有任何内容显示它们，因此它们在任何地方都不出现：邮件下方没有附件标签，列表中也没有回形针。
+
+                    此任务将每个这样的部分重新列为附件；正文真正显示的图片和日历邀请保持不变。更新后也会自动运行。
+                summary: '显示被隐藏为内联部分的附件'
             calendars:
                 explanation: >-
                     每个新用户都会获得一个个人日历，以及每个邮件账户各一个日历。此任务为之前就存在的用户创建相同的日历。它只补齐缺失的部分，添加账户后再次运行也没有问题。
@@ -569,6 +581,7 @@ admin:
         export:
             error:
                 mismatch: 两次密码不一致，未导出任何内容。
+                remembered_session: '记住的登录无法执行此操作。请退出并重新登录后再试；未导出或更改任何内容。'
                 too_short: 密码过短，未导出任何内容。
             heading: 导出配置
             intro: '将此部署运行所需的所有设置和凭据保存到一个密码加密文件中：包括环境变量、secrets 卷中的文件、数据库中的服务商和 Firebase 凭据，以及所有用户及其密码、第二重验证信息、邮箱和其他配置。不包含邮件、日历事件或联系人；这些请使用 `app:backup` 备份。'
@@ -1162,6 +1175,7 @@ admin:
             issuer_help: '服务商的签发方 URL，须与其发现文档中完全一致。在 Authentik 中，即服务商页面上的“OpenID Configuration Issuer”。'
             password_login_disabled: 仅允许单点登录
             password_login_disabled_help: '隐藏密码表单并拒绝密码登录，所有人都需通过服务商登录。仅在此处已配置服务商时生效。只有先亲自通过服务商登录后才能勾选；若服务商不可用，可运行 bin/console app:sso:allow-password-login 恢复表单。邮件客户端的密码（应用密码）不受影响。'
+            password_login_disabled_locked_help: '已启用。只能通过控制台关闭：运行 bin/console app:sso:allow-password-login。在此之前，也无法在此处清除身份提供方。'
             require_verified_email: 仅关联服务商已验证的地址
             require_verified_email_help: 首次登录时按电子邮件地址查找账户。只有用户无法在服务商处修改自己的地址时，才应关闭此项；关闭后，能修改地址的人可以冒领任何尚未通过此服务商登录的账户。
             scopes: 权限范围
@@ -1414,6 +1428,15 @@ attachment:
         zoom_in: 放大
         zoom_out: 缩小
 calendar:
+    pane:
+        scope_all: "全部"
+        scope_all_hint: "所有日历同等显示"
+        scope_label: "显示哪些日历"
+        scope_overlay: "+ 其他"
+        scope_overlay_hint: "此工作区的日历，其他日历淡显"
+        scope_workspace: "工作区"
+        scope_workspace_hint: "仅显示此工作区账户的日历"
+        show_all: "显示所有日历"
     when:
         previous_month: 上个月
         next_month: 下个月
@@ -1648,6 +1671,8 @@ calendar:
         time_zone: 时区
         time_zone_follow: 跟随 plMail
         time_zone_help: 此日历中新日程使用的时区。“跟随 plMail”即使用你自己的时区（当前为 %zone%）。日程始终按你所在时区的实际时间显示。
+        workspace: "工作区"
+        workspace_help: "没有账户的日历不属于任何账户组，因此显示在此工作区中。涵盖所有账户的工作区也会显示它。"
     grid:
         all_day: 全天
         continues_after: 延续到次日
@@ -1744,13 +1769,6 @@ calendar:
         next: 下一个
         previous: 上一个
     open_day: '%date% 的所有日程'
-    pane:
-        close: '关闭日历'
-        mode:
-            calendar: 全宽显示日历
-            mail: 显示邮件
-            split: 并排显示日历与邮件
-        resize: 调整日历大小
     proposal:
         action:
             add: 添加到日历
@@ -1859,11 +1877,8 @@ calendar:
         range_day: '%day%'
         range_short: "%start%–%end%"
         range_short_month: "%month% %start%–%end%"
-    upcoming:
-        imminent: 一小时内开始
-        later: 今天稍后
-        soon: 几小时后
     view:
+        label: "视图"
         agenda: 日程列表
         day: 日
         monday_week: 周
@@ -2593,6 +2608,8 @@ discarded:
         restore: 移至收件箱
 header:
     search:
+        chip_remove: "移除 %token%"
+        clear: "清除搜索"
         close: 关闭搜索
         live:
             status: '%count% 个匹配会话'
@@ -2773,7 +2790,6 @@ label:
         red: '红色'
         teal: '青色'
         violet: '紫色'
-    empty: '没有带此标签的会话。'
     created: '标签已创建。'
     delete:
         already_running: '正在删除“%name%”。'
@@ -2793,8 +2809,10 @@ label:
     delete_confirm: '删除标签“%name%”？所有账户中的此标签都会移除。邮件会保留其他标签，不会被删除。'
     delete_confirm_children: '删除“%name%”及其下的 %count% 个嵌套标签？所有账户中的这些标签都会移除。邮件不会被删除。'
     deleted: '标签已删除。'
+    empty: '没有带此标签的会话。'
     error:
         duplicate: '此处已有同名标签。仅大小写不同也视为同名。'
+    filters: "筛选"
     form:
         account_note:
             new: '仅在 %account% 上创建。'
@@ -2834,10 +2852,155 @@ label:
     menu:
         create: '新建'
         empty: '暂无标签。'
+    remove_filter: "移除筛选“%name%”"
     updated: '标签已更新。'
     visibility:
         hidden: '标签已隐藏。'
         shown: '标签已显示。'
+layout:
+    divider: "调整窗格大小"
+    divider_hint: "拖动调整大小，双击平分"
+    drop:
+        bottom: "%pane% 下方"
+        left: "%pane% 左侧"
+        replace: "替换 %pane%"
+        right: "%pane% 右侧"
+        swap: "与 %pane% 交换"
+        top: "%pane% 上方"
+    edit:
+        add_below: "下方"
+        add_right: "右侧"
+        cancel: "取消"
+        delete: "删除工作区"
+        delete_confirm: "删除工作区“%name%”？其他工作区保持不变。"
+        grip: "拖动以移动此窗格"
+        hint: "点击窗格以选中它。拖动手柄移动它，或从托盘把窗格拖到边缘。"
+        kind: "此窗格显示的内容"
+        name: "工作区名称"
+        percent_high: "高 %n%%"
+        percent_wide: "宽 %n%%"
+        remove: "移除窗格"
+        save: "保存工作区"
+        title: "编辑中"
+        tray: "添加窗格"
+        tray_empty: "所有窗格都已显示。"
+        tray_hint: "拖到边缘以拆分，拖到中间以替换。或点击添加到所选窗格旁。"
+    menu:
+        all_shown: "所有窗格都已显示。"
+        close: "关闭窗格"
+        full_width: "全宽"
+        label: "窗格菜单"
+        layout: "布局"
+        layout_title: "工作区和布局（⌥L）"
+        move: "移动"
+        move_down: "向下"
+        move_left: "向左"
+        move_right: "向右"
+        move_up: "向上"
+        restore: "返回布局"
+        show_instead: "改为显示"
+        show_instead_heading: "在此窗格中显示"
+        split_col: "向下拆分"
+        split_col_heading: "在下方新建窗格"
+        split_row: "向右拆分"
+        split_row_heading: "在右侧新建窗格"
+    pane:
+        calendar: "日历"
+        contacts: "联系人"
+        list: "邮件列表"
+        message: "邮件"
+        tasks: "任务"
+    presets:
+        apply: "用于此工作区"
+        back: "返回"
+        edit: "编辑此工作区"
+        new: "新建工作区"
+        save_new: "另存为新工作区"
+        shape:
+            four: "四格"
+            list_stack: "列表 + 堆叠"
+            list_stack_side: "列表、堆叠、侧栏"
+            one: "单窗格"
+            rows: "上下"
+            side: "并排"
+            three: "三栏"
+            top_two: "上一下二"
+        shapes: "从形状开始"
+        slots: "各位置显示的内容"
+        workspaces: "工作区"
+    settings:
+        all_accounts: "所有账户"
+        built_in: "邮件（内置）"
+        delete_sidebar: "删除此侧边栏"
+        duplicate_mail: "复制邮件侧边栏…"
+        edit_groups: "编辑账户组"
+        gone: "（已不存在）"
+        group:
+            blocks: "自动更新"
+            calendars: "日历"
+            labels: "标签"
+            mail: "邮件"
+            other: "其他"
+            tasks: "任务列表"
+        groups: "账户组"
+        groups_help: "此工作区显示的内容：邮件列表、星标和未读、侧边栏及其计数，以及标签页上的新内容数量。"
+        heading: "标题"
+        heading_prompt: "标题文字"
+        intro: "工作区“%name%”的设置。"
+        live: "自动"
+        mail_clock: "在底部显示时钟"
+        missing: "当此工作区没有链接对应的窗格时"
+        missing_edge: "在右侧边缘添加窗格"
+        missing_switch: "切换到有该窗格的工作区"
+        missing_switch_help: "优先选择显示该日历或列表所属账户的工作区。"
+        move_down: "下移"
+        move_up: "上移"
+        new_name: "侧边栏 %n%"
+        new_sidebar: "新建侧边栏…"
+        'off': "关"
+        'on': "开"
+        open: "组和侧边栏"
+        remove: "移除"
+        save_failed: "无法保存设置，未做任何更改。"
+        sidebar: "侧边栏"
+        sidebar_help: "侧边栏是共享的：修改一个会同时修改所有使用它的工作区。"
+        sidebar_none: "无侧边栏"
+        target_calendar: "日历"
+        target_default: "默认"
+        target_nth: "%kind% %n%"
+        targets: "侧边栏链接打开于"
+        targets_help: "此工作区有多个日历。未选择时，链接在第一个中打开。"
+        title: "工作区设置"
+        used_by: "也显示在 %names% 中：在此修改也会修改那里。"
+    sidebar:
+        block:
+            accounts: "账户及其文件夹"
+            calendars: "所有日历"
+            inboxes: "收件箱"
+            labels: "所有标签"
+            tasklists: "所有任务列表"
+        clock: "时钟"
+        empty: "此侧边栏为空。请在工作区设置中添加条目。"
+    tabs:
+        label: "窗格"
+    toast:
+        all_shown: "所有窗格都已显示。"
+        applied: "布局已更改。"
+        at_edge: "该窗格已在那一侧边缘。"
+        deleted: "已删除“%name%”。"
+        edit_first: "请先保存或取消正在编辑的工作区。"
+        no_list: "此工作区没有邮件列表，因此以全宽显示。"
+        no_room: "%pane% 旁空间不足。请先把它调大，或关闭一个窗格。"
+        only_pane: "这是唯一的窗格。可用“改为显示”换成其他内容。"
+        save_failed: "布局未能保存。此页面保持现状；重新加载可查看已保存的布局。"
+        saved: "已保存“%name%”。"
+    workspace:
+        first_name: "邮件"
+        more: "其他工作区"
+        new: "自上次访问以来有 %count% 条新内容"
+        new_name: "工作区 %n%"
+        soon: "此处有事项将在一小时内开始"
+        tabs_label: "工作区"
 list:
     conversation_view: '会话视图'
     sort:
@@ -2952,6 +3115,8 @@ message:
             ai: '由语言模型判断，因为没有规则识别出它： '
             ai_differs: '与规则的判断不一致'
             awaiting_resort: '正在重新分类——你更改了邮件分类方式，此邮件尚未移动。'
+            # A filter's "File in category" chose this built-in tab.
+            filter: '由你的某个过滤器归入此处'
             own_filter: '由你的某个过滤器归入此处'
             gmail_overruled: '未采用——你已让 plMail 自行分类'
             in_force: '以此项为准'
@@ -3012,6 +3177,9 @@ message:
             to: '收件人'
         heading: '原始邮件'
         reconstructed: '此邮件的原始字节未被保留，因此这里的内容是根据已存储的邮件头和纯文本正文重建的。其中缺少 MIME 结构及所有 HTML 部分，无法通过 DKIM 签名验证。'
+    push_notice:
+        several: '{1}1 封新邮件|]1,Inf[ %count% 封新邮件'
+        unknown_sender: '未知发件人'
     quote:
         hide: '隐藏引用内容'
         show: '显示引用内容'
@@ -3202,7 +3370,6 @@ profile:
         name_first: '名'
         name_last: '姓'
 reading_pane:
-    handle: '调整邮件窗格大小'
     placeholder: '选择会话，在此阅读'
 request_error:
     copy_reference: '复制参考编号'
@@ -4288,22 +4455,6 @@ settings:
         test_failed: '连接测试失败'
         test_ok: '连接正常'
         unavailable_heading: '此处不可用'
-    calendar_behaviour:
-        button: '日历按钮'
-        button_hint: '顶栏按钮循环切换的视图。未包含的视图不会被移除，仍可通过拖动手柄访问。'
-        heading: '行为'
-        option_calendar: '仅分栏'
-        option_none: '全部三种'
-        option_split: '仅全宽'
-        subheading: '顶栏日历按钮在各视图之间切换的方式。'
-    contacts_behaviour:
-        button: "联系人按钮"
-        button_hint: "顶栏按钮依次切换哪些视图。未包含的视图不会被移除，仍可通过拖动手柄切换到该视图。"
-        heading: "行为"
-        option_contacts: "仅在邮件旁显示"
-        option_none: "全部三种"
-        option_split: "仅全宽显示"
-        subheading: "顶栏联系人按钮如何切换视图。"
     contacts:
         allow_contacts: "允许访问联系人"
         allow_contacts_hint: "连接时 plMail 尚未请求联系人权限。请重新登录一次并允许访问，其通讯录就会出现在这里。"
@@ -4480,6 +4631,16 @@ settings:
         'off': '关闭'
         'on': '开启'
         subheading: '是否需要手动允许邮件加载远程图片。'
+    search_meaning:
+        heading: "按含义搜索"
+        subheading: "除了输入的词语，还会找到与你的意思相关的邮件。是否可用由管理员决定。"
+    search_scope:
+        heading: "搜索"
+        hint: "开始输入时将工作区添加为筛选（space:名称）。按一次退格键即可移除。"
+        label: "在工作区中开始搜索"
+        'off': "关"
+        'on': "开"
+        subheading: "搜索是覆盖所有账户，还是从当前工作区开始。"
     sender_pictures:
         admin_off: '管理员尚未允许此服务器在互联网上查找图片，因此这些开关暂时不起作用。你的选择会保留，待允许后生效。'
         bimi: '公司标志'
@@ -4507,17 +4668,16 @@ settings:
             label: "向右滑动"
         subheading: "在手机上滑动邮件行时执行的操作。"
     unified_inboxes:
-        account_label: '%account% 的统一收件箱'
         account_off: '邮件已关闭——重新开启前，其邮件不会在此显示。'
-        accounts_heading: '账户'
-        accounts_subheading: '每个账户的邮件显示在哪个收件箱。新账户会进入你的第一个收件箱。'
         add: '添加'
+        add_account: "向 %group% 添加账户"
+        add_account_short: "添加账户"
         created: '已创建“%name%”。'
         delete: '删除 %inbox%'
-        delete_confirm: '删除“%name%”？其账户将移至 %other%。不会删除任何邮件。'
-        deleted: '收件箱已删除。其账户现在显示在汇总收件箱中。'
-        heading: '统一收件箱'
-        hint: '每个收件箱将你放入的账户的邮件合并为一个列表，并有自己的标签页。名称留空则使用默认名称。'
+        delete_confirm: "删除“%name%”？不在其他组中的账户将移至 %other%。不会删除任何邮件。"
+        deleted: "组已删除。仅属于该组的账户现在位于汇总组中。"
+        heading: "账户组"
+        hint: "一个组将其账户的邮件显示为一个收件箱，并有自己的标签页。一个账户可以属于多个组；新账户会加入第一个组。名称留空则使用默认名称。"
         icon_label: '%inbox% 的图标'
         icon_new: '新收件箱的图标'
         last_stays: '至少保留一个你自己的收件箱。'
@@ -4526,16 +4686,18 @@ settings:
         name_label: '名称'
         name_required: '收件箱需要一个名称。'
         name_too_long: '名称太长（最多 40 个字符）。'
-        no_accounts: '还没有邮件账户。'
+        no_accounts_in_group: "还没有账户。"
         not_found: '该收件箱已不存在。'
-        other_hint: '汇集你从自己的收件箱中移出的所有账户。没有账户时不会显示在侧边栏中。'
-        other_option: '汇总'
+        other_is_the_rest: "“其他”收纳其余账户：请将账户放入你自己的某个组中。"
+        other_hint: "收纳从最后一个组中移出的所有账户。没有账户时不会显示在侧边栏中。"
         other_stays: '汇总收件箱无法删除：不属于你任何收件箱的账户都显示在这里。'
         placeholder: '例如：工作'
+        remove_account: "将 %account% 移出 %group%"
+        remove_to_other: "将 %account% 移出 %group%；它不在其他组中，将移至汇总组"
         reorder: '拖动以排序'
         save: '保存'
         saved: '已保存。'
-        subheading: '为它们命名、选择图标，并拖动排列成侧边栏中的顺序。'
+        subheading: "每个组是侧边栏中的一个收件箱，也是工作区可以显示的内容。为它们命名、选择图标、加入账户并拖动排序。"
     whats_new:
         heading: '更新内容'
         'off': '关闭'
@@ -4558,6 +4720,7 @@ settings:
             integrations: "集成"
             mail_accounts: "邮件账户"
             reading_writing: "阅读与撰写"
+            search: "搜索"
         calendar_behaviour: "日历行为"
         calendars: '日历'
         categories: "分类与排序"
@@ -4568,11 +4731,12 @@ settings:
         filters: '过滤器'
         health: '账户健康状况'
         health_banner: "有问题需要你处理：请查看账户健康状况。"
-        inboxes: '统一收件箱'
+        inboxes: "账户组"
         insights: '邮件要点'
         integrations: '集成'
         labels: '标签'
         layout: "布局与操作"
+        mail_search: "搜索"
         message_list: '邮件列表'
         notifications: '通知'
         profile: '个人资料'
@@ -4616,12 +4780,13 @@ settings:
             list_content: '附件 文件标签 回形针 文件 标签 发件人 日期 时间 数量 已回复'
             list_layout: '行 单行 紧凑 预览 摘要 分行 宽度'
             list_markers: '星标 悬停 头像 圆圈 账户 角标 未读 粗体'
-            notifications: "推送 浏览器 手机 声音 提醒 标签页 图标 未读 数字 固定"
+            notifications: "推送 浏览器 手机 声音 提醒 发件人 主题 标签页 图标 未读 数字 固定"
             password: "密码 登录"
             pinning: '置顶 固定 图钉 提醒 pin'
             profile: "姓名 头像 照片"
             read_receipts: "mdn 已读回执 确认 密送 bcc 副本 备份"
-            reading_pane: "预览 分栏 右侧 下方"
+            search_meaning: "语义 含义 AI 搜索 相似"
+            search_scope: "搜索 范围 工作区 space 筛选"
             sender_pictures: '头像 图片 照片 gravatar libravatar bimi 标志 图标 发件人'
             sharing: "链接 公开 预约"
             shortcuts: "键盘 按键 快捷键"
@@ -4665,6 +4830,8 @@ settings:
         notify_for_hint: '哪些邮件会触发通知：每个收件箱标签页和每个标签各一个勾选框。对你的所有浏览器和 Android 应用生效。全部不勾选时，任何邮件都不会通知。'
         'off': '关'
         'on': '开'
+        show_content: '显示发件人和主题'
+        show_content_hint: '浏览器通知会显示发件人和主题，而不只是“New mail”。锁屏时也会显示。适用于你的所有浏览器。'
         skip_read: '仅通知未读邮件'
         skip_read_hint: '显示浏览器通知前，plMail 会等待几秒，并检查新邮件是否仍未读。如果你已经读过或删除了它（例如在手机上），就不会显示。'
         state_denied: '通知已被浏览器设置拦截。请允许此网站发送通知，然后重试。'
@@ -4678,7 +4845,7 @@ settings:
         state_working: '正在处理…'
         subheading: '在此设备上接收新邮件通知，即使 plMail 已关闭也能收到。'
         tab_icon_count: '浏览器标签页图标上的未读数'
-        tab_icon_count_hint: '收件箱中未读会话的数量（所有账户合计），显示在浏览器标签页的 plMail 图标上，固定的标签页也能看到。适用于你的所有浏览器。'
+        tab_icon_count_hint: '收件箱中未读会话的数量（与标签页标题中的数字相同），显示在浏览器标签页的 plMail 图标上，固定的标签页也能看到。适用于你的所有浏览器。'
         this_device: '此设备'
         toggle: '启用通知'
         toggle_off: '停用通知'
@@ -4697,13 +4864,6 @@ settings:
         subheading: '用于登录的密码。只有你能更改，管理员也无法代为设置。'
         submit: '更改密码'
         submitting: "正在保存…"
-    reading_pane:
-        heading: '阅读面板'
-        hint: '关闭时，列表与邮件分别显示。选择“右侧”后，窗口空间足够时，邮件会显示在列表旁；拖动中间的分隔线可调整两侧宽度。'
-        label: '已打开邮件的显示位置'
-        off: '关闭'
-        right: '右侧'
-        subheading: '会话打开的位置：替代列表，或显示在列表旁。'
     security:
         codes:
             copy: '复制恢复码'
@@ -4950,6 +5110,8 @@ shortcuts:
         anywhere: '任何位置'
         conversation: '会话中'
         list: '列表中'
+        panes: "窗格和工作区"
+        panes_hint: "在 Mac 上 Alt 即 ⌥。关闭单键快捷键时这些仍然有效。"
     keys:
         archive: '归档'
         back: '返回列表'
@@ -4964,12 +5126,19 @@ shortcuts:
         go_starred: '前往星标邮件'
         help: '显示此列表'
         label: '添加标签'
+        layout_menu: "布局菜单"
         mark_read: '标为已读'
         mark_unread: '标为未读'
         move: '移至'
         next: '向下移动一个会话'
         next_conversation: '打开下一个会话'
         open: '打开高亮的会话'
+        pane_close: "关闭窗格"
+        pane_focus: "聚焦该方向的下一个窗格"
+        pane_full_width: "全宽，再切回"
+        pane_move: "向该方向移动窗格"
+        pane_split_below: "向下拆分窗格"
+        pane_split_right: "向右拆分窗格"
         pin: '置顶或取消置顶'
         previous: '向上移动一个会话'
         previous_conversation: '打开上一个会话'
@@ -4986,6 +5155,8 @@ shortcuts:
         spam: '标为垃圾邮件'
         star: '添加或移除星标'
         undo: '撤销上一步操作'
+        workspace_edit: "编辑工作区"
+        workspace_switch: "切换工作区"
     or: '或'
     switched_off: "你已关闭快捷键。可在设置 → 常规 → 布局与操作中开启。"
     then: '然后'
@@ -5433,13 +5604,6 @@ contacts:
     no_subject: "（无主题）"
     notes: "备注"
     page: "第 %page% 页"
-    pane:
-        close: "关闭联系人"
-        mode:
-            contacts: "全宽显示联系人"
-            mail: "隐藏联系人"
-            split: "在邮件旁显示联系人"
-        resize: "调整联系人区域大小"
     pending: "等待发送到服务器"
     phone_placeholder: "+1 555 010 2030"
     phonetic: "注音"
@@ -5597,6 +5761,11 @@ contacts:
         use_as: "用作…"
         you_placed: "此行由你归类"
 tasks:
+    pane:
+        scope_label: "哪些列表"
+        scope_workspace_hint: "仅此工作区的任务列表"
+        scope_overlay_hint: "此工作区的列表，其他列表淡化显示"
+        scope_all_hint: "所有列表一视同仁"
     occurrence_undone: '已撤销勾选。'
     added: '任务已添加。'
     completed: '任务已完成。'
@@ -5614,10 +5783,6 @@ tasks:
     read_only: '此列表为只读,无法在此更改其任务。'
     saved: '任务已保存。'
     deleted: '任务已删除。'
-    pane:
-        close: '关闭任务'
-        resize: '调整任务宽度'
-        toggle: '任务'
     section:
         loading: '正在加载…'
         more: '显示更多'
@@ -5693,6 +5858,8 @@ tasks:
         delete_confirm: '删除“%name%”及其中的所有任务?'
         default_hint: '未选择其他列表时,新任务会进入此列表,因此无法删除。'
         synced_hint: '此列表已同步,其名称来自服务器。颜色由你决定。'
+        workspace: "工作区"
+        workspace_help: "没有账户的列表不属于任何账户组，因此显示在此工作区中。涵盖所有账户的工作区也会显示它。"
         transferred: '已将 %count% 个任务移至“%name%”。|已将 %count% 个任务移至“%name%”。'
     transfer:
         title: '转移到本地列表'

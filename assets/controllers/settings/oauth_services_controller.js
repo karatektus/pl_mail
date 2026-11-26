@@ -20,7 +20,20 @@ export default class extends Controller {
     static targets = ["service", "link"];
 
     connect() {
+        // The account groups (#783) sit above both tabs, outside this
+        // controller: their ticks travel on the links too, read from the form.
+        this.form = this.element.closest("form");
+        this._onGroups = (event) => {
+            if (event.target.matches?.("[data-account-group]")) {
+                this.update();
+            }
+        };
+        this.form?.addEventListener("change", this._onGroups);
         this.update();
+    }
+
+    disconnect() {
+        this.form?.removeEventListener("change", this._onGroups);
     }
 
     update() {
@@ -30,6 +43,13 @@ export default class extends Controller {
             const url = new URL(link.dataset.baseHref, window.location.origin);
 
             ticked.forEach((service) => url.searchParams.append("services[]", service));
+
+            const groups = this.form?.querySelectorAll("[data-account-group]") ?? [];
+
+            if (groups.length > 0) {
+                url.searchParams.set("groups_shown", "1");
+                [...groups].filter((box) => box.checked).forEach((box) => url.searchParams.append("groups[]", box.value));
+            }
 
             link.href = url.pathname + url.search;
             link.toggleAttribute("aria-disabled", 0 === ticked.length);

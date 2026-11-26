@@ -4,21 +4,16 @@ import { acceptConfirm } from "./support/confirm";
 import { TEST_USER } from "./support/config";
 import { choose } from "./support/select";
 import { test } from "./support/test";
+import { only, pane, useWorkspace } from "./support/workspace";
 
 /**
- * The tasks docked beside the mail, and how they share the row with the other two
- * panes: the calendar gives way below a wide monitor, the address book at every
- * width, and a phone gets the page.
+ * The tasks pane: what is done inside it, and its page on a phone.
  *
- * What is under test is the final state after a click settles, as in
- * contacts-pane.spec, because the rule is enforced in two places (tasks--pane, and
- * app.css for the first paint) and only the result says they agree.
+ * Since #755 the pane is one of the workspace's, put beside the list with
+ * useWorkspace() rather than opened with a top-bar button; how panes share the
+ * window is workspaces.spec's.
  */
-const dock = (page: Page) => page.locator("[data-side-pane='tasks']");
-const calendar = (page: Page) => page.locator("[data-side-pane='calendar']");
-const contacts = (page: Page) => page.locator("[data-side-pane='contacts']");
-const toggle = (page: Page) => page.locator("[data-tasks--pane-target='toggle']");
-const contactsToggle = (page: Page) => page.locator("[data-contacts--pane-target='toggle']");
+const dock = (page: Page) => pane(page, "tasks");
 const frame = (page: Page) => page.locator("turbo-frame#tasks-pane-frame");
 const quickAdd = (page: Page) => frame(page).getByRole("textbox", { name: "Add a task" });
 const modal = (page: Page) => page.locator("#modal-backdrop");
@@ -54,7 +49,7 @@ function psql(sql: string): void {
 /** The rest of the transfer test, so a failure halfway still cleans up after it. */
 async function transferAnyway(page: Page, name: string): Promise<void> {
     await page.goto("/mail/inbox");
-    await toggle(page).click();
+    await openTasks(page);
     await openLists(page);
 
     const row = modal(page).locator("[data-task-list]", { hasText: name });
@@ -86,27 +81,19 @@ async function transferAnyway(page: Page, name: string): Promise<void> {
 /** A name no earlier test of this worker's user can have left behind. */
 const unique = (name: string) => `${name} ${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-/** All panes back to closed. The state is server-side on the per-worker user. */
+/**
+ * The tasks beside the list, the page left on the Inbox. At about a quarter of
+ * the row, which is the width the docked pane had and the width these cases were
+ * written against: "far down the list" needs a list long enough to scroll.
+ */
+async function openTasks(page: Page): Promise<void> {
+    await useWorkspace(page, { t: "split", id: "s1", dir: "row", sizes: [3, 1], children: [{ t: "pane", kind: "list" }, { t: "pane", kind: "tasks" }] });
+    await expect(frame(page).getByRole("heading", { name: "Tasks" })).toBeVisible();
+}
+
+/** The list alone again. The workspace is server-side on the per-worker user. */
 async function closeEverything(page: Page): Promise<void> {
-    await page.goto("/mail/inbox");
-    await page.evaluate(async () => {
-        const el = document.querySelector("[data-controller~='tasks--pane']") as HTMLElement | null;
-
-        if (null === el) {
-            return;
-        }
-
-        const post = async (url: string | null, token: string | null, fields: Record<string, string>) => {
-            const body = new FormData();
-            body.append("_token", token ?? "");
-            Object.entries(fields).forEach(([key, value]) => body.append(key, value));
-            await fetch(url ?? "", { method: "POST", body, headers: { "X-Requested-With": "fetch" } });
-        };
-
-        await post(el.getAttribute("data-tasks--pane-state-url-value"), el.getAttribute("data-tasks--pane-token-value"), { open: "0" });
-        await post(el.getAttribute("data-contacts--pane-state-url-value"), el.getAttribute("data-contacts--pane-token-value"), { open: "0" });
-        await post(el.getAttribute("data-ui--split-state-url-value"), el.getAttribute("data-ui--split-token-value"), { mode: "mail" });
-    });
+    await useWorkspace(page, only("list"));
 }
 
 test.describe("tasks pane on a notebook", () => {
@@ -115,55 +102,11 @@ test.describe("tasks pane on a notebook", () => {
     test.beforeEach(async ({ page }) => closeEverything(page));
     test.afterEach(async ({ page }) => closeEverything(page));
 
-    test("the button opens and closes it, and a reload remembers", async ({ page }) => {
-        await page.goto("/mail/inbox");
-        await expect(dock(page)).toBeHidden();
-
-        await toggle(page).click();
-        await expect(dock(page)).toBeVisible();
-        await expect(frame(page).getByRole("heading", { name: "Tasks" })).toBeVisible();
-
-        await page.waitForLoadState("networkidle");
-        await page.reload();
-        await expect(dock(page)).toBeVisible();
-        await expect(toggle(page)).toHaveAttribute("aria-pressed", "true");
-
-        await frame(page).getByRole("button", { name: "Close tasks" }).click();
-        await expect(dock(page)).toBeHidden();
-    });
-
-    test("it stays open with the calendar closed, and takes the calendar's place", async ({ page }) => {
-        await page.goto("/mail/inbox");
-
-        await page.locator("[data-calendar-toggle]").first().click();
-        await expect(calendar(page)).toBeVisible();
-
-        await toggle(page).click();
-        await expect(dock(page)).toBeVisible();
-        await expect(calendar(page)).toBeHidden();
-        await expect(page.locator("[data-mail-column]")).toBeVisible();
-    });
-
-    test("it takes turns with the address book", async ({ page }) => {
-        await page.goto("/mail/inbox");
-
-        await contactsToggle(page).click();
-        await expect(contacts(page)).toBeVisible();
-
-        await toggle(page).click();
-        await expect(dock(page)).toBeVisible();
-        await expect(contacts(page)).toBeHidden();
-
-        await contactsToggle(page).click();
-        await expect(contacts(page)).toBeVisible();
-        await expect(dock(page)).toBeHidden();
-    });
-
     test("quick add, tick off and the modal all stay in the pane", async ({ page }) => {
         const title = unique("Buy stamps");
 
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
         await quickAdd(page).fill(title);
         await quickAdd(page).press("Enter");
 
@@ -201,7 +144,7 @@ test.describe("tasks pane on a notebook", () => {
         const options = frame(page).locator("[data-tasks-quick-options]");
 
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
         await expect(quickAdd(page)).toHaveAttribute("placeholder", "Add a task");
         await expect(options).toBeHidden();
 
@@ -245,7 +188,7 @@ test.describe("tasks pane on a notebook", () => {
         const row = frame(page).locator("[data-task-row]", { hasText: title }).first();
 
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
         await quickAdd(page).fill(title);
         await quickAdd(page).press("Enter");
         await expect(row).toBeVisible();
@@ -289,7 +232,7 @@ test.describe("tasks pane on a notebook", () => {
         const rows = frame(page).locator("[data-task-row]");
 
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
 
         // Slow enough that the next title is typed while the one before is on its way.
         await page.route("**/tasks/quick-add", async (route) => {
@@ -335,7 +278,7 @@ test.describe("tasks pane on a notebook", () => {
         const title = unique("Weekly review");
 
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
         await quickAdd(page).fill(title);
         await quickAdd(page).press("Enter");
 
@@ -371,7 +314,12 @@ test.describe("tasks pane on a notebook", () => {
         // week, which is off My Day: one row here, and it is the finished one.
         const done = frame(page).locator("[data-task-row]", { hasText: title });
 
-        await expect(frame(page).getByText("Completed")).toBeVisible();
+        // Waited for inside Completed, where only the pane that answers the tick
+        // puts it: the tick itself is drawn at once (tasks--tick), and a
+        // Completed group left by earlier tests is there before the answer too.
+        // Going to All before the answer lands lets that answer, My Day, draw
+        // over it.
+        await expect(completed(page).locator("[data-task-row]", { hasText: title })).toBeAttached();
         await openCompleted(page);
 
         await expect(done).toHaveCount(1);
@@ -399,7 +347,7 @@ test.describe("tasks pane on a notebook", () => {
         const title = unique("Pack bags");
 
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
         await quickAdd(page).fill(title);
         await quickAdd(page).press("Enter");
 
@@ -462,7 +410,7 @@ test.describe("tasks pane on a notebook", () => {
     /** Adds a task with these steps, and folds them out. */
     async function taskWithSteps(page: Page, title: string, steps: string[]) {
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
         await quickAdd(page).fill(title);
         await quickAdd(page).press("Enter");
 
@@ -579,9 +527,14 @@ test.describe("tasks pane on a notebook", () => {
         const titles = Array.from({ length: 8 }, (_, index) => unique(`Long list ${index}`));
         const last = titles[titles.length - 1];
 
+        // Eight tasks added and eight deleted, each a round trip and a redraw:
+        // with four workers on one laptop that came to 30 seconds without any
+        // single step being slow.
+        test.slow();
+
         await page.setViewportSize({ width: 1600, height: 520 });
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
 
         for (const title of titles) {
             await quickAdd(page).fill(title);
@@ -671,7 +624,7 @@ test.describe("tasks pane on a notebook", () => {
         const title = unique("Move house");
 
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
         await frame(page).getByRole("button", { name: "New task" }).click();
 
         await modal(page).getByLabel("Title").fill(title);
@@ -723,7 +676,7 @@ test.describe("tasks pane on a notebook", () => {
         const title = unique("Kept by Enter");
 
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
         await quickAdd(page).fill(title);
         await quickAdd(page).press("Enter");
 
@@ -751,7 +704,7 @@ test.describe("tasks pane on a notebook", () => {
         const title = unique("Half typed");
 
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
         await quickAdd(page).fill(title);
         await quickAdd(page).press("Enter");
 
@@ -789,7 +742,7 @@ test.describe("tasks pane on a notebook", () => {
         const title = unique("With a file");
 
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
         await quickAdd(page).fill(title);
         await quickAdd(page).press("Enter");
 
@@ -823,7 +776,7 @@ test.describe("tasks pane on a notebook", () => {
         const title = unique("Read https://example.org/article");
 
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
         await quickAdd(page).fill(title);
         await quickAdd(page).press("Enter");
 
@@ -844,7 +797,7 @@ test.describe("tasks pane on a notebook", () => {
         const name = unique("Garden");
 
         await page.goto("/mail/inbox");
-        await toggle(page).click();
+        await openTasks(page);
 
         // Behind the gear now, not at the foot of the pane.
         await expect(frame(page).getByRole("button", { name: "New list" })).toHaveCount(0);
@@ -918,7 +871,14 @@ test.describe("tasks pane on a notebook", () => {
         await expect(modal(page)).toBeHidden();
 
         // Back on the list, for what deleting it while it is shown does below.
+        // Waited for as the pane's load: the pane may already be on it (a
+        // reload puts it back where it was, #755), and then the link is
+        // current before the redraw it starts — which lands on the menu
+        // opened next and closes it.
+        const shown = frame(page).evaluate((element) => new Promise((resolve) => element.addEventListener("turbo:frame-load", resolve, { once: true })));
+
         await frame(page).getByRole("link", { name: `${name} renamed` }).click();
+        await shown;
         await expect(frame(page).getByRole("link", { name: `${name} renamed` })).toHaveAttribute("aria-current", "page");
 
         await openLists(page);
@@ -959,24 +919,6 @@ test.describe("tasks pane on a notebook", () => {
     });
 });
 
-test.describe("tasks pane on a wide monitor", () => {
-    test.use({ viewport: { width: 1920, height: 1000 } });
-
-    test.beforeEach(async ({ page }) => closeEverything(page));
-    test.afterEach(async ({ page }) => closeEverything(page));
-
-    test("it docks beside the calendar and leaves the mail on screen", async ({ page }) => {
-        await page.goto("/mail/inbox");
-
-        await page.locator("[data-calendar-toggle]").first().click();
-        await toggle(page).click();
-
-        await expect(calendar(page)).toBeVisible();
-        await expect(dock(page)).toBeVisible();
-        await expect(page.locator("[data-mail-column]")).toBeVisible();
-    });
-});
-
 test.describe("tasks on a phone", () => {
     test.use({ viewport: { width: 390, height: 800 } });
 
@@ -988,6 +930,6 @@ test.describe("tasks on a phone", () => {
         const box = await dock(page).boundingBox();
 
         expect(box?.width ?? 0).toBeGreaterThan(340);
-        await expect(page.locator("[data-mail-column]")).toBeHidden();
+        await expect(page.locator("#message-list")).toBeHidden();
     });
 });

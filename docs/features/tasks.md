@@ -3,14 +3,10 @@
 plMail keeps your tasks beside your mail. Every user gets a list of their own to start with, and a
 list can also sync two ways with any CalDAV server that holds tasks, such as Nextcloud Tasks.
 
-Open them with the checklist icon beside the address book in the top bar. The tasks dock beside the
-mail, and the calendar does not have to be open. Drag the edge of the pane to make it wider or
-narrower (or use the arrow keys on the edge; a double-click puts it back). On a phone, **Tasks** in
-the menu opens them at full width.
-
-The tasks take turns with the address book. On a wide monitor (1920 pixels across or more) they can
-sit beside the calendar; on a smaller screen there is room for one pane beside the mail, so opening
-the tasks closes the calendar, and opening the calendar closes the tasks.
+The tasks are one of the panes of your workspace (see [Workspaces](workspaces.md)): add them beside
+the mail, or above or below the calendar, from any pane's **⋯** menu or in edit mode. Drag the gap
+beside the pane to resize it. On a phone, **Tasks** in the menu opens them at full width, as does the
+page `/tasks`.
 
 ## Adding and finishing
 

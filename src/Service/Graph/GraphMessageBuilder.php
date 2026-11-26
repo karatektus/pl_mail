@@ -271,11 +271,7 @@ final class GraphMessageBuilder
             }
 
             $contentId = $this->inlineDetector->normalizeContentId($attachment['contentId'] ?? null);
-            $isInline  = $this->inlineDetector->isInline(
-                true === ($attachment['isInline'] ?? false) ? 'inline' : 'attachment',
-                $contentId,
-                $message->bodyHtml,
-            );
+            $isInline  = $this->inlineDetector->isInline($contentId, $message->bodyHtml);
 
             $part = new MessagePart();
             $part->message     = $message;

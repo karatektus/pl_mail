@@ -465,11 +465,7 @@ final class GmailMessageBuilder
             $size = (int)($part['body']['size'] ?? 0);
 
             $contentId = $this->inlineDetector->normalizeContentId($partHeaders['content-id'] ?? null);
-            $isInline = $this->inlineDetector->isInline(
-                $partHeaders['content-disposition'] ?? null,
-                $contentId,
-                $bodyHtml,
-            );
+            $isInline = $this->inlineDetector->isInline($contentId, $bodyHtml);
 
             $mp = new MessagePart();
             $mp->message     = $message;

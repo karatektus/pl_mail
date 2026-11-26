@@ -6,13 +6,16 @@ What mail is worth a notification, for the whole user and not one device
 one for each label, Primary alone ticked until somebody chooses; and whether a
 browser drops a notification for mail read in the meantime. The boxes are
 applied where the push is sent and by the phone apps; the second choice by the
-service worker, which reads it back when a push arrives. Last, whether the tab
-icon carries the Inbox's unread count (#662), which the page itself draws (see
-assets/tab_icon_count.js).
+service worker, which reads it back when a push arrives. And whether a
+browser's notification names the sender and the subject (#760), which the
+service worker reads back with the words themselves (NewMailNotice). Last,
+whether the tab icon carries the Inbox's unread count (#662), which the page
+itself draws (see assets/tab_icon_count.js).
 
 A plain form that submits on change and redirects, like the Disposal card.
 
 Accepts:
+  showContent   bool
   skipRead      bool
   tabIconCount  bool
   chosen        list<string>   the scopes that are on (NotifyScope keys)
@@ -65,6 +68,21 @@ Accepts:
             </div>
         {% endif %}
     </fieldset>
+
+    <div class="px-4 py-3 border-t border-line flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.notifications.show_content'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.show_content_hint'|trans }}</span>
+        </span>
+
+        {{ seg.control('showContent', [
+            { value: '1', label: 'settings.notifications.on'|trans },
+            { value: '0', label: 'settings.notifications.off'|trans },
+        ], showContent ? '1' : '0', {
+            label:  'settings.notifications.show_content'|trans,
+            action: 'change->ui--auto-submit#submit',
+        }) }}
+    </div>
 
     <div class="px-4 py-3 border-t border-line flex items-start justify-between gap-3">
         <span class="min-w-0">

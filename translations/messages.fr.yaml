@@ -49,6 +49,9 @@ account:
             username: Nom d’utilisateur d’envoi
             username_help: 'Laissez vide pour envoyer avec le nom d’utilisateur ci-dessus.'
         username: Nom d’utilisateur
+    groups:
+        help: "Où ses messages apparaissent et quels espaces l’affichent. Sans coche, il va dans le groupe fourre-tout."
+        legend: "Groupes de comptes"
     mail_purge_queued: 'Suppression du courrier de ce compte dans plMail. Le serveur garde sa copie.'
     oauth:
         calendar_declined: Le compte est connecté, mais l’accès à l’agenda n’a pas été accordé — ses agendas ne seront donc pas synchronisés. Reconnectez-le et cochez l’accès à l’agenda sur l’écran de consentement de Google.
@@ -101,6 +104,7 @@ account:
             jmap_submission: 'L''envoi passe par le serveur JMAP.'
             missing_fields: 'Saisissez d’abord une adresse e-mail et au moins un serveur.'
             missing_password: 'Aucun mot de passe pour le test. Saisissez-en un ci-dessus — dans le formulaire de modification, un champ vide conserve le mot de passe enregistré, que le test ne peut utiliser qu’une fois le compte enregistré.'
+            password_for_new_server: 'Saisissez à nouveau le mot de passe : les serveurs ont changé, et le mot de passe enregistré ne part que vers les serveurs pour lesquels il a été enregistré.'
             pop3_ok: 'Connecté — %count% messages dans la boîte.'
             private_network: 'Ce serveur se trouve sur un réseau privé. Un administrateur doit d''abord l''autoriser dans Admin → Intégrations → Serveurs sur un réseau privé avant que plMail puisse s''y connecter.'
             smtp_none: 'Aucun serveur SMTP configuré — l’envoi est désactivé pour ce compte.'
@@ -282,6 +286,7 @@ admin:
                 embedding: 'Modèle de recherche'
                 missing: 'absent de cet hôte'
                 missing_body: 'Un modèle indiqué ici n’est pas installé sur l’hôte. Téléchargez-le là-bas, ou indiquez-en un qui l’est — d’ici là, toute requête qui le vise échoue.'
+                missing_body_listed: 'Un modèle indiqué ici ne figure pas dans la liste des modèles de l’hôte. Comparez le nom avec ce que l’hôte propose — un nom qu’il ne connaît pas fait échouer chaque requête.'
                 none: 'non défini'
                 resident: 'en mémoire'
             no_history: 'Rien n’a sollicité de modèle sur cette période. Les chiffres apparaîtront dès que ce sera le cas.'
@@ -322,6 +327,7 @@ admin:
                 search: 'Hôte de recherche'
                 writing: 'Hôte du modèle'
             missing_model: 'Cet hôte a répondu, mais il n’a pas : %models%. Téléchargez-les d’abord sur l’hôte.'
+            missing_model_listed: 'Cet hôte a répondu, mais sa liste de modèles ne contient pas : %models%. Comparez les noms avec la liste ci-dessous.'
             no_host: 'Saisissez d’abord une adresse.'
             no_model_list: 'Quelque chose a répondu à cette adresse, mais sans liste de modèles (HTTP %status%). Vérifiez que l’adresse se termine par la version de l’API, généralement /v1. Certains serveurs n’ont pas de liste et fonctionnent quand même ; enregistrez et essayez un brouillon pour le savoir.'
             not_an_api: 'Quelque chose a répondu à cette adresse, mais pas en JSON. C’est généralement une page de connexion ou un proxy, pas l’API.'
@@ -437,6 +443,12 @@ admin:
 
                     Ceci lit l’original stocké de chaque message concerné et rend à la pièce jointe son vrai nom, quand l’original le donne sans ambiguïté. S’exécute aussi tout seul après une mise à jour.
                 summary: 'Rendre leur nom aux pièces jointes stockées sous une somme de contrôle'
+            attachment_unreferenced_inline:
+                explanation: >-
+                    Certaines pièces jointes, comme les fichiers joints dans Apple Mail, étaient marquées « inline » par le logiciel de messagerie de l’expéditeur et stockées comme des images dans le texte. Rien dans le texte ne les affichait, si bien qu’elles n’apparaissaient nulle part : ni puce sous le message, ni trombone dans la liste.
+
+                    Ceci affiche de nouveau chacune de ces parties comme pièce jointe ; les images que le texte affiche vraiment et les invitations restent telles quelles. S’exécute aussi tout seul après une mise à jour.
+                summary: 'Afficher les pièces jointes cachées comme parties en ligne'
             calendars:
                 explanation: >-
                     Chaque nouvel utilisateur reçoit un agenda personnel et un par compte de messagerie. Ceci donne les mêmes agendas aux utilisateurs qui étaient là avant. Il ne fait que combler les manques ; le relancer après avoir ajouté des comptes ne pose pas de problème.
@@ -622,6 +634,7 @@ admin:
         export:
             error:
                 mismatch: 'Les deux mots de passe ne correspondaient pas, rien n’a donc été exporté.'
+                remembered_session: 'Une connexion mémorisée ne peut pas faire cela. Déconnectez-vous, reconnectez-vous et réessayez ; rien n’a été exporté ni modifié.'
                 too_short: 'Ce mot de passe est trop court, rien n’a donc été exporté.'
             heading: 'Exporter la configuration'
             intro: >-
@@ -1284,6 +1297,7 @@ admin:
             issuer_help: 'L’URL de l’émetteur du fournisseur, exactement comme l’indique son document de découverte. Dans Authentik, c’est « OpenID Configuration Issuer » sur la page du fournisseur.'
             password_login_disabled: 'Authentification unique uniquement'
             password_login_disabled_help: 'Masque le formulaire de mot de passe et refuse les connexions par mot de passe : tout le monde passe par le fournisseur. Actif uniquement tant qu’un fournisseur est configuré ici. Vous ne pouvez le cocher qu’après vous être connecté vous-même via le fournisseur, et si le fournisseur tombe en panne, bin/console app:sso:allow-password-login ramène le formulaire. Les mots de passe des clients de messagerie (mots de passe d’application) ne sont pas concernés.'
+            password_login_disabled_locked_help: 'Actif. Seule la console peut le désactiver : bin/console app:sso:allow-password-login. D’ici là, le fournisseur ne peut pas non plus être retiré ici.'
             require_verified_email: 'Ne lier qu’une adresse vérifiée par le fournisseur'
             require_verified_email_help: 'Une première connexion retrouve son compte par l’adresse e-mail. Ne désactivez ceci que là où les gens ne peuvent pas modifier leur propre adresse chez le fournisseur : désactivé, quiconque le peut est en mesure de s’approprier n’importe quel compte qui ne s’est pas encore connecté via le fournisseur.'
             scopes: 'Portées'
@@ -1568,6 +1582,15 @@ attachment:
         zoom_out: Zoom arrière
 calendar:
     # plMail's date-and-time picker; see calendar--when.
+    pane:
+        scope_all: "Tous"
+        scope_all_hint: "Tous les calendriers à l’identique"
+        scope_label: "Quels calendriers"
+        scope_overlay: "+ Autres"
+        scope_overlay_hint: "Les calendriers de cet espace, les autres estompés"
+        scope_workspace: "Espace"
+        scope_workspace_hint: "Seulement les calendriers des comptes de cet espace"
+        show_all: "Afficher tous les calendriers"
     when:
         previous_month: 'Mois précédent'
         next_month: 'Mois suivant'
@@ -1830,6 +1853,8 @@ calendar:
             Le fuseau dans lequel un nouvel événement de cet agenda est créé.
             « Suivre plMail » prend le vôtre, actuellement %zone%. Les événements
             s’affichent toujours à l’heure où ils ont lieu pour vous.
+        workspace: "Espace de travail"
+        workspace_help: "Un calendrier sans compte n’appartient à aucun groupe de comptes : il s’affiche donc dans cet espace de travail. Les espaces couvrant tous les comptes l’affichent aussi."
     grid:
         all_day: Toute la journée
         continues_after: Se poursuit le jour suivant
@@ -1958,13 +1983,6 @@ calendar:
         next: Suivant
         previous: Précédent
     open_day: 'Tout le %date%'
-    pane:
-        close: 'Fermer le calendrier'
-        mode:
-            calendar: Afficher l’agenda en pleine largeur
-            mail: Afficher le courrier
-            split: Afficher l’agenda à côté du courrier
-        resize: Redimensionner l’agenda
     proposal:
         action:
             add: Ajouter à l’agenda
@@ -2096,11 +2114,8 @@ calendar:
         range_day: '%day%'
         range_short: '%start%–%end%'
         range_short_month: '%start%–%end% %month%'
-    upcoming:
-        imminent: Commence dans l’heure
-        later: Plus tard aujourd’hui
-        soon: Dans quelques heures
     view:
+        label: "Vue"
         agenda: Liste
         day: Jour
         monday_week: Semaine
@@ -2918,6 +2933,8 @@ discarded:
         restore: Déplacer vers la boîte de réception
 header:
     search:
+        chip_remove: "Retirer %token%"
+        clear: "Effacer la recherche"
         close: Fermer la recherche
         live:
             status: '%count% conversations correspondantes'
@@ -3104,7 +3121,6 @@ label:
         red: Rouge
         teal: Bleu canard
         violet: Violet
-    empty: Aucune conversation avec ce libellé.
     created: Libellé créé.
     delete:
         already_running: '« %name% » est déjà en cours de suppression.'
@@ -3124,8 +3140,10 @@ label:
     delete_confirm: 'Supprimer le libellé « %name% » ? Il disparaît de tous les comptes. Les messages gardent leurs autres libellés et ne sont pas supprimés.'
     delete_confirm_children: 'Supprimer « %name% » et ses %count% libellé(s) imbriqué(s) ? Ils disparaissent de tous les comptes. Les messages ne sont pas supprimés.'
     deleted: Libellé supprimé.
+    empty: Aucune conversation avec ce libellé.
     error:
         duplicate: Un libellé de ce nom existe déjà ici. Les majuscules n’en font pas un nom différent.
+    filters: "Filtres"
     form:
         account_note:
             new: 'Créé sur %account% uniquement.'
@@ -3165,11 +3183,156 @@ label:
     menu:
         create: Créer
         empty: Aucun libellé pour l’instant.
+    remove_filter: "Retirer le filtre « %name% »"
     updated: Libellé mis à jour.
     visibility:
         hidden: Le libellé est maintenant masqué.
         shown: Le libellé est maintenant visible.
 
+layout:
+    divider: "Redimensionner les volets"
+    divider_hint: "Faites glisser pour redimensionner, double-cliquez pour égaliser"
+    drop:
+        bottom: "Sous %pane%"
+        left: "À gauche de %pane%"
+        replace: "Remplacer %pane%"
+        right: "À droite de %pane%"
+        swap: "Échanger avec %pane%"
+        top: "Au-dessus de %pane%"
+    edit:
+        add_below: "Dessous"
+        add_right: "À droite"
+        cancel: "Annuler"
+        delete: "Supprimer l'espace de travail"
+        delete_confirm: "Supprimer l'espace de travail « %name% » ? Vos autres espaces de travail restent tels quels."
+        grip: "Faites glisser pour déplacer ce volet"
+        hint: "Cliquez sur un volet pour le sélectionner. Faites glisser sa poignée pour le déplacer, ou déposez un volet du plateau sur un bord."
+        kind: "Ce que montre ce volet"
+        name: "Nom de l'espace de travail"
+        percent_high: "%n% % de haut"
+        percent_wide: "%n% % de large"
+        remove: "Retirer le volet"
+        save: "Enregistrer l'espace de travail"
+        title: "Modification"
+        tray: "Ajouter un volet"
+        tray_empty: "Tous les volets sont affichés."
+        tray_hint: "Déposez sur un bord pour scinder, au milieu pour remplacer. Ou cliquez pour l'ajouter à côté du volet sélectionné."
+    menu:
+        all_shown: "Tous les volets sont déjà affichés."
+        close: "Fermer le volet"
+        full_width: "Pleine largeur"
+        label: "Menu du volet"
+        layout: "Disposition"
+        layout_title: "Espaces de travail et dispositions (⌥L)"
+        move: "Déplacer"
+        move_down: "Vers le bas"
+        move_left: "Vers la gauche"
+        move_right: "Vers la droite"
+        move_up: "Vers le haut"
+        restore: "Revenir à la disposition"
+        show_instead: "Afficher à la place"
+        show_instead_heading: "Afficher dans ce volet"
+        split_col: "Scinder en dessous"
+        split_col_heading: "Nouveau volet en dessous"
+        split_row: "Scinder à droite"
+        split_row_heading: "Nouveau volet à droite"
+    pane:
+        calendar: "Agenda"
+        contacts: "Contacts"
+        list: "Liste des messages"
+        message: "Message"
+        tasks: "Tâches"
+    presets:
+        apply: "Utiliser pour cet espace de travail"
+        back: "Retour"
+        edit: "Modifier cet espace de travail"
+        new: "Nouvel espace de travail"
+        save_new: "Enregistrer comme nouvel espace de travail"
+        shape:
+            four: "Quatre"
+            list_stack: "Liste + pile"
+            list_stack_side: "Liste, pile, côté"
+            one: "Un volet"
+            rows: "Dessus et dessous"
+            side: "Côte à côte"
+            three: "Trois colonnes"
+            top_two: "Haut + deux"
+        shapes: "Partir d'une forme"
+        slots: "Quoi va où"
+        workspaces: "Espaces de travail"
+    settings:
+        all_accounts: "Tous les comptes"
+        built_in: "Mail (intégrée)"
+        delete_sidebar: "Supprimer cette barre latérale"
+        duplicate_mail: "Copie de la barre Mail…"
+        edit_groups: "Modifier les groupes de comptes"
+        gone: "(n’existe plus)"
+        group:
+            blocks: "Se remplit tout seul"
+            calendars: "Calendriers"
+            labels: "Libellés"
+            mail: "Mail"
+            other: "Autre"
+            tasks: "Listes de tâches"
+        groups: "Groupes de comptes"
+        groups_help: "Ce que montre cet espace : la liste des messages, Suivis et Non lus, la barre latérale et ses compteurs, et le nombre de nouveautés sur son onglet."
+        heading: "Titre"
+        heading_prompt: "Texte du titre"
+        intro: "Réglages de l’espace « %name% »."
+        live: "auto"
+        mail_clock: "Afficher l’horloge en bas"
+        missing: "Quand cet espace n’a pas de volet pour un lien"
+        missing_edge: "Ajouter le volet sur le bord droit"
+        missing_switch: "Passer à un espace qui en a un"
+        missing_switch_help: "De préférence un espace qui montre le compte du calendrier ou de la liste."
+        move_down: "Descendre"
+        move_up: "Monter"
+        new_name: "Barre latérale %n%"
+        new_sidebar: "Nouvelle barre latérale…"
+        'off': "Non"
+        'on': "Oui"
+        open: "Groupes et barre latérale"
+        remove: "Retirer"
+        save_failed: "Les réglages n’ont pas pu être enregistrés. Rien n’a changé."
+        sidebar: "Barre latérale"
+        sidebar_help: "Les barres latérales sont partagées : en modifier une la modifie dans chaque espace qui l’utilise."
+        sidebar_none: "Pas de barre latérale"
+        target_calendar: "Calendrier"
+        target_default: "par défaut"
+        target_nth: "%kind% %n%"
+        targets: "Les liens de la barre s’ouvrent dans"
+        targets_help: "Cet espace a plusieurs calendriers. Sans choix, les liens s’ouvrent dans le premier."
+        title: "Réglages de l’espace"
+        used_by: "Aussi affichée dans %names% : la modifier ici la modifie là aussi."
+    sidebar:
+        block:
+            accounts: "Comptes et leurs dossiers"
+            calendars: "Tous les calendriers"
+            inboxes: "Boîtes de réception"
+            labels: "Tous les libellés"
+            tasklists: "Toutes les listes de tâches"
+        clock: "Horloge"
+        empty: "Cette barre latérale est vide. Ajoute des lignes dans les réglages de l’espace."
+    tabs:
+        label: "Volets"
+    toast:
+        all_shown: "Tous les volets sont déjà affichés."
+        applied: "Disposition modifiée."
+        at_edge: "Ce volet est déjà sur ce bord."
+        deleted: "« %name% » supprimé."
+        edit_first: "Enregistrez ou annulez d'abord l'espace de travail en cours de modification."
+        no_list: "Cet espace de travail n'a pas de liste des messages, elle est donc affichée en pleine largeur."
+        no_room: "Pas assez de place à côté de %pane%. Agrandissez-le d'abord ou fermez un volet."
+        only_pane: "C'est le seul volet. Choisissez autre chose pour lui avec Afficher à la place."
+        save_failed: "La disposition n'a pas pu être enregistrée. Elle reste ainsi sur cette page ; rechargez pour voir celle enregistrée."
+        saved: "« %name% » enregistré."
+    workspace:
+        first_name: "Courrier"
+        more: "Autres espaces"
+        new: "%count% nouveau(x) depuis ta dernière visite"
+        new_name: "Espace de travail %n%"
+        soon: "Quelque chose commence ici dans l’heure"
+        tabs_label: "Espaces de travail"
 list:
     conversation_view: 'Vue par conversation'
     sort:
@@ -3300,6 +3463,8 @@ message:
             default: 'rien ne l’a désigné comme courrier de masse'
             forum: 'un en-tête de liste de diffusion : '
             gmail: 'Gmail l’a dit : '
+            # A filter's "File in category" chose this built-in tab.
+            filter: "classé ici par l’un de vos filtres"
             own_filter: "classé ici par l’un de vos filtres"
             # A category somebody chose by dragging the conversation onto a tab.
             # Nothing below the first row can move it while this holds.
@@ -3364,6 +3529,9 @@ message:
             to: À
         heading: Message original
         reconstructed: 'Les octets d’origine de ce message n’ont pas été conservés : ceci est une reconstruction à partir des en-têtes stockés et du corps en texte. La structure MIME et toute partie HTML manquent, et il ne sera pas validé par une signature DKIM.'
+    push_notice:
+        several: '{1}1 nouveau message|]1,Inf[ %count% nouveaux messages'
+        unknown_sender: 'Expéditeur inconnu'
     quote:
         hide: Masquer le texte cité
         show: Afficher le texte cité
@@ -3591,7 +3759,6 @@ profile:
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
-    handle: Redimensionner le volet du message
     placeholder: Sélectionnez une conversation pour la lire ici
 
 # Said in a toast when a request fails and there is no better place to say it;
@@ -4963,22 +5130,6 @@ settings:
         test_failed: 'Échec du test de connexion'
         test_ok: 'La connexion fonctionne'
         unavailable_heading: 'Non disponible ici'
-    calendar_behaviour:
-        button: Bouton d’agenda
-        button_hint: 'Les vues que parcourt le bouton de la barre du haut. Une vue qu’il omet n’est pas supprimée : la poignée de redimensionnement y mène toujours.'
-        heading: Comportement
-        option_calendar: Partagé uniquement
-        option_none: Les trois
-        option_split: Pleine largeur uniquement
-        subheading: 'Comment le bouton d’agenda de la barre du haut passe d’une vue à l’autre.'
-    contacts_behaviour:
-        button: 'Bouton Contacts'
-        button_hint: 'Les vues que parcourt le bouton de la barre du haut. Une vue omise n''est pas supprimée : la poignée l''atteint toujours.'
-        heading: 'Comportement'
-        option_contacts: 'À côté du courrier seulement'
-        option_none: 'Les trois'
-        option_split: 'Pleine largeur seulement'
-        subheading: 'Comment le bouton Contacts de la barre du haut passe d’une vue à l’autre.'
     contacts:
         allow_contacts: 'Autoriser les contacts'
         allow_contacts_hint: 'Connecté avant que plMail ne demande les contacts. Reconnectez-vous une fois et autorisez-les : le carnet d’adresses de ce compte apparaîtra ici.'
@@ -5217,6 +5368,16 @@ settings:
         'off': 'Désactivé'
         'on': 'Activé'
         subheading: Si les images qu’un message charge depuis ailleurs attendent qu’on les demande.
+    search_meaning:
+        heading: "Recherche par le sens"
+        subheading: "En plus des mots tapés, trouve aussi les messages sur ce que vous vouliez dire. Votre administrateur décide si c’est disponible."
+    search_scope:
+        heading: "Recherche"
+        hint: "Ajoute l’espace comme filtre (space:Nom) dès que vous tapez. Un retour arrière le retire."
+        label: "Chercher dans l’espace"
+        'off': "Non"
+        'on': "Oui"
+        subheading: "Si la recherche couvre tous les comptes ou commence par l’espace affiché."
     sender_pictures:
         admin_off: 'Votre administrateur n''a pas autorisé ce serveur à rechercher des images sur Internet, ces réglages n''ont donc aucun effet pour l''instant. Votre choix est conservé pour plus tard.'
         bimi: 'Logos d''entreprise'
@@ -5248,17 +5409,16 @@ settings:
             label: Balayer vers la droite
         subheading: Ce que fait un balayage sur une ligne, sur téléphone.
     unified_inboxes:
-        account_label: 'Boîte unifiée pour %account%'
         account_off: 'Courrier désactivé — aucun de ses messages n’est affiché ici tant que vous ne le réactivez pas.'
-        accounts_heading: 'Comptes'
-        accounts_subheading: 'La boîte dans laquelle s’affichent les messages de chaque compte. Un nouveau compte va dans votre première boîte.'
         add: 'Ajouter'
+        add_account: "Ajouter un compte à %group%"
+        add_account_short: "Ajouter un compte"
         created: '« %name% » créée.'
         delete: 'Supprimer %inbox%'
-        delete_confirm: 'Supprimer « %name% » ? Ses comptes passent dans %other%. Aucun message n’est supprimé.'
-        deleted: 'Boîte supprimée. Ses comptes sont maintenant dans la boîte fourre-tout.'
-        heading: 'Boîtes de réception unifiées'
-        hint: 'Chaque boîte affiche les messages des comptes que vous y mettez en une seule liste, avec ses propres onglets. Laissez le nom vide pour utiliser le nom standard.'
+        delete_confirm: "Supprimer « %name% » ? Les comptes qui ne sont dans aucun autre groupe passent dans %other%. Aucun message n’est supprimé."
+        deleted: "Groupe supprimé. Les comptes qui n’étaient que dans ce groupe sont dans le groupe fourre-tout."
+        heading: "Groupes de comptes"
+        hint: "Un groupe affiche les messages de ses comptes comme une seule boîte, avec ses propres onglets. Un compte peut être dans plusieurs groupes ; un nouveau compte va dans le premier. Laissez le nom vide pour utiliser le nom standard."
         icon_label: 'Icône de %inbox%'
         icon_new: 'Icône de la nouvelle boîte'
         last_stays: 'Gardez au moins une boîte à vous.'
@@ -5267,16 +5427,18 @@ settings:
         name_label: 'Nom'
         name_required: 'Une boîte a besoin d’un nom.'
         name_too_long: 'Ce nom est trop long (40 caractères au maximum).'
-        no_accounts: 'Aucun compte de messagerie pour l’instant.'
+        no_accounts_in_group: "Aucun compte pour l’instant."
         not_found: 'Cette boîte n’existe plus.'
-        other_hint: 'Rassemble chaque compte que vous retirez de vos propres boîtes. Elle n’apparaît pas dans la barre latérale tant qu’elle n’en contient aucun.'
-        other_option: 'fourre-tout'
+        other_is_the_rest: "« Autres » contient le reste : placez plutôt le compte dans l’un de vos propres groupes."
+        other_hint: "Accueille chaque compte retiré de son dernier groupe. Il n’apparaît pas dans la barre latérale tant qu’il n’en contient aucun."
         other_stays: 'La boîte fourre-tout ne peut pas être supprimée : les comptes qui ne sont dans aucune de vos boîtes y sont affichés.'
         placeholder: 'p. ex. Travail'
+        remove_account: "Retirer %account% de %group%"
+        remove_to_other: "Retirer %account% de %group% ; il n’est dans aucun autre groupe et passe dans le groupe fourre-tout"
         reorder: 'Glisser pour réordonner'
         save: 'Enregistrer'
         saved: 'Enregistré.'
-        subheading: 'Donnez-leur un nom et une icône, et glissez-les dans l’ordre où la barre latérale les affiche.'
+        subheading: "Chaque groupe est une boîte dans la barre latérale et ce qu’un espace peut afficher. Donnez-leur un nom et une icône, ajoutez-y des comptes et ordonnez-les."
     whats_new:
         heading: 'Nouveautés'
         'off': 'Désactivé'
@@ -5299,6 +5461,7 @@ settings:
             integrations: "Intégrations"
             mail_accounts: "Comptes mail"
             reading_writing: "Lecture et rédaction"
+            search: "Recherche"
         calendar_behaviour: "Comportement de l’agenda"
         calendars: Agendas
         categories: "Catégories et tri"
@@ -5309,11 +5472,12 @@ settings:
         filters: Filtres
         health: 'Santé des comptes'
         health_banner: "Quelque chose demande votre attention — voir Santé des comptes."
-        inboxes: 'Boîtes de réception unifiées'
+        inboxes: "Groupes de comptes"
         insights: Aperçus
         integrations: Intégrations
         labels: Libellés
         layout: "Disposition et commandes"
+        mail_search: "Recherche"
         message_list: 'Liste des messages'
         notifications: Notifications
         profile: Profil
@@ -5357,12 +5521,13 @@ settings:
             list_content: 'pièces jointes puces trombone fichiers libellés expéditeur date heure nombre répondu'
             list_layout: 'lignes une ligne compact dense aperçu empilé largeur'
             list_markers: 'étoile survol avatar pastille compte coin non lu gras'
-            notifications: "push navigateur téléphone son alerte onglet icône favicon non lus nombre épinglé"
+            notifications: "push navigateur téléphone son alerte expéditeur objet onglet icône favicon non lus nombre épinglé"
             password: "connexion identifiant"
             pinning: 'épingler épinglé punaise haut rappel pin'
             profile: "nom avatar photo image"
             read_receipts: "mdn accusé réception confirmation cci bcc copie sauvegarde"
-            reading_pane: "aperçu partagé droite bas"
+            search_meaning: "sémantique sens ia recherche similaire"
+            search_scope: "recherche portée espace space filtre"
             sender_pictures: 'avatar image photo gravatar libravatar bimi logo icône expéditeur'
             sharing: "lien public réservation"
             shortcuts: "clavier touches raccourcis"
@@ -5418,6 +5583,8 @@ settings:
         notify_for_hint: 'Quel courrier déclenche une notification : une case par onglet de la boîte de réception et par libellé. S’applique à tous vos navigateurs et à l’application Android. Si rien n’est coché, aucun courrier ne notifie.'
         'off': 'Désactivé'
         'on': 'Activé'
+        show_content: 'Afficher l’expéditeur et l’objet'
+        show_content_hint: 'Une notification du navigateur indique qui a écrit et l’objet, au lieu de seulement « New mail ». Ils s’affichent alors aussi sur l’écran verrouillé. S’applique à tous vos navigateurs.'
         skip_read: 'Notifier seulement le courrier non lu'
         skip_read_hint: 'Avant d’afficher une notification du navigateur, plMail attend quelques secondes et vérifie si le nouveau courrier est toujours non lu. Si vous l’avez déjà lu ou supprimé, par exemple sur votre téléphone, rien n’est affiché.'
         state_denied: >-
@@ -5437,7 +5604,7 @@ settings:
             Soyez prévenu du nouveau courrier sur cet appareil, même quand plMail est
             fermé.
         tab_icon_count: 'Non-lus sur l’icône de l’onglet du navigateur'
-        tab_icon_count_hint: 'Le nombre de conversations non lues dans votre boîte de réception, tous comptes confondus, dessiné sur l’icône de plMail dans l’onglet du navigateur, pour qu’un onglet épinglé le montre aussi. S’applique à tous vos navigateurs.'
+        tab_icon_count_hint: 'Le nombre de conversations non lues dans votre boîte de réception, le même nombre que dans le titre de l’onglet, dessiné sur l’icône de plMail dans l’onglet du navigateur, pour qu’un onglet épinglé le montre aussi. S’applique à tous vos navigateurs.'
         this_device: Cet appareil
         toggle: Activer les notifications
         toggle_off: Désactiver les notifications
@@ -5458,13 +5625,6 @@ settings:
         subheading: 'Ce avec quoi vous vous connectez. Vous seul pouvez le changer — même un administrateur ne peut pas le définir à votre place.'
         submit: Changer le mot de passe
         submitting: Enregistrement…
-    reading_pane:
-        heading: Volet de lecture
-        hint: 'Désactivé affiche la liste et le message l’un après l’autre. À droite place le message à côté de la liste quand la fenêtre a la place pour les deux — faites glisser le séparateur pour choisir la part de chacun.'
-        label: 'Afficher le message ouvert'
-        off: Désactivé
-        right: À droite
-        subheading: 'Où s’ouvre une conversation : à la place de la liste, ou à côté.'
     security:
         codes:
             copy: Copier les codes
@@ -5710,6 +5870,8 @@ shortcuts:
         anywhere: "Partout"
         conversation: "Dans une conversation"
         list: "Dans une liste"
+        panes: "Volets et espaces de travail"
+        panes_hint: "Alt est ⌥ sur un Mac. Ils fonctionnent aussi avec les raccourcis à une touche désactivés."
     keys:
         archive: "Archiver"
         back: "Revenir à la liste"
@@ -5724,12 +5886,19 @@ shortcuts:
         go_starred: "Aller aux Suivis"
         help: "Afficher cette liste"
         label: "Appliquer le libellé"
+        layout_menu: "Menu Disposition"
         mark_read: "Marquer comme lu"
         mark_unread: "Marquer comme non lu"
         move: "Déplacer vers"
         next: "Descendre d’une conversation"
         next_conversation: "Ouvrir la conversation suivante"
         open: "Ouvrir la conversation en surbrillance"
+        pane_close: "Fermer le volet"
+        pane_focus: "Activer le volet suivant dans ce sens"
+        pane_full_width: "Pleine largeur, et retour"
+        pane_move: "Déplacer le volet dans ce sens"
+        pane_split_below: "Scinder le volet en dessous"
+        pane_split_right: "Scinder le volet à droite"
         pin: 'Épingler ou désépingler'
         previous: "Monter d’une conversation"
         previous_conversation: "Ouvrir la conversation précédente"
@@ -5746,6 +5915,8 @@ shortcuts:
         spam: "Marquer comme spam"
         star: "Suivre ou ne plus suivre"
         undo: "Annuler la dernière action"
+        workspace_edit: "Modifier l'espace de travail"
+        workspace_switch: "Changer d'espace de travail"
     or: "ou"
     switched_off: "Les raccourcis sont désactivés pour vous. Activez-les dans Réglages → Général → Disposition et commandes."
     then: "puis"
@@ -6241,13 +6412,6 @@ contacts:
     no_subject: '(sans objet)'
     notes: Notes
     page: 'Page %page%'
-    pane:
-        close: 'Fermer les contacts'
-        mode:
-            contacts: 'Afficher les contacts en pleine largeur'
-            mail: 'Masquer les contacts'
-            split: 'Afficher les contacts à côté du courrier'
-        resize: 'Redimensionner les contacts'
     pending: 'En attente d’envoi au serveur'
     phone_placeholder: '+33 6 12 34 56 78'
     phonetic: 'Orthographe phonétique'
@@ -6405,6 +6569,11 @@ contacts:
         use_as: 'Utiliser comme…'
         you_placed: 'Placée par vous'
 tasks:
+    pane:
+        scope_label: "Quelles listes"
+        scope_workspace_hint: "Seulement les listes de cet espace de travail"
+        scope_overlay_hint: "Les listes de cet espace, les autres estompées"
+        scope_all_hint: "Toutes les listes à l’identique"
     occurrence_undone: 'Coche annulée.'
     added: 'Tâche ajoutée.'
     completed: 'Tâche terminée.'
@@ -6422,10 +6591,6 @@ tasks:
     read_only: 'Cette liste est en lecture seule : ses tâches ne peuvent pas être modifiées ici.'
     saved: 'Tâche enregistrée.'
     deleted: 'Tâche supprimée.'
-    pane:
-        close: 'Fermer les tâches'
-        resize: 'Redimensionner les tâches'
-        toggle: 'Tâches'
     section:
         loading: 'Chargement…'
         more: 'Afficher plus'
@@ -6501,6 +6666,8 @@ tasks:
         delete_confirm: 'Supprimer « %name% » et toutes ses tâches ?'
         default_hint: 'Les nouvelles tâches arrivent ici si rien d’autre n’a été choisi : cette liste ne peut donc pas être supprimée.'
         synced_hint: 'Cette liste est synchronisée : son nom vient du serveur. La couleur vous appartient.'
+        workspace: "Espace de travail"
+        workspace_help: "Une liste sans compte n’appartient à aucun groupe de comptes : elle s’affiche donc dans cet espace de travail. Les espaces couvrant tous les comptes l’affichent aussi."
         transferred: '%count% tâche déplacée vers « %name% ».|%count% tâches déplacées vers « %name% ».'
     transfer:
         title: 'Transférer vers une liste locale'

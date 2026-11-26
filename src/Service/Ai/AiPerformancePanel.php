@@ -122,6 +122,7 @@ final readonly class AiPerformancePanel
                 'baseUrl'       => $settings->baseUrl,
                 'provider'      => $connection->provider->value,
                 'managesMemory' => $managesMemory,
+                'pullsModels'   => $connection->provider->pullsModels(),
                 'reachable'     => self::answers($probe),
                 'version'       => $probe?->version,
                 'reason'        => $probe?->reason,

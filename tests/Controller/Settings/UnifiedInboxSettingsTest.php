@@ -15,8 +15,9 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
- * Settings → Unified inboxes (#265): the page draws the inboxes and the
- * accounts, and every write goes through the reader's own rows.
+ * Settings → Account groups (#265, #783): the page draws the groups and their
+ * accounts, and every write goes through the reader's own rows. Other is the
+ * rest: nothing is put in it or taken out by hand, and it keeps its name.
  */
 final class UnifiedInboxSettingsTest extends WebTestCase
 {
@@ -60,7 +61,12 @@ final class UnifiedInboxSettingsTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(2, $crawler->filter('[data-unified-inbox]'), 'the first inbox and Other');
-        self::assertCount(1, $crawler->filter('[data-unified-inbox-account="' . $this->account->id . '"] select option[selected]'));
+        $first = $this->inboxes->first($this->user);
+        $other = $this->inboxes->other($this->user);
+
+        self::assertCount(1, $crawler->filter('[data-group-accounts="' . $first->id . '"] [data-group-account="' . $this->account->id . '"]'), 'in the first group by rule');
+        self::assertCount(0, $crawler->filter('[data-group-accounts="' . $other->id . '"] select[name="account"]'), 'nothing is added to Other');
+        self::assertCount(0, $crawler->filter('[data-unified-inbox="' . $other->id . '"] input[type="text"][name="name"]'), 'nor is it renamed');
         self::assertCount(24, $crawler->filter('[data-unified-inbox] [data-inbox-icon-picker]')->first()->filter('input[type=radio]'));
     }
 
@@ -80,14 +86,40 @@ final class UnifiedInboxSettingsTest extends WebTestCase
         self::assertSame('Office', $work->name);
         self::assertSame('building', $work->icon);
 
-        $this->client->request('POST', '/settings/inboxes/account/' . $this->account->id, ['_token' => $token, 'inbox' => (string) $work->id]);
+        // Into Work as well: the first group keeps it.
+        $this->client->request('POST', '/settings/inboxes/' . $work->id . '/accounts', ['_token' => $token, 'account' => (string) $this->account->id, 'do' => 'add']);
         $this->inboxes->reset();
         self::assertSame([$this->account->id], $this->inboxes->accountIdsOf($this->user, $work));
+        self::assertSame([$this->account->id], $this->inboxes->accountIdsOf($this->user, $this->inboxes->first($this->user)));
 
+        // Out of the first: Work alone.
+        $first = $this->inboxes->first($this->user);
+        $this->client->request('POST', '/settings/inboxes/' . $first->id . '/accounts', ['_token' => $token, 'account' => (string) $this->account->id, 'do' => 'remove']);
+        $this->inboxes->reset();
+        self::assertSame([], $this->inboxes->accountIdsOf($this->user, $this->inboxes->first($this->user)));
+        self::assertSame([$this->account->id], $this->inboxes->accountIdsOf($this->user, $work));
+
+        // Work deleted: its last group gone, the account is the rest.
         $this->client->request('POST', '/settings/inboxes/' . $work->id . '/delete', ['_token' => $token]);
         $this->inboxes->reset();
         self::assertNull($this->inboxes->find($this->user, (int) $work->id));
         self::assertSame([$this->account->id], $this->inboxes->accountIdsOf($this->user, $this->inboxes->other($this->user)));
+    }
+
+    public function testOtherTakesNoAccountsByHandAndKeepsItsName(): void
+    {
+        $crawler = $this->client->request('GET', '/settings/inboxes');
+        $token   = (string) $crawler->filter('form[action="/settings/inboxes"] input[name="_token"]')->attr('value');
+        $other   = $this->inboxes->other($this->user);
+
+        $this->client->request('POST', '/settings/inboxes/' . $other->id . '/accounts', ['_token' => $token, 'account' => (string) $this->account->id, 'do' => 'add']);
+        $this->inboxes->reset();
+        self::assertSame([], $this->inboxes->accountIdsOf($this->user, $this->inboxes->other($this->user)));
+
+        $this->client->request('POST', '/settings/inboxes/' . $other->id, ['_token' => $token, 'name' => 'Leftovers', 'icon' => 'star']);
+        $other = static::getContainer()->get(UnifiedInboxRepository::class)->find($other->id);
+        self::assertNull($other?->name, 'Other keeps its own name');
+        self::assertSame('star', $other?->icon, 'its icon is still the reader\'s');
     }
 
     public function testTheOrderIsWrittenAsOneList(): void

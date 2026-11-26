@@ -17,6 +17,8 @@
     <span class="text-sm text-ink-faint truncate">
         {{ message.mailbox ? message.mailbox.name : message.thread.account.email }}
     </span>
+    {# The pane's menu (#755) — see _thread_content.html.twig. #}
+    <span class="ml-auto flex">{% include '_partials/_pane_controls.html.twig' only %}</span>
 </div>
 </div>{# /toolbar #}
 

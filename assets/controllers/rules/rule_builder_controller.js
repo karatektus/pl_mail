@@ -55,6 +55,8 @@ export default class extends Controller {
         actions: Array,
         labels: Array,
         categories: Array,
+        /** The five built-in tabs: {key, name, off} — see MailRuleController::editor(). */
+        builtInCategories: Array,
         integrations: Array,
         previewUrl: String,
         csrf: String,
@@ -71,7 +73,7 @@ export default class extends Controller {
         // stored on the rule, so a saved rule reopened later starts with an
         // empty map and shows ids until something is picked again — see
         // _folderControls() for why the id is what is stored.
-        this._folderLabels = new Map()
+        this._folderNames = new Map()
 
         this.render()
         this.renderActions()
@@ -311,7 +313,7 @@ export default class extends Controller {
                 }
 
                 if (select.value === "fileInCategory") {
-                    this.actions[i].categoryId = this.categoriesValue[0]?.id
+                    Object.assign(this.actions[i], this._categoryTarget(this._categoryChoices({})[0]?.value))
                 }
 
                 this.renderActions()
@@ -352,8 +354,11 @@ export default class extends Controller {
             }
 
             if (action.type === "fileInCategory") {
-                if (0 === this.categoriesValue.length) {
-                    // Every category was deleted since this rule was written.
+                const choices = this._categoryChoices(action)
+                const current = this._categoryKey(action)
+
+                if (0 === choices.length) {
+                    // Tabs off, every category of the reader's own deleted.
                     // Said plainly rather than rendering an empty select that
                     // would store no target and file nothing at run time.
                     const warn = document.createElement("span")
@@ -363,16 +368,16 @@ export default class extends Controller {
                 } else {
                     const target = this._selectElement("flex-1 min-w-[9rem]")
 
-                    for (const category of this.categoriesValue) {
+                    for (const choice of choices) {
                         const o = document.createElement("option")
-                        o.value = String(category.id)
-                        o.textContent = category.name
-                        o.selected = Number(action.categoryId) === category.id
+                        o.value = choice.value
+                        o.textContent = choice.name
+                        o.selected = current === choice.value
                         target.append(o)
                     }
 
                     target.addEventListener("change", () => {
-                        this.actions[i].categoryId = Number(target.value)
+                        this.actions[i] = { type: "fileInCategory", ...this._categoryTarget(target.value) }
                         this.serialise()
                         this.schedulePreview()
                     })
@@ -486,7 +491,7 @@ export default class extends Controller {
             // every render and renumbered when one is removed, while the id is
             // what the label describes.
             if ("" !== label) {
-                this._folderLabels.set(folder, label)
+                this._folderNames.set(folder, label)
             }
         }
 
@@ -523,7 +528,7 @@ export default class extends Controller {
         // paths, "Documents/Invoices", it also reads perfectly well on its own.
         name.textContent = "" === chosen
             ? this._t("folder.default")
-            : (this._folderLabels.get(chosen) ?? chosen)
+            : (this._folderNames.get(chosen) ?? chosen)
         name.title = name.textContent
         readout.append(name)
 
@@ -676,6 +681,43 @@ export default class extends Controller {
     /** Labels a rule may apply or remove — user labels only. */
     _assignableLabels() {
         return this.labelsValue.filter((l) => l.system !== true)
+    }
+
+    /**
+     * What "File in category" offers, as InboxTab keys: the reader's own
+     * categories first — made for filters to file into — then the built-in
+     * tabs that are switched on. The one the action already names stays
+     * listed even when it is off, so the rule does not silently change.
+     */
+    _categoryChoices(action) {
+        const current = this._categoryKey(action)
+
+        return [
+            ...this.categoriesValue.map((c) => ({ value: `c${c.id}`, name: c.name })),
+            ...this.builtInCategoriesValue
+                .filter((c) => c.off !== true || c.key === current)
+                .map((c) => ({ value: c.key, name: c.name })),
+        ]
+    }
+
+    /** The InboxTab key a stored action names: "c5" for {categoryId: 5}, "updates" for {builtIn}. */
+    _categoryKey(action) {
+        if (typeof action.builtIn === "string") {
+            return action.builtIn
+        }
+
+        return action.categoryId === undefined ? "" : `c${action.categoryId}`
+    }
+
+    /** Back from a key to what the action stores. */
+    _categoryTarget(key) {
+        if (typeof key !== "string" || "" === key) {
+            return {}
+        }
+
+        const custom = /^c([1-9][0-9]*)$/.exec(key)
+
+        return null === custom ? { builtIn: key } : { categoryId: Number(custom[1]) }
     }
 
     /** The labels "Move to folder" offers: a folder on one of the accounts. */

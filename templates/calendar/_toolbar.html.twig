@@ -12,7 +12,9 @@ calendar has no ends, so it never does.
 #}
 
 {% set compact = compact|default(false) %}
-{% set paneQuery = compact ? '?pane=1' : '' %}
+{# Which pane a step or a view is for: `1` the first, else a further pane's id
+   (CalendarController::paneId()), so each remembers its own view. #}
+{% set paneQuery = compact ? '?pane=' ~ paneId|default('1') : '' %}
 
 {# Agenda steps a day at a time like day view: it is a rolling list, not a page. #}
 {% set step = view.value == 'month' ? '1 month' : (view.value == 'week' ? '7 days' : '1 day') %}
@@ -49,9 +51,20 @@ calendar has no ends, so it never does.
     frame:     frame|default(null),
 } %}
     {% block toolbar_actions %}
+        {# In a workspace of some account groups (#783): its calendars only,
+           those with the rest faint, or every calendar alike — per pane. The
+           view and day on screen stay: it changes only which calendars the
+           view draws. Folded into a menu, with the views, when the row is
+           short of room. #}
+        {% if compact and (paneScope ?? null) %}
+            {% import '_partials/_pane_switch.html.twig' as paneSwitch %}
+            {{ paneSwitch.scope(viewUrls[view.value], paneScope, frame|default('calendar-pane-frame'), '@max-[36rem]/toolbar:hidden', 'hidden @max-[36rem]/toolbar:block') }}
+        {% endif %}
+
         {# `data-calendar-new-event`: on a narrow month the day chosen under the
            grid is put in this button's URL, so it adds to that day, as the
-           list's own + does (calendar/month_tap_controller.js). #}
+           list's own + does (calendar/month_tap_controller.js). Last of the
+           row's own controls. #}
         <button type="button"
            data-calendar-new-event="{{ path('app_calendar_event_new') }}"
            data-controller="ui--modal"
@@ -63,18 +76,10 @@ calendar has no ends, so it never does.
            title="{{ 'calendar.event.new'|trans }}"
         ><i class="fa-solid fa-plus text-xs" aria-hidden="true"></i></button>
 
-        {# The docked pane's ends — full width or back, and close — the same
-           pair the address book has (#678). Only in the pane: the calendar
-           page is a page, and has nothing to dock back into. The actions are
-           ui--split's, which is on the row this pane is in. #}
+        {# The pane's menu (#755). Only in the pane: the calendar page is a
+           page, and has no workspace to arrange. #}
         {% if compact %}
-            {% include '_partials/_pane_window_controls.html.twig' with {
-                controller:   'ui--split',
-                expandUrl:    path('app_calendar_index'),
-                expandLabel:  'calendar.pane.mode.calendar'|trans,
-                restoreLabel: 'calendar.pane.mode.split'|trans,
-                closeLabel:   'calendar.pane.close'|trans,
-            } only %}
+            {% include '_partials/_pane_controls.html.twig' only %}
         {% endif %}
     {% endblock %}
 {% endembed %}

@@ -582,6 +582,74 @@ final class RemoteDeletionSyncTest extends KernelTestCase
         self::assertNotNull($this->archive->sweptAt);
     }
 
+    /**
+     * #756: the bin emptied from another client, or by the provider's 30-day
+     * clean-out, is refused at first like any mass disappearance, and believed
+     * once the same rows have stayed gone for four sweeps and an hour —
+     * instead of being refused, with a warning, every sweep for ever.
+     */
+    public function testTheBinEmptiedElsewhereIsBelievedOnceItHolds(): void
+    {
+        for ($uid = 1; $uid <= 160; ++$uid) {
+            $this->rowIn($this->trash, MessageIdHelper::mint('bin@example.test'), $uid, 'Bin', $this->thread('Bin'));
+        }
+
+        $this->em->flush();
+
+        self::assertFalse($this->sweep($this->trash, [], now: '2026-08-11 09:00:00'));
+        self::assertFalse($this->sweep($this->trash, [], now: '2026-08-11 09:20:00'));
+        self::assertFalse($this->sweep($this->trash, [], now: '2026-08-11 09:40:00'));
+        self::assertTrue($this->sweep($this->trash, [], now: '2026-08-11 10:00:00'), 'four sweeps over an hour: believed');
+        self::assertNotNull($this->trash->sweptAt);
+        self::assertNull($this->trash->bulkVanishHash, 'and nothing is left waiting');
+    }
+
+    /** Four sweeps inside a few minutes are not an hour. */
+    public function testTheBinNeedsTheHourAsWellAsTheSweeps(): void
+    {
+        for ($uid = 1; $uid <= 160; ++$uid) {
+            $this->rowIn($this->trash, MessageIdHelper::mint('bin@example.test'), $uid, 'Bin', $this->thread('Bin'));
+        }
+
+        $this->em->flush();
+
+        foreach (['09:00', '09:01', '09:02', '09:03', '09:04'] as $minute) {
+            self::assertFalse($this->sweep($this->trash, [], now: '2026-08-11 ' . $minute . ':00'));
+        }
+    }
+
+    /** A different set of rows gone is a different answer, and starts again. */
+    public function testADifferentDisappearanceStartsTheCountAgain(): void
+    {
+        for ($uid = 1; $uid <= 300; ++$uid) {
+            $this->rowIn($this->trash, MessageIdHelper::mint('bin@example.test'), $uid, 'Bin', $this->thread('Bin'));
+        }
+
+        $this->em->flush();
+
+        self::assertFalse($this->sweep($this->trash, range(201, 300), now: '2026-08-11 09:00:00'));
+        self::assertFalse($this->sweep($this->trash, range(201, 300), now: '2026-08-11 09:30:00'));
+        self::assertFalse($this->sweep($this->trash, range(201, 300), now: '2026-08-11 10:00:00'));
+        self::assertFalse($this->sweep($this->trash, range(251, 300), now: '2026-08-11 10:30:00'), 'another set: back to one');
+        self::assertSame(1, $this->trash->bulkVanishSweeps);
+    }
+
+    /** Anywhere but the bin and spam the refusal holds, however long. */
+    public function testTheInboxListingEmptyIsRefusedHoweverLongItHolds(): void
+    {
+        for ($uid = 1; $uid <= 160; ++$uid) {
+            $this->rowIn($this->inbox, MessageIdHelper::mint('bulk@example.test'), $uid, 'Bulk', $this->thread('Bulk'));
+        }
+
+        $this->em->flush();
+
+        foreach (['09:00', '10:00', '11:00', '12:00', '13:00', '14:00'] as $hour) {
+            self::assertFalse($this->sweep($this->inbox, [], now: '2026-08-11 ' . $hour . ':00'));
+        }
+
+        self::assertSame(160, $this->countRowsForAccount());
+    }
+
     // ── UIDVALIDITY ──────────────────────────────────────────────────────
 
     /**

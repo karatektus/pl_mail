@@ -49,6 +49,9 @@ account:
             username: Sending username
             username_help: 'Leave blank to send as the username above.'
         username: Username
+    groups:
+        help: "Where its mail is listed, and which workspaces show it. None ticked puts it in the catch-all group."
+        legend: "Account groups"
     mail_purge_queued: 'Removing this account’s mail from plMail. The server keeps its copy.'
     oauth:
         calendar_declined: The account is connected, but calendar access was not granted — so its calendars will not sync. Reconnect it and tick calendar access on Google's consent screen.
@@ -101,6 +104,7 @@ account:
             jmap_submission: 'Sending goes through the JMAP server.'
             missing_fields: 'Enter an email address and at least one server first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored password, which the test can only use once the account is saved.'
+            password_for_new_server: 'Type the password again: the servers changed, and the stored password only goes to the servers it was saved for.'
             pop3_ok: 'Connected — %count% messages in the mailbox.'
             private_network: 'This server is on a private network. An administrator has to allow it under Admin → Integrations → Servers on a private network before plMail may connect to it.'
             smtp_none: 'No SMTP host configured — sending is disabled for this account.'
@@ -281,6 +285,7 @@ admin:
                 embedding: 'Search model'
                 missing: 'not on this host'
                 missing_body: 'A model named here is not installed on the host. Pull it there, or name one that is — until then every request for it fails.'
+                missing_body_listed: 'A model named here is not in this host’s model list. Check the name against what the host offers — a name it does not know fails every request.'
                 none: 'not set'
                 resident: 'in memory'
             no_history: 'Nothing has asked a model for anything in this window. The numbers appear once something has.'
@@ -321,6 +326,7 @@ admin:
                 search: 'Search host'
                 writing: 'Model host'
             missing_model: 'That host answered, but it is not holding: %models%. Pull them on the host first.'
+            missing_model_listed: 'That host answered, but its model list has no: %models%. Check the names against the list below.'
             no_host: 'Type an address first.'
             no_model_list: 'Something answered at that address, but it has no model list (HTTP %status%). Check that the address ends in the API version, usually /v1. Some servers have no list and still work; save and try a draft to find out.'
             not_an_api: 'Something answered at that address, but not with JSON. That is usually a login page or a proxy, not the API.'
@@ -436,6 +442,12 @@ admin:
 
                     This reads each affected message's stored original and gives the attachment back its real name, where the original names it unambiguously. It also runs by itself after an update.
                 summary: 'Give back their names to attachments stored under a checksum'
+            attachment_unreferenced_inline:
+                explanation: >-
+                    Some attachments, such as files attached in Apple Mail, were marked "inline" by the sender's mail program and stored as pictures inside the text. Nothing in the text showed them, so they appeared nowhere: no chip under the message and no paperclip in the list.
+
+                    This lists every such part as an attachment again; pictures the text really shows, and calendar invites, stay as they are. It also runs by itself after an update.
+                summary: 'Show attachments that were hidden as inline parts'
             calendars:
                 explanation: >-
                     Every new user gets a personal calendar, and one for each mail account. This gives the same calendars to users who were here before that started. It only fills gaps, so running it again after adding accounts is fine.
@@ -616,6 +628,7 @@ admin:
         export:
             error:
                 mismatch: 'The two passwords did not match, so nothing was exported.'
+                remembered_session: 'A remembered sign-in cannot do this. Sign out, sign in again and try once more; nothing was exported or changed.'
                 too_short: 'That password is too short, so nothing was exported.'
             heading: 'Export configuration'
             intro: >-
@@ -1276,6 +1289,7 @@ admin:
             issuer_help: 'The provider''s issuer URL, exactly as its discovery document states it. In Authentik it is the "OpenID Configuration Issuer" on the provider''s page.'
             password_login_disabled: 'Single sign-on only'
             password_login_disabled_help: 'Hides the password form and refuses password sign-ins, so everybody comes in through the provider. Only in force while a provider is set up here. You can tick it only after you have signed in through the provider yourself, and if the provider is ever down, run bin/console app:sso:allow-password-login to bring the form back. Passwords for mail clients (app passwords) are not affected.'
+            password_login_disabled_locked_help: 'In force. Only the console can switch it off: run bin/console app:sso:allow-password-login. Until then the provider cannot be cleared here either.'
             require_verified_email: 'Only link an address the provider has verified'
             require_verified_email_help: 'A first sign-in finds its account by email address. Switch this off only where people cannot edit their own address at the provider: with it off, anybody who can is able to claim any account that has not signed in through the provider yet.'
             scopes: 'Scopes'
@@ -1559,6 +1573,15 @@ attachment:
         zoom_out: Zoom out
 calendar:
     # plMail's date-and-time picker; see calendar--when.
+    pane:
+        scope_all: "All"
+        scope_all_hint: "Every calendar alike"
+        scope_label: "Which calendars"
+        scope_overlay: "+ Others"
+        scope_overlay_hint: "This workspace’s calendars, and the others faint"
+        scope_workspace: "Workspace"
+        scope_workspace_hint: "Only the calendars of this workspace’s accounts"
+        show_all: "Show every calendar"
     when:
         previous_month: 'Previous month'
         next_month: 'Next month'
@@ -1821,6 +1844,8 @@ calendar:
             The zone a new event on this calendar is written in. Follow plMail uses
             your own, currently %zone%. Events always show at the time they
             happen on your clock.
+        workspace: "Workspace"
+        workspace_help: "A calendar without an account has no account group to follow, so it shows in this workspace. Workspaces over every account show it too."
     grid:
         all_day: All day
         continues_after: Carries on into the next day
@@ -1948,13 +1973,6 @@ calendar:
         next: Next
         previous: Previous
     open_day: 'Everything on %date%'
-    pane:
-        close: 'Close the calendar'
-        mode:
-            calendar: Show the calendar full width
-            mail: Show the mail
-            split: Show the calendar beside the mail
-        resize: Resize the calendar
     proposal:
         action:
             add: Add to calendar
@@ -2086,11 +2104,8 @@ calendar:
         range_day: '%day%'
         range_short: '%start%–%end%'
         range_short_month: '%month% %start%–%end%'
-    upcoming:
-        imminent: Starting within the hour
-        later: Coming up today
-        soon: Coming up in a few hours
     view:
+        label: "View"
         agenda: Agenda
         day: Day
         monday_week: Week
@@ -2901,6 +2916,8 @@ discarded:
         restore: Move to inbox
 header:
     search:
+        chip_remove: "Remove %token%"
+        clear: "Clear search"
         close: Close search
         live:
             status: '%count% matching conversations'
@@ -3087,7 +3104,6 @@ label:
         red: Red
         teal: Teal
         violet: Violet
-    empty: No conversations with this label.
     created: Label created.
     delete:
         already_running: '"%name%" is already being deleted.'
@@ -3107,8 +3123,10 @@ label:
     delete_confirm: 'Delete the label "%name%"? It goes from every account. Messages keep their other labels and are not deleted.'
     delete_confirm_children: 'Delete "%name%" and its %count% nested label(s)? They go from every account. Messages are not deleted.'
     deleted: Label deleted.
+    empty: No conversations with this label.
     error:
         duplicate: A label with this name already exists here. Capitals do not make it a different name.
+    filters: "Filters"
     form:
         account_note:
             new: 'Made on %account% only.'
@@ -3148,11 +3166,156 @@ label:
     menu:
         create: Create new
         empty: No labels yet.
+    remove_filter: "Remove the filter “%name%”"
     updated: Label updated.
     visibility:
         hidden: Label is now hidden.
         shown: Label is now visible.
 
+layout:
+    divider: "Resize panes"
+    divider_hint: "Drag to resize, double-click to even out"
+    drop:
+        bottom: "Below %pane%"
+        left: "Left of %pane%"
+        replace: "Replace %pane%"
+        right: "Right of %pane%"
+        swap: "Swap with %pane%"
+        top: "Above %pane%"
+    edit:
+        add_below: "Below"
+        add_right: "Right"
+        cancel: "Cancel"
+        delete: "Delete workspace"
+        delete_confirm: "Delete the workspace “%name%”? Your other workspaces stay as they are."
+        grip: "Drag to move this pane"
+        hint: "Click a pane to select it. Drag its grip to move it, or drop a pane from the tray onto an edge."
+        kind: "What this pane shows"
+        name: "Workspace name"
+        percent_high: "%n%% high"
+        percent_wide: "%n%% wide"
+        remove: "Remove pane"
+        save: "Save workspace"
+        title: "Editing"
+        tray: "Add a pane"
+        tray_empty: "Every pane is on screen."
+        tray_hint: "Drop on an edge to split, in the middle to replace. Or click to add beside the selected pane."
+    menu:
+        all_shown: "Every pane is on screen already."
+        close: "Close pane"
+        full_width: "Full width"
+        label: "Pane menu"
+        layout: "Layout"
+        layout_title: "Workspaces and layouts (⌥L)"
+        move: "Move"
+        move_down: "Down"
+        move_left: "Left"
+        move_right: "Right"
+        move_up: "Up"
+        restore: "Back to the layout"
+        show_instead: "Show instead"
+        show_instead_heading: "Show in this pane"
+        split_col: "Split below"
+        split_col_heading: "New pane below"
+        split_row: "Split right"
+        split_row_heading: "New pane to the right"
+    pane:
+        calendar: "Calendar"
+        contacts: "Contacts"
+        list: "Mail list"
+        message: "Message"
+        tasks: "Tasks"
+    presets:
+        apply: "Use for this workspace"
+        back: "Back"
+        edit: "Edit this workspace"
+        new: "New workspace"
+        save_new: "Save as new workspace"
+        shape:
+            four: "Four"
+            list_stack: "List + stack"
+            list_stack_side: "List, stack, side"
+            one: "One pane"
+            rows: "Above and below"
+            side: "Side by side"
+            three: "Three columns"
+            top_two: "Top + two"
+        shapes: "Start from a shape"
+        slots: "What goes where"
+        workspaces: "Workspaces"
+    settings:
+        all_accounts: "All accounts"
+        built_in: "Mail (built in)"
+        delete_sidebar: "Delete this sidebar"
+        duplicate_mail: "Copy of the Mail sidebar…"
+        edit_groups: "Edit account groups"
+        gone: "(no longer there)"
+        group:
+            blocks: "Grows by itself"
+            calendars: "Calendars"
+            labels: "Labels"
+            mail: "Mail"
+            other: "Other"
+            tasks: "Task lists"
+        groups: "Account groups"
+        groups_help: "What this workspace shows: the mail list, Starred and Unread, the sidebar and its counts, and the new count on its tab."
+        heading: "Heading"
+        heading_prompt: "Text of the heading"
+        intro: "Settings of the workspace “%name%”."
+        live: "live"
+        mail_clock: "Show the clock at the bottom"
+        missing: "When this workspace has no pane for a link"
+        missing_edge: "Add the pane at the right-hand edge"
+        missing_switch: "Switch to a workspace that has one"
+        missing_switch_help: "Preferably one that shows the account the calendar or list belongs to."
+        move_down: "Move down"
+        move_up: "Move up"
+        new_name: "Sidebar %n%"
+        new_sidebar: "New sidebar…"
+        'off': "Off"
+        'on': "On"
+        open: "Groups & sidebar"
+        remove: "Remove"
+        save_failed: "The settings could not be saved. Nothing changed."
+        sidebar: "Sidebar"
+        sidebar_help: "Sidebars are shared: changing one changes it in every workspace that uses it."
+        sidebar_none: "No sidebar"
+        target_calendar: "Calendar"
+        target_default: "default"
+        target_nth: "%kind% %n%"
+        targets: "Sidebar links open in"
+        targets_help: "This workspace has more than one calendar. Without a choice, links open in the first."
+        title: "Workspace settings"
+        used_by: "Also shown in %names%: a change here changes it there too."
+    sidebar:
+        block:
+            accounts: "Accounts and their folders"
+            calendars: "All calendars"
+            inboxes: "Inboxes"
+            labels: "All labels"
+            tasklists: "All task lists"
+        clock: "Clock"
+        empty: "This sidebar is empty. Add rows in the workspace settings."
+    tabs:
+        label: "Panes"
+    toast:
+        all_shown: "Every pane is on screen already."
+        applied: "Layout changed."
+        at_edge: "That pane is already at that edge."
+        deleted: "Deleted “%name%”."
+        edit_first: "Save or cancel the workspace you are editing first."
+        no_list: "This workspace has no mail list, so the list is shown at full width."
+        no_room: "Not enough room beside %pane%. Make it bigger first, or close a pane."
+        only_pane: "This is the only pane. Pick something else for it with Show instead."
+        save_failed: "The layout could not be saved. It stays as it is on this page; reload to see the saved one."
+        saved: "Saved “%name%”."
+    workspace:
+        first_name: "Mail"
+        more: "Other workspaces"
+        new: "%count% new since you were last here"
+        new_name: "Workspace %n%"
+        soon: "Something here starts within the hour"
+        tabs_label: "Workspaces"
 list:
     conversation_view: 'Conversation view'
     sort:
@@ -3272,6 +3435,8 @@ message:
             # difference between them is the finding.
             ai_differs: 'the rules disagree'
             awaiting_resort: 'Being re-filed — you changed how mail is sorted, and this one has not moved yet.'
+            # A filter's "File in category" chose this built-in tab.
+            filter: 'filed there by one of your filters'
             own_filter: 'filed there by one of your filters'
             gmail_overruled: 'not used — you asked plMail to sort this itself'
             in_force: 'this one decides'
@@ -3347,6 +3512,9 @@ message:
             to: To
         heading: Original message
         reconstructed: 'The original bytes of this message were not kept, so this is a reconstruction from the stored headers and the text body. The MIME structure and any HTML part are missing, and it will not verify against a DKIM signature.'
+    push_notice:
+        several: '{1}1 new message|]1,Inf[ %count% new messages'
+        unknown_sender: 'Unknown sender'
     quote:
         hide: Hide quoted text
         show: Show quoted text
@@ -3572,7 +3740,6 @@ profile:
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
-    handle: Resize the message pane
     placeholder: Select a conversation to read it here
 
 # Said in a toast when a request fails and there is no better place to say it;
@@ -4908,22 +5075,6 @@ settings:
         test_failed: 'Connection test failed'
         test_ok: 'Connection is working'
         unavailable_heading: 'Not available here'
-    calendar_behaviour:
-        button: Calendar button
-        button_hint: 'Which views the button in the top bar steps through. A view it leaves out is not removed: the drag handle still reaches it.'
-        heading: Behaviour
-        option_calendar: Split only
-        option_none: All three
-        option_split: Full width only
-        subheading: 'How the calendar button in the top bar moves between views.'
-    contacts_behaviour:
-        button: 'Contacts button'
-        button_hint: 'Which views the button in the top bar steps through. A view it leaves out is not removed: the drag handle still reaches it.'
-        heading: 'Behaviour'
-        option_contacts: 'Beside mail only'
-        option_none: 'All three'
-        option_split: 'Full width only'
-        subheading: 'How the contacts button in the top bar moves between views.'
     contacts:
         allow_contacts: 'Allow contacts'
         allow_contacts_hint: 'Connected before plMail asked for contacts. Sign in once more and allow them, and this account''s address book appears here.'
@@ -5156,6 +5307,16 @@ settings:
         'off': 'Off'
         'on': 'On'
         subheading: Whether pictures that mail loads from elsewhere wait to be asked for.
+    search_meaning:
+        heading: "Search by meaning"
+        subheading: "Besides the words you typed, also find mail about what you meant. Your administrator decides whether it is available."
+    search_scope:
+        heading: "Search"
+        hint: "Adds the workspace as a filter (space:Name) when you start typing. One backspace takes it off."
+        label: "Start search in the workspace"
+        'off': "Off"
+        'on': "On"
+        subheading: "Whether search covers every account or starts with the workspace on screen."
     sender_pictures:
         admin_off: 'Your administrator has not allowed this server to look pictures up on the internet, so these switches do nothing for now. Your choice is kept for when they do.'
         bimi: 'Company logos'
@@ -5186,17 +5347,16 @@ settings:
             label: Swipe right
         subheading: What a swipe across a row does on a phone.
     unified_inboxes:
-        account_label: 'Unified inbox for %account%'
         account_off: 'Mail switched off — none of its mail is listed here until you switch it back on.'
-        accounts_heading: 'Accounts'
-        accounts_subheading: 'Which inbox each account''s mail is listed in. A new account goes into your first inbox.'
         add: 'Add'
+        add_account: "Add an account to %group%"
+        add_account_short: "Add account"
         created: 'Created "%name%".'
         delete: 'Delete %inbox%'
-        delete_confirm: 'Delete "%name%"? Its accounts move to %other%. No mail is deleted.'
-        deleted: 'Inbox deleted. Its accounts are listed in the catch-all inbox now.'
-        heading: 'Unified inboxes'
-        hint: 'Each inbox shows the mail of the accounts you put in it as one list, with its own tabs. Leave a name empty to use the standard one.'
+        delete_confirm: "Delete \"%name%\"? Accounts in no other group move to %other%. No mail is deleted."
+        deleted: "Group deleted. Accounts that were only in it are in the catch-all group now."
+        heading: "Account groups"
+        hint: "A group lists the mail of its accounts as one inbox, with its own tabs. An account can be in several groups; a new account goes into your first. Leave a name empty to use the standard one."
         icon_label: 'Icon for %inbox%'
         icon_new: 'Icon for the new inbox'
         last_stays: 'Keep at least one inbox of your own.'
@@ -5205,16 +5365,18 @@ settings:
         name_label: 'Name'
         name_required: 'An inbox needs a name.'
         name_too_long: 'That name is too long (40 characters at most).'
-        no_accounts: 'No mail accounts yet.'
+        no_accounts_in_group: "No accounts yet."
         not_found: 'That inbox does not exist any more.'
-        other_hint: 'Collects every account you take out of your own inboxes. It stays out of the sidebar while it holds none.'
-        other_option: 'catch-all'
+        other_is_the_rest: "Other holds the rest: put an account in one of your own groups instead."
+        other_hint: "Holds every account you take out of its last group. It stays out of the sidebar while it holds none."
         other_stays: 'The catch-all inbox cannot be deleted: accounts that are in none of your own inboxes are listed there.'
         placeholder: 'e.g. Work'
+        remove_account: "Take %account% out of %group%"
+        remove_to_other: "Take %account% out of %group%; it is in no other group, so it moves to the catch-all one"
         reorder: 'Drag to reorder'
         save: 'Save'
         saved: 'Saved.'
-        subheading: 'Name them, give them an icon and drag them into the order the sidebar shows them in.'
+        subheading: "Each group is an inbox in the sidebar and something a workspace can show. Name them, give them an icon, put accounts in them and drag them into order."
     whats_new:
         heading: 'What''s new'
         'off': 'Off'
@@ -5237,6 +5399,7 @@ settings:
             integrations: "Integrations"
             mail_accounts: "Mail accounts"
             reading_writing: "Reading & writing"
+            search: "Search"
         calendar_behaviour: "Calendar behaviour"
         calendars: Calendars
         categories: "Categories & sorting"
@@ -5247,11 +5410,12 @@ settings:
         filters: Filters
         health: 'Account health'
         health_banner: "Something needs your attention — see Account health."
-        inboxes: 'Unified inboxes'
+        inboxes: "Account groups"
         insights: Insights
         integrations: Integrations
         labels: Labels
         layout: "Layout & controls"
+        mail_search: "Search"
         message_list: 'Message list'
         notifications: Notifications
         profile: Profile
@@ -5295,12 +5459,13 @@ settings:
             list_content: 'attachments chips paperclip files labels sender date time count replied answered'
             list_layout: 'rows one line compact dense preview snippet stacked lines width'
             list_markers: 'star hover avatar disc account corner unread bold'
-            notifications: "push browser phone sound alert tab icon favicon unread count badge pinned"
+            notifications: "push browser phone sound alert sender subject tab icon favicon unread count badge pinned"
             password: "login sign-in"
             pinning: 'pin pinned thumbtack sticky top reminder'
             profile: "name avatar photo picture"
             read_receipts: "mdn receipt confirmation bcc copy backup always"
-            reading_pane: "preview split right bottom"
+            search_meaning: "semantic meaning ai search similar"
+            search_scope: "search scope workspace space filter"
             sender_pictures: 'avatar picture photo gravatar libravatar bimi logo icon sender'
             sharing: "link public booking"
             shortcuts: "keyboard hotkeys keys"
@@ -5355,6 +5520,8 @@ settings:
         notify_for_hint: 'Which mail makes a notification: a box for each inbox tab and each label. Applies to every browser of yours and to the Android app. With nothing ticked, no mail notifies.'
         'off': 'Off'
         'on': 'On'
+        show_content: 'Show sender and subject'
+        show_content_hint: 'A browser notification names who wrote and the subject, instead of only "New mail". They then also show on a locked screen. Applies to every browser of yours.'
         skip_read: 'Only notify for unread mail'
         skip_read_hint: 'Before showing a browser notification, plMail waits a few seconds and checks whether the new mail is still unread. If you have already read or deleted it, for example on your phone, nothing is shown.'
         state_denied: >-
@@ -5373,7 +5540,7 @@ settings:
         subheading: >-
             Get notified of new mail on this device, even when plMail is closed.
         tab_icon_count: 'Unread count on the browser tab icon'
-        tab_icon_count_hint: 'How many conversations in your Inbox are unread, all accounts together, drawn on plMail''s icon in the browser tab, so a pinned tab shows it too. Applies to every browser of yours.'
+        tab_icon_count_hint: 'How many conversations in your Inbox are unread, the same number as the tab title, drawn on plMail''s icon in the browser tab, so a pinned tab shows it too. Applies to every browser of yours.'
         this_device: This device
         toggle: Enable notifications
         toggle_off: Disable notifications
@@ -5394,13 +5561,6 @@ settings:
         subheading: 'What you sign in with. Only you can change it — not even an administrator can set it for you.'
         submit: Change password
         submitting: Saving…
-    reading_pane:
-        heading: Reading pane
-        hint: 'Off shows the list and the message one at a time. Right puts the message beside the list when the window has room for both — drag the divider between them to choose how much each gets.'
-        label: 'Show the open message'
-        off: Off
-        right: Right
-        subheading: 'Where a conversation opens: in place of the list, or beside it.'
     security:
         codes:
             copy: Copy codes
@@ -5673,6 +5833,8 @@ shortcuts:
         anywhere: "Anywhere"
         conversation: "In a conversation"
         list: "In a list"
+        panes: "Panes and workspaces"
+        panes_hint: "Alt is ⌥ on a Mac. These work with single-key shortcuts off too."
     keys:
         archive: "Archive"
         back: "Back to the list"
@@ -5687,12 +5849,19 @@ shortcuts:
         go_starred: "Go to Starred"
         help: "Show this list"
         label: "Label as"
+        layout_menu: "Layout menu"
         mark_read: "Mark as read"
         mark_unread: "Mark as unread"
         move: "Move to"
         next: "Down one conversation"
         next_conversation: "Open the next conversation"
         open: "Open the highlighted conversation"
+        pane_close: "Close the pane"
+        pane_focus: "Focus the next pane that way"
+        pane_full_width: "Full width, and back"
+        pane_move: "Move the pane that way"
+        pane_split_below: "Split the pane below"
+        pane_split_right: "Split the pane right"
         pin: 'Pin or unpin'
         previous: "Up one conversation"
         previous_conversation: "Open the previous conversation"
@@ -5709,6 +5878,8 @@ shortcuts:
         spam: "Mark as spam"
         star: "Star or unstar"
         undo: "Undo the last action"
+        workspace_edit: "Edit the workspace"
+        workspace_switch: "Switch workspace"
     or: "or"
     switched_off: "Shortcuts are switched off for you. Switch them on under Settings → General → Layout & controls."
     then: "then"
@@ -6205,13 +6376,6 @@ contacts:
     no_subject: '(no subject)'
     notes: Notes
     page: 'Page %page%'
-    pane:
-        close: 'Close contacts'
-        mode:
-            contacts: 'Show contacts full width'
-            mail: 'Hide contacts'
-            split: 'Show contacts beside the mail'
-        resize: 'Resize contacts'
     pending: 'Waiting to be sent to the server'
     phone_placeholder: '+1 555 010 2030'
     phonetic: 'Phonetic spelling'
@@ -6369,6 +6533,11 @@ contacts:
         use_as: 'Use as…'
         you_placed: 'You placed this line'
 tasks:
+    pane:
+        scope_label: "Which lists"
+        scope_workspace_hint: "Only this workspace’s task lists"
+        scope_overlay_hint: "This workspace’s lists, and the others faint"
+        scope_all_hint: "Every list alike"
     occurrence_undone: 'Tick undone.'
     added: 'Task added.'
     completed: 'Task completed.'
@@ -6386,10 +6555,6 @@ tasks:
     read_only: 'This list is read-only, so its tasks can''t be changed here.'
     saved: 'Task saved.'
     deleted: 'Task deleted.'
-    pane:
-        close: 'Close tasks'
-        resize: 'Resize the tasks'
-        toggle: 'Tasks'
     section:
         loading: 'Loading…'
         more: 'Show more'
@@ -6465,6 +6630,8 @@ tasks:
         delete_confirm: 'Delete “%name%” and every task on it?'
         default_hint: 'New tasks land here when nothing else was picked, so this list can''t be deleted.'
         synced_hint: 'This list is synced, so its name comes from the server. The colour is yours.'
+        workspace: "Workspace"
+        workspace_help: "A list without an account has no account group to follow, so it shows in this workspace. Workspaces over every account show it too."
         transferred: '%count% task moved to “%name%”.|%count% tasks moved to “%name%”.'
     transfer:
         title: 'Transfer to a local list'

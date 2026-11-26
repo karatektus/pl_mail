@@ -116,7 +116,27 @@ final readonly class NotifyScopes
      */
     public function hasRecentUnread(User $user, ?DateTimeImmutable $now = null): bool
     {
-        $since = ($now ?? new DateTimeImmutable())->modify(sprintf('-%d minutes', self::RECENT_MINUTES));
+        return [] !== $this->recentUnread($user, $now);
+    }
+
+    /**
+     * That recent unread mail itself, newest first — what a notification that
+     * names the sender and the subject is about (#760). The same rule as
+     * hasRecentUnread(), so the two can never disagree about which mail a push
+     * was for.
+     *
+     * $notBefore narrows it to mail stored at or after that moment: the worker
+     * that waits to skip read mail asks again with the newest message of its
+     * first answer, so that mail read on the phone in the meantime is not
+     * stood in for by an older unread letter it was never woken for.
+     *
+     * @return list<Message>
+     */
+    public function recentUnread(User $user, ?DateTimeImmutable $now = null, ?DateTimeImmutable $notBefore = null): array
+    {
+        $since  = ($now ?? new DateTimeImmutable())->modify(sprintf('-%d minutes', self::RECENT_MINUTES));
+        $since  = null !== $notBefore && $notBefore > $since ? $notBefore : $since;
+        $wanted = [];
 
         foreach ($this->messages->findRecentUnreadForUser($user, $since) as $message) {
             if (true === $message->isSetAside()) {
@@ -125,12 +145,14 @@ final readonly class NotifyScopes
 
             foreach ($this->forMessage($message, $message->isInInbox()) as $scope) {
                 if (true === $user->notifiesFor($scope)) {
-                    return true;
+                    $wanted[] = $message;
+
+                    continue 2;
                 }
             }
         }
 
-        return false;
+        return $wanted;
     }
 
     /**

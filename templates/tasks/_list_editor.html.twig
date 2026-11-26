@@ -11,6 +11,8 @@ Accepts:
   query   TaskPaneQuery, where the pane goes back to
   error   string|null
   colors  list<string>, Calendar::COLORS
+  workspaces  array<name, id>, for a list without an account (#783); empty hides it
+  workspace   string|null, the one it is in
 #}
 {% set params = query.toParameters() %}
 {% set managed = list is null or list.isManagedLocally %}
@@ -58,6 +60,19 @@ Accepts:
                     {% endfor %}
                 </div>
             </fieldset>
+
+            {% if workspaces is not empty %}
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-ink" for="task-list-workspace">{{ 'tasks.lists.workspace'|trans }}</label>
+                    <select id="task-list-workspace" name="workspace"
+                            class="w-full rounded-lg border border-line bg-field px-3 py-2 text-sm text-ink">
+                        {% for name, id in workspaces %}
+                            <option value="{{ id }}" {% if id == app.request.request.get('workspace', workspace) %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="mt-1 text-xs text-ink-muted">{{ 'tasks.lists.workspace_help'|trans }}</p>
+                </div>
+            {% endif %}
 
             {% if list and list.lastSyncError %}
                 <div role="status" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">

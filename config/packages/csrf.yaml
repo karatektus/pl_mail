@@ -51,3 +51,16 @@ framework:
             # about a draft the server had thrown away. Stateless, the token is
             # derived rather than stored, so there is nothing left to lose.
             - compose
+            # The page's own fetches (the `csrf-token` meta tag, sent as
+            # X-CSRF-Token by every Stimulus controller that posts: mark read,
+            # archive, star, labels, the sidebar…). A stored token can vanish
+            # while the page still shows it: a page left open past its session, kept
+            # signed in by the remember-me cookie, still carries the token of
+            # the session that expired, and every one of those posts was then
+            # refused — a conversation that would not be marked read, with
+            # "Invalid CSRF token" in the log and nothing on screen. The same
+            # race as compose above takes it too. A cross-site page cannot set
+            # X-CSRF-Token on a request without a preflight this app never
+            # grants, and the origin check refuses what Sec-Fetch-Site or
+            # Origin says came from elsewhere, as it does for the forms.
+            - ajax

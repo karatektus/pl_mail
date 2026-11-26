@@ -322,6 +322,8 @@ framework:
             App\Infrastructure\Messaging\Message\ImportContactsMessage: bulk
             App\Infrastructure\Messaging\Message\ImportCalendarMessage: bulk
             App\Infrastructure\Messaging\Message\ResortRemovedCategoryMessage: bulk
+            # And mail a deleted or changed filter held in a built-in tab (#762).
+            App\Infrastructure\Messaging\Message\RecategoriseMessagesMessage: bulk
             # And so is filing a label's mail into the folder it has just become.
             App\Infrastructure\Messaging\Message\MakeLabelFolderMessage: bulk
             App\Infrastructure\Messaging\Message\MakeLabelTagMessage: bulk

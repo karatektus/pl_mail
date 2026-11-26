@@ -1,0 +1,42 @@
+{#
+_pane_controls.html.twig — the end of a pane's header: the pane menu, and the
+way back from full width (#755).
+
+Every pane carries this, so the same place on every pane splits it, moves it,
+puts something else in it or closes it: the mail list's toolbar, the open
+message's header and its placeholder, the calendar's toolbar, the address
+book's header and the tasks' header. It replaced _pane_window_controls (#678),
+which only the docked panes had and which knew each pane's own controller; the
+menu belongs to layout--workspace, on the shell, and finds its pane by the
+nearest [data-layout-pane] around the button. A pane rendered outside a
+workspace (the /calendar page) has none to find, so the caller leaves this out
+there.
+
+"Back to the layout" is rendered always and shown only on a pane at full
+width, by a rule on the root's data-layout-max (see "Workspaces" in app.css),
+so the first paint is right without a script swapping buttons. Neither shows
+below lg, where the panes are tabs and the tab strip is the control.
+
+After a thin rule, so the pair reads as the window's and not as two more of
+the page's own actions.
+#}
+<span data-pane-controls class="max-lg:hidden flex items-center gap-0.5 shrink-0 pl-1 ml-0.5 border-l border-line">
+    <button type="button"
+            data-pane-restore
+            data-action="layout--workspace#restore"
+            class="icon-btn"
+            aria-label="{{ 'layout.menu.restore'|trans }}"
+            title="{{ 'layout.menu.restore'|trans }}">
+        <i class="fa-solid fa-down-left-and-up-right-to-center text-xs" aria-hidden="true"></i>
+    </button>
+    <button type="button"
+            data-pane-menu-button
+            data-action="layout--workspace#menu"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            class="icon-btn"
+            aria-label="{{ 'layout.menu.label'|trans }}"
+            title="{{ 'layout.menu.label'|trans }}">
+        <i class="fa-solid fa-ellipsis text-sm" aria-hidden="true"></i>
+    </button>
+</span>

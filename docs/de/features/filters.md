@@ -1,4 +1,4 @@
-<!-- translated-from: features/filters.md sha1:e0c61f36acf747367c92f3833295b54e66345d40 -->
+<!-- translated-from: features/filters.md sha1:6b3cfc732265cddef8ae31161d89f33b4e3ad9da -->
 
 # Filter
 
@@ -74,7 +74,7 @@ eintrifft“.
 | **In den Papierkorb** | |
 | **Als Spam markieren** | |
 | **Anhänge speichern in** | Lädt die Anhänge der Nachricht in einen verbundenen Dienst hoch |
-| **In Kategorie ablegen** | Legt die Mail in einem deiner eigenen Posteingangs-Tabs ab. Wird erst angeboten, sobald du einen angelegt hast — siehe [In eigene Tabs ablegen](#in-eigene-tabs-ablegen) |
+| **In Kategorie ablegen** | Legt die Mail in einem Posteingangs-Tab ab: einem deiner eigenen oder einem eingebauten wie Benachrichtigungen — siehe [In einen Tab ablegen](#in-einen-tab-ablegen) |
 
 Mindestens eine Aktion ist Pflicht; ein Filter ohne Aktion täte nichts, und der Editor sagt das
 lieber, als ihn zu speichern.
@@ -190,11 +190,21 @@ ablegen** sagt, ob es die Nachricht ablegen würde, und wenn nicht, warum. Ein F
 mehr lesen lassen, als übersprungen, und bei einer Nachricht im Spam auch jeder Filter, der den Spam
 nicht nennt — so, wie eintreffende Mail sie behandeln würde.
 
-## In eigene Tabs ablegen
+## In einen Tab ablegen
 
-Ein Filter kann Mail in einen Posteingangs-Tab ablegen, den du selbst angelegt hast. Leg den Tab
-zuerst an, unten auf der Karte **Tabs** unter **Einstellungen → Kategorien**; dann füge einen
-Filter hinzu, dessen Aktion **In Kategorie ablegen** ist, und wähle ihn aus. Jede Bedingung
+Ein Filter kann Mail in einen Posteingangs-Tab ablegen: einen der eingebauten oder einen deiner
+eigenen. Für „Amazon kommt zu Benachrichtigungen“ füge einen Filter hinzu, dessen Aktion **In
+Kategorie ablegen** ist, und wähle **Benachrichtigungen**; die Bedingung ist **Absender-Domain ist
+amazon.de**. Ein eingebauter Tab, den du unter **Einstellungen → Kategorien** ausgeschaltet hast,
+wird nicht angeboten, und Mail, die ein Filter dort ablegt, landet wie der Rest dieses Tabs in
+**Allgemein**.
+
+Mail, die ein Filter in einen eingebauten Tab gelegt hat, bleibt dort, bis du den Filter löschst
+oder so änderst, dass er woanders ablegt. Dann wird diese Mail im Hintergrund wieder wie jede andere
+sortiert. Schaltest du den Filter nur aus, bleibt sie, wo sie ist.
+
+Einen eigenen Tab legst du zuerst an, unten auf der Karte **Tabs** unter **Einstellungen →
+Kategorien**; dann wählst du ihn in derselben Aktion aus. Jede Bedingung
 funktioniert. Für „alles von meinen Paketdiensten“ ist es **Absender-Domain ist**, eine Zeile je
 Paketdienst, in einer **Beliebige**-Gruppe:
 
@@ -233,7 +243,9 @@ Was die Aktion ablegt und was nicht:
   hat Vorrang vor beiden.
 - **Nichts außer einem Tab.** Die Aktion fasst keine Labels an, archiviert nicht, verschiebt nichts
   in Spam und markiert nichts als gelesen. Die Android-App zeigt deine Tabs; andere Mail-Apps, die
-  sich per JMAP verbinden, sehen weiterhin die fünf eingebauten Kategorien.
+  sich per JMAP verbinden, sehen weiterhin die fünf eingebauten Kategorien, auch die, die ein Filter
+  gewählt hat. Der Tab wird nicht an den Anbieter übertragen: Gmail im Browser zeigt weiter seine
+  eigene Kategorie.
 
 Eine Konversation steckt in **einem** Tab. Sie steckt in deinem, wenn die neueste Nachricht, die du
 darin **bekommen** hast, dort abgelegt wurde; eine neuere Nachricht, die kein Filter beansprucht,

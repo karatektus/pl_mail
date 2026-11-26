@@ -525,6 +525,13 @@ closes the menu: ui--dropdown closes on a click OUTSIDE it, and a row is inside.
     {% endif %}
     </div>
 
+    {# The pane's menu (#755): the list is a pane of the workspace like any
+       other. Not in a list rendered outside the mailbox shell, which has no
+       workspace — `paneControls` is off there. #}
+    {% if paneControls ?? true %}
+        {% include '_partials/_pane_controls.html.twig' only %}
+    {% endif %}
+
     </div>{# ── end of the controls row ──────────────────────────────────── #}
 
     {# The offer to select past the page. Hidden until every row on screen is

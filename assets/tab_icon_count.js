@@ -26,7 +26,11 @@
  * Settings pages refresh by morphing (turbo-refresh-method), which keeps it.
  */
 
-/** The counts key the icon shows: the reader's whole Inbox, on every page. */
+/**
+ * The counts key the icon shows: the Inbox on every page, the number the
+ * title counts on the Inbox. Of the workspace on screen when it shows only some
+ * account groups (#783), as SidebarCounts scopes every count that spans accounts.
+ */
 export const TAB_ICON_COUNT_KEY = "role:inbox";
 
 const META = 'meta[name="tab-icon-count"]';

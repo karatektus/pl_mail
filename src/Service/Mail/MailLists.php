@@ -28,9 +28,15 @@ final readonly class MailLists
     ) {
     }
 
-    /** Anybody who is not a plMail user — an API token's — gets conversations, the default. */
-    public function for(UserInterface $user): MessageThreadRepository|MessageListRepository
+    /**
+     * Anybody who is not a plMail user — an API token's — gets conversations, the default.
+     *
+     * @param list<int>|null $scope a workspace's accounts (#783); null is every account
+     */
+    public function for(UserInterface $user, ?array $scope = null): MessageThreadRepository|MessageListRepository
     {
-        return $user instanceof User && ListLevel::Email === ListLevel::of($user) ? $this->emails : $this->conversations;
+        $lists = $user instanceof User && ListLevel::Email === ListLevel::of($user) ? $this->emails : $this->conversations;
+
+        return $lists->withScope($scope);
     }
 }

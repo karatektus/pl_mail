@@ -1,23 +1,23 @@
 {#
-tasks/index.html.twig — the tasks at full size: the mailbox, with the mail column
-put away and the tasks dock given the row.
+tasks/index.html.twig — the tasks at full size: the mailbox with the Tasks pane
+at full width (#755).
 
-What a phone gets from the topbar and the drawer, where there is no dock, and what
-a middle click gets anywhere. `data-tasks-full` on the shell is the whole
-difference from a mailbox with the pane open (see app.css), the same shape as
-contacts/_page_shell.html.twig. No list is rendered behind it, and it is said to be
-empty, so one is fetched the first time it is wanted.
+What a phone gets from the drawer and what a middle click gets anywhere.
+`fullPane` is the whole difference from a workspace with the pane at full width:
+it is drawn that way whatever this device remembers, and borrowed for the visit
+when the workspace does not show the tasks at all. No list is rendered behind
+it, and it is said to be empty, so leaving full width here is a visit to the
+mail (layout--workspace's `page` value).
 #}
 {% extends '_layout/_mailbox.html.twig' %}
 
-{% set tasksFull = true %}
+{% set fullPane = 'tasks' %}
 
 {% block title %}{{ 'tasks.title'|trans }}{% endblock %}
 {% block message_list %}{% endblock %}
 {% block inbox_tabs %}{% endblock %}
 {% block list_rendered %}0{% endblock %}
 
-{% block tasks_dock %}
-    {% set tasksPaneBody %}{% include 'tasks/_pane_frame.html.twig' %}{% endset %}
-    {% include '_partials/_tasks_pane.html.twig' with { tasksPaneBody: tasksPaneBody } %}
+{% block tasks_pane_body %}
+    {% include 'tasks/_pane_frame.html.twig' %}
 {% endblock %}

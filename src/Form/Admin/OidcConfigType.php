@@ -63,6 +63,7 @@ final class OidcConfigType extends AbstractType
         $hasSecret = $config instanceof OidcConfig && true === $config->hasClientSecret();
 
         $builder->addEventListener(FormEvents::POST_SUBMIT, $this->assertTheRegistrationIsWhole(...));
+        $builder->addEventListener(FormEvents::PRE_SET_DATA, $this->lockSingleSignOnOnly(...));
 
         $builder
             ->add('issuer', TextType::class, [
@@ -133,6 +134,33 @@ final class OidcConfigType extends AbstractType
                 'help'     => 'admin.sso.field.password_login_disabled_help',
                 'required' => false,
             ]);
+    }
+
+    /**
+     * Once "Single sign-on only" is in force, the web cannot switch it off.
+     *
+     * docs/internals/security-model.md promises that only the console
+     * command undoes it, because an administrator's browser session must not
+     * be able to reopen the password form the setting exists to close. The
+     * box used to be checked only when ticked, so unticking it simply saved.
+     * A disabled field keeps the stored value whatever is submitted, and with
+     * the box still ticked, clearing or half-clearing the provider is refused
+     * by assertTheRegistrationIsWhole() as before.
+     */
+    private function lockSingleSignOnOnly(FormEvent $event): void
+    {
+        $config = $event->getData();
+
+        if (false === $config instanceof OidcConfig || true !== $config->passwordLoginDisabled) {
+            return;
+        }
+
+        $event->getForm()->add('passwordLoginDisabled', CheckboxType::class, [
+            'label'    => 'admin.sso.field.password_login_disabled',
+            'help'     => 'admin.sso.field.password_login_disabled_locked_help',
+            'required' => false,
+            'disabled' => true,
+        ]);
     }
 
     private function assertTheRegistrationIsWhole(FormEvent $event): void

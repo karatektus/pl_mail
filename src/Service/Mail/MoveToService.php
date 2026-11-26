@@ -268,6 +268,32 @@ final readonly class MoveToService
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
+     * The bin's label when any of these messages is in the bin, else spam's
+     * when any is in spam, else null. The bin first: mail somebody marked as
+     * spam and then deleted wears both, and sits in the bin (#486).
+     *
+     * @param list<Message> $messages
+     */
+    private function discardedLabelOf(array $messages): ?Label
+    {
+        $spam = null;
+
+        foreach ($messages as $message) {
+            foreach ($message->labels as $label) {
+                if (LabelRole::Trash === $label->role) {
+                    return $label;
+                }
+
+                if (LabelRole::Spam === $label->role) {
+                    $spam ??= $label;
+                }
+            }
+        }
+
+        return $spam;
+    }
+
+    /**
      * @param non-empty-list<Message> $messages all from one account
      */
     private function moveWithinAccount(array $messages, LabelMove $move): void
@@ -287,6 +313,26 @@ final readonly class MoveToService
         ));
 
         $fromTheBin = true === in_array($leaving?->role, self::DISCARDED, true);
+
+        // From a list with no label of its own — a search, `in:trash …` — the
+        // only thing plan() can take away is the Inbox, and mail in the bin or
+        // spam is not in it: nothing carried the Inbox, so nothing moved, while
+        // the toast said it had (#486). When none of the selection is in the
+        // list's own label but it is in the bin or spam, it leaves from there,
+        // as it would from the bin's own list. Only then: a conversation with
+        // one reply in the bin, moved from the Inbox, leaves that reply where
+        // it is, as before.
+        $special = [LabelRole::Inbox, LabelRole::Trash, LabelRole::Spam];
+
+        if (false === $fromTheBin && [] === $carriers && false === in_array($target->role, $special, true)) {
+            $discarded = $this->discardedLabelOf($messages);
+
+            if (null !== $discarded) {
+                $this->moveWithinAccount($messages, new LabelMove($target, $discarded));
+
+                return;
+            }
+        }
 
         // Out of the bin or out of spam, BOTH come off: a spam mail somebody
         // then deleted carries the two, and one that left Trash still marked

@@ -61,8 +61,9 @@ final class SettingsNavigation
         . '|region|appearance|layout|notifications|whats-new'
         . '|accounts|aliases|health'
         . '|inboxes|message-list|categories|labels|filters|disposal'
+        . '|mail-search'
         . '|reading|compose|signature|templates'
-        . '|calendars|calendar-behaviour|sharing|contacts'
+        . '|calendars|sharing|contacts'
         . '|ai|insights'
         . '|integrations';
 
@@ -146,7 +147,6 @@ final class SettingsNavigation
         'inbox' => ['fa-solid fa-inbox', [
             'inboxes' => [
                 ['card-unified-inboxes', 'settings.unified_inboxes.heading', null],
-                ['card-unified-inbox-accounts', 'settings.unified_inboxes.accounts_heading', null],
             ],
             'message-list' => [
                 ['card-list-preview', 'settings.message_list.preview.heading', null],
@@ -172,9 +172,18 @@ final class SettingsNavigation
                 ['card-disposal', 'settings.disposal.heading', 'settings.search.keywords.disposal'],
             ],
         ]],
+        // Everything about searching mail in one place (#783): where it starts,
+        // and whether it also finds what was meant (AiFeature::Search, whose
+        // switch the Assistant card has as well).
+        'search' => ['fa-solid fa-magnifying-glass', [
+            // Not "search": /settings/search is the settings search itself.
+            'mail-search' => [
+                ['card-search-scope', 'settings.search_scope.heading', 'settings.search.keywords.search_scope'],
+                ['card-search-meaning', 'settings.search_meaning.heading', 'settings.search.keywords.search_meaning'],
+            ],
+        ]],
         'reading_writing' => ['fa-solid fa-pen', [
             'reading' => [
-                ['card-reading-pane', 'settings.reading_pane.heading', 'settings.search.keywords.reading_pane'],
                 ['card-images', 'settings.images.heading', 'settings.search.keywords.images'],
                 ['card-sender-pictures', 'settings.sender_pictures.heading', 'settings.search.keywords.sender_pictures'],
             ],
@@ -193,15 +202,11 @@ final class SettingsNavigation
             'calendars' => [
                 ['card-calendars', 'settings.calendars.heading', 'settings.search.keywords.calendars'],
             ],
-            'calendar-behaviour' => [
-                ['card-calendar-behaviour', 'settings.calendar_behaviour.heading', null],
-            ],
             'sharing' => [
                 ['card-sharing', 'settings.sharing.heading', 'settings.search.keywords.sharing'],
             ],
             'contacts' => [
                 ['card-contacts', 'settings.contacts.heading', 'settings.search.keywords.contacts'],
-                ['card-contacts-behaviour', 'settings.contacts_behaviour.heading', null],
             ],
         ]],
         'assistant' => ['fa-solid fa-wand-magic-sparkles', [

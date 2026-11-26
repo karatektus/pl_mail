@@ -9,6 +9,7 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use App\Repository\Mail\MessageThread\MessageThreadListCriteria;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -69,9 +70,9 @@ class MessageListBadgeRepository extends ServiceEntityRepository
      *
      * @return array<string, int>
      */
-    public function countUnreadPerRole(UserInterface $user): array
+    public function countUnreadPerRole(UserInterface $user, ?array $accountIds = null): array
     {
-        $qb = $this->unread($user)
+        $qb = $this->unread($user, $accountIds)
             ->select('l.role AS role', 'COUNT(DISTINCT m.id) AS unreadCount')
             ->join('m.labels', 'l')
             ->andWhere('l.role IS NOT NULL')
@@ -102,10 +103,12 @@ class MessageListBadgeRepository extends ServiceEntityRepository
      * account, keyed by label id.
      *
      * @return array<int, int>
+     *
+     * @param list<int>|null $accountIds a workspace's accounts (#783); null is all
      */
-    public function countUnreadPerUserLabel(UserInterface $user, ?Account $account = null): array
+    public function countUnreadPerUserLabel(UserInterface $user, ?Account $account = null, ?array $accountIds = null): array
     {
-        $qb = $this->unread($user)
+        $qb = $this->unread($user, null === $account ? $accountIds : null)
             ->select('l.id AS labelId', 'COUNT(DISTINCT m.id) AS unreadCount')
             ->join('m.labels', 'l')
             ->andWhere('l.role IS NULL')
@@ -127,10 +130,14 @@ class MessageListBadgeRepository extends ServiceEntityRepository
         return $counts;
     }
 
-    /** Unread emails wearing any label of the person's own: the LABELS heading. */
-    public function countUnreadInUserLabels(UserInterface $user): int
+    /**
+     * Unread emails wearing any label of the person's own: the LABELS heading.
+     *
+     * @param list<int>|null $accountIds a workspace's accounts (#783); null is all
+     */
+    public function countUnreadInUserLabels(UserInterface $user, ?array $accountIds = null): int
     {
-        $qb = $this->unread($user)
+        $qb = $this->unread($user, $accountIds)
             ->select('COUNT(m.id)')
             ->andWhere('EXISTS (SELECT userLabel.id FROM ' . Label::class . ' userLabel WHERE userLabel MEMBER OF m.labels AND userLabel.role IS NULL)');
 
@@ -140,25 +147,34 @@ class MessageListBadgeRepository extends ServiceEntityRepository
     }
 
     /** Unread starred emails. */
-    public function countUnreadForStarred(UserInterface $user): int
+    public function countUnreadForStarred(UserInterface $user, ?array $accountIds = null): int
     {
-        return (int) $this->unread($user)
+        return (int) $this->unread($user, $accountIds)
             ->select('COUNT(m.id)')
             ->andWhere('m.starredAt IS NOT NULL')
             ->getQuery()
             ->getSingleScalarResult();
     }
 
-    /** The unread emails of the person's accounts with mail on. */
-    private function unread(UserInterface $user): QueryBuilder
+    /**
+     * The unread emails of the person's accounts with mail on, narrowed to a
+     * workspace's accounts when it names some (#783).
+     *
+     * @param list<int>|null $accountIds
+     */
+    private function unread(UserInterface $user, ?array $accountIds = null): QueryBuilder
     {
-        return $this->createQueryBuilder('m')
+        $qb = $this->createQueryBuilder('m')
             ->join('m.account', 'a')
             ->leftJoin('m.thread', 't')
             ->where('a.usr = :user')
             ->andWhere('a.mailEnabled = true')
             ->andWhere('m.seenAt IS NULL')
             ->setParameter('user', $user);
+
+        MessageThreadListCriteria::narrowToAccounts($qb, $accountIds);
+
+        return $qb;
     }
 
     /** Not in the bin — the email's own Trash label. */

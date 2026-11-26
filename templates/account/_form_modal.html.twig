@@ -36,6 +36,31 @@
         {# ── Scrollable body ─────────────────────────────────────────────── #}
         <div class="flex-1 min-h-0 overflow-y-auto">
 
+            {# Which account groups the new account goes into (#783), for both
+               tabs: the IMAP form posts the ticks, the sign-in links carry them
+               (settings--oauth-services). Only with a choice to make — more
+               than one group of the reader's own; the first is ticked, which
+               is where a new account went before it was asked. #}
+            {% set _own = (groups ?? [])|filter(g => not g.isOther) %}
+            {% if _own|length > 1 %}
+                <fieldset class="px-5 pt-5 space-y-1.5" data-account-groups>
+                    <input type="hidden" name="account_groups_shown" value="1">
+                    <legend class="mb-1.5 text-sm font-medium text-ink">{{ 'account.groups.legend'|trans }}</legend>
+                    <div class="flex flex-wrap gap-1.5">
+                        {% for group in _own %}
+                            <label class="settings-chip">
+                                <input type="checkbox" class="sr-only" name="account_groups[]" value="{{ group.id }}"
+                                       data-account-group
+                                       {{ group.id == firstGroup.id ? 'checked' : '' }}>
+                                <i class="fa-solid {{ group.iconCase.cssClass }} text-[11px]" aria-hidden="true"></i>
+                                <span class="truncate max-w-[14rem]">{{ unified_inbox_name(group) }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                    <p class="pt-1 text-xs text-ink-faint">{{ 'account.groups.help'|trans }}</p>
+                </fieldset>
+            {% endif %}
+
             {# IMAP / SMTP panel #}
             <div data-settings--account-form-target="panel" data-panel="imap" class="px-5 py-5 space-y-5">
                 {% include 'account/_fields.html.twig' with { form: form, mode: 'new' } %}

@@ -1,33 +1,14 @@
 {#
-contacts/_pane_actions.html.twig — the end of a contacts page's header: the
-pane's window controls, ↗ full width (↙ back beside the mail when it is) and ×.
-Rendered on the full page as well, which is the same pane
-(contacts/_page_shell.html.twig), where the pair is ↙ and × .
+contacts/_pane_actions.html.twig — the end of a contacts page's header in the
+pane: the pane menu (#755), as every pane in a workspace has it. See
+_partials/_pane_controls.html.twig.
 
-The controls themselves are _partials/_pane_window_controls.html.twig, shared
-with the calendar pane so the two have the same ends (#678). What is the
-address book's own is the ↗'s href.
-
-Included, so it reads `inPane` from contacts/_layout.html.twig.
-
-The way out is the full-width position (contacts--pane#expand, #311): the
-same pane given the row, the mail behind it, the contact as it is. The href
-is for a middle click and a modified one, which are a new tab: the address
-this page was asked for, so a contact open here is the one open there. A page
-rendered WITH the mailbox has no address of its own (it is a sub-request) and
-goes to the list.
+Included, so it reads `inPane` from contacts/_layout.html.twig. Rendered on the
+full page as well, which is the same pane at full width
+(contacts/_page_shell.html.twig).
 #}
 {% if inPane %}
-    {% set pageUrl = true == app.request.attributes.get('_contacts_pane')
-        ? path('app_contacts_list')
-        : app.request.requestUri %}
     <span class="contents" data-contacts-pane-actions>
-        {% include '_partials/_pane_window_controls.html.twig' with {
-            controller:   'contacts--pane',
-            expandUrl:    pageUrl,
-            expandLabel:  'contacts.pane.mode.contacts'|trans,
-            restoreLabel: 'contacts.pane.mode.split'|trans,
-            closeLabel:   'contacts.pane.close'|trans,
-        } only %}
+        {% include '_partials/_pane_controls.html.twig' only %}
     </span>
 {% endif %}

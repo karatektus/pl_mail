@@ -154,16 +154,42 @@ final class AccountSendOrReceiveOnlyTest extends WebTestCase
         $relay->imapHost = null;
         $this->em->flush();
 
+        // The password typed again: a new server is a new place for it to go,
+        // and the stored one only goes to the servers it was saved for
+        // (StoredSecretTarget).
         $this->submitEdit($relay, [
             'account[receiving]' => true,
             'account[imapHost]'  => '127.0.0.1',
             'account[imapPort]'  => '1',
+            'account[password]'  => 'secret',
         ]);
 
         $relay = $this->reload($relay);
 
         self::assertTrue($relay->mailEnabled, 'what "Set up…" sends somebody to the form to do');
         self::assertTrue($relay->sendEnabled);
+    }
+
+    /** A new server with the password left blank is refused, and nothing is saved. */
+    public function testANewServerWithTheStoredPasswordIsRefused(): void
+    {
+        $relay           = MailFixtures::account($this->em, $this->user, mailEnabled: false, sendEnabled: true);
+        $relay->imapHost = null;
+        $this->em->flush();
+
+        $crawler = $this->client->request('GET', sprintf('/account/%d/edit', $relay->id));
+        $form    = $crawler->filter('form[name="account"]')->form();
+
+        $this->fill($form, [
+            'account[receiving]' => true,
+            'account[imapHost]'  => 'attacker.example.net',
+            'account[imapPort]'  => '993',
+        ]);
+
+        $this->client->submit($form);
+
+        self::assertStringContainsString('Type the password again', (string) $this->client->getResponse()->getContent());
+        self::assertNull($this->reload($relay)->imapHost);
     }
 
     public function testSwitchingThePrimarysSendingOffInTheEditFormMovesThePrimary(): void

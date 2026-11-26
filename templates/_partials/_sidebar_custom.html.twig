@@ -1,0 +1,143 @@
+{#
+A sidebar of the user's own (#783): the rows SidebarRows resolved for the
+workspace on screen, drawn with the Mail sidebar's own macros wherever the row
+is one the Mail sidebar has too — a system row, a unified inbox, a label, the
+account list — so a row looks, counts and takes drops the same in either.
+
+What only this sidebar has are calendar and task-list rows. They open in a
+pane rather than in the mail list: layout--workspace#openFromSidebar picks the
+pane (the workspace's target for that kind, else the first of it) and, when
+the workspace has none, switches to one that has or adds one at the edge, as
+the workspace says.
+
+The aside carries the same controller and values as the Mail sidebar's, so
+the badges are kept current by the same counts poll: every count key here is
+one the Mail sidebar uses.
+#}
+{% import '_partials/_sidebar.html.twig' as macros %}
+{% set _drawer = _drawerMode is defined and _drawerMode %}
+{% set _drawerClose = _drawer ? 'click->ui--sidebar-drawer#close' : '' %}
+{% set _sidebar = layout.sidebar %}
+<aside id="{{ _drawer ? 'sidebar-drawer-inner' : 'sidebar' }}"
+       data-controller="ui--sidebar"
+       data-ui--sidebar-counts-url-value="{{ path('app_mail_sidebar_counts') }}"
+       data-ui--sidebar-sequence-value="{{ sidebarCounts.changeSequence }}"
+       data-ui--sidebar-collapse-url-value="{{ path('app_mail_sidebar_section_collapsed') }}"
+       data-ui--sidebar-i18n-value="{{ {
+           unread: 'sidebar.badge.unread'|trans({ '%count%': '%count%' }),
+           total:  'sidebar.badge.total'|trans({ '%count%': '%count%' }),
+       }|json_encode }}"
+       data-sidebar-custom="{{ _sidebar.id }}"
+       class="flex flex-col {{ _drawer ? 'w-56' : 'w-full' }} h-full flex-shrink-0 overflow-hidden pane {{ _drawer ? '' : 'shell-chrome' }}">
+
+    <div class="compose-wrap pane-header flex items-center px-3 border-b border-line">
+        <a href="{{ path('app_compose_new') }}"
+           data-turbo-frame="compose_dock"
+           data-shortcut="compose"
+           data-action="{{ _drawerClose }}"
+           title="{{ 'sidebar.compose'|trans }}"
+           class="compose-link w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-strong text-accent-ink text-sm font-medium rounded-lg px-3 py-row transition-colors">
+            <i class="fa-solid fa-plus w-4 h-4" aria-hidden="true"></i>
+            <span class="rail-hide">{{ 'sidebar.compose'|trans }}</span>
+        </a>
+    </div>
+
+    {# A clock as the last row is pinned under the nav, where the Mail
+       sidebar's sits: the nav is the part that scrolls, so it stays put
+       however long the rows above it grow. Anywhere else it is a row. #}
+    {% set _rows = layout.sidebarRows %}
+    {% set _pinClock = _rows is not empty and (_rows|last).t == 'clock' %}
+    {% if _pinClock %}
+        {% set _rows = _rows|slice(0, _rows|length - 1) %}
+    {% endif %}
+    <nav class="flex-1 overflow-y-auto px-2 py-2 nav-rows text-sm"
+         data-ui--sidebar-target="scroller"
+         data-action="scroll->ui--sidebar#rememberScroll"
+         aria-label="{{ _sidebar.name }}">
+        {% for row in _rows %}
+            {% if row.t == 'head' %}
+                <div class="rail-hide px-3 pt-3 pb-1 text-xs font-medium text-ink-faint truncate">{{ row.text }}</div>
+            {% elseif row.t == 'sys' %}
+                {% if row.row.value == 'inbox' %}
+                    {# The plain Inbox: the workspace's accounts' inbox, which
+                       is what /mail/inbox shows in a scoped workspace. #}
+                    {% set _href = path('app_mail_inbox') %}
+                    <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
+                         data-sidebar-row="inbox"
+                         {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox), null, true) }}>
+                        <a class="flex-1 min-w-0 flex items-center gap-2" data-nav-tier="row" href="{{ _href }}"
+                           {{ macros.list_frame() }} data-ui--sidebar-target="link" data-action="{{ _drawerClose }}" title="{{ 'sidebar.nav.inbox'|trans }}">
+                            <i class="fa-solid fa-inbox w-4" aria-hidden="true"></i>
+                            <span class="rail-hide truncate">{{ 'sidebar.nav.inbox'|trans }}</span>
+                        </a>
+                        {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox), 'role:inbox', path('app_mail_inbox', { unread: 1 })) }}
+                    </div>
+                {% else %}
+                    {{ macros.system_row(row.row, false, _drawerClose) }}
+                {% endif %}
+            {% elseif row.t == 'inbox' %}
+                {{ macros.unified_inbox_row(row.inbox, row.first, false, _drawerClose) }}
+            {% elseif row.t == 'label' %}
+                {{ macros.label_node(row.label, 0, _drawerClose) }}
+            {% elseif row.t == 'acc' %}
+                {% set _href = path('app_mail_account', { account: row.account.id }) %}
+                <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
+                     data-sidebar-row="account">
+                    <a class="flex-1 min-w-0 flex items-center gap-2" data-nav-tier="row" href="{{ _href }}"
+                       {{ macros.list_frame() }} data-ui--sidebar-target="link" data-action="{{ _drawerClose }}" title="{{ row.account.displayAddress }}">
+                        <i class="fa-solid fa-at w-4" aria-hidden="true"></i>
+                        <span class="rail-hide truncate">{{ row.account.name ?: row.account.displayAddress }}</span>
+                    </a>
+                </div>
+            {% elseif row.t == 'accounts' %}
+                <div class="rail-hide px-3 pt-3 pb-1 text-xs font-medium text-ink-faint">{{ 'sidebar.accounts.heading'|trans }}</div>
+                <div id="{{ _drawer ? 'account-list-drawer' : 'account-list' }}" class="nav-rows">
+                    {% include '_partials/_account_list.html.twig' with { _drawerClose: _drawerClose, _idSuffix: _drawer ? '-drawer' : '' } %}
+                </div>
+            {% elseif row.t == 'clock' %}
+                <div class="-mx-2 pt-2">
+                    {% include '_partials/_sidebar_clock.html.twig' with { _drawerClose: _drawerClose } %}
+                </div>
+            {% elseif row.t == 'cal' %}
+                <button type="button"
+                        class="nav-item w-full flex items-center gap-2 px-3 rounded-lg transition-colors text-left hover:bg-hover"
+                        data-nav-tier="row"
+                        data-sidebar-row="calendar"
+                        data-action="layout--workspace#openFromSidebar {{ _drawerClose }}"
+                        data-layout--workspace-kind-param="calendar"
+                        data-layout--workspace-src-param="{{ path('app_calendar_pane') }}"
+                        data-layout--workspace-calendar-param="{{ row.calendar.id }}"
+                        data-layout--workspace-account-param="{{ row.calendar.account ? row.calendar.account.id : 0 }}"
+                        data-layout--workspace-home-param="{{ row.home ?? '' }}"
+                        title="{{ row.calendar.name }}">
+                    <span class="w-4 flex justify-center" aria-hidden="true">
+                        <span class="w-2.5 h-2.5 rounded-full" style="background-color: {{ row.calendar.color }}"></span>
+                    </span>
+                    <span class="rail-hide truncate">{{ row.calendar.name }}</span>
+                </button>
+            {% elseif row.t == 'tasks' %}
+                <button type="button"
+                        class="nav-item w-full flex items-center gap-2 px-3 rounded-lg transition-colors text-left hover:bg-hover"
+                        data-nav-tier="row"
+                        data-sidebar-row="tasks"
+                        data-action="layout--workspace#openFromSidebar {{ _drawerClose }}"
+                        data-layout--workspace-kind-param="tasks"
+                        data-layout--workspace-src-param="{{ path('app_tasks_index', { view: 'lists', list: row.list.id }) }}"
+                        data-layout--workspace-account-param="{{ row.list.account ? row.list.account.id : 0 }}"
+                        data-layout--workspace-home-param="{{ row.home ?? '' }}"
+                        title="{{ row.list.name }}">
+                    <i class="fa-solid fa-list-check w-4" aria-hidden="true"></i>
+                    <span class="rail-hide truncate">{{ row.list.name }}</span>
+                </button>
+            {% endif %}
+        {% endfor %}
+
+        {% if layout.sidebarRows is empty %}
+            <p class="rail-hide px-3 py-2 text-xs text-ink-faint">{{ 'layout.sidebar.empty'|trans }}</p>
+        {% endif %}
+    </nav>
+
+    {% if _pinClock %}
+        {% include '_partials/_sidebar_clock.html.twig' with { _drawerClose: _drawerClose } %}
+    {% endif %}
+</aside>

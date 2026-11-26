@@ -39,6 +39,7 @@ twig:
         # carries a dot (#165). The top bar and the layout read it on every
         # signed-in page, like onboarding above.
         whatsNew: '@App\Twig\WhatsNewGlobal'
+        layout: '@App\Twig\LayoutGlobal'
 
 when@test:
     twig:

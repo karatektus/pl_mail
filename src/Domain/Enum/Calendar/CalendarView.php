@@ -58,7 +58,7 @@ enum CalendarView: string
      * week in a narrow pane is seven slivers and a month grid is worse. Rather
      * than refusing the view — the pane and the page draw the same calendar now,
      * and a pane that offered fewer of them would be the old asymmetry back —
-     * picking one WIDENS the pane to fit it. ui--split does the widening, and
+     * picking one WIDENS the pane to fit it. layout--workspace does the widening, and
      * only ever upward: a user who has dragged their pane wider than this keeps
      * it, and switching back to Day does not take the width away again.
      *

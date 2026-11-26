@@ -11,12 +11,17 @@
     {# Burger — opens the drawer on mobile, collapses to the icon rail on md+.
        aria-expanded is kept in step by ui--sidebar-drawer: the drawer's state
        on a phone, the sidebar's (not railed) above md. #}
+    {# Kept in place but not drawn in a workspace without a sidebar (#783):
+       there is nothing to open or rail, and a gap where it was keeps the bar
+       from shifting on every switch. #}
+    {% set _noSidebar = (workspaceShell ?? false) and app.user and layout.sidebar is null %}
     <button
         type="button"
         data-ui--sidebar-drawer-target="burger"
         aria-controls="sidebar-drawer"
         aria-expanded="false"
-        class="flex items-center justify-center w-9 h-9 max-sm:w-8 max-sm:h-8 rounded-lg
+        {% if _noSidebar %}tabindex="-1" aria-hidden="true"{% endif %}
+        class="{{ _noSidebar ? 'invisible ' : '' }}flex items-center justify-center w-9 h-9 max-sm:w-8 max-sm:h-8 rounded-lg
                text-ink-muted
                hover:bg-hover
                transition-colors flex-shrink-0"
@@ -179,9 +184,30 @@
         data-mail--search-suggest-url-value="{{ path('app_mail_search_suggest') }}"
         data-mail--search-recents-title-value="{{ 'header.search.recents.title'|trans }}"
         data-mail--search-operators-title-value="{{ 'header.search.suggestions.title'|trans }}"
+        {# Search over every account unless it says space:<workspace> (#783);
+           with autoscope on, the box starts with the workspace on screen as
+           that chip — only when the workspace is narrowed to some groups. #}
+        {% if app.user %}
+            data-mail--search-autoscope-value="{{ app.user.searchAutoscope ? 'true' : 'false' }}"
+            data-mail--search-space-value="{{ layout.active.groups is not null ? layout.active.name : '' }}"
+            data-mail--search-spaces-value="{{ layout.workspaces.all|map(w => w.name)|json_encode }}"
+            data-mail--search-chip-remove-value="{{ 'header.search.chip_remove'|trans({ '%token%': '%token%' }) }}"
+        {% endif %}
     >
         <div class="relative">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-sm pointer-events-none" aria-hidden="true"></i>
+            {# The finished operators of the query as chips (#783); the input
+               starts after them. mail--search fills it. #}
+            <div class="search-chips" data-mail--search-target="chips"></div>
+            {# Our own clear (#783), in place of the browser's: that one empties
+               only the typed text — not the chips, not the results — and is
+               drawn in the browser's colours rather than the theme's. #}
+            <button type="button" class="search-clear" hidden
+                    data-mail--search-target="clear"
+                    data-action="mousedown->mail--search#keepFocus click->mail--search#clear"
+                    aria-label="{{ 'header.search.clear'|trans }}" title="{{ 'header.search.clear'|trans }}">
+                <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+            </button>
             <input
                 type="search"
                 name="q"
@@ -246,11 +272,16 @@
            `data-enter` on anything inside it.
 
            No exit either: this closes on Escape, on a pick and on a click
-           elsewhere, and all three are somebody saying "go away". #}
+           elsewhere, and all three are somebody saying "go away".
+
+           From md up it keeps a width of its own (#783): the field shrinks
+           when the top bar fills up — workspace tabs, their counts — and
+           results squeezed to the field's width were unreadable. It is at
+           least as wide as the field, and never wider than the window. #}
         <div
             data-mail--search-target="dropdown"
             data-enter="slide-down"
-            class="hidden absolute left-0 right-0 top-full mt-1 z-50
+            class="hidden absolute left-0 right-0 md:right-auto md:w-[max(100%,36rem)] md:max-w-[calc(100vw-2rem)] top-full mt-1 z-50
                    bg-surface
                    border border-line
                    rounded-pane shadow-xl overflow-hidden"
@@ -350,7 +381,7 @@
             data-ui--modal-src-value="{{ path('app_calendar_soon') }}"
             data-ui--modal-title-value="{{ 'calendar.soon.title'|trans }}"
             data-ui--modal-size-value="wide"
-            class="flex cursor-pointer items-center h-9 max-sm:h-8 rounded-lg
+            class="relative flex cursor-pointer items-center h-9 max-sm:h-8 rounded-lg
                    transition-colors flex-shrink-0
                    text-ink-muted hover:bg-hover
                    {{ clockOnSoon
@@ -362,6 +393,11 @@
                 : 'calendar.soon.title'|trans }}"
         >
             <i class="{{ soonest ? soonest.icon : 'fa-regular fa-clock' }} text-base" aria-hidden="true"></i>
+            {# Something starts or falls due within the hour, in any account
+               (#783). layout--workspace keeps it current with the tabs' counts. #}
+            {% if (workspaceShell ?? false) and app.user %}
+                <span class="soon-dot" data-layout-soon {{ layout.soon ? '' : 'hidden' }} aria-hidden="true"></span>
+            {% endif %}
             {% if clockOnSoon %}
                 <span {{ clockui.attrs() }}
                       data-clock-placement="topbar"
@@ -374,217 +410,70 @@
         </button>
     {% endif %}
 
-    {# ── Calendar ──────────────────────────────────────────────────────
-       Icon only, and here rather than in the sidebar: the sidebar is a
-       list of places mail lives, and a control that slides a panel in and
-       out beside that mail is not one of them — it read as a nav item that
-       did not navigate.
+    {# ── Workspaces (#755) ─────────────────────────────────────────────
+       The user's named layouts, one press each, and the Layout menu with the
+       shapes to start a new one from. They replaced three switches that
+       stepped the calendar, the address book and the tasks through docked,
+       full width and closed; every pane now has its own menu for that, and a
+       workspace is the whole arrangement at once.
 
-       Beside the search box rather than in the right-hand group: it acts on
-       what is below it, not on the account.
-
-       The dot only appears when something is still ahead TODAY, and its
-       colour is how soon. Three bands, not a countdown: a colour you have to
-       read a number off is not a dot. See UpcomingEventIndicator.
-
-       **A three-way switch, not a toggle.** Mail → split → calendar → mail,
-       and it wraps, so three presses always return you to where you were. The
-       middle position is the one that used to be the only one; the third is
-       what made a full-width calendar reachable without navigating to a
-       different page and losing the mail behind it. See CalendarPaneMode, and
-       ui--split, which also arrives at these positions from the drag handle.
-
-       All three icons are rendered and the two that are not current carry
-       `hidden` — the ATTRIBUTE, written by the server and toggled by the
-       controller, not a stylesheet rule. That is deliberate and was learned the
-       hard way: a first version picked the icon with a CSS selector on the
-       shell's mode, and on a stack whose Tailwind build had not been rerun all
-       three drew at once, on top of each other. An icon control has to be right
-       from the markup alone. Same for the accented state, which is two utility
-       classes the controller adds and removes rather than a new rule.
-
-       **User::$calendarSwitchSkip turns it into a two-way switch** (Settings →
-       Calendar → Behaviour): the mail and either the calendar beside it or the
-       calendar full width, the other one skipped. All three icons are still
-       rendered, because the skipped position is one the switch can be found in
-       — a stored split, or a drag of the handle; only where a press leads
-       changes — the label below, and _nextMode() in ui--split.
-
-       Below lg the split position looks like the calendar position — the row
-       cannot hold both — but the switch still has three stops, because the
-       width is not a property of the preference.
-
-       The href is still a real URL so middle-click reaches the page;
-       ui--split#toggle suppresses the navigation.
-
-       ── The first paint ──
-       Inside the mailbox shell the layout is rendered in the REMEMBERED
-       position (see _mailbox.html.twig), so the switch has to be as well. It
-       used to be drawn as `mail` and corrected on connect, and connect comes
-       after the page has been styled, on a full load and on a Turbo visit
-       alike: every desktop load painted the mail icon, then swapped in the
-       split one and faded the accent in, over the 150ms of the
-       `transition-colors` that is here for the hover.
-
-       But the remembered position is only what a desktop shows. Below lg
-       ui--split opens every position on the mail (_isNarrow() is the same
-       boundary as `lg`), so drawing the remembered one there would give a
-       phone an icon and an accent that are about to be taken away: the same
-       fade, moved to the phone. The server cannot know the width; the
-       stylesheet can. So where the two widths disagree the server writes both
-       answers and the breakpoint picks one:
-
-         the mail icon          `lg:hidden`       — below lg only
-         the remembered icon    `hidden lg:flex`  — from lg up only
-         the switch             `lg:bg-accent-soft lg:text-accent` over its
-                                `text-ink-muted`  — accented from lg up only
-
-       ui--split takes those classes off on connect, once it has decided the
-       position for this window, and from then on it is the attribute and the
-       two plain classes above, as before. Nothing selects on the shell's mode:
-       the server picks the icon, the stylesheet only the width.
-
-       Classes rather than the attribute for the two that swap, because the
-       attribute cannot be undone at a breakpoint: Tailwind's preflight makes
-       `[hidden]` `display: none !important`. The icon classes were all in the
-       Tailwind build before the switch used them, so a stack whose build has
-       not been rerun still draws exactly one icon. The two accent classes are
-       new; without them the switch paints muted and fades on connect, which
-       is what it did before.
-
-       Each icon has a wrapper because Font Awesome's own `display` is
-       unlayered and outranks any utility on the <i> itself; only the
-       attribute's !important got past it. The wrapper is `flex` so the icon
-       sits exactly where it did as a flex item of the link.
-
-       Only the shell asks for this (`calendarRestored`). Every other page
-       includes this bar with no pane and no ui--split to take the classes
-       off, so there the switch is `mail`, as it always was. #}
-    {% set upcoming = calendar.upcoming %}
-    {% set paneMode = app.user.calendarPaneMode %}
-    {% set firstPaint = (calendarRestored ?? false) and paneMode.showsCalendar %}
-    {# The wrapper classes of the icons the first paint shows, at one width
-       or both, keyed by mode. An icon missing from here carries the `hidden`
-       attribute. Everything but `flex` is taken off again by ui--split's
-       FIRST_PAINT_ICON; CalendarSwitchFirstPaintTest reads both. #}
-    {% set shownIcons = firstPaint
-        ? { mail: 'flex lg:hidden', (paneMode.value): 'hidden lg:flex' }
-        : { mail: 'flex' } %}
-    <a
-        href="{{ path('app_calendar_index') }}"
-        data-calendar-toggle
-        data-action="click->ui--split#toggle"
-        class="relative flex cursor-pointer items-center justify-center w-9 h-9 max-sm:w-8 max-sm:h-8 rounded-lg
-               transition-colors flex-shrink-0
-               text-ink-muted hover:bg-hover{{ firstPaint ? ' lg:bg-accent-soft lg:text-accent' }}"
-        aria-label="{{ 'sidebar.nav.calendar'|trans }}"
-        title="{{ upcoming
-            ? upcoming.title ~ ' · ' ~ upcoming.startsAt|date(clock.time)
-            : 'sidebar.nav.calendar'|trans }}"
-    >
-        {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarPaneMode').cases() %}
-            {% set shown = shownIcons[candidate.value] ?? null %}
-            <span data-calendar-mode-icon="{{ candidate.value }}"
-                  class="{{ shown ?? 'flex' }}"
-                  {{ shown is null ? 'hidden' }}>
-                <i class="{{ candidate.icon }} text-base" aria-hidden="true"></i>
+       Only in the mailbox shell, where there is a workspace to switch:
+       Settings, the admin panel and the calendar page include this bar too.
+       From lg up only — below it the panes are tabs and one at a time, and a
+       phone's bar has no room for a row of names. The tabs are rebuilt by
+       layout--workspace when a workspace is added, renamed or removed; the
+       markup here is the first paint of the same thing. #}
+    {% if (workspaceShell ?? false) and app.user %}
+        {% set workspaces = layout.workspaces %}
+        <nav class="workspace-tabs" aria-label="{{ 'layout.workspace.tabs_label'|trans }}"
+             data-layout--workspace-target="workspaceTabs">
+            {# The highlight under the active tab, its own element so it can
+               slide from tab to tab (layout--workspace places it). #}
+            <span class="workspace-tab-thumb" data-workspace-thumb aria-hidden="true">
+                {# The switch's glow (app.css, .workspace-glow): a spark's lap
+                   with the twinkles it leaves, at the share of the lap it
+                   passes each, and a bloom. Drawn only while `data-glow` is
+                   set on the strip. #}
+                <span class="workspace-glow">
+                    <svg class="workspace-glow-trace" viewBox="0 0 100 32" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="30" rx="6" ry="6" pathLength="100" vector-effect="non-scaling-stroke"/></svg>
+                    {% for star in [[22, 0, 72], [70, 0, 243], [100, 50, 396], [62, 100, 576], [18, 100, 738], [0, 45, 846]] %}
+                        <span class="workspace-glow-star" style="left: {{ star[0] }}%; top: {{ star[1] }}%; --at: {{ star[2] }}ms"><svg viewBox="0 0 10 10"><path d="M5 0 6 4 10 5 6 6 5 10 4 6 0 5 4 4Z" fill="currentColor"/></svg></span>
+                    {% endfor %}
+                    <span class="workspace-glow-bloom"></span>
+                </span>
             </span>
-        {% endfor %}
-
-        {# What pressing this does next, which is the only part of the control a
-           screen reader cannot get from the icon. The three names are rendered
-           once, translated, and the controller copies the right one into the
-           live label — so the strings exist in the template and not in the
-           JavaScript. #}
-        <span class="sr-only" data-calendar-mode-label>{{ paneMode.nextTransKey(app.user.calendarSwitchSkip)|trans }}</span>
-        <span hidden>
-            {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarPaneMode').cases() %}
-                <span data-calendar-mode-name="{{ candidate.value }}">{{ ('calendar.pane.mode.' ~ candidate.value)|trans }}</span>
+            {# Each other workspace's "new" count, and a dot when something in
+               it is about to happen (#783, WorkspaceNews). layout--workspace
+               draws the same from its poll. #}
+            {% set _news = layout.news %}
+            {% for space in workspaces.all %}
+                {% set _n = _news[space.id] ?? null %}
+                <button type="button"
+                        class="workspace-tab"
+                        data-action="layout--workspace#switch pointerenter->layout--workspace#prefetch focus->layout--workspace#prefetch pointerleave->layout--workspace#cancelPrefetch"
+                        data-layout--workspace-index-param="{{ loop.index0 }}"
+                        aria-pressed="{{ loop.index0 == workspaces.activeIndex ? 'true' : 'false' }}">
+                    <span class="truncate">{{ space.name }}</span>
+                    {% if _n and _n.count > 0 %}
+                        <span class="workspace-new" title="{{ 'layout.workspace.new'|trans({ '%count%': _n.count }) }}">{{ _n.count > 99 ? '99+' : _n.count }}</span>
+                    {% elseif _n and _n.soon %}
+                        <span class="workspace-soon" title="{{ 'layout.workspace.soon'|trans }}" aria-hidden="true"></span>
+                    {% endif %}
+                </button>
             {% endfor %}
-        </span>
-
-        {% if upcoming %}
-            <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full
-                         ring-2 ring-surface
-                         {{ {
-                             'imminent': 'bg-danger',
-                             'soon':     'bg-warning',
-                             'later':    'bg-success',
-                         }[upcoming.state] ?? 'bg-success' }}"
-                  aria-hidden="true"></span>
-            <span class="sr-only">
-                {{ ('calendar.upcoming.' ~ upcoming.state)|trans }}
-            </span>
-        {% endif %}
-    </a>
-
-    {# ── Contacts ──────────────────────────────────────────────────────
-       The address book, beside the calendar switch: both are the
-       non-mail half of the "all in one" system. Hidden on a phone, where
-       the bar has no room (it is in the drawer there).
-
-       On the mailbox it steps the address book through its positions —
-       closed, beside the mail, full width (contacts--pane, on the shell);
-       everywhere else, below lg, and on a middle click it is the link to
-       /contacts it looks like.
-       Accented for its first paint from lg up only, as the calendar
-       switch is, because below lg there is no dock to be open; the
-       controller takes those classes off once it has drawn its own. #}
-    {% set contactsDocked = calendarRestored is defined and app.user and app.user.contactsPaneOpen %}
-    {% set contactsMode = contactsDocked ? app.user.contactsPaneMode : enum('App\\Domain\\Enum\\Contacts\\ContactsPaneMode').Mail %}
-    {% set contactsSkip = app.user ? app.user.contactsSwitchSkip : enum('App\\Domain\\Enum\\Contacts\\ContactsSwitchSkip').None %}
-    {# Three positions since #311, the calendar switch's way: one icon per
-       position, the one for where it is shown (from lg, on first paint; the
-       controller draws it from then on), and the names of all three for the
-       label, which says what the next press does. #}
-    {% set contactsIcons = contactsDocked
-        ? { mail: 'flex lg:hidden', (contactsMode.value): 'hidden lg:flex' }
-        : { mail: 'flex' } %}
-    <a
-        href="{{ path('app_contacts_list') }}"
-        data-contacts--pane-target="toggle"
-        data-action="click->contacts--pane#toggle"
-        class="max-md:hidden flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
-               transition-colors flex-shrink-0
-               text-ink-muted hover:bg-hover
-               {{ contactsDocked ? 'lg:bg-accent-soft lg:text-accent' : '' }}"
-        aria-label="{{ contactsMode.nextTransKey(contactsSkip)|trans }}"
-        title="{{ contactsMode.nextTransKey(contactsSkip)|trans }}"
-    >
-        {% for candidate in enum('App\\Domain\\Enum\\Contacts\\ContactsPaneMode').cases() %}
-            {% set shown = contactsIcons[candidate.value] ?? null %}
-            <span data-contacts-mode-icon="{{ candidate.value }}"
-                  class="{{ shown ?? 'flex' }}"
-                  {{ shown is null ? 'hidden' }}>
-                <i class="{{ candidate.icon }} text-base" aria-hidden="true"></i>
-            </span>
-        {% endfor %}
-        <span hidden>
-            {% for candidate in enum('App\\Domain\\Enum\\Contacts\\ContactsPaneMode').cases() %}
-                <span data-contacts-mode-name="{{ candidate.value }}">{{ ('contacts.pane.mode.' ~ candidate.value)|trans }}</span>
-            {% endfor %}
-        </span>
-    </a>
-
-    {# ── Tasks ─────────────────────────────────────────────────────────
-       Beside the address book, for the same reasons and on the same terms: on
-       the mailbox it opens and closes the tasks (tasks--pane, on the shell);
-       everywhere else, below lg, and on a middle click it is the link to /tasks
-       it looks like. Hidden on a phone, where it is in the drawer. #}
-    {% set tasksDocked = calendarRestored is defined and app.user and app.user.tasksPaneOpen %}
-    <a
-        href="{{ path('app_tasks_index') }}"
-        data-tasks--pane-target="toggle"
-        data-action="click->tasks--pane#toggle"
-        class="max-md:hidden flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
-               transition-colors flex-shrink-0
-               text-ink-muted hover:bg-hover
-               {{ tasksDocked ? 'lg:bg-accent-soft lg:text-accent' : '' }}"
-        aria-label="{{ 'tasks.pane.toggle'|trans }}"
-        title="{{ 'tasks.pane.toggle'|trans }}"
-    >
-        <i class="fa-solid fa-list-check text-base" aria-hidden="true"></i>
-    </a>
+        </nav>
+        <button type="button"
+                class="max-lg:hidden flex cursor-pointer items-center justify-center gap-2 h-9 px-3 rounded-lg shrink-0
+                       text-sm font-medium text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+                data-layout-menu-button
+                data-action="layout--workspace#layoutMenu"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                title="{{ 'layout.menu.layout_title'|trans }}">
+            <i class="fa-solid fa-table-columns text-base" aria-hidden="true"></i>
+            <span class="max-xl:sr-only">{{ 'layout.menu.layout'|trans }}</span>
+        </button>
+    {% endif %}
     </div>
 
     {# Right actions #}

@@ -24,11 +24,16 @@
  * `anchor` is a function, asked again on every placement, so a caller can fall
  * back to ⋮ when its button has been folded into that menu.
  *
+ * `options.side` "below" turns the preference round, for a menu in a header
+ * at the top of a pane (#783): below the anchor unless there is more room
+ * above, at its natural width, its right edge on the anchor's (`align: "end"`).
+ * A pane clips what overflows it, which is why such a menu is lifted at all.
+ *
  * Returns the function that takes the panel out of the top layer again. It
  * does not hide the panel; `hidden` stays the caller's. Its `place` property
  * places the panel again, for when what is in it changed size.
  */
-export function liftAbove(panel, anchor) {
+export function liftAbove(panel, anchor, options = {}) {
     if ("function" !== typeof panel.showPopover) {
         return () => {};
     }
@@ -41,7 +46,7 @@ export function liftAbove(panel, anchor) {
         panel.showPopover();
     }
 
-    const place = () => placeNear(panel, anchor());
+    const place = () => placeNear(panel, anchor(), options);
 
     place();
 
@@ -74,7 +79,7 @@ export function visible(element) {
     return element instanceof Element && element.getClientRects().length > 0 ? element : null;
 }
 
-function placeNear(panel, anchor) {
+function placeNear(panel, anchor, { side = "above", align = "start" } = {}) {
     if (false === panel.matches(":popover-open") || null === anchor) {
         return;
     }
@@ -88,23 +93,26 @@ function placeNear(panel, anchor) {
     style.inset = "auto";
     // Below md the window is the whole screen and the panel its width, as the
     // templates' left-2 right-2 had it.
-    style.width = window.innerWidth < 768 ? `${window.innerWidth - margin * 2}px` : "";
+    style.width = "above" === side && window.innerWidth < 768 ? `${window.innerWidth - margin * 2}px` : "";
     style.maxWidth = `${window.innerWidth - margin * 2}px`;
     style.maxHeight = "";
 
     const natural = measureOpened(panel);
     const roomAbove = box.top - margin * 2;
     const roomBelow = window.innerHeight - box.bottom - margin * 2;
-    const below = natural.height > roomAbove && roomBelow > roomAbove;
+    const below = "below" === side
+        ? !(natural.height > roomBelow && roomAbove > roomBelow)
+        : natural.height > roomAbove && roomBelow > roomAbove;
 
-    const left = Math.min(Math.max(margin, box.left), Math.max(margin, window.innerWidth - natural.width - margin));
+    const start = "end" === align ? box.right - natural.width : box.left;
+    const left = Math.min(Math.max(margin, start), Math.max(margin, window.innerWidth - natural.width - margin));
 
     style.left = `${Math.round(left)}px`;
     style.maxHeight = `${Math.max(160, Math.floor(below ? roomBelow : roomAbove))}px`;
 
     if (below) {
         style.bottom = "auto";
-        style.top = `${Math.round(box.bottom + margin)}px`;
+        style.top = `${Math.round(box.bottom + ("below" === side ? 4 : margin))}px`;
     } else {
         style.top = "auto";
         style.bottom = `${Math.round(window.innerHeight - box.top + margin)}px`;
