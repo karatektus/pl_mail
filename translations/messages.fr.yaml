@@ -5326,6 +5326,8 @@ settings:
         templates: 'Modèles'
         whats_new: "Nouveautés"
     search:
+        commands_label: "Boîte de commandes"
+        commands_placeholder: "Tapez une commande, un lieu ou un réglage"
         count: "Résultats : %count%"
         empty: "Aucun résultat. La recherche porte sur les noms de pages, les titres des cartes et les mots-clés."
         failed: "La recherche dans les réglages n’a pas pu être chargée. Fermez-la et réessayez."
@@ -5377,7 +5379,10 @@ settings:
             typography: "police texte taille"
             whats_new: "changements mise à jour version"
             wkd: "web key directory publier"
+        kind_action: "Action"
         kind_page: "Page"
+        kind_place: "Aller à"
+        kind_tab: "Onglet de la boîte de réception"
         label: "Rechercher dans les réglages"
         placeholder: "Rechercher dans les réglages"
     notifications:

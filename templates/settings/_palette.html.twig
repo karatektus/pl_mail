@@ -1,9 +1,14 @@
 {#
-The Settings search palette: ⌘K / Ctrl+K anywhere in the app (#569).
+The command box: ⌘K / Ctrl+K anywhere in the app. The Settings search (#569),
+grown to run the keyboard shortcuts' actions and go to any place the sidebar
+links to (FLT-154) — see ui--settings-palette for where each entry comes from.
 
 Included once by _layout/app.html.twig for a signed-in user. Takes no
-variables; its entries come from GET /settings/search the first time it opens
+variables; its settings come from GET /settings/search the first time it opens
 (see SettingsSearchIndex for why they are fetched rather than rendered here).
+
+`commands` names what ui--shortcuts may offer, by the key as pressed, with the
+help sheet's own strings (shortcuts/help.html.twig, which is the list of keys).
 
 A <dialog>, for what the confirm dialog's header lists: the top layer, focus
 trapping, Escape, and the page behind going inert, none of it hand-written.
@@ -22,9 +27,39 @@ move the selection, so typing never has to be resumed by clicking back.
             keyword: 'settings.search.keyword'|trans,
             failed:  'settings.search.failed'|trans,
             page:    'settings.search.kind_page'|trans,
+            action:  'settings.search.kind_action'|trans,
+            place:   'settings.search.kind_place'|trans,
+            tab:     'settings.search.kind_tab'|trans,
+        }|json_encode }}"
+        data-ui--settings-palette-commands-value="{{ {
+            'e':   'shortcuts.keys.archive'|trans,
+            '#':   'shortcuts.keys.delete'|trans,
+            '!':   'shortcuts.keys.spam'|trans,
+            's':   'shortcuts.keys.star'|trans,
+            'p':   'shortcuts.keys.pin'|trans,
+            'I':   'shortcuts.keys.mark_read'|trans,
+            'U':   'shortcuts.keys.mark_unread'|trans,
+            'l':   'shortcuts.keys.label'|trans,
+            'v':   'shortcuts.keys.move'|trans,
+            'b':   'shortcuts.keys.snooze'|trans,
+            'r':   'shortcuts.keys.reply'|trans,
+            'a':   'shortcuts.keys.reply_all'|trans,
+            'f':   'shortcuts.keys.forward'|trans,
+            'F':   'shortcuts.keys.forward_agent'|trans,
+            'u':   'shortcuts.keys.back'|trans,
+            'c':   'shortcuts.keys.compose'|trans,
+            '/':   'shortcuts.keys.search'|trans,
+            't':   'shortcuts.keys.conversation_view'|trans,
+            'z':   'shortcuts.keys.undo'|trans,
+            '?':   'shortcuts.title'|trans,
+            '* a': 'shortcuts.keys.select_all'|trans,
+            '* n': 'shortcuts.keys.select_none'|trans,
+            '* r': 'shortcuts.keys.select_read'|trans,
+            '* u': 'shortcuts.keys.select_unread'|trans,
+            '* s': 'shortcuts.keys.select_starred'|trans,
         }|json_encode }}"
         data-action="keydown@window->ui--settings-palette#shortcut close->ui--settings-palette#closed"
-        aria-label="{{ 'settings.search.label'|trans }}"
+        aria-label="{{ 'settings.search.commands_label'|trans }}"
         data-enter="pop"
         class="pane-flat shadow-float text-ink">
     <div class="flex flex-col max-h-[inherit]">
@@ -32,8 +67,8 @@ move the selection, so typing never has to be resumed by clicking back.
             <i class="fa-solid fa-magnifying-glass text-ink-faint" aria-hidden="true"></i>
             <input type="search"
                    class="flex-1 min-w-0 h-full bg-transparent text-base text-ink placeholder:text-ink-faint focus:outline-none"
-                   placeholder="{{ 'settings.search.placeholder'|trans }}"
-                   aria-label="{{ 'settings.search.label'|trans }}"
+                   placeholder="{{ 'settings.search.commands_placeholder'|trans }}"
+                   aria-label="{{ 'settings.search.commands_label'|trans }}"
                    role="combobox"
                    aria-expanded="true"
                    aria-controls="settings-palette-results"
@@ -49,7 +84,7 @@ move the selection, so typing never has to be resumed by clicking back.
 
         <ul id="settings-palette-results"
             role="listbox"
-            aria-label="{{ 'settings.search.label'|trans }}"
+            aria-label="{{ 'settings.search.commands_label'|trans }}"
             class="flex-1 overflow-y-auto px-2 pb-2"
             data-ui--settings-palette-target="list"></ul>
 
@@ -69,6 +104,12 @@ move the selection, so typing never has to be resumed by clicking back.
                 <span class="text-xs text-ink-faint truncate" data-part="crumb"></span>
             </span>
             <span class="shrink-0 text-[11px] text-ink-muted" data-part="via"></span>
+            <span class="shrink-0 flex items-center gap-1" data-part="keys"></span>
         </li>
+    </template>
+
+    {# One key of a command, as the help sheet draws one. #}
+    <template data-ui--settings-palette-target="key">
+        <kbd class="inline-block min-w-5 rounded border border-line bg-raised px-1.5 py-0.5 text-center font-mono text-[11px] text-ink"></kbd>
     </template>
 </dialog>

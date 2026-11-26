@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:8ebf211818438112dd7565a478852872025c9c90 -->
+<!-- translated-from: features/mail.md sha1:c7c12a4ba2a4706f488e61aa04a04914569fd25c -->
 
 # Mail
 
@@ -1002,7 +1002,8 @@ die Leiste dieselbe Arbeit.
 
 Die einzelnen Tasten, die Gmail benutzt, funktionieren auch hier. Mit **?** bekommst du überall die
 ganze Liste, ebenso über den Tastatur-Knopf über einer Mail-Liste. Ein Knopf, den eine Taste drückt,
-nennt sie auch in seinem Tooltip, etwa **Archivieren (e)**. Diese lohnt es sich zuerst zu kennen:
+nennt sie auch in seinem Tooltip, etwa **Archivieren (e)**, und **⌘K** / **Strg+K** findet jede
+davon über ihren Namen (siehe [Einstellungen](appearance.md)). Diese lohnt es sich zuerst zu kennen:
 
 | Taste | Wirkung |
 |---|---|

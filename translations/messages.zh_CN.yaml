@@ -4585,6 +4585,8 @@ settings:
         templates: '模板'
         whats_new: "新功能"
     search:
+        commands_label: "命令框"
+        commands_placeholder: "输入命令、位置或设置"
         count: "结果：%count%"
         empty: "未找到。搜索范围包括页面名称、卡片标题和关键词。"
         failed: "无法加载设置搜索。请关闭后重试。"
@@ -4636,7 +4638,10 @@ settings:
             typography: "字体 文字 大小"
             whats_new: "更新 版本 更新日志"
             wkd: "web key directory 发布"
+        kind_action: "操作"
         kind_page: "页面"
+        kind_place: "前往"
+        kind_tab: "收件箱标签页"
         label: "搜索设置"
         placeholder: "搜索设置"
     notifications:

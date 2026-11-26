@@ -5074,6 +5074,8 @@ settings:
         templates: 'Form letters'
         whats_new: "What's new aboard"
     search:
+        commands_label: "Captain's orders"
+        commands_placeholder: "Give an order, a port or a settin'"
         count: "Finds: %count%"
         empty: "Nothin' found. Th' search reads page names, card headin's an' keywords."
         failed: "Th' settin's search could not be hauled in. Close it an' try again."
@@ -5125,7 +5127,10 @@ settings:
             typography: "font text size"
             whats_new: "changelog update version release"
             wkd: "web key directory publish"
+        kind_action: "Order"
         kind_page: "Page"
+        kind_place: "Sail to"
+        kind_tab: "Inbox tab"
         label: "Search th' settin's"
         placeholder: "Search th' settin's"
     notifications:

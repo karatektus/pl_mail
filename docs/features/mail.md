@@ -917,7 +917,8 @@ touch, the row's own buttons and the toolbar do the same work.
 
 The single keys Gmail uses work here too. Press **?** anywhere for the full list, or the
 keyboard button above a mail list. A button a key presses also names it in its tooltip, as
-**Archive (e)**. The ones worth knowing first:
+**Archive (e)**, and **⌘K** / **Ctrl+K** finds any of them by name (see
+[Settings](appearance.md)). The ones worth knowing first:
 
 | Key | Does |
 |---|---|

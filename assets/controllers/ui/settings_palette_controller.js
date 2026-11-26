@@ -3,7 +3,8 @@ import * as Turbo from "@hotwired/turbo";
 import { flashCard, matchingKeyword, normalise } from "../../settings_search.js";
 
 /**
- * The Settings search palette: ⌘K / Ctrl+K from anywhere in the app (#569).
+ * The command box: ⌘K / Ctrl+K from anywhere in the app. It began as the
+ * Settings search (#569) and finds everything else as well (FLT-154).
  *
  * ## Why it is in ui/ and loads with the page
  *
@@ -16,16 +17,27 @@ import { flashCard, matchingKeyword, normalise } from "../../settings_search.js"
  *
  * ## What it searches
  *
- * GET /settings/search, fetched the first time the palette opens and kept for
- * the life of the page: every page and every card, translated, with the
- * keywords each card is also found by. About eighty entries — filtered here,
- * per keystroke, by the rule in assets/settings_search.js that the tree's
- * filter uses too.
+ * Built each time it opens, because each depends on the page under it:
+ *
+ *   - What the keyboard shortcuts would do right now, on the selection, the
+ *     open conversation or the highlighted row: ui--shortcuts answers which
+ *     (`ui--shortcuts:commands`) and runs the one picked (`ui--shortcuts:run`),
+ *     so a command does exactly what its key does. With the shortcuts switched
+ *     off that controller is not on the page, and there are none.
+ *   - Every place the sidebar links to — folders, labels, accounts — and the
+ *     inbox's tabs where the strip is showing, with the `g` key of the ones
+ *     that have one.
+ *
+ * Then the settings, from GET /settings/search, fetched the first time the
+ * palette opens and kept for the life of the page: every page and every card,
+ * translated, with the keywords each card is also found by. About eighty
+ * entries. All of it is filtered here, per keystroke, by the rule in
+ * assets/settings_search.js that the tree's filter uses too.
  *
  * Ranked by where the words matched, best first: the start of a title, then
  * anywhere in a title, then the area or page it sits in, then a keyword. A
- * stable sort within each rank keeps the tree's order, so equal matches come
- * out the way Settings lists them.
+ * stable sort within each rank keeps the order above (commands, places, then
+ * the tree's own), so equal matches come out the way Settings lists them.
  *
  * ## When ⌘K is not ours
  *
@@ -47,8 +59,10 @@ import { flashCard, matchingKeyword, normalise } from "../../settings_search.js"
  *
  * Values:
  *   url       — GET /settings/search
- *   messages  — { count, empty, keyword, failed, page }, translated; count
- *               carries %count%
+ *   messages  — { count, empty, keyword, failed, page, action, place, tab },
+ *               translated; count carries %count%
+ *   commands  — { "e": "Archive", "* a": "Select all", … }, the name of each
+ *               command ui--shortcuts may offer
  *
  * Targets:
  *   input   — the search field
@@ -58,15 +72,28 @@ import { flashCard, matchingKeyword, normalise } from "../../settings_search.js"
  */
 const LIMIT = 12;
 
+/** Every link in the sidebar, in the desktop rail and the phone's drawer alike. */
+const PLACES = "[data-ui--sidebar-target~='link'][href]";
+
+const TABS = "a[data-category-tab-link]";
+
+/** How a key is shown: `e`, and Shift for a capital, as the tooltips show it. */
+function keyName(key) {
+    return /^[A-Z]$/.test(key) ? `Shift+${key}` : key;
+}
+
 export default class extends Controller {
     static values = {
         url:      String,
         messages: Object,
+        commands: Object,
     };
 
-    static targets = ["input", "status", "list", "row"];
+    static targets = ["input", "status", "list", "row", "key"];
 
     #entries = null;
+    #failed = false;
+    #here = [];
     #shown = [];
     #selected = 0;
 
@@ -84,15 +111,21 @@ export default class extends Controller {
     }
 
     async open() {
+        this.#here = [...this.#commands(), ...this.#places()].map((entry) => this.#prepare(entry));
         this.inputTarget.value = "";
+        this.#failed = false;
         this.element.showModal();
         this.inputTarget.focus();
+        this.search();
 
         if (null === this.#entries) {
             await this.#load();
-        }
 
-        this.search();
+            // Whatever was typed or picked while they loaded stays picked.
+            if (true === this.element.open) {
+                this.#show(this.#shown[this.#selected]);
+            }
+        }
     }
 
     closed() {
@@ -101,15 +134,7 @@ export default class extends Controller {
     }
 
     search() {
-        if (null === this.#entries) {
-            return;
-        }
-
-        const query = normalise(this.inputTarget.value.trim());
-
-        this.#shown = "" === query ? this.#entries.filter((entry) => entry.page) : this.#rank(query).slice(0, LIMIT);
-        this.#selected = 0;
-        this.#render(query);
+        this.#show(undefined);
     }
 
     navigate(event) {
@@ -140,6 +165,20 @@ export default class extends Controller {
 
     // ── Private ─────────────────────────────────────────────────────────────
 
+    /** Filters for what is typed, selecting `keep` where it is still listed, else the best match. */
+    #show(keep) {
+        const query = normalise(this.inputTarget.value.trim());
+        const all = [...this.#here, ...(this.#entries ?? [])];
+
+        // Before anything is typed: the commands, the places a key goes to, and
+        // the settings pages — what a hand would reach for, not every label.
+        this.#shown = "" === query
+            ? all.filter((entry) => entry.page || (entry.keys ?? []).length > 0)
+            : this.#rank(all, query).slice(0, LIMIT);
+        this.#render(query);
+        this.#select(Math.max(0, this.#shown.findIndex((entry) => entry.title === keep?.title && entry.crumb === keep?.crumb)));
+    }
+
     async #load() {
         try {
             const response = await fetch(this.urlValue, { headers: { Accept: "application/json" } });
@@ -150,22 +189,131 @@ export default class extends Controller {
 
             const { entries } = await response.json();
 
-            this.#entries = entries.map((entry) => ({
-                ...entry,
-                normTitle: normalise(entry.title),
-                normCrumb: normalise(entry.crumb),
-            }));
+            this.#entries = entries.map((entry) => this.#prepare(entry));
         } catch {
             // Left null, so the next open asks again rather than searching an
             // empty list and saying "nothing found" about every setting.
-            this.statusTarget.textContent = this.messagesValue.failed ?? "";
+            this.#failed = true;
         }
     }
 
-    #rank(query) {
+    #prepare(entry) {
+        return { ...entry, normTitle: normalise(entry.title), normCrumb: normalise(entry.crumb) };
+    }
+
+    /** What ui--shortcuts would do now, named; see "What it searches". */
+    #commands() {
+        const ask = new CustomEvent("ui--shortcuts:commands", { detail: { commands: [] } });
+
+        document.dispatchEvent(ask);
+
+        return ask.detail.commands
+            .filter((command) => Object.hasOwn(this.commandsValue, command))
+            .map((command) => ({
+                title: this.commandsValue[command],
+                crumb: this.messagesValue.action ?? "",
+                terms: "",
+                keys: command.split(" "),
+                run: command.split(" "),
+            }));
+    }
+
+    /**
+     * The sidebar's links and the inbox's tabs. A link is named by its title
+     * where it has one (an account, by its address), and otherwise by its
+     * text without the counts and new-mail dots the sidebar patches into it;
+     * each place once, though the rail and the drawer both draw it. An
+     * account's folders sit under its address, as every account has an Inbox,
+     * and a nested label under its parents, as Work and Personal can both
+     * have Invoices; its whole path ("Work/Invoices") finds it too.
+     */
+    #places() {
+        const go = this.#goKeys();
+        const seen = new Set();
+        const places = [];
+
+        const add = (link, crumb, parents = []) => {
+            const url = new URL(link.getAttribute("href"), window.location.href);
+            const title = (this.#title(link) || this.#text(link)).replace(/\s+/g, " ").trim();
+
+            if ("" === title || seen.has(url.href)) {
+                return;
+            }
+
+            seen.add(url.href);
+
+            const key = ("" === url.search ? go[url.pathname] : undefined) ?? go[link.dataset.alsoOpenAt];
+
+            places.push({
+                title,
+                crumb: [crumb, ...parents].join(" › "),
+                terms: 0 === parents.length ? "" : [...parents, title].join("/"),
+                url: url.href,
+                keys: undefined === key ? [] : ["g", key],
+            });
+        };
+
+        document.querySelectorAll(PLACES).forEach((link) => add(link, this.#crumb(link), this.#parents(link)));
+        document.querySelectorAll(TABS).forEach((link) => add(link, this.messagesValue.tab ?? ""));
+
+        return places;
+    }
+
+    #crumb(link) {
+        const account = link.closest("[data-settings--account-expand-account-value]")?.querySelector(PLACES);
+
+        if (account instanceof HTMLElement && account !== link) {
+            return this.#title(account);
+        }
+
+        return link.closest("details.group\\/section")?.querySelector("summary")?.getAttribute("aria-label")
+            ?? this.messagesValue.place
+            ?? "";
+    }
+
+    /** A link's title, which ui--tooltip moves to data-tooltip once the link is hovered. */
+    #title(link) {
+        return link.getAttribute("title") || link.dataset.tooltip || "";
+    }
+
+    /** The labels a nested one sits in, outermost first. */
+    #parents(link) {
+        const parents = [];
+
+        for (let tree = link.closest("details.group\\/tree"); null !== tree; tree = tree.parentElement.closest("details.group\\/tree")) {
+            const summary = tree.querySelector(":scope > summary");
+
+            if (false === summary.contains(link)) {
+                parents.unshift(this.#text(summary.querySelector(PLACES) ?? summary).replace(/\s+/g, " ").trim());
+            }
+        }
+
+        return parents;
+    }
+
+    #text(link) {
+        const copy = link.cloneNode(true);
+
+        copy.querySelectorAll("[data-count-key], .sr-only").forEach((count) => count.remove());
+
+        return copy.textContent;
+    }
+
+    /** The `g` keys, by the path each goes to: { "/mail/inbox": "i", … }. */
+    #goKeys() {
+        try {
+            const go = JSON.parse(document.body.getAttribute("data-ui--shortcuts-go-value") ?? "{}");
+
+            return Object.fromEntries(Object.entries(go).map(([key, path]) => [path, key]));
+        } catch {
+            return {};
+        }
+    }
+
+    #rank(entries, query) {
         const ranked = [];
 
-        this.#entries.forEach((entry, order) => {
+        entries.forEach((entry, order) => {
             let rank = -1;
             let keyword = null;
 
@@ -198,6 +346,13 @@ export default class extends Controller {
             row.querySelector("[data-part='via']").textContent = entry.keyword
                 ? `${this.messagesValue.keyword}: ${entry.keyword}`
                 : (entry.page ? this.messagesValue.page : "");
+            row.querySelector("[data-part='keys']").replaceChildren(...(entry.keys ?? []).map((key) => {
+                const kbd = this.keyTarget.content.firstElementChild.cloneNode(true);
+
+                kbd.textContent = keyName(key);
+
+                return kbd;
+            }));
             row.addEventListener("mousemove", () => this.#select(index));
             row.addEventListener("click", () => this.#go(entry));
 
@@ -206,15 +361,23 @@ export default class extends Controller {
 
         this.listTarget.replaceChildren(...rows);
 
-        this.statusTarget.textContent = "" === query
-            ? ""
-            : (0 === rows.length ? this.messagesValue.empty : this.messagesValue.count.replace("%count%", String(rows.length)));
-
-        this.#select(0);
+        // A failed load says so over "nothing found": the settings were not
+        // searched, so nothing is not what was found.
+        if (true === this.#failed && ("" === query || 0 === rows.length)) {
+            this.statusTarget.textContent = this.messagesValue.failed ?? "";
+        } else {
+            this.statusTarget.textContent = "" === query
+                ? ""
+                : (0 === rows.length ? this.messagesValue.empty : this.messagesValue.count.replace("%count%", String(rows.length)));
+        }
     }
 
     #select(index) {
         this.#selected = index;
+
+        if (0 === this.#shown.length) {
+            this.inputTarget.removeAttribute("aria-activedescendant");
+        }
 
         this.listTarget.querySelectorAll("[role='option']").forEach((row, at) => {
             row.setAttribute("aria-selected", at === index ? "true" : "false");
@@ -228,6 +391,25 @@ export default class extends Controller {
 
     #go(entry) {
         this.element.close();
+
+        // After the close: a key is not pressed while a dialog is open.
+        if (undefined !== entry.run) {
+            document.dispatchEvent(new CustomEvent("ui--shortcuts:run", { detail: { keys: entry.run } }));
+
+            return;
+        }
+
+        // A place opens by its own link where one can be pressed, the way the
+        // sidebar opens it: into the list's frame where the link says so. The
+        // phone's drawer is inert while shut, and the rail is hidden there.
+        const link = [...document.querySelectorAll(`${PLACES}, ${TABS}`)]
+            .find((candidate) => candidate.href === entry.url && null === candidate.closest("[inert]") && false !== candidate.checkVisibility?.());
+
+        if (undefined !== link) {
+            link.click();
+
+            return;
+        }
 
         const target = new URL(entry.url, window.location.href);
 

@@ -273,6 +273,13 @@ matter. A card found by such a word says which word it was.
 for a moment so you can see where it is. While you are typing in a mail or a text box the
 shortcut is left to the editor and the browser, so press it from anywhere else.
 
+It is a command box as well. Type **archive**, **snooze** or **reply** and **Enter** does what
+that key does, to whatever the key would act on: the selected conversations, else the open one,
+else the highlighted row. Only what can be done right now is offered, so there is no Reply
+without an open conversation. Type the name of a folder, a label, an account or an inbox tab to
+go there. Each row shows its key, so the box also teaches the shortcuts. With the keyboard
+shortcuts switched off, the box finds places and settings but no actions.
+
 On a phone the tree sits behind one button at the top of Settings, which names the page you are
 on; tap it to open the tree and the search.
 

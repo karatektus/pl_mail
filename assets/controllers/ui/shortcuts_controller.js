@@ -182,6 +182,25 @@ const PRESSES = {
 /** The keys that press a button of the open conversation, by its OPEN name. */
 const READS = { u: "back", r: "reply", f: "forward", F: "forwardAgent" };
 
+/** The key after `*`, by the list toolbar's menu entry it presses. */
+const SELECT = { a: "selectAll", n: "selectNone", r: "selectRead", u: "selectUnread", s: "selectStarred" };
+
+const SEARCH_FIELD = "#search-shell input[name='q']";
+
+/**
+ * What the command box (ui--settings-palette, FLT-154) may offer, in the
+ * order it lists them: every key that does something to mail or opens
+ * something, as it is pressed, a pair spelt with a space. The ones that only
+ * move the cursor or the focus are left out; there, the box itself is what
+ * moves. The `g` pairs are offered as the places they go to.
+ */
+const COMMANDS = [
+    ...Object.keys(ACTS),
+    "r", "a", "f", "F", "u",
+    "c", "/", "t", "z", "?",
+    ...Object.keys(SELECT).map((key) => `* ${key}`),
+];
+
 /**
  * Every button a key presses, where it looks for it, and the key: what the
  * tooltips name (FLT-156). Read from the tables the keys themselves are, so a
@@ -268,6 +287,25 @@ export default class extends Controller {
             isComposing: false,
             preventDefault() {},
         });
+        // The command box: which of COMMANDS would do something right now, and
+        // running the one picked. Asked by event rather than imported, because
+        // this controller is not on the page while the keys are switched off.
+        this._onCommands = (event) => {
+            event.detail.commands = COMMANDS.filter((command) => this.#runnable(command));
+        };
+        // A `g` or `*` pressed just before ⌘K would otherwise take the
+        // command's first key as its second.
+        this._onRun = (event) => {
+            this.#clearPrefix();
+            event.detail.keys.forEach((key) => this.#handle({
+                key,
+                shiftKey: /^[A-Z]$/.test(key),
+                target: document.body,
+                defaultPrevented: false,
+                isComposing: false,
+                preventDefault() {},
+            }));
+        };
         this._onFocusIn = (event) => this.#focusIn(event.target);
         this._onFocusOut = (event) => this.#focusOut(event.target);
 
@@ -276,6 +314,8 @@ export default class extends Controller {
         // document of its own, so a key pressed after clicking into the mail
         // never reaches this one — it is relayed. See mail--message-frame.
         document.addEventListener("mail:frame-key", this._onFrameKey);
+        document.addEventListener("ui--shortcuts:commands", this._onCommands);
+        document.addEventListener("ui--shortcuts:run", this._onRun);
         document.addEventListener("focusin", this._onFocusIn);
         document.addEventListener("focusout", this._onFocusOut);
 
@@ -303,6 +343,8 @@ export default class extends Controller {
         document.removeEventListener("mail:frame-key", this._onFrameKey);
         document.removeEventListener("focusin", this._onFocusIn);
         document.removeEventListener("focusout", this._onFocusOut);
+        document.removeEventListener("ui--shortcuts:commands", this._onCommands);
+        document.removeEventListener("ui--shortcuts:run", this._onRun);
         this.#observer?.disconnect();
         clearTimeout(this.#prefixTimer);
     }
@@ -454,12 +496,8 @@ export default class extends Controller {
             return this.#act(ACTS[key]);
         }
 
-        if (true === Object.hasOwn(PRESSES, key)) {
-            return this.#press(document.querySelector(PRESSES[key]));
-        }
-
-        if (true === Object.hasOwn(READS, key)) {
-            return this.#press(this.#reading()?.querySelector(OPEN[READS[key]]));
+        if (true === Object.hasOwn(PRESSES, key) || true === Object.hasOwn(READS, key) || "a" === key) {
+            return this.#press(this.#button(key));
         }
 
         switch (key) {
@@ -474,17 +512,72 @@ export default class extends Controller {
             case "K": return this.#extend(-1);
             case "Escape": return this.#escape();
 
-            // Reply to all, and a plain reply where there is nobody else to
-            // include. The Reply-all link is only drawn for a message with more
-            // than one recipient, so on every other message `a` found no button
-            // and did nothing — which reads as a broken key, not as "there is
-            // only one person here". Gmail answers `a` with a reply there too.
-            case "a": return this.#press(
-                this.#reading()?.querySelector(OPEN.replyAll) ?? this.#reading()?.querySelector(OPEN.reply),
-            );
-
             default: return false;
         }
+    }
+
+    /**
+     * The button a single key presses, or null where it has none: an action
+     * on whatever it would act on (see #aim()), else the one it presses.
+     */
+    #button(key) {
+        if (true === Object.hasOwn(ACTS, key)) {
+            return this.#aim(ACTS[key]).button;
+        }
+
+        if (true === Object.hasOwn(PRESSES, key)) {
+            return document.querySelector(PRESSES[key]);
+        }
+
+        if (true === Object.hasOwn(READS, key)) {
+            return this.#reading()?.querySelector(OPEN[READS[key]]) ?? null;
+        }
+
+        // Reply to all, and a plain reply where there is nobody else to
+        // include. The Reply-all link is only drawn for a message with more
+        // than one recipient, so on every other message `a` found no button
+        // and did nothing — which reads as a broken key, not as "there is
+        // only one person here". Gmail answers `a` with a reply there too.
+        if ("a" === key) {
+            return this.#reading()?.querySelector(OPEN.replyAll) ?? this.#reading()?.querySelector(OPEN.reply) ?? null;
+        }
+
+        if ("/" === key) {
+            return document.querySelector(SEARCH_FIELD);
+        }
+
+        return null;
+    }
+
+    /** Whether one of COMMANDS would do something if it were pressed now. */
+    #runnable(command) {
+        const [key, second] = command.split(" ");
+        const target = this.#commandTarget(key, second);
+
+        return null !== target && true !== target.disabled;
+    }
+
+    /**
+     * #button(), narrowed to what a named command may claim: `a` only where
+     * there is a Reply all to press, since the box offers Reply beside it,
+     * and `/` only where the field can be seen (a phone hides it).
+     */
+    #commandTarget(key, second) {
+        if ("*" === key) {
+            return true === this.#listShowing() ? document.querySelector(`[data-action='click->mail--list-toolbar#${SELECT[second]}']`) : null;
+        }
+
+        if ("a" === key) {
+            return this.#reading()?.querySelector(OPEN.replyAll) ?? null;
+        }
+
+        const target = this.#button(key);
+
+        if ("/" === key && false === target?.checkVisibility?.()) {
+            return null;
+        }
+
+        return target;
     }
 
     /** The key after `g` or `*`. */
@@ -501,7 +594,7 @@ export default class extends Controller {
             return true;
         }
 
-        const menu = { a: "selectAll", n: "selectNone", r: "selectRead", u: "selectUnread", s: "selectStarred" }[key];
+        const menu = SELECT[key];
 
         if (undefined === menu || false === this.#listShowing()) {
             return false;
@@ -513,53 +606,61 @@ export default class extends Controller {
     // ── What a key acts on ────────────────────────────────────────────────
 
     #act(name) {
+        const { on, row, button } = this.#aim(name);
+
+        if (null === button) {
+            return false;
+        }
+
+        // Where the cursor goes when this one has left the list, decided
+        // before it leaves: afterwards there is no row to stand beside.
+        if ("open" === on && true === LEAVES.has(name)) {
+            this.#followOpen();
+            this.#moveOffLeavingRow();
+        }
+
+        // No button of its own on a row: tick it, and use the toolbar's.
+        if ("row" === on && false === (name in ON_ROW)) {
+            this.#tick(row, true);
+        }
+
+        if ("row" === on && true === LEAVES.has(name)) {
+            this.#moveOffLeavingRow();
+        }
+
+        return this.#press(button);
+    }
+
+    /**
+     * What an action would act on, and the button it would press there,
+     * without pressing it — so the command box can ask the same question.
+     */
+    #aim(name) {
+        const toolbar = () => document.querySelector(TOOLBAR)?.querySelector(BULK[name]) ?? null;
+
         // 1. The selection — wherever the list it was made in is on screen,
         // which with the reading pane beside the list includes "while a
         // conversation is open". Asking only whether one was open sent `#`
         // to the open conversation with three other rows ticked beside it.
         if (true === this.#listShowing() && selection().length > 0) {
-            return this.#press(document.querySelector(TOOLBAR)?.querySelector(BULK[name]));
+            return { on: "selection", row: null, button: toolbar() };
         }
 
         // 2. The open conversation.
         const reading = this.#reading();
 
         if (null !== reading) {
-            if (false === (name in OPEN)) {
-                return false;
-            }
-
-            // Where the cursor goes when this one has left the list, decided
-            // before it leaves: afterwards there is no row to stand beside.
-            if (true === LEAVES.has(name)) {
-                this.#followOpen();
-                this.#moveOffLeavingRow();
-            }
-
-            return this.#press(reading.querySelector(OPEN[name]));
+            return { on: "open", row: null, button: name in OPEN ? reading.querySelector(OPEN[name]) : null };
         }
 
         // 3. The row under the cursor.
         const row = this.#cursorRow();
 
         if (null === row) {
-            return false;
+            return { on: "nothing", row: null, button: null };
         }
 
-        if (false === (name in ON_ROW)) {
-            // No button of its own on a row: tick it, and use the toolbar's.
-            this.#tick(row, true);
-
-            return this.#press(document.querySelector(TOOLBAR)?.querySelector(BULK[name]));
-        }
-
-        const button = row.querySelector(ON_ROW[name]);
-
-        if (null !== button && true === LEAVES.has(name)) {
-            this.#moveOffLeavingRow();
-        }
-
-        return this.#press(button);
+        return { on: "row", row, button: name in ON_ROW ? row.querySelector(ON_ROW[name]) : toolbar() };
     }
 
     // ── The cursor ────────────────────────────────────────────────────────
@@ -945,7 +1046,7 @@ export default class extends Controller {
     }
 
     #focusSearch() {
-        const field = document.querySelector("#search-shell input[name='q']");
+        const field = document.querySelector(SEARCH_FIELD);
 
         if (null === field) {
             return false;

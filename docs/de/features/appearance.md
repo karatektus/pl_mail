@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:02d7ca9a2d1d6c7dddce8db483684720125cc82f -->
+<!-- translated-from: features/appearance.md sha1:09f853c1b5f7b0393d9b658be07bf1e984c2ebac -->
 
 # Darstellung
 
@@ -301,6 +301,14 @@ gefunden wurde, nennt das Wort.
 **↓** wechseln zwischen den Treffern, **Enter** öffnet einen: Die Seite lädt, und die Karte wird
 kurz umrandet, damit du siehst, wo sie ist. Während du in einer Mail oder einem Textfeld
 schreibst, bleibt das Kürzel dem Editor und dem Browser — drück es also von anderswo.
+
+Sie ist auch ein Befehlsfeld. Tipp **archivieren**, **zurückstellen** oder **antworten**, und
+**Enter** tut, was die passende Taste tut, mit dem, worauf die Taste wirken würde: den ausgewählten
+Unterhaltungen, sonst der geöffneten, sonst der hervorgehobenen Zeile. Angeboten wird nur, was
+gerade geht, also kein Antworten ohne geöffnete Unterhaltung. Tipp den Namen eines Ordners, eines
+Labels, eines Kontos oder eines Posteingang-Tabs, um dorthin zu wechseln. Jede Zeile nennt ihre
+Taste, so lernst du die Kürzel nebenbei. Sind die Tastenkürzel ausgeschaltet, findet das Feld
+Orte und Einstellungen, aber keine Aktionen.
 
 Auf dem Handy liegt der Baum hinter einem Knopf oben in den Einstellungen, der die aktuelle Seite
 nennt; tipp darauf, um Baum und Suche zu öffnen.

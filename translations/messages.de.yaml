@@ -5290,6 +5290,8 @@ settings:
         templates: 'Vorlagen'
         whats_new: "Neuigkeiten"
     search:
+        commands_label: "Befehlsfeld"
+        commands_placeholder: "Gib einen Befehl, einen Ort oder eine Einstellung ein"
         count: "Treffer: %count%"
         empty: "Nichts gefunden. Die Suche durchsucht Seitennamen, Kartenüberschriften und Stichwörter."
         failed: "Die Einstellungssuche konnte nicht geladen werden. Schließe sie und versuche es noch einmal."
@@ -5341,7 +5343,10 @@ settings:
             typography: "schrift schriftart text größe"
             whats_new: "änderungen update version release"
             wkd: "web key directory veröffentlichen"
+        kind_action: "Aktion"
         kind_page: "Seite"
+        kind_place: "Wechseln zu"
+        kind_tab: "Posteingang-Tab"
         label: "Einstellungen durchsuchen"
         placeholder: "Einstellungen durchsuchen"
     notifications:

@@ -5264,6 +5264,8 @@ settings:
         templates: 'Templates'
         whats_new: "What's new"
     search:
+        commands_label: "Command box"
+        commands_placeholder: "Type a command, a place or a setting"
         count: "Results: %count%"
         empty: "Nothing found. Search looks through page names, card headings and keywords."
         failed: "Settings search could not be loaded. Close it and try again."
@@ -5315,7 +5317,10 @@ settings:
             typography: "font text size"
             whats_new: "changelog update version release"
             wkd: "web key directory publish"
+        kind_action: "Action"
         kind_page: "Page"
+        kind_place: "Go to"
+        kind_tab: "Inbox tab"
         label: "Search settings"
         placeholder: "Search settings"
     notifications:
