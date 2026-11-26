@@ -3540,11 +3540,11 @@ settings:
         count: '{1}1 个日历|]1,Inf[ %count% 个日历'
         delete: '删除“%name%”'
         delete_confirm: '删除日历组“%name%”？其中的日历保持不变。'
-        empty: '还没有日历组。在日历工具栏的菜单中勾选日历，然后保存为日历组。'
+        empty: '还没有日历组。在日历下方的菜单中勾选日历，然后保存为日历组。'
         heading: '日历组'
         rename: '重命名“%name%”'
         save_name: '保存名称'
-        subheading: '在日历工具栏中切换的日历分组。'
+        subheading: '在日历下方栏中切换的日历分组。'
     clock:
         heading: '时钟'
         subheading: '选择使用十二小时制或二十四小时制，以及当前时间的显示位置。存储方式不变，只改变显示的数字。'

@@ -3984,11 +3984,11 @@ settings:
         count: '{1}1 calendrier|]1,Inf[ %count% calendriers'
         delete: 'Supprimer « %name% »'
         delete_confirm: 'Supprimer l’ensemble « %name% » ? Ses calendriers restent tels quels.'
-        empty: 'Aucun ensemble. Cochez des calendriers dans le menu de la barre du calendrier, puis enregistrez-les comme ensemble.'
+        empty: 'Aucun ensemble. Cochez des calendriers dans le menu sous le calendrier, puis enregistrez-les comme ensemble.'
         heading: 'Ensembles de calendriers'
         rename: 'Renommer « %name% »'
         save_name: 'Enregistrer le nom'
-        subheading: 'Des groupes de calendriers entre lesquels vous basculez depuis la barre du calendrier.'
+        subheading: 'Des groupes de calendriers entre lesquels vous basculez depuis la barre sous le calendrier.'
     categories:
         add: "Ajouter"
         built_in: "Intégré"

@@ -3810,11 +3810,11 @@ settings:
         count: '{1}1 chart|]1,Inf[ %count% charts'
         delete: 'Scuttle "%name%"'
         delete_confirm: 'Scuttle the fleet "%name%"? Its charts stay as they be.'
-        empty: 'No fleets yet. Tick charts in the menu on the calendar''s bar, then stow ''em as a fleet.'
+        empty: 'No fleets yet. Tick charts in the menu below the calendar, then stow ''em as a fleet.'
         heading: 'Chart fleets'
         rename: 'Rename "%name%"'
         save_name: 'Stow the name'
-        subheading: 'Groups o'' charts ye switch between from the calendar''s bar.'
+        subheading: 'Groups o'' charts ye switch between from the bar below the calendar.'
     clock:
         heading: Th' glass
         subheading: Whether th' hours be writ in twelves or in four-and-twenty, an' where th' hour o' now be hung. Naught be stored different — only th' figures change.

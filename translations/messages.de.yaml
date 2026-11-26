@@ -3954,11 +3954,11 @@ settings:
         count: '{1}1 Kalender|]1,Inf[ %count% Kalender'
         delete: '„%name%“ löschen'
         delete_confirm: 'Das Set „%name%“ löschen? Seine Kalender bleiben, wie sie sind.'
-        empty: 'Noch keine Sets. Kalender im Menü der Kalenderleiste anhaken und als Set speichern.'
+        empty: 'Noch keine Sets. Kalender im Menü unter dem Kalender anhaken und als Set speichern.'
         heading: 'Kalender-Sets'
         rename: '„%name%“ umbenennen'
         save_name: 'Namen speichern'
-        subheading: 'Gruppen von Kalendern, zwischen denen du in der Kalenderleiste wechselst.'
+        subheading: 'Gruppen von Kalendern, zwischen denen du in der Leiste unter dem Kalender wechselst.'
     clock:
         heading: Uhrzeitformat
         subheading: Ob Zeiten im 12- oder 24-Stunden-Format geschrieben werden und wo die aktuelle Uhrzeit steht. Gespeichert wird nichts anders — es ändern sich nur die Ziffern.
