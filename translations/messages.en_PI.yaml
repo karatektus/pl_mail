@@ -3978,6 +3978,7 @@ settings:
             subheading: How much o' the backdrop shows through yer panels.
         heading: Look o' the ship
         import: Import theme
+        import_hint: 'Or a VS Code colour theme (.json), which paints the whole ship: panels, words, buttons an'' the open letter.'
         layout:
             boxed: Crates
             flat: Flat as a calm sea
@@ -4065,6 +4066,7 @@ settings:
             dark: Dark
             dusk: Dusk
             heading: Theme
+            imported: 'Brought aboard from VS Code: %name%. Pick any theme to go back.'
             more: 'More flags'
             light: Light
             nord: Nord

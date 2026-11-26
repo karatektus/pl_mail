@@ -29,6 +29,12 @@ final readonly class AppearanceRenderer
             $classes[] = $layoutClass;
         }
 
+        // palette.css keys Tailwind's named colours and the dark sheet's
+        // accent text off this.
+        if (null !== $appearance->palette()) {
+            $classes[] = 'palette';
+        }
+
         return implode(' ', $classes);
     }
 
@@ -113,6 +119,10 @@ final readonly class AppearanceRenderer
             '--surface-reading-row-y' => $appearance->densityFor('reading')->readingBlockPadding(),
             '--surface-reading-gap'   => $appearance->densityFor('reading')->gap(),
         ];
+
+        // Before the knobs below, which are the user's own and win: an ink or
+        // a wallpaper chosen after the import still shows.
+        $variables = [...$variables, ...($appearance->palette()?->cssVariables() ?? [])];
 
         $background = $this->backgroundResolver->cssValue($appearance, $userId);
 

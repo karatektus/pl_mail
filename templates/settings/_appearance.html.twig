@@ -134,6 +134,9 @@
                 <div id="card-theme" class="mb-4 scroll-mt-4">
                     <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.theme.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.theme.subheading'|trans }}</p>
+                    {% if a.palette is not null %}
+                        <p class="text-xs text-ink-soft mt-2">{{ 'settings.appearance.theme.imported'|trans({'%name%': a.palette.name}) }}</p>
+                    {% endif %}
                 </div>
 
                 {# AUTO-FILL rather than three container-query breakpoints. The
@@ -176,7 +179,7 @@
 
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3">
                     {% for theme in _visibleThemes %}
-                        {{ _self.theme_tile(theme, a.theme == theme) }}
+                        {{ _self.theme_tile(theme, a.palette is null and a.theme == theme) }}
                     {% endfor %}
 
                     {# A tile-shaped disclosure, not a tile: it reveals the
@@ -206,6 +209,7 @@
                     {% endfor %}
                 </div>
                 <input type="hidden" data-settings--appearance-target="theme" data-settings--appearance-field="theme" value="{{ a.theme.value }}">
+                <input type="hidden" data-settings--appearance-target="palette" data-settings--appearance-field="palette" value="{{ a.palette is null ? '' : 'kept' }}">
             </section>
 
             {# ── Logo ──────────────────────────────────────────────────────
@@ -1014,7 +1018,8 @@
                     <label class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover cursor-pointer transition-colors">
                         <i class="fa-solid fa-file-import text-xs" aria-hidden="true"></i>
                         {{ 'settings.appearance.import'|trans }}
-                        <input type="file" accept="application/json" class="sr-only"
+                        <input type="file" accept=".json,.jsonc,application/json" class="sr-only"
+                               aria-describedby="appearance-import-hint"
                                data-settings--appearance-target="importInput"
                                data-action="change->settings--appearance#importFile">
                     </label>
@@ -1024,6 +1029,7 @@
                         {{ 'settings.appearance.reset'|trans }}
                     </button>
                 </section>
+                <p id="appearance-import-hint" class="text-xs text-ink-faint -mt-6">{{ 'settings.appearance.import_hint'|trans }}</p>
             {% endif %}
             </div>
         </section>

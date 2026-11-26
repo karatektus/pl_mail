@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:9743becf21591a2e2ff62730e90e068fddd32aed -->
+<!-- translated-from: features/appearance.md sha1:02d7ca9a2d1d6c7dddce8db483684720125cc82f -->
 
 # Darstellung
 
@@ -266,6 +266,23 @@ Der Import prüft die Version und lehnt eine Datei ab, die nicht Version 1 ist. 
 Daten, was plMail nicht als gültigen Wert kennt, wird ignoriert statt gespeichert, und ein
 Layout in der Datei wird vor den einzelnen Zahlen angewendet, damit ein Export, der geschrieben
 wurde, bevor es ein bestimmtes Bedienelement gab, trotzdem irgendwo Sinnvollem landet.
+
+### Ein Farbschema aus VS Code
+
+**Theme importieren** nimmt auch ein VS-Code-Farbschema: die `.json`-Datei im Ordner `themes/`
+einer Theme-Erweiterung, Kommentare eingeschlossen. Daraus wird eine Palette für alles, die
+Bereiche, den Text, die Schaltflächen, die Statusfarben und das Blatt der geöffneten E-Mail, über
+schlichtem **Dunkel** oder **Hell**, je nach Schema. Sein Akzent wird deiner, und deine eigenen
+Textfarben, die Tönung des Hauptbereichs und der Hintergrund werden zurückgesetzt, weil jede davon
+über eine Farbe malen würde, die das Schema gewählt hat. Der Name des Schemas steht unter
+**Theme**; eine beliebige Theme-Kachel führt zurück zu den eingebauten Paletten.
+
+Die Farben sind die des Schemas, gehalten auf plMails Kontrast: Fließtext bei 10:1, jeder andere
+Text und jede Statusfarbe bei 4,5:1, ein Schema mit sehr leisen Grautönen kommt also etwas lauter
+heraus als im Editor. Eine E-Mail in HTML wird ebenfalls auf dem Hintergrund des Schemas
+gezeichnet, eine, die eine weiße Seite voraussetzt, kann auf einem dunklen Schema also falsch
+aussehen. Die Farbwahl eines Kalenders bietet nach den üblichen acht die sechs Terminalfarben des
+Schemas an.
 
 ## Eine Einstellung finden
 

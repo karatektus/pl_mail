@@ -102,8 +102,9 @@ final class CalendarSettingsController extends AbstractController
         $calendar = $this->blank($user);
 
         $form = $this->createForm(CalendarType::class, $calendar, [
-            'action'     => $this->generateUrl('app_settings_calendar_new'),
-            'owner_zone' => $this->timezones->nameFor($user),
+            'action'       => $this->generateUrl('app_settings_calendar_new'),
+            'owner_zone'   => $this->timezones->nameFor($user),
+            'extra_colors' => $user->appearance->palette()?->swatches() ?? [],
         ]);
 
         $form->handleRequest($request);
@@ -124,8 +125,9 @@ final class CalendarSettingsController extends AbstractController
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $calendar);
 
         $form = $this->createForm(CalendarType::class, $calendar, [
-            'action'     => $this->generateUrl('app_settings_calendar_edit', ['id' => $calendar->id]),
-            'owner_zone' => $this->timezones->nameFor($calendar->usr),
+            'action'       => $this->generateUrl('app_settings_calendar_edit', ['id' => $calendar->id]),
+            'owner_zone'   => $this->timezones->nameFor($calendar->usr),
+            'extra_colors' => [...($calendar->usr->appearance->palette()?->swatches() ?? []), $calendar->color],
         ]);
 
         $form->handleRequest($request);

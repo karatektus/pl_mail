@@ -22,7 +22,7 @@ export default class extends Controller {
         'inkColor', 'inkColorField', 'inkDefault', 'inkCustom', 'inkDerived', 'inkMuted', 'inkMutedField', 'inkFaint', 'inkFaintField',
         'mainTint', 'mainTintField', 'mainTintDefault', 'mainTintCustom', 'mainAlpha', 'mainAlphaField', 'mainAlphaMatch', 'mainAlphaCustom',
         'backgroundSolid', 'backgroundSolidSwatch',
-        'moreThemes', 'moreThemesButton'];
+        'moreThemes', 'moreThemesButton', 'palette'];
 
     connect() {
         this.root = document.documentElement;
@@ -235,6 +235,17 @@ export default class extends Controller {
         // Resolving it again is idempotent in every other case.
         if (this.hasLogoMotifTarget) {
             this.repaintLogo();
+        }
+
+        // An imported theme's colours are inline on <html> and only the
+        // server knows the theme's own, so this one is saved and reloaded.
+        if (this.hasPaletteTarget && this.paletteTarget.value !== '') {
+            this.paletteTarget.value = '';
+            clearTimeout(this.pending);
+            this.pending = null;
+            this.saving = this.save().then(() => this.reloadPane());
+
+            return;
         }
 
         this.queue();

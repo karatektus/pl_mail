@@ -44,7 +44,7 @@ final class CalendarType extends AbstractType
             // colour field: nobody can pick a colour from a list of words.
             ->add('color', ChoiceType::class, [
                 'label'       => 'calendar.form.color',
-                'choices'     => array_combine(Calendar::COLORS, Calendar::COLORS),
+                'choices'     => self::colours($options['extra_colors']),
                 'expanded'    => true,
                 'choice_attr' => static fn (string $value): array => ['data-swatch' => $value],
                 // Every choice is its own label, so translating them would send
@@ -78,6 +78,24 @@ final class CalendarType extends AbstractType
         // The zone "Follow plMail" stands for, named in the help text.
         $resolver->setRequired('owner_zone');
         $resolver->setAllowedTypes('owner_zone', 'string');
+
+        // Offered after the eight: an imported theme's own colours, and the
+        // calendar's current one, which may have been set elsewhere (CalDAV,
+        // JMAP) and would otherwise be an invalid choice on save.
+        $resolver->setDefault('extra_colors', []);
+        $resolver->setAllowedTypes('extra_colors', 'string[]');
+    }
+
+    /**
+     * @param list<string> $extra
+     *
+     * @return array<string, string>
+     */
+    private static function colours(array $extra): array
+    {
+        $colours = array_values(array_unique([...Calendar::COLORS, ...$extra]));
+
+        return array_combine($colours, $colours);
     }
 
     /**

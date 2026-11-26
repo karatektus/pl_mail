@@ -14,6 +14,7 @@ use App\Domain\Enum\Theme\Layout;
 use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
+use App\Domain\Theme\Palette;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Embeddable]
@@ -84,6 +85,24 @@ final class Appearance
      */
     #[ORM\Column(type: 'string', length: 16, enumType: Theme::class, options: ['default' => 'paper'])]
     public Theme $theme = Theme::Paper;
+
+    /**
+     * An imported theme's colours, painted over $theme (FLT-146); null for
+     * none. $theme still says whether the page is light or dark.
+     *
+     * Kept while anything else changes, and dropped when another theme is
+     * chosen: a different $theme, or `palette: null`, which is what the
+     * settings pane sends when a tile is clicked, the same tile included.
+     *
+     * @var array{name: string, dark: bool, colours: array<string, string>}|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $palette = null;
+
+    public function palette(): ?Palette
+    {
+        return Palette::fromArray($this->palette);
+    }
 
     #[ORM\Column(type: 'string', length: 16, enumType: Layout::class, options: ['default' => 'flat'])]
     public Layout $layout = Layout::Flat;
@@ -454,6 +473,7 @@ final class Appearance
         return [
             'version' => 1,
             'theme' => $this->theme->value,
+            'palette' => $this->palette,
             'layout' => $this->layout->value,
             'logoStyle' => $this->logoStyle->value,
             'logoLinked' => $this->logoLinked,
@@ -495,7 +515,22 @@ final class Appearance
         }
 
         if (true === isset($data['theme'])) {
-            $this->theme = Theme::tryFrom($data['theme']) ?? $this->theme;
+            $theme = Theme::tryFrom($data['theme']) ?? $this->theme;
+
+            if ($theme !== $this->theme) {
+                $this->palette = null;
+            }
+
+            $this->theme = $theme;
+        }
+
+        // Any other value (the settings pane's "kept") leaves it as it is.
+        if (true === array_key_exists('palette', $data)) {
+            $palette = $data['palette'];
+
+            if (null === $palette || '' === $palette || true === is_array($palette)) {
+                $this->palette = Palette::fromArray($palette)?->toArray();
+            }
         }
 
         if (true === isset($data['logoStyle'])) {
