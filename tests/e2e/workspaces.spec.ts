@@ -49,8 +49,20 @@ async function split(page: Page, kind: Kind, direction: "row" | "col", add: Kind
  * before the save has even started: a reload then draws the workspace from
  * before it. Start waiting before the change.
  */
-function nextSave(page: Page) {
-    return page.waitForResponse((response) => response.url().endsWith("/layout/workspaces") && "POST" === response.request().method());
+/**
+ * The next save of the workspaces, or with `active` the next one that makes
+ * that workspace the active one. A page drawn from a page without workspaces
+ * saves its own switch to the list's workspace a moment after it loads, and a
+ * test that waits for "the next save" can catch that one instead of its own.
+ */
+function nextSave(page: Page, active?: number) {
+    return page.waitForResponse((response) => {
+        if (!response.url().endsWith("/layout/workspaces") || "POST" !== response.request().method()) {
+            return false;
+        }
+
+        return undefined === active || active === (response.request().postDataJSON() as { active?: number } | null)?.active;
+    });
 }
 
 /** Layout → Edit this workspace. */
@@ -260,7 +272,8 @@ test.describe("the pane menu", () => {
         await expect(pane(page, "list")).toBeVisible();
 
         // A reload is not asking for the mail: Planning, chosen again, stays.
-        const saved = nextSave(page);
+        // Its own save, not the switch to Triage this page made on arrival.
+        const saved = nextSave(page, 1);
 
         await tabs.filter({ hasText: "Planning" }).click();
         await expect(pane(page, "list")).toBeHidden();
