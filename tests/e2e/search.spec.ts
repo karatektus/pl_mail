@@ -27,6 +27,21 @@ const OPTIONS = '[data-mail--search-target="recentsList"] button';
  */
 const STATUS = '[data-mail--search-target="status"]';
 
+/** The box's chips: finished operator tokens leave the text for them (#783). */
+const CHIPS = '[data-mail--search-target="chips"] .search-chip';
+
+/**
+ * The whole query in the box, chips then text, as the controller submits it.
+ * A finished token such as "in:trash " is a chip, not text, so the input's own
+ * value no longer says what the box holds.
+ */
+async function boxQuery(page: Page): Promise<string> {
+    const chips = await page.locator(CHIPS).allTextContents();
+    const text = await page.locator(BOX).inputValue();
+
+    return [...chips.map((chip) => chip.trim()), text].join(" ").replace(/\s+/g, " ").trim();
+}
+
 async function type(page: Page, value: string): Promise<void> {
     await page.locator(BOX).click();
     await page.locator(BOX).fill(value);
@@ -56,11 +71,13 @@ test.describe("search", () => {
      * it instead, where it can be seen and deleted.
      */
     test("focusing the box in Trash or Spam writes that folder into it", async ({ page }) => {
-        for (const [path, scope] of [["/mail/trash", "in:trash "], ["/mail/spam", "in:spam "]]) {
+        for (const [path, scope] of [["/mail/trash", "in:trash"], ["/mail/spam", "in:spam"]]) {
             await page.goto(path);
             await page.locator(BOX).click();
 
-            await expect(page.locator(BOX)).toHaveValue(scope);
+            // A chip, and the caret after it for the words.
+            await expect.poll(() => boxQuery(page)).toBe(scope);
+            await expect(page.locator(BOX)).toHaveValue("");
         }
 
         // Anywhere else an empty box stays empty, and a query already typed is
@@ -75,7 +92,7 @@ test.describe("search", () => {
         await page.locator(BOX).fill("invoice");
         await page.locator(BOX).blur();
         await page.locator(BOX).click();
-        await expect(page.locator(BOX)).toHaveValue("invoice");
+        await expect.poll(() => boxQuery(page)).toBe("in:trash invoice");
     });
 
     /**
@@ -130,7 +147,7 @@ test.describe("search", () => {
         await page.locator(BOX).press("Enter");
 
         await expect(page).not.toHaveURL(/\/mail\/search/);
-        await expect(page.locator(BOX)).toHaveValue("is:unread ");
+        await expect.poll(() => boxQuery(page)).toBe("is:unread");
     });
 
     /** …and with nothing highlighted it does submit, which is the normal case. */

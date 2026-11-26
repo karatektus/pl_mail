@@ -117,6 +117,7 @@ const SECTIONS = [
     "labels",
     "filters",
     "disposal",
+    "mail-search",
     "reading",
     "compose",
     "signature",
