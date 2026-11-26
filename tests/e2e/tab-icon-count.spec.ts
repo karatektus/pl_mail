@@ -4,8 +4,10 @@ import { INBOX_SUBJECTS, bulkMore, mailRow, seed } from "./support/config";
 import { INBOX_BADGE } from "./support/sidebar";
 
 /**
- * The Inbox's unread count on the tab icon (#662), for somebody who switched
- * it on in Settings → Notifications.
+ * The count on the tab icon (#662), for somebody who switched it on in
+ * Settings → Notifications: new mail by default, unread on request. Which
+ * account group and which workspaces are TabIconCountTest's (PHPUnit): they
+ * change the number, not how it reaches the icon.
  *
  * Read off the icon link itself: the count is drawn into an SVG that the link
  * names as a data: URL, so the number is in the href, and a plain icon is a
@@ -30,18 +32,34 @@ async function iconCount(page: Page): Promise<string | null> {
     return texts.at(-1)?.[1] ?? null;
 }
 
-/** The radios are sr-only; the label takes the click, and the form posts itself. */
-async function switchTabIconCount(page: Page, value: "1" | "0"): Promise<void> {
-    await page.goto("/settings/notifications");
+/**
+ * Set one of the Notifications card's choices. The radios are sr-only; the
+ * label takes the click, and the form posts itself. A radio already chosen
+ * posts nothing, so it is left alone.
+ */
+async function choose(page: Page, name: string, value: string): Promise<void> {
+    if (!page.url().endsWith("/settings/notifications")) {
+        await page.goto("/settings/notifications");
+    }
+
+    const radio = page.locator(`input[name="${name}"][value="${value}"]`);
+
+    if (await radio.isChecked()) {
+        return;
+    }
 
     const posted = page.waitForResponse(
         (response) => response.request().method() === "POST" && response.url().endsWith("/settings/notifications"),
     );
 
-    await page.locator(`label:has(input[name="tabIconCount"][value="${value}"])`).click();
+    await page.locator(`label:has(input[name="${name}"][value="${value}"])`).click();
     await posted;
     await page.waitForLoadState("load");
-    await expect(page.locator(`input[name="tabIconCount"][value="${value}"]`)).toBeChecked();
+    await expect(radio).toBeChecked();
+}
+
+async function switchTabIconCount(page: Page, value: "1" | "0"): Promise<void> {
+    await choose(page, "tabIconCount", value);
 }
 
 /** Tick conversations by their subjects and mark them read from the toolbar. */
@@ -88,10 +106,29 @@ test.describe("switched on", () => {
 
     // The switch is the user's, not the test's: put it back for the next spec.
     test.afterEach(async ({ page }) => {
+        await choose(page, "tabIconCountKind", "new");
         await switchTabIconCount(page, "0");
     });
 
-    test("the icon carries the Inbox count and follows it", async ({ page }) => {
+    /**
+     * The default: new mail. The seeded conversations have never been listed,
+     * so Settings counts all four; the Inbox shows them, which retires them,
+     * and the icon goes plain without anything being read.
+     */
+    test("new by default: a look at the Inbox clears it", async ({ page }) => {
+        await page.goto("/settings/notifications");
+        await expect.poll(() => iconCount(page)).toBe("4");
+
+        await turboVisit(page, "/mail/inbox");
+        await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
+        await expect.poll(() => iconCount(page), { timeout: 5000, message: "listed, so no longer new" }).toBeNull();
+
+        // Still unread: the badge keeps its number.
+        await expect(page.locator(INBOX_BADGE).first()).toHaveText("4");
+    });
+
+    test("unread: the icon carries the Inbox count and follows it", async ({ page }) => {
+        await choose(page, "tabIconCountKind", "unread");
         await page.goto("/mail/inbox");
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
 
@@ -140,6 +177,7 @@ test.describe("switched on", () => {
      * the hub tells the hidden one, as it would for mail read on a phone.
      */
     test("a hidden tab still counts mail that changed elsewhere", async ({ page }) => {
+        await choose(page, "tabIconCountKind", "unread");
         await page.goto("/mail/inbox");
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
         await expect.poll(() => iconCount(page)).toBe("4");

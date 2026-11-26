@@ -250,6 +250,29 @@ class SidebarCounts implements ResetInterface
     }
 
     /**
+     * Conversations holding unread mail in the Inbox of the given accounts,
+     * null for every account — NOT narrowed to the workspace on screen. For
+     * the tab icon (#662, TabIconCount), which decides its own scope; the
+     * per-account read forInbox() makes, so a page asking both reads once.
+     *
+     * @param list<int>|null $accountIds
+     */
+    public function unreadInInboxOf(?array $accountIds): int
+    {
+        $user = $this->security->getUser();
+
+        if (false === $user instanceof User) {
+            return 0;
+        }
+
+        $this->inboxUnread ??= $this->badgeCounts($user)->countUnreadInboxPerAccount($user);
+
+        return null === $accountIds
+            ? array_sum($this->inboxUnread)
+            : array_sum(array_intersect_key($this->inboxUnread, array_flip($accountIds)));
+    }
+
+    /**
      * How far along this user's mail was when these counts were read: the
      * highest change sequence across their accounts.
      *

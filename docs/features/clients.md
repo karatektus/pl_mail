@@ -158,13 +158,20 @@ asks whether the mail the push was about, or anything that came after it, is sti
 it shows nothing, and it takes down a notification it had shown for earlier mail. Unread mail from
 before the push does not count, and neither does unread mail in a tab or label you did not tick.
 
-**Unread count on the browser tab icon** (off by default) puts the number of unread conversations in
-your Inbox, the same number as the tab title, in the bottom right corner of plMail's icon in the
-browser tab, black with a thin white outline, so a pinned tab shows it too. Past 99 it says 99+. It
-counts the Inbox whichever folder is open, keeps up while the tab is in the background, and needs no
-push: it works with notifications off. In a [workspace](workspaces.md) that shows only some account
-groups, it counts that workspace's accounts, as the title does. Like the boxes above, it applies to
-every browser of yours.
+**Count on the browser tab icon** (off by default) puts a number in the bottom right corner of
+plMail's icon in the browser tab, black with a thin white outline, so a pinned tab shows whether
+mail is waiting. Past 99 it says 99+, and at nothing it goes away. It keeps up while the tab is in
+the background and needs no push: it works with notifications off. Like the boxes above, it applies
+to every browser of yours. Once it is on, three choices say what it counts:
+
+- **What it counts:** *New* (the default) counts the conversations from the last day that no list
+  has shown you yet, the ones the sidebar marks with a dot; looking at the Inbox clears them.
+  *Unread* counts every conversation in the Inbox you have not read.
+- **Which inbox** (with more than one account group): every group together (the default), or one
+  group's Inbox. An account in two groups is counted once.
+- **Which workspaces** (with more than one [workspace](workspaces.md)): *All* (the default) counts
+  every account whichever workspace is on screen. *This one* counts only the accounts of the
+  workspace on screen, as the tab title does.
 
 Two other kinds of push go to the same devices and are not affected: a reminder from
 [Calendar alerts](calendar-alerts.md), and the notice an administrator gets when a newer plMail is

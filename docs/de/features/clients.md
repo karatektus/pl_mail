@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:f2b9602e57dad917fb407b5b613a5fc427e354d6 -->
+<!-- translated-from: features/clients.md sha1:88808facb20c5f81ed67fafd95736ebec59439ed -->
 
 # Andere Clients
 
@@ -175,14 +175,22 @@ etwas, das danach kam, noch ungelesen ist. Wenn nicht, zeigt er nichts an und ni
 Benachrichtigung zurück, die er für frühere Post gezeigt hatte. Ungelesene Post von vor dem Push
 zählt nicht, ebenso wenig ungelesene Post in einem Tab oder Label, das du nicht angehakt hast.
 
-**Ungelesene am Symbol des Browser-Tabs** (standardmäßig aus) setzt die Zahl der ungelesenen
-Unterhaltungen in deinem Posteingang, dieselbe Zahl wie im Tab-Titel, in die rechte untere Ecke des
-Symbols von plMail im Browser-Tab, schwarz mit dünnem weißem Rand, damit auch ein angehefteter Tab
-sie zeigt. Über 99 steht dort 99+. Gezählt wird der Posteingang, egal welcher Ordner offen ist; die
-Zahl bleibt aktuell, während der Tab im Hintergrund liegt, und braucht keinen Push: Sie funktioniert
-auch mit ausgeschalteten Benachrichtigungen. Wie die Kästchen oben gilt sie für alle deine Browser.
-In einem [Arbeitsbereich](workspaces.md), der nur einige Kontogruppen zeigt, zählt sie wie der Titel
-die Konten dieses Arbeitsbereichs.
+**Zahl am Symbol des Browser-Tabs** (standardmäßig aus) setzt eine Zahl in die rechte untere Ecke
+des Symbols von plMail im Browser-Tab, schwarz mit dünnem weißem Rand, damit auch ein angehefteter
+Tab zeigt, ob Post wartet. Über 99 steht dort 99+, bei null verschwindet sie. Sie bleibt aktuell,
+während der Tab im Hintergrund liegt, und braucht keinen Push: Sie funktioniert auch mit
+ausgeschalteten Benachrichtigungen. Wie die Kästchen oben gilt sie für alle deine Browser. Ist sie
+an, bestimmen drei Einstellungen, was sie zählt:
+
+- **Was gezählt wird:** *Neu* (Standard) zählt die Unterhaltungen vom letzten Tag, die dir noch
+  keine Liste gezeigt hat, also die, die die Seitenleiste mit einem Punkt markiert; ein Blick in den
+  Posteingang nimmt sie weg. *Ungelesen* zählt jede Unterhaltung im Posteingang, die du nicht gelesen
+  hast.
+- **Welcher Posteingang** (bei mehr als einer Kontogruppe): alle Gruppen zusammen (Standard) oder der
+  Posteingang einer Gruppe. Ein Konto in zwei Gruppen zählt einmal.
+- **Welche Arbeitsbereiche** (bei mehr als einem [Arbeitsbereich](workspaces.md)): *Alle* (Standard)
+  zählt jedes Konto, egal welcher Arbeitsbereich zu sehen ist. *Dieser* zählt nur die Konten des
+  Arbeitsbereichs auf dem Bildschirm, wie der Tab-Titel.
 
 Zwei andere Arten von Push gehen an dieselben Geräte und sind nicht betroffen: eine Erinnerung aus
 den [Kalender-Erinnerungen](calendar-alerts.md) und der Hinweis, den ein Administrator bekommt, wenn

@@ -35,6 +35,7 @@ use App\Service\Mail\MailLists;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\NewMailMarkers;
 use App\Service\Mail\SidebarCounts;
+use App\Service\Mail\TabIconCount;
 use App\Service\Mail\ThreadListRenderer;
 use App\Service\Mail\SenderPicture\SenderPictures;
 use App\Service\Mail\ThreadRows;
@@ -1090,7 +1091,7 @@ final class MailController extends AbstractController
      * scroll position and any collapsed tree mid-sync.
      */
     #[Route('/sidebar/counts', name: 'sidebar_counts', methods: ['GET'])]
-    public function sidebarCounts(Request $request, SidebarCounts $counts, NewMailMarkers $newMail): JsonResponse
+    public function sidebarCounts(Request $request, SidebarCounts $counts, NewMailMarkers $newMail, TabIconCount $tabIconCount): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
@@ -1196,6 +1197,13 @@ final class MailController extends AbstractController
         // (#125). Its own "unsent:" family, so a number meant for it cannot
         // be read as a badge's, nor a badge's as it. See _unsent_mark.html.twig.
         $payload['unsent:role:drafts'] = $counts->unsentDrafts();
+
+        // The number on the browser tab icon (#662), for somebody who has it
+        // on: its own key, because it need not be any badge's number. See
+        // TabIconCount. Absent while it is off, which leaves the icon plain.
+        if ($countsUser instanceof User && null !== ($icon = $tabIconCount->for($countsUser))) {
+            $payload[TabIconCount::KEY] = $icon;
+        }
 
         // One key per label now that the sidebar renders labels directly —
         // this used to also emit "node:<path>" keys for the merged tree.

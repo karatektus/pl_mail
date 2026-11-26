@@ -6,8 +6,10 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Push\NotifyScope;
+use App\Domain\Enum\User\TabIconCountKind;
 use App\Entity\User\User;
 use App\Service\Mail\NotifyScopes;
+use App\Service\Mail\UnifiedInboxes;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,14 +21,14 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Settings → Notifications: what mail is worth a notification, for the whole
  * user rather than one device (#369).
  *
- * Three choices. Which switches are on — a tab each, a label each —
+ * Several choices. Which switches are on — a tab each, a label each —
  * (User::$notifyScopes), which PushDispatcher applies to the browsers and the
  * phone apps read over JMAP; and whether mail that has been read in the
  * meantime is dropped (User::$notifySkipsRead), which the service worker reads
  * back through WebPushController::inboxState(). And one that is no push at
- * all: whether the tab icon carries the Inbox's unread count
- * (User::$tabIconCount, #662), a way of being told about new mail that
- * belongs beside the others. This controller only records them. Which devices
+ * all: whether the tab icon carries a count of the Inbox, and which one
+ * (User::$tabIconCount and the three after it, #662; see TabIconCount), a way
+ * of being told about new mail that belongs beside the others. This controller only records them. Which devices
  * exist is PushDeviceController's business.
  */
 #[IsGranted('ROLE_USER')]
@@ -35,7 +37,7 @@ final class NotificationPreferenceController extends AbstractController
     use ChecksCsrf;
 
     #[Route('/settings/notifications', name: 'app_settings_notifications_update', methods: ['POST'])]
-    public function update(Request $request, EntityManagerInterface $em, NotifyScopes $notifyScopes): Response
+    public function update(Request $request, EntityManagerInterface $em, NotifyScopes $notifyScopes, UnifiedInboxes $inboxes): Response
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -57,6 +59,29 @@ final class NotificationPreferenceController extends AbstractController
 
         if (true === $request->request->has('tabIconCount')) {
             $user->tabIconCount = '1' === (string) $request->request->get('tabIconCount');
+        }
+
+        // What the tab icon counts (#662): new or unread, every workspace or
+        // the one on screen, one account group or all. Each read only when
+        // posted, like the switches above. An unknown kind is ignored rather
+        // than read as the default; a group that is not the user's is read
+        // as every group, which is what the icon falls back to anyway.
+        if (true === $request->request->has('tabIconCountKind')) {
+            $kind = TabIconCountKind::tryFrom((string) $request->request->get('tabIconCountKind'));
+
+            if (null !== $kind) {
+                $user->tabIconCountKind = $kind;
+            }
+        }
+
+        if (true === $request->request->has('tabIconCountWorkspace')) {
+            $user->tabIconCountThisWorkspace = '1' === (string) $request->request->get('tabIconCountWorkspace');
+        }
+
+        if (true === $request->request->has('tabIconCountInbox')) {
+            $group = $request->request->getInt('tabIconCountInbox');
+
+            $user->tabIconCountInbox = $group > 0 && null !== $inboxes->find($user, $group) ? $group : null;
         }
 
         // The boxes are posted with a marker, because an unchecked box sends

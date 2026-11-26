@@ -1,8 +1,9 @@
 /**
- * The Inbox's unread count on plMail's icon in the browser tab, as Gmail
- * draws it (#662). For somebody who switched it on in Settings →
- * Notifications, which the layout says by rendering
- * `<meta name="tab-icon-count">` with the count at page load; absent means off.
+ * A count of the Inbox on plMail's icon in the browser tab, as Gmail draws
+ * it (#662): new conversations by default, or unread ones. For somebody who
+ * switched it on in Settings → Notifications, which the layout says by
+ * rendering `<meta name="tab-icon-count">` with the count at page load;
+ * absent means off.
  *
  * Why the icon and not only the title: a pinned tab shows its icon and nothing
  * else, so the "(3)" the title already carries is not there to be seen.
@@ -20,18 +21,19 @@
  * pane finds the link by that type.
  *
  * Called by ui--sidebar, which has the counts: on connect with the page's
- * number, and after every counts answer with `role:inbox` from it. And drawn
+ * number, and after every counts answer with TAB_ICON_COUNT_KEY from it. And drawn
  * again here after every Turbo render, because each one puts the page's own
  * head in, plain icon included, and not each one reconnects the sidebar: the
  * Settings pages refresh by morphing (turbo-refresh-method), which keeps it.
  */
 
 /**
- * The counts key the icon shows: the Inbox on every page, the number the
- * title counts on the Inbox. Of the workspace on screen when it shows only some
- * account groups (#783), as SidebarCounts scopes every count that spans accounts.
+ * The counts key the icon shows: TabIconCount::KEY, a number of its own that
+ * the server works out from the user's choices (new or unread, which account
+ * group, this workspace or every one). Not `role:inbox`: that is the title's,
+ * and it follows the workspace on screen.
  */
-export const TAB_ICON_COUNT_KEY = "role:inbox";
+export const TAB_ICON_COUNT_KEY = "tab-icon";
 
 const META = 'meta[name="tab-icon-count"]';
 const ICON = 'link[rel="icon"][type="image/svg+xml"]';

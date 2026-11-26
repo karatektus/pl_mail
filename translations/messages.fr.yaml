@@ -5603,8 +5603,19 @@ settings:
         subheading: >-
             Soyez prévenu du nouveau courrier sur cet appareil, même quand plMail est
             fermé.
-        tab_icon_count: 'Non-lus sur l’icône de l’onglet du navigateur'
-        tab_icon_count_hint: 'Le nombre de conversations non lues dans votre boîte de réception, le même nombre que dans le titre de l’onglet, dessiné sur l’icône de plMail dans l’onglet du navigateur, pour qu’un onglet épinglé le montre aussi. S’applique à tous vos navigateurs.'
+        tab_icon_count: 'Nombre sur l’icône de l’onglet'
+        tab_icon_count_hint: 'Un nombre sur l’icône de plMail dans l’onglet du navigateur, pour qu’un onglet épinglé montre aussi si du courrier attend. S’applique à tous vos navigateurs.'
+        tab_icon_inbox: 'Quelle boîte de réception'
+        tab_icon_inbox_all: 'Toutes ensemble'
+        tab_icon_inbox_hint: 'La boîte de réception d’un groupe de comptes, ou celles de tous les groupes ensemble.'
+        tab_icon_kind: 'Ce qui est compté'
+        tab_icon_kind_hint: 'Nouveaux : les conversations du dernier jour qu’aucune liste ne vous a encore montrées, comme les points de la barre latérale. Non lus : toutes les conversations que vous n’avez pas lues.'
+        tab_icon_kind_new: 'Nouveaux'
+        tab_icon_kind_unread: 'Non lus'
+        tab_icon_workspace: 'Quels espaces de travail'
+        tab_icon_workspace_all: 'Tous'
+        tab_icon_workspace_hint: 'Tous compte chaque compte. Celui-ci ne compte que les comptes de l’espace de travail affiché, comme le titre de l’onglet.'
+        tab_icon_workspace_this: 'Celui-ci'
         this_device: Cet appareil
         toggle: Activer les notifications
         toggle_off: Désactiver les notifications

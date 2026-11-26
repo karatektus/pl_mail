@@ -9,6 +9,8 @@ twig:
         # Its own global beside sidebarCounts because new and unread are
         # different questions — see App\Service\Mail\NewMailMarkers.
         newMail: '@App\Service\Mail\NewMailMarkers'
+        # The number on the browser tab icon (#662), for the layout's meta tag.
+        tabIconCount: '@App\Service\Mail\TabIconCount'
         ruleDescriber: '@App\Service\Rule\FilterDescriber'
         integrations: '@App\Twig\IntegrationsGlobal'
         calendar: '@App\Twig\CalendarGlobal'

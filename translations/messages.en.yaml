@@ -5539,8 +5539,19 @@ settings:
         state_working: Working…
         subheading: >-
             Get notified of new mail on this device, even when plMail is closed.
-        tab_icon_count: 'Unread count on the browser tab icon'
-        tab_icon_count_hint: 'How many conversations in your Inbox are unread, the same number as the tab title, drawn on plMail''s icon in the browser tab, so a pinned tab shows it too. Applies to every browser of yours.'
+        tab_icon_count: 'Count on the browser tab icon'
+        tab_icon_count_hint: 'A number on plMail''s icon in the browser tab, so a pinned tab shows whether mail is waiting. Applies to every browser of yours.'
+        tab_icon_inbox: 'Which inbox'
+        tab_icon_inbox_all: 'All combined'
+        tab_icon_inbox_hint: 'One account group''s Inbox, or every group''s together.'
+        tab_icon_kind: 'What it counts'
+        tab_icon_kind_hint: 'New: conversations from the last day that no list has shown you yet, as the sidebar''s dots count them. Unread: every conversation you have not read.'
+        tab_icon_kind_new: 'New'
+        tab_icon_kind_unread: 'Unread'
+        tab_icon_workspace: 'Which workspaces'
+        tab_icon_workspace_all: 'All'
+        tab_icon_workspace_hint: 'All counts every account. This one counts only the accounts of the workspace on screen, as the tab title does.'
+        tab_icon_workspace_this: 'This one'
         this_device: This device
         toggle: Enable notifications
         toggle_off: Disable notifications

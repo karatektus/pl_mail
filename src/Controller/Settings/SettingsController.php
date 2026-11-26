@@ -118,6 +118,7 @@ final class SettingsController extends AbstractController
         private readonly TemplateLibrary $templateLibrary,
         private readonly NotifyScopes $notifyScopes,
         private readonly SettingsNavigation $navigation,
+        private readonly \App\Service\Layout\WorkspaceStore $workspaces,
     ) {
     }
 
@@ -226,6 +227,15 @@ final class SettingsController extends AbstractController
             'notifySwitches'     => 'notifications' === $section && $user instanceof User
                 ? $this->notifyScopes->offeredTo($user)
                 : ['inbox' => [], 'labels' => []],
+            // What the tab icon can count (#662): the account groups to pick
+            // from, and whether there is more than one workspace to tell
+            // apart. Each row is drawn only when it offers a choice.
+            'tabIconGroups'      => 'notifications' === $section && $user instanceof User
+                ? $this->unifiedInboxes->shown($user)
+                : [],
+            'tabIconWorkspaces'  => 'notifications' === $section && $user instanceof User
+                ? \count($this->workspaces->load($user)->all)
+                : 0,
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),
             // A refused profile save forwards here with its form, so the page

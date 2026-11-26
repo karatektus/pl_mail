@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Backup;
 
+use App\Domain\Enum\User\TabIconCountKind;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\UnifiedInbox;
 use App\Entity\User\User;
@@ -201,6 +202,34 @@ final class ConfigBackupUnifiedInboxesTest extends KernelTestCase
             ['t' => 'inbox', 'inbox' => (int) $work->id],
             ['t' => 'block', 'b' => 'calendars'],
         ], $user->getSetting(User::SETTING_SIDEBARS)[0]['entries']);
+    }
+
+    /**
+     * The tab icon's account group (#662) is an id too: it comes back on the
+     * group it became, with the other tab icon choices beside it.
+     */
+    public function testTheTabIconsGroupComesBackOnItsNewId(): void
+    {
+        $this->seedReader();
+
+        $user = $this->restoredUser();
+        $work = static::getContainer()->get(UnifiedInboxes::class)->all($user)[1];
+
+        $user->tabIconCount              = true;
+        $user->tabIconCountKind          = TabIconCountKind::Unread;
+        $user->tabIconCountThisWorkspace = true;
+        $user->tabIconCountInbox         = (int) $work->id;
+        $this->entityManager->flush();
+
+        $this->restoreElsewhere($this->exporter->document());
+
+        $user = $this->restoredUser();
+        $work = static::getContainer()->get(UnifiedInboxes::class)->all($user)[1];
+
+        self::assertTrue($user->tabIconCount);
+        self::assertSame(TabIconCountKind::Unread, $user->tabIconCountKind);
+        self::assertTrue($user->tabIconCountThisWorkspace);
+        self::assertSame((int) $work->id, $user->tabIconCountInbox);
     }
 
     /** @return list<int> the source accounts' ids */

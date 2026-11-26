@@ -5342,8 +5342,19 @@ settings:
         subheading: >-
             Get word o' new mail on this here device, even when plMail be
             battened down.
-        tab_icon_count: 'Unread tally on th'' browser tab flag'
-        tab_icon_count_hint: 'How many yarns in yer Inbox be unread, the same tally as the tab''s title, painted on plMail''s flag in yer browser tab, so a pinned tab shows it too. Holds fer every browser o'' yers.'
+        tab_icon_count: 'Tally on the browser tab''s flag'
+        tab_icon_count_hint: 'A number painted on plMail''s flag in yer browser tab, so a pinned tab shows whether post be waitin''. Holds fer every browser o'' yers.'
+        tab_icon_inbox: 'Which inbox'
+        tab_icon_inbox_all: 'All together'
+        tab_icon_inbox_hint: 'One fleet''s Inbox, or every fleet''s together.'
+        tab_icon_kind: 'What be tallied'
+        tab_icon_kind_hint: 'New: yarns from the last day no list has shown ye yet, as the sidebar''s dots count ''em. Unread: every yarn ye''ve not read.'
+        tab_icon_kind_new: 'New'
+        tab_icon_kind_unread: 'Unread'
+        tab_icon_workspace: 'Which workspaces'
+        tab_icon_workspace_all: 'All'
+        tab_icon_workspace_hint: 'All tallies every account. This one tallies only the accounts o'' the workspace on screen, as the tab''s title does.'
+        tab_icon_workspace_this: 'This one'
         this_device: This here device
         toggle: Send up the lookout
         toggle_off: Call down the lookout

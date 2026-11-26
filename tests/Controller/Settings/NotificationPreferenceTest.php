@@ -7,10 +7,12 @@ namespace App\Tests\Controller\Settings;
 use App\Domain\DTO\Push\NotifyScope;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\Enum\User\TabIconCountKind;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
+use App\Service\Mail\UnifiedInboxes;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -157,8 +159,8 @@ final class NotificationPreferenceTest extends WebTestCase
     /**
      * The count on the tab icon (#662): off until switched on, stored as the
      * absent key when off again, left alone by a save that does not mention it
-     * — and while on, every page carries the Inbox's count for the icon, the
-     * number the title shows there.
+     * — and while on, every page carries the number for the icon. What that
+     * number is made of is TabIconCountTest's.
      */
     public function testTheTabIconCountSwitchesOnAndOffAndThePageCarriesIt(): void
     {
@@ -166,22 +168,18 @@ final class NotificationPreferenceTest extends WebTestCase
 
         self::assertSame('0', $page->filter('input[name="tabIconCount"]:checked')->attr('value'));
         self::assertCount(0, $page->filter('meta[name="tab-icon-count"]'), 'off: no count for the icon');
+        self::assertCount(0, $page->filter('input[name="tabIconCountKind"]'), 'off: nothing to choose about it');
 
         $this->arrived('Waiting', minutesAgo: 1);
         $this->post(['tabIconCount' => '1']);
 
         self::assertTrue($this->reread()->tabIconCount);
 
-        $page  = $this->client->request('GET', '/settings/notifications');
-        $title = $page->filter('title')->text();
+        $page = $this->client->request('GET', '/settings/notifications');
 
         self::assertSame('1', $page->filter('input[name="tabIconCount"]:checked')->attr('value'));
-        self::assertSame(
-            1 === preg_match('/^\((\d+)\) /', $title, $count) ? $count[1] : '0',
-            $page->filter('meta[name="tab-icon-count"]')->attr('content'),
-            'the number the title counts on this page',
-        );
-        self::assertGreaterThan(0, (int) $page->filter('meta[name="tab-icon-count"]')->attr('content'), 'the unread mail is counted');
+        self::assertSame('1', $page->filter('meta[name="tab-icon-count"]')->attr('content'), 'the new conversation');
+        self::assertSame('new', $page->filter('input[name="tabIconCountKind"]:checked')->attr('value'), 'new by default');
 
         // A post that does not mention it leaves it alone.
         $this->post(['skipRead' => '1']);
@@ -192,6 +190,41 @@ final class NotificationPreferenceTest extends WebTestCase
         self::assertFalse($this->reread()->tabIconCount);
         self::assertNull($this->reread()->getSetting(User::SETTING_TAB_ICON_COUNT));
         self::assertTrue($this->reread()->notifySkipsRead, 'and the other switch is its own');
+    }
+
+    /**
+     * The three choices about the count (#662): each stored when posted, the
+     * defaults stored as absent keys, an unknown kind ignored, and a group
+     * that is not the reader's read as every group.
+     */
+    public function testTheTabIconChoicesAreStoredAndTheDefaultsAreAbsentKeys(): void
+    {
+        $this->post(['tabIconCount' => '1', 'tabIconCountKind' => 'unread', 'tabIconCountWorkspace' => '1']);
+
+        $user = $this->reread();
+        self::assertSame(TabIconCountKind::Unread, $user->tabIconCountKind);
+        self::assertTrue($user->tabIconCountThisWorkspace);
+
+        $this->post(['tabIconCountKind' => 'sometimes']);
+        self::assertSame(TabIconCountKind::Unread, $this->reread()->tabIconCountKind, 'an unknown kind changes nothing');
+
+        $this->post(['tabIconCountKind' => 'new', 'tabIconCountWorkspace' => '0']);
+
+        $user = $this->reread();
+        self::assertSame(TabIconCountKind::New, $user->tabIconCountKind);
+        self::assertNull($user->getSetting(User::SETTING_TAB_ICON_COUNT_KIND));
+        self::assertNull($user->getSetting(User::SETTING_TAB_ICON_COUNT_WORKSPACE));
+
+        $group = static::getContainer()->get(UnifiedInboxes::class)->first($this->reread());
+
+        $this->post(['tabIconCountInbox' => (string) $group->id]);
+        self::assertSame((int) $group->id, $this->reread()->tabIconCountInbox);
+
+        $this->post(['tabIconCountInbox' => '987654']);
+        self::assertNull($this->reread()->tabIconCountInbox, 'not one of theirs: every group');
+
+        $this->post(['tabIconCountInbox' => '']);
+        self::assertNull($this->reread()->tabIconCountInbox);
     }
 
     public function testAPostWithoutATokenIsRefused(): void

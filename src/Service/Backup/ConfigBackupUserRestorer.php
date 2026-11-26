@@ -212,6 +212,7 @@ final readonly class ConfigBackupUserRestorer
         $this->createRules($user, $this->rows($document, 'rules'), $accounts, $labels, $integrations, $categories);
         $this->retargetTabOrder($user, $categories);
         $this->retargetWorkspaces($user, $groups);
+        $this->retargetTabIconInbox($user, $groups);
         $this->retargetSidebars($user, $accounts, $labels, $groups, $calendars);
 
         $this->entityManager->flush();
@@ -255,6 +256,23 @@ final readonly class ConfigBackupUserRestorer
         }
 
         $user->setSetting(User::SETTING_WORKSPACES, $document);
+    }
+
+    /**
+     * The account group the tab icon counts (#662), by its id in the source
+     * database: rewritten to the group it became, or dropped when the file
+     * did not carry it, which counts every group, the default.
+     *
+     * @param array<int, UnifiedInbox> $groups keyed by the id in the file
+     */
+    private function retargetTabIconInbox(User $user, array $groups): void
+    {
+        $id = $user->tabIconCountInbox;
+
+        if (null !== $id) {
+            $group                   = $groups[$id] ?? null;
+            $user->tabIconCountInbox = null === $group?->id ? null : (int) $group->id;
+        }
     }
 
     /**
