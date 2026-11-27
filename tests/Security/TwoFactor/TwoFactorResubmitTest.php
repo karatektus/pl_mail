@@ -143,6 +143,26 @@ final class TwoFactorResubmitTest extends WebTestCase
     }
 
     /**
+     * The code form starts nothing of the signed-in app: no keyring, no hub,
+     * no jobs indicator. Each fetched from /2fa while the code was still
+     * pending, was turned away to /2fa, and one arriving beside the code's own
+     * POST wrote the half-signed-in session back over the completed one, so a
+     * quick reader was asked for the code again (the layout's `_user`).
+     */
+    public function testTheCodeFormStartsNoneOfTheSignedInApp(): void
+    {
+        $this->signInWithPassword();
+        self::assertSame('/2fa', $this->currentPath(), 'expected the code prompt');
+
+        $page = $this->client->getCrawler();
+
+        self::assertCount(1, $page->filter('input[name="_auth_code"]'), 'the code form itself is there');
+        self::assertCount(0, $page->filter('[data-controller~="crypto--keyring"]'), 'no keyring');
+        self::assertStringNotContainsString('core--mercure', (string) $page->filter('body')->attr('data-controller'), 'no hub');
+        self::assertStringNotContainsString('mail--jobs', (string) $page->filter('body')->attr('data-controller'), 'no jobs indicator');
+    }
+
+    /**
      * The code form is a page with a layout, and the layout fetches things.
      * While the code is outstanding every one of those fetches is turned away
      * — and the last one used to be remembered as where the reader was going.
