@@ -859,6 +859,10 @@ test.describe("tasks pane on a notebook", () => {
         await page.waitForLoadState("networkidle");
         await page.reload();
         await expect(dock(page)).toBeVisible();
+        // The pane's frame loads itself again after the page, and its answer
+        // replaces whatever is open in it: a gear menu opened first is gone
+        // under the click on Lists.
+        await page.waitForLoadState("networkidle");
         await openLists(page);
         const firstRow = modal(page).locator("[data-task-list]").first();
 
