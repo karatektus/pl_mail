@@ -1,4 +1,13 @@
 <!DOCTYPE html>
+{# Who the page is drawn for: the signed-in user, and nobody while the sign-in
+   still waits for its second factor. The code form (/2fa) is drawn in this
+   layout with app.user already set, and everything below that starts for a
+   user — the keyring, the hub, the jobs indicator — fetched from it. Those
+   requests are turned away to /2fa, and one of them arriving beside the code's
+   own POST wrote back the session it had read, the one still waiting for the
+   code, over the session the code had just completed: the reader was asked
+   for the code again. #}
+{% set _user = app.user and not is_granted('IS_AUTHENTICATED_2FA_IN_PROGRESS') ? app.user : null %}
 {# `lang` is what tells a screen reader which voice to read the page in, and
    what a browser offers to translate from. It was absent entirely, so assistive
    technology fell back to the OS language and read a German UI in an English
@@ -112,7 +121,7 @@
        TabIconCount. Rendered with the page so the icon carries it before the
        first counts request, and again after a Turbo visit puts back the plain
        icon. See tab_icon_count.js. #}
-    {% set _tabIconCount = app.user ? tabIconCount.for(app.user) : null %}
+    {% set _tabIconCount = _user ? tabIconCount.for(_user) : null %}
     {% if _tabIconCount is not null %}
         <meta name="tab-icon-count" content="{{ _tabIconCount }}">
     {% endif %}
@@ -181,7 +190,7 @@
             const key = 'plmail:appearance';
 
             try {
-                {% if app.user %}
+                {% if _user %}
                 localStorage.setItem(key, JSON.stringify({
                     class: root.className,
                     theme: root.dataset.theme,
@@ -277,7 +286,7 @@
 </head>
 {# One topic, named once: it is both what we subscribe to and what the cookie
    authorizes, and the two drifting apart is a silent no-updates bug. #}
-{% set mercure_topics = app.user ? ['mail/user/' ~ app.user.id] : [] %}
+{% set mercure_topics = _user ? ['mail/user/' ~ _user.id] : [] %}
 <body
     {# ui--tooltip is outside the block on purpose: it replaces the native
        `title` tooltip application-wide, so a page overriding body_controllers
@@ -288,13 +297,13 @@
        and calendar page. The mailbox layout adds it back. #}
     {# has-demo-bar: the fixed demo bar overlays the panes, so scrollers need
        room to bring their last row clear of it. See app.css. #}
-    class="{% block body_class %}{% endblock %}{% if app.user and demo.isEnabled %} has-demo-bar{% endif %}"
+    class="{% block body_class %}{% endblock %}{% if _user and demo.isEnabled %} has-demo-bar{% endif %}"
     {# ui--shortcuts is outside the block for the reason ui--tooltip is, and
        for somebody who has not switched the shortcuts off — an absent
        controller is the whole of "off", so there is no flag for the script to
        remember to read. See App\Entity\User\User::SETTING_KEYBOARD_SHORTCUTS. #}
-    {% set _shortcuts = app.user and app.user.keyboardShortcuts %}
-    data-controller="ui--tooltip{% if _shortcuts %} ui--shortcuts{% endif %} {% if app.user %}{% block body_controllers %}core--mercure mail--jobs{% endblock %}{% endif %}"
+    {% set _shortcuts = _user and _user.keyboardShortcuts %}
+    data-controller="ui--tooltip{% if _shortcuts %} ui--shortcuts{% endif %} {% if _user %}{% block body_controllers %}core--mercure mail--jobs{% endblock %}{% endif %}"
     {% if _shortcuts %}
         data-ui--shortcuts-go-value="{{ {
             i: path('app_mail_inbox'),
@@ -307,8 +316,8 @@
     {# On the BODY, beside the controller that reads it: a Stimulus value has to
        live on the same element as its controller, and this one sat on the pane
        below where it was silently never read. #}
-    {% if app.user %}data-mail--jobs-url-value="{{ path('app_jobs_indicator') }}"{% endif %}
-    {% if app.user %}
+    {% if _user %}data-mail--jobs-url-value="{{ path('app_jobs_indicator') }}"{% endif %}
+    {% if _user %}
         {# URL only. The cookie that authorizes this subscription is attached by
            MercureCookieSubscriber — passing `subscribe:` here would mint it too,
            but that helper throws for a hub on another domain and would take the
@@ -363,7 +372,7 @@
     {% endif %}
     {# After the modal, and only ever for a signed-in user who has not been
        through setup: it drives the dialog above, so that has to exist first. #}
-    {% if app.user %}
+    {% if _user %}
         {% include 'onboarding/_boot.html.twig' %}
         {% include 'crypto/_keyring_boot.html.twig' %}
         {# After an update, What's new — never on an install, and never on top
@@ -377,7 +386,7 @@
        Inside the app.user check for the same reason the session-expired bar is:
        it posts to a route that requires a mailbox to deliver into, so on the
        login screen it would be a button that could only fail. #}
-    {% if app.user and demo.isEnabled %}
+    {% if _user and demo.isEnabled %}
         {% include '_partials/_demo_bar.html.twig' %}
     {% endif %}
     {# The dock's placement lives on this wrapper, never on the turbo-frame it
@@ -454,7 +463,7 @@
        on the login and install screens, the bar carries a link to /login — and
        the install flow asserts that a freshly restored instance with no users
        offers no way to sign in, because there is nobody to sign in as. #}
-    {% if app.user %}
+    {% if _user %}
         {% include '_partials/_session_expired.html.twig' %}
     {% endif %}
     {% include '_partials/_confirm_dialog.html.twig' %}
