@@ -7328,14 +7328,16 @@ html[data-dnd-active] [data-dnd-ghost] {
 }
 
 /* Paragraphs inside the compose editors, spaced the way the recipient will
-   see them (#782). Enter in a `<p>` makes a new `<p>`, and the body starts as
-   one (`<p><br></p>` above the signature or the quote). Preflight zeroes
-   their margin, so in the editor Enter looked like a single line break; the
-   mail goes out without any margin on them, and every mail client — and our
-   own reading pane, which has no preflight — gives a `<p>` the browser's
-   1em above and below. The sender saw tight lines and the recipient got a
-   gap after each one. 1em is that default, so what is on screen while
-   writing is what arrives. Shift+Enter is still a plain `<br>`. */
+   see them (#782). Preflight zeroes a `<p>`'s margin; the mail goes out
+   without any margin on them, and every mail client — and our own reading
+   pane, which has no preflight — gives a `<p>` the browser's 1em above and
+   below. 1em is that default, so what is on screen while writing is what
+   arrives.
+
+   Enter no longer makes one (#807): the writing space is a `<div>` and Enter
+   makes `<div>`s, one line each with no gap, in the editor and on the wire.
+   This rule is for the paragraphs that are paragraphs — pasted, from a
+   template or a signature, or in a draft written before. */
 [data-compose--compose-toolbar-target="editor"] p {
     margin-block: 1em;
 }
@@ -7863,4 +7865,31 @@ li[data-swipe-side] > [data-swipe-content] {
    switch can bring one back without a reload, and is not shown. */
 .sidebar-boundary[data-no-sidebar] {
     display: none !important;
+}
+
+/* iOS zooms the whole page into any field under 16px the moment it gets the
+   caret, and does not zoom back out (#807). Nearly every field here is
+   text-sm or smaller, so on the iPhone the app kept ending up magnified.
+
+   Raised to 16px on iOS only, rather than `maximum-scale=1` in the viewport
+   tag: that stops the zoom too, but it also tells every other browser to
+   forbid pinch-zooming, which is not ours to take away. `-webkit-touch-callout`
+   is the test for iOS Safari (and the home-screen app, which is the same
+   engine); `pointer: coarse` keeps a desktop Safari that ever learns the
+   property out of it.
+
+   Unlayered, so it wins over the Tailwind size utilities, which live in a
+   layer. The few fields that are bigger than 16px on purpose (a contact's
+   name) are left as they are. */
+@supports (-webkit-touch-callout: none) {
+    @media (pointer: coarse) {
+        input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"], [type="reset"], [type="image"], [type="hidden"]),
+        textarea,
+        select,
+        [contenteditable]:not([contenteditable="false"]) {
+            &:not(.text-lg, .text-xl, .text-2xl, .text-3xl) {
+                font-size: 16px;
+            }
+        }
+    }
 }

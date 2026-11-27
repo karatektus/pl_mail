@@ -132,10 +132,10 @@ final class MailtoLinkTest extends TestCase
         self::assertSame('One two', MailtoLink::parse('mailto:?subject=One%0D%0Atwo')?->subject);
     }
 
-    public function testTheBodyBecomesEscapedParagraphs(): void
+    public function testTheBodyBecomesEscapedLines(): void
     {
         $link = MailtoLink::parse('mailto:?body=%3Cb%3Ehi%3C%2Fb%3E%0A%0Abye');
 
-        self::assertSame('<p>&lt;b&gt;hi&lt;/b&gt;</p><p><br></p><p>bye</p>', $link?->bodyHtml());
+        self::assertSame('<div>&lt;b&gt;hi&lt;/b&gt;</div><div><br></div><div>bye</div>', $link?->bodyHtml());
     }
 }

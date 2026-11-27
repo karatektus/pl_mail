@@ -146,6 +146,26 @@ class MessageListBadgeRepository extends ServiceEntityRepository
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
+    /**
+     * Unread emails wearing a label or any label nested under it: a collapsed
+     * parent label (#807). Each email once, however many of those labels it
+     * wears — see the thread repository's countUnreadInLabels().
+     *
+     * @param non-empty-list<int> $labelIds the label and its descendants
+     * @param list<int>|null      $accountIds a workspace's accounts (#783); null is all
+     */
+    public function countUnreadInLabels(UserInterface $user, array $labelIds, ?array $accountIds = null): int
+    {
+        $qb = $this->unread($user, $accountIds)
+            ->select('COUNT(m.id)')
+            ->andWhere('EXISTS (SELECT treeLabel.id FROM ' . Label::class . ' treeLabel WHERE treeLabel MEMBER OF m.labels AND treeLabel.id IN (:labelIds))')
+            ->setParameter('labelIds', $labelIds);
+
+        $this->notBinned($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
     /** Unread starred emails. */
     public function countUnreadForStarred(UserInterface $user, ?array $accountIds = null): int
     {

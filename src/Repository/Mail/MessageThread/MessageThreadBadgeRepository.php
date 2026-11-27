@@ -286,6 +286,41 @@ class MessageThreadBadgeRepository extends ServiceEntityRepository
     }
 
     /**
+     * One number for a label and everything nested under it — what a parent
+     * label in the sidebar shows while its tree is collapsed (#807).
+     *
+     * Counted once per conversation for the reason countUnreadInUserLabels()
+     * gives: a conversation filed under the parent and one of its children, or
+     * under two children, is one row when the tree is opened, and a collapsed
+     * number that claims two would be louder than what it stands for.
+     *
+     * @param non-empty-list<int> $labelIds the label and its descendants
+     * @param list<int>|null      $accountIds a workspace's accounts (#783); null is all
+     */
+    public function countUnreadInLabels(UserInterface $user, array $labelIds, ?array $accountIds = null): int
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->select('COUNT(DISTINCT t.id)')
+            ->join('t.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('a.mailEnabled = true')
+            ->andWhere('t.unreadCount > 0')
+            ->andWhere(
+                't.id IN ('
+                    . 'SELECT labelled.id FROM ' . MessageThread::class . ' labelled'
+                    . ' JOIN labelled.labels treeLabel'
+                    . ' WHERE treeLabel.id IN (:labelIds))',
+            )
+            ->setParameter('user', $user)
+            ->setParameter('labelIds', $labelIds);
+
+        MessageThreadListCriteria::narrowToAccounts($qb, $accountIds);
+        MessageThreadListCriteria::excludeTrashed($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
      * COUNT DISTINCT over a join to Account — neither expressible through
      * count(), which takes field-to-value criteria on this entity alone.
      *

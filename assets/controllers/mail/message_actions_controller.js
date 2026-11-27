@@ -5,6 +5,7 @@ import { announceWrite } from "../../mail_writes.js";
 import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
 import { postPin, redrawAndPlace, swingTack } from "../../pin.js";
+import { onOutsidePress } from "../../outside_press.js";
 
 /**
  * Status actions for the reading pane: the per-message overflow menu and the
@@ -26,11 +27,11 @@ export default class extends Controller {
     };
 
     connect() {
-        this._boundClose = this._closeOnOutsideClick.bind(this);
+        this._boundEscape = this._closeOnEscape.bind(this);
     }
 
     disconnect() {
-        document.removeEventListener("click", this._boundClose, { capture: true });
+        this._detach();
     }
 
     toggle(event) {
@@ -46,7 +47,12 @@ export default class extends Controller {
         }
 
         this.panelTarget.classList.remove("hidden");
-        document.addEventListener("click", this._boundClose, { capture: true });
+
+        // A tap on iOS and a press inside the message both close it now; see
+        // outside_press.js for why a click listener heard neither (#807).
+        this._detach();
+        this._stopOutside = onOutsidePress(this.element, () => this._close());
+        document.addEventListener("keydown", this._boundEscape);
     }
 
     /**
@@ -280,8 +286,8 @@ export default class extends Controller {
             ?.close();
     }
 
-    _closeOnOutsideClick(event) {
-        if (!this.element.contains(event.target)) {
+    _closeOnEscape(event) {
+        if ("Escape" === event.key) {
             this._close();
         }
     }
@@ -291,6 +297,12 @@ export default class extends Controller {
             this.panelTarget.classList.add("hidden");
         }
 
-        document.removeEventListener("click", this._boundClose, { capture: true });
+        this._detach();
+    }
+
+    _detach() {
+        this._stopOutside?.();
+        this._stopOutside = undefined;
+        document.removeEventListener("keydown", this._boundEscape);
     }
 }

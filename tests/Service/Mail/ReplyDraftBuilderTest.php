@@ -396,7 +396,7 @@ final class ReplyDraftBuilderTest extends TestCase
 
         self::assertStringNotContainsString('data-pl-signature', $html);
         self::assertStringContainsString('data-quoted', $html);
-        self::assertStringStartsWith('<p><br></p>', trim($html), 'the writing space must lead the body');
+        self::assertStringStartsWith('<div><br></div>', trim($html), 'the writing space must lead the body');
     }
 
     public function testAnUnsignedAccountAddsNoSignatureBlockAtAll(): void

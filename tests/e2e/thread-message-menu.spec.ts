@@ -66,3 +66,42 @@ test("a message's menu outranks the message below it", async ({ page }) => {
     expect(z.own!, "the header holding an open menu must outrank the one below it")
         .toBeGreaterThan(z.next!);
 });
+
+/**
+ * The menu closes when the message itself is pressed (#807).
+ *
+ * The message body is a sandboxed frame, a document of its own, so a press
+ * in it never reached the page's click listener and the menu stayed open over
+ * the mail — on a phone, where the message is nearly all there is to tap,
+ * there was no way to close it but the ⋮ button again. The frame now reports
+ * the press (outside_press.js). Escape closes it too.
+ */
+test("a message's menu closes on a press inside the message, and on Escape", async ({ page }) => {
+    // An HTML mail, so the body is the sandboxed frame.
+    seed("seed-mail", "seed-rendering");
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/mail/inbox");
+    await settled(page);
+
+    await mailRow(page, "E2E Long Body").click();
+
+    const frame = page.locator('iframe[data-mail--message-frame-target="frame"]').first();
+    await expect(frame).toBeVisible({ timeout: 10_000 });
+
+    const toggle = page.locator('[data-action*="mail--message-actions#toggle"]').first();
+    const open   = page.locator('[data-mail--message-actions-target="panel"]:not(.hidden)');
+
+    await toggle.click();
+    await expect(open).toHaveCount(1);
+
+    await page.frameLocator('iframe[data-mail--message-frame-target="frame"]').first()
+        .locator("body").click({ position: { x: 5, y: 5 } });
+    await expect(open, "a press inside the message left the menu open").toHaveCount(0);
+
+    await toggle.click();
+    await expect(open).toHaveCount(1);
+
+    await page.keyboard.press("Escape");
+    await expect(open, "Escape left the menu open").toHaveCount(0);
+});

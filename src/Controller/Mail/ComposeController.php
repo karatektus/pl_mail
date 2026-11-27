@@ -139,7 +139,7 @@ class ComposeController extends AbstractController
             // nowhere to write, so the caret lands INSIDE the signature and
             // the first thing typed becomes part of it — and is then thrown
             // away by the next From switch, which replaces the block. Same
-            // `<p><br></p>` ReplyDraftBuilder puts above a quote, for the same
+            // `<div><br></div>` ReplyDraftBuilder puts above a quote, for the same
             // reason.
             $message->bodyHtml = $this->window->signatureSeed($account);
 

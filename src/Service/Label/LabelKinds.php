@@ -121,6 +121,26 @@ final readonly class LabelKinds
     }
 
     /**
+     * The label and every label the sidebar draws under it in LABELS — the
+     * same children, filtered the same way, as _sidebar.html.twig's
+     * label_node — for the number a collapsed parent shows (#807).
+     *
+     * @return non-empty-list<int>
+     */
+    public function treeIds(Label $label, User $user): array
+    {
+        $ids = [(int) $label->id];
+
+        foreach ($this->sidebar->visibleChildrenOf($label) as $child) {
+            if (true === $this->inLabels($child, $user)) {
+                array_push($ids, ...$this->treeIds($child, $user));
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
      * @param Label[] $labels
      *
      * @return Label[]

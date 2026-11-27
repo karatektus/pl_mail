@@ -34,7 +34,7 @@ test.describe("compose lists in a reply", () => {
         await openReply(page);
 
         // The empty line the reply leaves above the quote.
-        await page.locator(`${EDITOR} > p`).first().click();
+        await page.locator(`${EDITOR} > :first-child`).click();
         await page.locator(`${DOCK} button[title="Bullet list"]`).click();
         await page.keyboard.type("first point");
 
@@ -58,7 +58,7 @@ test.describe("compose lists in a reply", () => {
     test("a numbered list is drawn with numbers", async ({ page }) => {
         await openReply(page);
 
-        await page.locator(`${EDITOR} > p`).first().click();
+        await page.locator(`${EDITOR} > :first-child`).click();
         await page.locator(`${DOCK} button[title="Numbered list"]`).click();
         await page.keyboard.type("step one");
 

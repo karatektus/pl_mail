@@ -269,8 +269,27 @@ account inside ThreadStatusUpdater.
                         {{ macros.label_new_dot(label) }}
                     </span>
                 </a>
-                {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id,
-                    path('app_mail_label_path', { path: label.fullName, unread: 1 })) }}
+                {# Two numbers, one shown at a time (#807). Open, the row
+                   counts its own mail, and each label under it shows its own
+                   beside it. Collapsed, the rows under it are gone, so the
+                   number is the whole tree's — otherwise unread mail in a
+                   child is invisible until somebody happens to open the
+                   parent. Each conversation once: see
+                   SidebarCounts::forLabelTree().
+
+                   Keyed on THIS <details> (`details:not([open]) > summary >`),
+                   not the group-open/tree variant: trees nest, and a group
+                   variant matches any open ancestor, so a collapsed child
+                   inside an open parent would have shown both. Both are
+                   rendered and live-patched either way, the same rule as the
+                   LABELS heading's roll-up, so a toggle needs no request. #}
+                <span class="contents [details:not([open])>summary>&]:hidden">
+                    {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id,
+                        path('app_mail_label_path', { path: label.fullName, unread: 1 })) }}
+                </span>
+                <span class="hidden [details:not([open])>summary>&]:contents">
+                    {{ macros.unread_badge(label_tree_unread(label), 'labeltree:' ~ label.id) }}
+                </span>
                 {{ macros.label_edit(label) }}
             </summary>
             <div class="nav-rows">

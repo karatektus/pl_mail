@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:545953b7025238fea09a46eb4c661e4b875c8dc5 -->
+<!-- translated-from: features/mail.md sha1:fb0efe6110502acee5d7ef180f6b85f457ecb7dd -->
 
 # Mail
 
@@ -118,6 +118,10 @@ Anzahl von Konversationen. Es ist bewusst nicht die Summe der einzelnen Zahlen: 
 unter zwei Labels würde doppelt gezählt, und die Überschrift würde mehr versprechen, als das
 Aufklappen zeigen kann. **Konten** bekommt keine solche Zahl, weil es keine ehrliche gibt — jene
 Zähler gelten je Konto, und geladen ist immer nur das eine, das du aufgeklappt hast.
+
+Ein Label mit Unterlabels klappt genauso zu, und es gilt dieselbe Regel: Zugeklappt zählt seine Zahl
+die Konversationen in ihm und in allen Labels darunter, jede einmal. Aufgeklappt zeigt wieder jedes
+Label seine eigene Zahl.
 
 Jede Liste umfasst fünfzig Konversationen pro Seite. **Neuer** und **Älter** in der
 Werkzeugleiste blättern.
