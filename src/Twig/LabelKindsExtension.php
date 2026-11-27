@@ -9,6 +9,7 @@ use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Service\Label\AccountFolderTree;
 use App\Service\Label\LabelKinds;
+use App\Service\Mail\SidebarCounts;
 use Symfony\Bundle\SecurityBundle\Security;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -30,6 +31,7 @@ final class LabelKindsExtension extends AbstractExtension
         private readonly LabelKinds        $kinds,
         private readonly Security          $security,
         private readonly AccountFolderTree $folderTree,
+        private readonly SidebarCounts     $sidebar,
     ) {
     }
 
@@ -40,6 +42,7 @@ final class LabelKindsExtension extends AbstractExtension
             new TwigFunction('tag_labels', $this->tags(...)),
             new TwigFunction('is_place', $this->kinds->isPlaceOn(...)),
             new TwigFunction('in_labels', $this->inLabels(...)),
+            new TwigFunction('label_tree_unread', $this->treeUnread(...)),
             new TwigFunction('account_folder_tree', $this->folderTree->of(...)),
         ];
     }
@@ -66,6 +69,14 @@ final class LabelKindsExtension extends AbstractExtension
         $user = $this->security->getUser();
 
         return $user instanceof User ? $this->kinds->tags($labels, $user, $account) : [];
+    }
+
+    /** A collapsed parent label's number (#807); see SidebarCounts::forLabelTree(). */
+    public function treeUnread(Label $label): int
+    {
+        $user = $this->security->getUser();
+
+        return $user instanceof User ? $this->sidebar->forLabelTree($label, $this->kinds->treeIds($label, $user)) : 0;
     }
 
     public function inLabels(Label $label): bool

@@ -44,6 +44,8 @@ class SidebarCounts implements ResetInterface
     private ?int $snoozedCount = null;
     private ?int $unsentDrafts = null;
     private ?int $labelsUnread = null;
+    /** @var array<int, int> label id => unread in it and the labels under it */
+    private array $treeUnread = [];
     private ?array $userLabelTree = null;
     private ?array $visibleLabels = null;
     /** @var array<int, list<Label>> account id => its visible labels */
@@ -109,6 +111,7 @@ class SidebarCounts implements ResetInterface
         $this->snoozedCount       = null;
         $this->unsentDrafts       = null;
         $this->labelsUnread       = null;
+        $this->treeUnread         = [];
         $this->userLabelTree      = null;
         $this->visibleLabels      = null;
         $this->accountLabels      = [];
@@ -607,6 +610,35 @@ class SidebarCounts implements ResetInterface
         $this->loadLabelCounts();
 
         return $this->labelCounts[(int) $label->id] ?? 0;
+    }
+
+    /**
+     * A parent label's number while its tree is collapsed (#807): its own
+     * unread mail and that of every label under it, each conversation once.
+     *
+     * Which labels are "under it" is the caller's to say — LabelKinds::treeIds(),
+     * the same children the sidebar draws under it — because which of them
+     * are listed in LABELS depends on LabelKinds, and LabelKinds depends on
+     * this class.
+     *
+     * One query per parent label, and only for parents: a label with nothing
+     * under it has no tree to collapse and keeps forLabel().
+     *
+     * @param non-empty-list<int> $labelIds the label and its descendants
+     */
+    public function forLabelTree(Label $label, array $labelIds): int
+    {
+        $id = (int) $label->id;
+
+        if (false === array_key_exists($id, $this->treeUnread)) {
+            $user = $this->security->getUser();
+
+            $this->treeUnread[$id] = null === $user
+                ? 0
+                : $this->badgeCounts($user)->countUnreadInLabels($user, $labelIds, $this->scope($user));
+        }
+
+        return $this->treeUnread[$id];
     }
 
     /**

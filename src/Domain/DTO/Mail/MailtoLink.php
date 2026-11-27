@@ -121,9 +121,10 @@ final readonly class MailtoLink
     }
 
     /**
-     * The body as the editor's HTML: one paragraph per line, escaped, with an
-     * empty paragraph standing for an empty line — the same `<p><br></p>` the
-     * editor writes itself, so the caret can land in it.
+     * The body as the editor's HTML: one line per line, escaped, with an empty
+     * line standing for an empty line — the same `<div>` per line the editor
+     * writes itself on Enter (#807), so the caret can land in it and the lines
+     * are as close together as they were in the link.
      */
     public function bodyHtml(): string
     {
@@ -133,8 +134,8 @@ final readonly class MailtoLink
 
         $paragraphs = array_map(
             static fn (string $line): string => '' === trim($line)
-                ? '<p><br></p>'
-                : '<p>' . htmlspecialchars($line, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '</p>',
+                ? '<div><br></div>'
+                : '<div>' . htmlspecialchars($line, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '</div>',
             explode("\n", rtrim($this->body, "\n")),
         );
 

@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
+use App\Domain\Enum\Mail\ThreadingMethod;
+use App\Entity\Label\Label;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\User\User\UserRepository;
+use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -188,6 +194,100 @@ final class SidebarSectionCollapseTest extends WebTestCase
 
         self::assertSame(1, $rendered->count());
         self::assertSame((string) $counts['labels:unread'], trim($rendered->text()));
+    }
+
+    /**
+     * A collapsed parent label shows the number of its whole tree (#807).
+     *
+     * Before, it showed its own count only, so unread mail in a child was
+     * invisible until the parent was opened. The tree's number has to be on
+     * the page AND in the counts payload — a badge the endpoint has no key
+     * for is a number that never moves again.
+     */
+    public function testACollapsedParentLabelCountsTheUnreadMailUnderIt(): void
+    {
+        [$client, $user] = $this->signedIn();
+
+        $this->begin();
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $account                 = new Account();
+        $account->usr            = $user;
+        $account->name           = 'Tree fixture';
+        $account->email          = uniqid('tree-', true) . '@example.test';
+        $account->username       = uniqid('tree-', true);
+        $account->imapHost       = 'imap.example.test';
+        $account->imapPort       = 993;
+        $account->imapEncryption = 'ssl';
+        $account->authType       = 'password';
+        $account->mailEnabled    = true;
+        $em->persist($account);
+
+        $thread                    = new MessageThread();
+        $thread->account           = $account;
+        $thread->subject           = 'Unread under a child label';
+        $thread->normalizedSubject = 'unread under a child label';
+        $thread->threadingMethod   = ThreadingMethod::SubjectFallback;
+        $thread->lastMessageAt     = new DateTimeImmutable();
+        $thread->messageCount      = 1;
+        $thread->unreadCount       = 1;
+
+        $message              = new Message();
+        $message->account     = $account;
+        $message->thread      = $thread;
+        $message->subject     = $thread->subject;
+        $message->fromAddress = 'sender@example.test';
+        $message->receivedAt  = new DateTimeImmutable();
+        $message->sentAt      = $message->receivedAt;
+        $message->flags          = [];
+        $message->hasAttachments = false;
+
+        $thread->addMessage($message);
+        $em->persist($thread);
+        $em->persist($message);
+
+        $parent            = new Label();
+        $parent->usr       = $user;
+        $parent->name      = 'Tree807';
+        $parent->isVisible = true;
+
+        $child            = new Label();
+        $child->usr       = $user;
+        $child->name      = 'Inner';
+        $child->parent    = $parent;
+        $child->isVisible = true;
+
+        $em->persist($parent);
+        $em->persist($child);
+
+        // On the CHILD only: the parent itself has nothing, which is exactly
+        // the mail a collapsed parent used to hide.
+        $thread->addLabel($child);
+        $message->addLabel($child);
+
+        $user->setSidebarSectionCollapsed('label:' . $parent->fullName, true);
+        $em->flush();
+
+        $crawler = $client->request('GET', '/mail/inbox');
+
+        $own  = $crawler->filter('[data-count-key="label:' . $parent->id . '"]');
+        $tree = $crawler->filter('[data-count-key="labeltree:' . $parent->id . '"]');
+
+        // Not exactly one: the sidebar is drawn twice, once as the phone drawer.
+        self::assertGreaterThan(0, $tree->count(), 'the parent label has no tree badge');
+        self::assertSame('0', trim($own->first()->text()));
+        self::assertSame('1', trim($tree->first()->text()), 'the collapsed parent hides the unread mail in its child');
+
+        $client->request('GET', '/mail/sidebar/counts');
+
+        $counts = json_decode((string) $client->getResponse()->getContent(), true);
+
+        self::assertIsArray($counts);
+        self::assertSame(1, $counts['labeltree:' . $parent->id] ?? null, 'nothing patches the tree badge');
+
+        // A label with nothing under it has no tree to collapse and no key.
+        self::assertArrayNotHasKey('labeltree:' . $child->id, $counts);
     }
 
     public function testThePersistEndpointRefusesAPostWithoutACsrfToken(): void

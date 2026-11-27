@@ -91,7 +91,7 @@ final readonly class ComposeWindow
      * The body a brand-new message opens with: somewhere to write, then the
      * signature.
      *
-     * Empty when the sender signs with nothing — a lone `<p><br></p>` would be
+     * Empty when the sender signs with nothing — a lone `<div><br></div>` would be
      * a body that is not empty, and the editor's placeholder ("Write your
      * message…") only shows for a genuinely empty one.
      */
@@ -99,7 +99,7 @@ final readonly class ComposeWindow
     {
         $signature = $this->signatures->blockFor($account, $account->displayAddress);
 
-        return '' === $signature ? '' : '<p><br></p>' . $signature;
+        return '' === $signature ? '' : '<div><br></div>' . $signature;
     }
 
     /**

@@ -34,6 +34,7 @@ use App\Service\Layout\WorkspaceScope;
 use App\Service\Mail\MailLists;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\NewMailMarkers;
+use App\Service\Label\LabelKinds;
 use App\Service\Mail\SidebarCounts;
 use App\Service\Mail\TabIconCount;
 use App\Service\Mail\ThreadListRenderer;
@@ -1091,7 +1092,7 @@ final class MailController extends AbstractController
      * scroll position and any collapsed tree mid-sync.
      */
     #[Route('/sidebar/counts', name: 'sidebar_counts', methods: ['GET'])]
-    public function sidebarCounts(Request $request, SidebarCounts $counts, NewMailMarkers $newMail, TabIconCount $tabIconCount): JsonResponse
+    public function sidebarCounts(Request $request, SidebarCounts $counts, NewMailMarkers $newMail, TabIconCount $tabIconCount, LabelKinds $labelKinds): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
@@ -1212,6 +1213,23 @@ final class MailController extends AbstractController
         foreach ($labels as $label) {
             $payload['label:' . $label->id]            = $counts->forLabel($label);
             $payload[NewMailMarkers::labelKey($label)] = $newMail->forLabel($label);
+        }
+
+        // A parent label's number while its tree is collapsed (#807): its own
+        // and everything under it. Only for labels with something under them
+        // in LABELS — the only ones drawn as a tree that can be collapsed.
+        if ($countsUser instanceof User) {
+            foreach ($labels as $label) {
+                if ([] === $counts->visibleChildrenOf($label)) {
+                    continue;
+                }
+
+                $treeIds = $labelKinds->treeIds($label, $countsUser);
+
+                if (count($treeIds) > 1) {
+                    $payload['labeltree:' . $label->id] = $counts->forLabelTree($label, $treeIds);
+                }
+            }
         }
 
         // The expanded accounts' folder rows count within their account and

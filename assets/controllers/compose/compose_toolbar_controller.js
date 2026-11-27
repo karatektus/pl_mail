@@ -89,6 +89,20 @@ export default class extends Controller {
         this._boundEscape      = this._handleEscape.bind(this);
         this._boundSelection   = this._handleSelectionChange.bind(this);
 
+        // Enter starts a new line, not a new paragraph (#807). A <p> carries
+        // 1em above and below in every mail client, so a line per Enter
+        // arrived as a gap per Enter — #790 made the editor show that gap
+        // honestly, and people read it as Enter inserting two lines. A <div>
+        // has no margin anywhere: one Enter is one line, in the editor and in
+        // the recipient's inbox, which is how Gmail and Outlook write too.
+        // Chromium and Firefox already default to div, Safari to div as well;
+        // said once here so no browser has to be relied on. It only decides
+        // what Enter makes where the caret is not already in a <p> — which is
+        // why the writing space every body opens with is a <div> as well
+        // (ComposeWindow, ReplyDraftBuilder). Real paragraphs, pasted or
+        // loaded, stay paragraphs and keep their spacing.
+        document.execCommand('defaultParagraphSeparator', false, 'div');
+
         if (this.hasEditorTarget) {
             this.editorTarget.addEventListener('keyup',   this._boundUpdateState);
             this.editorTarget.addEventListener('mouseup', this._boundUpdateState);
@@ -629,7 +643,7 @@ export default class extends Controller {
         // A caret can be INSIDE an element that cannot have children, and one
         // routinely is: compose--compose#_focusCursorAtTop() parks it at
         // offset 0 of the first node of the first block, which in a fresh
-        // reply is the <br> of `<p><br></p>`. insertNode() obliges and puts
+        // reply is the <br> of `<div><br></div>`. insertNode() obliges and puts
         // the node inside the <br> — where the DOM holds it and nothing ever
         // renders or serialises it. Whatever was inserted into a reply nobody
         // had clicked into yet simply did not appear: that was "the template

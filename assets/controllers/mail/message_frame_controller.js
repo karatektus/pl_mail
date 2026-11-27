@@ -14,6 +14,7 @@ import { Controller } from "@hotwired/stimulus";
  *   frame → here   "link"    a link is under the cursor; show/hide the preview
  *   frame → here   "key"     a key was pressed in the message; see ui--shortcuts
  *   frame → here   "mailto"  a mailto: link was clicked; open it in the dock
+ *   frame → here   "pointerdown"  the message was pressed; an open menu closes
  *   here  → frame  "theme"   the live mail-sheet colours, which CSS custom
  *                            properties cannot carry across a document boundary
  *   here  → frame  "show-images"  the reader clicked the bar
@@ -68,6 +69,13 @@ export default class extends Controller {
 
         if (data.plmail === "mailto") {
             this.openMailto(data.href);
+        }
+
+        // A press inside the message, for the menus that close when somebody
+        // presses elsewhere (outside_press.js). No coordinates and no target
+        // cross: "somewhere in the message" is all a menu needs to know.
+        if (data.plmail === "pointerdown") {
+            document.dispatchEvent(new CustomEvent("mail:frame-pointerdown"));
         }
 
         // A key pressed inside the message, for ui--shortcuts. Re-announced as

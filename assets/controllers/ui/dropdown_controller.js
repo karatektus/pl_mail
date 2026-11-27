@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { liftAbove, visible } from "../../place_above.js";
+import { onOutsidePress } from "../../outside_press.js";
 
 /**
  * A small click-to-open menu.
@@ -9,8 +10,8 @@ import { liftAbove, visible } from "../../place_above.js";
  * This is the generic version for menus that need nothing beyond "show it, and
  * close it again when the user looks away".
  *
- * Outside clicks are caught in the capture phase so the menu closes even when
- * the thing clicked stops propagation on its way up.
+ * A press outside closes it: a click, a tap on iOS, or a press inside the
+ * message, which is a frame of its own — see outside_press.js (#807).
  *
  * ## The entrance
  *
@@ -52,7 +53,6 @@ export default class extends Controller {
     static values = { place: String };
 
     connect() {
-        this._boundOutside = this._handleOutside.bind(this);
         this._boundEscape = this._handleEscape.bind(this);
 
         // `slide-down` because that is where nearly all of these come from:
@@ -99,7 +99,8 @@ export default class extends Controller {
         // cannot offer a "tomorrow" that is already today.
         this.dispatch("opened", { target: this.menuTarget });
 
-        document.addEventListener("click", this._boundOutside, { capture: true });
+        this._detach();
+        this._stopOutside = onOutsidePress(this.element, () => this.close());
         document.addEventListener("keydown", this._boundEscape);
     }
 
@@ -133,12 +134,6 @@ export default class extends Controller {
         this._unlift = undefined;
     }
 
-    _handleOutside(event) {
-        if (false === this.element.contains(event.target)) {
-            this.close();
-        }
-    }
-
     _handleEscape(event) {
         if ("Escape" === event.key) {
             this.close();
@@ -146,7 +141,8 @@ export default class extends Controller {
     }
 
     _detach() {
-        document.removeEventListener("click", this._boundOutside, { capture: true });
+        this._stopOutside?.();
+        this._stopOutside = undefined;
         document.removeEventListener("keydown", this._boundEscape);
     }
 }

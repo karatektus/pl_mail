@@ -105,6 +105,10 @@ be counted twice, and the heading would promise more than expanding it could sho
 no such number, because there is no honest one to give — those counts are per account, and only the
 account you have expanded is loaded.
 
+A label with labels nested under it folds the same way, and the same rule applies: collapsed, its
+number counts the conversations in it and in every label under it, each once. Open, each label shows
+its own number again.
+
 Every list pages at fifty conversations. **Newer** and **Older** in the toolbar move between pages.
 
 ### Several inboxes

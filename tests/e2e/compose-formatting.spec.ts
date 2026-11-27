@@ -306,7 +306,7 @@ test.describe("emoji", () => {
 
         await first.click();
 
-        await expect(editor.locator("p").first()).toHaveText(glyph, { useInnerText: true });
+        await expect(editor.locator(":scope > :first-child")).toHaveText(glyph, { useInnerText: true });
     });
 
     /**

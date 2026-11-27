@@ -811,7 +811,7 @@ export default class extends Controller {
      * read — and every word they typed after it followed the caret in there.
      *
      * When the writer owns no block yet (a body that is all quote, or empty),
-     * a `<p><br></p>` is made for them, the same writing space a new window
+     * a `<div><br></div>` is made for them, the same writing space a new window
      * opens with and the composer's claimWritingSpace() makes.
      */
     #caretToWritingEnd(surface) {
@@ -839,7 +839,7 @@ export default class extends Controller {
         }
 
         if (null === space) {
-            space = document.createElement("p");
+            space = document.createElement("div");
             space.appendChild(document.createElement("br"));
             surface.insertBefore(space, boundary);
         }

@@ -2089,7 +2089,7 @@ export default class extends Controller {
      * A click in the empty space below the content lands in writeable text,
      * never in the signature.
      *
-     * The bug this fixes: a new message opens as `<p><br></p>` + the signature
+     * The bug this fixes: a new message opens as `<div><br></div>` + the signature
      * block, so the signature is the LAST thing in the editor and everything
      * below it is the editor's own padding. A contenteditable resolves a click
      * on its padding to the nearest position in the nearest child — the end of
@@ -2105,7 +2105,7 @@ export default class extends Controller {
      *
      * It goes UP, to the writing space above the signature, rather than opening
      * a paragraph below it. Below the sign-off is not where the message goes,
-     * and the seeded `<p><br></p>` is already sitting there for exactly this.
+     * and the seeded `<div><br></div>` is already sitting there for exactly this.
      */
     claimWritingSpace(event) {
         if (false === this.hasBodyTarget || event.target !== this.bodyTarget) {
@@ -2141,7 +2141,7 @@ export default class extends Controller {
         }
 
         if (null === space) {
-            space = document.createElement('p');
+            space = document.createElement('div');
             space.appendChild(document.createElement('br'));
             this.bodyTarget.insertBefore(space, signature);
         }
@@ -2338,7 +2338,13 @@ export default class extends Controller {
 
         const block = anchor.parentElement;
 
-        if (block !== this.bodyTarget && block?.parentElement === this.bodyTarget && 'P' === block.tagName) {
+        // A line is a <div> since #807, a paragraph a <p>; either is the
+        // block the caret is in. A <div> that is the quote or the signature
+        // is not a line of the writer's and is never replaced.
+        const line = 'P' === block?.tagName
+            || ('DIV' === block?.tagName && false === block.matches('[data-quoted], [data-quote-wrapped], [data-quote-sealed], [data-pl-signature]'));
+
+        if (block !== this.bodyTarget && block?.parentElement === this.bodyTarget && true === line) {
             anchor.remove();
 
             if ('' === block.textContent.trim() && null === block.querySelector('img')) {

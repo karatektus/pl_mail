@@ -279,7 +279,7 @@ final class ReplyDraftBuilder
 
         $block = $this->signatures->blockFor($account, $from ?? $account->displayAddress);
 
-        return '' === $block ? '' : '<p><br></p>' . $block;
+        return '' === $block ? '' : '<div><br></div>' . $block;
     }
 
     /**
@@ -349,7 +349,7 @@ final class ReplyDraftBuilder
 
         if ('reply' === $mode) {
             return <<<HTML
-                <p><br></p>
+                <div><br></div>
                 <div data-quoted="1">
                     <div style="font-size:0.85em;color:#555;margin-bottom:0.25em">
                         On {$date}, {$from} wrote:
@@ -372,7 +372,7 @@ final class ReplyDraftBuilder
         ));
 
         return <<<HTML
-            <p><br></p>
+            <div><br></div>
             <div data-quoted="1" style="border-top:1px solid #e0e0e0;padding-top:0.75em;margin-top:0.5em;font-size:0.85em;color:#555">
                 <p style="margin:0 0 0.25em"><strong>---------- Forwarded message ----------</strong></p>
                 <p style="margin:0 0 0.1em"><strong>From:</strong> {$from}</p>

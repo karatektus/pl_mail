@@ -108,6 +108,12 @@
         send({ plmail: "mailto", href: String(anchor.href).slice(0, 8192) });
     });
 
+    // A press anywhere in the message, so that a menu open in the page around
+    // it can close (#807). Nothing about the press crosses but the fact of it.
+    // Capture phase: a mail's own markup cannot stop it on the way down,
+    // because no script of the mail's can run.
+    document.addEventListener("pointerdown", function () { send({ plmail: "pointerdown" }); }, true);
+
     // Keys, handed to the parent. This document is a frame of its own, so a
     // key pressed after clicking into a message goes nowhere near the page
     // around it — and the keyboard shortcuts stopped working the moment a mail
