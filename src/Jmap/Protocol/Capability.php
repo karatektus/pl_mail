@@ -205,12 +205,18 @@ final class Capability
      * with a capability you depend on — would otherwise have its whole request
      * refused with unknownCapability.
      *
+     * PUSH is here for the same reason: the Session has advertised it since Web
+     * Push came in, and a client that copied the Session's capabilities into
+     * "using" had every request refused. AdvertisedCapabilitiesTest now holds
+     * every advertised URN to this list, so the next one cannot slip past.
+     *
      * @var list<string>
      */
     public const array SUPPORTED = [
         self::CORE,
         self::MAIL,
         self::SUBMISSION,
+        self::PUSH,
         self::CALENDARS,
         self::IETF_CALENDARS,
         self::APPEARANCE,
