@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Domain\Enum\Mail\LabelRole;
 use App\Service\Mail\BinView;
+use App\Service\Mail\DiscardedListView;
 use App\Service\Mail\MailPlacement;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -26,6 +28,7 @@ final class MailPlacementExtension extends AbstractExtension
     public function __construct(
         private readonly MailPlacement $placement,
         private readonly BinView $bin,
+        private readonly DiscardedListView $lists,
     ) {
     }
 
@@ -34,6 +37,9 @@ final class MailPlacementExtension extends AbstractExtension
         return [
             new TwigFunction('mail_placement', $this->placement->of(...)),
             new TwigFunction('bin_view', $this->bin->isOpen(...)),
+            // Spam's side of a conversation partly in Spam (#807), for the row
+            // link that has to say where the conversation was opened from.
+            new TwigFunction('spam_view', fn (): bool => $this->lists->isOpen(LabelRole::Spam)),
         ];
     }
 }

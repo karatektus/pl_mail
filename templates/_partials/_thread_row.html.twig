@@ -226,10 +226,13 @@ conversation, and the email list shows the conversation's arrival on its emails.
     {% set attachmentChips = row.attachments %}
 
     {# Opened from Trash, the conversation shows its deleted side; the thread
-       route has no list behind it, so the link says so. #}
+       route has no list behind it, so the link says so. Spam the same way: a
+       conversation partly in Spam keeps its spam controls only there (#807). #}
     {% set href = bin_view()
         ? path('app_mail_thread', { id: item.id, bin: 1 })
-        : path('app_mail_thread', { id: item.id }) %}
+        : (spam_view()
+            ? path('app_mail_thread', { id: item.id, spam: 1 })
+            : path('app_mail_thread', { id: item.id })) %}
     {% set rowId = item.id %}
 {% else %}
     {% set type = 'message' %}
