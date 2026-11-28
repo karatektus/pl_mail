@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:23ed96492efacd6f213489e63de7c8aaca465619 -->
+<!-- translated-from: features/clients.md sha1:d61bcb4d40fb0da3667edf2bea599cdd26ef3f66 -->
 
 # Andere Clients
 
@@ -212,6 +212,20 @@ erzeugen ist ein Befehl:
 ```
 docker compose exec php php bin/console app:push:generate-vapid-keys
 ```
+
+## KI-Agenten
+
+Ein eigener MCP-Server für plMail ist geplant
+([#246](https://github.com/karatektus/pl_mail/issues/246)), mit eigenen Tokens, die nur dürfen, was
+du erlaubst. Bis es so weit ist, gibt [plmail-mcp](https://github.com/jo2904/plmail-mcp) als
+Community-Brücke einem MCP-Client (Claude, Hermes, Cursor …) über JMAP Zugriff auf deine Mails,
+Kalender und Kontakte. Es ist kein Teil von plMail und wird nicht hier gepflegt.
+
+Es meldet sich mit einem gewöhnlichen App-Passwort an, also gilt dafür, was diese Seite über
+App-Passwörter sagt: Der Agent erreicht jedes Konto, das du verbunden hast, und das Passwort zu
+widerrufen ist der Weg, ihn auszusperren. Die Brücke kann Werkzeuge vor dem Agenten verbergen, etwa
+das Senden, aber diese Grenze setzt die Brücke, nicht der Server. Bewahre das App-Passwort dort auf,
+wo der Agent selbst es nicht lesen kann.
 
 ## Wo du weiterliest
 
