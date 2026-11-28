@@ -118,6 +118,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              linkEdit:    'compose.link.edit'|trans,
              linkInvalid: 'compose.link.invalid'|trans,
              linkUnsafe:  'compose.link.unsafe'|trans,
+             pastePlainDenied: 'compose.paste_plain_denied'|trans,
          }|json_encode|e('html_attr') }}"
          {# Every From option's signature, keyed by the same "accountId|address"
             token the hidden account <select> carries. Handed over in one go so
@@ -257,9 +258,14 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
 
           Fixed, but not fixed by us: the person sets it by dragging the
           top-left corner (#507, compose--window-size), and it is kept per
-          device as `--compose-w` / `--compose-h` on <html>. 520 × 600 is the
-          size until they do. `relative` is for that corner's handle. #}
-       relative h-[var(--compose-h,600px)] max-h-[90vh] w-[var(--compose-w,520px)] md:max-w-[calc(100vw-2rem)]
+          device as `--compose-w` / `--compose-h` on <html>. 760 × 600 is the
+          size until they do: wide enough for the formatting bar on one line
+          in every language: about 666px in English, 732px with French's
+          "Sans empattement", and a little room for its longer sizes (#807).
+          `max-w` below still gives a narrower screen the whole width minus a
+          margin. It was 520, and the bar broke onto a second line there.
+          `relative` is for that corner's handle. #}
+       relative h-[var(--compose-h,600px)] max-h-[90vh] w-[var(--compose-w,760px)] md:max-w-[calc(100vw-2rem)]
        rounded-pane shadow-float
        pane-flat border border-line mb-4
        {% endif %}
@@ -942,6 +948,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                         { action: 'outdent',        icon: 'fa-outdent',      label: 'compose.outdent'         },
                         { action: 'indent',         icon: 'fa-indent',       label: 'compose.indent'          },
                         { divider: true },
+                        { action: 'pastePlain',     icon: 'fa-paste',        label: 'compose.paste_plain'     },
                         { action: 'undo',           icon: 'fa-rotate-left',  label: 'compose.undo'            },
                         { action: 'redo',           icon: 'fa-rotate-right', label: 'compose.redo'            },
                     ] %}

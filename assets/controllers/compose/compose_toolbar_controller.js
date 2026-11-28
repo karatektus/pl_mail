@@ -1,6 +1,7 @@
 // assets/controllers/compose-toolbar_controller.js
 import { Controller } from '@hotwired/stimulus';
 import { liftAbove, visible } from '../../place_above.js';
+import { showToast } from '../../toast.js';
 
 export default class extends Controller {
     static targets = [
@@ -321,6 +322,43 @@ export default class extends Controller {
     alignCenter()  { this._exec('justifyCenter'); }
     alignRight()   { this._exec('justifyRight'); }
     alignJustify() { this._exec('justifyFull'); }
+
+    /**
+     * Paste as plain text (#807): the clipboard's text, one line per line, in
+     * whatever formatting the caret is already in.
+     *
+     * The keyboard has this already — Shift-paste, which the paste handler
+     * leaves to the browser — but a phone has no Shift, and the formatted paste
+     * was the only one an iPhone could make. Safari asks before handing a page
+     * the clipboard, with a small "Paste" bubble at the button; that bubble is
+     * the permission, and declining it lands in the catch below.
+     *
+     * insertText rather than markup built here: it is the browser's own plain
+     * paste, so a line break becomes a new line exactly as Shift-paste makes
+     * it, and the paste is one step for undo.
+     */
+    async pastePlain() {
+        this._captureRange();
+
+        let text;
+
+        try {
+            text = await navigator.clipboard.readText();
+        } catch {
+            showToast(this._t('pastePlainDenied', 'The browser did not let plMail read the clipboard. Paste with Shift held down instead.'), { type: 'error' });
+
+            return;
+        }
+
+        if ('' === text) {
+            return;
+        }
+
+        this._restoreRange();
+        document.execCommand('insertText', false, text.replace(/\r\n?/g, '\n'));
+        this._updateButtonState();
+        this._syncHiddenInput();
+    }
 
     // ── Caret insertion ───────────────────────────────────────────────
     //

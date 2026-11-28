@@ -1342,6 +1342,23 @@ reasons come as one question, and **Send anyway** sends.
 On a phone the toolbar wraps rather than scrolling out of reach, and the send pill moves up into the
 window's header, where the old button used to be.
 
+### Pasting text
+
+A paste keeps what you copied and drops the page it came from. Bold, italic, underline,
+strikethrough, superscript and subscript, text colour, highlighting, font and size come along,
+whether the source app marks them with tags, inline styles or a stylesheet of its own (Google Docs,
+Word, Pages and TextEdit do it each a different way). The source page's layout does not: margins,
+line spacing, widths, its stylesheet and class names, and plain black text or a white background,
+which would stay black on a dark screen. Lines that sat directly under each other in the source stay
+that way, and an empty line stays one empty line.
+
+Some apps also put a picture of what you copied on the clipboard. When there is text, the text is
+pasted; the picture is used only when it is all there is, such as a screenshot, and then goes into
+the body like any other image.
+
+**Paste as plain text** in the formatting bar pastes only the words, one line per line, in the
+formatting where the cursor is. On a keyboard, Ctrl+Shift+V (⌘⇧V on a Mac) does the same.
+
 ### Emoji
 
 The smiley opens the full Unicode set, with categories, search, skin tones and the ones you have

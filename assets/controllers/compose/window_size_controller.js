@@ -8,7 +8,7 @@ import { Controller } from "@hotwired/stimulus";
  * screen: a laptop and the monitor beside it want different windows, and an
  * account setting would make one of them wrong. So it lives in localStorage,
  * like the sidebar rail, and the script in _layout/app.html.twig puts it on
- * <html> before the first paint, so a window does not open at 520 × 600 and
+ * <html> before the first paint, so a window does not open at 760 × 600 and
  * jump.
  *
  * The size is two custom properties on <html>, `--compose-w` and

@@ -36,7 +36,7 @@ test("dragging the corner resizes the window, and the size is kept on this devic
     const window = await openCompose(page);
     const handle = window.getByRole("button", { name: "Resize the compose window" });
 
-    expect(await size(page)).toEqual([520, 600]);
+    expect(await size(page)).toEqual([760, 600]);
 
     // Up and to the left is bigger: the dock is anchored bottom-right.
     const grip = (await handle.boundingBox())!;
@@ -45,19 +45,37 @@ test("dragging the corner resizes the window, and the size is kept on this devic
     await page.mouse.move(grip.x + grip.width / 2 - 200, grip.y + grip.height / 2 - 100, { steps: 5 });
     await page.mouse.up();
 
-    expect(await size(page)).toEqual([720, 700]);
-    expect(JSON.parse((await kept(page))!)).toEqual({ w: 720, h: 700 });
+    expect(await size(page)).toEqual([960, 700]);
+    expect(JSON.parse((await kept(page))!)).toEqual({ w: 960, h: 700 });
 
     // A reload, and a new window, open at that size.
     await page.reload();
-    expect(await page.evaluate(() => document.documentElement.style.getPropertyValue("--compose-w"))).toBe("720px");
+    expect(await page.evaluate(() => document.documentElement.style.getPropertyValue("--compose-w"))).toBe("960px");
     await openCompose(page);
-    expect(await size(page)).toEqual([720, 700]);
+    expect(await size(page)).toEqual([960, 700]);
 
     // Double-click: the standard size, and nothing kept.
     await page.locator("#compose_dock .compose-window").getByRole("button", { name: "Resize the compose window" }).dblclick();
-    expect(await size(page)).toEqual([520, 600]);
+    expect(await size(page)).toEqual([760, 600]);
     expect(await kept(page)).toBeNull();
+});
+
+/**
+ * The standard size is wide enough for the formatting bar on one line (#807).
+ * At 520px it broke onto a second line and took a line of the body with it.
+ */
+test("the formatting bar fits on one line at the standard size", async ({ page }) => {
+    const window = await openCompose(page);
+    const bar = window.locator('[data-compose--compose-target="formatBar"]');
+
+    if (false === await bar.isVisible()) {
+        await window.locator('[data-compose--compose-target="formatToggle"]').click();
+    }
+
+    await expect(bar).toBeVisible();
+    // One row of 24–32px controls is about 34px tall with its padding; a
+    // second row makes it about 62.
+    expect((await bar.boundingBox())!.height).toBeLessThan(48);
 });
 
 test("the window cannot be made smaller than it can be used", async ({ page }) => {

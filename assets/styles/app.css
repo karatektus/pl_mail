@@ -6061,8 +6061,8 @@ emoji-picker {
 }
 
 /* The panel is centred over the compose WINDOW at every width — it anchors to
-   the toolbar block, not to its button, which sits near the right edge of a
-   520px dock and would push a 22rem panel off the side of it. The width comes
+   the toolbar block, not to its button, which sits near the right edge of the
+   dock and would push a 22rem panel off the side of a narrow one. The width comes
    from the template (`calc(100% - 1rem)`); this only caps it, so a panel
    centred in a 1000px expanded window is still a panel and not a banner. */
 .emoji-panel {

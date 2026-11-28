@@ -2420,6 +2420,8 @@ compose:
     more_options: More options
     new_message: New Message
     outdent: Outdent
+    paste_plain: 'Paste as plain text'
+    paste_plain_denied: 'The browser did not let plMail read the clipboard. Paste with Shift held down instead (Ctrl+Shift+V, or ⌘⇧V on a Mac).'
     plain_text: Plain text mode
     # The warning that used to be a browser confirm(). The question itself is
     # still compose.confirm.plain_text — only the frame around it is new.
