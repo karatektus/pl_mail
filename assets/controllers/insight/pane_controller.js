@@ -6,6 +6,16 @@ import { requestFailed } from "../../request_errors.js";
  * The insight strip above the mail list: waving away one row, waving away the
  * whole band, and keeping up when the extractor finds something new.
  *
+ * Mounted on the `<turbo-frame id="insight_pane">` the mailbox renders
+ * (_layout/_mailbox.html.twig), not on the band inside it. The frame is the
+ * one element that survives every load of the strip, because Turbo swaps a
+ * frame's children and keeps the frame. The band is only drawn when there is
+ * something to show, and while this controller lived on the band, a strip that
+ * loaded empty had no controller and nothing listening for `insights.changed`.
+ * A parcel found after the page loaded then stayed off screen until a reload.
+ * The buttons inside the band still reach this controller, because a Stimulus
+ * action resolves to the nearest ancestor carrying its identifier.
+ *
  * Values:
  *   token      — CSRF for `insight-dismiss`, the per-row endpoint
  *   paneToken  — CSRF for `insight-pane-dismiss`, the whole-band endpoint
@@ -19,55 +29,45 @@ import { requestFailed } from "../../request_errors.js";
  *   band   → POST /insights/pane/dismiss
  *   reload → the frame's own `src`, GET /insights/pane
  *
- * Both tokens ride in as VALUES from the template rather than through csrf.js,
- * for the reason radar_controller documents: these are the per-action tokens
- * the two endpoints check, not the shared `ajax` one. One scope wraps the whole
- * band, so each is minted once however many rows there are, and the per-row URL
- * travels as an action param on the menu item.
+ * Both tokens are values rather than going through csrf.js, for the reason
+ * radar_controller documents: these are the per-action tokens the two
+ * endpoints check, not the shared `ajax` one.
  *
  * Nothing is removed before the server has said ok. An optimistic removal would
  * eat the card on an expired session and hand it back on the next load, which
- * reads as the dismissal "not sticking" — the one behaviour MailInsight's
- * dismissedAt column exists to rule out.
+ * reads as the dismissal "not sticking". That is the one behaviour
+ * MailInsight's dismissedAt column exists to rule out.
  *
  * ── When the last row goes, the band goes ───────────────────────────────────
  *
- * Both dismissals end at the same place: the FRAME is removed, not merely this
- * element. A heading over nothing reads as a section that failed to load, and
- * an empty bordered band above the inbox is exactly what _pane.html.twig
- * refuses to render in the first place — the client must not be able to produce
- * a state the server would never send.
- *
- * Removing the frame rather than its contents also removes this controller with
- * it, which is what makes the next section true.
+ * Both dismissals end with the BAND removed, so the frame is left empty, which
+ * is exactly what _pane.html.twig renders when there is nothing to say: no
+ * height, no heading over nothing. The frame itself stays, with its `src` and
+ * this controller. It used to be removed too, and with it went any way back:
+ * an insight that arrived after "Not now" (newer than the dismissal, so the
+ * server would show it, see InsightPaneController::dismiss) could not appear
+ * until the next full page load. A workspace switch is not one, so that could
+ * last all day.
  *
  * ── The dismiss/refresh race ────────────────────────────────────────────────
  *
  * A refresh and a dismissal both want the same DOM, and they arrive from
  * different directions: the user presses ✕ while an `insights.changed` is
- * already on the wire. Three things keep them apart.
+ * already on the wire.
  *
- * The dismissal wins by OUTLIVING the refresh. Once it succeeds the frame is
- * gone, and a frame that is not in the document cannot be reloaded — there is
- * no element left holding a `src`, and no controller left listening. So a
- * message arriving after a completed dismissal is not merely harmless, it is
- * unreachable.
+ * DURING the round trip `#busy` holds refreshes off. A reload landing
+ * mid-flight would swap in a band drawn by a server that does not yet know
+ * about the press, and the strip would visibly come back a beat after being
+ * waved away. A refresh that arrives during that window is not dropped, it is
+ * REMEMBERED in `#missed`.
  *
- * DURING the round trip the flag below holds refreshes off. A reload landing
- * mid-flight would swap in a freshly rendered band — correct markup, drawn from
- * a server that does not yet know about the press — and the dismissal would
- * then remove an element nobody is looking at any more while the new one stays
- * on screen. The strip would visibly come back a beat after being waved away.
- *
- * And a refresh that arrives during that window is not dropped, it is
- * REMEMBERED: if the dismissal fails, the flag clears and the remembered reload
- * runs, so a failed press costs the user a button that did nothing rather than
- * a strip that silently stopped updating.
- *
- * The reload itself is safe to run whenever it is allowed to, because the
- * server already holds the dismissal — `InsightPane::rowsFor` re-derives it on
- * every request, and answers with an empty band. This client-side removal is
- * about the FRAME between the press and the next render, nothing more.
+ * AFTER the band is gone, the server holds the dismissal, so any reload from
+ * then on is correct: InsightPane::rowsFor re-derives it on every request. So
+ * the remembered reload runs then, whether the press succeeded or failed. One
+ * case is left: a reload that was already in flight before the press. Its
+ * answer was rendered before the dismissal and would draw the old band back.
+ * Turbo marks a frame that is loading `busy`, and a new load cancels the one
+ * in flight, so a busy frame is simply reloaded once more.
  */
 
 /**
@@ -75,7 +75,7 @@ import { requestFailed } from "../../request_errors.js";
  * this user's topic. Listened for on `document` rather than through a
  * data-action, the way ui--sidebar and rules--rule-run do: the event is
  * dispatched on <body>, which is an ANCESTOR of this frame, so it never reaches
- * a listener nested inside — it only passes here on its way up to document.
+ * a listener nested inside. It only passes here on its way up to document.
  *
  * No EventSource of its own: `core--mercure` is already mounted on <body> for
  * every mailbox page and its stream is shared at module scope. A second
@@ -104,14 +104,13 @@ export default class extends Controller {
 
     /** The ✕ on the heading: the whole band, until something new turns up. */
     async dismissPane(event) {
-        const band = this.#frame() ?? this.element;
+        const band = this.#band();
 
         if (true === await this.#post(event.currentTarget, this.paneUrlValue, this.paneTokenValue)) {
             // The band leaves as one thing because that is what was pressed.
             // The same 120ms radar_controller argues for, hidden inside a round
-            // trip that was happening anyway. `leave` removes the node itself
-            // when no callback says otherwise.
-            leave(band);
+            // trip that was happening anyway.
+            this.#leave(band, () => band?.remove());
         }
     }
 
@@ -124,21 +123,14 @@ export default class extends Controller {
             return;
         }
 
-        if (!card) {
-            return;
-        }
-
-        const band = this.#frame() ?? this.element;
-
-        // The cleanup rides in the callback because `leave` removes the node
-        // when the animation ends — counting what is left before that would
-        // always find the card still in it. Under `none` and reduced motion
-        // `leave` calls back synchronously, so this is one code path, not two.
-        leave(card, () => {
-            card.remove();
+        // The count rides in the callback because `leave` removes the node
+        // when the animation ends: counting before that would always find the
+        // card still there.
+        this.#leave(card, () => {
+            card?.remove();
 
             if (null === this.element.querySelector("[data-insight-card]")) {
-                band.remove();
+                this.#band()?.remove();
             }
         });
     }
@@ -186,17 +178,47 @@ export default class extends Controller {
             return false;
         }
 
-        // Deliberately still busy. The removal below is what ends this
-        // dismissal, and until the element is gone a reload could still draw a
+        // Deliberately still busy. The removal is what ends this dismissal
+        // (#leave releases), and until it is done a reload could still draw a
         // band over it.
         return true;
     }
 
-    /** The dismissal did not stick — let refreshes through again, including a missed one. */
-    #release() {
+    /**
+     * Animates `element` out, runs `removed`, then lets refreshes through.
+     *
+     * Once only: `leave` can call back twice (on animationend, and again from
+     * its safety timeout), and a second release would reload a second time.
+     * With no element to animate there is nothing to wait for.
+     */
+    #leave(element, removed) {
+        let done = false;
+        const finish = () => {
+            if (done) {
+                return;
+            }
+
+            done = true;
+            removed();
+            this.#release({ stale: this.element.hasAttribute("busy") });
+        };
+
+        if (element) {
+            leave(element, finish);
+        } else {
+            finish();
+        }
+    }
+
+    /**
+     * The dismissal is over, stuck or not: let refreshes through again, and
+     * run the one that was missed meanwhile. `stale` is a load that was
+     * already in flight before the press, whose answer predates the dismissal.
+     */
+    #release({ stale = false } = {}) {
         this.#busy = false;
 
-        if (true === this.#missed) {
+        if (true === this.#missed || true === stale) {
             this.#missed = false;
             this.#refresh();
         }
@@ -209,16 +231,15 @@ export default class extends Controller {
             return;
         }
 
-        this.#frame()?.reload();
+        // A lazy frame that has not come on screen yet (the list parked in a
+        // workspace without it) is not fetched by this: Turbo loads a lazy
+        // frame's new src only once it has been loaded or is visible, and it
+        // will load fresh when it is.
+        this.element.reload();
     }
 
-    /**
-     * The frame this strip was rendered into. Looked up each time rather than
-     * cached on connect: the controller lives INSIDE the frame, so a reload
-     * replaces this element and any reference taken on a previous render would
-     * point at markup that has already been thrown away.
-     */
-    #frame() {
-        return this.element.closest("turbo-frame#insight_pane");
+    /** The band, looked up each time: every reload replaces it. */
+    #band() {
+        return this.element.querySelector("[data-insight-pane]");
     }
 }

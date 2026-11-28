@@ -177,6 +177,34 @@ final class InsightPaneRenderTest extends WebTestCase
         // inside the card it is supposed to sit above.
         self::assertCount(1, $crawler->filter('[data-layout-pane="list"] > turbo-frame#insight_pane'));
         self::assertCount(0, $crawler->filter('.main-pane turbo-frame#insight_pane'));
+
+        // The controller is on the frame, the one element every reload of the
+        // strip keeps. On the band inside it, a strip that loaded empty had no
+        // controller, so nothing heard `insights.changed` and a parcel found
+        // after the page loaded never appeared.
+        self::assertSame('insight--pane', $frame->attr('data-controller'));
+        self::assertNotEmpty($frame->attr('data-insight--pane-token-value'));
+        self::assertNotEmpty($frame->attr('data-insight--pane-pane-token-value'));
+        self::assertSame('/insights/pane/dismiss', $frame->attr('data-insight--pane-pane-url-value'));
+    }
+
+    /**
+     * The fragment mounts no controller of its own. A second insight--pane
+     * inside the frame would be a second listener for every `insights.changed`,
+     * and the buttons' actions would reach it instead of the frame's, whose
+     * values it does not have.
+     */
+    public function testTheFragmentMountsNoControllerOfItsOwn(): void
+    {
+        $client = $this->signIn();
+
+        $this->parcel();
+
+        $crawler = $client->request('GET', '/insights/pane');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-insight-card]'));
+        self::assertCount(0, $crawler->filter('[data-controller~="insight--pane"]'));
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────

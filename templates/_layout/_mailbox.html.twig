@@ -258,10 +258,20 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
            costs no gap. #}
         {% set listBody %}
             <section class="layout-pane flex flex-col min-w-0 min-h-0" {{ workspace.attrs(kinds.list) }} {{ maxKind == 'list' ? 'data-maxed' }} {{ firstTab == 'list' ? 'data-tab-current' }}>
+                {# insight--pane on the frame, not inside it: the frame is the
+                   one element every reload of the strip keeps, so the
+                   controller is there to hear `insights.changed` even when
+                   the strip loaded empty. The tokens cost no query. #}
                 <turbo-frame id="insight_pane"
                              class="shrink-0"
                              src="{{ path('app_insight_pane') }}"
-                             loading="lazy"></turbo-frame>
+                             loading="lazy"
+                             {% if app.user %}
+                             data-controller="insight--pane"
+                             data-insight--pane-token-value="{{ csrf_token('insight-dismiss') }}"
+                             data-insight--pane-pane-token-value="{{ csrf_token('insight-pane-dismiss') }}"
+                             data-insight--pane-pane-url-value="{{ path('app_insight_pane_dismiss') }}"
+                             {% endif %}></turbo-frame>
 
                 {# `data-reading-open` is the one thing that varies within a
                    layout: a message is open. The thread page renders it
