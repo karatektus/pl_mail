@@ -40,11 +40,13 @@ use App\Service\Label\LabelResolver;
 use App\Service\Mail\HeldMailReleaser;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\PostIngestPipeline;
+use App\Service\Mail\SyncNotifier;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Log\NullLogger;
+use App\Tests\Support\Mercure\RecordingHub;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -76,6 +78,9 @@ final class ClassificationHoldFlowTest extends KernelTestCase
     private Account $account;
     private Mailbox $mailbox;
 
+    /** What the handlers built by hand here publish. */
+    private RecordingHub $hub;
+
     protected function setUp(): void
     {
         self::bootKernel();
@@ -86,6 +91,8 @@ final class ClassificationHoldFlowTest extends KernelTestCase
 
         // Never committed, so the suite leaves nothing behind.
         $this->connection->beginTransaction();
+
+        $this->hub = new RecordingHub();
 
         $this->seed();
     }
@@ -531,6 +538,61 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         self::assertSame($releasedAt?->getTimestamp(), $message->categoryReleasedAt?->getTimestamp());
     }
 
+    /**
+     * Mail that was never held is shown in the rules' tab when it arrives, and
+     * the assistant's answer can move it afterwards. That move was recorded
+     * for the change log and the badges, but no sync event went out, and an
+     * open list re-reads itself only on one — so the tab said "1" over a list
+     * without the mail until somebody clicked it (#807).
+     */
+    public function testAMoveOfMailThatWasNeverHeldTellsOpenListsToLookAgain(): void
+    {
+        $this->assistantSorts(hold: false);
+        $this->importFinished();
+
+        $message = $this->message('fresh', '-1 minute');
+        $this->ingest($message);
+
+        $this->em->refresh($message->thread);
+        self::assertSame(MessageCategory::Primary, $message->thread->category);
+
+        $this->handlerWithAModelThatSays('promotions')(new ClassifyMailMessage([(int) $message->id]));
+
+        $this->em->refresh($message->thread);
+        self::assertSame(MessageCategory::Promotions, $message->thread->category);
+        self::assertSame([(int) $this->account->id], $this->accountsSynced());
+    }
+
+    /** An answer that leaves the mail where it was moves nothing, and says nothing. */
+    public function testAnAnswerThatAgreesWithTheRulesAnnouncesNothing(): void
+    {
+        $this->assistantSorts(hold: false);
+        $this->importFinished();
+
+        $message = $this->message('fresh', '-1 minute');
+        $this->ingest($message);
+
+        $this->handlerWithAModelThatSays('primary')(new ClassifyMailMessage([(int) $message->id]));
+
+        self::assertSame([], $this->accountsSynced());
+    }
+
+    /** @return list<int> the accounts an account.synced went out for */
+    private function accountsSynced(): array
+    {
+        $ids = [];
+
+        foreach ($this->hub->updates as $update) {
+            $data = json_decode($update->getData(), true, flags: JSON_THROW_ON_ERROR);
+
+            if ('account.synced' === ($data['type'] ?? null)) {
+                $ids[] = (int) $data['accountId'];
+            }
+        }
+
+        return $ids;
+    }
+
     public function testNothingIsHeldWhenAnAdministratorSwitchedHoldingOff(): void
     {
         $this->assistantSorts(hold: false);
@@ -622,6 +684,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
             $this->em,
             new NullLogger(),
             $container->get(\App\Jmap\State\StateManager::class),
+            new SyncNotifier($this->hub, new NullLogger()),
         );
     }
 

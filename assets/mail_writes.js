@@ -54,6 +54,22 @@ const ANNOUNCE_WINDOW_MS = 120;
 let announcing = null;
 
 /**
+ * The highest change sequence this tab's own writes were answered with (#807).
+ *
+ * The server sends the same change to every open tab as `mail.changed`, this
+ * one included, and the mail list re-reads itself for a change it has not seen.
+ * A change this tab made, it has seen: it drew the result from the answer to
+ * its own request. Reading the list again after every message opened (opening
+ * marks it read) is the cost this number exists to avoid.
+ */
+let ownSequence = 0;
+
+/** See ownSequence. */
+export function ownWriteSequence() {
+    return ownSequence;
+}
+
+/**
  * Announce that a write landed.
  * Bubbling and dispatched on `document`, because the listeners are the two
  * sidebars (the mobile drawer and the desktop column) and the writers are
@@ -116,10 +132,22 @@ export function watchForMailChanges() {
         seen.add(response);
 
         // Null for a cross-origin response that does not expose the header,
-        // which is every one of them: only this server sets it.
-        if ("1" === response.headers.get(CHANGED_HEADER)) {
-            announceWrite();
+        // which is every one of them: only this server sets it. Its value is
+        // the change sequence the write was recorded at (a bare 1 where there
+        // was nobody signed in to read one for).
+        const changed = response.headers.get(CHANGED_HEADER);
+
+        if (null === changed) {
+            return;
         }
+
+        const sequence = parseInt(changed, 10);
+
+        if (Number.isFinite(sequence) && sequence > ownSequence) {
+            ownSequence = sequence;
+        }
+
+        announceWrite();
     };
 
     const nativeFetch = window.fetch.bind(window);

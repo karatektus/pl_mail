@@ -138,6 +138,18 @@ test.describe("a drag interrupted by a re-render", () => {
         await page.goto("/mail/inbox");
         await settled(page);
 
+        // Every frame the page loads by itself has to have arrived first. A
+        // frame's render tears a drag down (the insurance in mail--dnd), and the
+        // insights pane fills its lazy frame a few hundred milliseconds after
+        // the page: a drag started before that ended itself on the frame's
+        // render, the pane took its held refresh then, and this test saw a list
+        // fetch "during" the drag and none after it. One run in three or four.
+        // A lazy frame loads once it is on screen, so the visible ones are the
+        // ones to wait for.
+        await expect.poll(() => page.evaluate(() => [...document.querySelectorAll("turbo-frame[src]")]
+            .filter((frame) => frame.getBoundingClientRect().width > 0 && !frame.hasAttribute("complete"))
+            .length)).toBe(0);
+
         // The pane re-reads the list frame as a fragment; that request is the
         // thing a drag must not provoke while it is in flight.
         const fragments: string[] = [];

@@ -221,7 +221,9 @@ final class ReplyFromAddressTest extends WebTestCase
 
         $this->save($client, $account->id . '|me@joder.dev');
 
-        self::assertSame('1', $client->getResponse()->headers->get('X-Mail-Changed'));
+        // The sequence the change was recorded at, so the tab that made it can
+        // tell its own write from somebody else's (#807).
+        self::assertGreaterThan($before['state:sequence'], (int) $client->getResponse()->headers->get('X-Mail-Changed'));
 
         $client->request('GET', '/mail/sidebar/counts');
         $after = json_decode((string) $client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
