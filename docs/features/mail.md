@@ -1110,6 +1110,27 @@ says how many it held back, with two ways to show them — **Show images** for t
 sender's messages say so under the body, with **Stop showing** to take it back. Mail you sent
 yourself shows its pictures without asking.
 
+Some senders never use the same address twice: Stripe's receipts come from
+`invoice+statements+acct_…@stripe.com`, a new one each time. For those the bar also offers
+**Always show images from everyone at** the sender's domain. It is not offered for gmail.com,
+outlook.com and the other providers where anybody can have an address, because everyone at those
+domains is everyone.
+
+**Settings → Reading & writing → Reading** lists every sender you trusted, under **Senders whose
+images always show**, each with its own remove button and **Remove all** above them. The field
+above the list adds entries by hand, several at once if you separate them with commas or spaces.
+An entry can be:
+
+- an address, `news@example.com`;
+- a whole domain, `*@example.com` (or just `example.com`), which is exactly that domain and not
+  its subdomains;
+- a pattern, `invoice+*@stripe.com`, where each `*` before the `@` stands for anything. It trusts
+  Stripe's receipts without trusting everything else Stripe sends. The part after the `@` is
+  never a pattern.
+
+When several entries trust a sender, the line under the message names the narrowest, and **Stop
+showing** removes all of them, so the pictures really stop.
+
 Shown pictures always come through plMail, and only over an encrypted connection: a picture the
 mail links as `http://` is fetched as `https://`. The rare host that cannot answer that way leaves
 an empty box.

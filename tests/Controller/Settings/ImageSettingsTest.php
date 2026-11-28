@@ -104,6 +104,64 @@ final class ImageSettingsTest extends WebTestCase
         self::assertFalse($this->reread()->alwaysShowImages);
     }
 
+    /**
+     * The allowlist on the card (#807): several entries from one field, the
+     * ones that mean nothing named back, and the rest listed with the form
+     * each one has.
+     */
+    public function testSendersAreAddedSeveralAtOnceAndListed(): void
+    {
+        $this->postTo('/settings/images/senders', ['entries' => "news@heise.de, stripe.com;\ninvoice+*@stripe.com *.bad.test"]);
+
+        self::assertResponseRedirects('/settings/reading#card-images');
+
+        $page = $this->client->followRedirect();
+
+        // Named back in the flash rather than dropped in silence.
+        self::assertStringContainsString('*.bad.test', $page->text());
+        self::assertSame(
+            ['Everyone at stripe.com', 'invoice+*@stripe.com', 'news@heise.de'],
+            $page->filter('[data-testid="trusted-image-sender"] span')->each(static fn ($span): string => trim($span->text())),
+        );
+    }
+
+    public function testOneSenderIsRemovedAndThenAllOfThem(): void
+    {
+        $this->postTo('/settings/images/senders', ['entries' => 'news@heise.de stripe.com']);
+
+        $page   = $this->client->request('GET', '/settings/reading');
+        $remove = $page->filter('[data-testid="trusted-image-sender"] form')->first();
+
+        $this->client->request('POST', (string) $remove->attr('action'), [
+            '_token' => (string) $remove->filter('input[name="_token"]')->attr('value'),
+        ]);
+
+        self::assertResponseRedirects('/settings/reading#card-images');
+        self::assertCount(1, $this->client->request('GET', '/settings/reading')->filter('[data-testid="trusted-image-sender"]'));
+
+        $this->postTo('/settings/images/senders/clear', []);
+
+        self::assertCount(0, $this->client->request('GET', '/settings/reading')->filter('[data-testid="trusted-image-sender"]'));
+    }
+
+    /** Adding a sender is the dangerous direction, like the switch: no token, no entry. */
+    public function testAddingASenderWithoutATokenIsRefused(): void
+    {
+        $this->client->request('POST', '/settings/images/senders', ['entries' => 'stripe.com']);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertCount(0, $this->client->request('GET', '/settings/reading')->filter('[data-testid="trusted-image-sender"]'));
+    }
+
+    /** @param array<string, string> $fields */
+    private function postTo(string $action, array $fields): void
+    {
+        $page  = $this->client->request('GET', '/settings/reading');
+        $token = (string) $page->filter('form[action="' . $action . '"] input[name="_token"]')->attr('value');
+
+        $this->client->request('POST', $action, $fields + ['_token' => $token]);
+    }
+
     /** @param array<string, string> $fields */
     private function post(array $fields): void
     {

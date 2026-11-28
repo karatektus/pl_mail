@@ -138,6 +138,24 @@ Variables:
                         class="text-xs font-medium text-link hover:underline"
                     >{{ 'message.images.always'|trans({'%sender%': message.fromAddress}) }}</button>
                 </form>
+
+                {# The whole domain, for senders whose address is new each time
+                   (#807). Not offered for gmail.com and the like, where the
+                   domain is everyone — MessageRenderer::trustableDomain(). #}
+                {% if render.trustableDomain %}
+                    <form
+                        method="post"
+                        action="{{ path('app_mail_images_trust_domain', {'id': message.id}) }}"
+                        data-turbo="true"
+                    >
+                        <input type="hidden" name="_token" value="{{ csrf_token('images-trust-domain' ~ message.id) }}">
+                        <button
+                            type="submit"
+                            data-testid="always-show-images-domain"
+                            class="text-xs font-medium text-link hover:underline"
+                        >{{ 'message.images.always_domain'|trans({'%domain%': render.trustableDomain}) }}</button>
+                    </form>
+                {% endif %}
             {% endif %}
         </div>
     {% endif %}
@@ -410,7 +428,13 @@ Variables:
         <div class="flex items-center gap-2 mt-3 text-xs text-ink-faint" data-testid="images-trusted">
             <i class="fa-solid fa-check text-[10px]" aria-hidden="true"></i>
             <span class="flex-1 min-w-0 truncate">
-                {{ 'message.images.trusted'|trans({'%sender%': message.fromAddress}) }}
+                {% if render.trustedByDomain %}
+                    {{ 'message.images.trusted_domain'|trans({'%domain%': render.trustedDomain}) }}
+                {% elseif render.trustedByPattern %}
+                    {{ 'message.images.trusted_pattern'|trans({'%pattern%': render.trustedBy}) }}
+                {% else %}
+                    {{ 'message.images.trusted'|trans({'%sender%': message.fromAddress}) }}
+                {% endif %}
             </span>
             <form method="post" action="{{ path('app_mail_images_distrust', {'id': message.id}) }}" data-turbo="true">
                 <input type="hidden" name="_token" value="{{ csrf_token('images-distrust' ~ message.id) }}">

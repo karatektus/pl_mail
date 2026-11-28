@@ -173,6 +173,32 @@ test.describe("K-06 · remote images", () => {
     });
 
     /**
+     * The whole domain (#807), for senders whose address changes with every
+     * mail, and the settings card that lists it and takes it back. The card is
+     * the only place an entry can be removed without the message it came from.
+     */
+    test("'always for everyone at the domain', listed and removed in settings", async ({ page }) => {
+        const hits = await watchRemoteHost(page);
+
+        let body = await openMessage(page, SUBJECTS.remote);
+        await body.getByTestId("always-show-images-domain").click();
+
+        await expect(body.getByTestId("images-trusted")).toContainText("everyone at e2e.test");
+        await expect(body.getByTestId("images-bar")).toHaveCount(0);
+
+        await page.goto("/settings/reading");
+        const entry = page.getByTestId("trusted-image-sender").filter({ hasText: "Everyone at e2e.test" });
+        await expect(entry).toHaveCount(1);
+        await entry.getByRole("button", { name: /Remove/ }).click();
+        await expect(page.getByTestId("trusted-image-sender")).toHaveCount(0);
+
+        body = await openMessage(page, SUBJECTS.remote);
+        await expect(body.getByTestId("images-bar")).toBeVisible();
+
+        expect(hits, `trusting a domain must not contact ${REMOTE_HOST}`).toHaveLength(0);
+    });
+
+    /**
      * Trusting a sender does not un-block a message the provider filed as spam.
      * The allowlist records a belief about a sender; a message in Spam is the
      * provider disagreeing about whether this really is that sender.

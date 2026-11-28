@@ -55,6 +55,24 @@ final class RemoteImageController extends AbstractController
         ]);
     }
 
+    /**
+     * The sender's whole domain (#807), for senders whose address changes with
+     * every mail. The domain comes off the message, never off the request, so
+     * this can only ever trust the domain the reader is looking at.
+     */
+    #[Route('/mail/images/trust-domain/{id}', name: 'app_mail_images_trust_domain', methods: ['POST'])]
+    public function trustDomain(Request $request, Message $message): Response
+    {
+        $user = $this->assertOwned($message);
+        $this->assertCsrf($request, 'images-trust-domain' . $message->id);
+
+        $this->trustedSenders->trustDomain($user, $message->fromAddress);
+
+        return $this->renderTurboStream('mail/_message_body.stream.html.twig', [
+            'message' => $message,
+        ]);
+    }
+
     #[Route('/mail/images/distrust/{id}', name: 'app_mail_images_distrust', methods: ['POST'])]
     public function distrust(Request $request, Message $message): Response
     {

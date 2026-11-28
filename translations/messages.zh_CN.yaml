@@ -3161,10 +3161,13 @@ message:
     draft: '草稿'
     images:
         always: '始终显示来自 %sender% 的图片'
+        always_domain: '始终显示来自 %domain% 所有人的图片'
         blocked: '{1}为保护阅读隐私，已屏蔽 1 张图片|]1,Inf[ 为保护阅读隐私，已屏蔽 %count% 张图片'
         show_once: '显示图片'
         stop_trusting: '停止自动显示'
         trusted: '始终显示来自 %sender% 的图片'
+        trusted_domain: '始终显示来自 %domain% 所有人的图片'
+        trusted_pattern: '始终显示匹配 %pattern% 的发件人的图片'
     original:
         copied: '已复制'
         copy: '复制到剪贴板'
@@ -4630,6 +4633,18 @@ settings:
         heading: '图片'
         'off': '关闭'
         'on': '开启'
+        senders:
+            add: '添加'
+            add_label: '添加发件人'
+            clear: '全部移除'
+            clear_confirm: '{1}不再始终显示此发件人的图片？|]1,Inf[不再始终显示这 %count% 个发件人的图片？'
+            domain: '%domain% 的所有人'
+            empty: '暂无。邮件上的“始终显示来自……的图片”按钮会将其发件人添加到这里。'
+            heading: '始终显示其图片的发件人'
+            hint: '可填写地址、invoice+*@example.com 这样的模式，或以 *@example.com 表示整个域名。也可一次添加多个，用逗号或空格分隔。无论此列表如何，垃圾邮件中的图片始终会被拦截。'
+            placeholder: 'name@example.com, *@example.com'
+            rejected: '{1}不是地址或域名，未添加：%entries%|]1,Inf[不是地址或域名，未添加：%entries%'
+            remove: '移除 %entry%'
         subheading: '是否需要手动允许邮件加载远程图片。'
     search_meaning:
         heading: "按含义搜索"
@@ -4769,7 +4784,7 @@ settings:
             encryption: "pgp openpgp gpg 密钥"
             filters: "规则 sieve 自动 移动 转发"
             handwriting: "签名 pdf 手写"
-            images: "跟踪 像素 远程 加载 阻止"
+            images: "跟踪 像素 远程 加载 阻止 发件人 域名 列表"
             inbox_tabs: "标签页 推广 社交 动态 论坛"
             insights: "包裹 物流 发票 航班"
             integrations: "nextcloud dropbox drive onedrive immich paperless 云 webdav"

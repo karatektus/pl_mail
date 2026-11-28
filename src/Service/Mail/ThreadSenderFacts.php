@@ -32,7 +32,7 @@ use Symfony\Contracts\Service\ResetInterface;
  */
 final class ThreadSenderFacts implements ResetInterface
 {
-    /** @var array<string, array<string, bool>> user id => normalised address => trusted */
+    /** @var array<string, array<string, ?string>> user id => normalised address => the entry trusting it, or null */
     private array $trusted = [];
 
     /** @var array<string, array<string, bool>> user id => lowercased email => correspondent */
@@ -76,7 +76,7 @@ final class ThreadSenderFacts implements ResetInterface
         $trusted = $this->trustedSenders->findTrustedAmong($user, array_keys($addresses));
 
         foreach (array_keys($addresses) as $address) {
-            $this->trusted[$key][$address] = isset($trusted[$address]);
+            $this->trusted[$key][$address] = $trusted[$address] ?? null;
         }
 
         $correspondents = $this->contacts->findCorrespondentsAmong($user, array_keys($emails));
@@ -89,8 +89,22 @@ final class ThreadSenderFacts implements ResetInterface
     /** TrustedImageSenderRepository::isTrusted(), from the primed set when there is one. */
     public function isTrusted(User $user, ?string $address): bool
     {
-        return $this->trusted[$user->getUserIdentifier()][AddressHelper::email($address)]
-            ?? $this->trustedSenders->isTrusted($user, $address);
+        return null !== $this->entryTrusting($user, $address);
+    }
+
+    /**
+     * TrustedImageSenderRepository::entryTrusting(), from the primed set when
+     * there is one. array_key_exists rather than ??, because a primed null —
+     * "asked, and nobody trusts this sender" — is an answer, not a miss.
+     */
+    public function entryTrusting(User $user, ?string $address): ?string
+    {
+        $primed  = $this->trusted[$user->getUserIdentifier()] ?? [];
+        $address = AddressHelper::email($address);
+
+        return array_key_exists($address, $primed)
+            ? $primed[$address]
+            : $this->trustedSenders->entryTrusting($user, $address);
     }
 
     /** ContactRepository::isCorrespondent(), from the primed set when there is one. */

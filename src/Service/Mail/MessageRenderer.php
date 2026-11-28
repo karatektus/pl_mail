@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Helper\PersonalMailDomains;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\TrustedImageSender;
 use App\Entity\User\User;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -83,8 +85,10 @@ final readonly class MessageRenderer
     public function render(Message $message, bool $forceImages = false): MessageRender
     {
         $user      = $this->security->getUser();
-        $trusted   = $user instanceof User
-            && true === $this->trustedSenders->isTrusted($user, $message->fromAddress);
+        $trustedBy = $user instanceof User
+            ? $this->trustedSenders->entryTrusting($user, $message->fromAddress)
+            : null;
+        $trusted   = null !== $trustedBy;
         $inSpam    = self::hasRole($message, LabelRole::Spam);
 
         // Mail the reader wrote. Being asked whether to trust yourself is a
@@ -127,13 +131,14 @@ final readonly class MessageRenderer
         return new MessageRender(
             content:       $content,
             imagesAllowed: $allow,
-            senderTrusted: $trusted,
+            trustedBy:     $trustedBy,
             inSpam:        $inSpam,
             mismatch:      $this->identityChecker->check($message),
             sandbox:       self::SANDBOX,
             csp:           $this->contentSecurityPolicy(),
             frameScript:   $this->frameScript->source(),
             text:          $message->bodyHtmlSafe ? null : $message->bodyText,
+            trustableDomain: $inSpam ? null : self::trustableDomain($message->fromAddress),
         );
     }
 
@@ -151,6 +156,27 @@ final readonly class MessageRenderer
      * frame is an opaque origin, so `'self'` in its policy matches nothing at
      * all and would block our own proxy along with everything else.
      */
+    /**
+     * The domain "Always show images from everyone at …" may offer (#807).
+     *
+     * Not for a provider where anyone can get an address (PersonalMailDomains):
+     * everyone at gmail.com is everyone, and a button that trusts them all in
+     * one click is a button that undoes the block. Someone who really wants
+     * that can still type it into the settings card.
+     */
+    public static function trustableDomain(?string $address): ?string
+    {
+        $entry = TrustedImageSender::domainEntryFor($address);
+
+        if (null === $entry) {
+            return null;
+        }
+
+        $domain = substr($entry, strlen(TrustedImageSender::DOMAIN_PREFIX));
+
+        return true === PersonalMailDomains::contains($domain) ? null : $domain;
+    }
+
     private function contentSecurityPolicy(): string
     {
         $request = $this->requestStack->getCurrentRequest();

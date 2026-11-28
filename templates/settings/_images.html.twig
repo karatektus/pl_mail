@@ -12,8 +12,17 @@ message was opened — and the two things it does not: the reader's address,
 because images still come through plMail, and mail in Spam, which stays
 blocked whatever this says.
 
+Below it, the senders whose images always load (#807): every entry, domains
+first, each with its own remove button, and one field that adds several at
+once. The list is the allowlist the "Always show images from …" buttons on a
+message build; until this card it could not be seen at all, only undone one
+message at a time. Entries are addresses, patterns (`invoice+*@stripe.com`)
+or whole domains, each with its own icon. Remove all asks first, through the
+app's own dialog.
+
 Accepts:
   alwaysShow  bool
+  senders     list<TrustedImageSender>
 #}
 {% import '_partials/_segmented.html.twig' as seg %}
 
@@ -38,4 +47,69 @@ Accepts:
     </div>
 </form>
 
+</div>
+
+<div class="px-4 py-3 border-t border-line space-y-3" data-testid="trusted-image-senders">
+    <div class="flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.images.senders.heading'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.images.senders.hint'|trans }}</span>
+        </span>
+
+        {% if senders is not empty %}
+            <form method="post" action="{{ path('app_settings_images_senders_clear') }}" class="shrink-0"
+                  data-turbo-confirm="{{ 'settings.images.senders.clear_confirm'|trans({'%count%': senders|length}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('settings-images-senders-clear') }}">
+                <button type="submit" data-testid="trusted-image-senders-clear"
+                        class="text-[11px] text-ink-faint hover:text-red-400 transition-colors cursor-pointer">
+                    {{ 'settings.images.senders.clear'|trans }}
+                </button>
+            </form>
+        {% endif %}
+    </div>
+
+    <form method="post" action="{{ path('app_settings_images_senders_add') }}" class="flex items-center gap-2">
+        <input type="hidden" name="_token" value="{{ csrf_token('settings-images-senders') }}">
+        <input type="text" name="entries" required
+               autocomplete="off" autocapitalize="off" spellcheck="false"
+               data-1p-ignore data-lpignore="true"
+               aria-label="{{ 'settings.images.senders.add_label'|trans }}"
+               placeholder="{{ 'settings.images.senders.placeholder'|trans }}"
+               data-testid="trusted-image-senders-input"
+               class="min-w-0 flex-1 h-9 rounded-lg border border-line bg-surface px-3 text-sm text-ink
+                      placeholder:text-ink-faint focus:border-accent focus:outline-none">
+        <button type="submit"
+                class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium border border-line text-ink hover:bg-hover transition-colors cursor-pointer">
+            <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
+            {{ 'settings.images.senders.add'|trans }}
+        </button>
+    </form>
+
+    {% if senders is empty %}
+        <p class="text-[11px] text-ink-faint italic">{{ 'settings.images.senders.empty'|trans }}</p>
+    {% else %}
+        <ul class="divide-y divide-line rounded-lg border border-line">
+            {% for sender in senders %}
+                <li class="flex items-center gap-3 px-3 py-2" data-testid="trusted-image-sender">
+                    <i class="fa-solid {{ sender.isDomain ? 'fa-globe' : (sender.isPattern ? 'fa-asterisk' : 'fa-at') }} text-ink-faint text-xs shrink-0" aria-hidden="true"></i>
+                    <span class="flex-1 min-w-0 truncate text-sm text-ink" title="{{ sender.address }}">
+                        {% if sender.isDomain %}
+                            {{ 'settings.images.senders.domain'|trans({'%domain%': sender.address|slice(2)}) }}
+                        {% else %}
+                            {{ sender.address }}
+                        {% endif %}
+                    </span>
+                    <form method="post" action="{{ path('app_settings_images_senders_remove', {id: sender.id}) }}" class="shrink-0">
+                        <input type="hidden" name="_token" value="{{ csrf_token('settings-images-sender-remove' ~ sender.id) }}">
+                        <button type="submit"
+                                aria-label="{{ 'settings.images.senders.remove'|trans({'%entry%': sender.address}) }}"
+                                data-tooltip="{{ 'settings.images.senders.remove'|trans({'%entry%': sender.address}) }}"
+                                class="w-7 h-7 inline-flex items-center justify-center rounded-md text-ink-faint hover:text-red-400 hover:bg-hover transition-colors cursor-pointer">
+                            <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
 </div>

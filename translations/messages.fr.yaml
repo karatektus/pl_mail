@@ -3513,10 +3513,13 @@ message:
     draft: "Brouillon"
     images:
         always: 'Toujours afficher les images de %sender%'
+        always_domain: 'Toujours afficher les images de tout %domain%'
         blocked: '{1}1 image a été bloquée pour que cette lecture reste privée|]1,Inf[ %count% images ont été bloquées pour que cette lecture reste privée'
         show_once: Afficher les images
         stop_trusting: Ne plus afficher
         trusted: 'Les images sont toujours affichées pour %sender%'
+        trusted_domain: 'Les images sont toujours affichées pour tout %domain%'
+        trusted_pattern: 'Les images sont toujours affichées pour les expéditeurs correspondant à %pattern%'
     original:
         copied: Copié
         copy: Copier dans le presse-papiers
@@ -5367,6 +5370,18 @@ settings:
         heading: Images
         'off': 'Désactivé'
         'on': 'Activé'
+        senders:
+            add: Ajouter
+            add_label: 'Ajouter des expéditeurs'
+            clear: 'Tout retirer'
+            clear_confirm: '{1}Ne plus toujours afficher les images de cet expéditeur ?|]1,Inf[Ne plus toujours afficher les images de ces %count% expéditeurs ?'
+            domain: 'Tout %domain%'
+            empty: 'Personne pour l’instant. Le bouton « Toujours afficher les images de … » d’un message ajoute ici son expéditeur.'
+            heading: 'Expéditeurs dont les images s’affichent toujours'
+            hint: 'Des adresses, des modèles comme invoice+*@example.com, ou tout un domaine sous la forme *@example.com. Plusieurs à la fois aussi, séparés par des virgules ou des espaces. Le courrier dans Spam reste bloqué quoi que dise cette liste.'
+            placeholder: 'nom@example.com, *@example.com'
+            rejected: '{1}Ni une adresse ni un domaine, donc non ajouté : %entries%|]1,Inf[Ni des adresses ni des domaines, donc non ajoutés : %entries%'
+            remove: 'Retirer %entry%'
         subheading: Si les images qu’un message charge depuis ailleurs attendent qu’on les demande.
     search_meaning:
         heading: "Recherche par le sens"
@@ -5510,7 +5525,7 @@ settings:
             encryption: "pgp openpgp gpg clé"
             filters: "règles sieve automatique déplacer transférer"
             handwriting: "signer pdf dessiner"
-            images: "pistage pixel distant charger bloquer"
+            images: "pistage pixel distant charger bloquer expéditeurs domaine liste"
             inbox_tabs: "onglets promotions réseaux notifications forums"
             insights: "colis suivi facture vol"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"

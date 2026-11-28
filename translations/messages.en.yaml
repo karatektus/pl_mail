@@ -3496,10 +3496,13 @@ message:
     draft: "Draft"
     images:
         always: 'Always show images from %sender%'
+        always_domain: 'Always show images from everyone at %domain%'
         blocked: '{1}1 image was blocked to keep this read private|]1,Inf[ %count% images were blocked to keep this read private'
         show_once: Show images
         stop_trusting: Stop showing
         trusted: 'Images are always shown for %sender%'
+        trusted_domain: 'Images are always shown for everyone at %domain%'
+        trusted_pattern: 'Images are always shown for senders matching %pattern%'
     original:
         copied: Copied
         copy: Copy to clipboard
@@ -5306,6 +5309,18 @@ settings:
         heading: Images
         'off': 'Off'
         'on': 'On'
+        senders:
+            add: Add
+            add_label: 'Add senders'
+            clear: 'Remove all'
+            clear_confirm: '{1}Stop always showing images from this sender?|]1,Inf[Stop always showing images from all %count% senders?'
+            domain: 'Everyone at %domain%'
+            empty: 'Nobody yet. The "Always show images from …" button on a message adds its sender here.'
+            heading: 'Senders whose images always show'
+            hint: 'Addresses, patterns such as invoice+*@example.com, or a whole domain as *@example.com. Several at once work too, separated by commas or spaces. Mail in Spam stays blocked whatever this list says.'
+            placeholder: 'name@example.com, *@example.com'
+            rejected: '{1}Not an address or a domain, so not added: %entries%|]1,Inf[Not addresses or domains, so not added: %entries%'
+            remove: 'Remove %entry%'
         subheading: Whether pictures that mail loads from elsewhere wait to be asked for.
     search_meaning:
         heading: "Search by meaning"
@@ -5448,7 +5463,7 @@ settings:
             encryption: "pgp openpgp gpg key"
             filters: "rules sieve automatic move forward"
             handwriting: "sign pdf draw"
-            images: "tracking pixel remote load block"
+            images: "tracking pixel remote load block allowlist senders domain"
             inbox_tabs: "tabs promotions social updates forums"
             insights: "parcel tracking invoice flight"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"
