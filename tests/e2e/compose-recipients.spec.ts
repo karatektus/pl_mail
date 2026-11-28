@@ -151,7 +151,16 @@ test.describe("compose recipients", () => {
 
         const input = page.locator(`${DOCK} .ts-control input`).first();
         await input.focus();
-        await page.keyboard.press("ControlOrMeta+a");
+
+        // Two different "Ctrl"s. Selecting every chip is Tom Select's own
+        // shortcut, and it picks Cmd or Ctrl from the user agent — which
+        // Playwright's Desktop Chrome profile sets to Windows on every host.
+        // Copying is the browser's, and follows the machine it runs on. So on
+        // a Mac, ControlOrMeta+A pressed Cmd at a page waiting for Ctrl:
+        // nothing was selected and the copy came out empty. A real Mac
+        // browser says Macintosh, and Cmd+A works there.
+        const selectAll = await page.evaluate(() => (/Mac/.test(navigator.userAgent) ? "Meta+a" : "Control+a"));
+        await page.keyboard.press(selectAll);
         await page.keyboard.press("ControlOrMeta+c");
 
         const copied = () => page.evaluate(() => (window as unknown as { copied: string[] }).copied);
