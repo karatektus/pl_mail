@@ -36,9 +36,13 @@ the same kind chip, the same status tones, the same one primary action. Three
 visual languages for one object would make a parcel look like three different
 things depending on where the user met it.
 
-One Stimulus scope over the whole band, so both CSRF tokens are minted once
-rather than once per row — the split radar_controller documents, plus the
-pane-wide token the ✕ needs.
+No Stimulus scope here. insight--pane is mounted on the FRAME the mailbox
+renders (_layout/_mailbox.html.twig), which outlives every load of this
+fragment, and both CSRF tokens ride on it. It used to be mounted on the band
+below, which meant that a strip empty at page load had no controller, so
+nothing listened for `insights.changed`, and a parcel found later never
+appeared until a reload. The actions on the buttons below still reach it,
+because a Stimulus action resolves to the nearest ancestor of its identifier.
 #}
 
 {% set rows = rows|default([]) %}
@@ -46,10 +50,6 @@ pane-wide token the ✕ needs.
 <turbo-frame id="insight_pane">
     {% if rows is not empty %}
         <div data-insight-pane
-             data-controller="insight--pane"
-             data-insight--pane-token-value="{{ csrf_token('insight-dismiss') }}"
-             data-insight--pane-pane-token-value="{{ csrf_token('insight-pane-dismiss') }}"
-             data-insight--pane-pane-url-value="{{ path('app_insight_pane_dismiss') }}"
              {# Its own card, beside the mail card rather than on it.
 
                 This was a box drawn inside .main-pane for two releases, and
