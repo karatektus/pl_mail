@@ -194,6 +194,19 @@ command:
 docker compose exec php php bin/console app:push:generate-vapid-keys
 ```
 
+## AI agents
+
+A native MCP server for plMail is planned
+([#246](https://github.com/karatektus/pl_mail/issues/246)), with tokens of its own that can do only
+what you allow. Until it lands, [plmail-mcp](https://github.com/jo2904/plmail-mcp) is a community
+bridge that gives an MCP client (Claude, Hermes, Cursor…) your mail, calendar and contacts over
+JMAP. It is not part of plMail and is not maintained here.
+
+It signs in with an ordinary app password, so what this page says about app passwords holds for it:
+the agent reaches every account you have connected, and revoking the password is how you cut it
+off. The bridge can hide tools from the agent — sending, for instance — but that limit is the
+bridge's, not the server's. Keep the app password where the agent itself cannot read it.
+
 ## Where to read further
 
 - [Client development](../CLIENT_DEVELOPMENT.md) — the protocol reference: methods, filters, id
