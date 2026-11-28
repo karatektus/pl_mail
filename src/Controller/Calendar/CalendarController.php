@@ -13,11 +13,14 @@ use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Helper\DefaultEventStart;
 use App\Domain\Helper\EventColor;
 use App\Entity\Calendar\CalendarEvent;
+use App\Entity\Calendar\EventSourceLink;
+use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarEvent\CalendarEventRepository;
 use App\Repository\Calendar\Calendar\CalendarRepository;
 use App\Repository\Calendar\EventSourceLink\EventSourceLinkRepository;
+use App\Repository\Mail\Message\MessageRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\CalendarEventWriter;
@@ -112,6 +115,7 @@ final class CalendarController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly EventSourceLinkRepository $sourceLinks,
         private readonly CalendarEventRepository $calendarEventRepository,
+        private readonly MessageRepository $messages,
     ) {
     }
 
@@ -225,13 +229,19 @@ final class CalendarController extends AbstractController
 
         $this->ensureCalendars($user);
 
+        // Opened from a message's menu: the event is about that mail, so it
+        // starts with the mail's subject as its title and keeps the mail as
+        // its provenance once saved — see linkSourceMessage().
+        $sourceMessage = $this->ownedMessage($request->query->getInt('message'));
+
         return $this->render('calendar/_event_modal.html.twig', [
             'event'        => null,
+            'sourceMessage' => $sourceMessage,
             // Nothing exists to be a copy of yet, so nothing is ticked except
             // where a new event would land — and ticking a second calendar
             // creates it on both at once, under one UID.
             'copies'       => $this->copies->optionsFor(null, $user),
-            'title'        => '',
+            'title'        => (string) $sourceMessage?->subject,
             'startsAt'     => $startsAt,
             'endsAt'       => $startsAt->modify('+1 hour'),
             'timeZone'     => $zone->getName(),
@@ -652,6 +662,16 @@ final class CalendarController extends AbstractController
             true === $isNew
                 ? $this->writer->markLocallyCreated($copy)
                 : $this->writer->markLocallyChanged($copy);
+        }
+
+        // Only on a create. An existing event already has whatever provenance
+        // it has, and an edit form that could re-point it at another mail
+        // would be answering a question nobody asked it.
+        if (null === $event) {
+            $this->linkSourceMessage(
+                $this->ownedMessage($request->request->getInt('sourceMessage')),
+                $targets,
+            );
         }
 
         $this->em->flush();
@@ -1265,6 +1285,11 @@ final class CalendarController extends AbstractController
             'displayZone'  => $zone->getName(),
             'recurrenceId' => $request->request->getString('recurrenceId'),
             'returnTo'     => $request->request->getString('returnTo'),
+            // Carried through a refusal, or fixing a typo in the end time
+            // would silently detach the mail the event was opened from.
+            'sourceMessage' => null === $event
+                ? $this->ownedMessage($request->request->getInt('sourceMessage'))
+                : null,
             'errors'       => array_map(
                 fn (string $key): string => $this->translator->trans($key),
                 $errors,
@@ -1273,6 +1298,65 @@ final class CalendarController extends AbstractController
             status: Response::HTTP_UNPROCESSABLE_ENTITY,
             headers: ['Content-Type' => 'text/vnd.turbo-stream.html'],
         ));
+    }
+
+    /**
+     * The message behind "Create event" in a mail's menu, or null.
+     *
+     * Null for 0 (no message asked for), for an id that does not exist, and
+     * for someone else's message — the id arrives in a query string and a
+     * hidden field, both of which the user can edit, and a link to another
+     * user's mail would put its subject on this user's event.
+     */
+    private function ownedMessage(int $id): ?Message
+    {
+        if ($id <= 0) {
+            return null;
+        }
+
+        $message = $this->messages->find($id);
+
+        if (null === $message || false === $this->isGranted(OwnershipVoter::OWN, $message)) {
+            return null;
+        }
+
+        return $message;
+    }
+
+    /**
+     * Record the mail an event was created from, on every copy just written.
+     *
+     * The same EventSourceLink an extracted event carries, so everything that
+     * already answers "which mail is this from?" answers it here too without
+     * learning a new case: the provenance block in the event's details, the
+     * Happening Soon row, and EventProposer, which stops offering a date out
+     * of a mail that already has an event.
+     *
+     * What keeps it from being mistaken for an extraction: the event's own
+     * `source` stays Manual (so there is no "Not an event" and the reconciler
+     * leaves it alone), and the dedup key is empty, which is what
+     * findDedupKeysForEvent() filters out — a refusal of this event is not a
+     * refusal of anything the mail might later be read as saying.
+     *
+     * @param list<EventCopy> $targets
+     */
+    private function linkSourceMessage(?Message $message, array $targets): void
+    {
+        if (null === $message) {
+            return;
+        }
+
+        foreach ($targets as $target) {
+            $link             = new EventSourceLink();
+            $link->event      = $target->event;
+            $link->message    = $message;
+            $link->extractor  = EventSourceLink::EXTRACTOR_MANUAL;
+            $link->confidence = 100;
+            $link->dedupKey   = '';
+            $link->applied    = true;
+
+            $this->em->persist($link);
+        }
     }
 
     /**

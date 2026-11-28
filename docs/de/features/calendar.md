@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:992dac57b4cb4bddca6d309e42eac0f6a7119253 -->
+<!-- translated-from: features/calendar.md sha1:b8d56de5d91a080ab2111ad440f44bdc9157db69 -->
 
 # Kalender
 
@@ -233,6 +233,21 @@ für die ganze Serie.
 Nachricht gelesen hat, gibt es zusätzlich **Kein Termin**, was etwas anderes ist als Löschen — siehe
 [Einladungen und Termine aus E-Mails](calendar-invitations.md). **.ics herunterladen** nimmt den
 Termin als Kalenderdatei mit.
+
+### Aus einer Mail
+
+**Termin aus dieser Nachricht erstellen** im **⋮**-Menü einer Nachricht öffnet denselben Editor über
+der Mail, mit dem Betreff als Titel und einer Zeile darüber, die die Mail nennt. Datum und
+Erinnerungen wählst du selbst — eine Mail, die „bis zum 20." sagt, macht plMail absichtlich nicht von
+sich aus zu einem Termin (siehe
+[Daten in Prosa](calendar-invitations.md#daten-in-prosa)). Nach dem Speichern behält der
+Termin die Mail als Herkunft: Seine Details zeigen den Betreff, und ein Klick darauf öffnet die Mail.
+Sonst ist es ein gewöhnlicher, selbst eingetragener Termin — kein **Kein Termin**, nichts, was ihn
+später überarbeitet.
+
+Die Verknüpfung gehört plMail allein. Google, Microsoft und CalDAV haben kein Feld dafür, also kommt
+der Termin auf einem gespiegelten Kalender ohne sie auf dein Telefon; was die andere Seite sehen
+soll, gehört in die **Beschreibung**.
 
 ### Sich wiederholende Termine
 

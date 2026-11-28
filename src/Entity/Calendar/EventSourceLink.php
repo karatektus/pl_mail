@@ -104,6 +104,12 @@ class EventSourceLink
     public const string HOLD_UNVERIFIED = 'unverified';
 
     /**
+     * Not an extractor: the user created the event from the mail's menu. Named
+     * here so the one place that writes it and any place that reads it agree.
+     */
+    public const string EXTRACTOR_MANUAL = 'manual';
+
+    /**
      * The extracted fragment, verbatim.
      *
      * @var array<string,mixed>

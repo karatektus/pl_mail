@@ -1806,6 +1806,7 @@ calendar:
         location: Ort
         new: Neuer Termin
         new_on: Neuer Termin am %date%
+        from_message: Aus der Mail
         repeat: Wiederholung
         repeats: Wiederholung
         save: Speichern
@@ -3184,6 +3185,7 @@ message:
         more: Mehr
         print: Drucken
         report_insight: Fehlendes Insight melden
+        create_event: 'Termin aus dieser Nachricht erstellen'
         filter_from_message: 'Filter aus dieser Nachricht erstellen'
         show_original: Original anzeigen
         star: Markieren

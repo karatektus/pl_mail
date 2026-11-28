@@ -1786,6 +1786,7 @@ calendar:
         location: Location
         new: New event
         new_on: New event on %date%
+        from_message: From the mail
         repeat: Repeat
         repeats: Repeats
         save: Save
@@ -3180,6 +3181,7 @@ message:
         more: More
         print: Print
         report_insight: Report a missed insight
+        create_event: 'Create an event from this message'
         filter_from_message: 'Create a filter from this message'
         show_original: Show original
         star: Star

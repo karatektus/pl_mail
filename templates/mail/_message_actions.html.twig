@@ -130,6 +130,20 @@ Variables:
             {{ 'message.actions.filter_from_message'|trans }}
         </a>
 
+        {# Opens the event editor over the mail, titled after it; the saved
+           event keeps this message as its provenance, so its details link
+           back here. Same two-actions-on-one-click as the insight report
+           below, for the same reason. #}
+        <button type="button"
+                data-controller="ui--modal"
+                data-action="click->ui--modal#open click->mail--message-actions#dismiss"
+                data-ui--modal-src-value="{{ path('app_calendar_event_new', { message: message.id }) }}"
+                data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
+                class="w-full flex items-center gap-2 px-4 py-2 text-left text-ink-soft hover:bg-hover transition-colors cursor-pointer">
+            <i class="fa-regular fa-calendar-plus w-4 text-ink-faint" aria-hidden="true"></i>
+            {{ 'message.actions.create_event'|trans }}
+        </button>
+
         <a href="{{ path('app_mail_message_original', { id: message.id }) }}"
            target="_blank" rel="noopener"
            data-action="click->mail--message-actions#dismiss"
