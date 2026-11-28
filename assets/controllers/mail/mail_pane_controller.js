@@ -3,6 +3,7 @@ import * as Turbo from "@hotwired/turbo";
 import { Idiomorph } from "idiomorph";
 import { leave, makeRoom, motionIsOff } from "../../motion.js";
 import { requestFailed } from "../../request_errors.js";
+import { ownWriteSequence } from "../../mail_writes.js";
 
 // MailboxSpecialUse values (see App\Domain\Enum\MailboxSpecialUse) mapped to
 // the data-sync-scope tokens used by the list templates.
@@ -32,6 +33,16 @@ const MIN_REFRESH_MS = 15000;
 
 /** Asks the server for the list frame alone — see App\Twig\ListFragmentGlobal. */
 const FRAGMENT_HEADER = "X-List-Fragment";
+
+/**
+ * How long a `mail.changed` nudge waits before it is compared (#807).
+ *
+ * For this tab's own write the hub is quicker than the tab: the nudge arrives
+ * before the response that carries the write's sequence has been read, and
+ * compared at once it would look like somebody else's change and fetch the
+ * list for nothing. The sidebar waits the same 400ms for the same reason.
+ */
+const CHANGED_SETTLE_MS = 400;
 
 /**
  * The parts of the list frame a refresh is allowed to replace.
@@ -289,6 +300,20 @@ export default class extends Controller {
         this._refreshPending = false;
         this._lastRefreshAt = 0;
         this._refreshTimer = null;
+
+        // The change sequences the list is measured against (#807). `heard` is
+        // the newest `mail.changed` this tab has been told about; `shown` is
+        // what the list on screen includes — the page's own when it was drawn
+        // (the sidebar renders it), then whatever had been heard when the last
+        // refresh set off, since every change announced by then was committed
+        // before the fetch asked. See onMailChanged().
+        const rendered = parseInt(
+            document.querySelector("[data-ui--sidebar-sequence-value]")?.getAttribute("data-ui--sidebar-sequence-value") ?? "",
+            10,
+        );
+
+        this._shownSequence = Number.isFinite(rendered) ? rendered : 0;
+        this._heardSequence = this._shownSequence;
 
         // Depth, not a boolean, for the reason auto_refresh_controller gives:
         // a bulk action fires one write per selected row and they overlap, so
@@ -707,6 +732,49 @@ export default class extends Controller {
     }
 
     /**
+     * The user's mail changed, by any route (#807).
+     *
+     * The sidebar has re-read its badges on this nudge for a while, and the
+     * list did not listen at all: it re-read itself only on the sync events,
+     * which a sync sends and almost nothing else does. Everything recorded
+     * without one moved the badges and left the list as it was — mail the
+     * assistant moved to another tab after it had been shown, a message read
+     * or archived on the phone or in another tab. The reported case: a tab
+     * saying "1" over a list without the mail, until the tab was clicked.
+     *
+     * Not on every nudge. Opening a message marks it read, which is a change,
+     * so listening blindly would fetch the whole list each time a message is
+     * opened — the most common thing done in the app. A nudge is followed only
+     * when it is newer than both what the list already shows and what this
+     * tab's own writes were answered with (ownWriteSequence(), from
+     * X-Mail-Changed): those it drew itself.
+     *
+     * A nudge without a sequence (a send finishing) is about the sidebar's
+     * Drafts warning, and the list has nothing to do for it.
+     */
+    async onMailChanged(event) {
+        const sequence = event.detail?.sequence;
+
+        if ("number" !== typeof sequence || false === this.hasListTarget) {
+            return;
+        }
+
+        this._heardSequence = Math.max(this._heardSequence, sequence);
+
+        await new Promise((resolve) => setTimeout(resolve, CHANGED_SETTLE_MS));
+
+        if (false === this.element.isConnected) {
+            return;
+        }
+
+        if (sequence <= Math.max(this._shownSequence, ownWriteSequence())) {
+            return;
+        }
+
+        this._refreshList();
+    }
+
+    /**
      * A bulk job moved a chunk, or finished.
      *
      * THE LIST HAD NO WAY OF FINDING OUT, and for as long as the work happened
@@ -902,6 +970,10 @@ export default class extends Controller {
         this._refreshPending = false;
         this._lastRefreshAt = Date.now();
 
+        // Every change heard so far was committed before this request leaves,
+        // so the list it brings back includes them. See onMailChanged().
+        const covers = this._heardSequence;
+
         try {
             // Beside a message the page's own address is the MESSAGE's, whose
             // list frame is empty by design, so a refresh of it would be
@@ -943,6 +1015,7 @@ export default class extends Controller {
             }
 
             this._swapRegions(frame, fresh);
+            this._shownSequence = Math.max(this._shownSequence, covers);
 
             // The morph keeps the attributes this controller owns, but a list
             // that was replaced whole — or filled for the first time, beside a

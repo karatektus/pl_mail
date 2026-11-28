@@ -356,7 +356,8 @@ test.describe("counters after a change nobody announced", () => {
         });
 
         const saved = page.waitForResponse((response) =>
-            response.url().includes("/compose/draft") && "1" === response.headers()["x-mail-changed"],
+            // The change sequence it was recorded at (#807); any number says "changed".
+            response.url().includes("/compose/draft") && /^\d+$/.test(response.headers()["x-mail-changed"] ?? ""),
         );
 
         await writeDraft(page, "E2E Unannounced draft");
@@ -392,5 +393,57 @@ test.describe("counters after a change nobody announced", () => {
         await expect(page.locator(DRAFTS_BADGE).first()).toHaveText("1", { timeout: 15000 });
 
         await other.close();
+    });
+});
+
+/**
+ * The list, after the same kind of change (#807).
+ *
+ * The sidebar has re-read its badges on `mail.changed` for a while; the list
+ * re-read itself only on a sync event, which a change made in another tab, on
+ * the phone or by the assistant moving mail between tabs never sends. So the
+ * badges moved and the list beside them did not. It follows the nudge now —
+ * but only one newer than what it shows and than this tab's own writes, or it
+ * would fetch itself every time a message is opened here (opening marks read).
+ */
+test.describe("the list after a change nobody announced", () => {
+    test.beforeEach(() => {
+        seed("seed-mail");
+    });
+
+    test("a message read in another tab is drawn read in this list", async ({ page, context }) => {
+        await page.goto("/mail/inbox");
+        const row = mailRow(page, INBOX_SUBJECTS.read);
+        await expect(row).toHaveAttribute("data-unread", "true");
+
+        const other = await context.newPage();
+        await other.goto("/mail/inbox");
+        await mailRow(other, INBOX_SUBJECTS.read).click();
+        await expect(mailRow(other, INBOX_SUBJECTS.read)).toHaveAttribute("data-unread", "false");
+
+        // Not navigated, clicked or focused: only the hub can have told it.
+        await expect(row).toHaveAttribute("data-unread", "false", { timeout: 20_000 });
+
+        await other.close();
+    });
+
+    test("opening a message here does not fetch the list again", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        let listFetches = 0;
+        page.on("request", (request) => {
+            if (undefined !== request.headers()["x-list-fragment"]) {
+                listFetches++;
+            }
+        });
+
+        const changed = page.waitForResponse((response) => undefined !== response.headers()["x-mail-changed"]);
+        await mailRow(page, INBOX_SUBJECTS.read).click();
+        await changed;
+
+        // Past the hub's nudge for that mark-read and the pane's settle time.
+        await page.waitForTimeout(3000);
+
+        expect(listFetches, "the tab drew its own change; the nudge for it is not news").toBe(0);
     });
 });

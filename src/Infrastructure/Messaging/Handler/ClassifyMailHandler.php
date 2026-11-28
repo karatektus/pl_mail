@@ -20,6 +20,7 @@ use App\Service\Ai\AiPermissions;
 use App\Service\Ai\LiveMailPriority;
 use App\Service\Ai\OllamaClient;
 use App\Service\Mail\HeldMailReleaser;
+use App\Service\Mail\SyncNotifier;
 use App\Service\Mail\PostIngest\EnrichmentRouter;
 use App\Service\Ai\PromptLibrary;
 use DateTimeImmutable;
@@ -96,6 +97,7 @@ final readonly class ClassifyMailHandler
         private EntityManagerInterface $entityManager,
         private LoggerInterface        $logger,
         private \App\Jmap\State\StateManager $stateManager,
+        private SyncNotifier           $syncNotifier,
         private ?DecryptedMailPolicy   $decrypted = null
     ) {
     }
@@ -283,8 +285,14 @@ final readonly class ClassifyMailHandler
         // for mail the timed release has already shown.
         $this->releaser->release($mail);
 
+        $movedIn = [];
+
         foreach ($this->messageThreadCategoryRepository->recomputeCategoriesForThreads(array_keys($threadIds)) as $accountId => $moved) {
             $this->stateManager->recordThreadsTouched($accountId, $moved);
+
+            if ([] !== $moved) {
+                $movedIn[(int) $accountId] = true;
+            }
         }
 
         $this->entityManager->flush();
@@ -293,6 +301,24 @@ final readonly class ClassifyMailHandler
         // the rules' answer and have just been moved, which an open inbox has
         // no other way to hear about.
         $this->releaser->announce($late);
+
+        // Mail that was never held is in the same position (#807). It was shown
+        // in the rules' tab the moment it arrived, and the verdict has just
+        // moved it. The change log records that, and `mail.changed` moves the
+        // tab badges — but an open list re-reads itself on a sync event, so the
+        // tab showed "1" over a list without the mail until somebody clicked
+        // it. One account.synced per account that had a conversation move,
+        // after the flush, exactly as a release does.
+        $announced = [];
+
+        foreach ($mail as $row) {
+            $accountId = (int) $row->account->id;
+
+            if (isset($movedIn[$accountId]) && false === isset($announced[$accountId])) {
+                $announced[$accountId] = true;
+                $this->syncNotifier->publishAccountSynced($row->account);
+            }
+        }
     }
 
     /**
