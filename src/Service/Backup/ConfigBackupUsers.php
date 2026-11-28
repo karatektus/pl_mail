@@ -877,6 +877,11 @@ final readonly class ConfigBackupUsers
                 'displayName' => $alias->displayName,
                 'status'      => $alias->status->value,
                 'source'      => $alias->source->value,
+                // Keys included: they are what a draft's From and a JMAP
+                // client's identity id are made of, and both are local to the
+                // alias, so they mean the same thing on the target.
+                'extraNames'  => $alias->extraNames,
+                'extraNameSeq' => $alias->extraNameSeq,
                 // The two per-alias overrides travel INSIDE the alias rather
                 // than in the account's settings bag, and that is the whole
                 // reason they travel at all. They live in the bag under keys

@@ -236,6 +236,13 @@ final class ConfigBackupUsersTest extends KernelTestCase
         self::assertSame(993, $accounts[0]->imapPort);
         self::assertCount(1, $accounts[0]->aliases);
 
+        // Its other names, keys and counter included: a draft names one by
+        // key, and a key handed out again would put it under another name.
+        $alias = $accounts[0]->aliases->first();
+        self::assertNotFalse($alias);
+        self::assertSame([['key' => 1, 'name' => 'Anna Lists']], $alias->extraNames);
+        self::assertSame(3, $alias->addExtraName('Next', null));
+
         // And it really was re-encrypted rather than copied: the bytes in the
         // column are noise to the install that made the backup. This is the
         // assertion that makes the block above mean something — an importer
@@ -772,6 +779,11 @@ final class ConfigBackupUsersTest extends KernelTestCase
         $this->entityManager->persist($account);
 
         $alias = new EmailAlias($account, 'anna+lists@work.example.test', EmailAliasSource::Manual);
+        // Two names added and the newer removed: the counter is at 2 while the
+        // list only shows key 1, which is what the restore has to keep.
+        $alias->addExtraName('Anna Lists', null);
+        $alias->addExtraName('Removed', null);
+        $alias->removeExtraName(2);
         $account->aliases->add($alias);
         $this->entityManager->persist($alias);
 

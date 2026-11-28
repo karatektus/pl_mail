@@ -403,6 +403,7 @@ class ComposeController extends AbstractController
                 $message,
                 $account,
                 $this->senders->addressFor($token, $account, $this->getUser()),
+                $this->senders->nameFor($token, $account, $this->getUser()),
             );
 
             $refusal = $this->acceptSealed($request, $message, sending: false);
@@ -478,6 +479,7 @@ class ComposeController extends AbstractController
                 $message,
                 $account,
                 $this->senders->addressFor($token, $account, $this->getUser()),
+                $this->senders->nameFor($token, $account, $this->getUser()),
             );
 
             $refusal = $this->acceptSealed($request, $message, sending: true);
@@ -590,6 +592,7 @@ class ComposeController extends AbstractController
             $message,
             $account,
             $this->senders->addressFor($token, $account, $this->getUser()),
+            $this->senders->nameFor($token, $account, $this->getUser()),
         );
 
         $refusal = $this->acceptSealed($request, $message, sending: true);

@@ -150,6 +150,14 @@ final readonly class DefaultBccProvider
                 $map[$account->id . '|' . $address] = $this->addressesFor($account, $address);
             }
 
+            // An extra name signs and copies like its address: the From
+            // menu's line for it has a token of its own (EmailAlias::identityId()).
+            foreach ($account->sendableAliases as $alias) {
+                foreach ($alias->extraNames as $entry) {
+                    $map[$alias->identityId($entry['key'])] = $this->addressesFor($account, $alias->address);
+                }
+            }
+
             if ([] !== $account->catchAllDomains) {
                 $map[$account->id . '|*'] = self::normalize($account->getSetting(Account::SETTING_DEFAULT_BCC));
             }

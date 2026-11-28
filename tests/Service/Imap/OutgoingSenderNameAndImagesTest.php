@@ -52,6 +52,24 @@ final class OutgoingSenderNameAndImagesTest extends KernelTestCase
         self::assertSame('John Smith', $this->build($this->message($account, 'yo@shop.test'), $account)->getFrom()[0]->getName());
     }
 
+    /**
+     * One address, several names: the draft carries the one picked in the
+     * From menu, and the wire carries it — while the address still has it.
+     */
+    public function testMailGoesOutUnderTheExtraNameTheDraftPicked(): void
+    {
+        $account = $this->account();
+        $account->aliasFor('family@example.test')?->addExtraName('The Smiths', 'Mr and Mrs Smith');
+
+        $message           = $this->message($account, 'family@example.test');
+        $message->fromName = 'The Smiths';
+
+        self::assertSame('The Smiths', $this->build($message, $account)->getFrom()[0]->getName());
+
+        $message->fromName = 'Not one of its names';
+        self::assertSame('Mr and Mrs Smith', $this->build($message, $account)->getFrom()[0]->getName());
+    }
+
     /** A signature's embedded logo: attached and referenced, not left as a data URI. */
     public function testADataImageInTheBodyLeavesAsAnInlinePart(): void
     {

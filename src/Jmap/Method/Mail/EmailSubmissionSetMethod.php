@@ -296,7 +296,9 @@ final class EmailSubmissionSetMethod implements JmapMethod
         }
 
         $message->fromAddress = $address;
-        $message->fromName    = $account->senderNameFor($address);
+        // An extra name's identity sends under that name; every other under
+        // the address's own (Account::nameToSendAs()).
+        $message->fromName    = $account->nameToSendAs($address, $this->identityResolver->nameFor($account, $identityId));
 
         return $address;
     }

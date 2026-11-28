@@ -489,7 +489,11 @@ class MessageSendService
         // back to the account's. This read the account's name unconditionally,
         // so the From selector offered "Mr and Mrs Smith <family@…>" and the
         // mail went out as the account holder.
-        $fromName = $account->senderNameFor($fromAddress) ?? '';
+        //
+        // The draft's own fromName is the wish — one of the address's extra
+        // names, picked in the From menu or over JMAP — and nameToSendAs()
+        // keeps it only while it is still one of that address's names.
+        $fromName = $account->nameToSendAs($fromAddress, $message->fromName) ?? '';
 
         $email = new Email()
             ->from(new Address($fromAddress, $fromName))

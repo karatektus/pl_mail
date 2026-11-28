@@ -75,7 +75,7 @@ async function addAlias(page: Page, address: string): Promise<string> {
 
     const account = page.locator("#settings-alias-list > div > div").first();
     await account.getByPlaceholder(/Add another address/i).fill(address);
-    await account.getByRole("button", { name: "Add" }).click();
+    await account.getByRole("button", { name: "Add", exact: true }).click();
     await expect(page.getByText(address)).toBeVisible();
 
     return address;

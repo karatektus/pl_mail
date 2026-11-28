@@ -12,6 +12,8 @@ use App\Entity\Mail\EmailAlias;
 use App\Form\EmailAliasType;
 use App\Form\Factory\AliasAddFormFactory;
 use App\Infrastructure\Messaging\Message\SeverGmailifyLinksMessage;
+use App\Jmap\State\JmapObjectType;
+use App\Jmap\State\StateManager;
 use App\Repository\Mail\Account\AccountRepository;
 use App\Repository\Mail\EmailAlias\EmailAliasRepository;
 use App\Security\Voter\OwnershipVoter;
@@ -39,6 +41,7 @@ final class AliasController extends AbstractController
         private readonly AliasSeeder            $aliasSeeder,
         private readonly AliasAddFormFactory    $aliasAddForms,
         private readonly MessageBusInterface    $bus,
+        private readonly StateManager           $state,
     ) {}
 
     #[Route('/add', name: 'add', methods: ['POST'])]
@@ -165,6 +168,58 @@ final class AliasController extends AbstractController
             $account,
             null === $target->displayName ? 'alias.name_cleared' : 'alias.name_set',
         );
+    }
+
+    /**
+     * Another name this address sends under: one more line in the From menu
+     * and one more identity over JMAP (EmailAlias::$extraNames).
+     *
+     * Refused, with a toast that says so, when it is empty or already one of
+     * the address's names — its own included, which the first line of the
+     * menu already shows. Not on a disabled address, which sends nothing.
+     */
+    #[Route('/{aliasId}/names/add', name: 'extra_name_add', methods: ['POST'])]
+    public function addExtraName(Request $request, Account $account, int $aliasId): Response
+    {
+        $this->assertCsrf($request, 'alias-extra-name' . $aliasId);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+        $target = $this->ownedAlias($account, $aliasId);
+
+        if (false === $target->status->isSendable()) {
+            return $this->streamResponse($request, $account, 'alias.extra_name_invalid');
+        }
+
+        $key = $target->addExtraName((string) $request->request->get('name', ''), $account->senderNameFor($target->address));
+
+        if (null === $key) {
+            return $this->streamResponse($request, $account, 'alias.extra_name_invalid');
+        }
+
+        $this->em->flush();
+        // Told to JMAP clients, whose From picker lists it as an identity.
+        $this->state->recordCreated((int) $account->id, JmapObjectType::Identity, $target->identityId($key));
+        $this->em->flush();
+
+        return $this->streamResponse($request, $account, 'alias.extra_name_added');
+    }
+
+    /**
+     * Take a name off an address. A draft saved under it sends under the
+     * address's own name (Account::nameToSendAs()).
+     */
+    #[Route('/{aliasId}/names/{key}/remove', name: 'extra_name_remove', requirements: ['key' => '\d+'], methods: ['POST'])]
+    public function removeExtraName(Request $request, Account $account, int $aliasId, int $key): Response
+    {
+        $this->assertCsrf($request, 'alias-extra-name' . $aliasId);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+        $target = $this->ownedAlias($account, $aliasId);
+
+        if (true === $target->removeExtraName($key)) {
+            $this->state->recordDestroyed((int) $account->id, JmapObjectType::Identity, $target->identityId($key));
+            $this->em->flush();
+        }
+
+        return $this->streamResponse($request, $account, 'alias.extra_name_removed');
     }
 
     /**

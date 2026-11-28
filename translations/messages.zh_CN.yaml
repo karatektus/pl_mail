@@ -1367,6 +1367,9 @@ alias:
     catch_all_unsupported: 'Gmail 和 Outlook 仅允许使用服务商已知的地址发信，因此此账户无法使用全收域名。'
     deleted: 地址已移除。
     duplicate: 此地址已在该账户中。
+    extra_name_added: '已添加名称，发件人菜单中多了一行。'
+    extra_name_invalid: '名称为空，或此地址已有该名称。'
+    extra_name_removed: '已移除名称。'
     gmailify_off: "Gmailify 已关闭。此 Gmail 账户仅保留发给它的邮件，其他账户中的副本不再跟随 Gmail 的操作。"
     gmailify_on: "Gmailify 已开启。此 Gmail 账户为其他账户收取的邮件会归入相应账户。"
     gmailify_unsupported: "Gmailify 是 Gmail 账户的设置。"
@@ -3491,6 +3494,12 @@ settings:
             label: "将其他账户的邮件归入相应账户（Gmailify）"
             off: "关闭"
             on: "开启"
+        extra_name_add: '添加名称'
+        extra_name_for: '%alias% 的其他名称'
+        extra_name_placeholder: '其他名称，例如 Arnaud'
+        extra_name_remove: '移除“%name%”'
+        extra_names: '其他名称'
+        extra_names_hint: '每个名称在发件人菜单中多一行：同一地址，同一签名。'
         heading: '电子邮件地址'
         make_primary: '设为主要地址'
         ms_sender_hint: '无论这里选择哪个地址，Outlook 都会使用账户的主要别名发送。可前往以下位置更改：'

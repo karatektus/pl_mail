@@ -129,7 +129,7 @@ final class EmailSubmissionGetMethod implements JmapMethod
             // Identity/get publishes at all once the account has aliases — so
             // a client that followed it looked up an identity that was not
             // there.
-            'identityId' => $this->identityResolver->identityIdFor($account, $message->fromAddress),
+            'identityId' => $this->identityResolver->identityIdFor($account, $message->fromAddress, $message->fromName),
             'emailId' => $id,
             'threadId' => null === $message->thread ? null : (string) $message->thread->id,
             'envelope' => [

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\Method\Mail;
 
 use App\Entity\Mail\Account;
+use App\Entity\Mail\EmailAlias;
 use App\Entity\Mail\Message;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Mail\IdentityResolver;
@@ -205,6 +206,22 @@ final class EmailGetMethod implements JmapMethod
 
         if (null === $address) {
             return null;
+        }
+
+        // A draft written under one of the address's extra names reopens on
+        // that identity, not on the address's first one. Only mail whose own
+        // From is the answering address can have picked one: on received mail
+        // fromName is the stranger's.
+        if (strtolower((string) $message->fromAddress) === strtolower($address) && null !== $message->fromName) {
+            $id = $this->identityResolver->identityIdFor($account, $address, $message->fromName);
+
+            if (null !== EmailAlias::parseIdentityId($id)) {
+                foreach ($this->identityResolver->identities($account) as $identity) {
+                    if ($identity['id'] === $id) {
+                        return $identity;
+                    }
+                }
+            }
         }
 
         return $this->identityResolver->forAddress($account, $address);

@@ -427,6 +427,76 @@ final class IdentitySetMethodTest extends JmapTestCase
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
+    // ── more names for one address ───────────────────────────────────────────
+
+    /**
+     * "A", "a" and "Arnaud" at one address: a create naming an address the
+     * account has, with a new name, is one more identity for it.
+     */
+    public function testACreateForAnExistingAddressWithANewNameAddsAnIdentity(): void
+    {
+        $alias = $this->alias('a@example.test', displayName: 'A');
+
+        $result = $this->handle(['create' => ['i1' => ['email' => 'a@example.test', 'name' => 'Arnaud']]]);
+
+        $id = ((array) $result['created'])['i1']['id'] ?? null;
+
+        self::assertSame($alias->identityId(1), $id);
+        self::assertSame([['key' => 1, 'name' => 'Arnaud']], $alias->extraNames);
+
+        $identity = $this->identityById((string) $id);
+        self::assertSame('Arnaud', $identity['name']);
+        self::assertSame('a@example.test', $identity['email']);
+        self::assertTrue($identity['mayDelete']);
+        self::assertSame('A', $this->identityById((string) $alias->id)['name'], 'the address\'s own identity is unchanged');
+    }
+
+    public function testAnExistingAddressWithANameItAlreadyHasIsRefused(): void
+    {
+        $this->alias('a@example.test', displayName: 'A');
+
+        $result = $this->handle(['create' => ['i1' => ['email' => 'a@example.test', 'name' => 'A']]]);
+
+        self::assertSame('invalidProperties', ((array) $result['notCreated'])['i1']['type']);
+    }
+
+    public function testAnExtraIdentityCanBeRenamedAndDestroyedOnItsOwn(): void
+    {
+        $alias = $this->alias('a@example.test', displayName: 'A');
+        $alias->addExtraName('Arnaud', 'A');
+        $this->em->flush();
+
+        $id = $alias->identityId(1);
+
+        $result = $this->handle(['update' => [$id => ['name' => 'Arnaud D.']]]);
+        self::assertSame([$id => null], (array) $result['updated']);
+        self::assertSame('Arnaud D.', $alias->extraName(1));
+
+        $result = $this->handle(['destroy' => [$id]]);
+        self::assertSame([$id], (array) $result['destroyed']);
+        self::assertSame([], $alias->extraNames);
+        self::assertSame('A', $alias->displayName, 'destroying a name took the address with it');
+    }
+
+    /**
+     * Its signature is its address's: one sent back as published is fine,
+     * another would rewrite every identity of that address and is refused.
+     */
+    public function testAnExtraIdentityDoesNotTakeASignatureOfItsOwn(): void
+    {
+        $alias = $this->alias('a@example.test', displayName: 'A');
+        $alias->addExtraName('Arnaud', 'A');
+        $this->em->flush();
+
+        $id        = $alias->identityId(1);
+        $published = $this->identityById($id)['htmlSignature'];
+
+        self::assertSame([$id => null], (array) $this->handle(['update' => [$id => ['htmlSignature' => $published]]])['updated']);
+
+        $result = $this->handle(['update' => [$id => ['htmlSignature' => '<p>Mine</p>']]]);
+        self::assertSame('invalidProperties', ((array) $result['notUpdated'])[$id]['type']);
+    }
+
     /**
      * @param array<string,mixed> $arguments
      *

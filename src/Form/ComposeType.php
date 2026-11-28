@@ -334,6 +334,17 @@ class ComposeType extends AbstractType
                     'account' => $account,
                     'label'   => $this->fromLabel($alias->address, $account->senderNameFor($alias->address)),
                 ];
+
+                // One line per extra name, right under its address's own: "A",
+                // "a" and "Arnaud" are three ways to sign the same mailbox, and
+                // the menu lists them as three senders (SenderResolver reads
+                // these tokens back).
+                foreach ($alias->extraNames as $entry) {
+                    $choices[$alias->identityId($entry['key'])] = [
+                        'account' => $account,
+                        'label'   => $this->fromLabel($alias->address, $entry['name']),
+                    ];
+                }
             }
         }
 
