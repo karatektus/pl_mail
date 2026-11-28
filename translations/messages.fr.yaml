@@ -2433,6 +2433,8 @@ compose:
     more_options: Plus d’options
     new_message: Nouveau message
     outdent: Diminuer le retrait
+    paste_plain: 'Coller en texte brut'
+    paste_plain_denied: 'Le navigateur n’a pas laissé plMail lire le presse-papiers. Collez plutôt en maintenant Maj (Ctrl+Maj+V, ou ⌘⇧V sur Mac).'
     plain_text: Mode texte brut
     # The warning that used to be a browser confirm(). The question itself is
     # still compose.confirm.plain_text — only the frame around it is new.

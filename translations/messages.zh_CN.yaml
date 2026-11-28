@@ -2168,6 +2168,8 @@ compose:
     more_options: 更多选项
     new_message: 新邮件
     outdent: 减少缩进
+    paste_plain: '粘贴为纯文本'
+    paste_plain_denied: '浏览器未允许 plMail 读取剪贴板。请改为按住 Shift 粘贴（Ctrl+Shift+V，Mac 上为 ⌘⇧V）。'
     plain_text: 纯文本模式
     plain_warning:
         cancel: 保留格式

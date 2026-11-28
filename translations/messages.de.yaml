@@ -2428,6 +2428,8 @@ compose:
     more_options: Weitere Optionen
     new_message: Neue Nachricht
     outdent: Einzug verkleinern
+    paste_plain: 'Als reinen Text einfügen'
+    paste_plain_denied: 'Der Browser hat plMail die Zwischenablage nicht lesen lassen. Füge stattdessen mit gedrückter Umschalttaste ein (Strg+Umschalt+V, auf dem Mac ⌘⇧V).'
     plain_text: Nur-Text-Modus
     plain_warning:
         cancel: Formatierung behalten

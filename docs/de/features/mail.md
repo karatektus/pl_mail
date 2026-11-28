@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:1eff65b786d623b5878cf9579d349a959fac3883 -->
+<!-- translated-from: features/mail.md sha1:b38c2ceb7fa762cc43ad7e3c1b32e86608e11d06 -->
 
 # Mail
 
@@ -1463,6 +1463,25 @@ mit Anhang fragt also nicht. Alle Gründe kommen als eine Frage, und **Trotzdem 
 
 Auf dem Telefon bricht die Werkzeugleiste um, statt aus dem Bild zu scrollen, und die Sendepille
 wandert hinauf in die Kopfzeile des Fensters, dorthin, wo früher der Knopf saß.
+
+### Text einfügen
+
+Beim Einfügen bleibt, was du kopiert hast, und die Seite, von der es kommt, bleibt draußen. Fett,
+kursiv, unterstrichen, durchgestrichen, hoch- und tiefgestellt, Textfarbe, Hervorhebung, Schriftart
+und -größe kommen mit, ob die Quelle sie mit Tags, mit Inline-Styles oder mit einem eigenen
+Stylesheet auszeichnet (Google Docs, Word, Pages und TextEdit machen es jeweils anders). Das Layout
+der Quelle kommt nicht mit: Abstände, Zeilenabstand, Breiten, ihr Stylesheet und ihre Klassennamen,
+und schlicht schwarzer Text oder ein weißer Hintergrund, die auf einem dunklen Bildschirm schwarz
+blieben. Zeilen, die in der Quelle direkt untereinander standen, tun das auch hier, und eine leere
+Zeile bleibt eine leere Zeile.
+
+Manche Apps legen zusätzlich ein Bild des Kopierten in die Zwischenablage. Ist Text da, wird der Text
+eingefügt; das Bild nur dann, wenn sonst nichts da ist, etwa bei einem Bildschirmfoto, und es landet
+dann wie jedes andere Bild in der Nachricht.
+
+**Als reinen Text einfügen** in der Formatierungsleiste fügt nur die Wörter ein, Zeile für Zeile, in
+der Formatierung an der Cursorposition. Auf einer Tastatur macht Strg+Umschalt+V (⌘⇧V auf dem Mac)
+dasselbe.
 
 ### Emoji
 

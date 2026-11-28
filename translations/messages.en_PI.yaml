@@ -2313,6 +2313,8 @@ compose:
     more_options: More riggin'
     new_message: A Fresh Scroll
     outdent: Shove it outboard
+    paste_plain: 'Paste as plain words'
+    paste_plain_denied: 'The browser wouldn''t let plMail peek in the clipboard. Paste with Shift held down instead (Ctrl+Shift+V, or ⌘⇧V on a Mac).'
     plain_text: "Plain hand, no flourishes"
     plain_warning:
         cancel: "Keep the flourishes"
