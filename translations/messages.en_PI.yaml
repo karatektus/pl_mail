@@ -3360,10 +3360,13 @@ message:
     draft: "Scroll"
     images:
         always: 'Always show the pictures from %sender%'
+        always_domain: 'Always show the pictures from the whole crew at %domain%'
         blocked: '{1}1 picture was held back so none may spy yer reading|]1,Inf[ %count% pictures were held back so none may spy yer reading'
         show_once: Show the pictures
         stop_trusting: Hold them back again
         trusted: 'Pictures from %sender% are always shown'
+        trusted_domain: 'Pictures from the whole crew at %domain% are always shown'
+        trusted_pattern: 'Pictures from senders matchin'' %pattern% are always shown'
     original:
         copied: Copied
         copy: Copy to the slate
@@ -5115,6 +5118,18 @@ settings:
         heading: Pictures
         'off': Off
         'on': On
+        senders:
+            add: 'Add'
+            add_label: 'Add senders'
+            clear: 'Toss them all overboard'
+            clear_confirm: '{1}Stop always showin'' pictures from this sender?|]1,Inf[Stop always showin'' pictures from all %count% senders?'
+            domain: 'The whole crew at %domain%'
+            empty: 'Nobody yet. The "Always show the pictures from …" button on a bottle adds its sender here.'
+            heading: 'Senders whose pictures always show'
+            hint: 'Addresses, patterns like invoice+*@example.com, or a whole port as *@example.com. Several at once work too, split by commas or spaces. Bottles in Spam stay blocked whatever this list says.'
+            placeholder: 'name@example.com, *@example.com'
+            rejected: '{1}Not an address nor a port, so not added: %entries%|]1,Inf[Not addresses nor ports, so not added: %entries%'
+            remove: 'Toss out %entry%'
         subheading: "Whether pictures a bottle hauls in from elsewhere wait to be asked for."
     search_meaning:
         heading: "Search by meanin’"
@@ -5258,7 +5273,7 @@ settings:
             encryption: "pgp openpgp gpg key"
             filters: "rules sieve automatic move forward"
             handwriting: "sign pdf draw"
-            images: "tracking pixel remote load block"
+            images: "tracking pixel remote load block allowlist senders domain"
             inbox_tabs: "tabs promotions social updates forums"
             insights: "parcel tracking invoice flight"
             integrations: "nextcloud dropbox drive onedrive immich paperless cloud webdav"

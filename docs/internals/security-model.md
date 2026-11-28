@@ -1068,6 +1068,15 @@ would protect only future mail; and the answer depends on *who is asking*, becau
 "always show images from this sender" is per user (`trusted_image_sender`). A stored form
 cannot carry an answer that varies by reader.
 
+**An entry is an address, a pattern or a domain** (#807), all in the one `address` column:
+`news@example.com`, `invoice+*@stripe.com` (a `*` before the `@` matches any run of characters),
+or `*@example.com`. The domain part is always exact. It is the part a sender cannot choose freely,
+so a wildcard there (`*.example.com`) is refused rather than read as "every subdomain". The images
+bar offers the domain form only outside `PersonalMailDomains`, since trusting everyone at
+gmail.com in one click would undo the block. A pattern is checked as the address it would be
+with its stars filled in, and the narrowest matching entry is the one the message names;
+"Stop showing" removes every entry that matches, or the images would keep loading.
+
 **Mail the reader sent is not blocked.** The block keeps a stranger from learning that their
 message was opened, and asking it of your own mail is asking whether you trust yourself. "Your
 own" is read off the Sent label, which only the account's own session puts on a message, and

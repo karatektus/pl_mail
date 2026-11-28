@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:fb0efe6110502acee5d7ef180f6b85f457ecb7dd -->
+<!-- translated-from: features/mail.md sha1:1eff65b786d623b5878cf9579d349a959fac3883 -->
 
 # Mail
 
@@ -1207,6 +1207,27 @@ hast. Die Mail sagt, wie viele sie zurückgehalten hat, und bietet zwei Wege an 
 nur für diese Mail und **Bilder von … immer anzeigen**, das sich den Absender für dein Konto merkt.
 Unter der Mail eines vertrauten Absenders steht das dann, mit **Nicht mehr anzeigen**, um es
 zurückzunehmen. Mail, die du selbst gesendet hast, zeigt ihre Bilder ohne Nachfrage.
+
+Manche Absender verwenden nie zweimal dieselbe Adresse: Stripes Belege kommen von
+`invoice+statements+acct_…@stripe.com`, jedes Mal einer anderen. Für solche bietet die Leiste auch
+**Bilder von allen bei** der Domain des Absenders **immer anzeigen** an. Bei gmail.com, outlook.com
+und den anderen Anbietern, bei denen jeder eine Adresse haben kann, fehlt das Angebot, denn alle bei
+diesen Domains sind alle.
+
+**Einstellungen → Lesen & Schreiben → Lesen** listet unter **Absender, deren Bilder immer angezeigt
+werden** jeden Absender auf, dem du vertraut hast, jeden mit eigenem Entfernen-Knopf und **Alle
+entfernen** darüber. Das Feld über der Liste trägt Einträge von Hand ein, auch mehrere auf einmal,
+getrennt durch Kommas oder Leerzeichen. Ein Eintrag kann sein:
+
+- eine Adresse, `news@example.com`;
+- eine ganze Domain, `*@example.com` (oder einfach `example.com`), und zwar genau diese Domain,
+  nicht ihre Subdomains;
+- ein Muster, `invoice+*@stripe.com`, in dem jedes `*` vor dem `@` für beliebige Zeichen steht. Es
+  vertraut Stripes Belegen, ohne allem anderen zu vertrauen, was Stripe schickt. Der Teil hinter
+  dem `@` ist nie ein Muster.
+
+Vertrauen mehrere Einträge einem Absender, nennt die Zeile unter der Mail den engsten, und **Nicht
+mehr anzeigen** entfernt alle, damit die Bilder wirklich wegbleiben.
 
 Angezeigte Bilder kommen immer über plMail, und nur über eine verschlüsselte Verbindung: Ein Bild,
 das die Mail mit `http://` verlinkt, wird mit `https://` geholt. Der seltene Server, der so nicht

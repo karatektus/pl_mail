@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:e6b487fb2b28f0622530664887a12bbc60f2cfed -->
+<!-- translated-from: internals/security-model.md sha1:ed95f31cd8d616b49319608bc5c1e1f892bec8f8 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -1173,6 +1173,16 @@ Blockade beim Ingest schützte also nur künftige Post; und die Antwort hängt d
 fragt*, denn „Bilder dieser Absenderin immer anzeigen“ gilt pro Benutzerin
 (`trusted_image_sender`). Eine gespeicherte Form kann keine Antwort tragen, die je nach
 Lesender anders ausfällt.
+
+**Ein Eintrag ist eine Adresse, ein Muster oder eine Domain** (#807), alle in derselben Spalte
+`address`: `news@example.com`, `invoice+*@stripe.com` (ein `*` vor dem `@` passt auf beliebige
+Zeichen) oder `*@example.com`. Der Domain-Teil ist immer exakt. Er ist der Teil, den eine
+Absenderin nicht frei wählen kann, deshalb wird ein Platzhalter dort (`*.example.com`) abgelehnt,
+statt als „alle Subdomains“ gelesen zu werden. Die Bilderleiste bietet die Domain-Form nur außerhalb
+von `PersonalMailDomains` an, denn allen bei gmail.com mit einem Klick zu vertrauen, höbe die
+Blockade auf. Ein Muster wird als die Adresse geprüft, die es mit ausgefüllten Sternen wäre, und
+der engste passende Eintrag ist der, den die Nachricht nennt; „Nicht mehr anzeigen“ entfernt jeden
+passenden Eintrag, sonst würden die Bilder weiter laden.
 
 **Post, die die Lesende selbst gesendet hat, wird nicht blockiert.** Die Blockade verhindert,
 dass eine Fremde erfährt, dass ihre Nachricht geöffnet wurde — bei der eigenen Post hieße das zu

@@ -302,6 +302,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                 {% block body %}
                                                     {% include 'settings/_images.html.twig' with {
                                                         alwaysShow: app.user.alwaysShowImages,
+                                                        senders:    trusted_image_senders(),
                                                     } only %}
                                                 {% endblock %}
                                             {% endembed %}
