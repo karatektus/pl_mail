@@ -910,12 +910,18 @@ test.describe("row swipe with reduced motion", () => {
  * passing because nothing moved.
  */
 async function refreshAndWaitForFragment(page: Page): Promise<boolean> {
-    await page.clock.fastForward(16_000);
-
+    // Listen before the clock moves. A change made through page.request is,
+    // to the page, a change from somewhere else, and since #819 the list
+    // follows its mail.changed by itself — the moment its settle timer runs,
+    // which is inside this fastForward. That refresh is the one that lands the
+    // change; listening only afterwards missed it, and the poll below then
+    // fell inside the refresh floor and asked for nothing.
     const seen = page.waitForRequest((request) => request.headers()["x-list-fragment"] !== undefined, { timeout: 5000 }).then(
         () => true,
         () => false,
     );
+
+    await page.clock.fastForward(16_000);
 
     await page.evaluate(() => {
         document.body.dispatchEvent(

@@ -25,13 +25,25 @@ use App\Entity\Mail\MessageThread;
  * quietly back to offering the wrong controls in exactly those cases. What the
  * mail carries is true everywhere.
  *
- * With one exception, a conversation only part of which is in the bin. Its
+ * With two exceptions, both about conversations only partly somewhere. The
+ * first is a conversation only part of which is in the bin. Its
  * labels are its messages' together, so it wears Trash beside Inbox, and its
  * Inbox row offered Restore and Delete forever for mail that was mostly not
  * deleted. That thread is listed in two places and is a different thing in
  * each, so for it the side being looked at decides (BinView): in Trash it is
  * trash, anywhere else it is what its live mail is. A thread wholly in the bin
  * is trash from either side, so the cases above still get the bin's controls.
+ *
+ * The second is a conversation only part of which is archived or in Spam
+ * (#807), and here the Inbox decides. Its labels are its messages' together,
+ * so a sender's new mail joining a conversation whose earlier mail was
+ * archived — which Gmail does with every reply to something archived there —
+ * wore Archive beside Inbox, and the reading pane hid Archive, Delete and
+ * Snooze on a conversation that was plainly in the Inbox. One message filed
+ * as spam took even more. With mail in the Inbox the conversation is an Inbox
+ * one; Spam still decides while Spam is being looked at (DiscardedListView),
+ * the way the bin does, so it keeps its way out there. A single message is
+ * where it is and is not affected.
  *
  * A service rather than only a Twig function, because the templates are not the
  * only thing that has to agree with it: /status/{type}/{id}/purge refuses
@@ -45,8 +57,10 @@ final readonly class MailPlacement
     public const string ARCHIVE = 'archive';
     public const string NORMAL  = 'normal';
 
-    public function __construct(private BinView $bin)
-    {
+    public function __construct(
+        private BinView           $bin,
+        private DiscardedListView $lists,
+    ) {
     }
 
     /**
@@ -74,7 +88,9 @@ final readonly class MailPlacement
             return self::TRASH;
         }
 
-        if (in_array(LabelRole::Spam, $roles, true)) {
+        $inInbox = in_array(LabelRole::Inbox, $roles, true);
+
+        if (in_array(LabelRole::Spam, $roles, true) && $this->showsSpam($entity, $inInbox)) {
             return self::SPAM;
         }
 
@@ -84,7 +100,7 @@ final readonly class MailPlacement
         // as little of as the bin did: an archived thread could be reached from
         // no action anywhere in the interface, because Archive itself was the
         // only thing on offer and it was already applied.
-        if (in_array(LabelRole::Archive, $roles, true)) {
+        if (in_array(LabelRole::Archive, $roles, true) && ($entity instanceof Message || false === $inInbox)) {
             return self::ARCHIVE;
         }
 
@@ -108,6 +124,20 @@ final readonly class MailPlacement
         }
 
         return $this->bin->isOpen();
+    }
+
+    /**
+     * Whether a Spam label on this decides where it is: always on a message
+     * and on a conversation wholly in Spam; on one that also has mail in the
+     * Inbox, only while Spam is being looked at. See the class docblock.
+     */
+    private function showsSpam(Message|MessageThread $entity, bool $inInbox): bool
+    {
+        if ($entity instanceof Message || false === $inInbox) {
+            return true;
+        }
+
+        return $this->lists->isOpen(LabelRole::Spam);
     }
 
     /**
